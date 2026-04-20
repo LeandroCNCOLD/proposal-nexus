@@ -346,6 +346,7 @@ export async function listAll<T = unknown>(
 /** Quick connectivity test against the stable health-check endpoint. */
 export async function testNomusConnection(triggeredBy: string | null = null): Promise<{
   success: boolean;
+  message: string;
   status: number;
   durationMs: number;
   endpoint: string;
@@ -358,28 +359,44 @@ export async function testNomusConnection(triggeredBy: string | null = null): Pr
   try {
     baseUrl = getNomusBaseUrl();
   } catch (e) {
+    const error = e instanceof Error ? e.message : String(e);
     return {
       success: false,
+      message: error,
       status: 0,
       durationMs: Date.now() - started,
       endpoint,
-      error: e instanceof Error ? e.message : String(e),
+      error,
     };
   }
+
   const res = await nomusFetch(endpoint, {
     method: "GET",
     query: { pagina: 1 },
     entity: "test",
-    operation: "ping",
+    operation: "health_check",
     direction: "test",
     triggeredBy,
   });
+
+  if (!res.ok) {
+    return {
+      success: false,
+      message: `Falha ao conectar ao Nomus via ${endpoint}: ${res.error}`,
+      status: res.status,
+      durationMs: Date.now() - started,
+      endpoint,
+      baseUrl,
+      error: res.error,
+    };
+  }
+
   return {
-    success: res.ok,
+    success: true,
+    message: `Conexão com o Nomus validada com sucesso via ${endpoint}.`,
     status: res.status,
     durationMs: Date.now() - started,
     endpoint,
     baseUrl,
-    error: res.ok ? undefined : res.error,
   };
 }

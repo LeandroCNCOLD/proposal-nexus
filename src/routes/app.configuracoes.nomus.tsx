@@ -83,8 +83,8 @@ function NomusPage() {
     setTesting(true);
     try {
       const res = await test({});
-      if (res.ok) toast.success(`Conexão OK via ${res.endpoint} (${res.durationMs}ms)`);
-      else toast.error(`Falha (${res.status}): ${res.error}`);
+      if (res.success) toast.success(res.message);
+      else toast.error(res.message);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Falha no teste");
     } finally {
