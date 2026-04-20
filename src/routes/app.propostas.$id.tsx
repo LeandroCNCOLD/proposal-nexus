@@ -92,20 +92,15 @@ function ProposalDetail() {
           .maybeSingle();
 
         if (settingsError) {
-          const message = `Falha ao consultar automação de pedido no Nomus: ${settingsError.message}`;
-          await insertTimeline(message);
-          toast.error(message);
+          console.error("Erro ao consultar configurações Nomus:", settingsError);
         } else if (settings?.auto_create_pedido_on_won ?? true) {
           const result = await createPedido({ data: { proposalId: id } });
 
           if (result.ok) {
-            const description = result.pedido_id
-              ? `Pedido criado automaticamente no Nomus (${result.pedido_id}).`
-              : "Pedido criado automaticamente no Nomus.";
-            await insertTimeline(description);
+            await insertTimeline("Pedido criado no Nomus");
           } else {
-            await insertTimeline(`Falha ao criar pedido automático no Nomus: ${result.error}`);
-            toast.error(result.error ?? "Falha ao criar pedido automático no Nomus.");
+            await insertTimeline("Falha ao criar pedido no Nomus");
+            toast.error(result.error ?? "Falha ao criar pedido no Nomus.");
           }
         }
       }
