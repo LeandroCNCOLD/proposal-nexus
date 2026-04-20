@@ -12,6 +12,8 @@ import { brl, dateBR, dateTimeBR } from "@/lib/format";
 import { ALL_STATUSES, STATUS_LABELS, TEMPERATURE_LABELS, type ProposalStatus } from "@/lib/proposal";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { useServerFn } from "@tanstack/react-start";
+import { nomusCreatePedido } from "@/integrations/nomus/server.functions";
 
 export const Route = createFileRoute("/app/propostas/$id")({ component: ProposalDetail });
 
@@ -43,6 +45,63 @@ function ProposalDetail() {
     },
   });
 
+  const createPedido = useServerFn(nomusCreatePedido);
+
+  const tryAutoCreatePedido = async () => {
+    // 1) Checa configuração
+    const { data: settings } = await supabase
+      .from("nomus_settings")
+      .select("auto_create_pedido_on_won, is_enabled")
+      .maybeSingle();
+    const enabled = settings?.is_enabled ?? false;
+    const autoCreate = settings?.auto_create_pedido_on_won ?? false;
+    if (!enabled || !autoCreate) return;
+
+    // 2) Checa vínculo com Nomus e idempotência
+    if (!p?.nomus_id) {
+      toast.message("Proposta sem vínculo com o Nomus — pedido não criado automaticamente.");
+      return;
+    }
+    if (p?.nomus_pedido_id) {
+      toast.message(`Pedido já existente no Nomus: ${p.nomus_pedido_id}`);
+      return;
+    }
+
+    toast.loading("Criando pedido no Nomus…", { id: "create-pedido" });
+    try {
+      const res = await createPedido({ data: { proposalId: id } });
+      toast.dismiss("create-pedido");
+      if (res.ok) {
+        if (res.already_existed) {
+          toast.success(`Pedido já existente: ${res.pedido_id}`);
+        } else {
+          toast.success(`Pedido criado no Nomus: ${res.pedido_id}`);
+          await supabase.from("proposal_timeline_events").insert({
+            proposal_id: id, event_type: "ganha",
+            description: `Pedido criado no Nomus: ${res.pedido_id}`,
+            user_id: user?.id,
+          });
+        }
+      } else {
+        toast.error(`Falha ao criar pedido no Nomus: ${res.error}`);
+        await supabase.from("proposal_timeline_events").insert({
+          proposal_id: id, event_type: "observacao",
+          description: `Falha ao criar pedido no Nomus: ${res.error}`,
+          user_id: user?.id,
+        });
+      }
+    } catch (e) {
+      toast.dismiss("create-pedido");
+      const msg = e instanceof Error ? e.message : "Erro inesperado";
+      toast.error(`Falha ao criar pedido no Nomus: ${msg}`);
+      await supabase.from("proposal_timeline_events").insert({
+        proposal_id: id, event_type: "observacao",
+        description: `Falha ao criar pedido no Nomus: ${msg}`,
+        user_id: user?.id,
+      });
+    }
+  };
+
   const updateStatus = async (newStatus: ProposalStatus) => {
     const { error } = await supabase.from("proposals").update({ status: newStatus }).eq("id", id);
     if (error) return toast.error(error.message);
@@ -53,6 +112,13 @@ function ProposalDetail() {
     toast.success("Status atualizado");
     qc.invalidateQueries({ queryKey: ["proposal", id] });
     qc.invalidateQueries({ queryKey: ["proposal-timeline", id] });
+
+    // Se virou "ganha", tenta criar pedido no Nomus (respeita config)
+    if (newStatus === "ganha") {
+      await tryAutoCreatePedido();
+      qc.invalidateQueries({ queryKey: ["proposal", id] });
+      qc.invalidateQueries({ queryKey: ["proposal-timeline", id] });
+    }
   };
 
   const runAI = async (task: "resumo" | "proximo_passo") => {

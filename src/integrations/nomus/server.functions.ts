@@ -764,19 +764,43 @@ export const sendProposalFile = createServerFn({ method: "POST" })
     return { ok: true as const };
   });
 
-/** Generate Pedido de venda when proposal is won. */
+/**
+ * Cria Pedido de venda no Nomus a partir de uma proposta ganha.
+ * - Não cria duplicado: se a proposta já tem nomus_pedido_id, retorna o existente.
+ * - Exige vínculo com Nomus (proposals.nomus_id).
+ * - Faz log via nomusFetch + grava nomus_pedido_id em proposals.
+ */
 export const nomusCreatePedido = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { proposalId: string }) => input)
   .handler(async ({ data, context }) => {
     const userId = (context as { userId?: string }).userId ?? null;
-    const { data: prop } = await supabaseAdmin
+    const { data: prop, error: propErr } = await supabaseAdmin
       .from("proposals")
-      .select("nomus_id, number, closed_value, total_value")
+      .select("nomus_id, nomus_pedido_id, number, closed_value, total_value")
       .eq("id", data.proposalId)
       .single();
-    const propAny = prop as { nomus_id: string | null; number: string; closed_value: number | null; total_value: number | null } | null;
-    if (!propAny?.nomus_id) return { ok: false as const, error: "Proposta sem vínculo com o Nomus." };
+    if (propErr || !prop) {
+      return { ok: false as const, error: propErr?.message ?? "Proposta não encontrada." };
+    }
+    const propAny = prop as {
+      nomus_id: string | null;
+      nomus_pedido_id: string | null;
+      number: string;
+      closed_value: number | null;
+      total_value: number | null;
+    };
+    if (!propAny.nomus_id) {
+      return { ok: false as const, error: "Proposta sem vínculo com o Nomus (nomus_id ausente)." };
+    }
+    // Idempotência: se já existe pedido vinculado, não recria
+    if (propAny.nomus_pedido_id) {
+      return {
+        ok: true as const,
+        pedido_id: propAny.nomus_pedido_id,
+        already_existed: true as const,
+      };
+    }
 
     const res = await nomusFetch<Json>(NOMUS_ENDPOINTS.pedidos, {
       method: "POST",
@@ -790,13 +814,23 @@ export const nomusCreatePedido = createServerFn({ method: "POST" })
       direction: "push",
       triggeredBy: userId,
     });
-    if (!res.ok) return { ok: false as const, error: res.error };
-    const pedidoId = pickStr(res.data as Json, "id", "idPedido", "numero");
-    if (pedidoId) {
-      await supabaseAdmin
-        .from("proposals")
-        .update({ nomus_pedido_id: pedidoId })
-        .eq("id", data.proposalId);
+    if (!res.ok) {
+      return {
+        ok: false as const,
+        error: res.error ?? `Falha ao criar pedido no Nomus (HTTP ${res.status ?? "?"}).`,
+        status: res.status,
+      };
     }
-    return { ok: true as const, pedido_id: pedidoId };
+    const pedidoId = pickStr(res.data as Json, "id", "idPedido", "numero");
+    if (!pedidoId) {
+      return { ok: false as const, error: "Pedido criado mas o Nomus não retornou um ID válido." };
+    }
+    const { error: updErr } = await supabaseAdmin
+      .from("proposals")
+      .update({ nomus_pedido_id: pedidoId })
+      .eq("id", data.proposalId);
+    if (updErr) {
+      return { ok: false as const, error: `Pedido criado (${pedidoId}) mas falhou ao gravar local: ${updErr.message}` };
+    }
+    return { ok: true as const, pedido_id: pedidoId, already_existed: false as const };
   });
