@@ -1,11 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
 import { useState, useMemo } from "react";
 import { Plus, Search, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { nomusSyncProposalsFull } from "@/integrations/nomus/server.functions";
 
 import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -22,11 +20,28 @@ function ProposalsList() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const queryClient = useQueryClient();
-  const syncFn = useServerFn(nomusSyncProposalsFull);
 
   const syncMutation = useMutation({
     mutationFn: async () => {
-      return await syncFn({});
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error("Sessão expirada. Faça login novamente.");
+      const res = await fetch(
+        "/_serverFn/eyJmaWxlIjoiL0BpZC9zcmMvaW50ZWdyYXRpb25zL25vbXVzL3NlcnZlci5mdW5jdGlvbnMudHM_dHNzLXNlcnZlcmZuLXNwbGl0IiwiZXhwb3J0Ijoibm9tdXNTeW5jUHJvcG9zYWxzRnVsbF9jcmVhdGVTZXJ2ZXJGbl9oYW5kbGVyIn0",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+            "x-tsr-serverfn": "true",
+          },
+          body: JSON.stringify({}),
+        },
+      );
+      const text = await res.text();
+      let json: any = null;
+      try { json = text ? JSON.parse(text) : null; } catch { /* noop */ }
+      if (!res.ok) throw new Error(json?.error ?? text ?? `HTTP ${res.status}`);
+      return json ?? {};
     },
     onSuccess: (res: any) => {
       if (res?.ok === false) {
