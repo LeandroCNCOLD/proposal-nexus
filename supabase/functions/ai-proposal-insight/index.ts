@@ -13,7 +13,7 @@ serve(async (req) => {
     }
 
     const body = await req.json();
-    const { proposal_id, task } = body ?? {};
+    const { proposal_id, task } = body || {};
 
     if (!proposal_id || !task) {
       return new Response(
@@ -28,19 +28,15 @@ serve(async (req) => {
     let content = "";
 
     if (task === "resumo") {
-      content = [
-        `Resumo da proposta ${proposal_id}:`,
-        "- Proposta em acompanhamento",
-        "- Verificar cliente, valor, validade e estágio atual",
-        "- Confirmar pendências e histórico recente",
-      ].join("\n");
+      content = `Resumo da proposta ${proposal_id}:
+- Proposta em andamento
+- Cliente ativo
+- Aguardando avanço comercial`;
     } else if (task === "proximo_passo") {
-      content = [
-        "Próximo passo recomendado:",
-        "- Realizar follow-up com o cliente",
-        "- Confirmar pendências técnicas e comerciais",
-        "- Registrar a próxima ação com data definida",
-      ].join("\n");
+      content = `Próximo passo:
+- Fazer follow-up com cliente
+- Confirmar decisão
+- Registrar retorno`;
     } else {
       return new Response(
         JSON.stringify({ error: "Invalid task" }),
@@ -59,10 +55,8 @@ serve(async (req) => {
       }
     );
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-
     return new Response(
-      JSON.stringify({ error: message }),
+      JSON.stringify({ error: err.message }),
       {
         status: 500,
         headers: { "Content-Type": "application/json" },
