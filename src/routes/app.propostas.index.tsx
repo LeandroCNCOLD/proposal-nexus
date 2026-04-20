@@ -24,7 +24,7 @@ function ProposalsList() {
   const syncFn = useServerFn(nomusSyncProposalsFull);
 
   const syncMutation = useMutation({
-    mutationFn: () => (syncFn as any)(),
+    mutationFn: () => (syncFn as any)({}),
     onSuccess: (res: any) => {
       toast.success(`Sincronização concluída: ${res?.synced ?? 0} propostas`);
       queryClient.invalidateQueries({ queryKey: ["proposals-list"] });
