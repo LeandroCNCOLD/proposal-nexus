@@ -20,6 +20,17 @@ export const Route = createFileRoute("/app/propostas/")({ component: ProposalsLi
 function ProposalsList() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const queryClient = useQueryClient();
+  const syncFn = useServerFn(nomusSyncProposalsFull);
+
+  const syncMutation = useMutation({
+    mutationFn: () => syncFn({ data: {} }),
+    onSuccess: (res: any) => {
+      toast.success(`Sincronização concluída: ${res?.synced ?? 0} propostas`);
+      queryClient.invalidateQueries({ queryKey: ["proposals-list"] });
+    },
+    onError: (err: any) => toast.error(`Erro ao sincronizar: ${err?.message ?? "desconhecido"}`),
+  });
 
   const { data: proposals = [], isLoading } = useQuery({
     queryKey: ["proposals-list"],
