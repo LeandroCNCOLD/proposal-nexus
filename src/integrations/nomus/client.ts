@@ -1,6 +1,9 @@
 // Server-only Nomus ERP HTTP client
 // Do NOT import from client-side code.
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { NOMUS_ENDPOINTS, NOMUS_HEALTHCHECK_ENTITY, type NomusEntity } from "./endpoints";
+
+export { NOMUS_ENDPOINTS, type NomusEntity };
 
 export type NomusFetchOptions = {
   method?: "GET" | "POST" | "PUT" | "DELETE";
@@ -277,7 +280,7 @@ export async function listAll<T = unknown>(
   return { ok: true, items };
 }
 
-/** Quick connectivity test against /clientes. */
+/** Quick connectivity test against the stable health-check endpoint. */
 export async function testNomusConnection(triggeredBy: string | null = null): Promise<{
   success: boolean;
   status: number;
@@ -287,6 +290,7 @@ export async function testNomusConnection(triggeredBy: string | null = null): Pr
   error?: string;
 }> {
   const started = Date.now();
+  const endpoint = NOMUS_ENDPOINTS[NOMUS_HEALTHCHECK_ENTITY];
   let baseUrl: string | undefined;
   try {
     baseUrl = getNomusBaseUrl();
@@ -295,11 +299,11 @@ export async function testNomusConnection(triggeredBy: string | null = null): Pr
       success: false,
       status: 0,
       durationMs: Date.now() - started,
-      endpoint: "/clientes",
+      endpoint,
       error: e instanceof Error ? e.message : String(e),
     };
   }
-  const res = await nomusFetch("/clientes", {
+  const res = await nomusFetch(endpoint, {
     method: "GET",
     query: { pagina: 1 },
     entity: "test",
@@ -311,7 +315,7 @@ export async function testNomusConnection(triggeredBy: string | null = null): Pr
     success: res.ok,
     status: res.status,
     durationMs: Date.now() - started,
-    endpoint: "/clientes",
+    endpoint,
     baseUrl,
     error: res.ok ? undefined : res.error,
   };
