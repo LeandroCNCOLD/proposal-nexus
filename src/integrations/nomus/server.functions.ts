@@ -201,39 +201,29 @@ export const nomusSyncPaymentTerms = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const userId = (context as { userId?: string }).userId ?? null;
-    await setState("condicoes_pagamento", { running: true });
-    const res = await listAll<Json>(NOMUS_ENDPOINTS.condicoes_pagamento, {}, {
-      entity: "condicoes_pagamento", triggeredBy: userId,
+    return runEntitySync({
+      entity: "condicoes_pagamento",
+      endpoint: NOMUS_ENDPOINTS.condicoes_pagamento,
+      triggeredBy: userId,
+      processItem: async (raw) => {
+        const nomus_id = pickStr(raw, "id", "codigo");
+        const name = pickStr(raw, "descricao", "nome");
+        if (!nomus_id || !name) return "skip";
+        const { error } = await supabaseAdmin.from("nomus_payment_terms").upsert(
+          {
+            nomus_id,
+            code: pickStr(raw, "codigo"),
+            name,
+            installments: pickNum(raw, "parcelas", "numeroParcelas"),
+            raw: raw as never,
+            synced_at: new Date().toISOString(),
+          },
+          { onConflict: "nomus_id" }
+        );
+        if (error) throw new Error(error.message);
+        return "ok";
+      },
     });
-    if (!res.ok) {
-      await setState("condicoes_pagamento", { running: false, last_error: res.error });
-      return { ok: false as const, error: res.error };
-    }
-    let count = 0;
-    for (const raw of res.items) {
-      const nomus_id = pickStr(raw, "id", "codigo");
-      const name = pickStr(raw, "descricao", "nome");
-      if (!nomus_id || !name) continue;
-      await supabaseAdmin.from("nomus_payment_terms").upsert(
-        {
-          nomus_id,
-          code: pickStr(raw, "codigo"),
-          name,
-          installments: pickNum(raw, "parcelas", "numeroParcelas"),
-          raw: raw as never,
-          synced_at: new Date().toISOString(),
-        },
-        { onConflict: "nomus_id" }
-      );
-      count += 1;
-    }
-    await setState("condicoes_pagamento", {
-      running: false,
-      last_synced_at: new Date().toISOString(),
-      total_synced: count,
-      last_error: null,
-    });
-    return { ok: true as const, count };
   });
 
 /** Push a proposal to Nomus. Creates if no nomus_id, updates otherwise. */
