@@ -317,6 +317,7 @@ function ProposalDetail() {
         <Tabs defaultValue="timeline" className="rounded-xl border bg-card p-4 shadow-[var(--shadow-sm)]">
           <TabsList className="w-full">
             <TabsTrigger value="timeline" className="flex-1">Timeline</TabsTrigger>
+            <TabsTrigger value="versions" className="flex-1">Versões</TabsTrigger>
             <TabsTrigger value="tasks" className="flex-1">Tarefas</TabsTrigger>
           </TabsList>
           <TabsContent value="timeline" className="mt-4">
@@ -336,6 +337,35 @@ function ProposalDetail() {
               </ol>
             )}
           </TabsContent>
+          <TabsContent value="versions" className="mt-4 space-y-3">
+            {versions.length === 0 ? (
+              <div className="py-8 text-center text-sm text-muted-foreground">Nenhuma versão gerada.</div>
+            ) : (
+              versions.map((v: any) => (
+                <div key={v.id} className="flex items-center justify-between rounded-md border p-3">
+                  <div>
+                    <div className="text-sm font-medium">v{v.version_number} {v.is_current && <span className="ml-1 rounded-full bg-success/15 px-1.5 py-0.5 text-[10px] text-success">atual</span>}</div>
+                    <div className="text-[11px] text-muted-foreground">{dateTimeBR(v.generated_at)}</div>
+                  </div>
+                  <Button size="sm" variant="ghost" onClick={() => handleDownload(v.pdf_storage_path)}>
+                    <Download className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              ))
+            )}
+            {sendEvents.length > 0 && (
+              <div className="mt-4 border-t pt-3">
+                <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Envios</div>
+                {sendEvents.map((e: any) => (
+                  <div key={e.id} className="text-xs py-1">
+                    <span className="font-medium">{e.channel}</span>
+                    {e.recipient && <span className="text-muted-foreground"> → {e.recipient}</span>}
+                    <span className="text-muted-foreground"> · {dateTimeBR(e.sent_at)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </TabsContent>
           <TabsContent value="tasks" className="mt-4">
             <div className="py-8 text-center text-sm text-muted-foreground">
               Módulo de tarefas — em breve nesta proposta.
@@ -343,6 +373,43 @@ function ProposalDetail() {
           </TabsContent>
         </Tabs>
       </div>
+
+      <Dialog open={sendOpen} onOpenChange={setSendOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Enviar proposta</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label className="text-xs">Canal</Label>
+              <Select value={sendForm.channel} onValueChange={(v) => setSendForm((f) => ({ ...f, channel: v }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="email">E-mail</SelectItem>
+                  <SelectItem value="whatsapp">WhatsApp</SelectItem>
+                  <SelectItem value="manual">Manual / outro</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs">Destinatário</Label>
+              <Input value={sendForm.recipient} onChange={(e) => setSendForm((f) => ({ ...f, recipient: e.target.value }))} placeholder="email@cliente.com" />
+            </div>
+            <div>
+              <Label className="text-xs">Assunto</Label>
+              <Input value={sendForm.subject} onChange={(e) => setSendForm((f) => ({ ...f, subject: e.target.value }))} />
+            </div>
+            <div>
+              <Label className="text-xs">Mensagem</Label>
+              <Textarea value={sendForm.message} onChange={(e) => setSendForm((f) => ({ ...f, message: e.target.value }))} rows={4} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setSendOpen(false)}>Cancelar</Button>
+            <Button onClick={handleSend} disabled={sending}>
+              {sending && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />} Confirmar envio
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
