@@ -93,6 +93,7 @@ export type Database = {
           id: string
           is_primary: boolean
           name: string
+          nomus_id: string | null
           phone: string | null
           role: string | null
         }
@@ -103,6 +104,7 @@ export type Database = {
           id?: string
           is_primary?: boolean
           name: string
+          nomus_id?: string | null
           phone?: string | null
           role?: string | null
         }
@@ -113,6 +115,7 @@ export type Database = {
           id?: string
           is_primary?: boolean
           name?: string
+          nomus_id?: string | null
           phone?: string | null
           role?: string | null
         }
@@ -135,6 +138,8 @@ export type Database = {
           id: string
           is_active: boolean
           name: string
+          nomus_id: string | null
+          nomus_synced_at: string | null
           notes: string | null
           origin: string | null
           region: string | null
@@ -151,6 +156,8 @@ export type Database = {
           id?: string
           is_active?: boolean
           name: string
+          nomus_id?: string | null
+          nomus_synced_at?: string | null
           notes?: string | null
           origin?: string | null
           region?: string | null
@@ -167,6 +174,8 @@ export type Database = {
           id?: string
           is_active?: boolean
           name?: string
+          nomus_id?: string | null
+          nomus_synced_at?: string | null
           notes?: string | null
           origin?: string | null
           region?: string | null
@@ -398,6 +407,8 @@ export type Database = {
           is_active: boolean
           line_id: string | null
           model: string
+          nomus_id: string | null
+          nomus_synced_at: string | null
           refrigerant: string | null
           tags: string[] | null
           technical_notes: string | null
@@ -423,6 +434,8 @@ export type Database = {
           is_active?: boolean
           line_id?: string | null
           model: string
+          nomus_id?: string | null
+          nomus_synced_at?: string | null
           refrigerant?: string | null
           tags?: string[] | null
           technical_notes?: string | null
@@ -448,6 +461,8 @@ export type Database = {
           is_active?: boolean
           line_id?: string | null
           model?: string
+          nomus_id?: string | null
+          nomus_synced_at?: string | null
           refrigerant?: string | null
           tags?: string[] | null
           technical_notes?: string | null
@@ -464,6 +479,267 @@ export type Database = {
           },
         ]
       }
+      nomus_payment_terms: {
+        Row: {
+          code: string | null
+          days_first_installment: number | null
+          id: string
+          installments: number | null
+          interval_days: number | null
+          is_active: boolean
+          name: string
+          nomus_id: string
+          raw: Json | null
+          synced_at: string
+        }
+        Insert: {
+          code?: string | null
+          days_first_installment?: number | null
+          id?: string
+          installments?: number | null
+          interval_days?: number | null
+          is_active?: boolean
+          name: string
+          nomus_id: string
+          raw?: Json | null
+          synced_at?: string
+        }
+        Update: {
+          code?: string | null
+          days_first_installment?: number | null
+          id?: string
+          installments?: number | null
+          interval_days?: number | null
+          is_active?: boolean
+          name?: string
+          nomus_id?: string
+          raw?: Json | null
+          synced_at?: string
+        }
+        Relationships: []
+      }
+      nomus_price_table_items: {
+        Row: {
+          currency: string | null
+          equipment_id: string | null
+          id: string
+          nomus_product_id: string
+          price_table_id: string
+          raw: Json | null
+          synced_at: string
+          unit_price: number
+        }
+        Insert: {
+          currency?: string | null
+          equipment_id?: string | null
+          id?: string
+          nomus_product_id: string
+          price_table_id: string
+          raw?: Json | null
+          synced_at?: string
+          unit_price: number
+        }
+        Update: {
+          currency?: string | null
+          equipment_id?: string | null
+          id?: string
+          nomus_product_id?: string
+          price_table_id?: string
+          raw?: Json | null
+          synced_at?: string
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nomus_price_table_items_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nomus_price_table_items_price_table_id_fkey"
+            columns: ["price_table_id"]
+            isOneToOne: false
+            referencedRelation: "nomus_price_tables"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nomus_price_tables: {
+        Row: {
+          code: string | null
+          currency: string | null
+          id: string
+          is_active: boolean
+          name: string
+          nomus_id: string
+          raw: Json | null
+          synced_at: string
+        }
+        Insert: {
+          code?: string | null
+          currency?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          nomus_id: string
+          raw?: Json | null
+          synced_at?: string
+        }
+        Update: {
+          code?: string | null
+          currency?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          nomus_id?: string
+          raw?: Json | null
+          synced_at?: string
+        }
+        Relationships: []
+      }
+      nomus_settings: {
+        Row: {
+          auto_create_pedido_on_won: boolean
+          auto_push_followups: boolean
+          auto_push_proposals: boolean
+          base_url: string | null
+          clients_direction: string
+          created_at: string
+          id: string
+          is_enabled: boolean
+          last_full_sync_at: string | null
+          proposals_direction: string
+          sync_clients: boolean
+          sync_contacts: boolean
+          sync_payment_terms: boolean
+          sync_price_tables: boolean
+          sync_products: boolean
+          sync_proposals: boolean
+          sync_sellers: boolean
+          updated_at: string
+        }
+        Insert: {
+          auto_create_pedido_on_won?: boolean
+          auto_push_followups?: boolean
+          auto_push_proposals?: boolean
+          base_url?: string | null
+          clients_direction?: string
+          created_at?: string
+          id?: string
+          is_enabled?: boolean
+          last_full_sync_at?: string | null
+          proposals_direction?: string
+          sync_clients?: boolean
+          sync_contacts?: boolean
+          sync_payment_terms?: boolean
+          sync_price_tables?: boolean
+          sync_products?: boolean
+          sync_proposals?: boolean
+          sync_sellers?: boolean
+          updated_at?: string
+        }
+        Update: {
+          auto_create_pedido_on_won?: boolean
+          auto_push_followups?: boolean
+          auto_push_proposals?: boolean
+          base_url?: string | null
+          clients_direction?: string
+          created_at?: string
+          id?: string
+          is_enabled?: boolean
+          last_full_sync_at?: string | null
+          proposals_direction?: string
+          sync_clients?: boolean
+          sync_contacts?: boolean
+          sync_payment_terms?: boolean
+          sync_price_tables?: boolean
+          sync_products?: boolean
+          sync_proposals?: boolean
+          sync_sellers?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      nomus_sync_log: {
+        Row: {
+          created_at: string
+          direction: string
+          duration_ms: number | null
+          entity: string
+          error: string | null
+          http_status: number | null
+          id: string
+          operation: string
+          payload: Json | null
+          request_path: string | null
+          response: Json | null
+          status: string
+          triggered_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          direction: string
+          duration_ms?: number | null
+          entity: string
+          error?: string | null
+          http_status?: number | null
+          id?: string
+          operation: string
+          payload?: Json | null
+          request_path?: string | null
+          response?: Json | null
+          status: string
+          triggered_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          direction?: string
+          duration_ms?: number | null
+          entity?: string
+          error?: string | null
+          http_status?: number | null
+          id?: string
+          operation?: string
+          payload?: Json | null
+          request_path?: string | null
+          response?: Json | null
+          status?: string
+          triggered_by?: string | null
+        }
+        Relationships: []
+      }
+      nomus_sync_state: {
+        Row: {
+          entity: string
+          last_cursor: string | null
+          last_error: string | null
+          last_synced_at: string | null
+          running: boolean
+          total_synced: number
+          updated_at: string
+        }
+        Insert: {
+          entity: string
+          last_cursor?: string | null
+          last_error?: string | null
+          last_synced_at?: string | null
+          running?: boolean
+          total_synced?: number
+          updated_at?: string
+        }
+        Update: {
+          entity?: string
+          last_cursor?: string | null
+          last_error?: string | null
+          last_synced_at?: string | null
+          running?: boolean
+          total_synced?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -471,6 +747,7 @@ export type Database = {
           full_name: string
           id: string
           job_title: string | null
+          nomus_vendedor_id: string | null
           phone: string | null
           updated_at: string
         }
@@ -480,6 +757,7 @@ export type Database = {
           full_name: string
           id: string
           job_title?: string | null
+          nomus_vendedor_id?: string | null
           phone?: string | null
           updated_at?: string
         }
@@ -489,6 +767,7 @@ export type Database = {
           full_name?: string
           id?: string
           job_title?: string | null
+          nomus_vendedor_id?: string | null
           phone?: string | null
           updated_at?: string
         }
@@ -798,8 +1077,13 @@ export type Database = {
           lead_origin: string | null
           loss_reason: string | null
           next_followup_at: string | null
+          nomus_id: string | null
+          nomus_pedido_id: string | null
+          nomus_synced_at: string | null
           number: string
+          payment_term_id: string | null
           payment_terms: string | null
+          price_table_id: string | null
           region: string | null
           sales_owner_id: string | null
           segment: string | null
@@ -833,8 +1117,13 @@ export type Database = {
           lead_origin?: string | null
           loss_reason?: string | null
           next_followup_at?: string | null
+          nomus_id?: string | null
+          nomus_pedido_id?: string | null
+          nomus_synced_at?: string | null
           number?: string
+          payment_term_id?: string | null
           payment_terms?: string | null
+          price_table_id?: string | null
           region?: string | null
           sales_owner_id?: string | null
           segment?: string | null
@@ -868,8 +1157,13 @@ export type Database = {
           lead_origin?: string | null
           loss_reason?: string | null
           next_followup_at?: string | null
+          nomus_id?: string | null
+          nomus_pedido_id?: string | null
+          nomus_synced_at?: string | null
           number?: string
+          payment_term_id?: string | null
           payment_terms?: string | null
+          price_table_id?: string | null
           region?: string | null
           sales_owner_id?: string | null
           segment?: string | null
@@ -900,6 +1194,20 @@ export type Database = {
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "client_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposals_payment_term_id_fkey"
+            columns: ["payment_term_id"]
+            isOneToOne: false
+            referencedRelation: "nomus_payment_terms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposals_price_table_id_fkey"
+            columns: ["price_table_id"]
+            isOneToOne: false
+            referencedRelation: "nomus_price_tables"
             referencedColumns: ["id"]
           },
         ]
