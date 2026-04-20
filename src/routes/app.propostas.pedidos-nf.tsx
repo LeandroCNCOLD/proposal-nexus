@@ -53,7 +53,7 @@ function PedidosNFPage() {
                     <TableCell className="text-xs">{p.cliente_nomus_id ?? "—"}</TableCell>
                     <TableCell className="text-xs">{p.status_nomus ?? "—"}</TableCell>
                     <TableCell className="text-xs">{p.data_emissao ? new Date(p.data_emissao).toLocaleDateString("pt-BR") : "—"}</TableCell>
-                    <TableCell className="text-xs text-right">{p.valor_total ? formatCurrencyBRL(Number(p.valor_total)) : "—"}</TableCell>
+                    <TableCell className="text-xs text-right">{p.valor_total ? brl(Number(p.valor_total)) : "—"}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -83,7 +83,7 @@ function PedidosNFPage() {
                     <TableCell className="text-xs">{n.cliente_nomus_id ?? "—"}</TableCell>
                     <TableCell className="text-xs">{n.status_nomus ?? "—"}</TableCell>
                     <TableCell className="text-xs">{n.data_emissao ? new Date(n.data_emissao).toLocaleDateString("pt-BR") : "—"}</TableCell>
-                    <TableCell className="text-xs text-right">{n.valor_total ? formatCurrencyBRL(Number(n.valor_total)) : "—"}</TableCell>
+                    <TableCell className="text-xs text-right">{n.valor_total ? brl(Number(n.valor_total)) : "—"}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
