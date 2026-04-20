@@ -2,7 +2,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { nomusFetch, listAll } from "./client";
+import { nomusFetch, listAll, testNomusConnection } from "./client";
 
 type Json = Record<string, unknown>;
 
@@ -32,30 +32,28 @@ async function setState(entity: string, patch: Record<string, unknown>) {
   });
 }
 
-/** Test connection by hitting a lightweight endpoint. */
+/** Test connection by hitting /clientes. */
 export const nomusTestConnection = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const userId = (context as { userId?: string }).userId ?? null;
-    // Try a few common entry endpoints; first 2xx wins.
-    const candidates = ["/empresas", "/clientes", "/vendedores"];
-    for (const path of candidates) {
-      const res = await nomusFetch(path, {
-        method: "GET",
-        query: { pagina: 1 },
-        entity: "test",
-        operation: "ping",
-        direction: "test",
-        triggeredBy: userId,
-      });
-      if (res.ok) {
-        return { ok: true as const, endpoint: path, status: res.status };
-      }
-      if (res.status === 401 || res.status === 403) {
-        return { ok: false as const, error: `Credencial rejeitada (${res.status})`, endpoint: path };
-      }
+    const result = await testNomusConnection(userId);
+    if (result.success) {
+      return {
+        ok: true as const,
+        endpoint: result.endpoint,
+        status: result.status,
+        durationMs: result.durationMs,
+        baseUrl: result.baseUrl,
+      };
     }
-    return { ok: false as const, error: "Nenhum endpoint respondeu. Verifique a URL base." };
+    return {
+      ok: false as const,
+      error: result.error ?? "Falha ao conectar ao Nomus",
+      status: result.status,
+      endpoint: result.endpoint,
+      durationMs: result.durationMs,
+    };
   });
 
 /** Pull clients from Nomus and upsert locally. */

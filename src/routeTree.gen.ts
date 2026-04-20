@@ -29,6 +29,7 @@ import { Route as AppPropostasPedidosNfRouteImport } from './routes/app.proposta
 import { Route as AppPropostasNovaRouteImport } from './routes/app.propostas.nova'
 import { Route as AppPropostasIdRouteImport } from './routes/app.propostas.$id'
 import { Route as AppConfiguracoesNomusRouteImport } from './routes/app.configuracoes.nomus'
+import { Route as ApiNomusTestRouteImport } from './routes/api.nomus.test'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -130,6 +131,11 @@ const AppConfiguracoesNomusRoute = AppConfiguracoesNomusRouteImport.update({
   path: '/nomus',
   getParentRoute: () => AppConfiguracoesRoute,
 } as any)
+const ApiNomusTestRoute = ApiNomusTestRouteImport.update({
+  id: '/api/nomus/test',
+  path: '/api/nomus/test',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -147,6 +153,7 @@ export interface FileRoutesByFullPath {
   '/app/tarefas': typeof AppTarefasRoute
   '/hooks/nomus-cron': typeof HooksNomusCronRoute
   '/app/': typeof AppIndexRoute
+  '/api/nomus/test': typeof ApiNomusTestRoute
   '/app/configuracoes/nomus': typeof AppConfiguracoesNomusRoute
   '/app/propostas/$id': typeof AppPropostasIdRoute
   '/app/propostas/nova': typeof AppPropostasNovaRoute
@@ -168,6 +175,7 @@ export interface FileRoutesByTo {
   '/app/tarefas': typeof AppTarefasRoute
   '/hooks/nomus-cron': typeof HooksNomusCronRoute
   '/app': typeof AppIndexRoute
+  '/api/nomus/test': typeof ApiNomusTestRoute
   '/app/configuracoes/nomus': typeof AppConfiguracoesNomusRoute
   '/app/propostas/$id': typeof AppPropostasIdRoute
   '/app/propostas/nova': typeof AppPropostasNovaRoute
@@ -191,6 +199,7 @@ export interface FileRoutesById {
   '/app/tarefas': typeof AppTarefasRoute
   '/hooks/nomus-cron': typeof HooksNomusCronRoute
   '/app/': typeof AppIndexRoute
+  '/api/nomus/test': typeof ApiNomusTestRoute
   '/app/configuracoes/nomus': typeof AppConfiguracoesNomusRoute
   '/app/propostas/$id': typeof AppPropostasIdRoute
   '/app/propostas/nova': typeof AppPropostasNovaRoute
@@ -215,6 +224,7 @@ export interface FileRouteTypes {
     | '/app/tarefas'
     | '/hooks/nomus-cron'
     | '/app/'
+    | '/api/nomus/test'
     | '/app/configuracoes/nomus'
     | '/app/propostas/$id'
     | '/app/propostas/nova'
@@ -236,6 +246,7 @@ export interface FileRouteTypes {
     | '/app/tarefas'
     | '/hooks/nomus-cron'
     | '/app'
+    | '/api/nomus/test'
     | '/app/configuracoes/nomus'
     | '/app/propostas/$id'
     | '/app/propostas/nova'
@@ -258,6 +269,7 @@ export interface FileRouteTypes {
     | '/app/tarefas'
     | '/hooks/nomus-cron'
     | '/app/'
+    | '/api/nomus/test'
     | '/app/configuracoes/nomus'
     | '/app/propostas/$id'
     | '/app/propostas/nova'
@@ -270,6 +282,7 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
   HooksNomusCronRoute: typeof HooksNomusCronRoute
+  ApiNomusTestRoute: typeof ApiNomusTestRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -414,6 +427,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppConfiguracoesNomusRouteImport
       parentRoute: typeof AppConfiguracoesRoute
     }
+    '/api/nomus/test': {
+      id: '/api/nomus/test'
+      path: '/api/nomus/test'
+      fullPath: '/api/nomus/test'
+      preLoaderRoute: typeof ApiNomusTestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -471,6 +491,7 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
   HooksNomusCronRoute: HooksNomusCronRoute,
+  ApiNomusTestRoute: ApiNomusTestRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
