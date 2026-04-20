@@ -1,58 +1,72 @@
-type InsightTask = "resumo" | "proximo_passo";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
-type InsightPayload = {
-  proposal_id?: string;
-  task?: InsightTask;
-};
-
-const json = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      "Content-Type": "application/json",
-    },
-  });
-
-const buildContent = (proposalId: string, task: InsightTask) => {
-  if (task === "resumo") {
-    return [
-      `Resumo inicial da proposta ${proposalId}.`,
-      "Esta é uma implementação básica da função de insight.",
-      "Use este retorno como fallback até integrar uma análise mais avançada.",
-    ].join("\n");
-  }
-
-  return [
-    `Próximo passo sugerido para a proposta ${proposalId}:`,
-    "confirmar escopo comercial, validar condições finais e registrar o próximo follow-up com o cliente.",
-  ].join("\n");
-};
-
-Deno.serve(async (request) => {
-  if (request.method !== "POST") {
-    return json({ error: "Método não permitido." }, 405);
-  }
-
-  let payload: InsightPayload;
-
+serve(async (req) => {
   try {
-    payload = (await request.json()) as InsightPayload;
-  } catch {
-    return json({ error: "Payload inválido." }, 400);
+    if (req.method !== "POST") {
+      return new Response(
+        JSON.stringify({ error: "Method not allowed" }),
+        {
+          status: 405,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    const body = await req.json();
+    const { proposal_id, task } = body ?? {};
+
+    if (!proposal_id || !task) {
+      return new Response(
+        JSON.stringify({ error: "Missing parameters" }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    let content = "";
+
+    if (task === "resumo") {
+      content = [
+        `Resumo da proposta ${proposal_id}:`,
+        "- Proposta em acompanhamento",
+        "- Verificar cliente, valor, validade e estágio atual",
+        "- Confirmar pendências e histórico recente",
+      ].join("\n");
+    } else if (task === "proximo_passo") {
+      content = [
+        "Próximo passo recomendado:",
+        "- Realizar follow-up com o cliente",
+        "- Confirmar pendências técnicas e comerciais",
+        "- Registrar a próxima ação com data definida",
+      ].join("\n");
+    } else {
+      return new Response(
+        JSON.stringify({ error: "Invalid task" }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    return new Response(
+      JSON.stringify({ content }),
+      {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+
+    return new Response(
+      JSON.stringify({ error: message }),
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
   }
-
-  const proposalId = payload.proposal_id?.trim();
-  const task = payload.task;
-
-  if (!proposalId) {
-    return json({ error: "proposal_id é obrigatório." }, 400);
-  }
-
-  if (task !== "resumo" && task !== "proximo_passo") {
-    return json({ error: "task deve ser resumo ou proximo_passo." }, 400);
-  }
-
-  return json({
-    content: buildContent(proposalId, task),
-  });
 });
