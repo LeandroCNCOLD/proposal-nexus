@@ -35,6 +35,7 @@ const NAV = [
   ]},
   { group: "Sistema", items: [
     { to: "/app/aprovacoes", label: "Aprovações", icon: FileCheck2 },
+    { to: "/app/configuracoes/nomus", label: "Integração Nomus", icon: PlugZap },
     { to: "/app/configuracoes", label: "Configurações", icon: Settings },
   ]},
 ];
