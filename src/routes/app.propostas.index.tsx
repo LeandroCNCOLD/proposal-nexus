@@ -4,7 +4,7 @@ import { useState, useMemo } from "react";
 import { Plus, Search, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { nomusSyncProposalsFull } from "@/integrations/nomus/server.functions";
+
 import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
