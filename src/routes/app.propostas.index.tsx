@@ -30,11 +30,11 @@ function ProposalsList() {
         {
           method: "POST",
           headers: {
-            "Content-Type": "application/json",
+            
             Authorization: `Bearer ${session.access_token}`,
             "x-tsr-serverfn": "true",
           },
-          body: JSON.stringify({}),
+          
         },
       );
       const text = await res.text();
