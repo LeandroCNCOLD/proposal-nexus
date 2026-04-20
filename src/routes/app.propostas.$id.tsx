@@ -1,19 +1,23 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { ArrowLeft, Sparkles, Loader2, Clock, User as UserIcon } from "lucide-react";
+import { ArrowLeft, Sparkles, Loader2, Clock, FileText, Send, Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { brl, dateBR, dateTimeBR } from "@/lib/format";
 import { ALL_STATUSES, STATUS_LABELS, TEMPERATURE_LABELS, type ProposalStatus } from "@/lib/proposal";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
-import { nomusCreatePedido } from "@/integrations/nomus/server.functions";
+import { nomusCreatePedido, generateProposalFile, sendProposalFile } from "@/integrations/nomus/server.functions";
 
 export const Route = createFileRoute("/app/propostas/$id")({ component: ProposalDetail });
 
@@ -46,6 +50,98 @@ function ProposalDetail() {
   });
 
   const createPedido = useServerFn(nomusCreatePedido);
+  const generateFile = useServerFn(generateProposalFile);
+  const sendFile = useServerFn(sendProposalFile);
+
+  const { data: versions = [] } = useQuery({
+    queryKey: ["proposal-versions", id],
+    queryFn: async () => {
+      const { data } = await supabase.from("proposal_send_versions")
+        .select("*").eq("proposal_id", id).order("version_number", { ascending: false });
+      return data ?? [];
+    },
+  });
+
+  const { data: sendEvents = [] } = useQuery({
+    queryKey: ["proposal-send-events", id],
+    queryFn: async () => {
+      const { data } = await supabase.from("proposal_send_events")
+        .select("*").eq("proposal_id", id).order("sent_at", { ascending: false });
+      return data ?? [];
+    },
+  });
+
+  const [generating, setGenerating] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [sendOpen, setSendOpen] = useState(false);
+  const [sendForm, setSendForm] = useState({ recipient: "", subject: "", message: "", channel: "email" });
+
+  const handleGenerate = async () => {
+    setGenerating(true);
+    toast.loading("Gerando PDF…", { id: "gen-pdf" });
+    try {
+      const res = await generateFile({ data: { proposalId: id } });
+      toast.dismiss("gen-pdf");
+      if (res.ok) {
+        toast.success(`Versão ${res.version_number} gerada`);
+        await supabase.from("proposal_timeline_events").insert({
+          proposal_id: id, event_type: "observacao",
+          description: `Arquivo gerado — versão ${res.version_number}`,
+          user_id: user?.id,
+        });
+        qc.invalidateQueries({ queryKey: ["proposal-versions", id] });
+        qc.invalidateQueries({ queryKey: ["proposal-timeline", id] });
+      } else {
+        toast.error(`Falha ao gerar PDF: ${res.error}`);
+      }
+    } catch (e) {
+      toast.dismiss("gen-pdf");
+      toast.error(e instanceof Error ? e.message : "Erro ao gerar PDF");
+    } finally { setGenerating(false); }
+  };
+
+  const handleDownload = async (path: string) => {
+    const { data, error } = await supabase.storage.from("proposal-files").createSignedUrl(path, 60);
+    if (error || !data?.signedUrl) return toast.error(error?.message ?? "Falha ao gerar link");
+    window.open(data.signedUrl, "_blank");
+  };
+
+  const openSendDialog = () => {
+    const current = (versions as Array<{ is_current: boolean }>).find((v) => v.is_current);
+    if (!current) return toast.error("Gere o PDF antes de enviar.");
+    const contactEmail = (p?.client_contacts as { email?: string } | null)?.email ?? "";
+    setSendForm({ recipient: contactEmail, subject: `Proposta ${p?.number} — ${p?.title}`, message: "", channel: "email" });
+    setSendOpen(true);
+  };
+
+  const handleSend = async () => {
+    const current = (versions as Array<{ id: string; is_current: boolean }>).find((v) => v.is_current);
+    if (!current) return toast.error("Nenhuma versão atual disponível.");
+    setSending(true);
+    try {
+      const res = await sendFile({ data: {
+        proposalId: id, versionId: current.id, channel: sendForm.channel,
+        recipient: sendForm.recipient || undefined,
+        subject: sendForm.subject || undefined,
+        message: sendForm.message || undefined,
+      }});
+      if (res.ok) {
+        toast.success("Proposta enviada");
+        if ("nomus_push" in res && res.nomus_push && "ok" in res.nomus_push) {
+          if (res.nomus_push.ok) toast.message("Evento replicado no Nomus");
+          else if ("error" in res.nomus_push) toast.message(`Nomus: ${res.nomus_push.error}`);
+        }
+        setSendOpen(false);
+        qc.invalidateQueries({ queryKey: ["proposal", id] });
+        qc.invalidateQueries({ queryKey: ["proposal-timeline", id] });
+        qc.invalidateQueries({ queryKey: ["proposal-send-events", id] });
+      } else {
+        toast.error(res.error);
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao enviar");
+    } finally { setSending(false); }
+  };
 
   const tryAutoCreatePedido = async () => {
     // 1) Checa configuração
@@ -154,6 +250,13 @@ function ProposalDetail() {
         subtitle={<span className="font-mono text-xs">{p.number}</span> as any}
         actions={
           <>
+            <Button size="sm" variant="outline" onClick={handleGenerate} disabled={generating}>
+              {generating ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <FileText className="mr-1.5 h-3.5 w-3.5" />}
+              Gerar PDF
+            </Button>
+            <Button size="sm" onClick={openSendDialog} disabled={sending || versions.length === 0}>
+              <Send className="mr-1.5 h-3.5 w-3.5" /> Enviar
+            </Button>
             <Select value={p.status} onValueChange={(v) => updateStatus(v as ProposalStatus)}>
               <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -214,6 +317,7 @@ function ProposalDetail() {
         <Tabs defaultValue="timeline" className="rounded-xl border bg-card p-4 shadow-[var(--shadow-sm)]">
           <TabsList className="w-full">
             <TabsTrigger value="timeline" className="flex-1">Timeline</TabsTrigger>
+            <TabsTrigger value="versions" className="flex-1">Versões</TabsTrigger>
             <TabsTrigger value="tasks" className="flex-1">Tarefas</TabsTrigger>
           </TabsList>
           <TabsContent value="timeline" className="mt-4">
@@ -233,6 +337,35 @@ function ProposalDetail() {
               </ol>
             )}
           </TabsContent>
+          <TabsContent value="versions" className="mt-4 space-y-3">
+            {versions.length === 0 ? (
+              <div className="py-8 text-center text-sm text-muted-foreground">Nenhuma versão gerada.</div>
+            ) : (
+              versions.map((v: any) => (
+                <div key={v.id} className="flex items-center justify-between rounded-md border p-3">
+                  <div>
+                    <div className="text-sm font-medium">v{v.version_number} {v.is_current && <span className="ml-1 rounded-full bg-success/15 px-1.5 py-0.5 text-[10px] text-success">atual</span>}</div>
+                    <div className="text-[11px] text-muted-foreground">{dateTimeBR(v.generated_at)}</div>
+                  </div>
+                  <Button size="sm" variant="ghost" onClick={() => handleDownload(v.pdf_storage_path)}>
+                    <Download className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              ))
+            )}
+            {sendEvents.length > 0 && (
+              <div className="mt-4 border-t pt-3">
+                <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Envios</div>
+                {sendEvents.map((e: any) => (
+                  <div key={e.id} className="text-xs py-1">
+                    <span className="font-medium">{e.channel}</span>
+                    {e.recipient && <span className="text-muted-foreground"> → {e.recipient}</span>}
+                    <span className="text-muted-foreground"> · {dateTimeBR(e.sent_at)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </TabsContent>
           <TabsContent value="tasks" className="mt-4">
             <div className="py-8 text-center text-sm text-muted-foreground">
               Módulo de tarefas — em breve nesta proposta.
@@ -240,6 +373,43 @@ function ProposalDetail() {
           </TabsContent>
         </Tabs>
       </div>
+
+      <Dialog open={sendOpen} onOpenChange={setSendOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Enviar proposta</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label className="text-xs">Canal</Label>
+              <Select value={sendForm.channel} onValueChange={(v) => setSendForm((f) => ({ ...f, channel: v }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="email">E-mail</SelectItem>
+                  <SelectItem value="whatsapp">WhatsApp</SelectItem>
+                  <SelectItem value="manual">Manual / outro</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs">Destinatário</Label>
+              <Input value={sendForm.recipient} onChange={(e) => setSendForm((f) => ({ ...f, recipient: e.target.value }))} placeholder="email@cliente.com" />
+            </div>
+            <div>
+              <Label className="text-xs">Assunto</Label>
+              <Input value={sendForm.subject} onChange={(e) => setSendForm((f) => ({ ...f, subject: e.target.value }))} />
+            </div>
+            <div>
+              <Label className="text-xs">Mensagem</Label>
+              <Textarea value={sendForm.message} onChange={(e) => setSendForm((f) => ({ ...f, message: e.target.value }))} rows={4} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setSendOpen(false)}>Cancelar</Button>
+            <Button onClick={handleSend} disabled={sending}>
+              {sending && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />} Confirmar envio
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
