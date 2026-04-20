@@ -325,37 +325,29 @@ export const nomusSyncSellers = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const userId = (context as { userId?: string }).userId ?? null;
-    await setState("vendedores", { running: true });
-    const res = await listAll<Json>(NOMUS_ENDPOINTS.vendedores, {}, { entity: "vendedores", triggeredBy: userId });
-    if (!res.ok) {
-      await setState("vendedores", { running: false, last_error: res.error });
-      return { ok: false as const, error: res.error };
-    }
-    let count = 0;
-    for (const raw of res.items) {
-      const nomus_id = pickStr(raw, "id", "codigo", "idVendedor");
-      const name = pickStr(raw, "nome", "razaoSocial");
-      if (!nomus_id || !name) continue;
-      await supabaseAdmin.from("nomus_sellers").upsert(
-        {
-          nomus_id, name,
-          email: pickStr(raw, "email"),
-          document: pickStr(raw, "cpf", "cnpj", "documento"),
-          raw: raw as never,
-          synced_at: new Date().toISOString(),
-        },
-        { onConflict: "nomus_id" }
-      );
-      count += 1;
-    }
-    await setState("vendedores", {
-      running: false, last_synced_at: new Date().toISOString(),
-      total_synced: count, last_error: null,
+    return runEntitySync({
+      entity: "vendedores",
+      endpoint: NOMUS_ENDPOINTS.vendedores,
+      triggeredBy: userId,
+      processItem: async (raw) => {
+        const nomus_id = pickStr(raw, "id", "codigo", "idVendedor");
+        const name = pickStr(raw, "nome", "razaoSocial");
+        if (!nomus_id || !name) return "skip";
+        const { error } = await supabaseAdmin.from("nomus_sellers").upsert(
+          {
+            nomus_id, name,
+            email: pickStr(raw, "email"),
+            document: pickStr(raw, "cpf", "cnpj", "documento"),
+            raw: raw as never,
+            synced_at: new Date().toISOString(),
+          },
+          { onConflict: "nomus_id" }
+        );
+        if (error) throw new Error(error.message);
+        return "ok";
+      },
     });
-    return { ok: true as const, count };
   });
-
-/** Pull representantes. */
 export const nomusSyncRepresentatives = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
