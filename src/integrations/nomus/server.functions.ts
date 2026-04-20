@@ -33,6 +33,71 @@ async function setState(entity: string, patch: Record<string, unknown>) {
   });
 }
 
+type SyncResult =
+  | { ok: true; count: number; skipped: number; unmatched: number }
+  | { ok: false; error: string };
+
+/**
+ * Padrão único para todos os syncs por entidade:
+ *  - marca running=true
+ *  - puxa todos os itens via listAll
+ *  - chama processItem por item (erros individuais não derrubam o sync)
+ *  - persiste total_synced, last_error e last_synced_at em nomus_sync_state
+ *  - nunca falha silenciosamente
+ *
+ * processItem retorna:
+ *  - "ok"        → contado como sucesso
+ *  - "skip"      → item ignorado por falta de chave/nome
+ *  - "unmatched" → item válido mas sem correspondência local (ex.: produto sem equipment)
+ */
+async function runEntitySync(args: {
+  entity: string;
+  endpoint: string;
+  triggeredBy: string | null;
+  processItem: (raw: Json) => Promise<"ok" | "skip" | "unmatched">;
+}): Promise<SyncResult> {
+  const { entity, endpoint, triggeredBy, processItem } = args;
+  await setState(entity, { running: true, last_error: null });
+  try {
+    const res = await listAll<Json>(endpoint, {}, { entity, triggeredBy });
+    if (!res.ok) {
+      const error = res.error ?? "Falha ao listar entidade no Nomus";
+      await setState(entity, { running: false, last_error: error });
+      return { ok: false, error };
+    }
+    let count = 0;
+    let skipped = 0;
+    let unmatched = 0;
+    const itemErrors: string[] = [];
+    for (const raw of res.items) {
+      try {
+        const r = await processItem(raw);
+        if (r === "ok") count += 1;
+        else if (r === "unmatched") { unmatched += 1; skipped += 1; }
+        else skipped += 1;
+      } catch (e) {
+        skipped += 1;
+        const msg = e instanceof Error ? e.message : String(e);
+        if (itemErrors.length < 3) itemErrors.push(msg);
+      }
+    }
+    const noteParts: string[] = [];
+    if (itemErrors.length > 0) noteParts.push(`${itemErrors.length}+ itens com erro: ${itemErrors.join(" | ")}`);
+    if (unmatched > 0) noteParts.push(`${unmatched} item(s) sem correspondência local`);
+    await setState(entity, {
+      running: false,
+      last_synced_at: new Date().toISOString(),
+      total_synced: count,
+      last_error: noteParts.length > 0 ? noteParts.join(" • ") : null,
+    });
+    return { ok: true, count, skipped, unmatched };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    await setState(entity, { running: false, last_error: msg });
+    return { ok: false, error: msg };
+  }
+}
+
 /** Test connection by hitting /clientes. */
 export const nomusTestConnection = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -62,87 +127,73 @@ export const nomusSyncClients = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const userId = (context as { userId?: string }).userId ?? null;
-    await setState("clientes", { running: true });
-    const res = await listAll<Json>(NOMUS_ENDPOINTS.clientes, {}, { entity: "clientes", triggeredBy: userId });
-    if (!res.ok) {
-      await setState("clientes", { running: false, last_error: res.error });
-      return { ok: false as const, error: res.error };
-    }
-    let upserts = 0;
-    for (const raw of res.items) {
-      const nomus_id = pickStr(raw, "id", "codigo", "idCliente");
-      const name = pickStr(raw, "nome", "razaoSocial", "nomeFantasia");
-      if (!nomus_id || !name) continue;
-      const document = pickStr(raw, "cnpj", "cpf", "documento");
-      const trade_name = pickStr(raw, "nomeFantasia", "fantasia");
-      const city = pickStr(raw, "cidade", "municipio");
-      const state = pickStr(raw, "uf", "estado");
-      const segment = pickStr(raw, "segmento", "ramo");
-
-      const { error } = await supabaseAdmin
-        .from("clients")
-        .upsert(
-          {
-            nomus_id,
-            name,
-            document,
-            trade_name,
-            city,
-            state,
-            segment,
-            origin: "nomus",
-            nomus_synced_at: new Date().toISOString(),
-          },
-          { onConflict: "nomus_id" }
-        );
-      if (!error) upserts += 1;
-    }
-    await setState("clientes", {
-      running: false,
-      last_synced_at: new Date().toISOString(),
-      total_synced: upserts,
-      last_error: null,
+    return runEntitySync({
+      entity: "clientes",
+      endpoint: NOMUS_ENDPOINTS.clientes,
+      triggeredBy: userId,
+      processItem: async (raw) => {
+        const nomus_id = pickStr(raw, "id", "codigo", "idCliente");
+        const name = pickStr(raw, "nome", "razaoSocial", "nomeFantasia");
+        if (!nomus_id || !name) return "skip";
+        const { error } = await supabaseAdmin
+          .from("clients")
+          .upsert(
+            {
+              nomus_id,
+              name,
+              document: pickStr(raw, "cnpj", "cpf", "documento"),
+              trade_name: pickStr(raw, "nomeFantasia", "fantasia"),
+              city: pickStr(raw, "cidade", "municipio"),
+              state: pickStr(raw, "uf", "estado"),
+              segment: pickStr(raw, "segmento", "ramo"),
+              origin: "nomus",
+              nomus_synced_at: new Date().toISOString(),
+            },
+            { onConflict: "nomus_id" }
+          );
+        if (error) throw new Error(error.message);
+        return "ok";
+      },
     });
-    return { ok: true as const, count: upserts };
   });
 
-/** Pull products and map to equipments via nomus_id. */
+/** Pull products and map to equipments via nomus_id. NÃO cria equipments automaticamente. */
 export const nomusSyncProducts = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const userId = (context as { userId?: string }).userId ?? null;
-    await setState("produtos", { running: true });
-    const res = await listAll<Json>(NOMUS_ENDPOINTS.produtos, {}, { entity: "produtos", triggeredBy: userId });
-    if (!res.ok) {
-      await setState("produtos", { running: false, last_error: res.error });
-      return { ok: false as const, error: res.error };
-    }
-    let updated = 0;
-    for (const raw of res.items) {
-      const nomus_id = pickStr(raw, "id", "codigo", "idProduto");
-      const model = pickStr(raw, "codigo", "modelo", "descricao");
-      if (!nomus_id || !model) continue;
-      // Try to attach to existing equipment by model match; do NOT auto-create.
-      const { data: existing } = await supabaseAdmin
-        .from("equipments")
-        .select("id")
-        .or(`nomus_id.eq.${nomus_id},model.eq.${model}`)
-        .maybeSingle();
-      if (existing) {
-        await supabaseAdmin
+    return runEntitySync({
+      entity: "produtos",
+      endpoint: NOMUS_ENDPOINTS.produtos,
+      triggeredBy: userId,
+      processItem: async (raw) => {
+        const nomus_id = pickStr(raw, "id", "codigo", "idProduto");
+        const model = pickStr(raw, "codigo", "modelo", "descricao");
+        if (!nomus_id || !model) return "skip";
+        // 1) match por nomus_id já vinculado
+        let { data: existing } = await supabaseAdmin
+          .from("equipments").select("id").eq("nomus_id", nomus_id).maybeSingle();
+        // 2) match por model exato
+        if (!existing) {
+          const r = await supabaseAdmin
+            .from("equipments").select("id").eq("model", model).maybeSingle();
+          existing = r.data;
+        }
+        // 3) match case-insensitive
+        if (!existing) {
+          const r = await supabaseAdmin
+            .from("equipments").select("id").ilike("model", model).maybeSingle();
+          existing = r.data;
+        }
+        if (!existing) return "unmatched";
+        const { error } = await supabaseAdmin
           .from("equipments")
           .update({ nomus_id, nomus_synced_at: new Date().toISOString() })
           .eq("id", existing.id);
-        updated += 1;
-      }
-    }
-    await setState("produtos", {
-      running: false,
-      last_synced_at: new Date().toISOString(),
-      total_synced: updated,
-      last_error: null,
+        if (error) throw new Error(error.message);
+        return "ok";
+      },
     });
-    return { ok: true as const, count: updated };
   });
 
 /** Pull payment terms. */
@@ -150,39 +201,29 @@ export const nomusSyncPaymentTerms = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const userId = (context as { userId?: string }).userId ?? null;
-    await setState("condicoes_pagamento", { running: true });
-    const res = await listAll<Json>(NOMUS_ENDPOINTS.condicoes_pagamento, {}, {
-      entity: "condicoes_pagamento", triggeredBy: userId,
+    return runEntitySync({
+      entity: "condicoes_pagamento",
+      endpoint: NOMUS_ENDPOINTS.condicoes_pagamento,
+      triggeredBy: userId,
+      processItem: async (raw) => {
+        const nomus_id = pickStr(raw, "id", "codigo");
+        const name = pickStr(raw, "descricao", "nome");
+        if (!nomus_id || !name) return "skip";
+        const { error } = await supabaseAdmin.from("nomus_payment_terms").upsert(
+          {
+            nomus_id,
+            code: pickStr(raw, "codigo"),
+            name,
+            installments: pickNum(raw, "parcelas", "numeroParcelas"),
+            raw: raw as never,
+            synced_at: new Date().toISOString(),
+          },
+          { onConflict: "nomus_id" }
+        );
+        if (error) throw new Error(error.message);
+        return "ok";
+      },
     });
-    if (!res.ok) {
-      await setState("condicoes_pagamento", { running: false, last_error: res.error });
-      return { ok: false as const, error: res.error };
-    }
-    let count = 0;
-    for (const raw of res.items) {
-      const nomus_id = pickStr(raw, "id", "codigo");
-      const name = pickStr(raw, "descricao", "nome");
-      if (!nomus_id || !name) continue;
-      await supabaseAdmin.from("nomus_payment_terms").upsert(
-        {
-          nomus_id,
-          code: pickStr(raw, "codigo"),
-          name,
-          installments: pickNum(raw, "parcelas", "numeroParcelas"),
-          raw: raw as never,
-          synced_at: new Date().toISOString(),
-        },
-        { onConflict: "nomus_id" }
-      );
-      count += 1;
-    }
-    await setState("condicoes_pagamento", {
-      running: false,
-      last_synced_at: new Date().toISOString(),
-      total_synced: count,
-      last_error: null,
-    });
-    return { ok: true as const, count };
   });
 
 /** Push a proposal to Nomus. Creates if no nomus_id, updates otherwise. */
@@ -284,258 +325,223 @@ export const nomusSyncSellers = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const userId = (context as { userId?: string }).userId ?? null;
-    await setState("vendedores", { running: true });
-    const res = await listAll<Json>(NOMUS_ENDPOINTS.vendedores, {}, { entity: "vendedores", triggeredBy: userId });
-    if (!res.ok) {
-      await setState("vendedores", { running: false, last_error: res.error });
-      return { ok: false as const, error: res.error };
-    }
-    let count = 0;
-    for (const raw of res.items) {
-      const nomus_id = pickStr(raw, "id", "codigo", "idVendedor");
-      const name = pickStr(raw, "nome", "razaoSocial");
-      if (!nomus_id || !name) continue;
-      await supabaseAdmin.from("nomus_sellers").upsert(
-        {
-          nomus_id, name,
-          email: pickStr(raw, "email"),
-          document: pickStr(raw, "cpf", "cnpj", "documento"),
-          raw: raw as never,
-          synced_at: new Date().toISOString(),
-        },
-        { onConflict: "nomus_id" }
-      );
-      count += 1;
-    }
-    await setState("vendedores", {
-      running: false, last_synced_at: new Date().toISOString(),
-      total_synced: count, last_error: null,
+    return runEntitySync({
+      entity: "vendedores",
+      endpoint: NOMUS_ENDPOINTS.vendedores,
+      triggeredBy: userId,
+      processItem: async (raw) => {
+        const nomus_id = pickStr(raw, "id", "codigo", "idVendedor");
+        const name = pickStr(raw, "nome", "razaoSocial");
+        if (!nomus_id || !name) return "skip";
+        const { error } = await supabaseAdmin.from("nomus_sellers").upsert(
+          {
+            nomus_id, name,
+            email: pickStr(raw, "email"),
+            document: pickStr(raw, "cpf", "cnpj", "documento"),
+            raw: raw as never,
+            synced_at: new Date().toISOString(),
+          },
+          { onConflict: "nomus_id" }
+        );
+        if (error) throw new Error(error.message);
+        return "ok";
+      },
     });
-    return { ok: true as const, count };
   });
-
 /** Pull representantes. */
 export const nomusSyncRepresentatives = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const userId = (context as { userId?: string }).userId ?? null;
-    await setState("representantes", { running: true });
-    const res = await listAll<Json>(NOMUS_ENDPOINTS.representantes, {}, { entity: "representantes", triggeredBy: userId });
-    if (!res.ok) {
-      await setState("representantes", { running: false, last_error: res.error });
-      return { ok: false as const, error: res.error };
-    }
-    let count = 0;
-    for (const raw of res.items) {
-      const nomus_id = pickStr(raw, "id", "codigo");
-      const name = pickStr(raw, "nome", "razaoSocial");
-      if (!nomus_id || !name) continue;
-      await supabaseAdmin.from("nomus_representatives").upsert(
-        {
-          nomus_id, name,
-          email: pickStr(raw, "email"),
-          document: pickStr(raw, "cnpj", "cpf"),
-          region: pickStr(raw, "regiao", "uf"),
-          raw: raw as never,
-          synced_at: new Date().toISOString(),
-        },
-        { onConflict: "nomus_id" }
-      );
-      count += 1;
-    }
-    await setState("representantes", {
-      running: false, last_synced_at: new Date().toISOString(),
-      total_synced: count, last_error: null,
+    return runEntitySync({
+      entity: "representantes",
+      endpoint: NOMUS_ENDPOINTS.representantes,
+      triggeredBy: userId,
+      processItem: async (raw) => {
+        const nomus_id = pickStr(raw, "id", "codigo");
+        const name = pickStr(raw, "nome", "razaoSocial");
+        if (!nomus_id || !name) return "skip";
+        const { error } = await supabaseAdmin.from("nomus_representatives").upsert(
+          {
+            nomus_id, name,
+            email: pickStr(raw, "email"),
+            document: pickStr(raw, "cnpj", "cpf"),
+            region: pickStr(raw, "regiao", "uf"),
+            raw: raw as never,
+            synced_at: new Date().toISOString(),
+          },
+          { onConflict: "nomus_id" }
+        );
+        if (error) throw new Error(error.message);
+        return "ok";
+      },
     });
-    return { ok: true as const, count };
   });
-
-/** Pull propostas + itens; cria espelho local em proposals quando habilitado. */
 export const nomusSyncProposalsFull = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const userId = (context as { userId?: string }).userId ?? null;
-    await setState("propostas", { running: true });
-
     const { data: settings } = await supabaseAdmin
       .from("nomus_settings").select("auto_create_local_proposal").maybeSingle();
     const autoCreate = (settings as { auto_create_local_proposal?: boolean } | null)?.auto_create_local_proposal ?? true;
 
-    const res = await listAll<Json>(NOMUS_ENDPOINTS.propostas, {}, { entity: "propostas", triggeredBy: userId });
-    if (!res.ok) {
-      await setState("propostas", { running: false, last_error: res.error });
-      return { ok: false as const, error: res.error };
-    }
-    let count = 0;
-    for (const raw of res.items) {
-      const nomus_id = pickStr(raw, "id", "idProposta", "codigo");
-      if (!nomus_id) continue;
+    return runEntitySync({
+      entity: "propostas",
+      endpoint: NOMUS_ENDPOINTS.propostas,
+      triggeredBy: userId,
+      processItem: async (raw) => {
+        const nomus_id = pickStr(raw, "id", "idProposta", "codigo");
+        if (!nomus_id) return "skip";
 
-      const upsertPayload = {
-        nomus_id,
-        numero: pickStr(raw, "numero", "numeroProposta"),
-        cliente_nomus_id: pickStr(raw, "idCliente", "clienteId"),
-        vendedor_nomus_id: pickStr(raw, "idVendedor", "vendedorId"),
-        representante_nomus_id: pickStr(raw, "idRepresentante", "representanteId"),
-        valor_total: pickNum(raw, "valorTotal", "valor", "total"),
-        status_nomus: pickStr(raw, "status", "situacao"),
-        validade: pickStr(raw, "validade", "dataValidade"),
-        data_emissao: pickStr(raw, "dataEmissao", "data"),
-        observacoes: pickStr(raw, "observacoes", "obs"),
-        raw: raw as never,
-        synced_at: new Date().toISOString(),
-      };
-      const { data: mirror } = await supabaseAdmin
-        .from("nomus_proposals")
-        .upsert(upsertPayload, { onConflict: "nomus_id" })
-        .select("id")
-        .single();
-
-      // Itens (se vierem inline)
-      const itensRaw = (raw["itens"] ?? raw["items"]) as Json[] | undefined;
-      if (mirror && Array.isArray(itensRaw)) {
-        await supabaseAdmin.from("nomus_proposal_items").delete().eq("nomus_proposal_id", (mirror as { id: string }).id);
-        const rows = itensRaw.map((it, idx) => ({
-          nomus_proposal_id: (mirror as { id: string }).id,
-          nomus_item_id: pickStr(it, "id", "idItem"),
-          nomus_product_id: pickStr(it, "idProduto", "produtoId"),
-          product_code: pickStr(it, "codigo", "codigoProduto"),
-          description: pickStr(it, "descricao", "nome") ?? "",
-          quantity: pickNum(it, "quantidade", "qtd"),
-          unit_price: pickNum(it, "valorUnitario", "preco"),
-          discount: pickNum(it, "desconto"),
-          total: pickNum(it, "total", "valorTotal"),
-          position: idx,
-          raw: it as never,
-        }));
-        if (rows.length > 0) await supabaseAdmin.from("nomus_proposal_items").insert(rows);
-      }
-
-      // Cria proposta local se ainda não existir
-      if (autoCreate && mirror) {
+        const upsertPayload = {
+          nomus_id,
+          numero: pickStr(raw, "numero", "numeroProposta"),
+          cliente_nomus_id: pickStr(raw, "idCliente", "clienteId"),
+          vendedor_nomus_id: pickStr(raw, "idVendedor", "vendedorId"),
+          representante_nomus_id: pickStr(raw, "idRepresentante", "representanteId"),
+          valor_total: pickNum(raw, "valorTotal", "valor", "total"),
+          status_nomus: pickStr(raw, "status", "situacao"),
+          validade: pickStr(raw, "validade", "dataValidade"),
+          data_emissao: pickStr(raw, "dataEmissao", "data"),
+          observacoes: pickStr(raw, "observacoes", "obs"),
+          raw: raw as never,
+          synced_at: new Date().toISOString(),
+        };
+        const { data: mirror, error: mErr } = await supabaseAdmin
+          .from("nomus_proposals")
+          .upsert(upsertPayload, { onConflict: "nomus_id" })
+          .select("id")
+          .single();
+        if (mErr || !mirror) throw new Error(mErr?.message ?? "Falha ao gravar nomus_proposals");
         const mirrorId = (mirror as { id: string }).id;
-        const { data: existing } = await supabaseAdmin
-          .from("proposals").select("id").eq("nomus_id", nomus_id).maybeSingle();
-        if (!existing) {
-          // tenta vincular cliente
+
+        // Itens (se vierem inline no payload)
+        const itensRaw = (raw["itens"] ?? raw["items"]) as Json[] | undefined;
+        if (Array.isArray(itensRaw)) {
+          await supabaseAdmin.from("nomus_proposal_items").delete().eq("nomus_proposal_id", mirrorId);
+          const rows = itensRaw.map((it, idx) => ({
+            nomus_proposal_id: mirrorId,
+            nomus_item_id: pickStr(it, "id", "idItem"),
+            nomus_product_id: pickStr(it, "idProduto", "produtoId"),
+            product_code: pickStr(it, "codigo", "codigoProduto"),
+            description: pickStr(it, "descricao", "nome") ?? "",
+            quantity: pickNum(it, "quantidade", "qtd"),
+            unit_price: pickNum(it, "valorUnitario", "preco"),
+            discount: pickNum(it, "desconto"),
+            total: pickNum(it, "total", "valorTotal"),
+            position: idx,
+            raw: it as never,
+          }));
+          if (rows.length > 0) await supabaseAdmin.from("nomus_proposal_items").insert(rows);
+        }
+
+        // Espelha em proposals (cria ou atualiza)
+        if (autoCreate) {
           let clientId: string | null = null;
           if (upsertPayload.cliente_nomus_id) {
             const { data: c } = await supabaseAdmin
               .from("clients").select("id").eq("nomus_id", upsertPayload.cliente_nomus_id).maybeSingle();
             clientId = (c as { id: string } | null)?.id ?? null;
           }
-          await supabaseAdmin.from("proposals").insert({
-            nomus_id,
-            nomus_proposal_id: mirrorId,
-            nomus_synced_at: new Date().toISOString(),
-            source: "nomus",
-            title: upsertPayload.numero ?? `Proposta Nomus ${nomus_id}`,
-            client_id: clientId,
-            total_value: upsertPayload.valor_total ?? 0,
-            valid_until: upsertPayload.validade,
-            status: "em_elaboracao",
-          });
-        } else {
-          await supabaseAdmin.from("proposals")
-            .update({
+          const { data: existing } = await supabaseAdmin
+            .from("proposals").select("id, client_id").eq("nomus_id", nomus_id).maybeSingle();
+          if (!existing) {
+            const { error } = await supabaseAdmin.from("proposals").insert({
+              nomus_id,
               nomus_proposal_id: mirrorId,
+              nomus_synced_at: new Date().toISOString(),
+              source: "nomus",
+              title: upsertPayload.numero ?? `Proposta Nomus ${nomus_id}`,
+              client_id: clientId,
               total_value: upsertPayload.valor_total ?? 0,
               valid_until: upsertPayload.validade,
-              nomus_synced_at: new Date().toISOString(),
-            })
-            .eq("id", (existing as { id: string }).id);
+              status: "em_elaboracao",
+            });
+            if (error) throw new Error(error.message);
+          } else {
+            const ex = existing as { id: string; client_id: string | null };
+            const { error } = await supabaseAdmin.from("proposals")
+              .update({
+                nomus_proposal_id: mirrorId,
+                total_value: upsertPayload.valor_total ?? 0,
+                valid_until: upsertPayload.validade,
+                // só preenche client_id se ainda estava nulo (não sobrescreve match manual)
+                ...(ex.client_id || !clientId ? {} : { client_id: clientId }),
+                nomus_synced_at: new Date().toISOString(),
+              })
+              .eq("id", ex.id);
+            if (error) throw new Error(error.message);
+          }
         }
-      }
-      count += 1;
-    }
-    await setState("propostas", {
-      running: false, last_synced_at: new Date().toISOString(),
-      total_synced: count, last_error: null,
+        return "ok";
+      },
     });
-    return { ok: true as const, count };
   });
-
-/** Pull pedidos de venda. Trigger no banco vincula proposta automaticamente. */
 export const nomusSyncPedidos = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const userId = (context as { userId?: string }).userId ?? null;
-    await setState("pedidos", { running: true });
-    const res = await listAll<Json>(NOMUS_ENDPOINTS.pedidos, {}, { entity: "pedidos", triggeredBy: userId });
-    if (!res.ok) {
-      await setState("pedidos", { running: false, last_error: res.error });
-      return { ok: false as const, error: res.error };
-    }
-    let count = 0;
-    for (const raw of res.items) {
-      const nomus_id = pickStr(raw, "id", "idPedido", "numero");
-      if (!nomus_id) continue;
-      await supabaseAdmin.from("nomus_pedidos").upsert(
-        {
-          nomus_id,
-          numero: pickStr(raw, "numero"),
-          proposal_nomus_id: pickStr(raw, "idProposta", "propostaId"),
-          cliente_nomus_id: pickStr(raw, "idCliente", "clienteId"),
-          vendedor_nomus_id: pickStr(raw, "idVendedor", "vendedorId"),
-          valor_total: pickNum(raw, "valorTotal", "valor"),
-          status_nomus: pickStr(raw, "status", "situacao"),
-          data_emissao: pickStr(raw, "dataEmissao", "data"),
-          data_entrega: pickStr(raw, "dataEntrega", "previsaoEntrega"),
-          raw: raw as never,
-          synced_at: new Date().toISOString(),
-        },
-        { onConflict: "nomus_id" }
-      );
-      count += 1;
-    }
-    await setState("pedidos", {
-      running: false, last_synced_at: new Date().toISOString(),
-      total_synced: count, last_error: null,
+    return runEntitySync({
+      entity: "pedidos",
+      endpoint: NOMUS_ENDPOINTS.pedidos,
+      triggeredBy: userId,
+      processItem: async (raw) => {
+        const nomus_id = pickStr(raw, "id", "idPedido", "numero");
+        if (!nomus_id) return "skip";
+        const { error } = await supabaseAdmin.from("nomus_pedidos").upsert(
+          {
+            nomus_id,
+            numero: pickStr(raw, "numero"),
+            proposal_nomus_id: pickStr(raw, "idProposta", "propostaId"),
+            cliente_nomus_id: pickStr(raw, "idCliente", "clienteId"),
+            vendedor_nomus_id: pickStr(raw, "idVendedor", "vendedorId"),
+            valor_total: pickNum(raw, "valorTotal", "valor"),
+            status_nomus: pickStr(raw, "status", "situacao"),
+            data_emissao: pickStr(raw, "dataEmissao", "data"),
+            data_entrega: pickStr(raw, "dataEntrega", "previsaoEntrega"),
+            raw: raw as never,
+            synced_at: new Date().toISOString(),
+          },
+          { onConflict: "nomus_id" }
+        );
+        if (error) throw new Error(error.message);
+        return "ok";
+      },
     });
-    return { ok: true as const, count };
   });
-
 /** Pull notas fiscais. */
 export const nomusSyncInvoices = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const userId = (context as { userId?: string }).userId ?? null;
-    await setState("notas_fiscais", { running: true });
-    const res = await listAll<Json>(NOMUS_ENDPOINTS.notas_fiscais, {}, { entity: "notas_fiscais", triggeredBy: userId });
-    if (!res.ok) {
-      await setState("notas_fiscais", { running: false, last_error: res.error });
-      return { ok: false as const, error: res.error };
-    }
-    let count = 0;
-    for (const raw of res.items) {
-      const nomus_id = pickStr(raw, "id", "idNota", "numero");
-      if (!nomus_id) continue;
-      await supabaseAdmin.from("nomus_invoices").upsert(
-        {
-          nomus_id,
-          numero: pickStr(raw, "numero"),
-          serie: pickStr(raw, "serie"),
-          chave_acesso: pickStr(raw, "chaveAcesso", "chave"),
-          pedido_nomus_id: pickStr(raw, "idPedido", "pedidoId"),
-          cliente_nomus_id: pickStr(raw, "idCliente", "clienteId"),
-          valor_total: pickNum(raw, "valorTotal", "valor"),
-          status_nomus: pickStr(raw, "status", "situacao"),
-          data_emissao: pickStr(raw, "dataEmissao", "data"),
-          raw: raw as never,
-          synced_at: new Date().toISOString(),
-        },
-        { onConflict: "nomus_id" }
-      );
-      count += 1;
-    }
-    await setState("notas_fiscais", {
-      running: false, last_synced_at: new Date().toISOString(),
-      total_synced: count, last_error: null,
+    return runEntitySync({
+      entity: "notas_fiscais",
+      endpoint: NOMUS_ENDPOINTS.notas_fiscais,
+      triggeredBy: userId,
+      processItem: async (raw) => {
+        const nomus_id = pickStr(raw, "id", "idNota", "numero");
+        if (!nomus_id) return "skip";
+        const { error } = await supabaseAdmin.from("nomus_invoices").upsert(
+          {
+            nomus_id,
+            numero: pickStr(raw, "numero"),
+            serie: pickStr(raw, "serie"),
+            chave_acesso: pickStr(raw, "chaveAcesso", "chave"),
+            pedido_nomus_id: pickStr(raw, "idPedido", "pedidoId"),
+            cliente_nomus_id: pickStr(raw, "idCliente", "clienteId"),
+            valor_total: pickNum(raw, "valorTotal", "valor"),
+            status_nomus: pickStr(raw, "status", "situacao"),
+            data_emissao: pickStr(raw, "dataEmissao", "data"),
+            raw: raw as never,
+            synced_at: new Date().toISOString(),
+          },
+          { onConflict: "nomus_id" }
+        );
+        if (error) throw new Error(error.message);
+        return "ok";
+      },
     });
-    return { ok: true as const, count };
   });
-
-/** Refresh forçado de uma proposta específica do Nomus. */
 export const nomusGetProposalRefresh = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { proposalId: string }) => input)
