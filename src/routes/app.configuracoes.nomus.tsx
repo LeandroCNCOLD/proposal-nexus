@@ -176,7 +176,7 @@ function NomusPage() {
                       size="sm"
                       variant="outline"
                       disabled={isRunning}
-                      onClick={() => runSync(ent.key, () => useServerFn(ent.fn)({}))}
+                      onClick={() => runSync(ent.key, () => ent.run({}))}
                     >
                       {isRunning ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
                     </Button>
