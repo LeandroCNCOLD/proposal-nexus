@@ -479,6 +479,51 @@ export type Database = {
           },
         ]
       }
+      nomus_invoices: {
+        Row: {
+          chave_acesso: string | null
+          cliente_nomus_id: string | null
+          data_emissao: string | null
+          id: string
+          nomus_id: string
+          numero: string | null
+          pedido_nomus_id: string | null
+          raw: Json | null
+          serie: string | null
+          status_nomus: string | null
+          synced_at: string
+          valor_total: number | null
+        }
+        Insert: {
+          chave_acesso?: string | null
+          cliente_nomus_id?: string | null
+          data_emissao?: string | null
+          id?: string
+          nomus_id: string
+          numero?: string | null
+          pedido_nomus_id?: string | null
+          raw?: Json | null
+          serie?: string | null
+          status_nomus?: string | null
+          synced_at?: string
+          valor_total?: number | null
+        }
+        Update: {
+          chave_acesso?: string | null
+          cliente_nomus_id?: string | null
+          data_emissao?: string | null
+          id?: string
+          nomus_id?: string
+          numero?: string | null
+          pedido_nomus_id?: string | null
+          raw?: Json | null
+          serie?: string | null
+          status_nomus?: string | null
+          synced_at?: string
+          valor_total?: number | null
+        }
+        Relationships: []
+      }
       nomus_payment_terms: {
         Row: {
           code: string | null
@@ -515,6 +560,101 @@ export type Database = {
           nomus_id?: string
           raw?: Json | null
           synced_at?: string
+        }
+        Relationships: []
+      }
+      nomus_pedido_items: {
+        Row: {
+          description: string | null
+          id: string
+          nomus_item_id: string | null
+          nomus_pedido_id: string
+          nomus_product_id: string | null
+          product_code: string | null
+          quantity: number | null
+          raw: Json | null
+          synced_at: string
+          total: number | null
+          unit_price: number | null
+        }
+        Insert: {
+          description?: string | null
+          id?: string
+          nomus_item_id?: string | null
+          nomus_pedido_id: string
+          nomus_product_id?: string | null
+          product_code?: string | null
+          quantity?: number | null
+          raw?: Json | null
+          synced_at?: string
+          total?: number | null
+          unit_price?: number | null
+        }
+        Update: {
+          description?: string | null
+          id?: string
+          nomus_item_id?: string | null
+          nomus_pedido_id?: string
+          nomus_product_id?: string | null
+          product_code?: string | null
+          quantity?: number | null
+          raw?: Json | null
+          synced_at?: string
+          total?: number | null
+          unit_price?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nomus_pedido_items_nomus_pedido_id_fkey"
+            columns: ["nomus_pedido_id"]
+            isOneToOne: false
+            referencedRelation: "nomus_pedidos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nomus_pedidos: {
+        Row: {
+          cliente_nomus_id: string | null
+          data_emissao: string | null
+          data_entrega: string | null
+          id: string
+          nomus_id: string
+          numero: string | null
+          proposal_nomus_id: string | null
+          raw: Json | null
+          status_nomus: string | null
+          synced_at: string
+          valor_total: number | null
+          vendedor_nomus_id: string | null
+        }
+        Insert: {
+          cliente_nomus_id?: string | null
+          data_emissao?: string | null
+          data_entrega?: string | null
+          id?: string
+          nomus_id: string
+          numero?: string | null
+          proposal_nomus_id?: string | null
+          raw?: Json | null
+          status_nomus?: string | null
+          synced_at?: string
+          valor_total?: number | null
+          vendedor_nomus_id?: string | null
+        }
+        Update: {
+          cliente_nomus_id?: string | null
+          data_emissao?: string | null
+          data_entrega?: string | null
+          id?: string
+          nomus_id?: string
+          numero?: string | null
+          proposal_nomus_id?: string | null
+          raw?: Json | null
+          status_nomus?: string | null
+          synced_at?: string
+          valor_total?: number | null
+          vendedor_nomus_id?: string | null
         }
         Relationships: []
       }
@@ -599,9 +739,223 @@ export type Database = {
         }
         Relationships: []
       }
+      nomus_proposal_items: {
+        Row: {
+          description: string | null
+          discount: number | null
+          id: string
+          nomus_item_id: string | null
+          nomus_product_id: string | null
+          nomus_proposal_id: string
+          position: number | null
+          product_code: string | null
+          quantity: number | null
+          raw: Json | null
+          synced_at: string
+          total: number | null
+          unit_price: number | null
+        }
+        Insert: {
+          description?: string | null
+          discount?: number | null
+          id?: string
+          nomus_item_id?: string | null
+          nomus_product_id?: string | null
+          nomus_proposal_id: string
+          position?: number | null
+          product_code?: string | null
+          quantity?: number | null
+          raw?: Json | null
+          synced_at?: string
+          total?: number | null
+          unit_price?: number | null
+        }
+        Update: {
+          description?: string | null
+          discount?: number | null
+          id?: string
+          nomus_item_id?: string | null
+          nomus_product_id?: string | null
+          nomus_proposal_id?: string
+          position?: number | null
+          product_code?: string | null
+          quantity?: number | null
+          raw?: Json | null
+          synced_at?: string
+          total?: number | null
+          unit_price?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nomus_proposal_items_nomus_proposal_id_fkey"
+            columns: ["nomus_proposal_id"]
+            isOneToOne: false
+            referencedRelation: "nomus_proposals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nomus_proposals: {
+        Row: {
+          cliente_nomus_id: string | null
+          data_emissao: string | null
+          id: string
+          nomus_id: string
+          numero: string | null
+          observacoes: string | null
+          raw: Json | null
+          representante_nomus_id: string | null
+          status_nomus: string | null
+          synced_at: string
+          validade: string | null
+          valor_total: number | null
+          vendedor_nomus_id: string | null
+        }
+        Insert: {
+          cliente_nomus_id?: string | null
+          data_emissao?: string | null
+          id?: string
+          nomus_id: string
+          numero?: string | null
+          observacoes?: string | null
+          raw?: Json | null
+          representante_nomus_id?: string | null
+          status_nomus?: string | null
+          synced_at?: string
+          validade?: string | null
+          valor_total?: number | null
+          vendedor_nomus_id?: string | null
+        }
+        Update: {
+          cliente_nomus_id?: string | null
+          data_emissao?: string | null
+          id?: string
+          nomus_id?: string
+          numero?: string | null
+          observacoes?: string | null
+          raw?: Json | null
+          representante_nomus_id?: string | null
+          status_nomus?: string | null
+          synced_at?: string
+          validade?: string | null
+          valor_total?: number | null
+          vendedor_nomus_id?: string | null
+        }
+        Relationships: []
+      }
+      nomus_receivables: {
+        Row: {
+          cliente_nomus_id: string | null
+          data_pagamento: string | null
+          data_vencimento: string | null
+          id: string
+          invoice_nomus_id: string | null
+          nomus_id: string
+          raw: Json | null
+          status_nomus: string | null
+          synced_at: string
+          valor: number | null
+        }
+        Insert: {
+          cliente_nomus_id?: string | null
+          data_pagamento?: string | null
+          data_vencimento?: string | null
+          id?: string
+          invoice_nomus_id?: string | null
+          nomus_id: string
+          raw?: Json | null
+          status_nomus?: string | null
+          synced_at?: string
+          valor?: number | null
+        }
+        Update: {
+          cliente_nomus_id?: string | null
+          data_pagamento?: string | null
+          data_vencimento?: string | null
+          id?: string
+          invoice_nomus_id?: string | null
+          nomus_id?: string
+          raw?: Json | null
+          status_nomus?: string | null
+          synced_at?: string
+          valor?: number | null
+        }
+        Relationships: []
+      }
+      nomus_representatives: {
+        Row: {
+          document: string | null
+          email: string | null
+          id: string
+          is_active: boolean
+          name: string
+          nomus_id: string
+          raw: Json | null
+          region: string | null
+          synced_at: string
+        }
+        Insert: {
+          document?: string | null
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          nomus_id: string
+          raw?: Json | null
+          region?: string | null
+          synced_at?: string
+        }
+        Update: {
+          document?: string | null
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          nomus_id?: string
+          raw?: Json | null
+          region?: string | null
+          synced_at?: string
+        }
+        Relationships: []
+      }
+      nomus_sellers: {
+        Row: {
+          document: string | null
+          email: string | null
+          id: string
+          is_active: boolean
+          name: string
+          nomus_id: string
+          raw: Json | null
+          synced_at: string
+        }
+        Insert: {
+          document?: string | null
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          nomus_id: string
+          raw?: Json | null
+          synced_at?: string
+        }
+        Update: {
+          document?: string | null
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          nomus_id?: string
+          raw?: Json | null
+          synced_at?: string
+        }
+        Relationships: []
+      }
       nomus_settings: {
         Row: {
+          auto_create_local_proposal: boolean
           auto_create_pedido_on_won: boolean
+          auto_mark_won_on_pedido: boolean
           auto_push_followups: boolean
           auto_push_proposals: boolean
           base_url: string | null
@@ -613,15 +967,21 @@ export type Database = {
           proposals_direction: string
           sync_clients: boolean
           sync_contacts: boolean
+          sync_invoices: boolean
           sync_payment_terms: boolean
+          sync_pedidos: boolean
           sync_price_tables: boolean
           sync_products: boolean
           sync_proposals: boolean
+          sync_proposals_pull_interval_minutes: number
+          sync_representatives: boolean
           sync_sellers: boolean
           updated_at: string
         }
         Insert: {
+          auto_create_local_proposal?: boolean
           auto_create_pedido_on_won?: boolean
+          auto_mark_won_on_pedido?: boolean
           auto_push_followups?: boolean
           auto_push_proposals?: boolean
           base_url?: string | null
@@ -633,15 +993,21 @@ export type Database = {
           proposals_direction?: string
           sync_clients?: boolean
           sync_contacts?: boolean
+          sync_invoices?: boolean
           sync_payment_terms?: boolean
+          sync_pedidos?: boolean
           sync_price_tables?: boolean
           sync_products?: boolean
           sync_proposals?: boolean
+          sync_proposals_pull_interval_minutes?: number
+          sync_representatives?: boolean
           sync_sellers?: boolean
           updated_at?: string
         }
         Update: {
+          auto_create_local_proposal?: boolean
           auto_create_pedido_on_won?: boolean
+          auto_mark_won_on_pedido?: boolean
           auto_push_followups?: boolean
           auto_push_proposals?: boolean
           base_url?: string | null
@@ -653,10 +1019,14 @@ export type Database = {
           proposals_direction?: string
           sync_clients?: boolean
           sync_contacts?: boolean
+          sync_invoices?: boolean
           sync_payment_terms?: boolean
+          sync_pedidos?: boolean
           sync_price_tables?: boolean
           sync_products?: boolean
           sync_proposals?: boolean
+          sync_proposals_pull_interval_minutes?: number
+          sync_representatives?: boolean
           sync_sellers?: boolean
           updated_at?: string
         }
@@ -887,6 +1257,110 @@ export type Database = {
           },
         ]
       }
+      proposal_send_events: {
+        Row: {
+          channel: string
+          delivery_status: string
+          id: string
+          message: string | null
+          metadata: Json | null
+          opened_at: string | null
+          proposal_id: string
+          recipient: string | null
+          sent_at: string
+          sent_by: string | null
+          subject: string | null
+          version_id: string | null
+        }
+        Insert: {
+          channel: string
+          delivery_status?: string
+          id?: string
+          message?: string | null
+          metadata?: Json | null
+          opened_at?: string | null
+          proposal_id: string
+          recipient?: string | null
+          sent_at?: string
+          sent_by?: string | null
+          subject?: string | null
+          version_id?: string | null
+        }
+        Update: {
+          channel?: string
+          delivery_status?: string
+          id?: string
+          message?: string | null
+          metadata?: Json | null
+          opened_at?: string | null
+          proposal_id?: string
+          recipient?: string | null
+          sent_at?: string
+          sent_by?: string | null
+          subject?: string | null
+          version_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proposal_send_events_proposal_id_fkey"
+            columns: ["proposal_id"]
+            isOneToOne: false
+            referencedRelation: "proposals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposal_send_events_version_id_fkey"
+            columns: ["version_id"]
+            isOneToOne: false
+            referencedRelation: "proposal_send_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      proposal_send_versions: {
+        Row: {
+          generated_at: string
+          generated_by: string | null
+          id: string
+          is_current: boolean
+          notes: string | null
+          pdf_storage_path: string
+          proposal_id: string
+          template_snapshot: Json | null
+          version_number: number
+        }
+        Insert: {
+          generated_at?: string
+          generated_by?: string | null
+          id?: string
+          is_current?: boolean
+          notes?: string | null
+          pdf_storage_path: string
+          proposal_id: string
+          template_snapshot?: Json | null
+          version_number: number
+        }
+        Update: {
+          generated_at?: string
+          generated_by?: string | null
+          id?: string
+          is_current?: boolean
+          notes?: string | null
+          pdf_storage_path?: string
+          proposal_id?: string
+          template_snapshot?: Json | null
+          version_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proposal_send_versions_proposal_id_fkey"
+            columns: ["proposal_id"]
+            isOneToOne: false
+            referencedRelation: "proposals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       proposal_status_history: {
         Row: {
           changed_by: string | null
@@ -1078,7 +1552,9 @@ export type Database = {
           loss_reason: string | null
           next_followup_at: string | null
           nomus_id: string | null
+          nomus_invoice_ids: string[] | null
           nomus_pedido_id: string | null
+          nomus_proposal_id: string | null
           nomus_synced_at: string | null
           number: string
           payment_term_id: string | null
@@ -1088,6 +1564,7 @@ export type Database = {
           sales_owner_id: string | null
           segment: string | null
           sent_at: string | null
+          source: Database["public"]["Enums"]["proposal_source"]
           status: Database["public"]["Enums"]["proposal_status"]
           technical_notes: string | null
           technical_owner_id: string | null
@@ -1118,7 +1595,9 @@ export type Database = {
           loss_reason?: string | null
           next_followup_at?: string | null
           nomus_id?: string | null
+          nomus_invoice_ids?: string[] | null
           nomus_pedido_id?: string | null
+          nomus_proposal_id?: string | null
           nomus_synced_at?: string | null
           number?: string
           payment_term_id?: string | null
@@ -1128,6 +1607,7 @@ export type Database = {
           sales_owner_id?: string | null
           segment?: string | null
           sent_at?: string | null
+          source?: Database["public"]["Enums"]["proposal_source"]
           status?: Database["public"]["Enums"]["proposal_status"]
           technical_notes?: string | null
           technical_owner_id?: string | null
@@ -1158,7 +1638,9 @@ export type Database = {
           loss_reason?: string | null
           next_followup_at?: string | null
           nomus_id?: string | null
+          nomus_invoice_ids?: string[] | null
           nomus_pedido_id?: string | null
+          nomus_proposal_id?: string | null
           nomus_synced_at?: string | null
           number?: string
           payment_term_id?: string | null
@@ -1168,6 +1650,7 @@ export type Database = {
           sales_owner_id?: string | null
           segment?: string | null
           sent_at?: string | null
+          source?: Database["public"]["Enums"]["proposal_source"]
           status?: Database["public"]["Enums"]["proposal_status"]
           technical_notes?: string | null
           technical_owner_id?: string | null
@@ -1262,6 +1745,7 @@ export type Database = {
         | "diretoria"
         | "administrativo"
         | "admin"
+      proposal_source: "nomus" | "manual"
       proposal_status:
         | "rascunho"
         | "em_elaboracao"
@@ -1438,6 +1922,7 @@ export const Constants = {
         "administrativo",
         "admin",
       ],
+      proposal_source: ["nomus", "manual"],
       proposal_status: [
         "rascunho",
         "em_elaboracao",
