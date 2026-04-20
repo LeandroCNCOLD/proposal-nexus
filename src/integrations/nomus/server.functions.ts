@@ -3,6 +3,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { nomusFetch, listAll, testNomusConnection } from "./client";
+import { NOMUS_ENDPOINTS, proposalSubpath } from "./endpoints";
 
 type Json = Record<string, unknown>;
 
