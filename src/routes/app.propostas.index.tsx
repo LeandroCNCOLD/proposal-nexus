@@ -1,8 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { useState, useMemo } from "react";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, RefreshCw } from "lucide-react";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { nomusSyncProposalsFull } from "@/integrations/nomus/server.functions";
 import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
@@ -17,6 +20,17 @@ export const Route = createFileRoute("/app/propostas/")({ component: ProposalsLi
 function ProposalsList() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const queryClient = useQueryClient();
+  const syncFn = useServerFn(nomusSyncProposalsFull);
+
+  const syncMutation = useMutation({
+    mutationFn: () => (syncFn as any)(),
+    onSuccess: (res: any) => {
+      toast.success(`Sincronização concluída: ${res?.synced ?? 0} propostas`);
+      queryClient.invalidateQueries({ queryKey: ["proposals-list"] });
+    },
+    onError: (err: any) => toast.error(`Erro ao sincronizar: ${err?.message ?? "desconhecido"}`),
+  });
 
   const { data: proposals = [], isLoading } = useQuery({
     queryKey: ["proposals-list"],
@@ -42,7 +56,15 @@ function ProposalsList() {
       <PageHeader
         title="Propostas"
         subtitle={`${filtered.length} de ${proposals.length} propostas`}
-        actions={<Button asChild className="bg-[image:var(--gradient-primary)]"><Link to="/app/propostas/nova"><Plus className="mr-1.5 h-4 w-4" /> Nova proposta</Link></Button>}
+        actions={
+          <>
+            <Button variant="outline" onClick={() => syncMutation.mutate()} disabled={syncMutation.isPending}>
+              <RefreshCw className={`mr-1.5 h-4 w-4 ${syncMutation.isPending ? "animate-spin" : ""}`} />
+              {syncMutation.isPending ? "Sincronizando..." : "Buscar do Nomus"}
+            </Button>
+            <Button asChild className="bg-[image:var(--gradient-primary)]"><Link to="/app/propostas/nova"><Plus className="mr-1.5 h-4 w-4" /> Nova proposta</Link></Button>
+          </>
+        }
       />
 
       <div className="mb-4 flex flex-wrap gap-3">
