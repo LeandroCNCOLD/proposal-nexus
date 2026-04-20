@@ -34,7 +34,7 @@ function ProposalsList() {
             Authorization: `Bearer ${session.access_token}`,
             "x-tsr-serverfn": "true",
           },
-          body: JSON.stringify({}),
+          
         },
       );
       const text = await res.text();
