@@ -381,107 +381,102 @@ export const nomusSyncProposalsFull = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const userId = (context as { userId?: string }).userId ?? null;
-    await setState("propostas", { running: true });
-
     const { data: settings } = await supabaseAdmin
       .from("nomus_settings").select("auto_create_local_proposal").maybeSingle();
     const autoCreate = (settings as { auto_create_local_proposal?: boolean } | null)?.auto_create_local_proposal ?? true;
 
-    const res = await listAll<Json>(NOMUS_ENDPOINTS.propostas, {}, { entity: "propostas", triggeredBy: userId });
-    if (!res.ok) {
-      await setState("propostas", { running: false, last_error: res.error });
-      return { ok: false as const, error: res.error };
-    }
-    let count = 0;
-    for (const raw of res.items) {
-      const nomus_id = pickStr(raw, "id", "idProposta", "codigo");
-      if (!nomus_id) continue;
+    return runEntitySync({
+      entity: "propostas",
+      endpoint: NOMUS_ENDPOINTS.propostas,
+      triggeredBy: userId,
+      processItem: async (raw) => {
+        const nomus_id = pickStr(raw, "id", "idProposta", "codigo");
+        if (!nomus_id) return "skip";
 
-      const upsertPayload = {
-        nomus_id,
-        numero: pickStr(raw, "numero", "numeroProposta"),
-        cliente_nomus_id: pickStr(raw, "idCliente", "clienteId"),
-        vendedor_nomus_id: pickStr(raw, "idVendedor", "vendedorId"),
-        representante_nomus_id: pickStr(raw, "idRepresentante", "representanteId"),
-        valor_total: pickNum(raw, "valorTotal", "valor", "total"),
-        status_nomus: pickStr(raw, "status", "situacao"),
-        validade: pickStr(raw, "validade", "dataValidade"),
-        data_emissao: pickStr(raw, "dataEmissao", "data"),
-        observacoes: pickStr(raw, "observacoes", "obs"),
-        raw: raw as never,
-        synced_at: new Date().toISOString(),
-      };
-      const { data: mirror } = await supabaseAdmin
-        .from("nomus_proposals")
-        .upsert(upsertPayload, { onConflict: "nomus_id" })
-        .select("id")
-        .single();
-
-      // Itens (se vierem inline)
-      const itensRaw = (raw["itens"] ?? raw["items"]) as Json[] | undefined;
-      if (mirror && Array.isArray(itensRaw)) {
-        await supabaseAdmin.from("nomus_proposal_items").delete().eq("nomus_proposal_id", (mirror as { id: string }).id);
-        const rows = itensRaw.map((it, idx) => ({
-          nomus_proposal_id: (mirror as { id: string }).id,
-          nomus_item_id: pickStr(it, "id", "idItem"),
-          nomus_product_id: pickStr(it, "idProduto", "produtoId"),
-          product_code: pickStr(it, "codigo", "codigoProduto"),
-          description: pickStr(it, "descricao", "nome") ?? "",
-          quantity: pickNum(it, "quantidade", "qtd"),
-          unit_price: pickNum(it, "valorUnitario", "preco"),
-          discount: pickNum(it, "desconto"),
-          total: pickNum(it, "total", "valorTotal"),
-          position: idx,
-          raw: it as never,
-        }));
-        if (rows.length > 0) await supabaseAdmin.from("nomus_proposal_items").insert(rows);
-      }
-
-      // Cria proposta local se ainda não existir
-      if (autoCreate && mirror) {
+        const upsertPayload = {
+          nomus_id,
+          numero: pickStr(raw, "numero", "numeroProposta"),
+          cliente_nomus_id: pickStr(raw, "idCliente", "clienteId"),
+          vendedor_nomus_id: pickStr(raw, "idVendedor", "vendedorId"),
+          representante_nomus_id: pickStr(raw, "idRepresentante", "representanteId"),
+          valor_total: pickNum(raw, "valorTotal", "valor", "total"),
+          status_nomus: pickStr(raw, "status", "situacao"),
+          validade: pickStr(raw, "validade", "dataValidade"),
+          data_emissao: pickStr(raw, "dataEmissao", "data"),
+          observacoes: pickStr(raw, "observacoes", "obs"),
+          raw: raw as never,
+          synced_at: new Date().toISOString(),
+        };
+        const { data: mirror, error: mErr } = await supabaseAdmin
+          .from("nomus_proposals")
+          .upsert(upsertPayload, { onConflict: "nomus_id" })
+          .select("id")
+          .single();
+        if (mErr || !mirror) throw new Error(mErr?.message ?? "Falha ao gravar nomus_proposals");
         const mirrorId = (mirror as { id: string }).id;
-        const { data: existing } = await supabaseAdmin
-          .from("proposals").select("id").eq("nomus_id", nomus_id).maybeSingle();
-        if (!existing) {
-          // tenta vincular cliente
+
+        // Itens (se vierem inline no payload)
+        const itensRaw = (raw["itens"] ?? raw["items"]) as Json[] | undefined;
+        if (Array.isArray(itensRaw)) {
+          await supabaseAdmin.from("nomus_proposal_items").delete().eq("nomus_proposal_id", mirrorId);
+          const rows = itensRaw.map((it, idx) => ({
+            nomus_proposal_id: mirrorId,
+            nomus_item_id: pickStr(it, "id", "idItem"),
+            nomus_product_id: pickStr(it, "idProduto", "produtoId"),
+            product_code: pickStr(it, "codigo", "codigoProduto"),
+            description: pickStr(it, "descricao", "nome") ?? "",
+            quantity: pickNum(it, "quantidade", "qtd"),
+            unit_price: pickNum(it, "valorUnitario", "preco"),
+            discount: pickNum(it, "desconto"),
+            total: pickNum(it, "total", "valorTotal"),
+            position: idx,
+            raw: it as never,
+          }));
+          if (rows.length > 0) await supabaseAdmin.from("nomus_proposal_items").insert(rows);
+        }
+
+        // Espelha em proposals (cria ou atualiza)
+        if (autoCreate) {
           let clientId: string | null = null;
           if (upsertPayload.cliente_nomus_id) {
             const { data: c } = await supabaseAdmin
               .from("clients").select("id").eq("nomus_id", upsertPayload.cliente_nomus_id).maybeSingle();
             clientId = (c as { id: string } | null)?.id ?? null;
           }
-          await supabaseAdmin.from("proposals").insert({
-            nomus_id,
-            nomus_proposal_id: mirrorId,
-            nomus_synced_at: new Date().toISOString(),
-            source: "nomus",
-            title: upsertPayload.numero ?? `Proposta Nomus ${nomus_id}`,
-            client_id: clientId,
-            total_value: upsertPayload.valor_total ?? 0,
-            valid_until: upsertPayload.validade,
-            status: "em_elaboracao",
-          });
-        } else {
-          await supabaseAdmin.from("proposals")
-            .update({
+          const { data: existing } = await supabaseAdmin
+            .from("proposals").select("id, client_id").eq("nomus_id", nomus_id).maybeSingle();
+          if (!existing) {
+            const { error } = await supabaseAdmin.from("proposals").insert({
+              nomus_id,
               nomus_proposal_id: mirrorId,
+              nomus_synced_at: new Date().toISOString(),
+              source: "nomus",
+              title: upsertPayload.numero ?? `Proposta Nomus ${nomus_id}`,
+              client_id: clientId,
               total_value: upsertPayload.valor_total ?? 0,
               valid_until: upsertPayload.validade,
-              nomus_synced_at: new Date().toISOString(),
-            })
-            .eq("id", (existing as { id: string }).id);
+              status: "em_elaboracao",
+            });
+            if (error) throw new Error(error.message);
+          } else {
+            const ex = existing as { id: string; client_id: string | null };
+            const { error } = await supabaseAdmin.from("proposals")
+              .update({
+                nomus_proposal_id: mirrorId,
+                total_value: upsertPayload.valor_total ?? 0,
+                valid_until: upsertPayload.validade,
+                // só preenche client_id se ainda estava nulo (não sobrescreve match manual)
+                ...(ex.client_id || !clientId ? {} : { client_id: clientId }),
+                nomus_synced_at: new Date().toISOString(),
+              })
+              .eq("id", ex.id);
+            if (error) throw new Error(error.message);
+          }
         }
-      }
-      count += 1;
-    }
-    await setState("propostas", {
-      running: false, last_synced_at: new Date().toISOString(),
-      total_synced: count, last_error: null,
+        return "ok";
+      },
     });
-    return { ok: true as const, count };
   });
-
-/** Pull pedidos de venda. Trigger no banco vincula proposta automaticamente. */
 export const nomusSyncPedidos = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -514,46 +509,39 @@ export const nomusSyncPedidos = createServerFn({ method: "POST" })
       },
     });
   });
+/** Pull notas fiscais. */
 export const nomusSyncInvoices = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const userId = (context as { userId?: string }).userId ?? null;
-    await setState("notas_fiscais", { running: true });
-    const res = await listAll<Json>(NOMUS_ENDPOINTS.notas_fiscais, {}, { entity: "notas_fiscais", triggeredBy: userId });
-    if (!res.ok) {
-      await setState("notas_fiscais", { running: false, last_error: res.error });
-      return { ok: false as const, error: res.error };
-    }
-    let count = 0;
-    for (const raw of res.items) {
-      const nomus_id = pickStr(raw, "id", "idNota", "numero");
-      if (!nomus_id) continue;
-      await supabaseAdmin.from("nomus_invoices").upsert(
-        {
-          nomus_id,
-          numero: pickStr(raw, "numero"),
-          serie: pickStr(raw, "serie"),
-          chave_acesso: pickStr(raw, "chaveAcesso", "chave"),
-          pedido_nomus_id: pickStr(raw, "idPedido", "pedidoId"),
-          cliente_nomus_id: pickStr(raw, "idCliente", "clienteId"),
-          valor_total: pickNum(raw, "valorTotal", "valor"),
-          status_nomus: pickStr(raw, "status", "situacao"),
-          data_emissao: pickStr(raw, "dataEmissao", "data"),
-          raw: raw as never,
-          synced_at: new Date().toISOString(),
-        },
-        { onConflict: "nomus_id" }
-      );
-      count += 1;
-    }
-    await setState("notas_fiscais", {
-      running: false, last_synced_at: new Date().toISOString(),
-      total_synced: count, last_error: null,
+    return runEntitySync({
+      entity: "notas_fiscais",
+      endpoint: NOMUS_ENDPOINTS.notas_fiscais,
+      triggeredBy: userId,
+      processItem: async (raw) => {
+        const nomus_id = pickStr(raw, "id", "idNota", "numero");
+        if (!nomus_id) return "skip";
+        const { error } = await supabaseAdmin.from("nomus_invoices").upsert(
+          {
+            nomus_id,
+            numero: pickStr(raw, "numero"),
+            serie: pickStr(raw, "serie"),
+            chave_acesso: pickStr(raw, "chaveAcesso", "chave"),
+            pedido_nomus_id: pickStr(raw, "idPedido", "pedidoId"),
+            cliente_nomus_id: pickStr(raw, "idCliente", "clienteId"),
+            valor_total: pickNum(raw, "valorTotal", "valor"),
+            status_nomus: pickStr(raw, "status", "situacao"),
+            data_emissao: pickStr(raw, "dataEmissao", "data"),
+            raw: raw as never,
+            synced_at: new Date().toISOString(),
+          },
+          { onConflict: "nomus_id" }
+        );
+        if (error) throw new Error(error.message);
+        return "ok";
+      },
     });
-    return { ok: true as const, count };
   });
-
-/** Refresh forçado de uma proposta específica do Nomus. */
 export const nomusGetProposalRefresh = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { proposalId: string }) => input)
