@@ -753,7 +753,14 @@ export const generateProposalFile = createServerFn({ method: "POST" })
     return { ok: true as const, version_id: (ver as { id: string }).id, path, version_number: nextVer };
   });
 
-/** Registra envio + push opcional para Nomus. */
+/**
+ * Registra envio da proposta:
+ * 1) Sempre grava `proposal_send_events`, atualiza `proposals.sent_at` e timeline local "enviada".
+ * 2) Se a proposta tiver `nomus_id`, tenta também postar evento de envio no Nomus
+ *    (POST /propostas/{id}/eventos). Esse passo é best-effort: falha NÃO derruba o envio local.
+ * 3) Resultado do push externo é refletido em uma segunda entrada na timeline
+ *    ("observacao") com sucesso/erro, para auditoria.
+ */
 export const sendProposalFile = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: {
@@ -762,20 +769,65 @@ export const sendProposalFile = createServerFn({ method: "POST" })
   }) => input)
   .handler(async ({ data, context }) => {
     const userId = (context as { userId?: string }).userId ?? null;
-    await supabaseAdmin.from("proposal_send_events").insert({
+
+    // 1) Envio local — sempre executa primeiro e é o "fato gerador"
+    const { error: evErr } = await supabaseAdmin.from("proposal_send_events").insert({
       proposal_id: data.proposalId, version_id: data.versionId,
       channel: data.channel, recipient: data.recipient ?? null,
       subject: data.subject ?? null, message: data.message ?? null,
       sent_by: userId, delivery_status: "sent",
     });
-    await supabaseAdmin.from("proposals").update({ sent_at: new Date().toISOString() }).eq("id", data.proposalId);
+    if (evErr) return { ok: false as const, error: `Falha ao registrar envio: ${evErr.message}` };
+
+    await supabaseAdmin.from("proposals")
+      .update({ sent_at: new Date().toISOString() }).eq("id", data.proposalId);
+
+    const recipientSuffix = data.recipient ? ` para ${data.recipient}` : "";
     await supabaseAdmin.from("proposal_timeline_events").insert({
       proposal_id: data.proposalId, event_type: "enviada",
-      description: `Enviada via ${data.channel}${data.recipient ? ` para ${data.recipient}` : ""}`,
+      description: `Enviada via ${data.channel}${recipientSuffix}`,
       user_id: userId,
     });
-    return { ok: true as const };
+
+    // 2) Push best-effort para Nomus (somente se houver vínculo)
+    const { data: prop } = await supabaseAdmin
+      .from("proposals").select("nomus_id").eq("id", data.proposalId).maybeSingle();
+    const nomusId = (prop as { nomus_id: string | null } | null)?.nomus_id ?? null;
+
+    let nomusPush: { ok: true } | { ok: false; error: string } | { ok: false; skipped: true } =
+      { ok: false, skipped: true };
+
+    if (nomusId) {
+      const res = await nomusFetch(proposalSubpath(nomusId, "eventos"), {
+        method: "POST",
+        body: {
+          descricao: `Proposta enviada via ${data.channel}${recipientSuffix}`,
+          tipo: "envio",
+          data: new Date().toISOString(),
+        },
+        entity: "propostas", operation: "send_event", direction: "push", triggeredBy: userId,
+      });
+      if (res.ok) {
+        nomusPush = { ok: true };
+        await supabaseAdmin.from("proposal_timeline_events").insert({
+          proposal_id: data.proposalId, event_type: "observacao",
+          description: "Evento de envio replicado no Nomus",
+          user_id: userId,
+        });
+      } else {
+        const errMsg = res.error ?? `HTTP ${res.status ?? "?"}`;
+        nomusPush = { ok: false, error: errMsg };
+        await supabaseAdmin.from("proposal_timeline_events").insert({
+          proposal_id: data.proposalId, event_type: "observacao",
+          description: `Falha ao replicar envio no Nomus: ${errMsg}`,
+          user_id: userId,
+        });
+      }
+    }
+
+    return { ok: true as const, nomus_push: nomusPush };
   });
+
 
 /**
  * Cria Pedido de venda no Nomus a partir de uma proposta ganha.
