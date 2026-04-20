@@ -26,8 +26,7 @@ function ProposalDetail() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { user } = useAuth();
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiResult, setAiResult] = useState<string | null>(null);
+  const [aiLoadingTask, setAiLoadingTask] = useState<"resumo" | "proximo_passo" | null>(null);
 
   const { data: p, isLoading } = useQuery({
     queryKey: ["proposal", id],
@@ -70,6 +69,20 @@ function ProposalDetail() {
       return data ?? [];
     },
   });
+
+  const { data: insights = [] } = useQuery({
+    queryKey: ["proposal-insights", id],
+    queryFn: async () => {
+      const { data } = await supabase.from("ai_insights")
+        .select("id, insight_type, content, created_at, metadata")
+        .eq("proposal_id", id)
+        .order("created_at", { ascending: false });
+      return data ?? [];
+    },
+  });
+
+  const latestResumo = insights.find((i: any) => i.insight_type === "resumo");
+  const latestProx = insights.find((i: any) => i.insight_type === "proximo_passo");
 
   const [generating, setGenerating] = useState(false);
   const [sending, setSending] = useState(false);
@@ -223,17 +236,17 @@ function ProposalDetail() {
   };
 
   const runAI = async (task: "resumo" | "proximo_passo") => {
-    setAiLoading(true); setAiResult(null);
+    setAiLoadingTask(task);
     try {
       const { data, error } = await supabase.functions.invoke("ai-proposal-insight", {
         body: { proposal_id: id, task },
       });
       if (error) throw error;
-      setAiResult(data.content);
-      toast.success("Insight gerado");
+      toast.success(data?.cached ? "Insight recuperado do cache" : "Insight gerado");
+      qc.invalidateQueries({ queryKey: ["proposal-insights", id] });
     } catch (e: any) {
       toast.error(e.message ?? "Falha ao gerar insight");
-    } finally { setAiLoading(false); }
+    } finally { setAiLoadingTask(null); }
   };
 
   if (isLoading) return <div className="flex items-center justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
@@ -295,22 +308,29 @@ function ProposalDetail() {
           </div>
 
           <div className="rounded-xl border bg-card p-6 shadow-[var(--shadow-sm)]">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-sm font-semibold flex items-center gap-2"><Sparkles className="h-4 w-4 text-primary" /> Inteligência artificial</h2>
-              <div className="flex gap-2">
-                <Button size="sm" variant="outline" onClick={() => runAI("resumo")} disabled={aiLoading}>
-                  {aiLoading && <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />} Resumir proposta
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => runAI("proximo_passo")} disabled={aiLoading}>
-                  Sugerir próximo passo
-                </Button>
-              </div>
+            <div className="mb-4 flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-primary" />
+              <h2 className="text-sm font-semibold">Inteligência artificial</h2>
+              <span className="text-[11px] text-muted-foreground">Baseada nos dados reais da proposta</span>
             </div>
-            {aiResult ? (
-              <div className="rounded-md border bg-secondary/30 p-4 text-sm whitespace-pre-wrap">{aiResult}</div>
-            ) : (
-              <div className="text-xs text-muted-foreground">Use a IA para gerar resumos, sugestões de próximo passo ou análises de perda/ganho.</div>
-            )}
+            <div className="grid gap-4 md:grid-cols-2">
+              <InsightBlock
+                title="Resumo executivo"
+                insight={latestResumo}
+                loading={aiLoadingTask === "resumo"}
+                disabled={aiLoadingTask !== null}
+                onRun={() => runAI("resumo")}
+                ctaLabel="Gerar resumo"
+              />
+              <InsightBlock
+                title="Próximo passo"
+                insight={latestProx}
+                loading={aiLoadingTask === "proximo_passo"}
+                disabled={aiLoadingTask !== null}
+                onRun={() => runAI("proximo_passo")}
+                ctaLabel="Sugerir próximo passo"
+              />
+            </div>
           </div>
         </div>
 
