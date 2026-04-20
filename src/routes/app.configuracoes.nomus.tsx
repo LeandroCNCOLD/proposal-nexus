@@ -20,15 +20,17 @@ import { useServerFn } from "@tanstack/react-start";
 
 export const Route = createFileRoute("/app/configuracoes/nomus")({ component: NomusPage });
 
-const ENTITIES = [
-  { key: "clientes", label: "Clientes", fn: nomusSyncClients },
-  { key: "produtos", label: "Produtos / Equipamentos", fn: nomusSyncProducts },
-  { key: "condicoes_pagamento", label: "Condições de pagamento", fn: nomusSyncPaymentTerms },
-];
-
 function NomusPage() {
   const qc = useQueryClient();
   const test = useServerFn(nomusTestConnection);
+  const syncClients = useServerFn(nomusSyncClients);
+  const syncProducts = useServerFn(nomusSyncProducts);
+  const syncPaymentTerms = useServerFn(nomusSyncPaymentTerms);
+  const ENTITIES = [
+    { key: "clientes", label: "Clientes", run: syncClients },
+    { key: "produtos", label: "Produtos / Equipamentos", run: syncProducts },
+    { key: "condicoes_pagamento", label: "Condições de pagamento", run: syncPaymentTerms },
+  ];
   const [testing, setTesting] = useState(false);
   const [syncing, setSyncing] = useState<string | null>(null);
 
