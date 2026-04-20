@@ -1,13 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Loader2, RefreshCw, PlugZap, CheckCircle2, AlertCircle } from "lucide-react";
+import { Loader2, RefreshCw, PlugZap, CheckCircle2, AlertCircle, Activity } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 import {
@@ -24,6 +25,8 @@ import {
 import { useServerFn } from "@tanstack/react-start";
 
 export const Route = createFileRoute("/app/configuracoes/nomus")({ component: NomusPage });
+
+type SyncFnResult = { ok: true; count: number; skipped?: number; unmatched?: number } | { ok: false; error: string };
 
 function NomusPage() {
   const qc = useQueryClient();
@@ -57,6 +60,7 @@ function NomusPage() {
   const { data: state = [] } = useQuery({
     queryKey: ["nomus_sync_state"],
     queryFn: async () => (await supabase.from("nomus_sync_state").select("*")).data ?? [],
+    refetchInterval: 3000,
   });
 
   const { data: logs = [] } = useQuery({
@@ -68,7 +72,7 @@ function NomusPage() {
 
   const stateByEntity = Object.fromEntries((state ?? []).map((s) => [s.entity, s]));
 
-  const updateSettings = async (patch: Partial<{ base_url: string; is_enabled: boolean; auto_push_proposals: boolean; auto_push_followups: boolean; auto_create_pedido_on_won: boolean }>) => {
+  const updateSettings = async (patch: Partial<{ base_url: string; is_enabled: boolean; auto_push_proposals: boolean; auto_push_followups: boolean; auto_create_pedido_on_won: boolean; auto_create_local_proposal: boolean }>) => {
     if (!settings) return;
     const { error } = await supabase.from("nomus_settings").update(patch).eq("id", settings.id);
     if (error) return toast.error(error.message);
@@ -79,8 +83,8 @@ function NomusPage() {
     setTesting(true);
     try {
       const res = await test({});
-      if (res.ok) toast.success(`Conexão OK via ${res.endpoint}`);
-      else toast.error(res.error);
+      if (res.ok) toast.success(`Conexão OK via ${res.endpoint} (${res.durationMs}ms)`);
+      else toast.error(`Falha (${res.status}): ${res.error}`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Falha no teste");
     } finally {
@@ -88,12 +92,18 @@ function NomusPage() {
     }
   };
 
-  const runSync = async (key: string, fn: () => Promise<{ ok: boolean; count?: number; error?: string }>) => {
+  const runSync = async (key: string, label: string, fn: () => Promise<SyncFnResult>) => {
     setSyncing(key);
     try {
       const res = await fn();
-      if (res.ok) toast.success(`${key}: ${res.count ?? 0} registros sincronizados`);
-      else toast.error(res.error ?? "Falha na sincronização");
+      if (res.ok) {
+        const extras: string[] = [];
+        if (res.skipped && res.skipped > 0) extras.push(`${res.skipped} ignorado(s)`);
+        if (res.unmatched && res.unmatched > 0) extras.push(`${res.unmatched} sem match local`);
+        toast.success(`${label}: ${res.count} sincronizados${extras.length ? ` (${extras.join(", ")})` : ""}`);
+      } else {
+        toast.error(`${label}: ${res.error ?? "Falha na sincronização"}`);
+      }
       qc.invalidateQueries({ queryKey: ["nomus_sync_state"] });
       qc.invalidateQueries({ queryKey: ["nomus_sync_log"] });
     } catch (e) {
@@ -160,6 +170,13 @@ function NomusPage() {
                 onCheckedChange={(v) => updateSettings({ auto_create_pedido_on_won: v })}
               />
             </div>
+            <div className="flex items-center justify-between">
+              <Label className="text-sm">Criar proposta local automaticamente</Label>
+              <Switch
+                checked={settings?.auto_create_local_proposal ?? true}
+                onCheckedChange={(v) => updateSettings({ auto_create_local_proposal: v })}
+              />
+            </div>
           </div>
         </section>
 
@@ -168,30 +185,46 @@ function NomusPage() {
           <h2 className="text-sm font-semibold">Entidades</h2>
           <div className="grid gap-3 sm:grid-cols-2">
             {ENTITIES.map((ent) => {
-              const st = stateByEntity[ent.key];
-              const isRunning = syncing === ent.key;
+              const st = stateByEntity[ent.key] as
+                | { running?: boolean; last_synced_at?: string | null; total_synced?: number; last_error?: string | null }
+                | undefined;
+              const isRunning = syncing === ent.key || !!st?.running;
+              const hasError = !!st?.last_error;
               return (
                 <div key={ent.key} className="rounded-xl border bg-card p-4 shadow-[var(--shadow-sm)]">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <div className="text-sm font-semibold">{ent.label}</div>
-                      <div className="text-xs text-muted-foreground mt-0.5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <div className="text-sm font-semibold truncate">{ent.label}</div>
+                        {isRunning ? (
+                          <Badge variant="secondary" className="gap-1">
+                            <Activity className="h-3 w-3 animate-pulse" /> rodando
+                          </Badge>
+                        ) : hasError ? (
+                          <Badge variant="destructive">erro</Badge>
+                        ) : st?.last_synced_at ? (
+                          <Badge variant="outline" className="text-primary border-primary/40">ok</Badge>
+                        ) : null}
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1">
                         {st?.last_synced_at
                           ? `Último sync: ${new Date(st.last_synced_at).toLocaleString("pt-BR")}`
                           : "Nunca sincronizado"}
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        Total: {st?.total_synced ?? 0}
+                        Total sincronizado: <span className="font-medium text-foreground">{st?.total_synced ?? 0}</span>
                       </div>
-                      {st?.last_error && (
-                        <div className="text-xs text-destructive mt-1 line-clamp-2">{st.last_error}</div>
+                      {hasError && (
+                        <div className="text-xs text-destructive mt-1.5 break-words" title={st?.last_error ?? undefined}>
+                          {st?.last_error}
+                        </div>
                       )}
                     </div>
                     <Button
                       size="sm"
                       variant="outline"
                       disabled={isRunning}
-                      onClick={() => runSync(ent.key, () => ent.run({}))}
+                      onClick={() => runSync(ent.key, ent.label, () => ent.run({}) as Promise<SyncFnResult>)}
                     >
                       {isRunning ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
                     </Button>
