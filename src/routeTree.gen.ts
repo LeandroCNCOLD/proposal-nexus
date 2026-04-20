@@ -12,6 +12,10 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AppIndexRouteImport } from './routes/app.index'
+import { Route as AppPropostasIndexRouteImport } from './routes/app.propostas.index'
+import { Route as AppPropostasNovaRouteImport } from './routes/app.propostas.nova'
+import { Route as AppPropostasIdRouteImport } from './routes/app.propostas.$id'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -28,34 +32,86 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppIndexRoute = AppIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPropostasIndexRoute = AppPropostasIndexRouteImport.update({
+  id: '/propostas/',
+  path: '/propostas/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPropostasNovaRoute = AppPropostasNovaRouteImport.update({
+  id: '/propostas/nova',
+  path: '/propostas/nova',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPropostasIdRoute = AppPropostasIdRouteImport.update({
+  id: '/propostas/$id',
+  path: '/propostas/$id',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/app': typeof AppRoute
+  '/app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
+  '/app/': typeof AppIndexRoute
+  '/app/propostas/$id': typeof AppPropostasIdRoute
+  '/app/propostas/nova': typeof AppPropostasNovaRoute
+  '/app/propostas/': typeof AppPropostasIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/app': typeof AppRoute
   '/login': typeof LoginRoute
+  '/app': typeof AppIndexRoute
+  '/app/propostas/$id': typeof AppPropostasIdRoute
+  '/app/propostas/nova': typeof AppPropostasNovaRoute
+  '/app/propostas': typeof AppPropostasIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/app': typeof AppRoute
+  '/app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
+  '/app/': typeof AppIndexRoute
+  '/app/propostas/$id': typeof AppPropostasIdRoute
+  '/app/propostas/nova': typeof AppPropostasNovaRoute
+  '/app/propostas/': typeof AppPropostasIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/app' | '/login'
+  fullPaths:
+    | '/'
+    | '/app'
+    | '/login'
+    | '/app/'
+    | '/app/propostas/$id'
+    | '/app/propostas/nova'
+    | '/app/propostas/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/app' | '/login'
-  id: '__root__' | '/' | '/app' | '/login'
+  to:
+    | '/'
+    | '/login'
+    | '/app'
+    | '/app/propostas/$id'
+    | '/app/propostas/nova'
+    | '/app/propostas'
+  id:
+    | '__root__'
+    | '/'
+    | '/app'
+    | '/login'
+    | '/app/'
+    | '/app/propostas/$id'
+    | '/app/propostas/nova'
+    | '/app/propostas/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AppRoute: typeof AppRoute
+  AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
 }
 
@@ -82,12 +138,56 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/app/': {
+      id: '/app/'
+      path: '/'
+      fullPath: '/app/'
+      preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/propostas/': {
+      id: '/app/propostas/'
+      path: '/propostas'
+      fullPath: '/app/propostas/'
+      preLoaderRoute: typeof AppPropostasIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/propostas/nova': {
+      id: '/app/propostas/nova'
+      path: '/propostas/nova'
+      fullPath: '/app/propostas/nova'
+      preLoaderRoute: typeof AppPropostasNovaRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/propostas/$id': {
+      id: '/app/propostas/$id'
+      path: '/propostas/$id'
+      fullPath: '/app/propostas/$id'
+      preLoaderRoute: typeof AppPropostasIdRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
+interface AppRouteChildren {
+  AppIndexRoute: typeof AppIndexRoute
+  AppPropostasIdRoute: typeof AppPropostasIdRoute
+  AppPropostasNovaRoute: typeof AppPropostasNovaRoute
+  AppPropostasIndexRoute: typeof AppPropostasIndexRoute
+}
+
+const AppRouteChildren: AppRouteChildren = {
+  AppIndexRoute: AppIndexRoute,
+  AppPropostasIdRoute: AppPropostasIdRoute,
+  AppPropostasNovaRoute: AppPropostasNovaRoute,
+  AppPropostasIndexRoute: AppPropostasIndexRoute,
+}
+
+const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AppRoute: AppRoute,
+  AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
 }
 export const routeTree = rootRouteImport
