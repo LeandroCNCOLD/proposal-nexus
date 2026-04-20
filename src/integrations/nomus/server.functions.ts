@@ -118,48 +118,34 @@ export const nomusSyncClients = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const userId = (context as { userId?: string }).userId ?? null;
-    await setState("clientes", { running: true });
-    const res = await listAll<Json>(NOMUS_ENDPOINTS.clientes, {}, { entity: "clientes", triggeredBy: userId });
-    if (!res.ok) {
-      await setState("clientes", { running: false, last_error: res.error });
-      return { ok: false as const, error: res.error };
-    }
-    let upserts = 0;
-    for (const raw of res.items) {
-      const nomus_id = pickStr(raw, "id", "codigo", "idCliente");
-      const name = pickStr(raw, "nome", "razaoSocial", "nomeFantasia");
-      if (!nomus_id || !name) continue;
-      const document = pickStr(raw, "cnpj", "cpf", "documento");
-      const trade_name = pickStr(raw, "nomeFantasia", "fantasia");
-      const city = pickStr(raw, "cidade", "municipio");
-      const state = pickStr(raw, "uf", "estado");
-      const segment = pickStr(raw, "segmento", "ramo");
-
-      const { error } = await supabaseAdmin
-        .from("clients")
-        .upsert(
-          {
-            nomus_id,
-            name,
-            document,
-            trade_name,
-            city,
-            state,
-            segment,
-            origin: "nomus",
-            nomus_synced_at: new Date().toISOString(),
-          },
-          { onConflict: "nomus_id" }
-        );
-      if (!error) upserts += 1;
-    }
-    await setState("clientes", {
-      running: false,
-      last_synced_at: new Date().toISOString(),
-      total_synced: upserts,
-      last_error: null,
+    return runEntitySync({
+      entity: "clientes",
+      endpoint: NOMUS_ENDPOINTS.clientes,
+      triggeredBy: userId,
+      processItem: async (raw) => {
+        const nomus_id = pickStr(raw, "id", "codigo", "idCliente");
+        const name = pickStr(raw, "nome", "razaoSocial", "nomeFantasia");
+        if (!nomus_id || !name) return "skip";
+        const { error } = await supabaseAdmin
+          .from("clients")
+          .upsert(
+            {
+              nomus_id,
+              name,
+              document: pickStr(raw, "cnpj", "cpf", "documento"),
+              trade_name: pickStr(raw, "nomeFantasia", "fantasia"),
+              city: pickStr(raw, "cidade", "municipio"),
+              state: pickStr(raw, "uf", "estado"),
+              segment: pickStr(raw, "segmento", "ramo"),
+              origin: "nomus",
+              nomus_synced_at: new Date().toISOString(),
+            },
+            { onConflict: "nomus_id" }
+          );
+        if (error) throw new Error(error.message);
+        return "ok";
+      },
     });
-    return { ok: true as const, count: upserts };
   });
 
 /** Pull products and map to equipments via nomus_id. */
