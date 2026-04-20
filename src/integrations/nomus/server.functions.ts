@@ -157,43 +157,43 @@ export const nomusSyncClients = createServerFn({ method: "POST" })
     });
   });
 
-/** Pull products and map to equipments via nomus_id. */
+/** Pull products and map to equipments via nomus_id. NÃO cria equipments automaticamente. */
 export const nomusSyncProducts = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const userId = (context as { userId?: string }).userId ?? null;
-    await setState("produtos", { running: true });
-    const res = await listAll<Json>(NOMUS_ENDPOINTS.produtos, {}, { entity: "produtos", triggeredBy: userId });
-    if (!res.ok) {
-      await setState("produtos", { running: false, last_error: res.error });
-      return { ok: false as const, error: res.error };
-    }
-    let updated = 0;
-    for (const raw of res.items) {
-      const nomus_id = pickStr(raw, "id", "codigo", "idProduto");
-      const model = pickStr(raw, "codigo", "modelo", "descricao");
-      if (!nomus_id || !model) continue;
-      // Try to attach to existing equipment by model match; do NOT auto-create.
-      const { data: existing } = await supabaseAdmin
-        .from("equipments")
-        .select("id")
-        .or(`nomus_id.eq.${nomus_id},model.eq.${model}`)
-        .maybeSingle();
-      if (existing) {
-        await supabaseAdmin
+    return runEntitySync({
+      entity: "produtos",
+      endpoint: NOMUS_ENDPOINTS.produtos,
+      triggeredBy: userId,
+      processItem: async (raw) => {
+        const nomus_id = pickStr(raw, "id", "codigo", "idProduto");
+        const model = pickStr(raw, "codigo", "modelo", "descricao");
+        if (!nomus_id || !model) return "skip";
+        // 1) match por nomus_id já vinculado
+        let { data: existing } = await supabaseAdmin
+          .from("equipments").select("id").eq("nomus_id", nomus_id).maybeSingle();
+        // 2) match por model exato
+        if (!existing) {
+          const r = await supabaseAdmin
+            .from("equipments").select("id").eq("model", model).maybeSingle();
+          existing = r.data;
+        }
+        // 3) match case-insensitive
+        if (!existing) {
+          const r = await supabaseAdmin
+            .from("equipments").select("id").ilike("model", model).maybeSingle();
+          existing = r.data;
+        }
+        if (!existing) return "unmatched";
+        const { error } = await supabaseAdmin
           .from("equipments")
           .update({ nomus_id, nomus_synced_at: new Date().toISOString() })
           .eq("id", existing.id);
-        updated += 1;
-      }
-    }
-    await setState("produtos", {
-      running: false,
-      last_synced_at: new Date().toISOString(),
-      total_synced: updated,
-      last_error: null,
+        if (error) throw new Error(error.message);
+        return "ok";
+      },
     });
-    return { ok: true as const, count: updated };
   });
 
 /** Pull payment terms. */
