@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { formatCurrencyBRL } from "@/lib/format";
+import { brl } from "@/lib/format";
 
 export const Route = createFileRoute("/app/propostas/pedidos-nf")({
   component: PedidosNFPage,
