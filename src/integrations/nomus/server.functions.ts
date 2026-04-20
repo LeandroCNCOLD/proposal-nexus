@@ -55,11 +55,15 @@ async function runEntitySync(args: {
   endpoint: string;
   triggeredBy: string | null;
   processItem: (raw: Json) => Promise<"ok" | "skip" | "unmatched">;
+  /** Query extra para o listAll (ex.: dataModificacaoInicial p/ incremental). */
+  query?: Record<string, string | number | undefined>;
+  /** Página máxima de itens — passado adiante para listAll. */
+  pageSize?: number;
 }): Promise<SyncResult> {
-  const { entity, endpoint, triggeredBy, processItem } = args;
+  const { entity, endpoint, triggeredBy, processItem, query, pageSize } = args;
   await setState(entity, { running: true, last_error: null });
   try {
-    const res = await listAll<Json>(endpoint, {}, { entity, triggeredBy });
+    const res = await listAll<Json>(endpoint, query ?? {}, { entity, triggeredBy, pageSize });
     if (!res.ok) {
       const error = res.error ?? "Falha ao listar entidade no Nomus";
       await setState(entity, { running: false, last_error: error });
@@ -385,6 +389,9 @@ export const nomusSyncProposalsFull = createServerFn({ method: "POST" })
       .from("nomus_settings").select("auto_create_local_proposal").maybeSingle();
     const autoCreate = (settings as { auto_create_local_proposal?: boolean } | null)?.auto_create_local_proposal ?? true;
 
+    // Cache em memória para evitar N lookups de clientes durante o sync
+    const clientCache = new Map<string, string | null>();
+
     return runEntitySync({
       entity: "propostas",
       endpoint: NOMUS_ENDPOINTS.propostas,
@@ -439,9 +446,15 @@ export const nomusSyncProposalsFull = createServerFn({ method: "POST" })
         if (autoCreate) {
           let clientId: string | null = null;
           if (upsertPayload.cliente_nomus_id) {
-            const { data: c } = await supabaseAdmin
-              .from("clients").select("id").eq("nomus_id", upsertPayload.cliente_nomus_id).maybeSingle();
-            clientId = (c as { id: string } | null)?.id ?? null;
+            const cached = clientCache.get(upsertPayload.cliente_nomus_id);
+            if (cached !== undefined) {
+              clientId = cached;
+            } else {
+              const { data: c } = await supabaseAdmin
+                .from("clients").select("id").eq("nomus_id", upsertPayload.cliente_nomus_id).maybeSingle();
+              clientId = (c as { id: string } | null)?.id ?? null;
+              clientCache.set(upsertPayload.cliente_nomus_id, clientId);
+            }
           }
           const { data: existing } = await supabaseAdmin
             .from("proposals").select("id, client_id").eq("nomus_id", nomus_id).maybeSingle();

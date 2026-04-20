@@ -124,6 +124,9 @@ function classifyError(status: number, body: string): string {
   }
 }
 
+/** Timeout duro por request (ms). Evita travar sync em endpoints lentos. */
+const REQUEST_TIMEOUT_MS = 25_000;
+
 export async function nomusFetch<T = unknown>(
   path: string,
   opts: NomusFetchOptions = {}
@@ -165,12 +168,16 @@ export async function nomusFetch<T = unknown>(
   while (attempt < maxAttempts) {
     attempt += 1;
     const started = Date.now();
+    const ac = new AbortController();
+    const timer = setTimeout(() => ac.abort(), REQUEST_TIMEOUT_MS);
     try {
       const res = await fetch(url, {
         method,
         headers,
         body: opts.body ? JSON.stringify(opts.body) : undefined,
+        signal: ac.signal,
       });
+      clearTimeout(timer);
       const duration = Date.now() - started;
       lastStatus = res.status;
 
@@ -230,6 +237,7 @@ export async function nomusFetch<T = unknown>(
       });
       return { ok: true, data: parsed as T, status: res.status };
     } catch (err) {
+      clearTimeout(timer);
       const duration = Date.now() - started;
       lastErr = err instanceof Error ? err.message : String(err);
       const isTimeout = /timeout|timed out|aborted/i.test(lastErr);
@@ -251,31 +259,86 @@ export async function nomusFetch<T = unknown>(
   return { ok: false, error: lastErr ?? "Unknown error", status: lastStatus };
 }
 
-/** Iterate ?pagina=N until empty list, max 100 pages. */
+/**
+ * Limites/parâmetros padrão de paginação. Mantemos um teto duro de páginas
+ * para evitar loop infinito caso o Nomus devolva sempre o mesmo cursor.
+ */
+const LIST_MAX_PAGES = 200;
+const LIST_MAX_ITEMS = 50_000;
+const LIST_DEFAULT_PAGE_SIZE = 50;
+
+/**
+ * Extrai o array de itens de várias formas de envelope que o Nomus já
+ * retornou em diferentes endpoints (array puro, { items }, { resultados },
+ * { data }, { content }, { registros }).
+ */
+function extractBatch<T>(payload: unknown): T[] {
+  if (!payload) return [];
+  if (Array.isArray(payload)) return payload as T[];
+  const env = payload as Record<string, unknown>;
+  for (const k of ["items", "resultados", "data", "content", "registros", "lista"]) {
+    const v = env[k];
+    if (Array.isArray(v)) return v as T[];
+  }
+  return [];
+}
+
+/**
+ * Pagina por `pagina=N` até o Nomus devolver lista vazia ou batch menor que
+ * o `pageSize`. Faz de-duplicação por `id` para sobreviver a APIs que
+ * eventualmente repetem registros entre páginas. Suporta `query` extra para
+ * já abrir caminho para sync incremental (ex.: `dataModificacaoInicial`).
+ */
 export async function listAll<T = unknown>(
   endpoint: string,
   query: Record<string, string | number | undefined> = {},
-  opts: { entity: string; triggeredBy?: string | null; pageSize?: number } = { entity: "unknown" }
+  opts: {
+    entity: string;
+    triggeredBy?: string | null;
+    pageSize?: number;
+    /** Teto de itens p/ esta chamada (default LIST_MAX_ITEMS). */
+    maxItems?: number;
+  } = { entity: "unknown" }
 ): Promise<{ ok: true; items: T[] } | { ok: false; error: string }> {
   const items: T[] = [];
-  for (let pagina = 1; pagina <= 100; pagina++) {
-    const res = await nomusFetch<T[] | { items?: T[]; resultados?: T[] }>(endpoint, {
+  const seen = new Set<string>();
+  const pageSize = opts.pageSize ?? LIST_DEFAULT_PAGE_SIZE;
+  const maxItems = opts.maxItems ?? LIST_MAX_ITEMS;
+
+  for (let pagina = 1; pagina <= LIST_MAX_PAGES; pagina++) {
+    const res = await nomusFetch<unknown>(endpoint, {
       method: "GET",
-      query: { ...query, pagina },
+      query: { ...query, pagina, tamanhoPagina: pageSize },
       entity: opts.entity,
       operation: "list",
       direction: "pull",
       triggeredBy: opts.triggeredBy ?? null,
     });
     if (!res.ok) return { ok: false, error: res.error };
-    const batch = Array.isArray(res.data)
-      ? (res.data as T[])
-      : ((res.data as { items?: T[]; resultados?: T[] })?.items
-        ?? (res.data as { items?: T[]; resultados?: T[] })?.resultados
-        ?? []);
-    if (!batch || batch.length === 0) break;
-    items.push(...batch);
-    if (batch.length < (opts.pageSize ?? 50)) break;
+
+    const batch = extractBatch<T>(res.data);
+    if (batch.length === 0) break;
+
+    let added = 0;
+    for (const it of batch) {
+      const idVal = (it as Record<string, unknown> | null)?.["id"]
+        ?? (it as Record<string, unknown> | null)?.["codigo"];
+      const key = idVal != null ? String(idVal) : `${pagina}:${added}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      items.push(it);
+      added += 1;
+      if (items.length >= maxItems) break;
+    }
+
+    if (items.length >= maxItems) {
+      if (DEBUG) console.warn(`[nomus] listAll(${opts.entity}) hit maxItems=${maxItems}`);
+      break;
+    }
+    // página menor que pageSize → última página
+    if (batch.length < pageSize) break;
+    // página inteira já vista (de-dup) → sem progresso, encerra
+    if (added === 0) break;
   }
   return { ok: true, items };
 }
