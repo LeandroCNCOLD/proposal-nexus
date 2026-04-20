@@ -442,3 +442,38 @@ function Item({ label, value, highlight }: { label: string; value: React.ReactNo
     </div>
   );
 }
+
+function InsightBlock({
+  title, insight, loading, disabled, onRun, ctaLabel,
+}: {
+  title: string;
+  insight: any | undefined;
+  loading: boolean;
+  disabled: boolean;
+  onRun: () => void;
+  ctaLabel: string;
+}) {
+  return (
+    <div className="flex flex-col rounded-md border bg-secondary/20 p-4">
+      <div className="mb-2 flex items-center justify-between">
+        <div className="text-xs font-semibold">{title}</div>
+        <Button size="sm" variant={insight ? "ghost" : "outline"} onClick={onRun} disabled={disabled}>
+          {loading && <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />}
+          {insight ? "Atualizar" : ctaLabel}
+        </Button>
+      </div>
+      {insight ? (
+        <>
+          <div className="whitespace-pre-wrap text-sm leading-relaxed">{insight.content}</div>
+          <div className="mt-2 flex items-center gap-1 text-[10px] text-muted-foreground">
+            <Clock className="h-3 w-3" /> Gerado em {dateTimeBR(insight.created_at)}
+          </div>
+        </>
+      ) : (
+        <div className="text-xs text-muted-foreground">
+          Ainda não gerado. Clique em "{ctaLabel}" para a IA analisar a proposta com base nos dados reais (cliente, itens, timeline e envios).
+        </div>
+      )}
+    </div>
+  );
+}
