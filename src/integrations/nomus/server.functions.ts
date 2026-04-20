@@ -33,6 +33,62 @@ async function setState(entity: string, patch: Record<string, unknown>) {
   });
 }
 
+type SyncResult =
+  | { ok: true; count: number; skipped?: number; meta?: Record<string, unknown> }
+  | { ok: false; error: string };
+
+/**
+ * Padrão único para todos os syncs por entidade:
+ *  - marca running=true
+ *  - puxa todos os itens via listAll
+ *  - chama processItem por item (erros individuais não derrubam o sync)
+ *  - persiste total_synced, last_error e last_synced_at em nomus_sync_state
+ *  - nunca falha silenciosamente
+ */
+async function runEntitySync(args: {
+  entity: string;
+  endpoint: string;
+  triggeredBy: string | null;
+  processItem: (raw: Json) => Promise<"ok" | "skip">;
+  meta?: Record<string, unknown>;
+}): Promise<SyncResult> {
+  const { entity, endpoint, triggeredBy, processItem, meta } = args;
+  await setState(entity, { running: true, last_error: null });
+  try {
+    const res = await listAll<Json>(endpoint, {}, { entity, triggeredBy });
+    if (!res.ok) {
+      await setState(entity, { running: false, last_error: res.error ?? "Falha desconhecida" });
+      return { ok: false, error: res.error ?? "Falha ao listar entidade no Nomus" };
+    }
+    let count = 0;
+    let skipped = 0;
+    const itemErrors: string[] = [];
+    for (const raw of res.items) {
+      try {
+        const r = await processItem(raw);
+        if (r === "ok") count += 1; else skipped += 1;
+      } catch (e) {
+        skipped += 1;
+        const msg = e instanceof Error ? e.message : String(e);
+        if (itemErrors.length < 3) itemErrors.push(msg);
+      }
+    }
+    await setState(entity, {
+      running: false,
+      last_synced_at: new Date().toISOString(),
+      total_synced: count,
+      last_error: itemErrors.length > 0
+        ? `${itemErrors.length}+ itens com erro: ${itemErrors.join(" | ")}`
+        : null,
+    });
+    return { ok: true, count, skipped, meta };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    await setState(entity, { running: false, last_error: msg });
+    return { ok: false, error: msg };
+  }
+}
+
 /** Test connection by hitting /clientes. */
 export const nomusTestConnection = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
