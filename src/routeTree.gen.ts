@@ -13,6 +13,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppIndexRouteImport } from './routes/app.index'
+import { Route as HooksNomusCronRouteImport } from './routes/hooks/nomus-cron'
 import { Route as AppTarefasRouteImport } from './routes/app.tarefas'
 import { Route as AppSeletorRouteImport } from './routes/app.seletor'
 import { Route as AppRelatoriosRouteImport } from './routes/app.relatorios'
@@ -24,6 +25,7 @@ import { Route as AppCompetitivaRouteImport } from './routes/app.competitiva'
 import { Route as AppClientesRouteImport } from './routes/app.clientes'
 import { Route as AppAprovacoesRouteImport } from './routes/app.aprovacoes'
 import { Route as AppPropostasIndexRouteImport } from './routes/app.propostas.index'
+import { Route as AppPropostasPedidosNfRouteImport } from './routes/app.propostas.pedidos-nf'
 import { Route as AppPropostasNovaRouteImport } from './routes/app.propostas.nova'
 import { Route as AppPropostasIdRouteImport } from './routes/app.propostas.$id'
 import { Route as AppConfiguracoesNomusRouteImport } from './routes/app.configuracoes.nomus'
@@ -47,6 +49,11 @@ const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AppRoute,
+} as any)
+const HooksNomusCronRoute = HooksNomusCronRouteImport.update({
+  id: '/hooks/nomus-cron',
+  path: '/hooks/nomus-cron',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AppTarefasRoute = AppTarefasRouteImport.update({
   id: '/tarefas',
@@ -103,6 +110,11 @@ const AppPropostasIndexRoute = AppPropostasIndexRouteImport.update({
   path: '/propostas/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppPropostasPedidosNfRoute = AppPropostasPedidosNfRouteImport.update({
+  id: '/propostas/pedidos-nf',
+  path: '/propostas/pedidos-nf',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppPropostasNovaRoute = AppPropostasNovaRouteImport.update({
   id: '/propostas/nova',
   path: '/propostas/nova',
@@ -133,10 +145,12 @@ export interface FileRoutesByFullPath {
   '/app/relatorios': typeof AppRelatoriosRoute
   '/app/seletor': typeof AppSeletorRoute
   '/app/tarefas': typeof AppTarefasRoute
+  '/hooks/nomus-cron': typeof HooksNomusCronRoute
   '/app/': typeof AppIndexRoute
   '/app/configuracoes/nomus': typeof AppConfiguracoesNomusRoute
   '/app/propostas/$id': typeof AppPropostasIdRoute
   '/app/propostas/nova': typeof AppPropostasNovaRoute
+  '/app/propostas/pedidos-nf': typeof AppPropostasPedidosNfRoute
   '/app/propostas/': typeof AppPropostasIndexRoute
 }
 export interface FileRoutesByTo {
@@ -152,10 +166,12 @@ export interface FileRoutesByTo {
   '/app/relatorios': typeof AppRelatoriosRoute
   '/app/seletor': typeof AppSeletorRoute
   '/app/tarefas': typeof AppTarefasRoute
+  '/hooks/nomus-cron': typeof HooksNomusCronRoute
   '/app': typeof AppIndexRoute
   '/app/configuracoes/nomus': typeof AppConfiguracoesNomusRoute
   '/app/propostas/$id': typeof AppPropostasIdRoute
   '/app/propostas/nova': typeof AppPropostasNovaRoute
+  '/app/propostas/pedidos-nf': typeof AppPropostasPedidosNfRoute
   '/app/propostas': typeof AppPropostasIndexRoute
 }
 export interface FileRoutesById {
@@ -173,10 +189,12 @@ export interface FileRoutesById {
   '/app/relatorios': typeof AppRelatoriosRoute
   '/app/seletor': typeof AppSeletorRoute
   '/app/tarefas': typeof AppTarefasRoute
+  '/hooks/nomus-cron': typeof HooksNomusCronRoute
   '/app/': typeof AppIndexRoute
   '/app/configuracoes/nomus': typeof AppConfiguracoesNomusRoute
   '/app/propostas/$id': typeof AppPropostasIdRoute
   '/app/propostas/nova': typeof AppPropostasNovaRoute
+  '/app/propostas/pedidos-nf': typeof AppPropostasPedidosNfRoute
   '/app/propostas/': typeof AppPropostasIndexRoute
 }
 export interface FileRouteTypes {
@@ -195,10 +213,12 @@ export interface FileRouteTypes {
     | '/app/relatorios'
     | '/app/seletor'
     | '/app/tarefas'
+    | '/hooks/nomus-cron'
     | '/app/'
     | '/app/configuracoes/nomus'
     | '/app/propostas/$id'
     | '/app/propostas/nova'
+    | '/app/propostas/pedidos-nf'
     | '/app/propostas/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -214,10 +234,12 @@ export interface FileRouteTypes {
     | '/app/relatorios'
     | '/app/seletor'
     | '/app/tarefas'
+    | '/hooks/nomus-cron'
     | '/app'
     | '/app/configuracoes/nomus'
     | '/app/propostas/$id'
     | '/app/propostas/nova'
+    | '/app/propostas/pedidos-nf'
     | '/app/propostas'
   id:
     | '__root__'
@@ -234,10 +256,12 @@ export interface FileRouteTypes {
     | '/app/relatorios'
     | '/app/seletor'
     | '/app/tarefas'
+    | '/hooks/nomus-cron'
     | '/app/'
     | '/app/configuracoes/nomus'
     | '/app/propostas/$id'
     | '/app/propostas/nova'
+    | '/app/propostas/pedidos-nf'
     | '/app/propostas/'
   fileRoutesById: FileRoutesById
 }
@@ -245,6 +269,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
+  HooksNomusCronRoute: typeof HooksNomusCronRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -276,6 +301,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/app/'
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/hooks/nomus-cron': {
+      id: '/hooks/nomus-cron'
+      path: '/hooks/nomus-cron'
+      fullPath: '/hooks/nomus-cron'
+      preLoaderRoute: typeof HooksNomusCronRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/app/tarefas': {
       id: '/app/tarefas'
@@ -354,6 +386,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPropostasIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/propostas/pedidos-nf': {
+      id: '/app/propostas/pedidos-nf'
+      path: '/propostas/pedidos-nf'
+      fullPath: '/app/propostas/pedidos-nf'
+      preLoaderRoute: typeof AppPropostasPedidosNfRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/propostas/nova': {
       id: '/app/propostas/nova'
       path: '/propostas/nova'
@@ -403,6 +442,7 @@ interface AppRouteChildren {
   AppIndexRoute: typeof AppIndexRoute
   AppPropostasIdRoute: typeof AppPropostasIdRoute
   AppPropostasNovaRoute: typeof AppPropostasNovaRoute
+  AppPropostasPedidosNfRoute: typeof AppPropostasPedidosNfRoute
   AppPropostasIndexRoute: typeof AppPropostasIndexRoute
 }
 
@@ -420,6 +460,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppIndexRoute: AppIndexRoute,
   AppPropostasIdRoute: AppPropostasIdRoute,
   AppPropostasNovaRoute: AppPropostasNovaRoute,
+  AppPropostasPedidosNfRoute: AppPropostasPedidosNfRoute,
   AppPropostasIndexRoute: AppPropostasIndexRoute,
 }
 
@@ -429,6 +470,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
+  HooksNomusCronRoute: HooksNomusCronRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

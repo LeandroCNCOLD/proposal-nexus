@@ -20,6 +20,7 @@ const NAV = [
   { group: "Operação", items: [
     { to: "/app", label: "Dashboard", icon: LayoutDashboard, exact: true },
     { to: "/app/propostas", label: "Propostas", icon: FileText },
+    { to: "/app/propostas/pedidos-nf", label: "Pedidos & NF", icon: FileCheck2 },
     { to: "/app/tarefas", label: "Tarefas & Follow-up", icon: CheckSquare },
   ]},
   { group: "Cadastros", items: [
