@@ -250,6 +250,13 @@ function ProposalDetail() {
         subtitle={<span className="font-mono text-xs">{p.number}</span> as any}
         actions={
           <>
+            <Button size="sm" variant="outline" onClick={handleGenerate} disabled={generating}>
+              {generating ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <FileText className="mr-1.5 h-3.5 w-3.5" />}
+              Gerar PDF
+            </Button>
+            <Button size="sm" onClick={openSendDialog} disabled={sending || versions.length === 0}>
+              <Send className="mr-1.5 h-3.5 w-3.5" /> Enviar
+            </Button>
             <Select value={p.status} onValueChange={(v) => updateStatus(v as ProposalStatus)}>
               <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
               <SelectContent>
