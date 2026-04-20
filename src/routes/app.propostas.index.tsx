@@ -56,7 +56,15 @@ function ProposalsList() {
       <PageHeader
         title="Propostas"
         subtitle={`${filtered.length} de ${proposals.length} propostas`}
-        actions={<Button asChild className="bg-[image:var(--gradient-primary)]"><Link to="/app/propostas/nova"><Plus className="mr-1.5 h-4 w-4" /> Nova proposta</Link></Button>}
+        actions={
+          <>
+            <Button variant="outline" onClick={() => syncMutation.mutate()} disabled={syncMutation.isPending}>
+              <RefreshCw className={`mr-1.5 h-4 w-4 ${syncMutation.isPending ? "animate-spin" : ""}`} />
+              {syncMutation.isPending ? "Sincronizando..." : "Buscar do Nomus"}
+            </Button>
+            <Button asChild className="bg-[image:var(--gradient-primary)]"><Link to="/app/propostas/nova"><Plus className="mr-1.5 h-4 w-4" /> Nova proposta</Link></Button>
+          </>
+        }
       />
 
       <div className="mb-4 flex flex-wrap gap-3">
