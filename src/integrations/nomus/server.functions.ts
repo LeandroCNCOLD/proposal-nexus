@@ -102,7 +102,12 @@ async function runEntitySync(args: {
   }
 }
 
-/** Test connection by hitting /clientes. */
+/**
+ * Health check da integração Nomus.
+ * Usa o endpoint central de clientes (NOMUS_HEALTHCHECK_ENTITY) como referência única
+ * de conectividade. Retorna contrato padronizado { success, message } com campos extras
+ * úteis para diagnóstico (endpoint, status HTTP, duração, baseUrl).
+ */
 export const nomusTestConnection = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -110,6 +115,8 @@ export const nomusTestConnection = createServerFn({ method: "POST" })
     const result = await testNomusConnection(userId);
     if (result.success) {
       return {
+        success: true as const,
+        message: `Conexão com o Nomus realizada com sucesso via ${result.endpoint} (${result.durationMs}ms).`,
         ok: true as const,
         endpoint: result.endpoint,
         status: result.status,
@@ -117,9 +124,12 @@ export const nomusTestConnection = createServerFn({ method: "POST" })
         baseUrl: result.baseUrl,
       };
     }
+    const reason = result.error ?? "Falha ao conectar ao Nomus";
     return {
+      success: false as const,
+      message: `Falha ao conectar ao Nomus (${result.status || "sem resposta"}): ${reason}`,
       ok: false as const,
-      error: result.error ?? "Falha ao conectar ao Nomus",
+      error: reason,
       status: result.status,
       endpoint: result.endpoint,
       durationMs: result.durationMs,
