@@ -53,7 +53,7 @@ function NomusPage() {
 
   const stateByEntity = Object.fromEntries((state ?? []).map((s) => [s.entity, s]));
 
-  const updateSettings = async (patch: Record<string, unknown>) => {
+  const updateSettings = async (patch: Partial<{ base_url: string; is_enabled: boolean; auto_push_proposals: boolean; auto_push_followups: boolean; auto_create_pedido_on_won: boolean }>) => {
     if (!settings) return;
     const { error } = await supabase.from("nomus_settings").update(patch).eq("id", settings.id);
     if (error) return toast.error(error.message);
