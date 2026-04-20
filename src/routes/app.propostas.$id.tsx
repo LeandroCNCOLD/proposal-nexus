@@ -73,11 +73,16 @@ function ProposalDetail() {
       toast.dismiss("create-pedido");
       if (res.ok) {
         if (res.already_existed) {
-          toast.success(`Pedido já existente: ${res.pedido_id}`);
+          toast.message(`Pedido já existente no Nomus: ${res.pedido_id}`);
+          await supabase.from("proposal_timeline_events").insert({
+            proposal_id: id, event_type: "observacao",
+            description: `Pedido já existente no Nomus: ${res.pedido_id}`,
+            user_id: user?.id,
+          });
         } else {
           toast.success(`Pedido criado no Nomus: ${res.pedido_id}`);
           await supabase.from("proposal_timeline_events").insert({
-            proposal_id: id, event_type: "ganha",
+            proposal_id: id, event_type: "observacao",
             description: `Pedido criado no Nomus: ${res.pedido_id}`,
             user_id: user?.id,
           });
