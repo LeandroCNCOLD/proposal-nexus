@@ -1,19 +1,23 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { ArrowLeft, Sparkles, Loader2, Clock, User as UserIcon } from "lucide-react";
+import { ArrowLeft, Sparkles, Loader2, Clock, FileText, Send, Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { brl, dateBR, dateTimeBR } from "@/lib/format";
 import { ALL_STATUSES, STATUS_LABELS, TEMPERATURE_LABELS, type ProposalStatus } from "@/lib/proposal";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
-import { nomusCreatePedido } from "@/integrations/nomus/server.functions";
+import { nomusCreatePedido, generateProposalFile, sendProposalFile } from "@/integrations/nomus/server.functions";
 
 export const Route = createFileRoute("/app/propostas/$id")({ component: ProposalDetail });
 
