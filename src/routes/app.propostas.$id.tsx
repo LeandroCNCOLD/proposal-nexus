@@ -50,6 +50,98 @@ function ProposalDetail() {
   });
 
   const createPedido = useServerFn(nomusCreatePedido);
+  const generateFile = useServerFn(generateProposalFile);
+  const sendFile = useServerFn(sendProposalFile);
+
+  const { data: versions = [] } = useQuery({
+    queryKey: ["proposal-versions", id],
+    queryFn: async () => {
+      const { data } = await supabase.from("proposal_send_versions")
+        .select("*").eq("proposal_id", id).order("version_number", { ascending: false });
+      return data ?? [];
+    },
+  });
+
+  const { data: sendEvents = [] } = useQuery({
+    queryKey: ["proposal-send-events", id],
+    queryFn: async () => {
+      const { data } = await supabase.from("proposal_send_events")
+        .select("*").eq("proposal_id", id).order("sent_at", { ascending: false });
+      return data ?? [];
+    },
+  });
+
+  const [generating, setGenerating] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [sendOpen, setSendOpen] = useState(false);
+  const [sendForm, setSendForm] = useState({ recipient: "", subject: "", message: "", channel: "email" });
+
+  const handleGenerate = async () => {
+    setGenerating(true);
+    toast.loading("Gerando PDF…", { id: "gen-pdf" });
+    try {
+      const res = await generateFile({ data: { proposalId: id } });
+      toast.dismiss("gen-pdf");
+      if (res.ok) {
+        toast.success(`Versão ${res.version_number} gerada`);
+        await supabase.from("proposal_timeline_events").insert({
+          proposal_id: id, event_type: "observacao",
+          description: `Arquivo gerado — versão ${res.version_number}`,
+          user_id: user?.id,
+        });
+        qc.invalidateQueries({ queryKey: ["proposal-versions", id] });
+        qc.invalidateQueries({ queryKey: ["proposal-timeline", id] });
+      } else {
+        toast.error(`Falha ao gerar PDF: ${res.error}`);
+      }
+    } catch (e) {
+      toast.dismiss("gen-pdf");
+      toast.error(e instanceof Error ? e.message : "Erro ao gerar PDF");
+    } finally { setGenerating(false); }
+  };
+
+  const handleDownload = async (path: string) => {
+    const { data, error } = await supabase.storage.from("proposal-files").createSignedUrl(path, 60);
+    if (error || !data?.signedUrl) return toast.error(error?.message ?? "Falha ao gerar link");
+    window.open(data.signedUrl, "_blank");
+  };
+
+  const openSendDialog = () => {
+    const current = (versions as Array<{ is_current: boolean }>).find((v) => v.is_current);
+    if (!current) return toast.error("Gere o PDF antes de enviar.");
+    const contactEmail = (p?.client_contacts as { email?: string } | null)?.email ?? "";
+    setSendForm({ recipient: contactEmail, subject: `Proposta ${p?.number} — ${p?.title}`, message: "", channel: "email" });
+    setSendOpen(true);
+  };
+
+  const handleSend = async () => {
+    const current = (versions as Array<{ id: string; is_current: boolean }>).find((v) => v.is_current);
+    if (!current) return toast.error("Nenhuma versão atual disponível.");
+    setSending(true);
+    try {
+      const res = await sendFile({ data: {
+        proposalId: id, versionId: current.id, channel: sendForm.channel,
+        recipient: sendForm.recipient || undefined,
+        subject: sendForm.subject || undefined,
+        message: sendForm.message || undefined,
+      }});
+      if (res.ok) {
+        toast.success("Proposta enviada");
+        if ("nomus_push" in res && res.nomus_push && "ok" in res.nomus_push) {
+          if (res.nomus_push.ok) toast.message("Evento replicado no Nomus");
+          else if ("error" in res.nomus_push) toast.message(`Nomus: ${res.nomus_push.error}`);
+        }
+        setSendOpen(false);
+        qc.invalidateQueries({ queryKey: ["proposal", id] });
+        qc.invalidateQueries({ queryKey: ["proposal-timeline", id] });
+        qc.invalidateQueries({ queryKey: ["proposal-send-events", id] });
+      } else {
+        toast.error(res.error);
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao enviar");
+    } finally { setSending(false); }
+  };
 
   const tryAutoCreatePedido = async () => {
     // 1) Checa configuração
