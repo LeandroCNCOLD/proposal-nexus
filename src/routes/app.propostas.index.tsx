@@ -20,19 +20,30 @@ function ProposalsList() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const queryClient = useQueryClient();
-  const syncFn = useServerFn(nomusSyncProposalsFull);
 
   const syncMutation = useMutation({
     mutationFn: async () => {
-      try {
-        return await (syncFn as any)({});
-      } catch (e: any) {
-        if (e instanceof Response) {
-          const text = await e.text().catch(() => "");
-          throw new Error(`${e.status} ${e.statusText}${text ? ` — ${text}` : ""}`);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error("Sessão expirada. Faça login novamente.");
+      const res = await fetch(
+        "/_serverFn/" + btoa(JSON.stringify({
+          file: "/@id/src/integrations/nomus/server.functions.ts?tss-serverfn-split",
+          export: "nomusSyncProposalsFull_createServerFn_handler",
+        })),
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({}),
         }
-        throw e;
+      );
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        throw new Error(`${res.status} ${res.statusText}${text ? ` — ${text}` : ""}`);
       }
+      return res.json();
     },
     onSuccess: (res: any) => {
       toast.success(`Sincronização concluída: ${res?.synced ?? 0} propostas`);
