@@ -26,6 +26,7 @@ import { Route as AppAprovacoesRouteImport } from './routes/app.aprovacoes'
 import { Route as AppPropostasIndexRouteImport } from './routes/app.propostas.index'
 import { Route as AppPropostasNovaRouteImport } from './routes/app.propostas.nova'
 import { Route as AppPropostasIdRouteImport } from './routes/app.propostas.$id'
+import { Route as AppConfiguracoesNomusRouteImport } from './routes/app.configuracoes.nomus'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -112,6 +113,11 @@ const AppPropostasIdRoute = AppPropostasIdRouteImport.update({
   path: '/propostas/$id',
   getParentRoute: () => AppRoute,
 } as any)
+const AppConfiguracoesNomusRoute = AppConfiguracoesNomusRouteImport.update({
+  id: '/nomus',
+  path: '/nomus',
+  getParentRoute: () => AppConfiguracoesRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -121,13 +127,14 @@ export interface FileRoutesByFullPath {
   '/app/clientes': typeof AppClientesRoute
   '/app/competitiva': typeof AppCompetitivaRoute
   '/app/concorrentes': typeof AppConcorrentesRoute
-  '/app/configuracoes': typeof AppConfiguracoesRoute
+  '/app/configuracoes': typeof AppConfiguracoesRouteWithChildren
   '/app/documentos': typeof AppDocumentosRoute
   '/app/equipamentos': typeof AppEquipamentosRoute
   '/app/relatorios': typeof AppRelatoriosRoute
   '/app/seletor': typeof AppSeletorRoute
   '/app/tarefas': typeof AppTarefasRoute
   '/app/': typeof AppIndexRoute
+  '/app/configuracoes/nomus': typeof AppConfiguracoesNomusRoute
   '/app/propostas/$id': typeof AppPropostasIdRoute
   '/app/propostas/nova': typeof AppPropostasNovaRoute
   '/app/propostas/': typeof AppPropostasIndexRoute
@@ -139,13 +146,14 @@ export interface FileRoutesByTo {
   '/app/clientes': typeof AppClientesRoute
   '/app/competitiva': typeof AppCompetitivaRoute
   '/app/concorrentes': typeof AppConcorrentesRoute
-  '/app/configuracoes': typeof AppConfiguracoesRoute
+  '/app/configuracoes': typeof AppConfiguracoesRouteWithChildren
   '/app/documentos': typeof AppDocumentosRoute
   '/app/equipamentos': typeof AppEquipamentosRoute
   '/app/relatorios': typeof AppRelatoriosRoute
   '/app/seletor': typeof AppSeletorRoute
   '/app/tarefas': typeof AppTarefasRoute
   '/app': typeof AppIndexRoute
+  '/app/configuracoes/nomus': typeof AppConfiguracoesNomusRoute
   '/app/propostas/$id': typeof AppPropostasIdRoute
   '/app/propostas/nova': typeof AppPropostasNovaRoute
   '/app/propostas': typeof AppPropostasIndexRoute
@@ -159,13 +167,14 @@ export interface FileRoutesById {
   '/app/clientes': typeof AppClientesRoute
   '/app/competitiva': typeof AppCompetitivaRoute
   '/app/concorrentes': typeof AppConcorrentesRoute
-  '/app/configuracoes': typeof AppConfiguracoesRoute
+  '/app/configuracoes': typeof AppConfiguracoesRouteWithChildren
   '/app/documentos': typeof AppDocumentosRoute
   '/app/equipamentos': typeof AppEquipamentosRoute
   '/app/relatorios': typeof AppRelatoriosRoute
   '/app/seletor': typeof AppSeletorRoute
   '/app/tarefas': typeof AppTarefasRoute
   '/app/': typeof AppIndexRoute
+  '/app/configuracoes/nomus': typeof AppConfiguracoesNomusRoute
   '/app/propostas/$id': typeof AppPropostasIdRoute
   '/app/propostas/nova': typeof AppPropostasNovaRoute
   '/app/propostas/': typeof AppPropostasIndexRoute
@@ -187,6 +196,7 @@ export interface FileRouteTypes {
     | '/app/seletor'
     | '/app/tarefas'
     | '/app/'
+    | '/app/configuracoes/nomus'
     | '/app/propostas/$id'
     | '/app/propostas/nova'
     | '/app/propostas/'
@@ -205,6 +215,7 @@ export interface FileRouteTypes {
     | '/app/seletor'
     | '/app/tarefas'
     | '/app'
+    | '/app/configuracoes/nomus'
     | '/app/propostas/$id'
     | '/app/propostas/nova'
     | '/app/propostas'
@@ -224,6 +235,7 @@ export interface FileRouteTypes {
     | '/app/seletor'
     | '/app/tarefas'
     | '/app/'
+    | '/app/configuracoes/nomus'
     | '/app/propostas/$id'
     | '/app/propostas/nova'
     | '/app/propostas/'
@@ -356,15 +368,33 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPropostasIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/configuracoes/nomus': {
+      id: '/app/configuracoes/nomus'
+      path: '/nomus'
+      fullPath: '/app/configuracoes/nomus'
+      preLoaderRoute: typeof AppConfiguracoesNomusRouteImport
+      parentRoute: typeof AppConfiguracoesRoute
+    }
   }
 }
+
+interface AppConfiguracoesRouteChildren {
+  AppConfiguracoesNomusRoute: typeof AppConfiguracoesNomusRoute
+}
+
+const AppConfiguracoesRouteChildren: AppConfiguracoesRouteChildren = {
+  AppConfiguracoesNomusRoute: AppConfiguracoesNomusRoute,
+}
+
+const AppConfiguracoesRouteWithChildren =
+  AppConfiguracoesRoute._addFileChildren(AppConfiguracoesRouteChildren)
 
 interface AppRouteChildren {
   AppAprovacoesRoute: typeof AppAprovacoesRoute
   AppClientesRoute: typeof AppClientesRoute
   AppCompetitivaRoute: typeof AppCompetitivaRoute
   AppConcorrentesRoute: typeof AppConcorrentesRoute
-  AppConfiguracoesRoute: typeof AppConfiguracoesRoute
+  AppConfiguracoesRoute: typeof AppConfiguracoesRouteWithChildren
   AppDocumentosRoute: typeof AppDocumentosRoute
   AppEquipamentosRoute: typeof AppEquipamentosRoute
   AppRelatoriosRoute: typeof AppRelatoriosRoute
@@ -381,7 +411,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppClientesRoute: AppClientesRoute,
   AppCompetitivaRoute: AppCompetitivaRoute,
   AppConcorrentesRoute: AppConcorrentesRoute,
-  AppConfiguracoesRoute: AppConfiguracoesRoute,
+  AppConfiguracoesRoute: AppConfiguracoesRouteWithChildren,
   AppDocumentosRoute: AppDocumentosRoute,
   AppEquipamentosRoute: AppEquipamentosRoute,
   AppRelatoriosRoute: AppRelatoriosRoute,
