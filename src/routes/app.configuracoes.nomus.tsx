@@ -221,7 +221,7 @@ function NomusPage() {
                   <TableCell className="text-xs">{l.direction}</TableCell>
                   <TableCell className="text-xs">
                     {l.status === "success" ? (
-                      <span className="inline-flex items-center gap-1 text-green-600">
+                      <span className="inline-flex items-center gap-1 text-primary">
                         <CheckCircle2 className="h-3 w-3" /> {l.http_status}
                       </span>
                     ) : (
