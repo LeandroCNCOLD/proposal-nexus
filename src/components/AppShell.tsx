@@ -2,7 +2,7 @@ import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import {
   LayoutDashboard, FileText, Users, Building2, Wrench, Swords,
   Sparkles, FileBarChart, FileCheck2, FolderUp, Settings, LogOut,
-  Search, Bell, Snowflake, ChevronDown, CheckSquare,
+  Search, Bell, Snowflake, ChevronDown, CheckSquare, PlugZap,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { ROLE_LABELS } from "@/lib/proposal";
