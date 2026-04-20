@@ -655,7 +655,9 @@ export const generateProposalFile = createServerFn({ method: "POST" })
     }
 
     // Render PDF
+    const React = await import("react");
     const { renderToBuffer, Document, Page, Text, View, StyleSheet } = await import("@react-pdf/renderer");
+    const h = React.createElement;
     const styles = StyleSheet.create({
       page: { padding: 32, fontSize: 10, fontFamily: "Helvetica" },
       header: { borderBottomWidth: 2, borderBottomColor: "#1e40af", paddingBottom: 12, marginBottom: 16 },
@@ -672,46 +674,43 @@ export const generateProposalFile = createServerFn({ method: "POST" })
     });
     const fmt = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
     const totalSum = items.reduce((s, it) => s + it.total, 0) || (propAny.total_value ?? 0);
+    const subtitleParts = [propAny.clients?.document, propAny.clients?.city, propAny.clients?.state].filter(Boolean).join(" • ");
 
-    const doc = Document({
-      children: [
-        Page({
-          size: "A4", style: styles.page, children: [
-            View({ style: styles.header, children: [
-              Text({ style: styles.title, children: "CN COLD — Proposta Comercial" }),
-              Text({ style: styles.subtitle, children: `Nº ${propAny.number} • ${propAny.title}` }),
-            ]}),
-            View({ style: styles.section, children: [
-              Text({ style: styles.label, children: "Cliente" }),
-              Text({ style: styles.value, children: propAny.clients?.name ?? "—" }),
-              Text({ style: styles.subtitle, children: [propAny.clients?.document, propAny.clients?.city, propAny.clients?.state].filter(Boolean).join(" • ") }),
-            ]}),
-            View({ style: { marginTop: 16 }, children: [
-              View({ style: styles.row, children: [
-                Text({ style: [styles.th, styles.cellDesc], children: "Descrição" }),
-                Text({ style: [styles.th, styles.cellQty], children: "Qtde" }),
-                Text({ style: [styles.th, styles.cellPrice], children: "Unitário" }),
-                Text({ style: [styles.th, styles.cellTotal], children: "Total" }),
-              ]}),
-              ...items.map((it) => View({ style: styles.row, children: [
-                Text({ style: styles.cellDesc, children: it.description }),
-                Text({ style: styles.cellQty, children: String(it.quantity) }),
-                Text({ style: styles.cellPrice, children: fmt(it.unit_price) }),
-                Text({ style: styles.cellTotal, children: fmt(it.total) }),
-              ]})),
-            ]}),
-            View({ style: styles.total, children: [
-              Text({ children: "Total da proposta" }),
-              Text({ style: { fontWeight: 700, fontSize: 14 }, children: fmt(totalSum) }),
-            ]}),
-            propAny.valid_until ? View({ style: { marginTop: 24 }, children: [
-              Text({ style: styles.label, children: "Validade" }),
-              Text({ style: styles.value, children: new Date(propAny.valid_until).toLocaleDateString("pt-BR") }),
-            ]}) : null,
-          ].filter(Boolean),
-        } as never),
-      ],
-    } as never);
+    const doc = h(Document, null,
+      h(Page, { size: "A4", style: styles.page },
+        h(View, { style: styles.header },
+          h(Text, { style: styles.title }, "CN COLD — Proposta Comercial"),
+          h(Text, { style: styles.subtitle }, `Nº ${propAny.number} • ${propAny.title}`),
+        ),
+        h(View, { style: styles.section },
+          h(Text, { style: styles.label }, "Cliente"),
+          h(Text, { style: styles.value }, propAny.clients?.name ?? "—"),
+          h(Text, { style: styles.subtitle }, subtitleParts),
+        ),
+        h(View, { style: { marginTop: 16 } },
+          h(View, { style: styles.row },
+            h(Text, { style: [styles.th, styles.cellDesc] }, "Descrição"),
+            h(Text, { style: [styles.th, styles.cellQty] }, "Qtde"),
+            h(Text, { style: [styles.th, styles.cellPrice] }, "Unitário"),
+            h(Text, { style: [styles.th, styles.cellTotal] }, "Total"),
+          ),
+          ...items.map((it, idx) => h(View, { style: styles.row, key: idx },
+            h(Text, { style: styles.cellDesc }, it.description),
+            h(Text, { style: styles.cellQty }, String(it.quantity)),
+            h(Text, { style: styles.cellPrice }, fmt(it.unit_price)),
+            h(Text, { style: styles.cellTotal }, fmt(it.total)),
+          )),
+        ),
+        h(View, { style: styles.total },
+          h(Text, null, "Total da proposta"),
+          h(Text, { style: { fontWeight: 700, fontSize: 14 } }, fmt(totalSum)),
+        ),
+        propAny.valid_until ? h(View, { style: { marginTop: 24 } },
+          h(Text, { style: styles.label }, "Validade"),
+          h(Text, { style: styles.value }, new Date(propAny.valid_until).toLocaleDateString("pt-BR")),
+        ) : null,
+      ),
+    );
 
     const buffer = await renderToBuffer(doc as never);
 
