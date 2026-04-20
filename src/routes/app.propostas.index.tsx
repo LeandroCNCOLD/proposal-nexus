@@ -24,7 +24,17 @@ function ProposalsList() {
   const syncFn = useServerFn(nomusSyncProposalsFull);
 
   const syncMutation = useMutation({
-    mutationFn: () => (syncFn as any)({}),
+    mutationFn: async () => {
+      try {
+        return await (syncFn as any)({});
+      } catch (e: any) {
+        if (e instanceof Response) {
+          const text = await e.text().catch(() => "");
+          throw new Error(`${e.status} ${e.statusText}${text ? ` — ${text}` : ""}`);
+        }
+        throw e;
+      }
+    },
     onSuccess: (res: any) => {
       toast.success(`Sincronização concluída: ${res?.synced ?? 0} propostas`);
       queryClient.invalidateQueries({ queryKey: ["proposals-list"] });
