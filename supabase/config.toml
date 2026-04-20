@@ -1,1 +1,4 @@
 project_id = "rgjfacxcunhuqglookaj"
+
+[functions.ai-proposal-insight]
+verify_jwt = true
