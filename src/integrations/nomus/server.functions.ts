@@ -34,7 +34,7 @@ async function setState(entity: string, patch: Record<string, unknown>) {
 }
 
 type SyncResult =
-  | { ok: true; count: number; skipped?: number; meta?: Record<string, unknown> }
+  | { ok: true; count: number; skipped: number; unmatched: number }
   | { ok: false; error: string };
 
 /**
@@ -44,44 +44,53 @@ type SyncResult =
  *  - chama processItem por item (erros individuais não derrubam o sync)
  *  - persiste total_synced, last_error e last_synced_at em nomus_sync_state
  *  - nunca falha silenciosamente
+ *
+ * processItem retorna:
+ *  - "ok"        → contado como sucesso
+ *  - "skip"      → item ignorado por falta de chave/nome
+ *  - "unmatched" → item válido mas sem correspondência local (ex.: produto sem equipment)
  */
 async function runEntitySync(args: {
   entity: string;
   endpoint: string;
   triggeredBy: string | null;
-  processItem: (raw: Json) => Promise<"ok" | "skip">;
-  meta?: Record<string, unknown>;
+  processItem: (raw: Json) => Promise<"ok" | "skip" | "unmatched">;
 }): Promise<SyncResult> {
-  const { entity, endpoint, triggeredBy, processItem, meta } = args;
+  const { entity, endpoint, triggeredBy, processItem } = args;
   await setState(entity, { running: true, last_error: null });
   try {
     const res = await listAll<Json>(endpoint, {}, { entity, triggeredBy });
     if (!res.ok) {
-      await setState(entity, { running: false, last_error: res.error ?? "Falha desconhecida" });
-      return { ok: false, error: res.error ?? "Falha ao listar entidade no Nomus" };
+      const error = res.error ?? "Falha ao listar entidade no Nomus";
+      await setState(entity, { running: false, last_error: error });
+      return { ok: false, error };
     }
     let count = 0;
     let skipped = 0;
+    let unmatched = 0;
     const itemErrors: string[] = [];
     for (const raw of res.items) {
       try {
         const r = await processItem(raw);
-        if (r === "ok") count += 1; else skipped += 1;
+        if (r === "ok") count += 1;
+        else if (r === "unmatched") { unmatched += 1; skipped += 1; }
+        else skipped += 1;
       } catch (e) {
         skipped += 1;
         const msg = e instanceof Error ? e.message : String(e);
         if (itemErrors.length < 3) itemErrors.push(msg);
       }
     }
+    const noteParts: string[] = [];
+    if (itemErrors.length > 0) noteParts.push(`${itemErrors.length}+ itens com erro: ${itemErrors.join(" | ")}`);
+    if (unmatched > 0) noteParts.push(`${unmatched} item(s) sem correspondência local`);
     await setState(entity, {
       running: false,
       last_synced_at: new Date().toISOString(),
       total_synced: count,
-      last_error: itemErrors.length > 0
-        ? `${itemErrors.length}+ itens com erro: ${itemErrors.join(" | ")}`
-        : null,
+      last_error: noteParts.length > 0 ? noteParts.join(" • ") : null,
     });
-    return { ok: true, count, skipped, meta };
+    return { ok: true, count, skipped, unmatched };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     await setState(entity, { running: false, last_error: msg });
