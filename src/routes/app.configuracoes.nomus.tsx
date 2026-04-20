@@ -15,6 +15,11 @@ import {
   nomusSyncClients,
   nomusSyncProducts,
   nomusSyncPaymentTerms,
+  nomusSyncSellers,
+  nomusSyncRepresentatives,
+  nomusSyncProposalsFull,
+  nomusSyncPedidos,
+  nomusSyncInvoices,
 } from "@/integrations/nomus/server.functions";
 import { useServerFn } from "@tanstack/react-start";
 
@@ -26,10 +31,20 @@ function NomusPage() {
   const syncClients = useServerFn(nomusSyncClients);
   const syncProducts = useServerFn(nomusSyncProducts);
   const syncPaymentTerms = useServerFn(nomusSyncPaymentTerms);
+  const syncSellers = useServerFn(nomusSyncSellers);
+  const syncRepresentatives = useServerFn(nomusSyncRepresentatives);
+  const syncProposalsFull = useServerFn(nomusSyncProposalsFull);
+  const syncPedidos = useServerFn(nomusSyncPedidos);
+  const syncInvoices = useServerFn(nomusSyncInvoices);
   const ENTITIES = [
     { key: "clientes", label: "Clientes", run: syncClients },
     { key: "produtos", label: "Produtos / Equipamentos", run: syncProducts },
     { key: "condicoes_pagamento", label: "Condições de pagamento", run: syncPaymentTerms },
+    { key: "vendedores", label: "Vendedores", run: syncSellers },
+    { key: "representantes", label: "Representantes", run: syncRepresentatives },
+    { key: "propostas", label: "Propostas (ERP → CN COLD)", run: syncProposalsFull },
+    { key: "pedidos", label: "Pedidos de venda", run: syncPedidos },
+    { key: "notas_fiscais", label: "Notas Fiscais", run: syncInvoices },
   ];
   const [testing, setTesting] = useState(false);
   const [syncing, setSyncing] = useState<string | null>(null);
