@@ -13,6 +13,16 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppIndexRouteImport } from './routes/app.index'
+import { Route as AppTarefasRouteImport } from './routes/app.tarefas'
+import { Route as AppSeletorRouteImport } from './routes/app.seletor'
+import { Route as AppRelatoriosRouteImport } from './routes/app.relatorios'
+import { Route as AppEquipamentosRouteImport } from './routes/app.equipamentos'
+import { Route as AppDocumentosRouteImport } from './routes/app.documentos'
+import { Route as AppConfiguracoesRouteImport } from './routes/app.configuracoes'
+import { Route as AppConcorrentesRouteImport } from './routes/app.concorrentes'
+import { Route as AppCompetitivaRouteImport } from './routes/app.competitiva'
+import { Route as AppClientesRouteImport } from './routes/app.clientes'
+import { Route as AppAprovacoesRouteImport } from './routes/app.aprovacoes'
 import { Route as AppPropostasIndexRouteImport } from './routes/app.propostas.index'
 import { Route as AppPropostasNovaRouteImport } from './routes/app.propostas.nova'
 import { Route as AppPropostasIdRouteImport } from './routes/app.propostas.$id'
@@ -37,6 +47,56 @@ const AppIndexRoute = AppIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppTarefasRoute = AppTarefasRouteImport.update({
+  id: '/tarefas',
+  path: '/tarefas',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSeletorRoute = AppSeletorRouteImport.update({
+  id: '/seletor',
+  path: '/seletor',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppRelatoriosRoute = AppRelatoriosRouteImport.update({
+  id: '/relatorios',
+  path: '/relatorios',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppEquipamentosRoute = AppEquipamentosRouteImport.update({
+  id: '/equipamentos',
+  path: '/equipamentos',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDocumentosRoute = AppDocumentosRouteImport.update({
+  id: '/documentos',
+  path: '/documentos',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppConfiguracoesRoute = AppConfiguracoesRouteImport.update({
+  id: '/configuracoes',
+  path: '/configuracoes',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppConcorrentesRoute = AppConcorrentesRouteImport.update({
+  id: '/concorrentes',
+  path: '/concorrentes',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCompetitivaRoute = AppCompetitivaRouteImport.update({
+  id: '/competitiva',
+  path: '/competitiva',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppClientesRoute = AppClientesRouteImport.update({
+  id: '/clientes',
+  path: '/clientes',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAprovacoesRoute = AppAprovacoesRouteImport.update({
+  id: '/aprovacoes',
+  path: '/aprovacoes',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppPropostasIndexRoute = AppPropostasIndexRouteImport.update({
   id: '/propostas/',
   path: '/propostas/',
@@ -57,6 +117,16 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
+  '/app/aprovacoes': typeof AppAprovacoesRoute
+  '/app/clientes': typeof AppClientesRoute
+  '/app/competitiva': typeof AppCompetitivaRoute
+  '/app/concorrentes': typeof AppConcorrentesRoute
+  '/app/configuracoes': typeof AppConfiguracoesRoute
+  '/app/documentos': typeof AppDocumentosRoute
+  '/app/equipamentos': typeof AppEquipamentosRoute
+  '/app/relatorios': typeof AppRelatoriosRoute
+  '/app/seletor': typeof AppSeletorRoute
+  '/app/tarefas': typeof AppTarefasRoute
   '/app/': typeof AppIndexRoute
   '/app/propostas/$id': typeof AppPropostasIdRoute
   '/app/propostas/nova': typeof AppPropostasNovaRoute
@@ -65,6 +135,16 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/app/aprovacoes': typeof AppAprovacoesRoute
+  '/app/clientes': typeof AppClientesRoute
+  '/app/competitiva': typeof AppCompetitivaRoute
+  '/app/concorrentes': typeof AppConcorrentesRoute
+  '/app/configuracoes': typeof AppConfiguracoesRoute
+  '/app/documentos': typeof AppDocumentosRoute
+  '/app/equipamentos': typeof AppEquipamentosRoute
+  '/app/relatorios': typeof AppRelatoriosRoute
+  '/app/seletor': typeof AppSeletorRoute
+  '/app/tarefas': typeof AppTarefasRoute
   '/app': typeof AppIndexRoute
   '/app/propostas/$id': typeof AppPropostasIdRoute
   '/app/propostas/nova': typeof AppPropostasNovaRoute
@@ -75,6 +155,16 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
+  '/app/aprovacoes': typeof AppAprovacoesRoute
+  '/app/clientes': typeof AppClientesRoute
+  '/app/competitiva': typeof AppCompetitivaRoute
+  '/app/concorrentes': typeof AppConcorrentesRoute
+  '/app/configuracoes': typeof AppConfiguracoesRoute
+  '/app/documentos': typeof AppDocumentosRoute
+  '/app/equipamentos': typeof AppEquipamentosRoute
+  '/app/relatorios': typeof AppRelatoriosRoute
+  '/app/seletor': typeof AppSeletorRoute
+  '/app/tarefas': typeof AppTarefasRoute
   '/app/': typeof AppIndexRoute
   '/app/propostas/$id': typeof AppPropostasIdRoute
   '/app/propostas/nova': typeof AppPropostasNovaRoute
@@ -86,6 +176,16 @@ export interface FileRouteTypes {
     | '/'
     | '/app'
     | '/login'
+    | '/app/aprovacoes'
+    | '/app/clientes'
+    | '/app/competitiva'
+    | '/app/concorrentes'
+    | '/app/configuracoes'
+    | '/app/documentos'
+    | '/app/equipamentos'
+    | '/app/relatorios'
+    | '/app/seletor'
+    | '/app/tarefas'
     | '/app/'
     | '/app/propostas/$id'
     | '/app/propostas/nova'
@@ -94,6 +194,16 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/login'
+    | '/app/aprovacoes'
+    | '/app/clientes'
+    | '/app/competitiva'
+    | '/app/concorrentes'
+    | '/app/configuracoes'
+    | '/app/documentos'
+    | '/app/equipamentos'
+    | '/app/relatorios'
+    | '/app/seletor'
+    | '/app/tarefas'
     | '/app'
     | '/app/propostas/$id'
     | '/app/propostas/nova'
@@ -103,6 +213,16 @@ export interface FileRouteTypes {
     | '/'
     | '/app'
     | '/login'
+    | '/app/aprovacoes'
+    | '/app/clientes'
+    | '/app/competitiva'
+    | '/app/concorrentes'
+    | '/app/configuracoes'
+    | '/app/documentos'
+    | '/app/equipamentos'
+    | '/app/relatorios'
+    | '/app/seletor'
+    | '/app/tarefas'
     | '/app/'
     | '/app/propostas/$id'
     | '/app/propostas/nova'
@@ -145,6 +265,76 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/tarefas': {
+      id: '/app/tarefas'
+      path: '/tarefas'
+      fullPath: '/app/tarefas'
+      preLoaderRoute: typeof AppTarefasRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/seletor': {
+      id: '/app/seletor'
+      path: '/seletor'
+      fullPath: '/app/seletor'
+      preLoaderRoute: typeof AppSeletorRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/relatorios': {
+      id: '/app/relatorios'
+      path: '/relatorios'
+      fullPath: '/app/relatorios'
+      preLoaderRoute: typeof AppRelatoriosRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/equipamentos': {
+      id: '/app/equipamentos'
+      path: '/equipamentos'
+      fullPath: '/app/equipamentos'
+      preLoaderRoute: typeof AppEquipamentosRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/documentos': {
+      id: '/app/documentos'
+      path: '/documentos'
+      fullPath: '/app/documentos'
+      preLoaderRoute: typeof AppDocumentosRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/configuracoes': {
+      id: '/app/configuracoes'
+      path: '/configuracoes'
+      fullPath: '/app/configuracoes'
+      preLoaderRoute: typeof AppConfiguracoesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/concorrentes': {
+      id: '/app/concorrentes'
+      path: '/concorrentes'
+      fullPath: '/app/concorrentes'
+      preLoaderRoute: typeof AppConcorrentesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/competitiva': {
+      id: '/app/competitiva'
+      path: '/competitiva'
+      fullPath: '/app/competitiva'
+      preLoaderRoute: typeof AppCompetitivaRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/clientes': {
+      id: '/app/clientes'
+      path: '/clientes'
+      fullPath: '/app/clientes'
+      preLoaderRoute: typeof AppClientesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/aprovacoes': {
+      id: '/app/aprovacoes'
+      path: '/aprovacoes'
+      fullPath: '/app/aprovacoes'
+      preLoaderRoute: typeof AppAprovacoesRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/propostas/': {
       id: '/app/propostas/'
       path: '/propostas'
@@ -170,6 +360,16 @@ declare module '@tanstack/react-router' {
 }
 
 interface AppRouteChildren {
+  AppAprovacoesRoute: typeof AppAprovacoesRoute
+  AppClientesRoute: typeof AppClientesRoute
+  AppCompetitivaRoute: typeof AppCompetitivaRoute
+  AppConcorrentesRoute: typeof AppConcorrentesRoute
+  AppConfiguracoesRoute: typeof AppConfiguracoesRoute
+  AppDocumentosRoute: typeof AppDocumentosRoute
+  AppEquipamentosRoute: typeof AppEquipamentosRoute
+  AppRelatoriosRoute: typeof AppRelatoriosRoute
+  AppSeletorRoute: typeof AppSeletorRoute
+  AppTarefasRoute: typeof AppTarefasRoute
   AppIndexRoute: typeof AppIndexRoute
   AppPropostasIdRoute: typeof AppPropostasIdRoute
   AppPropostasNovaRoute: typeof AppPropostasNovaRoute
@@ -177,6 +377,16 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppAprovacoesRoute: AppAprovacoesRoute,
+  AppClientesRoute: AppClientesRoute,
+  AppCompetitivaRoute: AppCompetitivaRoute,
+  AppConcorrentesRoute: AppConcorrentesRoute,
+  AppConfiguracoesRoute: AppConfiguracoesRoute,
+  AppDocumentosRoute: AppDocumentosRoute,
+  AppEquipamentosRoute: AppEquipamentosRoute,
+  AppRelatoriosRoute: AppRelatoriosRoute,
+  AppSeletorRoute: AppSeletorRoute,
+  AppTarefasRoute: AppTarefasRoute,
   AppIndexRoute: AppIndexRoute,
   AppPropostasIdRoute: AppPropostasIdRoute,
   AppPropostasNovaRoute: AppPropostasNovaRoute,
