@@ -3,6 +3,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { nomusFetch, listAll, testNomusConnection } from "./client";
+import { NOMUS_ENDPOINTS, proposalSubpath } from "./endpoints";
 
 type Json = Record<string, unknown>;
 
@@ -62,7 +63,7 @@ export const nomusSyncClients = createServerFn({ method: "POST" })
   .handler(async ({ context }) => {
     const userId = (context as { userId?: string }).userId ?? null;
     await setState("clientes", { running: true });
-    const res = await listAll<Json>("/clientes", {}, { entity: "clientes", triggeredBy: userId });
+    const res = await listAll<Json>(NOMUS_ENDPOINTS.clientes, {}, { entity: "clientes", triggeredBy: userId });
     if (!res.ok) {
       await setState("clientes", { running: false, last_error: res.error });
       return { ok: false as const, error: res.error };
@@ -111,7 +112,7 @@ export const nomusSyncProducts = createServerFn({ method: "POST" })
   .handler(async ({ context }) => {
     const userId = (context as { userId?: string }).userId ?? null;
     await setState("produtos", { running: true });
-    const res = await listAll<Json>("/produtos", {}, { entity: "produtos", triggeredBy: userId });
+    const res = await listAll<Json>(NOMUS_ENDPOINTS.produtos, {}, { entity: "produtos", triggeredBy: userId });
     if (!res.ok) {
       await setState("produtos", { running: false, last_error: res.error });
       return { ok: false as const, error: res.error };
@@ -150,7 +151,7 @@ export const nomusSyncPaymentTerms = createServerFn({ method: "POST" })
   .handler(async ({ context }) => {
     const userId = (context as { userId?: string }).userId ?? null;
     await setState("condicoes_pagamento", { running: true });
-    const res = await listAll<Json>("/condicoes-pagamento", {}, {
+    const res = await listAll<Json>(NOMUS_ENDPOINTS.condicoes_pagamento, {}, {
       entity: "condicoes_pagamento", triggeredBy: userId,
     });
     if (!res.ok) {
@@ -225,7 +226,7 @@ export const nomusPushProposal = createServerFn({ method: "POST" })
     };
 
     const isUpdate = !!propAny.nomus_id;
-    const path = isUpdate ? `/propostas/${propAny.nomus_id}` : "/propostas";
+    const path = isUpdate ? proposalSubpath(propAny.nomus_id!) : NOMUS_ENDPOINTS.propostas;
     const res = await nomusFetch<Json>(path, {
       method: isUpdate ? "PUT" : "POST",
       body: payload,
@@ -259,7 +260,7 @@ export const nomusPushFollowup = createServerFn({ method: "POST" })
     const nomusId = (prop as { nomus_id: string | null } | null)?.nomus_id;
     if (!nomusId) return { ok: false as const, error: "Proposta ainda não está sincronizada com o Nomus." };
 
-    const res = await nomusFetch(`/propostas/${nomusId}/eventos`, {
+    const res = await nomusFetch(proposalSubpath(nomusId, "eventos"), {
       method: "POST",
       body: {
         descricao: data.description,
@@ -284,7 +285,7 @@ export const nomusSyncSellers = createServerFn({ method: "POST" })
   .handler(async ({ context }) => {
     const userId = (context as { userId?: string }).userId ?? null;
     await setState("vendedores", { running: true });
-    const res = await listAll<Json>("/vendedores", {}, { entity: "vendedores", triggeredBy: userId });
+    const res = await listAll<Json>(NOMUS_ENDPOINTS.vendedores, {}, { entity: "vendedores", triggeredBy: userId });
     if (!res.ok) {
       await setState("vendedores", { running: false, last_error: res.error });
       return { ok: false as const, error: res.error };
@@ -319,7 +320,7 @@ export const nomusSyncRepresentatives = createServerFn({ method: "POST" })
   .handler(async ({ context }) => {
     const userId = (context as { userId?: string }).userId ?? null;
     await setState("representantes", { running: true });
-    const res = await listAll<Json>("/representantes", {}, { entity: "representantes", triggeredBy: userId });
+    const res = await listAll<Json>(NOMUS_ENDPOINTS.representantes, {}, { entity: "representantes", triggeredBy: userId });
     if (!res.ok) {
       await setState("representantes", { running: false, last_error: res.error });
       return { ok: false as const, error: res.error };
@@ -360,7 +361,7 @@ export const nomusSyncProposalsFull = createServerFn({ method: "POST" })
       .from("nomus_settings").select("auto_create_local_proposal").maybeSingle();
     const autoCreate = (settings as { auto_create_local_proposal?: boolean } | null)?.auto_create_local_proposal ?? true;
 
-    const res = await listAll<Json>("/propostas", {}, { entity: "propostas", triggeredBy: userId });
+    const res = await listAll<Json>(NOMUS_ENDPOINTS.propostas, {}, { entity: "propostas", triggeredBy: userId });
     if (!res.ok) {
       await setState("propostas", { running: false, last_error: res.error });
       return { ok: false as const, error: res.error };
@@ -460,7 +461,7 @@ export const nomusSyncPedidos = createServerFn({ method: "POST" })
   .handler(async ({ context }) => {
     const userId = (context as { userId?: string }).userId ?? null;
     await setState("pedidos", { running: true });
-    const res = await listAll<Json>("/pedidos-venda", {}, { entity: "pedidos", triggeredBy: userId });
+    const res = await listAll<Json>(NOMUS_ENDPOINTS.pedidos, {}, { entity: "pedidos", triggeredBy: userId });
     if (!res.ok) {
       await setState("pedidos", { running: false, last_error: res.error });
       return { ok: false as const, error: res.error };
@@ -500,7 +501,7 @@ export const nomusSyncInvoices = createServerFn({ method: "POST" })
   .handler(async ({ context }) => {
     const userId = (context as { userId?: string }).userId ?? null;
     await setState("notas_fiscais", { running: true });
-    const res = await listAll<Json>("/notas-fiscais", {}, { entity: "notas_fiscais", triggeredBy: userId });
+    const res = await listAll<Json>(NOMUS_ENDPOINTS.notas_fiscais, {}, { entity: "notas_fiscais", triggeredBy: userId });
     if (!res.ok) {
       await setState("notas_fiscais", { running: false, last_error: res.error });
       return { ok: false as const, error: res.error };
@@ -545,7 +546,7 @@ export const nomusGetProposalRefresh = createServerFn({ method: "POST" })
     const nomusId = (prop as { nomus_id: string | null } | null)?.nomus_id;
     if (!nomusId) return { ok: false as const, error: "Proposta não tem vínculo com o Nomus." };
 
-    const res = await nomusFetch<Json>(`/propostas/${nomusId}`, {
+    const res = await nomusFetch<Json>(proposalSubpath(nomusId), {
       method: "GET", entity: "propostas", operation: "refresh", direction: "pull", triggeredBy: userId,
     });
     if (!res.ok) return { ok: false as const, error: res.error };
@@ -581,7 +582,7 @@ export const nomusPushProposalStatus = createServerFn({ method: "POST" })
       .from("proposals").select("nomus_id").eq("id", data.proposalId).maybeSingle();
     const nomusId = (prop as { nomus_id: string | null } | null)?.nomus_id;
     if (!nomusId) return { ok: false as const, error: "Proposta sem vínculo Nomus." };
-    const res = await nomusFetch(`/propostas/${nomusId}`, {
+    const res = await nomusFetch(proposalSubpath(nomusId), {
       method: "PUT", body: { status: data.status },
       entity: "propostas", operation: "update_status", direction: "push", triggeredBy: userId,
     });
@@ -598,7 +599,7 @@ export const nomusPushSendEvent = createServerFn({ method: "POST" })
       .from("proposals").select("nomus_id").eq("id", data.proposalId).maybeSingle();
     const nomusId = (prop as { nomus_id: string | null } | null)?.nomus_id;
     if (!nomusId) return { ok: false as const, error: "Proposta sem vínculo Nomus." };
-    const res = await nomusFetch(`/propostas/${nomusId}/eventos`, {
+    const res = await nomusFetch(proposalSubpath(nomusId, "eventos"), {
       method: "POST",
       body: {
         descricao: `Proposta enviada via ${data.channel}${data.recipient ? ` para ${data.recipient}` : ""}`,
@@ -771,7 +772,7 @@ export const nomusCreatePedido = createServerFn({ method: "POST" })
     const propAny = prop as { nomus_id: string | null; number: string; closed_value: number | null; total_value: number | null } | null;
     if (!propAny?.nomus_id) return { ok: false as const, error: "Proposta sem vínculo com o Nomus." };
 
-    const res = await nomusFetch<Json>("/pedidos-venda", {
+    const res = await nomusFetch<Json>(NOMUS_ENDPOINTS.pedidos, {
       method: "POST",
       body: {
         idProposta: propAny.nomus_id,
