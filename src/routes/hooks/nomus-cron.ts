@@ -247,6 +247,10 @@ const PROPOSALS_BATCH_SIZE = 25;
  * - Processa em lotes (PROPOSALS_BATCH_SIZE) e salva o cursor (último id processado) para retomar
  *   na próxima execução. Cliques sucessivos em "Buscar do Nomus" avançam a sync.
  */
+export async function syncProposalsBatch(): Promise<{ ok: boolean; count?: number; error?: string; done?: boolean }> {
+  return pullProposalsNewestFirst();
+}
+
 async function pullProposalsNewestFirst(): Promise<{ ok: boolean; count?: number; error?: string; done?: boolean }> {
   const endpoint = NOMUS_ENDPOINTS.propostas;
 
