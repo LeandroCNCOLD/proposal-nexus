@@ -1535,6 +1535,115 @@ export type Database = {
           },
         ]
       }
+      proposal_document_assets: {
+        Row: {
+          id: string
+          kind: string
+          mime_type: string | null
+          proposal_id: string
+          size_bytes: number | null
+          storage_path: string
+          uploaded_at: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          id?: string
+          kind: string
+          mime_type?: string | null
+          proposal_id: string
+          size_bytes?: number | null
+          storage_path: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          id?: string
+          kind?: string
+          mime_type?: string | null
+          proposal_id?: string
+          size_bytes?: number | null
+          storage_path?: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proposal_document_assets_proposal_id_fkey"
+            columns: ["proposal_id"]
+            isOneToOne: false
+            referencedRelation: "proposals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      proposal_documents: {
+        Row: {
+          attached_pdf_paths: string[]
+          auto_filled_at: string | null
+          context_data: Json
+          cover_data: Json
+          created_at: string
+          custom_blocks: Json
+          id: string
+          last_edited_at: string
+          last_edited_by: string | null
+          manually_edited_fields: string[]
+          pages: Json
+          proposal_id: string
+          scope_items: Json
+          solution_data: Json
+          template_version: string
+          updated_at: string
+          warranty_text: Json
+        }
+        Insert: {
+          attached_pdf_paths?: string[]
+          auto_filled_at?: string | null
+          context_data?: Json
+          cover_data?: Json
+          created_at?: string
+          custom_blocks?: Json
+          id?: string
+          last_edited_at?: string
+          last_edited_by?: string | null
+          manually_edited_fields?: string[]
+          pages?: Json
+          proposal_id: string
+          scope_items?: Json
+          solution_data?: Json
+          template_version?: string
+          updated_at?: string
+          warranty_text?: Json
+        }
+        Update: {
+          attached_pdf_paths?: string[]
+          auto_filled_at?: string | null
+          context_data?: Json
+          cover_data?: Json
+          created_at?: string
+          custom_blocks?: Json
+          id?: string
+          last_edited_at?: string
+          last_edited_by?: string | null
+          manually_edited_fields?: string[]
+          pages?: Json
+          proposal_id?: string
+          scope_items?: Json
+          solution_data?: Json
+          template_version?: string
+          updated_at?: string
+          warranty_text?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proposal_documents_proposal_id_fkey"
+            columns: ["proposal_id"]
+            isOneToOne: true
+            referencedRelation: "proposals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       proposal_items: {
         Row: {
           created_at: string
