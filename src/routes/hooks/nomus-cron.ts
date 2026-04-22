@@ -412,7 +412,16 @@ export const Route = createFileRoute("/hooks/nomus-cron")({
     handlers: {
       POST: async ({ request }) => {
         const auth = request.headers.get("authorization");
-        if (!auth?.startsWith("Bearer ")) {
+        const token = auth?.startsWith("Bearer ") ? auth.slice(7).trim() : "";
+        const allowedTokens = new Set(
+          [
+            process.env.NOMUS_CRON_SECRET?.trim(),
+            process.env.SUPABASE_PUBLISHABLE_KEY?.trim(),
+            process.env.SUPABASE_ANON_KEY?.trim(),
+          ].filter((value): value is string => Boolean(value))
+        );
+
+        if (!token || !allowedTokens.has(token)) {
           return new Response("Unauthorized", { status: 401 });
         }
 
