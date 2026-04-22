@@ -1194,3 +1194,196 @@ export const nomusGetItemDetail = createServerFn({ method: "POST" })
       price_table_items_json: JSON.stringify(priceTableItems),
     };
   });
+
+// ============================================================================
+// Importação de custos via CSV (relatório do Nomus)
+// ============================================================================
+
+type CsvRowInput = {
+  productCode: string;
+  description: string | null;
+  unidadeMedida: string | null;
+  unitPrice: number | null;
+  margemDesejadaPct: number | null;
+  precoCalculado: number | null;
+  custosVenda: number | null;
+  precoLiquido: number | null;
+  custoProducaoTotal: number | null;
+  custoMateriais: number | null;
+  custoMod: number | null;
+  custoCif: number | null;
+  lucroBruto: number | null;
+  custosAdm: number | null;
+  lucroLiquido: number | null;
+  margemContribuicao: number | null;
+  hasCostData: boolean;
+};
+
+type ImportInput = {
+  priceTableId: string;
+  filename: string;
+  rows: CsvRowInput[];
+  dryRun: boolean;
+};
+
+const ALLOWED_IMPORT_ROLES = ["admin", "gerente_comercial", "diretoria", "engenharia"] as const;
+
+/**
+ * Importa custos para uma tabela de preço a partir de linhas pré-parseadas
+ * pelo csv-parser (cliente). Faz upsert por (price_table_id, nomus_product_id).
+ *
+ * Em modo dry-run, apenas calcula contagens e devolve preview — não toca no banco.
+ */
+export const nomusImportPriceTableCosts = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: ImportInput) => {
+    if (!input || typeof input !== "object") throw new Error("Payload inválido.");
+    if (!input.priceTableId) throw new Error("priceTableId obrigatório.");
+    if (!input.filename) throw new Error("filename obrigatório.");
+    if (!Array.isArray(input.rows)) throw new Error("rows deve ser array.");
+    if (input.rows.length > 10_000) throw new Error("Excede 10.000 linhas — divida o arquivo.");
+    return input;
+  })
+  .handler(async ({ data, context }) => {
+    const { userId } = context;
+
+    // 1) Verificar role
+    const { data: roles, error: rolesErr } = await supabaseAdmin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId);
+    if (rolesErr) {
+      return { ok: false as const, error: `Falha ao verificar permissões: ${rolesErr.message}` };
+    }
+    const userRoles = (roles ?? []).map((r) => r.role);
+    const allowed = userRoles.some((r) => (ALLOWED_IMPORT_ROLES as readonly string[]).includes(r));
+    if (!allowed) {
+      return { ok: false as const, error: "Sem permissão para importar custos. Necessário: admin, gerente comercial, diretoria ou engenharia." };
+    }
+
+    // 2) Validar tabela de preço existe
+    const { data: priceTable, error: ptErr } = await supabaseAdmin
+      .from("nomus_price_tables")
+      .select("id, name")
+      .eq("id", data.priceTableId)
+      .maybeSingle();
+    if (ptErr || !priceTable) {
+      return { ok: false as const, error: "Tabela de preço não encontrada." };
+    }
+
+    // 3) Buscar itens existentes da tabela para classificar update vs insert
+    const { data: existing, error: exErr } = await supabaseAdmin
+      .from("nomus_price_table_items")
+      .select("id, nomus_product_id")
+      .eq("price_table_id", data.priceTableId);
+    if (exErr) {
+      return { ok: false as const, error: `Falha ao ler itens existentes: ${exErr.message}` };
+    }
+    const existingByCode = new Map<string, string>(); // nomus_product_id -> id
+    for (const r of existing ?? []) {
+      existingByCode.set(String(r.nomus_product_id), r.id);
+    }
+
+    let toUpdate = 0;
+    let toInsert = 0;
+    let withCost = 0;
+    for (const row of data.rows) {
+      if (existingByCode.has(row.productCode)) toUpdate++;
+      else toInsert++;
+      if (row.hasCostData) withCost++;
+    }
+
+    if (data.dryRun) {
+      return {
+        ok: true as const,
+        dryRun: true,
+        priceTableName: priceTable.name,
+        totalRows: data.rows.length,
+        toUpdate,
+        toInsert,
+        withCost,
+        existingNotInCsv: (existing?.length ?? 0) - toUpdate,
+      };
+    }
+
+    // 4) Executar upsert
+    const now = new Date().toISOString();
+    let inserted = 0;
+    let updated = 0;
+    let skipped = 0;
+
+    for (const row of data.rows) {
+      const payload = {
+        price_table_id: data.priceTableId,
+        nomus_product_id: row.productCode,
+        unit_price: row.unitPrice ?? row.precoCalculado ?? 0,
+        custo_materiais: row.custoMateriais,
+        custo_mod: row.custoMod,
+        custo_cif: row.custoCif,
+        custos_adm: row.custosAdm,
+        custo_producao_total: row.custoProducaoTotal,
+        custos_venda: row.custosVenda,
+        preco_calculado: row.precoCalculado,
+        preco_liquido: row.precoLiquido,
+        margem_desejada_pct: row.margemDesejadaPct,
+        lucro_bruto: row.lucroBruto,
+        lucro_liquido: row.lucroLiquido,
+        margem_contribuicao: row.margemContribuicao,
+        unidade_medida: row.unidadeMedida,
+        import_source: "csv",
+        imported_at: now,
+        has_cost_data: row.hasCostData,
+        synced_at: now,
+      };
+
+      const existingId = existingByCode.get(row.productCode);
+      if (existingId) {
+        const { error } = await supabaseAdmin
+          .from("nomus_price_table_items")
+          .update(payload)
+          .eq("id", existingId);
+        if (error) {
+          skipped++;
+          console.error(`[import-costs] update falhou para ${row.productCode}:`, error.message);
+        } else {
+          updated++;
+        }
+      } else {
+        const { error } = await supabaseAdmin
+          .from("nomus_price_table_items")
+          .insert(payload);
+        if (error) {
+          skipped++;
+          console.error(`[import-costs] insert falhou para ${row.productCode}:`, error.message);
+        } else {
+          inserted++;
+        }
+      }
+    }
+
+    // 5) Auditoria
+    const { error: auditErr } = await supabaseAdmin.from("nomus_cost_imports").insert({
+      price_table_id: data.priceTableId,
+      filename: data.filename,
+      total_rows: data.rows.length,
+      inserted_count: inserted,
+      updated_count: updated,
+      skipped_count: skipped,
+      with_cost_count: withCost,
+      imported_by: userId,
+    });
+    if (auditErr) {
+      console.error("[import-costs] falha ao gravar auditoria:", auditErr.message);
+    }
+
+    return {
+      ok: true as const,
+      dryRun: false,
+      priceTableName: priceTable.name,
+      totalRows: data.rows.length,
+      inserted,
+      updated,
+      skipped,
+      withCost,
+    };
+  });
