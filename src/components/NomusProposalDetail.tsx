@@ -213,6 +213,7 @@ export function NomusProposalDetail({
       {/* ============ Modal de detalhes do item ============ */}
       <NomusItemDetailDialog
         itemId={openItem?.id ?? null}
+        prefillItem={openItem}
         open={openItem !== null}
         onOpenChange={(o) => { if (!o) setOpenItem(null); }}
       />
