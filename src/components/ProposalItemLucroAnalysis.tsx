@@ -217,6 +217,43 @@ export function ProposalItemLucroAnalysis({ analiseLucro, proposalAnaliseLucro, 
 
 // ============= helpers =============
 
+type Diagnostic = { group: string; reason: string };
+
+function buildDiagnostics(args: {
+  useDetail: boolean;
+  hasProposalData: boolean;
+  ratio: number;
+  groups: Record<string, Array<number | null>>;
+}): Diagnostic[] {
+  const out: Diagnostic[] = [];
+  for (const [group, values] of Object.entries(args.groups)) {
+    const allNull = values.every((v) => v === null);
+    const allZero = !allNull && values.every((v) => v === null || v === 0);
+    if (!allNull && !allZero) continue;
+
+    let reason: string;
+    if (allNull) {
+      if (!args.useDetail && !args.hasProposalData) {
+        reason = "proposta sem detail sincronizado — rode 'Sincronizar detalhes' na lista de propostas.";
+      } else if (!args.useDetail) {
+        reason = "endpoint individual do item retornou 404 (fallback ativo) e a proposta não trouxe esse bloco — verifique o mapeamento em src/integrations/nomus/parse.ts.";
+      } else {
+        reason = "detail do item veio sem essas chaves — ajuste pickNum() em ProposalItemLucroAnalysis.tsx ou o parser do detail.";
+      }
+    } else {
+      if (!args.useDetail && args.ratio === 0) {
+        reason = "rateio zerou os valores (participação do item = 0%) — verifique total de produtos da proposta.";
+      } else if (!args.useDetail) {
+        reason = "valores vêm zerados na proposta sincronizada — confirme se o Nomus calculou esse bloco antes do sync.";
+      } else {
+        reason = "Nomus retornou zero para esses campos no detail do item.";
+      }
+    }
+    out.push({ group, reason });
+  }
+  return out;
+}
+
 function pickNum(o: Record<string, unknown>, ...keys: string[]): number | null {
   for (const k of keys) {
     const raw = o[k];
