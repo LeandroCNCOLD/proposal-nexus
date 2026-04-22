@@ -235,6 +235,34 @@ export function NomusProposalDetail({
           // soma dos totais dos itens — base do rateio proporcional
           items.reduce((s, it) => s + Number(it.total_with_discount ?? it.total ?? 0), 0)
         }
+        proposalAnaliseLucro={{
+          valor_produtos: p.valor_produtos,
+          valor_descontos: p.valor_descontos,
+          valor_total_com_desconto: p.valor_total_com_desconto ?? p.valor_total,
+          icms_recolher: p.icms_recolher,
+          icms_st_recolher: p.icms_st_recolher,
+          ipi_recolher: p.ipi_recolher,
+          pis_recolher: p.pis_recolher,
+          cofins_recolher: p.cofins_recolher,
+          issqn_recolher: p.issqn_recolher,
+          simples_nacional_recolher: p.simples_nacional_recolher,
+          comissoes_venda: p.comissoes_venda,
+          frete_valor: p.frete_valor,
+          seguros_valor: p.seguros_valor,
+          despesas_acessorias: p.despesas_acessorias,
+          valor_liquido: p.valor_liquido,
+          custos_producao: p.custos_producao,
+          custos_materiais: p.custos_materiais,
+          custos_mod: p.custos_mod,
+          custos_cif: p.custos_cif,
+          custos_administrativos: p.custos_administrativos,
+          custos_incidentes_lucro: p.custos_incidentes_lucro,
+          lucro_bruto: p.lucro_bruto,
+          margem_bruta_pct: p.margem_bruta_pct,
+          lucro_antes_impostos: p.lucro_antes_impostos,
+          lucro_liquido: p.lucro_liquido,
+          margem_liquida_pct: p.margem_liquida_pct,
+        }}
       />
 
       {/* ============ Resumo de impostos ============ */}
