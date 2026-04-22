@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { ArrowLeft, Sparkles, Loader2, Clock, FileText, Send, Download } from "lucide-react";
+import { ArrowLeft, Sparkles, Loader2, Clock, FileText, Send, Download, Edit3 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -264,6 +264,13 @@ function ProposalDetail() {
         subtitle={(<span className="font-mono text-xs">{p.number}</span>) as any}
         actions={
           <>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => navigate({ to: "/app/propostas/$id/editor", params: { id } })}
+            >
+              <Edit3 className="mr-1.5 h-3.5 w-3.5" /> Editar documento
+            </Button>
             <Button size="sm" variant="outline" onClick={handleGenerate} disabled={generating}>
               {generating ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <FileText className="mr-1.5 h-3.5 w-3.5" />}
               Gerar PDF
