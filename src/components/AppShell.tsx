@@ -2,7 +2,7 @@ import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import {
   LayoutDashboard, FileText, Users, Building2, Wrench, Swords,
   Sparkles, FileBarChart, FileCheck2, FolderUp, Settings, LogOut,
-  Search, Bell, Snowflake, ChevronDown, CheckSquare, PlugZap,
+  Search, Bell, Snowflake, ChevronDown, CheckSquare, PlugZap, Database,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { ROLE_LABELS } from "@/lib/proposal";
@@ -37,6 +37,7 @@ const NAV = [
   { group: "Sistema", items: [
     { to: "/app/aprovacoes", label: "Aprovações", icon: FileCheck2 },
     { to: "/app/configuracoes/nomus", label: "Integração Nomus", icon: PlugZap },
+    { to: "/app/configuracoes/api-nomus", label: "Catálogo API Nomus", icon: Database },
     { to: "/app/configuracoes", label: "Configurações", icon: Settings, exact: true },
   ]},
 ];

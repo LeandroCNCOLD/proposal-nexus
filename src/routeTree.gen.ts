@@ -30,6 +30,7 @@ import { Route as AppPropostasPedidosNfRouteImport } from './routes/app.proposta
 import { Route as AppPropostasNovaRouteImport } from './routes/app.propostas.nova'
 import { Route as AppPropostasIdRouteImport } from './routes/app.propostas.$id'
 import { Route as AppConfiguracoesNomusRouteImport } from './routes/app.configuracoes.nomus'
+import { Route as AppConfiguracoesApiNomusRouteImport } from './routes/app.configuracoes.api-nomus'
 import { Route as ApiNomusTestRouteImport } from './routes/api.nomus.test'
 
 const LoginRoute = LoginRouteImport.update({
@@ -137,6 +138,12 @@ const AppConfiguracoesNomusRoute = AppConfiguracoesNomusRouteImport.update({
   path: '/nomus',
   getParentRoute: () => AppConfiguracoesRoute,
 } as any)
+const AppConfiguracoesApiNomusRoute =
+  AppConfiguracoesApiNomusRouteImport.update({
+    id: '/api-nomus',
+    path: '/api-nomus',
+    getParentRoute: () => AppConfiguracoesRoute,
+  } as any)
 const ApiNomusTestRoute = ApiNomusTestRouteImport.update({
   id: '/api/nomus/test',
   path: '/api/nomus/test',
@@ -160,6 +167,7 @@ export interface FileRoutesByFullPath {
   '/hooks/nomus-cron': typeof HooksNomusCronRoute
   '/app/': typeof AppIndexRoute
   '/api/nomus/test': typeof ApiNomusTestRoute
+  '/app/configuracoes/api-nomus': typeof AppConfiguracoesApiNomusRoute
   '/app/configuracoes/nomus': typeof AppConfiguracoesNomusRoute
   '/app/propostas/$id': typeof AppPropostasIdRoute
   '/app/propostas/nova': typeof AppPropostasNovaRoute
@@ -182,6 +190,7 @@ export interface FileRoutesByTo {
   '/hooks/nomus-cron': typeof HooksNomusCronRoute
   '/app': typeof AppIndexRoute
   '/api/nomus/test': typeof ApiNomusTestRoute
+  '/app/configuracoes/api-nomus': typeof AppConfiguracoesApiNomusRoute
   '/app/configuracoes/nomus': typeof AppConfiguracoesNomusRoute
   '/app/propostas/$id': typeof AppPropostasIdRoute
   '/app/propostas/nova': typeof AppPropostasNovaRoute
@@ -207,6 +216,7 @@ export interface FileRoutesById {
   '/hooks/nomus-cron': typeof HooksNomusCronRoute
   '/app/': typeof AppIndexRoute
   '/api/nomus/test': typeof ApiNomusTestRoute
+  '/app/configuracoes/api-nomus': typeof AppConfiguracoesApiNomusRoute
   '/app/configuracoes/nomus': typeof AppConfiguracoesNomusRoute
   '/app/propostas/$id': typeof AppPropostasIdRoute
   '/app/propostas/nova': typeof AppPropostasNovaRoute
@@ -233,6 +243,7 @@ export interface FileRouteTypes {
     | '/hooks/nomus-cron'
     | '/app/'
     | '/api/nomus/test'
+    | '/app/configuracoes/api-nomus'
     | '/app/configuracoes/nomus'
     | '/app/propostas/$id'
     | '/app/propostas/nova'
@@ -255,6 +266,7 @@ export interface FileRouteTypes {
     | '/hooks/nomus-cron'
     | '/app'
     | '/api/nomus/test'
+    | '/app/configuracoes/api-nomus'
     | '/app/configuracoes/nomus'
     | '/app/propostas/$id'
     | '/app/propostas/nova'
@@ -279,6 +291,7 @@ export interface FileRouteTypes {
     | '/hooks/nomus-cron'
     | '/app/'
     | '/api/nomus/test'
+    | '/app/configuracoes/api-nomus'
     | '/app/configuracoes/nomus'
     | '/app/propostas/$id'
     | '/app/propostas/nova'
@@ -444,6 +457,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppConfiguracoesNomusRouteImport
       parentRoute: typeof AppConfiguracoesRoute
     }
+    '/app/configuracoes/api-nomus': {
+      id: '/app/configuracoes/api-nomus'
+      path: '/api-nomus'
+      fullPath: '/app/configuracoes/api-nomus'
+      preLoaderRoute: typeof AppConfiguracoesApiNomusRouteImport
+      parentRoute: typeof AppConfiguracoesRoute
+    }
     '/api/nomus/test': {
       id: '/api/nomus/test'
       path: '/api/nomus/test'
@@ -455,11 +475,13 @@ declare module '@tanstack/react-router' {
 }
 
 interface AppConfiguracoesRouteChildren {
+  AppConfiguracoesApiNomusRoute: typeof AppConfiguracoesApiNomusRoute
   AppConfiguracoesNomusRoute: typeof AppConfiguracoesNomusRoute
   AppConfiguracoesIndexRoute: typeof AppConfiguracoesIndexRoute
 }
 
 const AppConfiguracoesRouteChildren: AppConfiguracoesRouteChildren = {
+  AppConfiguracoesApiNomusRoute: AppConfiguracoesApiNomusRoute,
   AppConfiguracoesNomusRoute: AppConfiguracoesNomusRoute,
   AppConfiguracoesIndexRoute: AppConfiguracoesIndexRoute,
 }
