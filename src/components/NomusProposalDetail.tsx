@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { brl, num, dateBR } from "@/lib/format";
 import { Loader2 } from "lucide-react";
 import { NomusItemDetailDialog } from "@/components/NomusItemDetailDialog";
+import { ProposalTaxSummary } from "@/components/ProposalTaxSummary";
 
 type NomusProposalRow = {
   id: string;
@@ -37,6 +38,10 @@ type NomusProposalRow = {
   cofins_recolher: number | null;
   issqn_recolher: number | null;
   simples_nacional_recolher: number | null;
+  cbs_recolher: number | null;
+  ibs_recolher: number | null;
+  ibs_estadual_recolher: number | null;
+  total_tributacao: Record<string, string | number> | null;
   comissoes_venda: number | null;
   frete_valor: number | null;
   seguros_valor: number | null;
@@ -219,6 +224,24 @@ export function NomusProposalDetail({
         open={openItem !== null}
         onOpenChange={(o) => { if (!o) setOpenItem(null); }}
       />
+
+      {/* ============ Resumo de impostos ============ */}
+      <Section title="Resumo de impostos">
+        <ProposalTaxSummary
+          totalTributacao={p.total_tributacao}
+          fallback={{
+            icms: p.icms_recolher,
+            icms_st: p.icms_st_recolher,
+            ipi: p.ipi_recolher,
+            iss: p.issqn_recolher,
+            pis: p.pis_recolher,
+            cofins: p.cofins_recolher,
+            cbs: p.cbs_recolher,
+            ibs: p.ibs_recolher,
+            ibs_estadual: p.ibs_estadual_recolher,
+          }}
+        />
+      </Section>
 
       {/* ============ Análise de lucro ============ */}
       <Section title="Análise de lucro (Nomus)">
