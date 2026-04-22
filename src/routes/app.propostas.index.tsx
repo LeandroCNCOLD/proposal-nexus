@@ -62,10 +62,20 @@ function ProposalsList() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("proposals")
-        .select("id, number, title, status, total_value, valid_until, created_at, nomus_id, clients(name), nomus_proposals!proposals_nomus_proposal_id_fkey(criada_em_nomus, data_emissao)")
+        .select("id, number, title, status, total_value, valid_until, created_at, nomus_id, clients(name)")
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data ?? [];
+      const rows = data ?? [];
+      const nomusIds = rows.map((r) => r.nomus_id).filter(Boolean) as string[];
+      const nomusMap = new Map<string, { criada_em_nomus: string | null; data_emissao: string | null }>();
+      if (nomusIds.length > 0) {
+        const { data: np } = await supabase
+          .from("nomus_proposals")
+          .select("nomus_id, criada_em_nomus, data_emissao")
+          .in("nomus_id", nomusIds);
+        (np ?? []).forEach((n) => nomusMap.set(n.nomus_id, { criada_em_nomus: n.criada_em_nomus, data_emissao: n.data_emissao }));
+      }
+      return rows.map((r) => ({ ...r, _nomus: r.nomus_id ? nomusMap.get(r.nomus_id) ?? null : null }));
     },
   });
 
