@@ -210,6 +210,13 @@ export function NomusProposalDetail({
         )}
       </Section>
 
+      {/* ============ Modal de detalhes do item ============ */}
+      <NomusItemDetailDialog
+        itemId={openItem?.id ?? null}
+        open={openItem !== null}
+        onOpenChange={(o) => { if (!o) setOpenItem(null); }}
+      />
+
       {/* ============ Análise de lucro ============ */}
       <Section title="Análise de lucro (Nomus)">
         <div className="overflow-hidden rounded-md border">
