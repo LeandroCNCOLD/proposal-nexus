@@ -1,48 +1,71 @@
 
 
-## Corrigir integração com o Nomus
+## Documentar e alinhar endpoints Nomus para o CNCode
 
-Você me passou a URL real: `https://cncold.nomus.com.br/cncold/rest`. Combinada com a chave que apareceu na tela do ERP (`aW50ZWdyYWRvcmVycDppTFBrSnRMY1p3WjdLUks=`), agora dá pra fechar a configuração.
+Vou consolidar tudo o que você passou em um documento de referência dentro do projeto e ajustar o mapa de endpoints do código para bater 100% com o que o Nomus realmente expõe (incluindo rotas que ainda não estavam mapeadas: contatos por pessoa, processos, contas a receber, DANFE, CC-e).
 
-## Diagnóstico
+Não vou mexer em fluxo de proposta, template ou banco — só endpoints, documentação e o teste de saúde.
 
-- `NOMUS_BASE_URL` está com a **chave** salva (string base64), por isso todo fetch quebra com "Failed to parse URL".
-- `NOMUS_API_KEY` provavelmente está vazia ou incorreta.
-- O código (`src/integrations/nomus/client.ts`) está correto — manda a chave no header `Authorization` sem prefixo, que é o padrão do Nomus.
+## O que será criado
 
-## O que vou fazer (após aprovação)
+**1. `docs/nomus-endpoints.md`** — documento de referência (fonte única de verdade humana)
 
-### 1. Atualizar os secrets do Lovable Cloud
-- `NOMUS_BASE_URL` → `https://cncold.nomus.com.br/cncold/rest`
-- `NOMUS_API_KEY` → `aW50ZWdyYWRvcmVycDppTFBrSnRMY1p3WjdLUks=`
+Conteúdo:
+- Base URL do CNCode: `https://cncold.nomus.com.br/cncold/rest`
+- Headers obrigatórios (`Authorization: Basic ...`, `Content-Type`, `Accept`)
+- Regras de paginação (`pagina`, limite 50/página) e throttling (429 + `tempoAteLiberar`)
+- Tabela com os 10 grupos de endpoints (propostas, clientes, contatos, produtos, representantes, tabelas de preço, processos, pedidos, NFes, contas a receber), cada um com:
+  - método + URL
+  - finalidade no CNCode
+  - status (oficial documentado / validado em ambiente / a confirmar)
+- Observação destacada de que **propostas é a fonte principal** e os demais são complementares
+- Seção "Próximo passo" pedindo um JSON real de `/propostas/{id}` para fazer o mapeamento campo a campo
 
-### 2. Hardening defensivo no client (1 arquivo)
-Em `src/integrations/nomus/client.ts`, ajustar `getNomusBaseUrl()` para detectar quando alguém colar uma chave no campo da URL e devolver mensagem clara:
-> "NOMUS_BASE_URL parece ser uma chave de API, não uma URL. Mova esse valor para NOMUS_API_KEY."
+## O que será ajustado no código
 
-Heurística: se o valor não contém `://` ou parece base64/credencial (`user:pass`), erro descritivo.
+**2. `src/integrations/nomus/endpoints.ts`** — completar o mapa
 
-### 3. Validar a conexão
-- Chamar `GET /api/nomus/test` e confirmar `success: true`.
-- Se falhar, ler `nomus_sync_log` e ajustar.
+Adicionar entradas que faltam:
+- `processos: "/processos"`
+- `contas_receber: "/contasReceber"`
+- Helper `pessoaContatosPath(idPessoa)` → `/pessoas/{idPessoa}/contatos` (rota aninhada, não cabe no mapa simples)
+- Helpers para sub-recursos de NFe: `nfeDanfePath(id)` → `/nfes/danfe/{id}`, `nfeCcePath(id)` → `/nfes/cce/{id}`
 
-### 4. Rodar sync inicial
-Disparar sync de `clientes`, `propostas`, `pedidos` e `notas_fiscais` via tela **Configurações → Nomus**, e conferir no banco que `nomus_proposals`, `clients`, `nomus_pedidos`, `nomus_invoices` populam.
+Endpoints que já estão certos e ficam intocados: `clientes`, `produtos`, `representantes`, `vendedores`, `condicoesPagamentos`, `propostas`, `pedidos`, `nfes`, `tabelasPreco`.
 
-### 5. Conferir o frontend
-- `/app/propostas` deve listar dados reais automaticamente.
-- Se algum campo do payload do Nomus não estiver mapeado corretamente nos `mappers` do `src/routes/hooks/nomus-cron.ts`, ajustar pontualmente — mas só depois de ver o `raw` real chegando no banco (não dá pra adivinhar antes).
+**3. `src/integrations/nomus/client.ts`** — melhorar o teste de conexão
+
+Hoje o `testNomusConnection` só bate em `/clientes`. Vou trocar para testar **3 endpoints em sequência** (`/clientes`, `/representantes`, `/propostas`) e devolver o status de cada um. Assim, quando der erro, fica claro se é problema de URL, de auth, ou de permissão num recurso específico daquela chave.
+
+Saída do teste passa a ser algo como:
+```text
+clientes:        200 OK
+representantes:  200 OK
+propostas:       400 {"descricao":"1"}
+```
+
+Isso te dá evidência objetiva pra mostrar pro suporte Nomus exatamente qual recurso a chave de integração não está liberando.
 
 ## O que NÃO será alterado
 
-- Nenhuma tabela do banco, edge function de IA, tela de propostas, fluxo de envio, criação de pedido ou mapeamento prévio sem evidência do payload real.
+- Banco de dados (nenhuma migration)
+- Fluxo de sincronização (`nomus-cron`, `nomusKickoffSyncProposals`, mappers)
+- Telas (`/app/propostas`, `/app/configuracoes/nomus`)
+- Edge functions
+- Mapeamento campo-a-campo do payload de proposta — esse é o **próximo passo**, depois que você me mandar um JSON real de `/propostas/{id}` (mesmo mascarado)
+
+## Detalhes técnicos
+
+- O documento vai em `docs/` (fora de `src/`) pra não ser bundlado e não virar ruído no build.
+- Os novos helpers em `endpoints.ts` seguem o padrão atual (`proposalSubpath`) — funções puras, sem fetch.
+- O teste de conexão expandido continua usando `nomusFetch` + `BasicAuth`, sem mudar contrato com a UI: `testNomusConnection` ainda devolve `{ success, message, details }`, só que `details` ganha um array `probes[]` com o resultado por recurso.
+- Tela de Integração Nomus (`/app/configuracoes/nomus`) já mostra `details` cru — vai exibir os 3 probes automaticamente, sem mudança de UI.
 
 ## Resumo da entrega
 
 Após aplicar:
-- secrets corrigidos
-- `client.ts` com mensagem de erro defensiva
-- relatório do `testNomusConnection` (status + corpo)
-- contagem de registros sincronizados por entidade
-- se houver campo desalinhado, lista do que precisa ser ajustado nos mappers (etapa separada, com base no `raw` real)
+- documento `docs/nomus-endpoints.md` consolidando tudo
+- `endpoints.ts` com processos, contas a receber, contatos por pessoa e sub-recursos de NFe
+- teste de conexão multi-recurso, mostrando status por endpoint
+- base pronta pra você colar o JSON real de uma proposta e a gente fechar o mapeamento campo a campo
 
