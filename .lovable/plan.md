@@ -1,52 +1,57 @@
+` agora pra você aprovar e a gente seguir pra Etapa 1 (probe).Desculpa, errei a chamada. Deixa eu reapresentar o plano direito:
 
+<lov-plan>
 
-# Investigar custos por produto via `/produtos/{id}` e exibir no item da proposta
+# Sondar `/tabelasPreco/{id}` para extrair custo/margem por produto
 
-## Por que isso pode resolver
+## Hipótese
+`GET /tabelasPreco/{id}` no Nomus normalmente devolve produtos da tabela com `precoCusto`, `precoVenda`, `margem` e/ou `markup`. Se confirmado:
+1. Custo de materiais por item vira real (substitui o rateio).
+2. Margem-base da tabela aparece ao lado da margem real — com badge de erosão quando o desconto comeu margem.
 
-Hoje o sync de `/produtos` só linka o `nomus_id` ao equipamento — descarta o resto do payload. O endpoint `GET /produtos/{id}` do Nomus normalmente expõe campos de **custo do produto** (preço de custo, custo médio, última compra, margem-base) que a proposta consolidada não traz. Se confirmado, isso preenche pelo menos parte das lacunas de "Custos de produção / Materiais" por item — sem depender do endpoint `/propostas/{id}/itens/{itemId}` (que está dando 404 nesta instância).
+Impostos ficam fora deste cálculo (conforme pedido).
 
-## Etapa 1 — Sondagem ao vivo (descoberta)
+## Etapa 1 — Sondagem ao vivo (descartável)
+Nova rota `GET /api/public/nomus/tabela-preco-probe`:
+- Sem `?id`: lista `GET /tabelasPreco` e sonda os 2-3 primeiros IDs.
+- Com `?id=1,2,3`: sonda IDs específicos.
+- Para cada ID retorna: chaves de primeiro nível, chaves do primeiro item do array de produtos (se houver), candidatos a custo/margem (heurística: `custo`, `preco`, `margem`, `markup`, `desconto`).
+- Persiste payload bruto em `nomus_sync_log` (entity=`tabelas_preco`, operation=`probe`).
 
-Criar uma rota de diagnóstico **temporária** `GET /api/nomus/produto-probe?id={nomusProductId}` que:
-- Chama `GET /produtos/{id}` no Nomus para 3 IDs reais já presentes (8576, 687, 8490).
-- Devolve a lista de **chaves de primeiro nível** + amostra mascarada do payload.
-- Loga em `nomus_sync_log` para auditoria.
-
-Isso nos dá a verdade do ambiente em vez de adivinhar nomes de campo.
-
-## Etapa 2 — Persistência (depende do que a Etapa 1 mostrar)
-
-Migration acrescentando ao `equipments` (ou a uma nova `nomus_products`, decisão tomada após ver o payload):
-- `nomus_raw jsonb` — payload bruto do produto
-- `custo_unitario numeric`, `custo_medio numeric`, `custo_ultima_compra numeric`, `preco_venda_base numeric`, `margem_base_pct numeric` — quando existirem nos dados reais
-- `nomus_detail_synced_at timestamptz`
-
-Atualizar `nomusSyncProducts` em `src/integrations/nomus/server.functions.ts` para, após o match, buscar `/produtos/{id}` e gravar esses campos. Adicionar mapper em `src/integrations/nomus/parse.ts` (`parseNomusProduct`).
+## Etapa 2 — Persistência (depende da Etapa 1)
+**As tabelas `nomus_price_tables` e `nomus_price_table_items` já existem.** Só estender:
+- `ALTER TABLE nomus_price_table_items` adicionando `preco_custo numeric`, `margem_pct numeric`, `markup_pct numeric` (só os campos que aparecerem no probe).
+- Nova função `nomusSyncPriceTables` em `server.functions.ts`: lista `/tabelasPreco`, para cada uma busca `/tabelasPreco/{id}` e faz upsert linha-a-linha.
+- Mapper `parseNomusPriceTableItem` em `parse.ts`.
 
 ## Etapa 3 — Uso no item da proposta
-
-Em `src/components/ProposalItemLucroAnalysis.tsx`:
-- Quando o item tem `nomus_product_id`, buscar o equipamento vinculado e usar `custo_unitario × quantidade` como **custo real de materiais por item** (substitui o rateio proporcional atual para esse bloco).
-- Recalcular: lucro bruto do item = `total_with_discount − custo_materiais_real − impostos_rateados`.
-- Atualizar o painel de diagnóstico para parar de avisar "custos não disponíveis" quando o produto trouxer custo.
+Em `ProposalItemLucroAnalysis.tsx`:
+- Quando o item tem `nomus_product_id`, buscar em `nomus_price_table_items` usando o `tabela_preco_nomus_id` da proposta (já está em `nomus_proposals`).
+- Custo de materiais real = `preco_custo × quantidade`.
+- Margem-base = `margem_pct` da linha — exibida como referência.
+- Lucro bruto recalculado = `total_with_discount − custo_materiais` (sem impostos).
+- Badge "Desconto reduziu margem em X pp" quando `margem_real < margem_base`.
+- Painel de diagnóstico para de avisar "custos não disponíveis" quando há linha na tabela.
 
 ## Etapa 4 — UI de controle
-
-Em `src/routes/app.configuracoes.nomus.tsx`, adicionar botão **"Sincronizar detalhes de produtos"** que dispara o enriquecimento sob demanda (igual ao padrão atual de propostas). Evita centenas de chamadas no cron.
+Botão **"Sincronizar tabelas de preço"** em `app.configuracoes.nomus.tsx` que dispara `nomusSyncPriceTables` sob demanda (não vai pro cron).
 
 ## Arquivos afetados
-- `src/routes/api.nomus.produto-probe.ts` — novo (sondagem temporária)
-- `supabase/migrations/*` — colunas de custo em `equipments`
-- `src/integrations/nomus/parse.ts` — `parseNomusProduct`
-- `src/integrations/nomus/server.functions.ts` — enriquecimento + nova função `nomusSyncProductDetails`
-- `src/components/ProposalItemLucroAnalysis.tsx` — usar custo real no cálculo
-- `src/routes/app.configuracoes.nomus.tsx` — botão de sync de detalhes
+- `src/routes/api.public.nomus.tabela-preco-probe.ts` — novo
+- `supabase/migrations/*` — ALTER em `nomus_price_table_items`
+- `src/integrations/nomus/parse.ts` — `parseNomusPriceTableItem`
+- `src/integrations/nomus/server.functions.ts` — `nomusSyncPriceTables`
+- `src/components/ProposalItemLucroAnalysis.tsx` — custo real + badge de margem
+- `src/routes/app.configuracoes.nomus.tsx` — botão de sync
 
 ## Fora de escopo
-- Custos de MOD / CIF / administrativos — esses **não vivem no cadastro de produto**; permanecem indisponíveis via API (limitação confirmada do Nomus REST nesta instalação).
-- Histórico de variação de custo do produto.
+- MOD e CIF — não vivem em tabela de preço.
+- Impostos no recálculo deste bloco.
+- Histórico de variação.
 
-## Risco/incerteza
-A Etapa 1 é obrigatória antes de prometer qualquer coisa. Se `/produtos/{id}` também não expuser custos nesta instalação (possível, se a chave REST tiver permissão restrita ao módulo comercial), as etapas 2–4 perdem o sentido e a conclusão será: custos de produto também só existem no ERP interno. Eu te aviso assim que o probe rodar.
+## Risco
+Se o probe mostrar que `/tabelasPreco/{id}` só traz `precoVenda` (sem custo/margem), Etapas 2-4 ainda valem para medir **desconto efetivo vs preço de tabela** — mas o cálculo de margem real continua impossível via API. Te aviso assim que o probe rodar.
+
+## Próximo passo
+Publicar o app → eu rodo o probe → leio `nomus_sync_log` → confirmo quais campos a sua instalação expõe → seguimos (ou ajustamos) Etapas 2-4.
 
