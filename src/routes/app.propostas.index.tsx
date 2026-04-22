@@ -1,9 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState, useMemo } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import { useState, useMemo, useEffect } from "react";
 import { Plus, Search, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { nomusKickoffSyncProposals } from "@/integrations/nomus/server.functions";
 
 import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -20,39 +22,40 @@ function ProposalsList() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const queryClient = useQueryClient();
+  const kickoffSync = useServerFn(nomusKickoffSyncProposals);
+
+  // Estado da sincronização — observa nomus_sync_state.propostas.
+  // Quando running=true, faz polling para refletir progresso e parar o spinner
+  // assim que o cron concluir, sem travar o botão por toda a duração.
+  const { data: syncState } = useQuery({
+    queryKey: ["nomus-sync-state", "propostas"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("nomus_sync_state")
+        .select("running, last_synced_at, total_synced, last_error")
+        .eq("entity", "propostas")
+        .maybeSingle();
+      return data;
+    },
+    refetchInterval: (query) => (query.state.data?.running ? 4000 : false),
+  });
+
+  useEffect(() => {
+    if (syncState && !syncState.running && syncState.last_synced_at) {
+      queryClient.invalidateQueries({ queryKey: ["proposals-list"] });
+    }
+  }, [syncState?.running, syncState?.last_synced_at, queryClient]);
 
   const syncMutation = useMutation({
-    mutationFn: async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) throw new Error("Sessão expirada. Faça login novamente.");
-      const res = await fetch(
-        "/_serverFn/eyJmaWxlIjoiL0BpZC9zcmMvaW50ZWdyYXRpb25zL25vbXVzL3NlcnZlci5mdW5jdGlvbnMudHM_dHNzLXNlcnZlcmZuLXNwbGl0IiwiZXhwb3J0Ijoibm9tdXNTeW5jUHJvcG9zYWxzRnVsbF9jcmVhdGVTZXJ2ZXJGbl9oYW5kbGVyIn0",
-        {
-          method: "POST",
-          headers: {
-            
-            Authorization: `Bearer ${session.access_token}`,
-            "x-tsr-serverfn": "true",
-          },
-          
-        },
-      );
-      const text = await res.text();
-      let json: any = null;
-      try { json = text ? JSON.parse(text) : null; } catch { /* noop */ }
-      if (!res.ok) throw new Error(json?.error ?? text ?? `HTTP ${res.status}`);
-      return json ?? {};
+    mutationFn: async () => kickoffSync(),
+    onSuccess: () => {
+      toast.success("Sincronização iniciada — atualizando em segundo plano.");
+      queryClient.invalidateQueries({ queryKey: ["nomus-sync-state", "propostas"] });
     },
-    onSuccess: (res: any) => {
-      if (res?.ok === false) {
-        toast.error(`Erro ao sincronizar: ${res?.error ?? "desconhecido"}`);
-        return;
-      }
-      toast.success(`Sincronização concluída: ${res?.count ?? 0} propostas`);
-      queryClient.invalidateQueries({ queryKey: ["proposals-list"] });
-    },
-    onError: (err: any) => toast.error(`Erro ao sincronizar: ${err?.message ?? "desconhecido"}`),
+    onError: (err: Error) => toast.error(`Erro ao iniciar sincronização: ${err.message}`),
   });
+
+  const isSyncing = syncMutation.isPending || !!syncState?.running;
 
   const { data: proposals = [], isLoading } = useQuery({
     queryKey: ["proposals-list"],
