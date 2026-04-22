@@ -43,6 +43,28 @@ export function proposalSubpath(nomusId: string, sub?: string): string {
   return sub ? `${base}/${sub.replace(/^\/+/, "")}` : base;
 }
 
+/**
+ * Detalhe completo de um item de proposta no Nomus.
+ *
+ * O caminho canônico documentado é
+ * `GET /propostas/{idProposta}/itens/{idItem}` — devolve impostos
+ * discriminados, análise de lucro com 23 campos, atributos e centros de custo.
+ *
+ * Em ambientes onde o caminho canônico não está disponível, tentamos os
+ * fallbacks abaixo (na ordem) antes de devolver 404.
+ */
+export function proposalItemDetailPath(propostaId: string | number, itemId: string | number): string {
+  return `${NOMUS_ENDPOINTS.propostas}/${encodeURIComponent(String(propostaId))}/itens/${encodeURIComponent(String(itemId))}`;
+}
+
+export function proposalItemDetailFallbackPaths(itemId: string | number): string[] {
+  const id = encodeURIComponent(String(itemId));
+  return [
+    `${NOMUS_ENDPOINTS.propostas}/itens/${id}`,
+    `/itensPropostas/${id}`,
+  ];
+}
+
 /** Contatos vinculados a uma pessoa (cliente/fornecedor) no Nomus. */
 export function pessoaContatosPath(idPessoa: string | number): string {
   return `/pessoas/${encodeURIComponent(String(idPessoa))}/contatos`;

@@ -4,7 +4,12 @@ import { getRequest } from "@tanstack/react-start/server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { nomusFetch, listAll, testNomusConnection } from "./client";
-import { NOMUS_ENDPOINTS, proposalSubpath } from "./endpoints";
+import {
+  NOMUS_ENDPOINTS,
+  proposalSubpath,
+  proposalItemDetailPath,
+  proposalItemDetailFallbackPaths,
+} from "./endpoints";
 
 type Json = Record<string, unknown>;
 
@@ -1028,13 +1033,19 @@ export const nomusCreatePedido = createServerFn({ method: "POST" })
   });
 
 /**
- * Busca SOB DEMANDA o detalhe completo de um item de proposta:
- *  - O JSON original do item (já está no banco, em `raw`)
- *  - O JSON original da proposta (também no banco)
- *  - GET /produtos/{id} no Nomus para trazer NCM, CFOP, alíquotas,
- *    classificação fiscal, dados técnicos e o que mais o ERP expõe
+ * Busca SOB DEMANDA o detalhe completo de um item de proposta.
  *
- * Não persiste nada — apenas devolve para o modal renderizar.
+ * Combina:
+ *  - JSON original do item espelhado (`nomus_proposal_items.raw`)
+ *  - JSON original da proposta (`nomus_proposals.raw`)
+ *  - `GET /propostas/{idProposta}/itens/{idItem}` no Nomus — traz tributos
+ *    discriminados (ICMS/IPI/PIS/COFINS/IBS/CBS), Análise de Lucro com
+ *    23 campos, atributos do produto, centros de custo, frete/seguro/pesos
+ *  - `GET /produtos/{id}` para enriquecer o cadastro do produto
+ *  - Equipamento local mapeado e preços por tabela (já estão no Supabase)
+ *
+ * Persiste no banco o que conseguir (raw._detail, analise_lucro, impostos)
+ * para que próximas aberturas saiam instantâneas.
  */
 export const nomusGetItemDetail = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -1055,13 +1066,76 @@ export const nomusGetItemDetail = createServerFn({ method: "POST" })
 
     const item = itemRow as unknown as {
       id: string;
+      nomus_item_id: string | null;
       nomus_product_id: string | null;
       product_code: string | null;
       raw: Json | null;
       nomus_proposals: { nomus_id: string; raw: Json | null } | null;
     };
 
-    // 2) Detalhe do produto no Nomus (sob demanda) — só se tivermos id
+    // 2) Detalhe COMPLETO do item no Nomus (sob demanda).
+    // Tenta o caminho canônico e, se 404, percorre os fallbacks documentados.
+    let itemDetail: Json | null = null;
+    let itemDetailError: string | null = null;
+    const propostaNomusId = item.nomus_proposals?.nomus_id ?? null;
+    const itemNomusId = item.nomus_item_id ?? null;
+
+    if (propostaNomusId && itemNomusId) {
+      const candidatePaths: string[] = [
+        proposalItemDetailPath(propostaNomusId, itemNomusId),
+        ...proposalItemDetailFallbackPaths(itemNomusId),
+      ];
+      for (const path of candidatePaths) {
+        const res = await nomusFetch<Json>(path, {
+          method: "GET",
+          entity: "propostas",
+          operation: "get_item_detail",
+          direction: "pull",
+          triggeredBy: userId,
+        });
+        if (res.ok) {
+          itemDetail = res.data;
+          itemDetailError = null;
+          break;
+        }
+        // se for 404, tenta o próximo; se for outro erro, mantém a mensagem
+        itemDetailError = res.error;
+        const status = (res as { status?: number }).status;
+        if (status && status !== 404) break;
+      }
+    } else {
+      itemDetailError = "IDs de proposta/item ausentes — não é possível buscar detalhe completo no Nomus.";
+    }
+
+    // 2b) Persiste o detalhe no item para acelerar próximas aberturas
+    if (itemDetail && typeof itemDetail === "object") {
+      const detailObj = itemDetail as Record<string, unknown>;
+      const analiseLucro = (detailObj.analiseLucro ?? detailObj.analise_lucro ?? null) as Json | null;
+      const impostos =
+        (detailObj.impostos ??
+          detailObj.tributos ??
+          detailObj.totalTributacao ??
+          null) as Json | null;
+
+      const baseRaw = (item.raw && typeof item.raw === "object" ? (item.raw as Record<string, unknown>) : {});
+      const mergedRaw: Record<string, unknown> = { ...baseRaw, _detail: detailObj };
+
+      const { error: upErr } = await supabaseAdmin
+        .from("nomus_proposal_items")
+        .update({
+          raw: mergedRaw as never,
+          analise_lucro: analiseLucro as never,
+          impostos: impostos as never,
+          synced_at: new Date().toISOString(),
+        })
+        .eq("id", item.id);
+      if (upErr) {
+        // não interrompe — apenas loga implicitamente via retorno
+        itemDetailError = `Detalhe carregado, mas falhou ao gravar local: ${upErr.message}`;
+      }
+    }
+
+    // 3) Detalhe do produto no Nomus (sob demanda) — só se tivermos id
     let produto: Json | null = null;
     let produtoError: string | null = null;
     if (item.nomus_product_id) {
@@ -1082,7 +1156,7 @@ export const nomusGetItemDetail = createServerFn({ method: "POST" })
       }
     }
 
-    // 3) Equipamento local mapeado (se houver)
+    // 4) Equipamento local mapeado (se houver)
     let equipment: Json | null = null;
     if (item.nomus_product_id) {
       const { data: eq } = await supabaseAdmin
@@ -1093,7 +1167,7 @@ export const nomusGetItemDetail = createServerFn({ method: "POST" })
       if (eq) equipment = eq as unknown as Json;
     }
 
-    // 4) Preços do produto em todas as tabelas de preço (Nomus)
+    // 5) Preços do produto em todas as tabelas de preço (Nomus)
     let priceTableItems: Json[] = [];
     if (item.nomus_product_id) {
       const { data: pti } = await supabaseAdmin
@@ -1110,6 +1184,8 @@ export const nomusGetItemDetail = createServerFn({ method: "POST" })
     return {
       ok: true as const,
       item_raw_json: JSON.stringify(item.raw ?? null),
+      item_detail_json: JSON.stringify(itemDetail ?? null),
+      item_detail_error: itemDetailError,
       proposta_raw_json: JSON.stringify(item.nomus_proposals?.raw ?? null),
       proposta_nomus_id: item.nomus_proposals?.nomus_id ?? null,
       produto_raw_json: JSON.stringify(produto ?? null),
