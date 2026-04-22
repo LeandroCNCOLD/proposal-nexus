@@ -62,7 +62,7 @@ function ProposalsList() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("proposals")
-        .select("id, number, title, status, total_value, valid_until, created_at, clients(name)")
+        .select("id, number, title, status, total_value, valid_until, created_at, nomus_id, clients(name), nomus_proposals!proposals_nomus_proposal_id_fkey(criada_em_nomus, data_emissao)")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data ?? [];
