@@ -59,6 +59,8 @@ type NomusProposalRow = {
   lucro_antes_impostos: number | null;
   lucro_liquido: number | null;
   margem_liquida_pct: number | null;
+
+  raw: Record<string, unknown> | null;
 };
 
 type ItemRow = {
