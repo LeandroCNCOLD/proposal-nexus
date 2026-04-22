@@ -571,6 +571,98 @@ function ProdutoSection({
   );
 }
 
+// =================== Tributos rateados (fallback) ===================
+
+/**
+ * Quando o endpoint individual `/propostas/{id}/itens/{itemId}` não existe
+ * nessa instalação do Nomus, usamos os impostos totais da proposta
+ * (`raw.totalTributacao[0]`) e rateamos proporcionalmente ao valor do item.
+ */
+function TributosRateio({
+  proposalTaxes,
+  itemTotal,
+  proposalProductsTotal,
+}: {
+  proposalTaxes: Record<string, string | number>;
+  itemTotal: number;
+  proposalProductsTotal: number;
+}) {
+  const ratio =
+    proposalProductsTotal > 0 && itemTotal > 0 ? itemTotal / proposalProductsTotal : 0;
+
+  const toN = (v: unknown): number => {
+    if (v === null || v === undefined || v === "") return 0;
+    if (typeof v === "number") return Number.isFinite(v) ? v : 0;
+    const s = String(v).replace(/\./g, "").replace(",", ".");
+    const n = Number(s);
+    return Number.isFinite(n) ? n : 0;
+  };
+
+  const rows: Array<{ key: string; label: string; total: number }> = [
+    { key: "icms", label: "ICMS", total: toN(proposalTaxes.valorIcms) },
+    { key: "icms_st", label: "ICMS ST", total: toN(proposalTaxes.valorIcmsSt) },
+    { key: "ipi", label: "IPI", total: toN(proposalTaxes.valorIpi) },
+    { key: "iss", label: "ISS / ISSQN", total: toN(proposalTaxes.valorIss) },
+    { key: "pis", label: "PIS", total: toN(proposalTaxes.valorPis) },
+    { key: "cofins", label: "COFINS", total: toN(proposalTaxes.valorCofins) },
+    { key: "cbs", label: "CBS", total: toN(proposalTaxes.valorCbs) },
+    { key: "ibs", label: "IBS", total: toN(proposalTaxes.valorIbs) },
+    { key: "ibs_estadual", label: "IBS Estadual", total: toN(proposalTaxes.valorIbsEstadual) },
+  ].filter((r) => r.total > 0);
+
+  if (rows.length === 0) return null;
+
+  const totalAlocado = rows.reduce((s, r) => s + r.total * ratio, 0);
+
+  return (
+    <FormCard title="Impostos rateados a partir da proposta">
+      <div className="text-[11px] text-muted-foreground mb-2">
+        Participação deste item no total da proposta:{" "}
+        <span className="font-semibold text-foreground tabular-nums">
+          {(ratio * 100).toFixed(2)}%
+        </span>{" "}
+        — {brl(itemTotal)} de {brl(proposalProductsTotal)}
+      </div>
+      <div className="overflow-hidden rounded-md border">
+        <table className="w-full text-sm">
+          <thead className="bg-secondary/40 text-[11px] uppercase tracking-wider text-muted-foreground">
+            <tr>
+              <th className="px-3 py-2 text-left">Tributo</th>
+              <th className="px-3 py-2 text-right">Total na proposta</th>
+              <th className="px-3 py-2 text-right">Atribuído ao item</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.key} className="border-t">
+                <td className="px-3 py-2">{r.label}</td>
+                <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
+                  {brl(r.total)}
+                </td>
+                <td className="px-3 py-2 text-right tabular-nums font-medium">
+                  {brl(r.total * ratio)}
+                </td>
+              </tr>
+            ))}
+            <tr className="border-t bg-secondary/30">
+              <td className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Total atribuído
+              </td>
+              <td className="px-3 py-2" />
+              <td className="px-3 py-2 text-right tabular-nums font-semibold">
+                {brl(totalAlocado)}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div className="text-[11px] text-muted-foreground italic">
+        Valores estimados. Para ver os tributos exatos por item (com base de cálculo, alíquota e fundamentação legal), o ERP precisa expor o endpoint de detalhe individual de itens da proposta.
+      </div>
+    </FormCard>
+  );
+}
+
 // =================== UI primitives ===================
 
 function FormCard({ title, children }: { title: string; children: React.ReactNode }) {
