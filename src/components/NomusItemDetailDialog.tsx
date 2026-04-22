@@ -124,7 +124,7 @@ export function NomusItemDetailDialog({ itemId, itemDescription, productCode, op
 
 function ResumoView({ itemRaw }: { itemRaw: unknown }) {
   const o = (itemRaw ?? {}) as Record<string, unknown>;
-  const fields = [
+  const fields: Array<[string, unknown]> = [
     ["Código do produto", pickStr(o, "codigoProduto", "codigo")],
     ["ID do produto (Nomus)", pickStr(o, "idProduto", "produtoId")],
     ["Descrição", pickStr(o, "descricaoProduto", "descricao", "nome")],
@@ -201,7 +201,7 @@ function TributosView({ itemRaw }: { itemRaw: unknown }) {
 
   return (
     <div className="space-y-4">
-      {sections.map(([title, rows]) => {
+      {sections.map(({ title, rows }) => {
         const hasAny = rows.some(([, v]) => v !== null && v !== undefined && v !== "");
         if (!hasAny) {
           return (
