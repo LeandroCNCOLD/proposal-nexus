@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { getOne } from "@/integrations/nomus/client";
 import { NOMUS_ENDPOINTS } from "@/integrations/nomus/endpoints";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 /**
  * Rota de diagnóstico TEMPORÁRIA.
@@ -100,6 +101,24 @@ export const Route = createFileRoute("/api/public/nomus/produto-probe")({
             continue;
           }
           const summary = summarize(res.data);
+          // Persistimos o payload bruto + sumário no nomus_sync_log para inspeção
+          // mesmo quando a resposta HTTP não chega ao chamador (ex.: probe via cron).
+          try {
+            await supabaseAdmin.from("nomus_sync_log").insert({
+              entity: "produtos",
+              operation: "probe",
+              direction: "test",
+              status: "success",
+              http_status: 200,
+              duration_ms: 0,
+              request_path: `GET /produtos/${id} (probe)`,
+              payload: { probedId: id } as never,
+              response: { summary, raw: res.data } as never,
+              triggered_by: null,
+            });
+          } catch (e) {
+            console.error("[probe] failed to log payload", e);
+          }
           results.push({
             id,
             ok: true,
