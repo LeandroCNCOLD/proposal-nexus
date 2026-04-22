@@ -235,7 +235,85 @@ const mappers: Record<EntityKey, { endpoint: string; map: Mapper }> = {
   },
 };
 
+/** Janela de propostas a importar (em meses). */
+const PROPOSALS_WINDOW_MONTHS = 36;
+
+/** Sync especial de propostas: do mais recente para o mais antigo, parando quando sair da janela. */
+async function pullProposalsNewestFirst(): Promise<{ ok: boolean; count?: number; error?: string }> {
+  const endpoint = NOMUS_ENDPOINTS.propostas;
+  // Lista bruta retorna basicamente IDs — coleta TUDO e processa do fim para o começo.
+  const res = await listAll<Record<string, unknown>>(endpoint, {}, { entity: "propostas" });
+  if (!res.ok) return { ok: false, error: res.error };
+
+  // Ordena por id desc (Nomus normalmente devolve em ordem crescente de id).
+  const all = [...res.items];
+  all.sort((a, b) => {
+    const ai = Number(pickStr(a, "id", "idProposta", "codigo") ?? 0);
+    const bi = Number(pickStr(b, "id", "idProposta", "codigo") ?? 0);
+    return bi - ai;
+  });
+
+  const cutoff = new Date();
+  cutoff.setMonth(cutoff.getMonth() - PROPOSALS_WINDOW_MONTHS);
+  const cutoffMs = cutoff.getTime();
+
+  let count = 0;
+  let consecutiveOutOfWindow = 0;
+  // Tolerância: como id≈cronologia pode ter pequenas inversões,
+  // só paramos depois de N propostas seguidas fora da janela.
+  const STOP_AFTER_OLD = 25;
+
+  for (const summary of all) {
+    const id = pickStr(summary, "id", "idProposta", "codigo");
+    if (!id) continue;
+
+    const detailRes = await getOne<Record<string, unknown>>(endpoint, id, { entity: "propostas" });
+    const raw = detailRes.ok ? detailRes.data : summary;
+
+    // Filtro por data: usa criada_em / data_emissao do payload completo.
+    const dateStr =
+      pickStr(raw, "dataHoraCriacao", "criadaEm", "dataCriacao", "dataEmissao") ?? null;
+    let inWindow = true;
+    if (dateStr) {
+      const iso = /^\d{4}-\d{2}-\d{2}/.test(dateStr)
+        ? dateStr
+        : /^\d{2}\/\d{2}\/\d{4}/.test(dateStr)
+        ? `${dateStr.slice(6, 10)}-${dateStr.slice(3, 5)}-${dateStr.slice(0, 2)}`
+        : null;
+      const ts = iso ? new Date(iso).getTime() : NaN;
+      if (Number.isFinite(ts)) inWindow = ts >= cutoffMs;
+    }
+
+    if (!inWindow) {
+      consecutiveOutOfWindow += 1;
+      if (consecutiveOutOfWindow >= STOP_AFTER_OLD) break;
+      continue;
+    }
+    consecutiveOutOfWindow = 0;
+
+    try {
+      // Reaproveita a lógica completa de espelhamento — passamos o summary
+      // porque syncProposalDetail já chama getOne internamente para detalhe.
+      await syncProposalDetail(summary);
+      count += 1;
+    } catch (e) {
+      console.error("[nomus-cron] erro mapeando proposta:", e);
+    }
+  }
+
+  await supabaseAdmin.from("nomus_sync_state").upsert({
+    entity: "propostas",
+    last_synced_at: new Date().toISOString(),
+    total_synced: count,
+    running: false,
+    last_error: null,
+    updated_at: new Date().toISOString(),
+  });
+  return { ok: true, count };
+}
+
 async function pullEntity(name: EntityKey): Promise<{ ok: boolean; count?: number; error?: string }> {
+  if (name === "propostas") return pullProposalsNewestFirst();
   const { endpoint, map } = mappers[name];
   const res = await listAll<Record<string, unknown>>(endpoint, {}, { entity: name });
   if (!res.ok) return { ok: false, error: res.error };
