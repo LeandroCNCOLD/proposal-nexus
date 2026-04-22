@@ -1,127 +1,240 @@
 import { brl, num } from "@/lib/format";
 
 /**
- * Renderiza a Análise de Lucro de um item de proposta vinda do Nomus.
+ * Análise de Lucro do item da proposta.
  *
- * O Nomus expõe ~23 campos no endpoint
- * `GET /propostas/{idProposta}/itens/{idItem}`. Aqui agrupamos em 4 blocos:
- *  1. Composição do valor
- *  2. Impostos a recolher
- *  3. Custos
- *  4. Resultado (lucro / margem)
+ * Reproduz EXATAMENTE as 23 linhas da tela de Análise de Lucro do Nomus
+ * (na mesma ordem e com os mesmos símbolos `(=)`, `(-)`, `>>>`).
+ *
+ * Duas fontes possíveis:
+ *  1. `analiseLucro` — vem do endpoint individual do item
+ *     (`GET /propostas/{id}/itens/{itemId}.analiseLucro`). Quando presente,
+ *     mostra os valores reais do item.
+ *  2. Fallback rateado: quando o detail individual não está disponível
+ *     (instalações do Nomus que não expõem esse endpoint), usamos os totais
+ *     da PROPOSTA (`proposalAnaliseLucro`) e aplicamos `ratio` (participação
+ *     do item no total dos produtos) — assim as 23 linhas aparecem
+ *     preenchidas com valores estimados.
  */
 
-type Lucro = Record<string, unknown> | null | undefined;
+type Money = number | null | undefined;
 
-function n(o: NonNullable<Lucro>, ...keys: string[]): number | null {
+export type ProposalAnaliseLucro = {
+  valor_produtos: Money;
+  valor_descontos: Money;
+  valor_total_com_desconto: Money;
+
+  icms_recolher: Money;
+  icms_st_recolher: Money;
+  ipi_recolher: Money;
+  pis_recolher: Money;
+  cofins_recolher: Money;
+  issqn_recolher: Money;
+  simples_nacional_recolher: Money;
+
+  comissoes_venda: Money;
+  frete_valor: Money;
+  seguros_valor: Money;
+  despesas_acessorias: Money;
+
+  valor_liquido: Money;
+
+  custos_producao: Money;
+  custos_materiais: Money;
+  custos_mod: Money;
+  custos_cif: Money;
+
+  lucro_bruto: Money;
+  margem_bruta_pct: Money;
+  custos_administrativos: Money;
+  lucro_antes_impostos: Money;
+  custos_incidentes_lucro: Money;
+  lucro_liquido: Money;
+  margem_liquida_pct: Money;
+};
+
+type Props = {
+  /** Análise vinda do detail individual do item (preferencial). */
+  analiseLucro?: Record<string, unknown> | null;
+  /** Totais da proposta — usados quando `analiseLucro` for null. */
+  proposalAnaliseLucro?: ProposalAnaliseLucro | null;
+  /** Participação do item no total dos produtos (0..1). */
+  ratio?: number;
+};
+
+export function ProposalItemLucroAnalysis({ analiseLucro, proposalAnaliseLucro, ratio = 0 }: Props) {
+  const useDetail = !!analiseLucro;
+  const r = useDetail ? 1 : ratio;
+
+  // Resolve valor: se temos detail, lê do detail; senão, rateia do total da proposta.
+  const v = (detailKeys: string[], proposalKey: keyof ProposalAnaliseLucro): number | null => {
+    if (useDetail && analiseLucro) {
+      const x = pickNum(analiseLucro, ...detailKeys);
+      return x;
+    }
+    if (proposalAnaliseLucro) {
+      const raw = proposalAnaliseLucro[proposalKey];
+      if (raw == null) return null;
+      return Number(raw) * r;
+    }
+    return null;
+  };
+
+  // Margens não são rateadas — são percentuais; vêm prontas da proposta.
+  const margin = (detailKeys: string[], proposalKey: keyof ProposalAnaliseLucro): number | null => {
+    if (useDetail && analiseLucro) return pickNum(analiseLucro, ...detailKeys);
+    if (proposalAnaliseLucro) {
+      const raw = proposalAnaliseLucro[proposalKey];
+      return raw == null ? null : Number(raw);
+    }
+    return null;
+  };
+
+  const valorProdutos        = v(["valorProdutos", "valorTotalProdutos", "valorTotal"], "valor_produtos");
+  const descontos            = v(["valorDescontos", "descontos", "valorDesconto"], "valor_descontos");
+  const valorComDesconto     = v(["valorTotalComDesconto", "valorComDesconto"], "valor_total_com_desconto");
+
+  const icms                 = v(["valorIcms", "valorIcmsRecolher"], "icms_recolher");
+  const icmsSt               = v(["valorIcmsSt", "valorIcmsStRecolher"], "icms_st_recolher");
+  const ipi                  = v(["valorIpi", "valorIpiRecolher"], "ipi_recolher");
+  const pis                  = v(["valorPis", "valorPisRecolher"], "pis_recolher");
+  const cofins               = v(["valorCofins", "valorCofinsRecolher"], "cofins_recolher");
+  const issqn                = v(["valorIssqn", "valorIss", "valorIssqnRecolher"], "issqn_recolher");
+  const simples              = v(["valorSimplesNacional", "valorSimplesNacionalRecolher"], "simples_nacional_recolher");
+
+  const comissoes            = v(["valorComissoesVenda", "comissoesVenda"], "comissoes_venda");
+  const frete                = v(["valorFrete", "frete"], "frete_valor");
+  const seguros              = v(["valorSeguros", "seguros"], "seguros_valor");
+  const outrasDespesas       = v(["valorOutrasDespesasAcessorias", "despesasAcessorias", "outrasDespesas"], "despesas_acessorias");
+
+  const valorLiquido         = v(["valorLiquido", "valorLiquidoItem"], "valor_liquido");
+
+  const custosProducao       = v(["custosProducao", "valorCustoProducao"], "custos_producao");
+  const cMat                 = v(["custosMateriais", "valorCustoMateriais"], "custos_materiais");
+  const cMod                 = v(["custosMod", "valorCustoMod", "custosMOD"], "custos_mod");
+  const cCif                 = v(["custosCif", "valorCustoCif", "custosCIF"], "custos_cif");
+
+  const lucroBruto           = v(["lucroBruto", "valorLucroBruto"], "lucro_bruto");
+  const margemBruta          = margin(["margemBruta", "margemLucroBruto", "margemBrutaPct", "percentualMargemBruta"], "margem_bruta_pct");
+
+  const custosAdmin          = v(["custosAdministrativos"], "custos_administrativos");
+  const lucroAntesImpostos   = v(["lucroAntesImpostos"], "lucro_antes_impostos");
+  const custosIncidentes     = v(["custosIncidentesLucro", "custosIncidentesSobreLucro"], "custos_incidentes_lucro");
+  const lucroLiquido         = v(["lucroLiquido", "valorLucroLiquido"], "lucro_liquido");
+  const margemLiquida        = margin(["margemLiquida", "margemLucroLiquido", "margemLiquidaPct", "percentualMargemLiquida"], "margem_liquida_pct");
+
+  const noData = !useDetail && !proposalAnaliseLucro;
+  if (noData) {
+    return (
+      <div className="rounded-md border bg-secondary/30 p-3 text-sm text-muted-foreground">
+        Análise de lucro não disponível.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {!useDetail && (
+        <div className="text-[11px] text-muted-foreground">
+          Valores rateados a partir da análise de lucro da proposta — participação deste item:{" "}
+          <span className="font-semibold text-foreground tabular-nums">{(r * 100).toFixed(2)}%</span>
+        </div>
+      )}
+
+      <div className="overflow-hidden rounded-md border">
+        <table className="w-full text-sm">
+          <tbody>
+            <Row label="Valor total dos produtos"                 value={valorProdutos} />
+            <Row label="(-) Descontos incondicionais"             value={negate(descontos)} />
+            <Row label="(=) Valor total com desconto"             value={valorComDesconto} emphasis />
+
+            <Row label="(-) ICMS a recolher"                      value={negate(icms)} />
+            <Row label="(-) ICMS ST a recolher"                   value={negate(icmsSt)} />
+            <Row label="(-) IPI a recolher"                       value={negate(ipi)} />
+            <Row label="(-) PIS a recolher"                       value={negate(pis)} />
+            <Row label="(-) COFINS a recolher"                    value={negate(cofins)} />
+            <Row label="(-) ISSQN a recolher"                     value={negate(issqn)} />
+            <Row label="(-) Simples Nacional a recolher"          value={negate(simples)} />
+
+            <Row label="(-) Comissões de venda"                   value={negate(comissoes)} />
+            <Row label="(-) Frete"                                value={negate(frete)} />
+            <Row label="(-) Seguros"                              value={negate(seguros)} />
+            <Row label="(-) Outras despesas acessórias"           value={negate(outrasDespesas)} />
+
+            <Row label="(=) Valor líquido do item"                value={valorLiquido} emphasis />
+
+            <Row label="(-) Custos de produção"                   value={negate(custosProducao)} />
+            <SubRow label=">>> Custos de materiais"               value={cMat} />
+            <SubRow label=">>> Custos de mão de obra direta (MOD)" value={cMod} />
+            <SubRow label=">>> Custos indiretos de fabricação (CIF)" value={cCif} />
+
+            <Row label="(=) Lucro bruto"                          value={lucroBruto} pct={margemBruta} emphasis positive />
+            <SubRow label="Margem de lucro bruto"                  value={null} pct={margemBruta} />
+
+            <Row label="(-) Custos administrativos"               value={negate(custosAdmin)} />
+            <Row label="(=) Lucro antes dos impostos"             value={lucroAntesImpostos} emphasis />
+            <Row label="(-) Custos incidentes sobre lucro"        value={negate(custosIncidentes)} />
+
+            <Row label="(=) Lucro líquido"                        value={lucroLiquido} pct={margemLiquida} emphasis positive />
+            <SubRow label="Margem de lucro líquido"               value={null} pct={margemLiquida} />
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ============= helpers =============
+
+function pickNum(o: Record<string, unknown>, ...keys: string[]): number | null {
   for (const k of keys) {
-    const v = o[k];
-    if (v === null || v === undefined || v === "") continue;
-    const num = typeof v === "number" ? v : Number(String(v).replace(/\./g, "").replace(",", "."));
-    if (Number.isFinite(num)) return num;
+    const raw = o[k];
+    if (raw === null || raw === undefined || raw === "") continue;
+    const n = typeof raw === "number" ? raw : Number(String(raw).replace(/\./g, "").replace(",", "."));
+    if (Number.isFinite(n)) return n;
   }
   return null;
 }
 
-function fmt(v: number | null, kind: "money" | "percent" = "money"): string {
-  if (v === null) return "—";
-  if (kind === "money") return brl(v);
-  return `${num(v, 2)} %`;
+function negate(v: number | null): number | null {
+  if (v === null) return null;
+  return v === 0 ? 0 : -Math.abs(v);
 }
 
-export function ProposalItemLucroAnalysis({ analiseLucro }: { analiseLucro: Lucro }) {
-  if (!analiseLucro) {
-    return (
-      <div className="rounded-md border bg-secondary/30 p-3 text-sm text-muted-foreground">
-        Análise de lucro não disponível para este item. Os valores aparecem aqui
-        após o detalhe completo do item ser carregado do Nomus.
-      </div>
-    );
-  }
-  const o = analiseLucro;
-
-  const valorProdutos = n(o, "valorProdutos", "valorTotalProdutos", "valorTotal");
-  const descontos = n(o, "valorDescontos", "descontos", "valorDesconto");
-  const valorComDesconto = n(o, "valorTotalComDesconto", "valorComDesconto");
-
-  const icms = n(o, "valorIcms", "valorIcmsRecolher");
-  const icmsSt = n(o, "valorIcmsSt", "valorIcmsStRecolher");
-  const ipi = n(o, "valorIpi", "valorIpiRecolher");
-  const pis = n(o, "valorPis", "valorPisRecolher");
-  const cofins = n(o, "valorCofins", "valorCofinsRecolher");
-  const issqn = n(o, "valorIssqn", "valorIss", "valorIssqnRecolher");
-  const simples = n(o, "valorSimplesNacional", "valorSimplesNacionalRecolher");
-
-  const cMat = n(o, "custosMateriais", "valorCustosMateriais");
-  const cMod = n(o, "custosMod", "custosMaoObraDireta", "custosMOD");
-  const cCif = n(o, "custosCif", "custosIndiretosFabricacao", "custosCIF");
-  const cAdm = n(o, "custosAdministrativos");
-  const cInc = n(o, "custosIncidentesLucro", "custosIncidentesSobreLucro");
-  const totalCustos = [cMat, cMod, cCif, cAdm, cInc].reduce<number | null>(
-    (acc, v) => (v == null ? acc : (acc ?? 0) + v),
-    null,
-  );
-
-  const lucroBruto = n(o, "lucroBruto", "valorLucroBruto");
-  const margemBruta = n(o, "margemBruta", "margemLucroBruto", "percentualMargemBruta", "margemBrutaPct");
-  const lucroAntesImpostos = n(o, "lucroAntesImpostos");
-  const lucroLiquido = n(o, "lucroLiquido", "valorLucroLiquido");
-  const margemLiquida = n(o, "margemLiquida", "margemLucroLiquido", "percentualMargemLiquida", "margemLiquidaPct");
-
+function Row({
+  label, value, emphasis, positive, pct,
+}: {
+  label: string;
+  value: number | null;
+  emphasis?: boolean;
+  positive?: boolean;
+  pct?: number | null;
+}) {
   return (
-    <div className="space-y-4">
-      <Block title="Composição do valor">
-        <Row label="Valor produtos" value={fmt(valorProdutos)} />
-        <Row label="Descontos" value={descontos != null ? `- ${fmt(descontos)}` : "—"} />
-        <Row label="Valor total c/ desconto" value={fmt(valorComDesconto)} strong />
-      </Block>
-
-      <Block title="Impostos a recolher">
-        <Row label="ICMS" value={fmt(icms)} />
-        <Row label="ICMS-ST" value={fmt(icmsSt)} />
-        <Row label="IPI" value={fmt(ipi)} />
-        <Row label="PIS" value={fmt(pis)} />
-        <Row label="COFINS" value={fmt(cofins)} />
-        <Row label="ISSQN" value={fmt(issqn)} />
-        <Row label="Simples Nacional" value={fmt(simples)} />
-      </Block>
-
-      <Block title="Custos">
-        <Row label="Materiais" value={fmt(cMat)} />
-        <Row label="MOD" value={fmt(cMod)} />
-        <Row label="CIF" value={fmt(cCif)} />
-        <Row label="Administrativos" value={fmt(cAdm)} />
-        <Row label="Incidentes sobre lucro" value={fmt(cInc)} />
-        <Row label="Total de custos" value={fmt(totalCustos)} strong />
-      </Block>
-
-      <Block title="Resultado">
-        <Row label="Lucro bruto" value={fmt(lucroBruto)} />
-        <Row label="Margem bruta" value={fmt(margemBruta, "percent")} />
-        <Row label="Lucro antes dos impostos" value={fmt(lucroAntesImpostos)} />
-        <Row label="Lucro líquido" value={fmt(lucroLiquido)} strong />
-        <Row label="Margem líquida" value={fmt(margemLiquida, "percent")} strong />
-      </Block>
-    </div>
+    <tr className={emphasis ? "border-t bg-secondary/30" : "border-t"}>
+      <td className={"px-3 py-1.5 " + (emphasis ? "font-semibold " : "") + (positive ? "text-success" : "")}>
+        {label}
+      </td>
+      <td className={"px-3 py-1.5 text-right tabular-nums " + (emphasis ? "font-semibold " : "") + (positive ? "text-success" : "")}>
+        {value === null ? "—" : brl(value)}
+      </td>
+      <td className="px-3 py-1.5 text-right text-xs text-muted-foreground tabular-nums w-24">
+        {pct != null ? `${num(pct, 2)} %` : ""}
+      </td>
+    </tr>
   );
 }
 
-function Block({ title, children }: { title: string; children: React.ReactNode }) {
+function SubRow({ label, value, pct }: { label: string; value: number | null; pct?: number | null }) {
   return (
-    <div className="rounded-lg border bg-card">
-      <div className="border-b bg-secondary/40 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-        {title}
-      </div>
-      <div className="divide-y">{children}</div>
-    </div>
-  );
-}
-
-function Row({ label, value, strong = false }: { label: string; value: string; strong?: boolean }) {
-  return (
-    <div className="flex items-center justify-between px-4 py-2 text-sm">
-      <span className={strong ? "font-medium" : "text-muted-foreground"}>{label}</span>
-      <span className={`tabular-nums ${strong ? "font-semibold" : ""}`}>{value}</span>
-    </div>
+    <tr className="border-t">
+      <td className="px-3 py-1 pl-8 text-xs text-muted-foreground">{label}</td>
+      <td className="px-3 py-1 text-right text-xs text-muted-foreground tabular-nums">
+        {value === null ? "" : brl(value)}
+      </td>
+      <td className="px-3 py-1 text-right text-xs text-muted-foreground tabular-nums w-24">
+        {pct != null ? `${num(pct, 2)} %` : ""}
+      </td>
+    </tr>
   );
 }
