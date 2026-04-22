@@ -324,3 +324,25 @@ export function extractProposalItems(raw: Json): NomusProposalItemMapped[] {
     };
   });
 }
+
+// =================== Helpers de totalTributacao ===================
+
+/**
+ * O Nomus retorna o resumo de impostos calculados no campo `totalTributacao`,
+ * que é um array com (geralmente) 1 objeto contendo: valorIcms, valorIss,
+ * valorPis, valorCofins, valorCbs, valorIbs, valorIbsEstadual.
+ * Esta função devolve o primeiro item do array como objeto cru, ou null.
+ */
+export function extractTotalTributacao(raw: Json): Json | null {
+  const arr = raw["totalTributacao"];
+  if (!Array.isArray(arr) || arr.length === 0) return null;
+  const first = arr[0];
+  return (typeof first === "object" && first !== null) ? first as Json : null;
+}
+
+/** Pega um campo numérico do bloco totalTributacao[0] (formato BR). */
+function pickFromTotalTrib(raw: Json, key: string): number | null {
+  const tt = extractTotalTributacao(raw);
+  if (!tt) return null;
+  return pickNumBR(tt, key);
+}
