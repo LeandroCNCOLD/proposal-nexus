@@ -67,7 +67,7 @@ function ProposalEditorPage() {
       cover_data: (doc.cover_data ?? {}) as CoverData,
       solution_data: (doc.solution_data ?? {}) as SolutionData,
       context_data: (doc.context_data ?? {}) as ContextData,
-      scope_items: (doc.scope_items ?? []) as ScopeItem[],
+      scope_items: (doc.scope_items ?? []) as unknown as ScopeItem[],
       warranty_text: (doc.warranty_text ?? {}) as { html?: string; text?: string },
       manually_edited_fields: doc.manually_edited_fields ?? [],
     });
@@ -86,7 +86,7 @@ function ProposalEditorPage() {
             cover_data: state.cover_data as Record<string, unknown>,
             solution_data: state.solution_data as Record<string, unknown>,
             context_data: state.context_data as Record<string, unknown>,
-            scope_items: state.scope_items as Array<Record<string, unknown>>,
+            scope_items: state.scope_items as unknown as Array<Record<string, unknown>>,
             warranty_text: state.warranty_text as Record<string, unknown>,
             manually_edited_fields: state.manually_edited_fields,
           },
@@ -148,7 +148,7 @@ function ProposalEditorPage() {
     () => ({
       cover_data: state.cover_data as Record<string, unknown>,
       context_data: state.context_data as Record<string, unknown>,
-      scope_items: state.scope_items as Array<Record<string, unknown>>,
+      scope_items: state.scope_items as unknown as Array<Record<string, unknown>>,
     }),
     [state.cover_data, state.context_data, state.scope_items],
   );
