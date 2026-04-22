@@ -62,19 +62,37 @@ function ProposalsList() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("proposals")
-        .select("id, number, title, status, total_value, valid_until, created_at, clients(name)")
+        .select("id, number, title, status, total_value, valid_until, created_at, nomus_id, clients(name)")
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data ?? [];
+      const rows = data ?? [];
+      const nomusIds = rows.map((r) => r.nomus_id).filter(Boolean) as string[];
+      const nomusMap = new Map<string, { criada_em_nomus: string | null; data_emissao: string | null }>();
+      if (nomusIds.length > 0) {
+        const { data: np } = await supabase
+          .from("nomus_proposals")
+          .select("nomus_id, criada_em_nomus, data_emissao")
+          .in("nomus_id", nomusIds);
+        (np ?? []).forEach((n) => nomusMap.set(n.nomus_id, { criada_em_nomus: n.criada_em_nomus, data_emissao: n.data_emissao }));
+      }
+      return rows.map((r) => ({ ...r, _nomus: r.nomus_id ? nomusMap.get(r.nomus_id) ?? null : null }));
     },
   });
 
-  const filtered = useMemo(() => proposals.filter((p) => {
-    if (statusFilter !== "all" && p.status !== statusFilter) return false;
-    if (!search) return true;
-    const q = search.toLowerCase();
-    return p.number.toLowerCase().includes(q) || p.title.toLowerCase().includes(q) || ((p.clients as any)?.name ?? "").toLowerCase().includes(q);
-  }), [proposals, search, statusFilter]);
+  const filtered = useMemo(() => {
+    const list = proposals.filter((p) => {
+      if (statusFilter !== "all" && p.status !== statusFilter) return false;
+      if (!search) return true;
+      const q = search.toLowerCase();
+      return p.number.toLowerCase().includes(q) || p.title.toLowerCase().includes(q) || ((p.clients as any)?.name ?? "").toLowerCase().includes(q);
+    });
+    // Ordena pela data real do Nomus (criada_em_nomus / data_emissao), mais recente primeiro
+    return [...list].sort((a, b) => {
+      const da = (a as any)._nomus?.criada_em_nomus ?? (a as any)._nomus?.data_emissao ?? a.created_at;
+      const db = (b as any)._nomus?.criada_em_nomus ?? (b as any)._nomus?.data_emissao ?? b.created_at;
+      return new Date(db).getTime() - new Date(da).getTime();
+    });
+  }, [proposals, search, statusFilter]);
 
   return (
     <>
@@ -136,7 +154,7 @@ function ProposalsList() {
                 <TableCell><StatusBadge status={p.status as ProposalStatus} /></TableCell>
                 <TableCell className="text-right tabular-nums font-medium">{brl(Number(p.total_value ?? 0))}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">{dateBR(p.valid_until)}</TableCell>
-                <TableCell className="text-sm text-muted-foreground">{dateBR(p.created_at)}</TableCell>
+                <TableCell className="text-sm text-muted-foreground">{dateBR((p as any)._nomus?.criada_em_nomus ?? (p as any)._nomus?.data_emissao ?? p.created_at)}</TableCell>
               </TableRow>
             ))}
           </TableBody>
