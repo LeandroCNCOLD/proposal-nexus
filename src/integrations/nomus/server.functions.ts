@@ -1026,3 +1026,68 @@ export const nomusCreatePedido = createServerFn({ method: "POST" })
     }
     return { ok: true as const, pedido_id: pedidoId, already_existed: false as const };
   });
+
+/**
+ * Busca SOB DEMANDA o detalhe completo de um item de proposta:
+ *  - O JSON original do item (já está no banco, em `raw`)
+ *  - O JSON original da proposta (também no banco)
+ *  - GET /produtos/{id} no Nomus para trazer NCM, CFOP, alíquotas,
+ *    classificação fiscal, dados técnicos e o que mais o ERP expõe
+ *
+ * Não persiste nada — apenas devolve para o modal renderizar.
+ */
+export const nomusGetItemDetail = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { itemId: string }) => input)
+  .handler(async ({ data, context }) => {
+    const userId = (context as { userId?: string }).userId ?? null;
+
+    // 1) Carrega o item espelho (com raw original do Nomus)
+    const { data: itemRow, error: itemErr } = await supabaseAdmin
+      .from("nomus_proposal_items")
+      .select("*, nomus_proposals(nomus_id, raw)")
+      .eq("id", data.itemId)
+      .maybeSingle();
+
+    if (itemErr || !itemRow) {
+      return { ok: false as const, error: itemErr?.message ?? "Item não encontrado." };
+    }
+
+    const item = itemRow as unknown as {
+      id: string;
+      nomus_product_id: string | null;
+      product_code: string | null;
+      raw: unknown;
+      nomus_proposals: { nomus_id: string; raw: unknown } | null;
+    };
+
+    // 2) Detalhe do produto no Nomus (sob demanda) — só se tivermos id
+    let produto: unknown = null;
+    let produtoError: string | null = null;
+    if (item.nomus_product_id) {
+      const res = await nomusFetch<Json>(
+        `${NOMUS_ENDPOINTS.produtos}/${encodeURIComponent(item.nomus_product_id)}`,
+        {
+          method: "GET",
+          entity: "produtos",
+          operation: "get",
+          direction: "pull",
+          triggeredBy: userId,
+        }
+      );
+      if (res.ok) {
+        produto = res.data;
+      } else {
+        produtoError = `Não foi possível carregar produto ${item.nomus_product_id}: ${res.error}`;
+      }
+    }
+
+    return {
+      ok: true as const,
+      item_raw: item.raw,
+      proposta_raw: item.nomus_proposals?.raw ?? null,
+      proposta_nomus_id: item.nomus_proposals?.nomus_id ?? null,
+      produto_raw: produto,
+      produto_error: produtoError,
+    };
+  });
