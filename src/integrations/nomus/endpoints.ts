@@ -7,10 +7,11 @@ export const NOMUS_ENDPOINTS = {
   produtos: "/produtos",
   representantes: "/representantes",
   vendedores: "/vendedores",
-  condicoes_pagamento: "/condicoes-pagamento",
+  condicoes_pagamento: "/condicoesPagamentos",
   propostas: "/propostas",
-  pedidos: "/pedidos-venda",
-  notas_fiscais: "/notas-fiscais",
+  pedidos: "/pedidos",
+  notas_fiscais: "/nfes",
+  tabelas_preco: "/tabelasPreco",
 } as const;
 
 export type NomusEntity = keyof typeof NOMUS_ENDPOINTS;
