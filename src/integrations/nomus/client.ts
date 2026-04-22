@@ -26,30 +26,38 @@ function maskKey(key: string): string {
   return `******${tail}`;
 }
 
-/** Validate and normalize NOMUS_BASE_URL. Ensures it ends with /api. */
+/** Validate and normalize NOMUS_BASE_URL. */
 export function getNomusBaseUrl(): string {
   const raw = (process.env.NOMUS_BASE_URL ?? "").trim();
   if (!raw) {
     throw new Error("NOMUS_BASE_URL não configurada. Defina nas Lovable Cloud secrets.");
+  }
+  // Defensive: detect when an API key was pasted into the URL field.
+  // Heuristics: no scheme, or looks like base64 / "user:pass" credential string.
+  const looksLikeUrl = /^https?:\/\//i.test(raw);
+  const looksLikeBase64 = /^[A-Za-z0-9+/=]{16,}$/.test(raw);
+  const looksLikeCredential = !looksLikeUrl && /^[^\s/]+:[^\s/]+$/.test(raw);
+  if (!looksLikeUrl || looksLikeBase64 || looksLikeCredential) {
+    throw new Error(
+      `NOMUS_BASE_URL parece ser uma chave de API, não uma URL ("${raw.slice(0, 24)}..."). ` +
+      `Mova esse valor para NOMUS_API_KEY e configure NOMUS_BASE_URL com a URL REST do Nomus, ` +
+      `ex.: https://SEU_DOMINIO.nomus.com.br/SEU_DOMINIO/rest`
+    );
   }
   let url: URL;
   try {
     url = new URL(raw);
   } catch {
     throw new Error(
-      `NOMUS_BASE_URL inválida: "${raw}". Use o formato https://SEU_DOMINIO.nomus.com.br/api`
+      `NOMUS_BASE_URL inválida: "${raw}". Use o formato https://SEU_DOMINIO.nomus.com.br/SEU_DOMINIO/rest`
     );
   }
   if (url.protocol !== "https:" && url.protocol !== "http:") {
     throw new Error(`NOMUS_BASE_URL com protocolo inválido: ${url.protocol}`);
   }
-  // Normalize: strip trailing slashes
-  let normalized = `${url.origin}${url.pathname.replace(/\/+$/, "")}`;
-  // Auto-append /api if missing
-  if (!/\/api(\/|$)/.test(normalized)) {
-    normalized = `${normalized}/api`;
-  }
-  return normalized;
+  // Normalize: strip trailing slashes. Respect whatever path the user provided
+  // (Nomus REST often lives at /<empresa>/rest, not /api).
+  return `${url.origin}${url.pathname.replace(/\/+$/, "")}`;
 }
 
 function getCreds() {
