@@ -84,27 +84,35 @@ export function NomusItemDetailDialog({ itemId, itemDescription, productCode, op
               <TabsTrigger value="produto-json">Produto (JSON)</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="resumo">
-              <ResumoView itemRaw={data.item_raw} />
-            </TabsContent>
-            <TabsContent value="tributos">
-              <TributosView itemRaw={data.item_raw} />
-            </TabsContent>
-            <TabsContent value="produto">
-              <ProdutoView produtoRaw={data.produto_raw} produtoError={data.produto_error} />
-            </TabsContent>
-            <TabsContent value="item-json">
-              <JsonView value={data.item_raw} />
-            </TabsContent>
-            <TabsContent value="produto-json">
-              {data.produto_error ? (
-                <div className="rounded-md border bg-secondary/30 p-3 text-sm text-muted-foreground">
-                  {data.produto_error}
-                </div>
-              ) : (
-                <JsonView value={data.produto_raw} />
-              )}
-            </TabsContent>
+            {(() => {
+              const itemRaw = safeParse(data.item_raw_json);
+              const produtoRaw = safeParse(data.produto_raw_json);
+              return (
+                <>
+                  <TabsContent value="resumo">
+                    <ResumoView itemRaw={itemRaw} />
+                  </TabsContent>
+                  <TabsContent value="tributos">
+                    <TributosView itemRaw={itemRaw} />
+                  </TabsContent>
+                  <TabsContent value="produto">
+                    <ProdutoView produtoRaw={produtoRaw} produtoError={data.produto_error} />
+                  </TabsContent>
+                  <TabsContent value="item-json">
+                    <JsonView value={itemRaw} />
+                  </TabsContent>
+                  <TabsContent value="produto-json">
+                    {data.produto_error ? (
+                      <div className="rounded-md border bg-secondary/30 p-3 text-sm text-muted-foreground">
+                        {data.produto_error}
+                      </div>
+                    ) : (
+                      <JsonView value={produtoRaw} />
+                    )}
+                  </TabsContent>
+                </>
+              );
+            })()}
           </Tabs>
         )}
       </DialogContent>
