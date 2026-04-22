@@ -391,6 +391,52 @@ export const nomusSyncRepresentatives = createServerFn({ method: "POST" })
       },
     });
   });
+/**
+ * Kick-off rápido: marca a entidade `propostas` como "running" e retorna
+ * imediatamente. O trabalho pesado (paginação Nomus + upserts) é feito de
+ * forma assíncrona pelo cron (`/hooks/nomus-cron`) — que dispara a cada
+ * N minutos via pg_cron e também é chamado em background aqui.
+ *
+ * Por que não rodar tudo aqui? O Worker tem limite de tempo de execução
+ * (~30s) e o pull completo de propostas estourava esse limite, devolvendo
+ * 504 ao cliente. Agora o usuário recebe resposta em < 1s e acompanha o
+ * progresso lendo `nomus_sync_state`.
+ */
+export const nomusKickoffSyncProposals = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const userId = (context as { userId?: string }).userId ?? null;
+    // Marca como running para a UI já refletir o estado.
+    await setState("propostas", { running: true, last_error: null });
+
+    // Dispara o cron em background — não aguardamos a resposta para
+    // não travar o handler. Erros são logados em `nomus_sync_log`.
+    try {
+      const cronSecret = process.env.NOMUS_CRON_SECRET ?? "";
+      const origin = process.env.PUBLIC_BASE_URL
+        ?? `https://project--${process.env.LOVABLE_PROJECT_ID ?? ""}.lovable.app`;
+      // fire-and-forget
+      void fetch(`${origin}/hooks/nomus-cron`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${cronSecret}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ entity: "propostas" }),
+      }).catch((e) => console.error("[nomus] kickoff fetch failed", e));
+    } catch (e) {
+      console.error("[nomus] kickoff scheduling failed", e);
+    }
+
+    return {
+      ok: true as const,
+      queued: true as const,
+      message: "Sincronização iniciada em segundo plano. Atualize a lista em alguns instantes.",
+      triggered_by: userId,
+    };
+  });
+
+/** @deprecated Use `nomusKickoffSyncProposals`. Mantido para compatibilidade. */
 export const nomusSyncProposalsFull = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
