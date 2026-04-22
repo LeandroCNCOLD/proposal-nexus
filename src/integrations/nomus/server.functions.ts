@@ -409,51 +409,78 @@ export const nomusKickoffSyncProposals = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const userId = (context as { userId?: string }).userId ?? null;
-    try {
-      // Marca como running para a UI já refletir o estado.
-      await setState("propostas", { running: true, last_error: null });
-    } catch (e) {
-      console.error("[nomus] kickoff setState failed", e);
-    }
 
-    // Resolve a origem a partir da request — evita URL inválida em dev
-    // quando PUBLIC_BASE_URL / LOVABLE_PROJECT_ID não estão definidos.
-    let origin: string | null = null;
+    // Resolve a origem de forma estável.
+    // Preferência: 1) PUBLIC_BASE_URL; 2) URL estável Lovable; 3) origem da request (se não-local).
+    const LOVABLE_PROJECT_ID = "917813d5-8e5a-4655-8778-64228cb3d23e";
+    let origin: string = process.env.PUBLIC_BASE_URL?.trim() || `https://project--${LOVABLE_PROJECT_ID}.lovable.app`;
     try {
       const req = getRequest();
-      origin = new URL(req.url).origin;
-    } catch {
-      origin = process.env.PUBLIC_BASE_URL
-        ?? (process.env.LOVABLE_PROJECT_ID
-          ? `https://project--${process.env.LOVABLE_PROJECT_ID}.lovable.app`
-          : null);
-    }
-
-    if (origin) {
-      try {
-        const cronSecret = process.env.NOMUS_CRON_SECRET ?? "";
-        // fire-and-forget — não aguardamos a resposta para não travar o handler.
-        void fetch(`${origin}/hooks/nomus-cron`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${cronSecret}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ entity: "propostas" }),
-        }).catch((e) => console.error("[nomus] kickoff fetch failed", e));
-      } catch (e) {
-        console.error("[nomus] kickoff scheduling failed", e);
+      const reqOrigin = new URL(req.url).origin;
+      if (!/localhost|127\.0\.0\.1/i.test(reqOrigin) && /^https:\/\//.test(reqOrigin)) {
+        origin = reqOrigin;
       }
-    } else {
-      console.warn("[nomus] kickoff: origem não resolvida; cron não foi disparado");
+    } catch { /* mantém origin */ }
+
+    const cronSecret = process.env.NOMUS_CRON_SECRET ?? "";
+    await setState("propostas", { running: true, last_error: null });
+
+    // Tenta disparar o cron com timeout curto (só pra confirmar que ele aceitou)
+    let kickoffOk = false;
+    try {
+      const r = await fetch(`${origin}/hooks/nomus-cron`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${cronSecret}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ entity: "propostas" }),
+        signal: AbortSignal.timeout(3000),
+      }).catch((e) => {
+        console.error("[nomus] kickoff fetch failed", e);
+        return null;
+      });
+      kickoffOk = !!r && r.status < 500;
+    } catch (e) {
+      console.error("[nomus] kickoff fetch threw", e);
     }
 
-    return {
-      ok: true as const,
-      queued: true as const,
-      message: "Sincronização iniciada em segundo plano. Atualize a lista em alguns instantes.",
-      triggered_by: userId,
-    };
+    if (kickoffOk) {
+      return {
+        ok: true as const,
+        queued: true as const,
+        message: "Sincronização iniciada em segundo plano. Atualize a lista em alguns instantes.",
+        triggered_by: userId,
+      };
+    }
+
+    // Fallback inline: garante que o sync acontece mesmo se o cron HTTP não puder ser disparado.
+    console.warn("[nomus] kickoff falhou, executando sync inline como fallback");
+    try {
+      const { syncProposalsBatch } = await import("@/routes/hooks/nomus-cron");
+      const result = await syncProposalsBatch();
+      return {
+        ok: true as const,
+        queued: false as const,
+        inline: true as const,
+        message: result.done
+          ? `Sincronização concluída: ${result.count ?? 0} propostas processadas.`
+          : `Lote processado: ${result.count ?? 0} propostas. Clique em "Buscar do Nomus" novamente para continuar.`,
+        count: result.count ?? 0,
+        done: result.done ?? false,
+        triggered_by: userId,
+      };
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      await setState("propostas", { running: false, last_error: `inline fallback falhou: ${msg}` });
+      return {
+        ok: false as const,
+        queued: false as const,
+        message: `Falha ao iniciar sincronização: ${msg}`,
+        error: msg,
+        triggered_by: userId,
+      };
+    }
   });
 
 /** @deprecated Use `nomusKickoffSyncProposals`. Mantido para compatibilidade. */
