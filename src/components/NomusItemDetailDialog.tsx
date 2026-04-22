@@ -180,6 +180,13 @@ export function NomusItemDetailDialog({ itemId, prefillItem, open, onOpenChange,
               </TabsContent>
               <TabsContent value="tributos" className="mt-0 space-y-4">
                 <TributosSection itemRaw={itemRaw} />
+                {!detailLoaded && proposalTaxes && (
+                  <TributosRateio
+                    proposalTaxes={proposalTaxes}
+                    itemTotal={Number(prefillItem?.total_with_discount ?? prefillItem?.total ?? 0)}
+                    proposalProductsTotal={Number(proposalProductsTotal ?? 0)}
+                  />
+                )}
               </TabsContent>
               <TabsContent value="lucro" className="mt-0 space-y-4">
                 <ProposalItemLucroAnalysis analiseLucro={analiseLucro} />
