@@ -545,6 +545,56 @@ export type Database = {
         }
         Relationships: []
       }
+      nomus_cost_imports: {
+        Row: {
+          filename: string
+          id: string
+          imported_at: string
+          imported_by: string | null
+          inserted_count: number
+          notes: string | null
+          price_table_id: string
+          skipped_count: number
+          total_rows: number
+          updated_count: number
+          with_cost_count: number
+        }
+        Insert: {
+          filename: string
+          id?: string
+          imported_at?: string
+          imported_by?: string | null
+          inserted_count?: number
+          notes?: string | null
+          price_table_id: string
+          skipped_count?: number
+          total_rows?: number
+          updated_count?: number
+          with_cost_count?: number
+        }
+        Update: {
+          filename?: string
+          id?: string
+          imported_at?: string
+          imported_by?: string | null
+          inserted_count?: number
+          notes?: string | null
+          price_table_id?: string
+          skipped_count?: number
+          total_rows?: number
+          updated_count?: number
+          with_cost_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nomus_cost_imports_price_table_id_fkey"
+            columns: ["price_table_id"]
+            isOneToOne: false
+            referencedRelation: "nomus_price_tables"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       nomus_invoices: {
         Row: {
           chave_acesso: string | null
@@ -727,32 +777,80 @@ export type Database = {
       nomus_price_table_items: {
         Row: {
           currency: string | null
+          custo_cif: number | null
+          custo_materiais: number | null
+          custo_mod: number | null
+          custo_producao_total: number | null
+          custos_adm: number | null
+          custos_venda: number | null
           equipment_id: string | null
+          has_cost_data: boolean
           id: string
+          import_source: string | null
+          imported_at: string | null
+          lucro_bruto: number | null
+          lucro_liquido: number | null
+          margem_contribuicao: number | null
+          margem_desejada_pct: number | null
           nomus_product_id: string
+          preco_calculado: number | null
+          preco_liquido: number | null
           price_table_id: string
           raw: Json | null
           synced_at: string
+          unidade_medida: string | null
           unit_price: number
         }
         Insert: {
           currency?: string | null
+          custo_cif?: number | null
+          custo_materiais?: number | null
+          custo_mod?: number | null
+          custo_producao_total?: number | null
+          custos_adm?: number | null
+          custos_venda?: number | null
           equipment_id?: string | null
+          has_cost_data?: boolean
           id?: string
+          import_source?: string | null
+          imported_at?: string | null
+          lucro_bruto?: number | null
+          lucro_liquido?: number | null
+          margem_contribuicao?: number | null
+          margem_desejada_pct?: number | null
           nomus_product_id: string
+          preco_calculado?: number | null
+          preco_liquido?: number | null
           price_table_id: string
           raw?: Json | null
           synced_at?: string
+          unidade_medida?: string | null
           unit_price: number
         }
         Update: {
           currency?: string | null
+          custo_cif?: number | null
+          custo_materiais?: number | null
+          custo_mod?: number | null
+          custo_producao_total?: number | null
+          custos_adm?: number | null
+          custos_venda?: number | null
           equipment_id?: string | null
+          has_cost_data?: boolean
           id?: string
+          import_source?: string | null
+          imported_at?: string | null
+          lucro_bruto?: number | null
+          lucro_liquido?: number | null
+          margem_contribuicao?: number | null
+          margem_desejada_pct?: number | null
           nomus_product_id?: string
+          preco_calculado?: number | null
+          preco_liquido?: number | null
           price_table_id?: string
           raw?: Json | null
           synced_at?: string
+          unidade_medida?: string | null
           unit_price?: number
         }
         Relationships: [
