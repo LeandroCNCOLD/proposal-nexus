@@ -34,6 +34,10 @@ type Props = {
   prefillItem?: PrefillItem | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** `totalTributacao[0]` da proposta — usado como fallback rateado quando o detalhe individual do item não estiver disponível. */
+  proposalTaxes?: Record<string, string | number> | null;
+  /** Soma dos totais dos itens da proposta — base para o rateio proporcional. */
+  proposalProductsTotal?: number;
 };
 
 type ItemDetailResult =
