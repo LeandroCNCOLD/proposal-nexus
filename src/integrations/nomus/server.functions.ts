@@ -4,7 +4,12 @@ import { getRequest } from "@tanstack/react-start/server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { nomusFetch, listAll, testNomusConnection } from "./client";
-import { NOMUS_ENDPOINTS, proposalSubpath } from "./endpoints";
+import {
+  NOMUS_ENDPOINTS,
+  proposalSubpath,
+  proposalItemDetailPath,
+  proposalItemDetailFallbackPaths,
+} from "./endpoints";
 
 type Json = Record<string, unknown>;
 
