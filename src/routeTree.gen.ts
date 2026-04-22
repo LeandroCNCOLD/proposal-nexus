@@ -25,6 +25,7 @@ import { Route as AppCompetitivaRouteImport } from './routes/app.competitiva'
 import { Route as AppClientesRouteImport } from './routes/app.clientes'
 import { Route as AppAprovacoesRouteImport } from './routes/app.aprovacoes'
 import { Route as AppPropostasIndexRouteImport } from './routes/app.propostas.index'
+import { Route as AppConfiguracoesIndexRouteImport } from './routes/app.configuracoes.index'
 import { Route as AppPropostasPedidosNfRouteImport } from './routes/app.propostas.pedidos-nf'
 import { Route as AppPropostasNovaRouteImport } from './routes/app.propostas.nova'
 import { Route as AppPropostasIdRouteImport } from './routes/app.propostas.$id'
@@ -111,6 +112,11 @@ const AppPropostasIndexRoute = AppPropostasIndexRouteImport.update({
   path: '/propostas/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppConfiguracoesIndexRoute = AppConfiguracoesIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppConfiguracoesRoute,
+} as any)
 const AppPropostasPedidosNfRoute = AppPropostasPedidosNfRouteImport.update({
   id: '/propostas/pedidos-nf',
   path: '/propostas/pedidos-nf',
@@ -158,6 +164,7 @@ export interface FileRoutesByFullPath {
   '/app/propostas/$id': typeof AppPropostasIdRoute
   '/app/propostas/nova': typeof AppPropostasNovaRoute
   '/app/propostas/pedidos-nf': typeof AppPropostasPedidosNfRoute
+  '/app/configuracoes/': typeof AppConfiguracoesIndexRoute
   '/app/propostas/': typeof AppPropostasIndexRoute
 }
 export interface FileRoutesByTo {
@@ -167,7 +174,6 @@ export interface FileRoutesByTo {
   '/app/clientes': typeof AppClientesRoute
   '/app/competitiva': typeof AppCompetitivaRoute
   '/app/concorrentes': typeof AppConcorrentesRoute
-  '/app/configuracoes': typeof AppConfiguracoesRouteWithChildren
   '/app/documentos': typeof AppDocumentosRoute
   '/app/equipamentos': typeof AppEquipamentosRoute
   '/app/relatorios': typeof AppRelatoriosRoute
@@ -180,6 +186,7 @@ export interface FileRoutesByTo {
   '/app/propostas/$id': typeof AppPropostasIdRoute
   '/app/propostas/nova': typeof AppPropostasNovaRoute
   '/app/propostas/pedidos-nf': typeof AppPropostasPedidosNfRoute
+  '/app/configuracoes': typeof AppConfiguracoesIndexRoute
   '/app/propostas': typeof AppPropostasIndexRoute
 }
 export interface FileRoutesById {
@@ -204,6 +211,7 @@ export interface FileRoutesById {
   '/app/propostas/$id': typeof AppPropostasIdRoute
   '/app/propostas/nova': typeof AppPropostasNovaRoute
   '/app/propostas/pedidos-nf': typeof AppPropostasPedidosNfRoute
+  '/app/configuracoes/': typeof AppConfiguracoesIndexRoute
   '/app/propostas/': typeof AppPropostasIndexRoute
 }
 export interface FileRouteTypes {
@@ -229,6 +237,7 @@ export interface FileRouteTypes {
     | '/app/propostas/$id'
     | '/app/propostas/nova'
     | '/app/propostas/pedidos-nf'
+    | '/app/configuracoes/'
     | '/app/propostas/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -238,7 +247,6 @@ export interface FileRouteTypes {
     | '/app/clientes'
     | '/app/competitiva'
     | '/app/concorrentes'
-    | '/app/configuracoes'
     | '/app/documentos'
     | '/app/equipamentos'
     | '/app/relatorios'
@@ -251,6 +259,7 @@ export interface FileRouteTypes {
     | '/app/propostas/$id'
     | '/app/propostas/nova'
     | '/app/propostas/pedidos-nf'
+    | '/app/configuracoes'
     | '/app/propostas'
   id:
     | '__root__'
@@ -274,6 +283,7 @@ export interface FileRouteTypes {
     | '/app/propostas/$id'
     | '/app/propostas/nova'
     | '/app/propostas/pedidos-nf'
+    | '/app/configuracoes/'
     | '/app/propostas/'
   fileRoutesById: FileRoutesById
 }
@@ -399,6 +409,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPropostasIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/configuracoes/': {
+      id: '/app/configuracoes/'
+      path: '/'
+      fullPath: '/app/configuracoes/'
+      preLoaderRoute: typeof AppConfiguracoesIndexRouteImport
+      parentRoute: typeof AppConfiguracoesRoute
+    }
     '/app/propostas/pedidos-nf': {
       id: '/app/propostas/pedidos-nf'
       path: '/propostas/pedidos-nf'
@@ -439,10 +456,12 @@ declare module '@tanstack/react-router' {
 
 interface AppConfiguracoesRouteChildren {
   AppConfiguracoesNomusRoute: typeof AppConfiguracoesNomusRoute
+  AppConfiguracoesIndexRoute: typeof AppConfiguracoesIndexRoute
 }
 
 const AppConfiguracoesRouteChildren: AppConfiguracoesRouteChildren = {
   AppConfiguracoesNomusRoute: AppConfiguracoesNomusRoute,
+  AppConfiguracoesIndexRoute: AppConfiguracoesIndexRoute,
 }
 
 const AppConfiguracoesRouteWithChildren =
