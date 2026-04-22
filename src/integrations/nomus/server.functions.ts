@@ -1057,12 +1057,12 @@ export const nomusGetItemDetail = createServerFn({ method: "POST" })
       id: string;
       nomus_product_id: string | null;
       product_code: string | null;
-      raw: unknown;
-      nomus_proposals: { nomus_id: string; raw: unknown } | null;
+      raw: Json | null;
+      nomus_proposals: { nomus_id: string; raw: Json | null } | null;
     };
 
     // 2) Detalhe do produto no Nomus (sob demanda) — só se tivermos id
-    let produto: unknown = null;
+    let produto: Json | null = null;
     let produtoError: string | null = null;
     if (item.nomus_product_id) {
       const res = await nomusFetch<Json>(
@@ -1084,8 +1084,8 @@ export const nomusGetItemDetail = createServerFn({ method: "POST" })
 
     return {
       ok: true as const,
-      item_raw: item.raw,
-      proposta_raw: item.nomus_proposals?.raw ?? null,
+      item_raw: (item.raw ?? null) as Json | null,
+      proposta_raw: (item.nomus_proposals?.raw ?? null) as Json | null,
       proposta_nomus_id: item.nomus_proposals?.nomus_id ?? null,
       produto_raw: produto,
       produto_error: produtoError,
