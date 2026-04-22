@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { brl, num, dateBR } from "@/lib/format";
 import { Loader2 } from "lucide-react";
 import { NomusItemDetailDialog } from "@/components/NomusItemDetailDialog";
+import { ProposalTaxSummary } from "@/components/ProposalTaxSummary";
 
 type NomusProposalRow = {
   id: string;
