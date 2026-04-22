@@ -351,7 +351,20 @@ export async function listAll<T = unknown>(
       direction: "pull",
       triggeredBy: opts.triggeredBy ?? null,
     });
-    if (!res.ok) return { ok: false, error: res.error };
+    if (!res.ok) {
+      // Nomus às vezes responde 400 quando a página não existe (fim da paginação).
+      // Tratamos como "acabou" em vez de derrubar o sync inteiro.
+      if (res.status === 400) {
+        if (DEBUG) console.warn(`[nomus] listAll(${opts.entity}) page=${pagina} retornou 400, encerrando paginação`);
+        break;
+      }
+      // Se já coletamos algo nas páginas anteriores, devolve parcial em vez de perder tudo.
+      if (items.length > 0) {
+        console.warn(`[nomus] listAll(${opts.entity}) erro na página ${pagina} após coletar ${items.length} itens: ${res.error}`);
+        break;
+      }
+      return { ok: false, error: res.error };
+    }
 
     const batch = extractBatch<T>(res.data);
     if (batch.length === 0) break;
