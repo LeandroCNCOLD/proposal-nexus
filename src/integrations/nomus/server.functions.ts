@@ -473,20 +473,22 @@ export const nomusSyncProposalsFull = createServerFn({ method: "POST" })
       endpoint: NOMUS_ENDPOINTS.propostas,
       triggeredBy: userId,
       processItem: async (raw) => {
-        const nomus_id = pickStr(raw, "id", "idProposta", "codigo");
-        if (!nomus_id) return "skip";
+        const { mapNomusProposal, extractProposalItems } = await import("./parse");
+        const mapped = mapNomusProposal(raw);
+        if (!mapped) return "skip";
+        const nomus_id = mapped.nomus_id;
 
         const upsertPayload = {
           nomus_id,
-          numero: pickStr(raw, "numero", "numeroProposta"),
-          cliente_nomus_id: pickStr(raw, "idCliente", "clienteId"),
-          vendedor_nomus_id: pickStr(raw, "idVendedor", "vendedorId"),
-          representante_nomus_id: pickStr(raw, "idRepresentante", "representanteId"),
-          valor_total: pickNum(raw, "valorTotal", "valor", "total"),
-          status_nomus: pickStr(raw, "status", "situacao"),
-          validade: pickStr(raw, "validade", "dataValidade"),
-          data_emissao: pickStr(raw, "dataEmissao", "data"),
-          observacoes: pickStr(raw, "observacoes", "obs"),
+          numero: mapped.numero,
+          cliente_nomus_id: mapped.cliente_nomus_id,
+          vendedor_nomus_id: mapped.vendedor_nomus_id,
+          representante_nomus_id: mapped.representante_nomus_id,
+          valor_total: mapped.valor_total,
+          status_nomus: mapped.status_nomus,
+          validade: mapped.validade,
+          data_emissao: mapped.data_emissao,
+          observacoes: mapped.observacoes,
           raw: raw as never,
           synced_at: new Date().toISOString(),
         };
@@ -498,40 +500,45 @@ export const nomusSyncProposalsFull = createServerFn({ method: "POST" })
         if (mErr || !mirror) throw new Error(mErr?.message ?? "Falha ao gravar nomus_proposals");
         const mirrorId = (mirror as { id: string }).id;
 
-        // Itens (se vierem inline no payload)
-        const itensRaw = (raw["itens"] ?? raw["items"]) as Json[] | undefined;
-        if (Array.isArray(itensRaw)) {
+        // Itens da proposta (itensProposta)
+        const items = extractProposalItems(raw);
+        if (items.length > 0) {
           await supabaseAdmin.from("nomus_proposal_items").delete().eq("nomus_proposal_id", mirrorId);
-          const rows = itensRaw.map((it, idx) => ({
-            nomus_proposal_id: mirrorId,
-            nomus_item_id: pickStr(it, "id", "idItem"),
-            nomus_product_id: pickStr(it, "idProduto", "produtoId"),
-            product_code: pickStr(it, "codigo", "codigoProduto"),
-            description: pickStr(it, "descricao", "nome") ?? "",
-            quantity: pickNum(it, "quantidade", "qtd"),
-            unit_price: pickNum(it, "valorUnitario", "preco"),
-            discount: pickNum(it, "desconto"),
-            total: pickNum(it, "total", "valorTotal"),
-            position: idx,
-            raw: it as never,
-          }));
-          if (rows.length > 0) await supabaseAdmin.from("nomus_proposal_items").insert(rows);
+          await supabaseAdmin.from("nomus_proposal_items").insert(
+            items.map((it, idx) => ({
+              nomus_proposal_id: mirrorId,
+              nomus_item_id: it.nomus_item_id,
+              nomus_product_id: it.nomus_product_id,
+              product_code: it.product_code,
+              description: it.description,
+              quantity: it.quantity,
+              unit_price: it.unit_price,
+              discount: it.discount,
+              total: it.total,
+              position: idx,
+              raw: it as never,
+            }))
+          );
         }
 
         // Espelha em proposals (cria ou atualiza)
         if (autoCreate) {
           let clientId: string | null = null;
-          if (upsertPayload.cliente_nomus_id) {
-            const cached = clientCache.get(upsertPayload.cliente_nomus_id);
+          if (mapped.cliente_nomus_id) {
+            const cached = clientCache.get(mapped.cliente_nomus_id);
             if (cached !== undefined) {
               clientId = cached;
             } else {
               const { data: c } = await supabaseAdmin
-                .from("clients").select("id").eq("nomus_id", upsertPayload.cliente_nomus_id).maybeSingle();
+                .from("clients").select("id").eq("nomus_id", mapped.cliente_nomus_id).maybeSingle();
               clientId = (c as { id: string } | null)?.id ?? null;
-              clientCache.set(upsertPayload.cliente_nomus_id, clientId);
+              clientCache.set(mapped.cliente_nomus_id, clientId);
             }
           }
+          const baseTitle = mapped.nome_cliente
+            ? `${mapped.numero ?? nomus_id} — ${mapped.nome_cliente}`
+            : mapped.numero ?? `Proposta Nomus ${nomus_id}`;
+
           const { data: existing } = await supabaseAdmin
             .from("proposals").select("id, client_id").eq("nomus_id", nomus_id).maybeSingle();
           if (!existing) {
@@ -540,10 +547,10 @@ export const nomusSyncProposalsFull = createServerFn({ method: "POST" })
               nomus_proposal_id: mirrorId,
               nomus_synced_at: new Date().toISOString(),
               source: "nomus",
-              title: upsertPayload.numero ?? `Proposta Nomus ${nomus_id}`,
+              title: baseTitle,
               client_id: clientId,
-              total_value: upsertPayload.valor_total ?? 0,
-              valid_until: upsertPayload.validade,
+              total_value: mapped.valor_total ?? 0,
+              valid_until: mapped.validade,
               status: "em_elaboracao",
             });
             if (error) throw new Error(error.message);
@@ -552,9 +559,9 @@ export const nomusSyncProposalsFull = createServerFn({ method: "POST" })
             const { error } = await supabaseAdmin.from("proposals")
               .update({
                 nomus_proposal_id: mirrorId,
-                total_value: upsertPayload.valor_total ?? 0,
-                valid_until: upsertPayload.validade,
-                // só preenche client_id se ainda estava nulo (não sobrescreve match manual)
+                title: baseTitle,
+                total_value: mapped.valor_total ?? 0,
+                valid_until: mapped.validade,
                 ...(ex.client_id || !clientId ? {} : { client_id: clientId }),
                 nomus_synced_at: new Date().toISOString(),
               })

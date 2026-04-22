@@ -1721,6 +1721,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      _parse_nomus_date: { Args: { s: string }; Returns: string }
       has_any_role: {
         Args: {
           _roles: Database["public"]["Enums"]["app_role"][]
