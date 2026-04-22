@@ -808,9 +808,11 @@ export type Database = {
       nomus_proposal_items: {
         Row: {
           additional_info: string | null
+          analise_lucro: Json | null
           description: string | null
           discount: number | null
           id: string
+          impostos: Json | null
           item_status: string | null
           nomus_item_id: string | null
           nomus_product_id: string | null
@@ -828,9 +830,11 @@ export type Database = {
         }
         Insert: {
           additional_info?: string | null
+          analise_lucro?: Json | null
           description?: string | null
           discount?: number | null
           id?: string
+          impostos?: Json | null
           item_status?: string | null
           nomus_item_id?: string | null
           nomus_product_id?: string | null
@@ -848,9 +852,11 @@ export type Database = {
         }
         Update: {
           additional_info?: string | null
+          analise_lucro?: Json | null
           description?: string | null
           discount?: number | null
           id?: string
+          impostos?: Json | null
           item_status?: string | null
           nomus_item_id?: string | null
           nomus_product_id?: string | null
