@@ -878,6 +878,7 @@ export type Database = {
       }
       nomus_proposals: {
         Row: {
+          cbs_recolher: number | null
           cliente_nome: string | null
           cliente_nomus_id: string | null
           cofins_recolher: number | null
@@ -901,6 +902,8 @@ export type Database = {
           empresa_nomus_id: string | null
           frete_percentual: number | null
           frete_valor: number | null
+          ibs_estadual_recolher: number | null
+          ibs_recolher: number | null
           icms_recolher: number | null
           icms_st_recolher: number | null
           id: string
@@ -928,6 +931,7 @@ export type Database = {
           tabela_preco_nome: string | null
           tabela_preco_nomus_id: string | null
           tipo_movimentacao: string | null
+          total_tributacao: Json | null
           validade: string | null
           valor_descontos: number | null
           valor_liquido: number | null
@@ -938,6 +942,7 @@ export type Database = {
           vendedor_nomus_id: string | null
         }
         Insert: {
+          cbs_recolher?: number | null
           cliente_nome?: string | null
           cliente_nomus_id?: string | null
           cofins_recolher?: number | null
@@ -961,6 +966,8 @@ export type Database = {
           empresa_nomus_id?: string | null
           frete_percentual?: number | null
           frete_valor?: number | null
+          ibs_estadual_recolher?: number | null
+          ibs_recolher?: number | null
           icms_recolher?: number | null
           icms_st_recolher?: number | null
           id?: string
@@ -988,6 +995,7 @@ export type Database = {
           tabela_preco_nome?: string | null
           tabela_preco_nomus_id?: string | null
           tipo_movimentacao?: string | null
+          total_tributacao?: Json | null
           validade?: string | null
           valor_descontos?: number | null
           valor_liquido?: number | null
@@ -998,6 +1006,7 @@ export type Database = {
           vendedor_nomus_id?: string | null
         }
         Update: {
+          cbs_recolher?: number | null
           cliente_nome?: string | null
           cliente_nomus_id?: string | null
           cofins_recolher?: number | null
@@ -1021,6 +1030,8 @@ export type Database = {
           empresa_nomus_id?: string | null
           frete_percentual?: number | null
           frete_valor?: number | null
+          ibs_estadual_recolher?: number | null
+          ibs_recolher?: number | null
           icms_recolher?: number | null
           icms_st_recolher?: number | null
           id?: string
@@ -1048,6 +1059,7 @@ export type Database = {
           tabela_preco_nome?: string | null
           tabela_preco_nomus_id?: string | null
           tipo_movimentacao?: string | null
+          total_tributacao?: Json | null
           validade?: string | null
           valor_descontos?: number | null
           valor_liquido?: number | null
