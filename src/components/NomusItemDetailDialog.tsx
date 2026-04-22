@@ -123,9 +123,12 @@ export function NomusItemDetailDialog({ itemId, prefillItem, open, onOpenChange,
         </DialogHeader>
 
         {itemDetailError && data && data.ok && !detailLoaded && (
-          <div className="flex items-start gap-2 rounded-md border border-warning/30 bg-warning/10 p-3 text-xs text-warning-foreground">
+          <div className="flex items-start gap-2 rounded-md border bg-secondary/40 p-3 text-xs text-muted-foreground">
             <AlertCircle className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
-            <div>Detalhe completo do item indisponível: {itemDetailError}</div>
+            <div>
+              Esta instalação do Nomus não expõe o detalhe individual de itens (`/propostas/&#123;id&#125;/itens/&#123;itemId&#125;`).
+              Os impostos abaixo são <strong>rateados a partir do total da proposta</strong>, proporcionalmente ao valor deste item.
+            </div>
           </div>
         )}
 
