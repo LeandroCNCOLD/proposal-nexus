@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
 import { nomusGetItemDetail } from "@/integrations/nomus/server.functions";
 import { brl, num } from "@/lib/format";
+import { ProposalItemLucroAnalysis } from "@/components/ProposalItemLucroAnalysis";
 
 export type PrefillItem = {
   id: string;
@@ -39,6 +40,8 @@ type ItemDetailResult =
   | {
       ok: true;
       item_raw_json: string;
+      item_detail_json: string;
+      item_detail_error: string | null;
       proposta_raw_json: string;
       proposta_nomus_id: string | null;
       produto_raw_json: string;
@@ -53,6 +56,17 @@ function safeParse(s: string | undefined | null): unknown {
   try { return JSON.parse(s); } catch { return null; }
 }
 
+/**
+ * Mescla o item espelho (raw original) com o detalhe completo do Nomus
+ * (`/propostas/{id}/itens/{itemId}`) — assim os componentes leem tudo de
+ * uma fonte só. Campos do detail têm prioridade sobre o raw simplificado.
+ */
+function mergeItem(itemRaw: unknown, itemDetail: unknown): Record<string, unknown> {
+  const a = (itemRaw && typeof itemRaw === "object" ? (itemRaw as Record<string, unknown>) : {});
+  const b = (itemDetail && typeof itemDetail === "object" ? (itemDetail as Record<string, unknown>) : {});
+  return { ...a, ...b };
+}
+
 export function NomusItemDetailDialog({ itemId, prefillItem, open, onOpenChange }: Props) {
   const { data, isLoading, error } = useQuery({
     queryKey: ["nomus-item-detail", itemId],
@@ -64,11 +78,20 @@ export function NomusItemDetailDialog({ itemId, prefillItem, open, onOpenChange 
     staleTime: 60_000,
   });
 
-  const itemRaw = data && data.ok ? safeParse(data.item_raw_json) : null;
+  const itemRawOrig = data && data.ok ? safeParse(data.item_raw_json) : null;
+  const itemDetail = data && data.ok ? safeParse(data.item_detail_json) : null;
+  const itemDetailError = data && data.ok ? data.item_detail_error : null;
+  const itemRaw = mergeItem(itemRawOrig, itemDetail);
   const produtoRaw = data && data.ok ? safeParse(data.produto_raw_json) : null;
   const produtoError = data && data.ok ? data.produto_error : null;
   const equipment = data && data.ok ? safeParse(data.equipment_json) : null;
   const priceTableItems = data && data.ok ? (safeParse(data.price_table_items_json) as unknown[] | null) ?? [] : [];
+
+  const detailRecord = (itemDetail && typeof itemDetail === "object" ? (itemDetail as Record<string, unknown>) : null);
+  const analiseLucro = detailRecord
+    ? ((detailRecord.analiseLucro ?? detailRecord.analise_lucro ?? null) as Record<string, unknown> | null)
+    : null;
+  const detailLoaded = !!itemDetail;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
