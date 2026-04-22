@@ -1,57 +1,72 @@
-` agora pra você aprovar e a gente seguir pra Etapa 1 (probe).Desculpa, errei a chamada. Deixa eu reapresentar o plano direito:
 
-<lov-plan>
 
-# Sondar `/tabelasPreco/{id}` para extrair custo/margem por produto
+# Buscar custo via `/produtos/{id}` usando query (`?query=codigo=...`)
 
-## Hipótese
-`GET /tabelasPreco/{id}` no Nomus normalmente devolve produtos da tabela com `precoCusto`, `precoVenda`, `margem` e/ou `markup`. Se confirmado:
-1. Custo de materiais por item vira real (substitui o rateio).
-2. Margem-base da tabela aparece ao lado da margem real — com badge de erosão quando o desconto comeu margem.
+## Descoberta-chave
+Você está certo: a Nomus suporta `?query=campo=valor`. Já está documentado em `docs/nomus-endpoints.md`:
+- `GET /produtos/{id}` — produto por ID
+- `GET /produtos?query=codigo=CN-200-LT-...` — produto por código
 
-Impostos ficam fora deste cálculo (conforme pedido).
+Confirmado também: `/tabelasPreco/{id}` **só traz preço de venda** (`preco`), zero custo. Então a única chance de custo via API é no nível do **produto individual**, não da tabela.
 
-## Etapa 1 — Sondagem ao vivo (descartável)
-Nova rota `GET /api/public/nomus/tabela-preco-probe`:
-- Sem `?id`: lista `GET /tabelasPreco` e sonda os 2-3 primeiros IDs.
-- Com `?id=1,2,3`: sonda IDs específicos.
-- Para cada ID retorna: chaves de primeiro nível, chaves do primeiro item do array de produtos (se houver), candidatos a custo/margem (heurística: `custo`, `preco`, `margem`, `markup`, `desconto`).
-- Persiste payload bruto em `nomus_sync_log` (entity=`tabelas_preco`, operation=`probe`).
+E ainda não temos prova ao vivo de quais campos `/produtos/{id}` expõe nesta instância — o probe rodou mas o raw não foi persistido pro log (só o sumário). Por isso a Etapa 1 ainda é necessária.
+
+## Etapa 1 — Re-rodar probe de produtos com persistência do raw
+
+Ajustar `src/routes/api.public.nomus.produto-probe.ts` para:
+- Persistir o **payload bruto** completo em `nomus_sync_log.response` (hoje só guarda o sumário).
+- Sondar 3 IDs reais já presentes (8576, 687, 6575).
+- Heurística atual já cobre `custo`, `preco`, `margem`, `compra`, `medio`.
+
+Rodar e ler via psql pra confirmar quais campos de custo o seu Nomus expõe (ex.: `precoCusto`, `custoMedio`, `valorUltimaCompra`, `margemBase`, etc.).
 
 ## Etapa 2 — Persistência (depende da Etapa 1)
-**As tabelas `nomus_price_tables` e `nomus_price_table_items` já existem.** Só estender:
-- `ALTER TABLE nomus_price_table_items` adicionando `preco_custo numeric`, `margem_pct numeric`, `markup_pct numeric` (só os campos que aparecerem no probe).
-- Nova função `nomusSyncPriceTables` em `server.functions.ts`: lista `/tabelasPreco`, para cada uma busca `/tabelasPreco/{id}` e faz upsert linha-a-linha.
-- Mapper `parseNomusPriceTableItem` em `parse.ts`.
 
-## Etapa 3 — Uso no item da proposta
+**Não criar tabela nova.** Adicionar colunas em `equipments` (já tem `nomus_id`):
+- `custo_unitario numeric` — preço de custo do produto
+- `custo_medio numeric` — custo médio se existir
+- `margem_base_pct numeric` — margem cadastrada se existir
+- `nomus_raw_produto jsonb` — payload bruto pra debug
+- `nomus_detail_synced_at timestamptz`
+
+Só criar as colunas que aparecerem de verdade na Etapa 1.
+
+## Etapa 3 — Sync de detalhes de produto
+
+Nova função `nomusSyncProductDetails` em `server.functions.ts`:
+- Para cada `equipments` com `nomus_id`, chama `GET /produtos/{nomus_id}`.
+- Mapper `parseNomusProductDetail` em `parse.ts` extrai os campos confirmados na Etapa 1.
+- Faz update no `equipments`.
+- **Sob demanda** (não vai pro cron): centenas de chamadas seriam pesadas.
+
+## Etapa 4 — Uso no item da proposta
+
 Em `ProposalItemLucroAnalysis.tsx`:
-- Quando o item tem `nomus_product_id`, buscar em `nomus_price_table_items` usando o `tabela_preco_nomus_id` da proposta (já está em `nomus_proposals`).
-- Custo de materiais real = `preco_custo × quantidade`.
-- Margem-base = `margem_pct` da linha — exibida como referência.
-- Lucro bruto recalculado = `total_with_discount − custo_materiais` (sem impostos).
-- Badge "Desconto reduziu margem em X pp" quando `margem_real < margem_base`.
-- Painel de diagnóstico para de avisar "custos não disponíveis" quando há linha na tabela.
+- Quando o item tem `nomus_product_id` que casa com um `equipment.nomus_id`, usa `equipment.custo_unitario × quantidade` como **custo real de materiais**.
+- Lucro bruto recalculado = `total_with_discount − custo_materiais` (sem impostos, conforme pedido anterior).
+- Se `margem_base_pct` existir, exibe badge "Desconto reduziu margem em X pp" quando margem real < margem base.
+- Painel de diagnóstico para de avisar "custos não disponíveis" quando o equipamento tem custo sincronizado.
 
-## Etapa 4 — UI de controle
-Botão **"Sincronizar tabelas de preço"** em `app.configuracoes.nomus.tsx` que dispara `nomusSyncPriceTables` sob demanda (não vai pro cron).
+## Etapa 5 — UI de controle
+
+Botão **"Sincronizar custos de produtos"** em `app.configuracoes.nomus.tsx` que dispara `nomusSyncProductDetails`. Mostra contador (X/Y produtos sincronizados).
 
 ## Arquivos afetados
-- `src/routes/api.public.nomus.tabela-preco-probe.ts` — novo
-- `supabase/migrations/*` — ALTER em `nomus_price_table_items`
-- `src/integrations/nomus/parse.ts` — `parseNomusPriceTableItem`
-- `src/integrations/nomus/server.functions.ts` — `nomusSyncPriceTables`
-- `src/components/ProposalItemLucroAnalysis.tsx` — custo real + badge de margem
+- `src/routes/api.public.nomus.produto-probe.ts` — ajuste pra persistir raw
+- `supabase/migrations/*` — colunas de custo em `equipments`
+- `src/integrations/nomus/parse.ts` — `parseNomusProductDetail`
+- `src/integrations/nomus/server.functions.ts` — `nomusSyncProductDetails`
+- `src/components/ProposalItemLucroAnalysis.tsx` — usar custo real + badge de margem
 - `src/routes/app.configuracoes.nomus.tsx` — botão de sync
 
 ## Fora de escopo
-- MOD e CIF — não vivem em tabela de preço.
+- MOD e CIF — não vivem em cadastro de produto.
 - Impostos no recálculo deste bloco.
-- Histórico de variação.
+- Endpoint `?query=codigo=...` — só faz sentido se você quiser buscar produto por código a partir do item da proposta, mas o item já vem com `idProduto`, então `/produtos/{id}` é mais direto.
 
 ## Risco
-Se o probe mostrar que `/tabelasPreco/{id}` só traz `precoVenda` (sem custo/margem), Etapas 2-4 ainda valem para medir **desconto efetivo vs preço de tabela** — mas o cálculo de margem real continua impossível via API. Te aviso assim que o probe rodar.
+Se a Etapa 1 mostrar que `/produtos/{id}` nesta instância **também não traz custo** (igual `/tabelasPreco`), as Etapas 2-5 perdem o sentido. Aí a conclusão é definitiva: custos não estão na API REST do Nomus pra esta chave/instalação, e a única alternativa vira cadastro manual no `equipments`. Te aviso assim que rodar.
 
-## Próximo passo
-Publicar o app → eu rodo o probe → leio `nomus_sync_log` → confirmo quais campos a sua instalação expõe → seguimos (ou ajustamos) Etapas 2-4.
+## Próximo passo (precisa de você)
+Aprovar o plano → eu ajusto o probe pra salvar o raw → publicar → rodo e mostro os campos exatos.
 
