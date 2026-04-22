@@ -122,6 +122,7 @@ export const nomusTestConnection = createServerFn({ method: "POST" })
         status: result.status,
         durationMs: result.durationMs,
         baseUrl: result.baseUrl,
+        probes: result.probes,
       };
     }
     const reason = result.error ?? "Falha ao conectar ao Nomus";
@@ -133,6 +134,7 @@ export const nomusTestConnection = createServerFn({ method: "POST" })
       status: result.status,
       endpoint: result.endpoint,
       durationMs: result.durationMs,
+      probes: result.probes,
     };
   });
 
