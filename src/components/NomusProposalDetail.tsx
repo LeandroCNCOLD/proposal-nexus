@@ -59,6 +59,8 @@ type NomusProposalRow = {
   lucro_antes_impostos: number | null;
   lucro_liquido: number | null;
   margem_liquida_pct: number | null;
+
+  raw: Record<string, unknown> | null;
 };
 
 type ItemRow = {
@@ -228,7 +230,12 @@ export function NomusProposalDetail({
       {/* ============ Resumo de impostos ============ */}
       <Section title="Resumo de impostos">
         <ProposalTaxSummary
-          totalTributacao={p.total_tributacao}
+          totalTributacao={
+            p.total_tributacao ??
+            (Array.isArray((p.raw as { totalTributacao?: unknown[] } | null)?.totalTributacao)
+              ? ((p.raw as { totalTributacao: Record<string, string | number>[] }).totalTributacao[0] ?? null)
+              : null)
+          }
           fallback={{
             icms: p.icms_recolher,
             icms_st: p.icms_st_recolher,
