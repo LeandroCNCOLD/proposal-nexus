@@ -132,12 +132,43 @@ export function ProposalItemLucroAnalysis({ analiseLucro, proposalAnaliseLucro, 
     );
   }
 
+  // ============= Diagnóstico de campos zerados/ausentes =============
+  // Verifica grupos importantes e identifica a origem provável do problema.
+  const diagnostics = buildDiagnostics({
+    useDetail,
+    hasProposalData: !!proposalAnaliseLucro,
+    ratio: r,
+    groups: {
+      "Impostos (ICMS/IPI/PIS/COFINS)": [icms, ipi, pis, cofins],
+      "Custos de produção (Materiais/MOD/CIF)": [custosProducao, cMat, cMod, cCif],
+      "Despesas comerciais (Comissões/Frete/Seguros)": [comissoes, frete, seguros],
+      "Custos administrativos": [custosAdmin],
+      "Resultado (Lucro bruto/líquido)": [lucroBruto, lucroLiquido],
+    },
+  });
+
   return (
     <div className="space-y-3">
       {!useDetail && (
         <div className="text-[11px] text-muted-foreground">
           Valores rateados a partir da análise de lucro da proposta — participação deste item:{" "}
           <span className="font-semibold text-foreground tabular-nums">{(r * 100).toFixed(2)}%</span>
+        </div>
+      )}
+
+      {diagnostics.length > 0 && (
+        <div className="rounded-md border border-warning/40 bg-warning/10 p-3 text-xs">
+          <div className="mb-1.5 font-semibold text-warning-foreground">
+            ⚠ Campos sem dados detectados
+          </div>
+          <ul className="space-y-1 text-muted-foreground">
+            {diagnostics.map((d, i) => (
+              <li key={i}>
+                <span className="font-medium text-foreground">{d.group}:</span>{" "}
+                <span>{d.reason}</span>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 
@@ -185,6 +216,43 @@ export function ProposalItemLucroAnalysis({ analiseLucro, proposalAnaliseLucro, 
 }
 
 // ============= helpers =============
+
+type Diagnostic = { group: string; reason: string };
+
+function buildDiagnostics(args: {
+  useDetail: boolean;
+  hasProposalData: boolean;
+  ratio: number;
+  groups: Record<string, Array<number | null>>;
+}): Diagnostic[] {
+  const out: Diagnostic[] = [];
+  for (const [group, values] of Object.entries(args.groups)) {
+    const allNull = values.every((v) => v === null);
+    const allZero = !allNull && values.every((v) => v === null || v === 0);
+    if (!allNull && !allZero) continue;
+
+    let reason: string;
+    if (allNull) {
+      if (!args.useDetail && !args.hasProposalData) {
+        reason = "proposta sem detail sincronizado — rode 'Sincronizar detalhes' na lista de propostas.";
+      } else if (!args.useDetail) {
+        reason = "endpoint individual do item retornou 404 (fallback ativo) e a proposta não trouxe esse bloco — verifique o mapeamento em src/integrations/nomus/parse.ts.";
+      } else {
+        reason = "detail do item veio sem essas chaves — ajuste pickNum() em ProposalItemLucroAnalysis.tsx ou o parser do detail.";
+      }
+    } else {
+      if (!args.useDetail && args.ratio === 0) {
+        reason = "rateio zerou os valores (participação do item = 0%) — verifique total de produtos da proposta.";
+      } else if (!args.useDetail) {
+        reason = "valores vêm zerados na proposta sincronizada — confirme se o Nomus calculou esse bloco antes do sync.";
+      } else {
+        reason = "Nomus retornou zero para esses campos no detail do item.";
+      }
+    }
+    out.push({ group, reason });
+  }
+  return out;
+}
 
 function pickNum(o: Record<string, unknown>, ...keys: string[]): number | null {
   for (const k of keys) {
