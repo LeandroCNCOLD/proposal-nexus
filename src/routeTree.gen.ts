@@ -32,6 +32,7 @@ import { Route as AppPropostasIdRouteImport } from './routes/app.propostas.$id'
 import { Route as AppConfiguracoesNomusRouteImport } from './routes/app.configuracoes.nomus'
 import { Route as AppConfiguracoesApiNomusRouteImport } from './routes/app.configuracoes.api-nomus'
 import { Route as ApiNomusTestRouteImport } from './routes/api.nomus.test'
+import { Route as AppPropostasIdEditorRouteImport } from './routes/app.propostas.$id.editor'
 import { Route as AppConfiguracoesNomusImportarCustosRouteImport } from './routes/app.configuracoes.nomus.importar-custos'
 import { Route as ApiPublicNomusTabelaPrecoProbeRouteImport } from './routes/api.public.nomus.tabela-preco-probe'
 import { Route as ApiPublicNomusTabelaPrecoDeepProbeRouteImport } from './routes/api.public.nomus.tabela-preco-deep-probe'
@@ -154,6 +155,11 @@ const ApiNomusTestRoute = ApiNomusTestRouteImport.update({
   path: '/api/nomus/test',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppPropostasIdEditorRoute = AppPropostasIdEditorRouteImport.update({
+  id: '/editor',
+  path: '/editor',
+  getParentRoute: () => AppPropostasIdRoute,
+} as any)
 const AppConfiguracoesNomusImportarCustosRoute =
   AppConfiguracoesNomusImportarCustosRouteImport.update({
     id: '/importar-custos',
@@ -204,7 +210,7 @@ export interface FileRoutesByFullPath {
   '/api/nomus/test': typeof ApiNomusTestRoute
   '/app/configuracoes/api-nomus': typeof AppConfiguracoesApiNomusRoute
   '/app/configuracoes/nomus': typeof AppConfiguracoesNomusRouteWithChildren
-  '/app/propostas/$id': typeof AppPropostasIdRoute
+  '/app/propostas/$id': typeof AppPropostasIdRouteWithChildren
   '/app/propostas/nova': typeof AppPropostasNovaRoute
   '/app/propostas/pedidos-nf': typeof AppPropostasPedidosNfRoute
   '/app/configuracoes/': typeof AppConfiguracoesIndexRoute
@@ -214,6 +220,7 @@ export interface FileRoutesByFullPath {
   '/api/public/nomus/tabela-preco-deep-probe': typeof ApiPublicNomusTabelaPrecoDeepProbeRoute
   '/api/public/nomus/tabela-preco-probe': typeof ApiPublicNomusTabelaPrecoProbeRoute
   '/app/configuracoes/nomus/importar-custos': typeof AppConfiguracoesNomusImportarCustosRoute
+  '/app/propostas/$id/editor': typeof AppPropostasIdEditorRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -232,7 +239,7 @@ export interface FileRoutesByTo {
   '/api/nomus/test': typeof ApiNomusTestRoute
   '/app/configuracoes/api-nomus': typeof AppConfiguracoesApiNomusRoute
   '/app/configuracoes/nomus': typeof AppConfiguracoesNomusRouteWithChildren
-  '/app/propostas/$id': typeof AppPropostasIdRoute
+  '/app/propostas/$id': typeof AppPropostasIdRouteWithChildren
   '/app/propostas/nova': typeof AppPropostasNovaRoute
   '/app/propostas/pedidos-nf': typeof AppPropostasPedidosNfRoute
   '/app/configuracoes': typeof AppConfiguracoesIndexRoute
@@ -242,6 +249,7 @@ export interface FileRoutesByTo {
   '/api/public/nomus/tabela-preco-deep-probe': typeof ApiPublicNomusTabelaPrecoDeepProbeRoute
   '/api/public/nomus/tabela-preco-probe': typeof ApiPublicNomusTabelaPrecoProbeRoute
   '/app/configuracoes/nomus/importar-custos': typeof AppConfiguracoesNomusImportarCustosRoute
+  '/app/propostas/$id/editor': typeof AppPropostasIdEditorRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -263,7 +271,7 @@ export interface FileRoutesById {
   '/api/nomus/test': typeof ApiNomusTestRoute
   '/app/configuracoes/api-nomus': typeof AppConfiguracoesApiNomusRoute
   '/app/configuracoes/nomus': typeof AppConfiguracoesNomusRouteWithChildren
-  '/app/propostas/$id': typeof AppPropostasIdRoute
+  '/app/propostas/$id': typeof AppPropostasIdRouteWithChildren
   '/app/propostas/nova': typeof AppPropostasNovaRoute
   '/app/propostas/pedidos-nf': typeof AppPropostasPedidosNfRoute
   '/app/configuracoes/': typeof AppConfiguracoesIndexRoute
@@ -273,6 +281,7 @@ export interface FileRoutesById {
   '/api/public/nomus/tabela-preco-deep-probe': typeof ApiPublicNomusTabelaPrecoDeepProbeRoute
   '/api/public/nomus/tabela-preco-probe': typeof ApiPublicNomusTabelaPrecoProbeRoute
   '/app/configuracoes/nomus/importar-custos': typeof AppConfiguracoesNomusImportarCustosRoute
+  '/app/propostas/$id/editor': typeof AppPropostasIdEditorRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -305,6 +314,7 @@ export interface FileRouteTypes {
     | '/api/public/nomus/tabela-preco-deep-probe'
     | '/api/public/nomus/tabela-preco-probe'
     | '/app/configuracoes/nomus/importar-custos'
+    | '/app/propostas/$id/editor'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -333,6 +343,7 @@ export interface FileRouteTypes {
     | '/api/public/nomus/tabela-preco-deep-probe'
     | '/api/public/nomus/tabela-preco-probe'
     | '/app/configuracoes/nomus/importar-custos'
+    | '/app/propostas/$id/editor'
   id:
     | '__root__'
     | '/'
@@ -363,6 +374,7 @@ export interface FileRouteTypes {
     | '/api/public/nomus/tabela-preco-deep-probe'
     | '/api/public/nomus/tabela-preco-probe'
     | '/app/configuracoes/nomus/importar-custos'
+    | '/app/propostas/$id/editor'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -540,6 +552,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiNomusTestRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/app/propostas/$id/editor': {
+      id: '/app/propostas/$id/editor'
+      path: '/editor'
+      fullPath: '/app/propostas/$id/editor'
+      preLoaderRoute: typeof AppPropostasIdEditorRouteImport
+      parentRoute: typeof AppPropostasIdRoute
+    }
     '/app/configuracoes/nomus/importar-custos': {
       id: '/app/configuracoes/nomus/importar-custos'
       path: '/importar-custos'
@@ -607,6 +626,18 @@ const AppConfiguracoesRouteChildren: AppConfiguracoesRouteChildren = {
 const AppConfiguracoesRouteWithChildren =
   AppConfiguracoesRoute._addFileChildren(AppConfiguracoesRouteChildren)
 
+interface AppPropostasIdRouteChildren {
+  AppPropostasIdEditorRoute: typeof AppPropostasIdEditorRoute
+}
+
+const AppPropostasIdRouteChildren: AppPropostasIdRouteChildren = {
+  AppPropostasIdEditorRoute: AppPropostasIdEditorRoute,
+}
+
+const AppPropostasIdRouteWithChildren = AppPropostasIdRoute._addFileChildren(
+  AppPropostasIdRouteChildren,
+)
+
 interface AppRouteChildren {
   AppAprovacoesRoute: typeof AppAprovacoesRoute
   AppClientesRoute: typeof AppClientesRoute
@@ -619,7 +650,7 @@ interface AppRouteChildren {
   AppSeletorRoute: typeof AppSeletorRoute
   AppTarefasRoute: typeof AppTarefasRoute
   AppIndexRoute: typeof AppIndexRoute
-  AppPropostasIdRoute: typeof AppPropostasIdRoute
+  AppPropostasIdRoute: typeof AppPropostasIdRouteWithChildren
   AppPropostasNovaRoute: typeof AppPropostasNovaRoute
   AppPropostasPedidosNfRoute: typeof AppPropostasPedidosNfRoute
   AppPropostasIndexRoute: typeof AppPropostasIndexRoute
@@ -637,7 +668,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppSeletorRoute: AppSeletorRoute,
   AppTarefasRoute: AppTarefasRoute,
   AppIndexRoute: AppIndexRoute,
-  AppPropostasIdRoute: AppPropostasIdRoute,
+  AppPropostasIdRoute: AppPropostasIdRouteWithChildren,
   AppPropostasNovaRoute: AppPropostasNovaRoute,
   AppPropostasPedidosNfRoute: AppPropostasPedidosNfRoute,
   AppPropostasIndexRoute: AppPropostasIndexRoute,
