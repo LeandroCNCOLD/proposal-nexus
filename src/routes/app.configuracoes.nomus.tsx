@@ -1,7 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Loader2, RefreshCw, PlugZap, CheckCircle2, AlertCircle, Activity } from "lucide-react";
+import { Loader2, RefreshCw, PlugZap, CheckCircle2, AlertCircle, Activity, FileSpreadsheet } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -122,10 +122,18 @@ function NomusPage() {
         title="Integração Nomus"
         subtitle="Sincronize clientes, produtos, condições de pagamento e propostas com o ERP"
         actions={
-          <Button onClick={onTest} disabled={testing} variant="outline">
-            {testing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlugZap className="mr-2 h-4 w-4" />}
-            Testar conexão
-          </Button>
+          <div className="flex items-center gap-2">
+            <Link to="/app/configuracoes/nomus/importar-custos">
+              <Button variant="outline">
+                <FileSpreadsheet className="mr-2 h-4 w-4" />
+                Importar custos (CSV)
+              </Button>
+            </Link>
+            <Button onClick={onTest} disabled={testing} variant="outline">
+              {testing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlugZap className="mr-2 h-4 w-4" />}
+              Testar conexão
+            </Button>
+          </div>
         }
       />
 
