@@ -1,71 +1,43 @@
 
 
-## Documentar e alinhar endpoints Nomus para o CNCode
+## Diagnóstico — Sync travada com erro 400 do Nomus
 
-Vou consolidar tudo o que você passou em um documento de referência dentro do projeto e ajustar o mapa de endpoints do código para bater 100% com o que o Nomus realmente expõe (incluindo rotas que ainda não estavam mapeadas: contatos por pessoa, processos, contas a receber, DANFE, CC-e).
+### Estado atual no banco
+- `nomus_sync_state.propostas`: `running=true` desde **16:33:38** (mais de 30 minutos), `last_synced_at=NULL`, `total_synced=0`, `last_error=NULL`.
+- `nomus_proposals`: **0 registros** (tabela continua vazia após o reset).
+- `nomus_sync_log` mostra que toda chamada de hoje após as 15:40 falhou com:
+  ```
+  Nomus 400: {"descricao":"1","status":400}
+  ```
+- A última execução com sucesso foi às **15:40** (4 chamadas `list` com `http_status=200`), antes da mudança para a busca reversa.
 
-Não vou mexer em fluxo de proposta, template ou banco — só endpoints, documentação e o teste de saúde.
+### Causa raiz
+O job de sync ficou marcado como `running=true` mas o handler nunca limpou a flag — provavelmente caiu por timeout do Worker (Cloudflare ~30s) ou por exceção não capturada após o erro 400 do Nomus. O endpoint `GET /propostas?pagina=N` está devolvendo `400 {"descricao":"1"}` para alguma combinação de parâmetros que `pullProposalsNewestFirst` está mandando — provavelmente quando passa de uma página que não existe, ou está enviando algum parâmetro extra que o Nomus rejeita (lembrando: `tamanhoPagina` faz a API responder 400).
 
-## O que será criado
+### Plano de correção
 
-**1. `docs/nomus-endpoints.md`** — documento de referência (fonte única de verdade humana)
+**1. Liberar o estado travado** (migration de UPDATE)
+- `UPDATE nomus_sync_state SET running=false, last_error='timeout/cleanup manual', updated_at=now() WHERE entity='propostas';`
 
-Conteúdo:
-- Base URL do CNCode: `https://cncold.nomus.com.br/cncold/rest`
-- Headers obrigatórios (`Authorization: Basic ...`, `Content-Type`, `Accept`)
-- Regras de paginação (`pagina`, limite 50/página) e throttling (429 + `tempoAteLiberar`)
-- Tabela com os 10 grupos de endpoints (propostas, clientes, contatos, produtos, representantes, tabelas de preço, processos, pedidos, NFes, contas a receber), cada um com:
-  - método + URL
-  - finalidade no CNCode
-  - status (oficial documentado / validado em ambiente / a confirmar)
-- Observação destacada de que **propostas é a fonte principal** e os demais são complementares
-- Seção "Próximo passo" pedindo um JSON real de `/propostas/{id}` para fazer o mapeamento campo a campo
+**2. Endurecer `src/routes/hooks/nomus-cron.ts`**
+- Envolver `pullProposalsNewestFirst` em `try/finally` que **sempre** zera `running=false` no banco, mesmo em exceção/timeout.
+- Tratar `400` na listagem como "fim da paginação" em vez de erro fatal — para o loop de páginas em vez de derrubar o job.
+- Garantir que somente `pagina` é enviado (sem `tamanhoPagina`, sem ordenação extra).
+- Limitar tempo de execução por chamada do cron (ex.: processar no máx. 40 propostas por invocação) e re-agendar via `last_cursor` para a próxima rodada — assim cada execução fica bem abaixo do limite do Worker.
 
-## O que será ajustado no código
+**3. Adicionar logging mais claro**
+- Em cada falha gravar em `nomus_sync_log` com o `request_path` exato e o `pagina` que disparou o 400, para a gente isolar se o erro é página inexistente ou parâmetro inválido.
 
-**2. `src/integrations/nomus/endpoints.ts`** — completar o mapa
+**4. Re-disparar a sincronização**
+- Após o deploy, clico em **"Buscar do Nomus"** e fico observando `nomus_sync_state` + `nomus_sync_log` em tempo real.
 
-Adicionar entradas que faltam:
-- `processos: "/processos"`
-- `contas_receber: "/contasReceber"`
-- Helper `pessoaContatosPath(idPessoa)` → `/pessoas/{idPessoa}/contatos` (rota aninhada, não cabe no mapa simples)
-- Helpers para sub-recursos de NFe: `nfeDanfePath(id)` → `/nfes/danfe/{id}`, `nfeCcePath(id)` → `/nfes/cce/{id}`
+### Resultado esperado
+- O botão "Sincronizando..." vai parar de girar mesmo se algo falhar (já não fica preso pra sempre).
+- Os 400 da paginação não vão mais matar o job — ele vai parar elegantemente quando atingir o fim da lista.
+- Cada execução do cron processa um lote pequeno e atualiza o `last_cursor`, então em 2-3 ciclos automáticos (ou cliques manuais) populamos as ~150 propostas dos últimos 36 meses começando pelas mais recentes.
 
-Endpoints que já estão certos e ficam intocados: `clientes`, `produtos`, `representantes`, `vendedores`, `condicoesPagamentos`, `propostas`, `pedidos`, `nfes`, `tabelasPreco`.
-
-**3. `src/integrations/nomus/client.ts`** — melhorar o teste de conexão
-
-Hoje o `testNomusConnection` só bate em `/clientes`. Vou trocar para testar **3 endpoints em sequência** (`/clientes`, `/representantes`, `/propostas`) e devolver o status de cada um. Assim, quando der erro, fica claro se é problema de URL, de auth, ou de permissão num recurso específico daquela chave.
-
-Saída do teste passa a ser algo como:
-```text
-clientes:        200 OK
-representantes:  200 OK
-propostas:       400 {"descricao":"1"}
-```
-
-Isso te dá evidência objetiva pra mostrar pro suporte Nomus exatamente qual recurso a chave de integração não está liberando.
-
-## O que NÃO será alterado
-
-- Banco de dados (nenhuma migration)
-- Fluxo de sincronização (`nomus-cron`, `nomusKickoffSyncProposals`, mappers)
-- Telas (`/app/propostas`, `/app/configuracoes/nomus`)
-- Edge functions
-- Mapeamento campo-a-campo do payload de proposta — esse é o **próximo passo**, depois que você me mandar um JSON real de `/propostas/{id}` (mesmo mascarado)
-
-## Detalhes técnicos
-
-- O documento vai em `docs/` (fora de `src/`) pra não ser bundlado e não virar ruído no build.
-- Os novos helpers em `endpoints.ts` seguem o padrão atual (`proposalSubpath`) — funções puras, sem fetch.
-- O teste de conexão expandido continua usando `nomusFetch` + `BasicAuth`, sem mudar contrato com a UI: `testNomusConnection` ainda devolve `{ success, message, details }`, só que `details` ganha um array `probes[]` com o resultado por recurso.
-- Tela de Integração Nomus (`/app/configuracoes/nomus`) já mostra `details` cru — vai exibir os 3 probes automaticamente, sem mudança de UI.
-
-## Resumo da entrega
-
-Após aplicar:
-- documento `docs/nomus-endpoints.md` consolidando tudo
-- `endpoints.ts` com processos, contas a receber, contatos por pessoa e sub-recursos de NFe
-- teste de conexão multi-recurso, mostrando status por endpoint
-- base pronta pra você colar o JSON real de uma proposta e a gente fechar o mapeamento campo a campo
+### Detalhe técnico (para referência)
+- Arquivos a alterar: `src/routes/hooks/nomus-cron.ts` (try/finally + tratamento de 400 + lote menor), `src/integrations/nomus/client.ts` (se necessário, mapear 400 da listagem como "no more pages").
+- Migration: 1 UPDATE em `nomus_sync_state`.
+- Sem mudanças de UI nesta etapa — `app.propostas.index.tsx` já mostra spinner correto via polling.
 
