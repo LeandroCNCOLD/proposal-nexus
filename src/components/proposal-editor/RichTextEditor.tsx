@@ -206,7 +206,7 @@ export function RichTextEditor({ value, onChange, placeholder, minimal, classNam
     if (!editor) return;
     const current = editor.getHTML();
     if ((value ?? "") !== current) {
-      editor.commands.setContent(value ?? "", { emitUpdate: false });
+      editor.commands.setContent(value ?? "", false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value, editor]);
