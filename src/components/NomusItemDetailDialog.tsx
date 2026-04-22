@@ -148,10 +148,10 @@ function ResumoView({ itemRaw }: { itemRaw: unknown }) {
 
 function TributosView({ itemRaw }: { itemRaw: unknown }) {
   const o = (itemRaw ?? {}) as Record<string, unknown>;
-  const sections: Array<[string, Array<[string, unknown]>]> = [
-    [
-      "ICMS",
-      [
+  const sections: Array<{ title: string; rows: Array<[string, unknown]> }> = [
+    {
+      title: "ICMS",
+      rows: [
         ["Base de cálculo ICMS", pickAny(o, "baseCalculoIcms", "valorBaseIcms")],
         ["Alíquota ICMS (%)", pickAny(o, "aliquotaIcms", "percentualIcms")],
         ["Valor ICMS", pickAny(o, "valorIcms", "icms")],
@@ -159,19 +159,19 @@ function TributosView({ itemRaw }: { itemRaw: unknown }) {
         ["Alíquota ICMS ST (%)", pickAny(o, "aliquotaIcmsSt", "percentualIcmsSt")],
         ["Valor ICMS ST", pickAny(o, "valorIcmsSt", "icmsSt")],
       ],
-    ],
-    [
-      "IPI",
-      [
+    },
+    {
+      title: "IPI",
+      rows: [
         ["Base IPI", pickAny(o, "baseCalculoIpi", "valorBaseIpi")],
         ["Alíquota IPI (%)", pickAny(o, "aliquotaIpi", "percentualIpi")],
         ["Valor IPI", pickAny(o, "valorIpi", "ipi")],
         ["CST IPI", pickStr(o, "cstIpi")],
       ],
-    ],
-    [
-      "PIS / COFINS",
-      [
+    },
+    {
+      title: "PIS / COFINS",
+      rows: [
         ["Base PIS", pickAny(o, "baseCalculoPis", "valorBasePis")],
         ["Alíquota PIS (%)", pickAny(o, "aliquotaPis", "percentualPis")],
         ["Valor PIS", pickAny(o, "valorPis", "pis")],
@@ -179,24 +179,24 @@ function TributosView({ itemRaw }: { itemRaw: unknown }) {
         ["Alíquota COFINS (%)", pickAny(o, "aliquotaCofins", "percentualCofins")],
         ["Valor COFINS", pickAny(o, "valorCofins", "cofins")],
       ],
-    ],
-    [
-      "ISSQN / Simples Nacional",
-      [
+    },
+    {
+      title: "ISSQN / Simples Nacional",
+      rows: [
         ["Valor ISSQN", pickAny(o, "valorIssqn", "issqn")],
         ["Alíquota ISSQN (%)", pickAny(o, "aliquotaIssqn", "percentualIssqn")],
         ["Simples Nacional a recolher", pickAny(o, "valorSimplesNacional", "simplesNacional")],
       ],
-    ],
-    [
-      "Frete / Seguro / Outras despesas",
-      [
+    },
+    {
+      title: "Frete / Seguro / Outras despesas",
+      rows: [
         ["Frete (item)", pickAny(o, "valorFrete", "frete")],
         ["Seguro", pickAny(o, "valorSeguros", "seguros", "valorSeguro")],
         ["Outras despesas acessórias", pickAny(o, "valorOutrasDespesasAcessorias", "outrasDespesas")],
         ["Comissão de venda", pickAny(o, "valorComissoesVenda", "comissaoVenda")],
       ],
-    ],
+    },
   ];
 
   return (
