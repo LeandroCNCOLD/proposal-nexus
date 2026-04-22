@@ -2,28 +2,17 @@ import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { listAll } from "@/integrations/nomus/client";
 import { NOMUS_ENDPOINTS } from "@/integrations/nomus/endpoints";
+import {
+  mapNomusProposal,
+  extractProposalItems,
+  pickStr,
+  pickNumBR,
+  pickDate,
+} from "@/integrations/nomus/parse";
 
 // Hook acionado pelo pg_cron a cada N minutos. Pull incremental
 // de propostas, pedidos e NF do Nomus. Token Bearer simples só
 // para autorizar a chamada.
-
-const pickStr = (o: Record<string, unknown>, ...keys: string[]): string | null => {
-  for (const k of keys) {
-    const v = o[k];
-    if (v !== undefined && v !== null && v !== "") return String(v);
-  }
-  return null;
-};
-const pickNum = (o: Record<string, unknown>, ...keys: string[]): number | null => {
-  for (const k of keys) {
-    const v = o[k];
-    if (v !== undefined && v !== null && v !== "") {
-      const n = Number(v);
-      if (!Number.isNaN(n)) return n;
-    }
-  }
-  return null;
-};
 
 type EntityKey = "propostas" | "pedidos" | "notas_fiscais";
 
