@@ -410,39 +410,56 @@ export const nomusKickoffSyncProposals = createServerFn({ method: "POST" })
   .handler(async ({ context }) => {
     const userId = (context as { userId?: string }).userId ?? null;
 
-    // Resolve a origem de forma estável.
-    // Preferência: 1) PUBLIC_BASE_URL; 2) URL estável Lovable; 3) origem da request (se não-local).
     const LOVABLE_PROJECT_ID = "917813d5-8e5a-4655-8778-64228cb3d23e";
-    let origin: string = process.env.PUBLIC_BASE_URL?.trim() || `https://project--${LOVABLE_PROJECT_ID}.lovable.app`;
+    const stablePublishedOrigin = `https://project--${LOVABLE_PROJECT_ID}.lovable.app`;
+    const stablePreviewOrigin = `https://project--${LOVABLE_PROJECT_ID}-dev.lovable.app`;
+    const cronToken =
+      process.env.NOMUS_CRON_SECRET?.trim()
+      || process.env.SUPABASE_PUBLISHABLE_KEY?.trim()
+      || process.env.SUPABASE_ANON_KEY?.trim()
+      || "";
+
+    let origin: string = process.env.PUBLIC_BASE_URL?.trim() || stablePublishedOrigin;
     try {
       const req = getRequest();
       const reqOrigin = new URL(req.url).origin;
-      if (!/localhost|127\.0\.0\.1/i.test(reqOrigin) && /^https:\/\//.test(reqOrigin)) {
+      if (/localhost|127\.0\.0\.1/i.test(reqOrigin)) {
+        origin = process.env.PUBLIC_BASE_URL?.trim() || stablePublishedOrigin;
+      } else if (/preview|id-preview--|-dev\.lovable\.app/i.test(reqOrigin)) {
+        origin = stablePreviewOrigin;
+      } else if (/^https:\/\//.test(reqOrigin)) {
         origin = reqOrigin;
       }
     } catch { /* mantém origin */ }
 
-    const cronSecret = process.env.NOMUS_CRON_SECRET ?? "";
-    await setState("propostas", { running: true, last_error: null });
-
-    // Tenta disparar o cron com timeout curto (só pra confirmar que ele aceitou)
     let kickoffOk = false;
+    let kickoffError: string | null = null;
     try {
       const r = await fetch(`${origin}/hooks/nomus-cron`, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${cronSecret}`,
+          Authorization: `Bearer ${cronToken}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ entity: "propostas" }),
         signal: AbortSignal.timeout(3000),
       }).catch((e) => {
         console.error("[nomus] kickoff fetch failed", e);
+        kickoffError = e instanceof Error ? e.message : String(e);
         return null;
       });
-      kickoffOk = !!r && r.status < 500;
+
+      if (r) {
+        kickoffOk = r.ok;
+        if (!r.ok) {
+          const body = await r.text().catch(() => "");
+          kickoffError = `cron HTTP ${r.status}${body ? `: ${body.slice(0, 180)}` : ""}`;
+          console.warn("[nomus] kickoff recusado", kickoffError);
+        }
+      }
     } catch (e) {
       console.error("[nomus] kickoff fetch threw", e);
+      kickoffError = e instanceof Error ? e.message : String(e);
     }
 
     if (kickoffOk) {
@@ -455,7 +472,7 @@ export const nomusKickoffSyncProposals = createServerFn({ method: "POST" })
     }
 
     // Fallback inline: garante que o sync acontece mesmo se o cron HTTP não puder ser disparado.
-    console.warn("[nomus] kickoff falhou, executando sync inline como fallback");
+    console.warn(`[nomus] kickoff falhou (${kickoffError ?? "sem detalhes"}), executando sync inline como fallback`);
     try {
       const { syncProposalsBatch } = await import("@/routes/hooks/nomus-cron");
       const result = await syncProposalsBatch();
