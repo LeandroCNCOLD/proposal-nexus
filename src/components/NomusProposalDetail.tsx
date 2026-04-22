@@ -37,6 +37,10 @@ type NomusProposalRow = {
   cofins_recolher: number | null;
   issqn_recolher: number | null;
   simples_nacional_recolher: number | null;
+  cbs_recolher: number | null;
+  ibs_recolher: number | null;
+  ibs_estadual_recolher: number | null;
+  total_tributacao: Record<string, string | number> | null;
   comissoes_venda: number | null;
   frete_valor: number | null;
   seguros_valor: number | null;

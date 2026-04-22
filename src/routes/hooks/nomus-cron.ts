@@ -80,6 +80,10 @@ async function syncProposalDetail(rawSummary: Record<string, unknown>): Promise<
         cofins_recolher: mapped.cofins_recolher,
         issqn_recolher: mapped.issqn_recolher,
         simples_nacional_recolher: mapped.simples_nacional_recolher,
+        cbs_recolher: mapped.cbs_recolher,
+        ibs_recolher: mapped.ibs_recolher,
+        ibs_estadual_recolher: mapped.ibs_estadual_recolher,
+        total_tributacao: mapped.total_tributacao as never,
 
         comissoes_venda: mapped.comissoes_venda,
         frete_valor: mapped.frete_valor,
