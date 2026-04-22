@@ -32,6 +32,7 @@ import { Route as AppPropostasIdRouteImport } from './routes/app.propostas.$id'
 import { Route as AppConfiguracoesNomusRouteImport } from './routes/app.configuracoes.nomus'
 import { Route as AppConfiguracoesApiNomusRouteImport } from './routes/app.configuracoes.api-nomus'
 import { Route as ApiNomusTestRouteImport } from './routes/api.nomus.test'
+import { Route as ApiPublicNomusTabelaPrecoProbeRouteImport } from './routes/api.public.nomus.tabela-preco-probe'
 import { Route as ApiPublicNomusProdutoProbeRouteImport } from './routes/api.public.nomus.produto-probe'
 
 const LoginRoute = LoginRouteImport.update({
@@ -150,6 +151,12 @@ const ApiNomusTestRoute = ApiNomusTestRouteImport.update({
   path: '/api/nomus/test',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicNomusTabelaPrecoProbeRoute =
+  ApiPublicNomusTabelaPrecoProbeRouteImport.update({
+    id: '/api/public/nomus/tabela-preco-probe',
+    path: '/api/public/nomus/tabela-preco-probe',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicNomusProdutoProbeRoute =
   ApiPublicNomusProdutoProbeRouteImport.update({
     id: '/api/public/nomus/produto-probe',
@@ -182,6 +189,7 @@ export interface FileRoutesByFullPath {
   '/app/configuracoes/': typeof AppConfiguracoesIndexRoute
   '/app/propostas/': typeof AppPropostasIndexRoute
   '/api/public/nomus/produto-probe': typeof ApiPublicNomusProdutoProbeRoute
+  '/api/public/nomus/tabela-preco-probe': typeof ApiPublicNomusTabelaPrecoProbeRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -206,6 +214,7 @@ export interface FileRoutesByTo {
   '/app/configuracoes': typeof AppConfiguracoesIndexRoute
   '/app/propostas': typeof AppPropostasIndexRoute
   '/api/public/nomus/produto-probe': typeof ApiPublicNomusProdutoProbeRoute
+  '/api/public/nomus/tabela-preco-probe': typeof ApiPublicNomusTabelaPrecoProbeRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -233,6 +242,7 @@ export interface FileRoutesById {
   '/app/configuracoes/': typeof AppConfiguracoesIndexRoute
   '/app/propostas/': typeof AppPropostasIndexRoute
   '/api/public/nomus/produto-probe': typeof ApiPublicNomusProdutoProbeRoute
+  '/api/public/nomus/tabela-preco-probe': typeof ApiPublicNomusTabelaPrecoProbeRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -261,6 +271,7 @@ export interface FileRouteTypes {
     | '/app/configuracoes/'
     | '/app/propostas/'
     | '/api/public/nomus/produto-probe'
+    | '/api/public/nomus/tabela-preco-probe'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -285,6 +296,7 @@ export interface FileRouteTypes {
     | '/app/configuracoes'
     | '/app/propostas'
     | '/api/public/nomus/produto-probe'
+    | '/api/public/nomus/tabela-preco-probe'
   id:
     | '__root__'
     | '/'
@@ -311,6 +323,7 @@ export interface FileRouteTypes {
     | '/app/configuracoes/'
     | '/app/propostas/'
     | '/api/public/nomus/produto-probe'
+    | '/api/public/nomus/tabela-preco-probe'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -320,6 +333,7 @@ export interface RootRouteChildren {
   HooksNomusCronRoute: typeof HooksNomusCronRoute
   ApiNomusTestRoute: typeof ApiNomusTestRoute
   ApiPublicNomusProdutoProbeRoute: typeof ApiPublicNomusProdutoProbeRoute
+  ApiPublicNomusTabelaPrecoProbeRoute: typeof ApiPublicNomusTabelaPrecoProbeRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -485,6 +499,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiNomusTestRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/nomus/tabela-preco-probe': {
+      id: '/api/public/nomus/tabela-preco-probe'
+      path: '/api/public/nomus/tabela-preco-probe'
+      fullPath: '/api/public/nomus/tabela-preco-probe'
+      preLoaderRoute: typeof ApiPublicNomusTabelaPrecoProbeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/nomus/produto-probe': {
       id: '/api/public/nomus/produto-probe'
       path: '/api/public/nomus/produto-probe'
@@ -555,6 +576,7 @@ const rootRouteChildren: RootRouteChildren = {
   HooksNomusCronRoute: HooksNomusCronRoute,
   ApiNomusTestRoute: ApiNomusTestRoute,
   ApiPublicNomusProdutoProbeRoute: ApiPublicNomusProdutoProbeRoute,
+  ApiPublicNomusTabelaPrecoProbeRoute: ApiPublicNomusTabelaPrecoProbeRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
