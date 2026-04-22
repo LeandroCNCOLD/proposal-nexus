@@ -479,6 +479,72 @@ export type Database = {
           },
         ]
       }
+      nomus_api_catalog: {
+        Row: {
+          category: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          endpoint_path: string
+          fields: Json
+          http_method: string
+          id: string
+          is_used_in_app: boolean
+          last_verified_at: string | null
+          module_key: string
+          module_name: string
+          notes: string | null
+          observed_count: number | null
+          record_type: string | null
+          sample_payload: Json | null
+          status: string
+          tags: string[] | null
+          updated_at: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          endpoint_path: string
+          fields?: Json
+          http_method?: string
+          id?: string
+          is_used_in_app?: boolean
+          last_verified_at?: string | null
+          module_key: string
+          module_name: string
+          notes?: string | null
+          observed_count?: number | null
+          record_type?: string | null
+          sample_payload?: Json | null
+          status?: string
+          tags?: string[] | null
+          updated_at?: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          endpoint_path?: string
+          fields?: Json
+          http_method?: string
+          id?: string
+          is_used_in_app?: boolean
+          last_verified_at?: string | null
+          module_key?: string
+          module_name?: string
+          notes?: string | null
+          observed_count?: number | null
+          record_type?: string | null
+          sample_payload?: Json | null
+          status?: string
+          tags?: string[] | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       nomus_invoices: {
         Row: {
           chave_acesso: string | null
