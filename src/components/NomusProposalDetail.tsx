@@ -70,6 +70,8 @@ type ItemRow = {
   total_with_discount: number | null;
   prazo_entrega_dias: number | null;
   item_status: string | null;
+  nomus_item_id: string | null;
+  nomus_product_id: string | null;
 };
 
 export function NomusProposalDetail({
@@ -213,6 +215,7 @@ export function NomusProposalDetail({
       {/* ============ Modal de detalhes do item ============ */}
       <NomusItemDetailDialog
         itemId={openItem?.id ?? null}
+        prefillItem={openItem}
         open={openItem !== null}
         onOpenChange={(o) => { if (!o) setOpenItem(null); }}
       />

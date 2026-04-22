@@ -1082,6 +1082,27 @@ export const nomusGetItemDetail = createServerFn({ method: "POST" })
       }
     }
 
+    // 3) Equipamento local mapeado (se houver)
+    let equipment: Json | null = null;
+    if (item.nomus_product_id) {
+      const { data: eq } = await supabaseAdmin
+        .from("equipments")
+        .select("*, equipment_lines(code, name, family, application)")
+        .eq("nomus_id", item.nomus_product_id)
+        .maybeSingle();
+      if (eq) equipment = eq as unknown as Json;
+    }
+
+    // 4) Preços do produto em todas as tabelas de preço (Nomus)
+    let priceTableItems: Json[] = [];
+    if (item.nomus_product_id) {
+      const { data: pti } = await supabaseAdmin
+        .from("nomus_price_table_items")
+        .select("*, nomus_price_tables(nomus_id, name, code, currency, is_active)")
+        .eq("nomus_product_id", item.nomus_product_id);
+      if (pti && Array.isArray(pti)) priceTableItems = pti as unknown as Json[];
+    }
+
     // TanStack Start exige tipos serializáveis estritos. Como o conteúdo aqui
     // é JSON arbitrário do Nomus (estrutura desconhecida), serializamos como
     // string e o cliente faz JSON.parse — assim atravessa o validador sem
@@ -1093,5 +1114,7 @@ export const nomusGetItemDetail = createServerFn({ method: "POST" })
       proposta_nomus_id: item.nomus_proposals?.nomus_id ?? null,
       produto_raw_json: JSON.stringify(produto ?? null),
       produto_error: produtoError,
+      equipment_json: JSON.stringify(equipment ?? null),
+      price_table_items_json: JSON.stringify(priceTableItems),
     };
   });

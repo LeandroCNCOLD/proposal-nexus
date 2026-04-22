@@ -5,14 +5,32 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Loader2, AlertCircle } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
 import { nomusGetItemDetail } from "@/integrations/nomus/server.functions";
 import { brl, num } from "@/lib/format";
 
+export type PrefillItem = {
+  id: string;
+  position: number | null;
+  product_code: string | null;
+  description: string | null;
+  additional_info: string | null;
+  quantity: number | null;
+  unit_price: number | null;
+  unit_value_with_unit: string | null;
+  discount: number | null;
+  total: number | null;
+  total_with_discount: number | null;
+  prazo_entrega_dias: number | null;
+  item_status: string | null;
+  nomus_item_id?: string | null;
+  nomus_product_id?: string | null;
+};
+
 type Props = {
   itemId: string | null;
-  itemDescription?: string | null;
-  productCode?: string | null;
+  prefillItem?: PrefillItem | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 };
@@ -25,6 +43,8 @@ type ItemDetailResult =
       proposta_nomus_id: string | null;
       produto_raw_json: string;
       produto_error: string | null;
+      equipment_json: string;
+      price_table_items_json: string;
     }
   | { ok: false; error: string };
 
@@ -33,7 +53,7 @@ function safeParse(s: string | undefined | null): unknown {
   try { return JSON.parse(s); } catch { return null; }
 }
 
-export function NomusItemDetailDialog({ itemId, itemDescription, productCode, open, onOpenChange }: Props) {
+export function NomusItemDetailDialog({ itemId, prefillItem, open, onOpenChange }: Props) {
   const { data, isLoading, error } = useQuery({
     queryKey: ["nomus-item-detail", itemId],
     queryFn: async () => {
@@ -47,21 +67,30 @@ export function NomusItemDetailDialog({ itemId, itemDescription, productCode, op
   const itemRaw = data && data.ok ? safeParse(data.item_raw_json) : null;
   const produtoRaw = data && data.ok ? safeParse(data.produto_raw_json) : null;
   const produtoError = data && data.ok ? data.produto_error : null;
+  const equipment = data && data.ok ? safeParse(data.equipment_json) : null;
+  const priceTableItems = data && data.ok ? (safeParse(data.price_table_items_json) as unknown[] | null) ?? [] : [];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
-          <DialogTitle className="text-base">
-            {productCode ? <span className="font-mono text-xs text-muted-foreground mr-2">{productCode}</span> : null}
-            {itemDescription || "Detalhe do item da proposta"}
+          <DialogTitle className="text-base flex items-center gap-2 flex-wrap">
+            {prefillItem?.product_code ? (
+              <span className="font-mono text-xs text-muted-foreground">{prefillItem.product_code}</span>
+            ) : null}
+            <span>{prefillItem?.description || "Detalhe do item da proposta"}</span>
+            {equipment ? (
+              <Badge variant="secondary" className="gap-1 text-[10px]">
+                <CheckCircle2 className="h-3 w-3" /> Mapeado no catálogo
+              </Badge>
+            ) : null}
           </DialogTitle>
           <DialogDescription>
-            Formulário de edição do item (espelho do cadastro Nomus). Campos somente leitura — preenchidos quando o Nomus retornar os dados completos.
+            Formulário do item — dados sincronizados, complementados pelo cadastro do produto e tabelas de preço do Nomus.
           </DialogDescription>
         </DialogHeader>
 
-        {isLoading && (
+        {isLoading && !prefillItem && (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-5 w-5 animate-spin text-primary" />
           </div>
@@ -81,11 +110,12 @@ export function NomusItemDetailDialog({ itemId, itemDescription, productCode, op
           </div>
         )}
 
-        {data && data.ok && (
+        {(prefillItem || (data && data.ok)) && (
           <Tabs defaultValue="geral" className="w-full flex-1 overflow-hidden flex flex-col">
-            <TabsList className="grid w-full grid-cols-7 flex-shrink-0">
+            <TabsList className="grid w-full grid-cols-8 flex-shrink-0">
               <TabsTrigger value="geral">Geral</TabsTrigger>
               <TabsTrigger value="comercial">Comercial</TabsTrigger>
+              <TabsTrigger value="precos">Preços</TabsTrigger>
               <TabsTrigger value="fiscal">Fiscal</TabsTrigger>
               <TabsTrigger value="tributos">Tributos</TabsTrigger>
               <TabsTrigger value="lucro">Lucro</TabsTrigger>
@@ -95,13 +125,16 @@ export function NomusItemDetailDialog({ itemId, itemDescription, productCode, op
 
             <ScrollArea className="flex-1 mt-3 pr-3">
               <TabsContent value="geral" className="mt-0 space-y-4">
-                <GeralSection itemRaw={itemRaw} />
+                <GeralSection itemRaw={itemRaw} prefill={prefillItem} />
               </TabsContent>
               <TabsContent value="comercial" className="mt-0 space-y-4">
-                <ComercialSection itemRaw={itemRaw} />
+                <ComercialSection itemRaw={itemRaw} prefill={prefillItem} />
+              </TabsContent>
+              <TabsContent value="precos" className="mt-0 space-y-4">
+                <PrecosSection priceTableItems={priceTableItems} prefill={prefillItem} loading={isLoading} />
               </TabsContent>
               <TabsContent value="fiscal" className="mt-0 space-y-4">
-                <FiscalSection itemRaw={itemRaw} />
+                <FiscalSection itemRaw={itemRaw} produtoRaw={produtoRaw} />
               </TabsContent>
               <TabsContent value="tributos" className="mt-0 space-y-4">
                 <TributosSection itemRaw={itemRaw} />
@@ -110,7 +143,7 @@ export function NomusItemDetailDialog({ itemId, itemDescription, productCode, op
                 <LucroSection itemRaw={itemRaw} />
               </TabsContent>
               <TabsContent value="produto" className="mt-0 space-y-4">
-                <ProdutoSection produtoRaw={produtoRaw} produtoError={produtoError} />
+                <ProdutoSection produtoRaw={produtoRaw} produtoError={produtoError} equipment={equipment} loading={isLoading} />
               </TabsContent>
               <TabsContent value="json" className="mt-0 space-y-4">
                 <div>
@@ -125,6 +158,10 @@ export function NomusItemDetailDialog({ itemId, itemDescription, productCode, op
                     <JsonView value={produtoRaw} />
                   )}
                 </div>
+                <div>
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">Equipamento local (JSON)</Label>
+                  <JsonView value={equipment} />
+                </div>
               </TabsContent>
             </ScrollArea>
           </Tabs>
@@ -136,49 +173,49 @@ export function NomusItemDetailDialog({ itemId, itemDescription, productCode, op
 
 // =================== Sections (form-style) ===================
 
-function GeralSection({ itemRaw }: { itemRaw: unknown }) {
+function GeralSection({ itemRaw, prefill }: { itemRaw: unknown; prefill?: PrefillItem | null }) {
   const o = (itemRaw ?? {}) as Record<string, unknown>;
   return (
     <FormCard title="Identificação do item">
       <FormGrid cols={3}>
-        <Field label="ID do item (Nomus)" value={pickStr(o, "id", "idItem")} />
-        <Field label="Posição" value={pickAny(o, "posicao", "ordem", "sequencia")} />
-        <Field label="Status do item" value={pickStr(o, "status", "situacao")} />
-        <Field label="Código do produto" value={pickStr(o, "codigoProduto", "codigo")} mono />
-        <Field label="ID do produto" value={pickStr(o, "idProduto", "produtoId")} mono />
+        <Field label="ID do item (Nomus)" value={pickStr(o, "id", "idItem") ?? prefill?.nomus_item_id} mono />
+        <Field label="Posição" value={pickAny(o, "posicao", "ordem", "sequencia") ?? (prefill?.position != null ? prefill.position + 1 : null)} />
+        <Field label="Status do item" value={pickStr(o, "status", "situacao") ?? prefill?.item_status} />
+        <Field label="Código do produto" value={pickStr(o, "codigoProduto", "codigo") ?? prefill?.product_code} mono />
+        <Field label="ID do produto" value={pickStr(o, "idProduto", "produtoId") ?? prefill?.nomus_product_id} mono />
         <Field label="EAN/GTIN" value={pickStr(o, "ean", "gtin", "codigoBarras")} mono />
       </FormGrid>
       <FormGrid cols={1}>
-        <Field label="Descrição" value={pickStr(o, "descricaoProduto", "descricao", "nome")} multiline />
-        <Field label="Informações adicionais" value={pickStr(o, "informacoesAdicionaisProduto", "informacoesAdicionais", "observacao")} multiline />
+        <Field label="Descrição" value={pickStr(o, "descricaoProduto", "descricao", "nome") ?? prefill?.description} multiline />
+        <Field label="Informações adicionais" value={pickStr(o, "informacoesAdicionaisProduto", "informacoesAdicionais", "observacao") ?? prefill?.additional_info} multiline />
       </FormGrid>
     </FormCard>
   );
 }
 
-function ComercialSection({ itemRaw }: { itemRaw: unknown }) {
+function ComercialSection({ itemRaw, prefill }: { itemRaw: unknown; prefill?: PrefillItem | null }) {
   const o = (itemRaw ?? {}) as Record<string, unknown>;
   return (
     <>
       <FormCard title="Quantidade e preços">
         <FormGrid cols={3}>
-          <Field label="Quantidade" value={pickAny(o, "qtde", "quantidade")} />
-          <Field label="Unidade" value={pickStr(o, "unidade", "unidadeMedida")} />
-          <Field label="Valor unitário" value={pickAny(o, "valorUnitario", "preco", "valorVenda")} money />
+          <Field label="Quantidade" value={pickAny(o, "qtde", "quantidade") ?? prefill?.quantity} />
+          <Field label="Unidade" value={pickStr(o, "unidade", "unidadeMedida") ?? extractUnit(prefill?.unit_value_with_unit)} />
+          <Field label="Valor unitário" value={pickAny(o, "valorUnitario", "preco", "valorVenda") ?? prefill?.unit_price} money />
           <Field label="Desconto (%)" value={pickAny(o, "percentualDesconto", "descontoPercentual")} percent />
-          <Field label="Desconto (R$)" value={pickAny(o, "valorDesconto", "desconto")} money />
+          <Field label="Desconto (R$)" value={pickAny(o, "valorDesconto", "desconto") ?? prefill?.discount} money />
           <Field label="Acréscimo" value={pickAny(o, "valorAcrescimo", "acrescimo")} money />
         </FormGrid>
         <FormGrid cols={3}>
-          <Field label="Valor total" value={pickAny(o, "valorTotal", "total")} money />
-          <Field label="Valor total c/ desconto" value={pickAny(o, "valorTotalComDesconto")} money />
+          <Field label="Valor total" value={pickAny(o, "valorTotal", "total") ?? prefill?.total} money />
+          <Field label="Valor total c/ desconto" value={pickAny(o, "valorTotalComDesconto") ?? prefill?.total_with_discount} money />
           <Field label="Valor líquido" value={pickAny(o, "valorLiquido", "valorLiquidoItem")} money />
         </FormGrid>
       </FormCard>
 
       <FormCard title="Entrega">
         <FormGrid cols={3}>
-          <Field label="Prazo de entrega (dias)" value={pickAny(o, "prazoEntrega", "diasEntrega", "prazoEntregaDias")} />
+          <Field label="Prazo de entrega (dias)" value={pickAny(o, "prazoEntrega", "diasEntrega", "prazoEntregaDias") ?? prefill?.prazo_entrega_dias} />
           <Field label="Data prevista" value={pickStr(o, "dataPrevisaoEntrega", "dataEntrega")} />
           <Field label="Local de entrega" value={pickStr(o, "localEntrega")} />
         </FormGrid>
@@ -187,17 +224,96 @@ function ComercialSection({ itemRaw }: { itemRaw: unknown }) {
   );
 }
 
-function FiscalSection({ itemRaw }: { itemRaw: unknown }) {
+function PrecosSection({
+  priceTableItems,
+  prefill,
+  loading,
+}: {
+  priceTableItems: unknown[];
+  prefill?: PrefillItem | null;
+  loading: boolean;
+}) {
+  if (loading && priceTableItems.length === 0) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <Loader2 className="h-4 w-4 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!priceTableItems || priceTableItems.length === 0) {
+    return (
+      <FormCard title="Tabelas de preço">
+        <div className="text-sm text-muted-foreground">
+          Nenhum preço cadastrado para este produto nas tabelas sincronizadas.
+        </div>
+        {prefill?.unit_price != null && (
+          <div className="rounded-md border bg-secondary/30 p-3 text-xs">
+            <span className="text-muted-foreground">Preço aplicado nesta proposta: </span>
+            <span className="font-medium tabular-nums">{brl(prefill.unit_price)}</span>
+          </div>
+        )}
+      </FormCard>
+    );
+  }
+
+  return (
+    <FormCard title={`Tabelas de preço (${priceTableItems.length})`}>
+      <div className="overflow-hidden rounded-md border">
+        <table className="w-full text-sm">
+          <thead className="bg-secondary/40 text-[11px] uppercase tracking-wider text-muted-foreground">
+            <tr>
+              <th className="px-3 py-2 text-left">Tabela</th>
+              <th className="px-3 py-2 text-left">Código</th>
+              <th className="px-3 py-2 text-left">Moeda</th>
+              <th className="px-3 py-2 text-right">Preço unitário</th>
+              <th className="px-3 py-2 text-center">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {priceTableItems.map((row, idx) => {
+              const r = row as Record<string, unknown>;
+              const tbl = (r.nomus_price_tables ?? {}) as Record<string, unknown>;
+              const isCurrent = prefill?.unit_price != null && Number(r.unit_price) === Number(prefill.unit_price);
+              return (
+                <tr key={(r.id as string) ?? idx} className={`border-t ${isCurrent ? "bg-primary/5" : ""}`}>
+                  <td className="px-3 py-2">{(tbl.name as string) ?? "—"}</td>
+                  <td className="px-3 py-2 font-mono text-xs">{(tbl.code as string) ?? "—"}</td>
+                  <td className="px-3 py-2 text-xs">{(r.currency as string) ?? (tbl.currency as string) ?? "BRL"}</td>
+                  <td className="px-3 py-2 text-right tabular-nums font-medium">
+                    {brl(Number(r.unit_price))}
+                  </td>
+                  <td className="px-3 py-2 text-center">
+                    {isCurrent ? (
+                      <Badge variant="secondary" className="text-[10px]">aplicada</Badge>
+                    ) : (tbl.is_active === false ? (
+                      <span className="text-[10px] text-muted-foreground">inativa</span>
+                    ) : (
+                      <span className="text-[10px] text-muted-foreground">—</span>
+                    ))}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </FormCard>
+  );
+}
+
+function FiscalSection({ itemRaw, produtoRaw }: { itemRaw: unknown; produtoRaw: unknown }) {
   const o = (itemRaw ?? {}) as Record<string, unknown>;
+  const p = (produtoRaw ?? {}) as Record<string, unknown>;
   return (
     <FormCard title="Classificação fiscal">
       <FormGrid cols={3}>
-        <Field label="NCM" value={pickStr(o, "ncm", "codigoNcm", "classificacaoFiscal")} mono />
-        <Field label="CEST" value={pickStr(o, "cest")} mono />
-        <Field label="CFOP" value={pickStr(o, "cfop", "codigoCfop")} mono />
+        <Field label="NCM" value={pickStr(o, "ncm", "codigoNcm", "classificacaoFiscal") ?? pickStr(p, "ncm", "classificacaoFiscal")} mono />
+        <Field label="CEST" value={pickStr(o, "cest") ?? pickStr(p, "cest")} mono />
+        <Field label="CFOP" value={pickStr(o, "cfop", "codigoCfop") ?? pickStr(p, "cfop", "cfopPadrao")} mono />
         <Field label="CST ICMS" value={pickStr(o, "cstIcms", "cst")} mono />
         <Field label="CSOSN" value={pickStr(o, "csosn")} mono />
-        <Field label="Origem do produto" value={pickStr(o, "origem", "origemProduto")} />
+        <Field label="Origem do produto" value={pickStr(o, "origem", "origemProduto") ?? pickStr(p, "origem")} />
         <Field label="CST IPI" value={pickStr(o, "cstIpi")} mono />
         <Field label="CST PIS" value={pickStr(o, "cstPis")} mono />
         <Field label="CST COFINS" value={pickStr(o, "cstCofins")} mono />
@@ -312,15 +428,52 @@ function LucroSection({ itemRaw }: { itemRaw: unknown }) {
   );
 }
 
-function ProdutoSection({ produtoRaw, produtoError }: { produtoRaw: unknown; produtoError: string | null }) {
-  if (produtoError) {
-    return (
-      <div className="rounded-md border bg-secondary/30 p-3 text-sm text-muted-foreground">{produtoError}</div>
-    );
-  }
+function ProdutoSection({
+  produtoRaw,
+  produtoError,
+  equipment,
+  loading,
+}: {
+  produtoRaw: unknown;
+  produtoError: string | null;
+  equipment: unknown;
+  loading: boolean;
+}) {
   const o = (produtoRaw ?? {}) as Record<string, unknown>;
+  const eq = (equipment ?? {}) as Record<string, unknown>;
+  const eqLine = (eq.equipment_lines ?? {}) as Record<string, unknown>;
+
   return (
     <>
+      {loading && !produtoRaw && (
+        <div className="flex items-center justify-center py-4">
+          <Loader2 className="h-4 w-4 animate-spin text-primary" />
+        </div>
+      )}
+
+      {produtoError && (
+        <div className="rounded-md border bg-secondary/30 p-3 text-sm text-muted-foreground">{produtoError}</div>
+      )}
+
+      {equipment && (
+        <FormCard title="Equipamento mapeado no catálogo local">
+          <FormGrid cols={3}>
+            <Field label="Modelo" value={pickStr(eq, "model")} mono />
+            <Field label="Linha" value={pickStr(eqLine, "name", "code")} />
+            <Field label="Família" value={pickStr(eqLine, "family")} />
+            <Field label="Aplicação" value={pickStr(eq, "application") ?? pickStr(eqLine, "application")} />
+            <Field label="Voltagem" value={pickStr(eq, "voltage")} />
+            <Field label="Refrigerante" value={pickStr(eq, "refrigerant")} />
+            <Field label="Gabinete" value={pickStr(eq, "cabinet", "cabinet_type")} />
+            <Field label="Evaporador" value={pickStr(eq, "evaporator_model")} />
+            <Field label="Condensador" value={pickStr(eq, "condenser_model")} />
+          </FormGrid>
+          <FormGrid cols={1}>
+            <Field label="Notas técnicas" value={pickStr(eq, "technical_notes")} multiline />
+          </FormGrid>
+        </FormCard>
+      )}
+
       <FormCard title="Cadastro do produto (Nomus)">
         <FormGrid cols={3}>
           <Field label="ID Nomus" value={pickStr(o, "id", "idProduto")} mono />
@@ -451,4 +604,11 @@ function formatValue(value: unknown, opts: { money?: boolean; percent?: boolean 
   if (opts.money && Number.isFinite(n)) return brl(n);
   if (opts.percent && Number.isFinite(n)) return `${num(n, 2)} %`;
   return String(value);
+}
+
+function extractUnit(s: string | null | undefined): string | null {
+  if (!s) return null;
+  // Ex.: "R$ 1.234,56 / UN" -> "UN"
+  const m = s.match(/\/\s*([A-Za-z]{1,4})\s*$/);
+  return m ? m[1] : null;
 }
