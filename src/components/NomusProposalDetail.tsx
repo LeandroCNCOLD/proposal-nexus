@@ -225,6 +225,16 @@ export function NomusProposalDetail({
         prefillItem={openItem}
         open={openItem !== null}
         onOpenChange={(o) => { if (!o) setOpenItem(null); }}
+        proposalTaxes={
+          p.total_tributacao ??
+          (Array.isArray((p.raw as { totalTributacao?: unknown[] } | null)?.totalTributacao)
+            ? ((p.raw as { totalTributacao: Record<string, string | number>[] }).totalTributacao[0] ?? null)
+            : null)
+        }
+        proposalProductsTotal={
+          // soma dos totais dos itens — base do rateio proporcional
+          items.reduce((s, it) => s + Number(it.total_with_discount ?? it.total ?? 0), 0)
+        }
       />
 
       {/* ============ Resumo de impostos ============ */}

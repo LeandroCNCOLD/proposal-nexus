@@ -34,6 +34,10 @@ type Props = {
   prefillItem?: PrefillItem | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** `totalTributacao[0]` da proposta — usado como fallback rateado quando o detalhe individual do item não estiver disponível. */
+  proposalTaxes?: Record<string, string | number> | null;
+  /** Soma dos totais dos itens da proposta — base para o rateio proporcional. */
+  proposalProductsTotal?: number;
 };
 
 type ItemDetailResult =
@@ -67,7 +71,7 @@ function mergeItem(itemRaw: unknown, itemDetail: unknown): Record<string, unknow
   return { ...a, ...b };
 }
 
-export function NomusItemDetailDialog({ itemId, prefillItem, open, onOpenChange }: Props) {
+export function NomusItemDetailDialog({ itemId, prefillItem, open, onOpenChange, proposalTaxes, proposalProductsTotal }: Props) {
   const { data, isLoading, error } = useQuery({
     queryKey: ["nomus-item-detail", itemId],
     queryFn: async () => {
@@ -119,9 +123,12 @@ export function NomusItemDetailDialog({ itemId, prefillItem, open, onOpenChange 
         </DialogHeader>
 
         {itemDetailError && data && data.ok && !detailLoaded && (
-          <div className="flex items-start gap-2 rounded-md border border-warning/30 bg-warning/10 p-3 text-xs text-warning-foreground">
+          <div className="flex items-start gap-2 rounded-md border bg-secondary/40 p-3 text-xs text-muted-foreground">
             <AlertCircle className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
-            <div>Detalhe completo do item indisponível: {itemDetailError}</div>
+            <div>
+              Esta instalação do Nomus não expõe o detalhe individual de itens (`/propostas/&#123;id&#125;/itens/&#123;itemId&#125;`).
+              Os impostos abaixo são <strong>rateados a partir do total da proposta</strong>, proporcionalmente ao valor deste item.
+            </div>
           </div>
         )}
 
@@ -173,6 +180,13 @@ export function NomusItemDetailDialog({ itemId, prefillItem, open, onOpenChange 
               </TabsContent>
               <TabsContent value="tributos" className="mt-0 space-y-4">
                 <TributosSection itemRaw={itemRaw} />
+                {!detailLoaded && proposalTaxes && (
+                  <TributosRateio
+                    proposalTaxes={proposalTaxes}
+                    itemTotal={Number(prefillItem?.total_with_discount ?? prefillItem?.total ?? 0)}
+                    proposalProductsTotal={Number(proposalProductsTotal ?? 0)}
+                  />
+                )}
               </TabsContent>
               <TabsContent value="lucro" className="mt-0 space-y-4">
                 <ProposalItemLucroAnalysis analiseLucro={analiseLucro} />
@@ -554,6 +568,98 @@ function ProdutoSection({
         </FormGrid>
       </FormCard>
     </>
+  );
+}
+
+// =================== Tributos rateados (fallback) ===================
+
+/**
+ * Quando o endpoint individual `/propostas/{id}/itens/{itemId}` não existe
+ * nessa instalação do Nomus, usamos os impostos totais da proposta
+ * (`raw.totalTributacao[0]`) e rateamos proporcionalmente ao valor do item.
+ */
+function TributosRateio({
+  proposalTaxes,
+  itemTotal,
+  proposalProductsTotal,
+}: {
+  proposalTaxes: Record<string, string | number>;
+  itemTotal: number;
+  proposalProductsTotal: number;
+}) {
+  const ratio =
+    proposalProductsTotal > 0 && itemTotal > 0 ? itemTotal / proposalProductsTotal : 0;
+
+  const toN = (v: unknown): number => {
+    if (v === null || v === undefined || v === "") return 0;
+    if (typeof v === "number") return Number.isFinite(v) ? v : 0;
+    const s = String(v).replace(/\./g, "").replace(",", ".");
+    const n = Number(s);
+    return Number.isFinite(n) ? n : 0;
+  };
+
+  const rows: Array<{ key: string; label: string; total: number }> = [
+    { key: "icms", label: "ICMS", total: toN(proposalTaxes.valorIcms) },
+    { key: "icms_st", label: "ICMS ST", total: toN(proposalTaxes.valorIcmsSt) },
+    { key: "ipi", label: "IPI", total: toN(proposalTaxes.valorIpi) },
+    { key: "iss", label: "ISS / ISSQN", total: toN(proposalTaxes.valorIss) },
+    { key: "pis", label: "PIS", total: toN(proposalTaxes.valorPis) },
+    { key: "cofins", label: "COFINS", total: toN(proposalTaxes.valorCofins) },
+    { key: "cbs", label: "CBS", total: toN(proposalTaxes.valorCbs) },
+    { key: "ibs", label: "IBS", total: toN(proposalTaxes.valorIbs) },
+    { key: "ibs_estadual", label: "IBS Estadual", total: toN(proposalTaxes.valorIbsEstadual) },
+  ].filter((r) => r.total > 0);
+
+  if (rows.length === 0) return null;
+
+  const totalAlocado = rows.reduce((s, r) => s + r.total * ratio, 0);
+
+  return (
+    <FormCard title="Impostos rateados a partir da proposta">
+      <div className="text-[11px] text-muted-foreground mb-2">
+        Participação deste item no total da proposta:{" "}
+        <span className="font-semibold text-foreground tabular-nums">
+          {(ratio * 100).toFixed(2)}%
+        </span>{" "}
+        — {brl(itemTotal)} de {brl(proposalProductsTotal)}
+      </div>
+      <div className="overflow-hidden rounded-md border">
+        <table className="w-full text-sm">
+          <thead className="bg-secondary/40 text-[11px] uppercase tracking-wider text-muted-foreground">
+            <tr>
+              <th className="px-3 py-2 text-left">Tributo</th>
+              <th className="px-3 py-2 text-right">Total na proposta</th>
+              <th className="px-3 py-2 text-right">Atribuído ao item</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.key} className="border-t">
+                <td className="px-3 py-2">{r.label}</td>
+                <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
+                  {brl(r.total)}
+                </td>
+                <td className="px-3 py-2 text-right tabular-nums font-medium">
+                  {brl(r.total * ratio)}
+                </td>
+              </tr>
+            ))}
+            <tr className="border-t bg-secondary/30">
+              <td className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Total atribuído
+              </td>
+              <td className="px-3 py-2" />
+              <td className="px-3 py-2 text-right tabular-nums font-semibold">
+                {brl(totalAlocado)}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div className="text-[11px] text-muted-foreground italic">
+        Valores estimados. Para ver os tributos exatos por item (com base de cálculo, alíquota e fundamentação legal), o ERP precisa expor o endpoint de detalhe individual de itens da proposta.
+      </div>
+    </FormCard>
   );
 }
 
