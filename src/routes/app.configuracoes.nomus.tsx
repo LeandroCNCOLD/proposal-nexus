@@ -18,7 +18,7 @@ import {
   nomusSyncPaymentTerms,
   nomusSyncSellers,
   nomusSyncRepresentatives,
-  nomusSyncProposalsFull,
+  nomusKickoffSyncProposals,
   nomusSyncPedidos,
   nomusSyncInvoices,
 } from "@/integrations/nomus/server.functions";
@@ -36,7 +36,7 @@ function NomusPage() {
   const syncPaymentTerms = useServerFn(nomusSyncPaymentTerms);
   const syncSellers = useServerFn(nomusSyncSellers);
   const syncRepresentatives = useServerFn(nomusSyncRepresentatives);
-  const syncProposalsFull = useServerFn(nomusSyncProposalsFull);
+  const kickoffProposals = useServerFn(nomusKickoffSyncProposals);
   const syncPedidos = useServerFn(nomusSyncPedidos);
   const syncInvoices = useServerFn(nomusSyncInvoices);
   const ENTITIES = [
@@ -45,7 +45,10 @@ function NomusPage() {
     { key: "condicoes_pagamento", label: "Condições de pagamento", run: syncPaymentTerms },
     { key: "vendedores", label: "Vendedores", run: syncSellers },
     { key: "representantes", label: "Representantes", run: syncRepresentatives },
-    { key: "propostas", label: "Propostas (ERP → CN COLD)", run: syncProposalsFull },
+    { key: "propostas", label: "Propostas (ERP → CN COLD)", run: async () => {
+      const r = await kickoffProposals({});
+      return r.ok ? { ok: true as const, count: 0 } : { ok: false as const, error: (r as { error?: string }).error ?? "Falha" };
+    } },
     { key: "pedidos", label: "Pedidos de venda", run: syncPedidos },
     { key: "notas_fiscais", label: "Notas Fiscais", run: syncInvoices },
   ];
