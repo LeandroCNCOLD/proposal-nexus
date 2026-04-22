@@ -18,6 +18,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { nomusCreatePedido, generateProposalFile, sendProposalFile } from "@/integrations/nomus/server.functions";
+import { NomusProposalDetail } from "@/components/NomusProposalDetail";
 
 export const Route = createFileRoute("/app/propostas/$id")({ component: ProposalDetail });
 
