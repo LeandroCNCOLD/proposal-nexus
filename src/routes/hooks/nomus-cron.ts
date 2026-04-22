@@ -241,11 +241,18 @@ const PROPOSALS_WINDOW_MONTHS = 36;
 const PROPOSALS_BATCH_SIZE = 25;
 
 /**
- * Sync incremental de propostas — do mais recente para o mais antigo.
- * - Marca running=true no início e SEMPRE desmarca no finally (mesmo em exceção).
- * - Trata 400 da listagem como "fim da paginação" (Nomus às vezes responde 400 em página inexistente).
- * - Processa em lotes (PROPOSALS_BATCH_SIZE) e salva o cursor (último id processado) para retomar
- *   na próxima execução. Cliques sucessivos em "Buscar do Nomus" avançam a sync.
+ * Sync incremental de propostas — uma página por clique.
+ *
+ * MUDANÇA CRÍTICA (anti-rate-limit): em vez de listar TODAS as páginas a cada clique
+ * (o que gerava 138+ chamadas e batia em HTTP 429), agora pedimos UMA página de cada
+ * vez ao Nomus. O cursor agora é o NÚMERO DA PÁGINA, não o id da última proposta.
+ *
+ * Fluxo:
+ * - Lê cursor (número da página atual; padrão 1).
+ * - Busca a página `?pagina=N` (até ~50 propostas).
+ * - Para cada uma, GET /propostas/{id} para detalhe completo + upsert.
+ * - Se a página vier vazia ou todas estiverem fora da janela de 36 meses → done.
+ * - Caso contrário, avança o cursor para N+1 e termina.
  */
 export async function syncProposalsBatch(): Promise<{ ok: boolean; count?: number; error?: string; done?: boolean }> {
   return pullProposalsNewestFirst();
@@ -262,107 +269,115 @@ async function pullProposalsNewestFirst(): Promise<{ ok: boolean; count?: number
     updated_at: new Date().toISOString(),
   });
 
-  // Recupera cursor (último id já processado nesta varredura)
+  // Cursor agora é o número da página a processar (string para compat com schema text)
   const { data: stateRow } = await supabaseAdmin
     .from("nomus_sync_state")
     .select("last_cursor, total_synced")
     .eq("entity", "propostas")
     .maybeSingle();
-  const lastCursor = (stateRow as { last_cursor: string | null } | null)?.last_cursor ?? null;
+
   const previousTotal = (stateRow as { total_synced: number } | null)?.total_synced ?? 0;
+  const cursorRaw = (stateRow as { last_cursor: string | null } | null)?.last_cursor ?? null;
+  // Se cursor parece um id antigo (>1000), reseta para página 1.
+  // Caso contrário usa como número de página (1-based).
+  const parsedCursor = cursorRaw ? Number(cursorRaw) : NaN;
+  let pagina = Number.isFinite(parsedCursor) && parsedCursor > 0 && parsedCursor <= 200
+    ? parsedCursor
+    : 1;
 
   let count = 0;
-  let lastProcessedId: string | null = lastCursor;
   let done = false;
   let runError: string | null = null;
+  let nextCursor: string | null = String(pagina);
 
   try {
-    // Lista bruta — graceful em caso de 400 (trata como lista vazia).
-    const res = await listAll<Record<string, unknown>>(endpoint, {}, { entity: "propostas" });
-    if (!res.ok) {
-      // Se for 400, tratamos como "sem dados a processar" em vez de derrubar
-      const isParamError = /\b400\b/.test(res.error);
-      if (!isParamError) {
-        runError = res.error;
-        return { ok: false, error: res.error };
-      }
-      console.warn("[nomus-cron] listagem retornou 400, tratando como vazia:", res.error);
-    }
-
-    const items = res.ok ? res.items : [];
-
-    // Ordena por id desc (mais novo primeiro)
-    const all = [...items];
-    all.sort((a, b) => {
-      const ai = Number(pickStr(a, "id", "idProposta", "codigo") ?? 0);
-      const bi = Number(pickStr(b, "id", "idProposta", "codigo") ?? 0);
-      return bi - ai;
-    });
-
-    // Se há cursor, pula tudo até passar do último id já processado
-    let startIdx = 0;
-    if (lastCursor) {
-      const cursorNum = Number(lastCursor);
-      const idx = all.findIndex((s) => {
-        const sid = Number(pickStr(s, "id", "idProposta", "codigo") ?? 0);
-        return sid < cursorNum;
-      });
-      startIdx = idx >= 0 ? idx : all.length;
-    }
-
     const cutoff = new Date();
     cutoff.setMonth(cutoff.getMonth() - PROPOSALS_WINDOW_MONTHS);
     const cutoffMs = cutoff.getTime();
 
-    let consecutiveOutOfWindow = 0;
-    const STOP_AFTER_OLD = 25;
+    // Busca apenas UMA página
+    const pageRes = await nomusFetch<unknown>(endpoint, {
+      method: "GET",
+      query: { pagina },
+      entity: "propostas",
+      operation: "list",
+      direction: "pull",
+    });
 
-    for (let i = startIdx; i < all.length; i++) {
-      if (count >= PROPOSALS_BATCH_SIZE) break; // lote cheio, próxima invocação continua
-
-      const summary = all[i];
-      const id = pickStr(summary, "id", "idProposta", "codigo");
-      if (!id) continue;
-
-      const detailRes = await getOne<Record<string, unknown>>(endpoint, id, { entity: "propostas" });
-      const raw = detailRes.ok ? detailRes.data : summary;
-
-      const dateStr =
-        pickStr(raw, "dataHoraCriacao", "criadaEm", "dataCriacao", "dataEmissao") ?? null;
-      let inWindow = true;
-      if (dateStr) {
-        const iso = /^\d{4}-\d{2}-\d{2}/.test(dateStr)
-          ? dateStr
-          : /^\d{2}\/\d{2}\/\d{4}/.test(dateStr)
-          ? `${dateStr.slice(6, 10)}-${dateStr.slice(3, 5)}-${dateStr.slice(0, 2)}`
-          : null;
-        const ts = iso ? new Date(iso).getTime() : NaN;
-        if (Number.isFinite(ts)) inWindow = ts >= cutoffMs;
-      }
-
-      lastProcessedId = id;
-
-      if (!inWindow) {
-        consecutiveOutOfWindow += 1;
-        if (consecutiveOutOfWindow >= STOP_AFTER_OLD) {
-          done = true;
-          break;
-        }
-        continue;
-      }
-      consecutiveOutOfWindow = 0;
-
-      try {
-        await syncProposalDetail(summary);
-        count += 1;
-      } catch (e) {
-        console.error("[nomus-cron] erro mapeando proposta:", e);
+    if (!pageRes.ok) {
+      // 400 = página inexistente (fim) — encerra normalmente
+      if (pageRes.status === 400) {
+        done = true;
+      } else {
+        runError = pageRes.error;
+        return { ok: false, error: pageRes.error };
       }
     }
 
-    // Se chegou ao fim da lista sem encher o lote → terminou tudo
-    if (count < PROPOSALS_BATCH_SIZE && startIdx + count >= all.length) {
+    const rawList = pageRes.ok ? pageRes.data : null;
+    const items: Array<Record<string, unknown>> = Array.isArray(rawList)
+      ? (rawList as Array<Record<string, unknown>>)
+      : (() => {
+          const env = (rawList ?? {}) as Record<string, unknown>;
+          for (const k of ["items", "resultados", "data", "content", "registros", "lista"]) {
+            const v = env[k];
+            if (Array.isArray(v)) return v as Array<Record<string, unknown>>;
+          }
+          return [];
+        })();
+
+    if (items.length === 0) {
       done = true;
+    } else {
+      // Ordena por id desc (mais novo primeiro) dentro da página
+      items.sort((a, b) => {
+        const ai = Number(pickStr(a, "id", "idProposta", "codigo") ?? 0);
+        const bi = Number(pickStr(b, "id", "idProposta", "codigo") ?? 0);
+        return bi - ai;
+      });
+
+      let consecutiveOutOfWindow = 0;
+      const STOP_AFTER_OLD = 25;
+
+      for (const summary of items) {
+        if (count >= PROPOSALS_BATCH_SIZE) break;
+
+        const id = pickStr(summary, "id", "idProposta", "codigo");
+        if (!id) continue;
+
+        // Tenta filtrar pela janela usando data do summary primeiro (sem precisar do detalhe)
+        const summaryDate = pickStr(summary, "dataHoraCriacao", "criadaEm", "dataCriacao", "dataEmissao");
+        if (summaryDate) {
+          const iso = /^\d{4}-\d{2}-\d{2}/.test(summaryDate)
+            ? summaryDate
+            : /^\d{2}\/\d{2}\/\d{4}/.test(summaryDate)
+            ? `${summaryDate.slice(6, 10)}-${summaryDate.slice(3, 5)}-${summaryDate.slice(0, 2)}`
+            : null;
+          const ts = iso ? new Date(iso).getTime() : NaN;
+          if (Number.isFinite(ts) && ts < cutoffMs) {
+            consecutiveOutOfWindow += 1;
+            if (consecutiveOutOfWindow >= STOP_AFTER_OLD) {
+              done = true;
+              break;
+            }
+            continue;
+          }
+        }
+        consecutiveOutOfWindow = 0;
+
+        try {
+          await syncProposalDetail(summary);
+          count += 1;
+        } catch (e) {
+          console.error("[nomus-cron] erro mapeando proposta:", e);
+        }
+      }
+
+      // Página processada — avança cursor
+      if (!done) {
+        pagina += 1;
+        nextCursor = String(pagina);
+      }
     }
   } catch (e) {
     runError = e instanceof Error ? e.message : String(e);
@@ -373,7 +388,7 @@ async function pullProposalsNewestFirst(): Promise<{ ok: boolean; count?: number
       entity: "propostas",
       last_synced_at: new Date().toISOString(),
       total_synced: previousTotal + count,
-      last_cursor: done ? null : lastProcessedId,
+      last_cursor: done ? null : nextCursor,
       running: false,
       last_error: runError,
       updated_at: new Date().toISOString(),
