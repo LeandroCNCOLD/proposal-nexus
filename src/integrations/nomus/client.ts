@@ -379,7 +379,7 @@ export async function testNomusConnection(triggeredBy: string | null = null): Pr
   }
   const res = await nomusFetch(endpoint, {
     method: "GET",
-    query: { pagina: 1 },
+    // Sem query params: alguns ERPs Nomus rejeitam `pagina=1` em health check.
     entity: "test",
     operation: "ping",
     direction: "test",
