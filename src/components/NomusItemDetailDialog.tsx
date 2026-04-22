@@ -107,11 +107,23 @@ export function NomusItemDetailDialog({ itemId, prefillItem, open, onOpenChange 
                 <CheckCircle2 className="h-3 w-3" /> Mapeado no catálogo
               </Badge>
             ) : null}
+            {detailLoaded ? (
+              <Badge variant="default" className="gap-1 text-[10px]">
+                <CheckCircle2 className="h-3 w-3" /> Detalhe completo carregado
+              </Badge>
+            ) : null}
           </DialogTitle>
           <DialogDescription>
-            Formulário do item — dados sincronizados, complementados pelo cadastro do produto e tabelas de preço do Nomus.
+            Formulário do item — dados sincronizados, complementados pelo cadastro do produto, tabelas de preço e detalhe completo do Nomus.
           </DialogDescription>
         </DialogHeader>
+
+        {itemDetailError && data && data.ok && !detailLoaded && (
+          <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-300">
+            <AlertCircle className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
+            <div>Detalhe completo do item indisponível: {itemDetailError}</div>
+          </div>
+        )}
 
         {isLoading && !prefillItem && (
           <div className="flex items-center justify-center py-12">
@@ -163,6 +175,7 @@ export function NomusItemDetailDialog({ itemId, prefillItem, open, onOpenChange 
                 <TributosSection itemRaw={itemRaw} />
               </TabsContent>
               <TabsContent value="lucro" className="mt-0 space-y-4">
+                <ProposalItemLucroAnalysis analiseLucro={analiseLucro} />
                 <LucroSection itemRaw={itemRaw} />
               </TabsContent>
               <TabsContent value="produto" className="mt-0 space-y-4">
