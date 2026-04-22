@@ -112,7 +112,7 @@ export function NomusProposalDetail({
   }
 
   const p = data.prop;
-  const items = data.items;
+  const [openItem, setOpenItem] = useState<ItemRow | null>(null);
 
   return (
     <div className="space-y-6">
@@ -170,13 +170,18 @@ export function NomusProposalDetail({
               </thead>
               <tbody>
                 {items.map((it) => (
-                  <tr key={it.id} className="border-t">
+                  <tr
+                    key={it.id}
+                    className="border-t cursor-pointer hover:bg-secondary/30 transition-colors"
+                    onClick={() => setOpenItem(it)}
+                    title="Clique para ver detalhes completos do item (tributos, produto, JSON)"
+                  >
                     <td className="px-3 py-2 font-mono text-xs text-muted-foreground">
                       {String((it.position ?? 0) + 1).padStart(2, "0")}
                     </td>
                     <td className="px-3 py-2 font-mono text-xs">{it.product_code ?? "—"}</td>
                     <td className="px-3 py-2">
-                      <div>{it.description}</div>
+                      <div className="text-primary underline-offset-2 hover:underline">{it.description}</div>
                       {it.additional_info && (
                         <div className="mt-0.5 text-[11px] text-muted-foreground whitespace-pre-wrap">
                           {it.additional_info}
