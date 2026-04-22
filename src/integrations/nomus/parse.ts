@@ -147,6 +147,12 @@ export type NomusProposalMapped = {
   cofins_recolher: number | null;
   issqn_recolher: number | null;
   simples_nacional_recolher: number | null;
+  // Reforma tributária
+  cbs_recolher: number | null;
+  ibs_recolher: number | null;
+  ibs_estadual_recolher: number | null;
+  // JSON bruto do bloco totalTributacao[0] do Nomus
+  total_tributacao: Json | null;
   // Comissões / frete
   comissoes_venda: number | null;
   frete_valor: number | null;
@@ -229,13 +235,25 @@ export function mapNomusProposal(raw: Json): NomusProposalMapped | null {
     valor_liquido: pickNumBR(raw, "valorLiquido", "valorLiquidoItem"),
 
     // ===== Tributos =====
-    icms_recolher: pickNumBR(raw, "valorIcmsRecolher", "icmsRecolher", "valorIcms"),
+    // O Nomus retorna o resumo de impostos em `totalTributacao` (array com 1
+    // objeto). Usamos esse bloco como fallback quando o campo plano não vier.
+    icms_recolher: pickNumBR(raw, "valorIcmsRecolher", "icmsRecolher", "valorIcms")
+      ?? pickFromTotalTrib(raw, "valorIcms"),
     icms_st_recolher: pickNumBR(raw, "valorIcmsStRecolher", "icmsStRecolher", "valorIcmsSt"),
     ipi_recolher: pickNumBR(raw, "valorIpiRecolher", "ipiRecolher", "valorIpi"),
-    pis_recolher: pickNumBR(raw, "valorPisRecolher", "pisRecolher", "valorPis"),
-    cofins_recolher: pickNumBR(raw, "valorCofinsRecolher", "cofinsRecolher", "valorCofins"),
-    issqn_recolher: pickNumBR(raw, "valorIssqnRecolher", "issqnRecolher", "valorIssqn"),
+    pis_recolher: pickNumBR(raw, "valorPisRecolher", "pisRecolher", "valorPis")
+      ?? pickFromTotalTrib(raw, "valorPis"),
+    cofins_recolher: pickNumBR(raw, "valorCofinsRecolher", "cofinsRecolher", "valorCofins")
+      ?? pickFromTotalTrib(raw, "valorCofins"),
+    issqn_recolher: pickNumBR(raw, "valorIssqnRecolher", "issqnRecolher", "valorIssqn")
+      ?? pickFromTotalTrib(raw, "valorIss"),
     simples_nacional_recolher: pickNumBR(raw, "valorSimplesNacionalRecolher", "simplesNacionalRecolher"),
+    // Reforma tributária — vem apenas em totalTributacao[0]
+    cbs_recolher: pickFromTotalTrib(raw, "valorCbs"),
+    ibs_recolher: pickFromTotalTrib(raw, "valorIbs"),
+    ibs_estadual_recolher: pickFromTotalTrib(raw, "valorIbsEstadual"),
+    // Bloco bruto preservado para auditoria e UI
+    total_tributacao: extractTotalTributacao(raw),
 
     // ===== Comissões / frete =====
     comissoes_venda: pickNumBR(raw, "valorComissoesVenda", "comissoesVenda"),
