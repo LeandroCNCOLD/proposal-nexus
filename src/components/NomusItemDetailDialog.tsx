@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
 import { nomusGetItemDetail } from "@/integrations/nomus/server.functions";
 import { brl, num } from "@/lib/format";
-import { ProposalItemLucroAnalysis } from "@/components/ProposalItemLucroAnalysis";
+import { ProposalItemLucroAnalysis, type ProposalAnaliseLucro } from "@/components/ProposalItemLucroAnalysis";
 
 export type PrefillItem = {
   id: string;
@@ -38,6 +38,8 @@ type Props = {
   proposalTaxes?: Record<string, string | number> | null;
   /** Soma dos totais dos itens da proposta — base para o rateio proporcional. */
   proposalProductsTotal?: number;
+  /** Análise de lucro consolidada da proposta — usada para rateio quando o detail individual não existir. */
+  proposalAnaliseLucro?: ProposalAnaliseLucro | null;
 };
 
 type ItemDetailResult =
@@ -71,7 +73,7 @@ function mergeItem(itemRaw: unknown, itemDetail: unknown): Record<string, unknow
   return { ...a, ...b };
 }
 
-export function NomusItemDetailDialog({ itemId, prefillItem, open, onOpenChange, proposalTaxes, proposalProductsTotal }: Props) {
+export function NomusItemDetailDialog({ itemId, prefillItem, open, onOpenChange, proposalTaxes, proposalProductsTotal, proposalAnaliseLucro }: Props) {
   const { data, isLoading, error } = useQuery({
     queryKey: ["nomus-item-detail", itemId],
     queryFn: async () => {
@@ -189,7 +191,15 @@ export function NomusItemDetailDialog({ itemId, prefillItem, open, onOpenChange,
                 )}
               </TabsContent>
               <TabsContent value="lucro" className="mt-0 space-y-4">
-                <ProposalItemLucroAnalysis analiseLucro={analiseLucro} />
+                <ProposalItemLucroAnalysis
+                  analiseLucro={analiseLucro}
+                  proposalAnaliseLucro={proposalAnaliseLucro ?? null}
+                  ratio={
+                    proposalProductsTotal && proposalProductsTotal > 0
+                      ? Number(prefillItem?.total_with_discount ?? prefillItem?.total ?? 0) / proposalProductsTotal
+                      : 0
+                  }
+                />
                 <LucroSection itemRaw={itemRaw} />
               </TabsContent>
               <TabsContent value="produto" className="mt-0 space-y-4">
