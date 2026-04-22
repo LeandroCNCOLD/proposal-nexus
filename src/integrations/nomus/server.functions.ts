@@ -409,26 +409,43 @@ export const nomusKickoffSyncProposals = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const userId = (context as { userId?: string }).userId ?? null;
-    // Marca como running para a UI já refletir o estado.
-    await setState("propostas", { running: true, last_error: null });
-
-    // Dispara o cron em background — não aguardamos a resposta para
-    // não travar o handler. Erros são logados em `nomus_sync_log`.
     try {
-      const cronSecret = process.env.NOMUS_CRON_SECRET ?? "";
-      const origin = process.env.PUBLIC_BASE_URL
-        ?? `https://project--${process.env.LOVABLE_PROJECT_ID ?? ""}.lovable.app`;
-      // fire-and-forget
-      void fetch(`${origin}/hooks/nomus-cron`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${cronSecret}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ entity: "propostas" }),
-      }).catch((e) => console.error("[nomus] kickoff fetch failed", e));
+      // Marca como running para a UI já refletir o estado.
+      await setState("propostas", { running: true, last_error: null });
     } catch (e) {
-      console.error("[nomus] kickoff scheduling failed", e);
+      console.error("[nomus] kickoff setState failed", e);
+    }
+
+    // Resolve a origem a partir da request — evita URL inválida em dev
+    // quando PUBLIC_BASE_URL / LOVABLE_PROJECT_ID não estão definidos.
+    let origin: string | null = null;
+    try {
+      const req = getRequest();
+      origin = new URL(req.url).origin;
+    } catch {
+      origin = process.env.PUBLIC_BASE_URL
+        ?? (process.env.LOVABLE_PROJECT_ID
+          ? `https://project--${process.env.LOVABLE_PROJECT_ID}.lovable.app`
+          : null);
+    }
+
+    if (origin) {
+      try {
+        const cronSecret = process.env.NOMUS_CRON_SECRET ?? "";
+        // fire-and-forget — não aguardamos a resposta para não travar o handler.
+        void fetch(`${origin}/hooks/nomus-cron`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${cronSecret}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ entity: "propostas" }),
+        }).catch((e) => console.error("[nomus] kickoff fetch failed", e));
+      } catch (e) {
+        console.error("[nomus] kickoff scheduling failed", e);
+      }
+    } else {
+      console.warn("[nomus] kickoff: origem não resolvida; cron não foi disparado");
     }
 
     return {
