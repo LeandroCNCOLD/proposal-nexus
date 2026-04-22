@@ -219,6 +219,27 @@ export function ProposalItemLucroAnalysis({ analiseLucro, proposalAnaliseLucro, 
 
 type Diagnostic = { group: string; reason: string };
 
+/**
+ * Mensagens fixas por grupo. Reflete a realidade da API do Nomus desta
+ * instalação: o endpoint `GET /propostas/{id}` retorna apenas os campos
+ * básicos + o bloco `totalTributacao` (impostos calculados). Os blocos de
+ * Custos de Produção, Despesas Comerciais, Custos Administrativos e
+ * Lucro Bruto/Líquido **não são expostos pela API REST** — só existem no
+ * relatório interno de Análise de Lucro do ERP.
+ */
+const GROUP_REASONS: Record<string, string> = {
+  "Impostos (ICMS/IPI/PIS/COFINS)":
+    "API do Nomus retornou bloco `totalTributacao` vazio — verifique se o cálculo de tributação foi executado no ERP antes do sync.",
+  "Custos de produção (Materiais/MOD/CIF)":
+    "A API REST do Nomus não expõe custos de produção em /propostas/{id} — esses dados só existem no relatório interno de Análise de Lucro do ERP.",
+  "Despesas comerciais (Comissões/Frete/Seguros)":
+    "A API REST do Nomus não expõe comissões/frete/seguros em /propostas/{id} — campos só existem no relatório interno de Análise de Lucro.",
+  "Custos administrativos":
+    "A API REST do Nomus não expõe custos administrativos em /propostas/{id} — campo só existe no relatório interno de Análise de Lucro.",
+  "Resultado (Lucro bruto/líquido)":
+    "Lucro bruto/líquido depende dos blocos de custos acima — como a API não os expõe, não é possível calcular pela integração.",
+};
+
 function buildDiagnostics(args: {
   useDetail: boolean;
   hasProposalData: boolean;
@@ -231,28 +252,15 @@ function buildDiagnostics(args: {
     const allZero = !allNull && values.every((v) => v === null || v === 0);
     if (!allNull && !allZero) continue;
 
-    let reason: string;
-    if (allNull) {
-      if (!args.useDetail && !args.hasProposalData) {
-        reason = "proposta sem detail sincronizado — rode 'Sincronizar detalhes' na lista de propostas.";
-      } else if (!args.useDetail) {
-        reason = "endpoint individual do item retornou 404 (fallback ativo) e a proposta não trouxe esse bloco — verifique o mapeamento em src/integrations/nomus/parse.ts.";
-      } else {
-        reason = "detail do item veio sem essas chaves — ajuste pickNum() em ProposalItemLucroAnalysis.tsx ou o parser do detail.";
-      }
-    } else {
-      if (!args.useDetail && args.ratio === 0) {
-        reason = "rateio zerou os valores (participação do item = 0%) — verifique total de produtos da proposta.";
-      } else if (!args.useDetail) {
-        reason = "valores vêm zerados na proposta sincronizada — confirme se o Nomus calculou esse bloco antes do sync.";
-      } else {
-        reason = "Nomus retornou zero para esses campos no detail do item.";
-      }
+    if (!args.useDetail && args.ratio === 0 && !allNull) {
+      out.push({ group, reason: "rateio zerou os valores (este item tem 0% de participação no total da proposta)." });
+      continue;
     }
-    out.push({ group, reason });
+    out.push({ group, reason: GROUP_REASONS[group] ?? "campo ausente no payload do Nomus." });
   }
   return out;
 }
+
 
 function pickNum(o: Record<string, unknown>, ...keys: string[]): number | null {
   for (const k of keys) {
