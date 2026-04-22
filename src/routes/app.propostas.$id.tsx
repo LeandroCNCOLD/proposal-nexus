@@ -312,7 +312,10 @@ function ProposalDetail() {
             <NomusProposalDetail nomusProposalId={p.nomus_proposal_id} />
           )}
 
-
+          <div className="rounded-xl border bg-card p-6 shadow-[var(--shadow-sm)]">
+            <div className="mb-4 flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-primary" />
+              <h2 className="text-sm font-semibold">Inteligência artificial</h2>
               <span className="text-[11px] text-muted-foreground">Baseada nos dados reais da proposta</span>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
