@@ -741,49 +741,64 @@ export type Database = {
       }
       nomus_proposal_items: {
         Row: {
+          additional_info: string | null
           description: string | null
           discount: number | null
           id: string
+          item_status: string | null
           nomus_item_id: string | null
           nomus_product_id: string | null
           nomus_proposal_id: string
           position: number | null
+          prazo_entrega_dias: number | null
           product_code: string | null
           quantity: number | null
           raw: Json | null
           synced_at: string
           total: number | null
+          total_with_discount: number | null
           unit_price: number | null
+          unit_value_with_unit: string | null
         }
         Insert: {
+          additional_info?: string | null
           description?: string | null
           discount?: number | null
           id?: string
+          item_status?: string | null
           nomus_item_id?: string | null
           nomus_product_id?: string | null
           nomus_proposal_id: string
           position?: number | null
+          prazo_entrega_dias?: number | null
           product_code?: string | null
           quantity?: number | null
           raw?: Json | null
           synced_at?: string
           total?: number | null
+          total_with_discount?: number | null
           unit_price?: number | null
+          unit_value_with_unit?: string | null
         }
         Update: {
+          additional_info?: string | null
           description?: string | null
           discount?: number | null
           id?: string
+          item_status?: string | null
           nomus_item_id?: string | null
           nomus_product_id?: string | null
           nomus_proposal_id?: string
           position?: number | null
+          prazo_entrega_dias?: number | null
           product_code?: string | null
           quantity?: number | null
           raw?: Json | null
           synced_at?: string
           total?: number | null
+          total_with_discount?: number | null
           unit_price?: number | null
+          unit_value_with_unit?: string | null
         }
         Relationships: [
           {
@@ -797,48 +812,183 @@ export type Database = {
       }
       nomus_proposals: {
         Row: {
+          cliente_nome: string | null
           cliente_nomus_id: string | null
+          cofins_recolher: number | null
+          comissoes_venda: number | null
+          condicao_pagamento_nome: string | null
+          condicao_pagamento_nomus_id: string | null
+          contato_nome: string | null
+          contato_nomus_id: string | null
+          criada_em_nomus: string | null
+          criada_por_nomus: string | null
+          custos_administrativos: number | null
+          custos_cif: number | null
+          custos_incidentes_lucro: number | null
+          custos_materiais: number | null
+          custos_mod: number | null
+          custos_producao: number | null
           data_emissao: string | null
+          despesas_acessorias: number | null
+          detail_synced_at: string | null
+          empresa_nome: string | null
+          empresa_nomus_id: string | null
+          frete_percentual: number | null
+          frete_valor: number | null
+          icms_recolher: number | null
+          icms_st_recolher: number | null
           id: string
+          ipi_recolher: number | null
+          issqn_recolher: number | null
+          layout_pdf: string | null
+          lucro_antes_impostos: number | null
+          lucro_bruto: number | null
+          lucro_liquido: number | null
+          margem_bruta_pct: number | null
+          margem_liquida_pct: number | null
           nomus_id: string
           numero: string | null
           observacoes: string | null
+          pedido_compra_cliente: string | null
+          pis_recolher: number | null
+          prazo_entrega_dias: number | null
           raw: Json | null
+          representante_nome: string | null
           representante_nomus_id: string | null
+          seguros_valor: number | null
+          simples_nacional_recolher: number | null
           status_nomus: string | null
           synced_at: string
+          tabela_preco_nome: string | null
+          tabela_preco_nomus_id: string | null
+          tipo_movimentacao: string | null
           validade: string | null
+          valor_descontos: number | null
+          valor_liquido: number | null
+          valor_produtos: number | null
           valor_total: number | null
+          valor_total_com_desconto: number | null
+          vendedor_nome: string | null
           vendedor_nomus_id: string | null
         }
         Insert: {
+          cliente_nome?: string | null
           cliente_nomus_id?: string | null
+          cofins_recolher?: number | null
+          comissoes_venda?: number | null
+          condicao_pagamento_nome?: string | null
+          condicao_pagamento_nomus_id?: string | null
+          contato_nome?: string | null
+          contato_nomus_id?: string | null
+          criada_em_nomus?: string | null
+          criada_por_nomus?: string | null
+          custos_administrativos?: number | null
+          custos_cif?: number | null
+          custos_incidentes_lucro?: number | null
+          custos_materiais?: number | null
+          custos_mod?: number | null
+          custos_producao?: number | null
           data_emissao?: string | null
+          despesas_acessorias?: number | null
+          detail_synced_at?: string | null
+          empresa_nome?: string | null
+          empresa_nomus_id?: string | null
+          frete_percentual?: number | null
+          frete_valor?: number | null
+          icms_recolher?: number | null
+          icms_st_recolher?: number | null
           id?: string
+          ipi_recolher?: number | null
+          issqn_recolher?: number | null
+          layout_pdf?: string | null
+          lucro_antes_impostos?: number | null
+          lucro_bruto?: number | null
+          lucro_liquido?: number | null
+          margem_bruta_pct?: number | null
+          margem_liquida_pct?: number | null
           nomus_id: string
           numero?: string | null
           observacoes?: string | null
+          pedido_compra_cliente?: string | null
+          pis_recolher?: number | null
+          prazo_entrega_dias?: number | null
           raw?: Json | null
+          representante_nome?: string | null
           representante_nomus_id?: string | null
+          seguros_valor?: number | null
+          simples_nacional_recolher?: number | null
           status_nomus?: string | null
           synced_at?: string
+          tabela_preco_nome?: string | null
+          tabela_preco_nomus_id?: string | null
+          tipo_movimentacao?: string | null
           validade?: string | null
+          valor_descontos?: number | null
+          valor_liquido?: number | null
+          valor_produtos?: number | null
           valor_total?: number | null
+          valor_total_com_desconto?: number | null
+          vendedor_nome?: string | null
           vendedor_nomus_id?: string | null
         }
         Update: {
+          cliente_nome?: string | null
           cliente_nomus_id?: string | null
+          cofins_recolher?: number | null
+          comissoes_venda?: number | null
+          condicao_pagamento_nome?: string | null
+          condicao_pagamento_nomus_id?: string | null
+          contato_nome?: string | null
+          contato_nomus_id?: string | null
+          criada_em_nomus?: string | null
+          criada_por_nomus?: string | null
+          custos_administrativos?: number | null
+          custos_cif?: number | null
+          custos_incidentes_lucro?: number | null
+          custos_materiais?: number | null
+          custos_mod?: number | null
+          custos_producao?: number | null
           data_emissao?: string | null
+          despesas_acessorias?: number | null
+          detail_synced_at?: string | null
+          empresa_nome?: string | null
+          empresa_nomus_id?: string | null
+          frete_percentual?: number | null
+          frete_valor?: number | null
+          icms_recolher?: number | null
+          icms_st_recolher?: number | null
           id?: string
+          ipi_recolher?: number | null
+          issqn_recolher?: number | null
+          layout_pdf?: string | null
+          lucro_antes_impostos?: number | null
+          lucro_bruto?: number | null
+          lucro_liquido?: number | null
+          margem_bruta_pct?: number | null
+          margem_liquida_pct?: number | null
           nomus_id?: string
           numero?: string | null
           observacoes?: string | null
+          pedido_compra_cliente?: string | null
+          pis_recolher?: number | null
+          prazo_entrega_dias?: number | null
           raw?: Json | null
+          representante_nome?: string | null
           representante_nomus_id?: string | null
+          seguros_valor?: number | null
+          simples_nacional_recolher?: number | null
           status_nomus?: string | null
           synced_at?: string
+          tabela_preco_nome?: string | null
+          tabela_preco_nomus_id?: string | null
+          tipo_movimentacao?: string | null
           validade?: string | null
+          valor_descontos?: number | null
+          valor_liquido?: number | null
+          valor_produtos?: number | null
           valor_total?: number | null
+          valor_total_com_desconto?: number | null
+          vendedor_nome?: string | null
           vendedor_nomus_id?: string | null
         }
         Relationships: []
@@ -1553,8 +1703,11 @@ export type Database = {
           next_followup_at: string | null
           nomus_id: string | null
           nomus_invoice_ids: string[] | null
+          nomus_payment_term_name: string | null
           nomus_pedido_id: string | null
+          nomus_price_table_name: string | null
           nomus_proposal_id: string | null
+          nomus_seller_name: string | null
           nomus_synced_at: string | null
           number: string
           payment_term_id: string | null
@@ -1596,8 +1749,11 @@ export type Database = {
           next_followup_at?: string | null
           nomus_id?: string | null
           nomus_invoice_ids?: string[] | null
+          nomus_payment_term_name?: string | null
           nomus_pedido_id?: string | null
+          nomus_price_table_name?: string | null
           nomus_proposal_id?: string | null
+          nomus_seller_name?: string | null
           nomus_synced_at?: string | null
           number?: string
           payment_term_id?: string | null
@@ -1639,8 +1795,11 @@ export type Database = {
           next_followup_at?: string | null
           nomus_id?: string | null
           nomus_invoice_ids?: string[] | null
+          nomus_payment_term_name?: string | null
           nomus_pedido_id?: string | null
+          nomus_price_table_name?: string | null
           nomus_proposal_id?: string | null
+          nomus_seller_name?: string | null
           nomus_synced_at?: string | null
           number?: string
           payment_term_id?: string | null
