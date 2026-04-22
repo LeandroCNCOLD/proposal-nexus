@@ -146,7 +146,7 @@ function ProposalsList() {
                 <TableCell><StatusBadge status={p.status as ProposalStatus} /></TableCell>
                 <TableCell className="text-right tabular-nums font-medium">{brl(Number(p.total_value ?? 0))}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">{dateBR(p.valid_until)}</TableCell>
-                <TableCell className="text-sm text-muted-foreground">{dateBR(p.created_at)}</TableCell>
+                <TableCell className="text-sm text-muted-foreground">{dateBR((p as any)._nomus?.criada_em_nomus ?? (p as any)._nomus?.data_emissao ?? p.created_at)}</TableCell>
               </TableRow>
             ))}
           </TableBody>
