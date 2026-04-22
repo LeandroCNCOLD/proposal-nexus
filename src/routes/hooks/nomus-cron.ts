@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { listAll, getOne } from "@/integrations/nomus/client";
+import { listAll, getOne, nomusFetch } from "@/integrations/nomus/client";
 import { NOMUS_ENDPOINTS } from "@/integrations/nomus/endpoints";
 import {
   mapNomusProposal,
