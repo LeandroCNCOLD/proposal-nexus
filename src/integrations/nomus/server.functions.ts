@@ -1123,9 +1123,9 @@ export const nomusGetItemDetail = createServerFn({ method: "POST" })
       const { error: upErr } = await supabaseAdmin
         .from("nomus_proposal_items")
         .update({
-          raw: mergedRaw as unknown as Json,
-          analise_lucro: analiseLucro,
-          impostos: impostos,
+          raw: mergedRaw as never,
+          analise_lucro: analiseLucro as never,
+          impostos: impostos as never,
           synced_at: new Date().toISOString(),
         })
         .eq("id", item.id);
