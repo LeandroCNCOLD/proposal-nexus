@@ -155,9 +155,11 @@ export async function nomusFetch<T = unknown>(
   const operation = opts.operation ?? method.toLowerCase();
   const direction = opts.direction ?? (method === "GET" ? "pull" : "push");
 
-  // Nomus uses raw API key in Authorization header (no Basic/Bearer prefix).
+  // Nomus exige header `Authorization: Basic <chave-integracao-rest>`.
+  // A chave já vem em base64 do ERP — só anexamos o prefixo "Basic " se ainda não estiver presente.
+  const authValue = /^basic\s+/i.test(apiKey) ? apiKey : `Basic ${apiKey}`;
   const headers: Record<string, string> = {
-    Authorization: apiKey,
+    Authorization: authValue,
     "Content-Type": "application/json",
     Accept: "application/json",
   };
@@ -316,7 +318,8 @@ export async function listAll<T = unknown>(
   for (let pagina = 1; pagina <= LIST_MAX_PAGES; pagina++) {
     const res = await nomusFetch<unknown>(endpoint, {
       method: "GET",
-      query: { ...query, pagina, tamanhoPagina: pageSize },
+      // Nomus só documenta `pagina` e `query` como parâmetros de listagem.
+      query: { ...query, pagina },
       entity: opts.entity,
       operation: "list",
       direction: "pull",
