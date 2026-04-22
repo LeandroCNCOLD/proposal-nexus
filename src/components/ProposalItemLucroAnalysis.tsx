@@ -132,12 +132,43 @@ export function ProposalItemLucroAnalysis({ analiseLucro, proposalAnaliseLucro, 
     );
   }
 
+  // ============= Diagnóstico de campos zerados/ausentes =============
+  // Verifica grupos importantes e identifica a origem provável do problema.
+  const diagnostics = buildDiagnostics({
+    useDetail,
+    hasProposalData: !!proposalAnaliseLucro,
+    ratio: r,
+    groups: {
+      "Impostos (ICMS/IPI/PIS/COFINS)": [icms, ipi, pis, cofins],
+      "Custos de produção (Materiais/MOD/CIF)": [custosProducao, cMat, cMod, cCif],
+      "Despesas comerciais (Comissões/Frete/Seguros)": [comissoes, frete, seguros],
+      "Custos administrativos": [custosAdmin],
+      "Resultado (Lucro bruto/líquido)": [lucroBruto, lucroLiquido],
+    },
+  });
+
   return (
     <div className="space-y-3">
       {!useDetail && (
         <div className="text-[11px] text-muted-foreground">
           Valores rateados a partir da análise de lucro da proposta — participação deste item:{" "}
           <span className="font-semibold text-foreground tabular-nums">{(r * 100).toFixed(2)}%</span>
+        </div>
+      )}
+
+      {diagnostics.length > 0 && (
+        <div className="rounded-md border border-warning/40 bg-warning/10 p-3 text-xs">
+          <div className="mb-1.5 font-semibold text-warning-foreground">
+            ⚠ Campos sem dados detectados
+          </div>
+          <ul className="space-y-1 text-muted-foreground">
+            {diagnostics.map((d, i) => (
+              <li key={i}>
+                <span className="font-medium text-foreground">{d.group}:</span>{" "}
+                <span>{d.reason}</span>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 
