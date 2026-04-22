@@ -1,67 +1,52 @@
 
 
-# Integração completa de itens de proposta (com Análise de Lucro)
+# Investigar custos por produto via `/produtos/{id}` e exibir no item da proposta
 
-Documento confirma que o endpoint `GET /propostas/{idProposta}/itens/{idItem}` **existe no Nomus** e retorna tudo que está faltando: impostos discriminados (ICMS, IPI, PIS, COFINS, IBS, CBS), Análise de Lucro com 23 campos, atributos do produto, centros de custo, frete/seguro/pesos por item.
+## Por que isso pode resolver
 
-Vou conectar isso na ferramenta — sem criar uma nova tabela espelho. Como o JSON do item é grande e variável, persistimos no campo `raw` que já existe em `nomus_proposal_items` e mostramos na UI imediatamente.
+Hoje o sync de `/produtos` só linka o `nomus_id` ao equipamento — descarta o resto do payload. O endpoint `GET /produtos/{id}` do Nomus normalmente expõe campos de **custo do produto** (preço de custo, custo médio, última compra, margem-base) que a proposta consolidada não traz. Se confirmado, isso preenche pelo menos parte das lacunas de "Custos de produção / Materiais" por item — sem depender do endpoint `/propostas/{id}/itens/{itemId}` (que está dando 404 nesta instância).
 
-## O que muda
+## Etapa 1 — Sondagem ao vivo (descoberta)
 
-### 1. Endpoint no mapa
-`src/integrations/nomus/endpoints.ts` — adicionar helper:
-```text
-proposalItemDetailPath(propostaId, itemId) → /propostas/{propostaId}/itens/{itemId}
-```
-com 2 fallbacks (`/propostas/itens/{itemId}` e `/itensPropostas/{itemId}`) tentados em sequência se o primeiro 404'ar.
+Criar uma rota de diagnóstico **temporária** `GET /api/nomus/produto-probe?id={nomusProductId}` que:
+- Chama `GET /produtos/{id}` no Nomus para 3 IDs reais já presentes (8576, 687, 8490).
+- Devolve a lista de **chaves de primeiro nível** + amostra mascarada do payload.
+- Loga em `nomus_sync_log` para auditoria.
 
-### 2. Server function `nomusGetItemDetail` (estende a atual)
-`src/integrations/nomus/server.functions.ts`:
-- Antes de devolver, chamar `GET /propostas/{nomusPropostaId}/itens/{nomusItemId}` no Nomus.
-- Se sucesso: **fazer UPSERT no `raw` do `nomus_proposal_items`** mesclando o detalhe completo (chave `_detail`) e atualizar `synced_at`. Assim, próximas aberturas já saem instantâneas.
-- Devolver no payload um novo campo `item_detail_json` (string JSON) com o retorno bruto.
-- Fallback: se 404 nos 3 paths, devolver `item_detail_error` para a UI mostrar aviso amigável (não quebra).
+Isso nos dá a verdade do ambiente em vez de adivinhar nomes de campo.
 
-### 3. Migração leve no banco
-**Não** vamos criar `proposta_itens_detalhes` (duplicaria o que já existe em `nomus_proposal_items.raw`). Em vez disso:
-- Adicionar coluna `analise_lucro JSONB` em `nomus_proposal_items` (consultas rápidas sem desserializar o `raw` inteiro).
-- Adicionar coluna `impostos JSONB` em `nomus_proposal_items` (mesmo motivo).
-- Índice GIN em `analise_lucro` para futuros relatórios de margem.
+## Etapa 2 — Persistência (depende do que a Etapa 1 mostrar)
 
-A função de sincronização preenche essas duas colunas a partir do detalhe que acabou de buscar.
+Migration acrescentando ao `equipments` (ou a uma nova `nomus_products`, decisão tomada após ver o payload):
+- `nomus_raw jsonb` — payload bruto do produto
+- `custo_unitario numeric`, `custo_medio numeric`, `custo_ultima_compra numeric`, `preco_venda_base numeric`, `margem_base_pct numeric` — quando existirem nos dados reais
+- `nomus_detail_synced_at timestamptz`
 
-### 4. Componente novo `ProposalItemLucroAnalysis`
-`src/components/ProposalItemLucroAnalysis.tsx` — renderiza os 23 campos da Análise de Lucro em 4 blocos:
-- **Composição do valor**: Valor produtos → Descontos → Valor total com desconto.
-- **Impostos a recolher**: ICMS, ICMS-ST, IPI, PIS, COFINS, ISSQN, Simples.
-- **Custos**: Materiais, MOD, CIF, Administrativos, Incidentes lucro → Total.
-- **Resultado**: Lucro Bruto + margem %, Lucro antes impostos, Lucro Líquido + margem %.
+Atualizar `nomusSyncProducts` em `src/integrations/nomus/server.functions.ts` para, após o match, buscar `/produtos/{id}` e gravar esses campos. Adicionar mapper em `src/integrations/nomus/parse.ts` (`parseNomusProduct`).
 
-### 5. `NomusItemDetailDialog` — abas enriquecidas
-Já tem 7 abas. Vou substituir os placeholders `—` pelos dados reais vindos de `item_detail_json`:
-- **Tributos**: usa `_detail.icms/ipi/pis/cofins/ibs/cbs` (base, alíquota, valor, FCP, fundamentação legal).
-- **Lucro**: substitui o conteúdo atual pelo `<ProposalItemLucroAnalysis>` com `analiseLucro`.
-- **Geral / Comercial / Fiscal**: completa frete, seguro, pesos, CFOP, tabela de preço, classificação financeira a partir do detail.
-- Header mostra badge "Detalhe completo carregado" quando o detail veio.
+## Etapa 3 — Uso no item da proposta
 
-## Fluxo
-```text
-Usuário clica num item da proposta
-  → modal abre com prefill (instantâneo, dados locais)
-  → server fn busca /propostas/{id}/itens/{itemId}
-  → grava raw._detail + analise_lucro + impostos no Supabase
-  → UI rerenderiza com tributos detalhados, análise de lucro completa,
-     atributos e centros de custo
-```
+Em `src/components/ProposalItemLucroAnalysis.tsx`:
+- Quando o item tem `nomus_product_id`, buscar o equipamento vinculado e usar `custo_unitario × quantidade` como **custo real de materiais por item** (substitui o rateio proporcional atual para esse bloco).
+- Recalcular: lucro bruto do item = `total_with_discount − custo_materiais_real − impostos_rateados`.
+- Atualizar o painel de diagnóstico para parar de avisar "custos não disponíveis" quando o produto trouxer custo.
 
-## Arquivos tocados
-- `supabase/migrations/<novo>.sql` — colunas `analise_lucro`, `impostos` + índice GIN
-- `src/integrations/nomus/endpoints.ts` — helper + fallbacks
-- `src/integrations/nomus/server.functions.ts` — fetch detail + persist + retorno
-- `src/components/ProposalItemLucroAnalysis.tsx` — novo
-- `src/components/NomusItemDetailDialog.tsx` — preenche abas com detail real
+## Etapa 4 — UI de controle
+
+Em `src/routes/app.configuracoes.nomus.tsx`, adicionar botão **"Sincronizar detalhes de produtos"** que dispara o enriquecimento sob demanda (igual ao padrão atual de propostas). Evita centenas de chamadas no cron.
+
+## Arquivos afetados
+- `src/routes/api.nomus.produto-probe.ts` — novo (sondagem temporária)
+- `supabase/migrations/*` — colunas de custo em `equipments`
+- `src/integrations/nomus/parse.ts` — `parseNomusProduct`
+- `src/integrations/nomus/server.functions.ts` — enriquecimento + nova função `nomusSyncProductDetails`
+- `src/components/ProposalItemLucroAnalysis.tsx` — usar custo real no cálculo
+- `src/routes/app.configuracoes.nomus.tsx` — botão de sync de detalhes
 
 ## Fora de escopo
-- Sincronização em massa de itens detalhados (vai ser sob demanda na abertura do modal — evita centenas de chamadas no cron). Posso adicionar um botão "Sincronizar todos os itens desta proposta" depois se quiser.
-- Tela de relatório de margem por item (a coluna `analise_lucro` JSONB já fica pronta para isso na próxima evolução).
+- Custos de MOD / CIF / administrativos — esses **não vivem no cadastro de produto**; permanecem indisponíveis via API (limitação confirmada do Nomus REST nesta instalação).
+- Histórico de variação de custo do produto.
+
+## Risco/incerteza
+A Etapa 1 é obrigatória antes de prometer qualquer coisa. Se `/produtos/{id}` também não expuser custos nesta instalação (possível, se a chave REST tiver permissão restrita ao módulo comercial), as etapas 2–4 perdem o sentido e a conclusão será: custos de produto também só existem no ERP interno. Eu te aviso assim que o probe rodar.
 
