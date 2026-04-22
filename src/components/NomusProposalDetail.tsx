@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { brl, num, dateBR } from "@/lib/format";
 import { Loader2 } from "lucide-react";
+import { NomusItemDetailDialog } from "@/components/NomusItemDetailDialog";
 
 type NomusProposalRow = {
   id: string;
@@ -94,6 +96,8 @@ export function NomusProposalDetail({
     },
   });
 
+  const [openItem, setOpenItem] = useState<ItemRow | null>(null);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-10">
@@ -168,13 +172,18 @@ export function NomusProposalDetail({
               </thead>
               <tbody>
                 {items.map((it) => (
-                  <tr key={it.id} className="border-t">
+                  <tr
+                    key={it.id}
+                    className="border-t cursor-pointer hover:bg-secondary/30 transition-colors"
+                    onClick={() => setOpenItem(it)}
+                    title="Clique para ver detalhes completos do item (tributos, produto, JSON)"
+                  >
                     <td className="px-3 py-2 font-mono text-xs text-muted-foreground">
                       {String((it.position ?? 0) + 1).padStart(2, "0")}
                     </td>
                     <td className="px-3 py-2 font-mono text-xs">{it.product_code ?? "—"}</td>
                     <td className="px-3 py-2">
-                      <div>{it.description}</div>
+                      <div className="text-primary underline-offset-2 hover:underline">{it.description}</div>
                       {it.additional_info && (
                         <div className="mt-0.5 text-[11px] text-muted-foreground whitespace-pre-wrap">
                           {it.additional_info}

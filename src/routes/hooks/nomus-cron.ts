@@ -112,13 +112,17 @@ async function syncProposalDetail(rawSummary: Record<string, unknown>): Promise<
     .single();
   const mirrorId = (mirror as { id: string } | null)?.id ?? null;
 
-  // 2) Itens da proposta (vêm em itensProposta) — só sobrescreve quando temos detalhe novo
+  // 2) Itens da proposta — preserva o JSON ORIGINAL do Nomus em `raw`
+  // (com tributos, NCM, CFOP, alíquotas etc.) para o usuário inspecionar
+  // por completo no modal de detalhe do item.
   if (mirrorId && detailRes.ok) {
-    const items = extractProposalItems(raw);
-    if (items.length > 0) {
+    const mappedItems = extractProposalItems(raw);
+    const rawItemsArr = (raw["itensProposta"] ?? raw["itens"] ?? raw["items"]) as
+      Array<Record<string, unknown>> | undefined;
+    if (mappedItems.length > 0) {
       await supabaseAdmin.from("nomus_proposal_items").delete().eq("nomus_proposal_id", mirrorId);
       await supabaseAdmin.from("nomus_proposal_items").insert(
-        items.map((it, idx) => ({
+        mappedItems.map((it, idx) => ({
           nomus_proposal_id: mirrorId,
           nomus_item_id: it.nomus_item_id,
           nomus_product_id: it.nomus_product_id,
@@ -134,7 +138,9 @@ async function syncProposalDetail(rawSummary: Record<string, unknown>): Promise<
           prazo_entrega_dias: it.prazo_entrega_dias,
           item_status: it.item_status,
           position: idx,
-          raw: it as never,
+          // Salva o JSON ORIGINAL do item (não o mapeado), preservando
+          // todos os campos extras que o Nomus envia.
+          raw: (Array.isArray(rawItemsArr) && rawItemsArr[idx] ? rawItemsArr[idx] : it) as never,
         }))
       );
     }
