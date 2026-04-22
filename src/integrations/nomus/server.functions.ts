@@ -1082,12 +1082,16 @@ export const nomusGetItemDetail = createServerFn({ method: "POST" })
       }
     }
 
+    // TanStack Start exige tipos serializáveis estritos. Como o conteúdo aqui
+    // é JSON arbitrário do Nomus (estrutura desconhecida), serializamos como
+    // string e o cliente faz JSON.parse — assim atravessa o validador sem
+    // arrastar `unknown` pela inferência.
     return {
       ok: true as const,
-      item_raw: (item.raw ?? null) as Json | null,
-      proposta_raw: (item.nomus_proposals?.raw ?? null) as Json | null,
+      item_raw_json: JSON.stringify(item.raw ?? null),
+      proposta_raw_json: JSON.stringify(item.nomus_proposals?.raw ?? null),
       proposta_nomus_id: item.nomus_proposals?.nomus_id ?? null,
-      produto_raw: produto,
+      produto_raw_json: JSON.stringify(produto ?? null),
       produto_error: produtoError,
     };
   });

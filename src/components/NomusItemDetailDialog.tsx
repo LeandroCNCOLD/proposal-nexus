@@ -17,13 +17,18 @@ type Props = {
 type ItemDetailResult =
   | {
       ok: true;
-      item_raw: unknown;
-      proposta_raw: unknown;
+      item_raw_json: string;
+      proposta_raw_json: string;
       proposta_nomus_id: string | null;
-      produto_raw: unknown;
+      produto_raw_json: string;
       produto_error: string | null;
     }
   | { ok: false; error: string };
+
+function safeParse(s: string | undefined | null): unknown {
+  if (!s) return null;
+  try { return JSON.parse(s); } catch { return null; }
+}
 
 export function NomusItemDetailDialog({ itemId, itemDescription, productCode, open, onOpenChange }: Props) {
   const { data, isLoading, error } = useQuery({
