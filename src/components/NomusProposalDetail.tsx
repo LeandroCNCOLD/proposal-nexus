@@ -224,6 +224,24 @@ export function NomusProposalDetail({
         onOpenChange={(o) => { if (!o) setOpenItem(null); }}
       />
 
+      {/* ============ Resumo de impostos ============ */}
+      <Section title="Resumo de impostos">
+        <ProposalTaxSummary
+          totalTributacao={p.total_tributacao}
+          fallback={{
+            icms: p.icms_recolher,
+            icms_st: p.icms_st_recolher,
+            ipi: p.ipi_recolher,
+            iss: p.issqn_recolher,
+            pis: p.pis_recolher,
+            cofins: p.cofins_recolher,
+            cbs: p.cbs_recolher,
+            ibs: p.ibs_recolher,
+            ibs_estadual: p.ibs_estadual_recolher,
+          }}
+        />
+      </Section>
+
       {/* ============ Análise de lucro ============ */}
       <Section title="Análise de lucro (Nomus)">
         <div className="overflow-hidden rounded-md border">
