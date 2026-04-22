@@ -261,7 +261,7 @@ function ProposalDetail() {
 
       <PageHeader
         title={p.title}
-        subtitle={<span className="font-mono text-xs">{p.number}</span> as any}
+        subtitle={(<span className="font-mono text-xs">{p.number}</span>) as any}
         actions={
           <>
             <Button size="sm" variant="outline" onClick={handleGenerate} disabled={generating}>
