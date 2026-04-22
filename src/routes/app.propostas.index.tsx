@@ -79,12 +79,20 @@ function ProposalsList() {
     },
   });
 
-  const filtered = useMemo(() => proposals.filter((p) => {
-    if (statusFilter !== "all" && p.status !== statusFilter) return false;
-    if (!search) return true;
-    const q = search.toLowerCase();
-    return p.number.toLowerCase().includes(q) || p.title.toLowerCase().includes(q) || ((p.clients as any)?.name ?? "").toLowerCase().includes(q);
-  }), [proposals, search, statusFilter]);
+  const filtered = useMemo(() => {
+    const list = proposals.filter((p) => {
+      if (statusFilter !== "all" && p.status !== statusFilter) return false;
+      if (!search) return true;
+      const q = search.toLowerCase();
+      return p.number.toLowerCase().includes(q) || p.title.toLowerCase().includes(q) || ((p.clients as any)?.name ?? "").toLowerCase().includes(q);
+    });
+    // Ordena pela data real do Nomus (criada_em_nomus / data_emissao), mais recente primeiro
+    return [...list].sort((a, b) => {
+      const da = (a as any)._nomus?.criada_em_nomus ?? (a as any)._nomus?.data_emissao ?? a.created_at;
+      const db = (b as any)._nomus?.criada_em_nomus ?? (b as any)._nomus?.data_emissao ?? b.created_at;
+      return new Date(db).getTime() - new Date(da).getTime();
+    });
+  }, [proposals, search, statusFilter]);
 
   return (
     <>
