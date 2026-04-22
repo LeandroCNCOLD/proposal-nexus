@@ -275,6 +275,27 @@ export async function nomusFetch<T = unknown>(
 }
 
 /**
+ * GET /endpoint/{id} — busca um único registro com payload completo.
+ * Diferente de listAll que só retorna o "envelope" da listagem.
+ */
+export async function getOne<T = unknown>(
+  endpoint: string,
+  id: string | number,
+  opts: { entity: string; triggeredBy?: string | null } = { entity: "unknown" },
+): Promise<{ ok: true; data: T } | { ok: false; error: string }> {
+  const path = `${endpoint}/${encodeURIComponent(String(id))}`;
+  const res = await nomusFetch<T>(path, {
+    method: "GET",
+    entity: opts.entity,
+    operation: "get",
+    direction: "pull",
+    triggeredBy: opts.triggeredBy ?? null,
+  });
+  if (!res.ok) return { ok: false, error: res.error };
+  return { ok: true, data: res.data };
+}
+
+/**
  * Limites/parâmetros padrão de paginação. Mantemos um teto duro de páginas
  * para evitar loop infinito caso o Nomus devolva sempre o mesmo cursor.
  */

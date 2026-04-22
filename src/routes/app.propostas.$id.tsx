@@ -18,6 +18,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { nomusCreatePedido, generateProposalFile, sendProposalFile } from "@/integrations/nomus/server.functions";
+import { NomusProposalDetail } from "@/components/NomusProposalDetail";
 
 export const Route = createFileRoute("/app/propostas/$id")({ component: ProposalDetail });
 
@@ -306,6 +307,10 @@ function ProposalDetail() {
               </div>
             )}
           </div>
+
+          {p.nomus_proposal_id && (
+            <NomusProposalDetail nomusProposalId={p.nomus_proposal_id} />
+          )}
 
           <div className="rounded-xl border bg-card p-6 shadow-[var(--shadow-sm)]">
             <div className="mb-4 flex items-center gap-2">
