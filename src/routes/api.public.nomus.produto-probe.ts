@@ -73,7 +73,7 @@ function summarize(payload: unknown): {
   return { topLevelKeys, sample, costCandidates };
 }
 
-export const Route = createFileRoute("/api/nomus/produto-probe")({
+export const Route = createFileRoute("/api/public/nomus/produto-probe")({
   server: {
     handlers: {
       GET: async ({ request }) => {
