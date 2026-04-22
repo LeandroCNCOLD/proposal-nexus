@@ -1,7 +1,12 @@
 // Server-only Nomus ERP HTTP client
 // Do NOT import from client-side code.
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { NOMUS_ENDPOINTS, NOMUS_HEALTHCHECK_ENTITY, type NomusEntity } from "./endpoints";
+import {
+  NOMUS_ENDPOINTS,
+  NOMUS_HEALTHCHECK_ENTITY,
+  NOMUS_PROBE_ENTITIES,
+  type NomusEntity,
+} from "./endpoints";
 
 export { NOMUS_ENDPOINTS, type NomusEntity };
 
@@ -354,7 +359,23 @@ export async function listAll<T = unknown>(
   return { ok: true, items };
 }
 
-/** Quick connectivity test against the stable health-check endpoint. */
+export type NomusProbe = {
+  entity: NomusEntity;
+  endpoint: string;
+  ok: boolean;
+  status: number;
+  durationMs: number;
+  error?: string;
+};
+
+/**
+ * Multi-recurso connectivity test. Bate em cada entidade de NOMUS_PROBE_ENTITIES
+ * em sequência (sem query params, para isolar problemas de auth/URL/permissão).
+ *
+ * O contrato de retorno mantém os campos antigos (`success`, `status`, `endpoint`,
+ * `durationMs`, `baseUrl`, `error`) referentes ao health-check primário, e
+ * adiciona `probes[]` com o resultado por recurso.
+ */
 export async function testNomusConnection(triggeredBy: string | null = null): Promise<{
   success: boolean;
   status: number;
@@ -362,9 +383,11 @@ export async function testNomusConnection(triggeredBy: string | null = null): Pr
   endpoint: string;
   baseUrl?: string;
   error?: string;
+  probes: NomusProbe[];
 }> {
-  const started = Date.now();
-  const endpoint = NOMUS_ENDPOINTS[NOMUS_HEALTHCHECK_ENTITY];
+  const overallStarted = Date.now();
+  const primaryEndpoint = NOMUS_ENDPOINTS[NOMUS_HEALTHCHECK_ENTITY];
+
   let baseUrl: string | undefined;
   try {
     baseUrl = getNomusBaseUrl();
@@ -372,25 +395,50 @@ export async function testNomusConnection(triggeredBy: string | null = null): Pr
     return {
       success: false,
       status: 0,
-      durationMs: Date.now() - started,
-      endpoint,
+      durationMs: Date.now() - overallStarted,
+      endpoint: primaryEndpoint,
       error: e instanceof Error ? e.message : String(e),
+      probes: [],
     };
   }
-  const res = await nomusFetch(endpoint, {
-    method: "GET",
-    // Sem query params: alguns ERPs Nomus rejeitam `pagina=1` em health check.
-    entity: "test",
-    operation: "ping",
-    direction: "test",
-    triggeredBy,
-  });
+
+  const probes: NomusProbe[] = [];
+  for (const entity of NOMUS_PROBE_ENTITIES) {
+    const endpoint = NOMUS_ENDPOINTS[entity];
+    const started = Date.now();
+    const res = await nomusFetch(endpoint, {
+      method: "GET",
+      // Sem query params: isola problemas de validação de parâmetros.
+      entity: "test",
+      operation: `ping:${entity}`,
+      direction: "test",
+      triggeredBy,
+    });
+    probes.push({
+      entity,
+      endpoint,
+      ok: res.ok,
+      status: res.status,
+      durationMs: Date.now() - started,
+      error: res.ok ? undefined : res.error,
+    });
+  }
+
+  const primary = probes.find((p) => p.entity === NOMUS_HEALTHCHECK_ENTITY) ?? probes[0];
+  const allOk = probes.length > 0 && probes.every((p) => p.ok);
+
   return {
-    success: res.ok,
-    status: res.status,
-    durationMs: Date.now() - started,
-    endpoint,
+    success: allOk,
+    status: primary?.status ?? 0,
+    durationMs: Date.now() - overallStarted,
+    endpoint: primaryEndpoint,
     baseUrl,
-    error: res.ok ? undefined : res.error,
+    error: allOk
+      ? undefined
+      : probes
+          .filter((p) => !p.ok)
+          .map((p) => `${p.entity}: ${p.status} ${p.error ?? ""}`.trim())
+          .join(" | ") || primary?.error,
+    probes,
   };
 }
