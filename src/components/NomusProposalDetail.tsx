@@ -96,6 +96,8 @@ export function NomusProposalDetail({
     },
   });
 
+  const [openItem, setOpenItem] = useState<ItemRow | null>(null);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-10">
@@ -112,7 +114,7 @@ export function NomusProposalDetail({
   }
 
   const p = data.prop;
-  const [openItem, setOpenItem] = useState<ItemRow | null>(null);
+  const items = data.items;
 
   return (
     <div className="space-y-6">
