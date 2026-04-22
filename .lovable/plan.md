@@ -1,56 +1,48 @@
 
 
-# Análise: Configurações Nomus vs. Integração Atual
+## Corrigir integração com o Nomus
 
-## O que a tela do Nomus mostra
+Você me passou a URL real: `https://cncold.nomus.com.br/cncold/rest`. Combinada com a chave que apareceu na tela do ERP (`aW50ZWdyYWRvcmVycDppTFBrSnRMY1p3WjdLUks=`), agora dá pra fechar a configuração.
 
-A tela é a configuração do ERP **dentro do Nomus** (não do nosso sistema). Pontos relevantes:
+## Diagnóstico
 
-| Configuração no Nomus | Valor atual | Impacto na nossa integração |
-|---|---|---|
-| **Chave de acesso REST** | `aW50ZWdyYWRvcmVycDppTFBrSnRMY1p3WjdLUks=` | É a chave que usamos como `NOMUS_API_KEY` (Basic Auth). **Confere com a que você enviou.** |
-| Integração via SOAP | Não | OK — usamos REST |
-| Seleção de ERP por SOAP | (vazio) | OK — irrelevante |
-| **Autenticação da Integração Habilitada** | **Não** | ⚠️ Precisa verificar — ver abaixo |
-| Data para buscar registros (dias para trás) | 0 | Limita o que a API retorna (ver abaixo) |
-| Intervalo de busca | 5 min | OK — só afeta cron |
-| Bloqueio de campos de pedidos da integração | Sim | OK |
-| **URL de acesso ao webservice ERP** | (vazio) | Esse campo é para SOAP/ERP externo, **não** afeta nossa REST |
-| Habilitar criação/edição de pedidos no Nomus mesmo com Alterdata | Não | Só relevante se houver Alterdata |
+- `NOMUS_BASE_URL` está com a **chave** salva (string base64), por isso todo fetch quebra com "Failed to parse URL".
+- `NOMUS_API_KEY` provavelmente está vazia ou incorreta.
+- O código (`src/integrations/nomus/client.ts`) está correto — manda a chave no header `Authorization` sem prefixo, que é o padrão do Nomus.
 
-## Diagnóstico do problema atual
+## O que vou fazer (após aprovação)
 
-A chave **bate** com `aW50ZWdyYWRvcmVycDppTFBrSnRMY1p3WjdLUks=` (decodificada: `integradorerp:iLPkJtLcZwZ7KRK`). Os erros vinham de questões diferentes (Seroval/serverFn ID), agora resolvidos.
+### 1. Atualizar os secrets do Lovable Cloud
+- `NOMUS_BASE_URL` → `https://cncold.nomus.com.br/cncold/rest`
+- `NOMUS_API_KEY` → `aW50ZWdyYWRvcmVycDppTFBrSnRMY1p3WjdLUks=`
 
-**Dois pontos da tela do Nomus que merecem ação:**
+### 2. Hardening defensivo no client (1 arquivo)
+Em `src/integrations/nomus/client.ts`, ajustar `getNomusBaseUrl()` para detectar quando alguém colar uma chave no campo da URL e devolver mensagem clara:
+> "NOMUS_BASE_URL parece ser uma chave de API, não uma URL. Mova esse valor para NOMUS_API_KEY."
 
-1. **"Autenticação da Integração Habilitada = Não"** — Em algumas versões do Nomus, esse toggle define se a chave REST acima será exigida. Se estiver "Não", a API pode aceitar sem auth (ou rejeitar tudo). Vale conferir com o suporte Nomus qual o comportamento esperado e, se for o caso, **mudar para "Sim"**.
+Heurística: se o valor não contém `://` ou parece base64/credencial (`user:pass`), erro descritivo.
 
-2. **"Data para buscar registros (dias para trás) = 0"** — Em alguns endpoints isso significa "trazer só do dia atual", deixando `/propostas` retornar vazio. Recomendo **aumentar para 30 ou 90 dias** pelo menos para a sincronização inicial.
+### 3. Validar a conexão
+- Chamar `GET /api/nomus/test` e confirmar `success: true`.
+- Se falhar, ler `nomus_sync_log` e ajustar.
 
-## O que NÃO precisa mudar no nosso sistema
+### 4. Rodar sync inicial
+Disparar sync de `clientes`, `propostas`, `pedidos` e `notas_fiscais` via tela **Configurações → Nomus**, e conferir no banco que `nomus_proposals`, `clients`, `nomus_pedidos`, `nomus_invoices` populam.
 
-- A chave Basic Auth está correta no formato (`Authorization: Basic <chave>`)
-- A `NOMUS_BASE_URL` deve apontar para a URL REST do Nomus (algo como `https://<empresa>.nomus.com.br/nomusweb/integracaoErp` — confirme com o suporte; **não** é o "URL de acesso ao webservice ERP" da tela, que é para SOAP de saída)
-- O fluxo de pull (clientes, vendedores, propostas, itens) já está mapeado
+### 5. Conferir o frontend
+- `/app/propostas` deve listar dados reais automaticamente.
+- Se algum campo do payload do Nomus não estiver mapeado corretamente nos `mappers` do `src/routes/hooks/nomus-cron.ts`, ajustar pontualmente — mas só depois de ver o `raw` real chegando no banco (não dá pra adivinhar antes).
 
-## Ações recomendadas
+## O que NÃO será alterado
 
-### Do seu lado, no Nomus (tela do print):
-1. Mudar **"Autenticação da Integração Habilitada"** para **Sim** (confirmar com suporte Nomus)
-2. Aumentar **"Data para buscar registros"** para **30** ou **90** dias
-3. Salvar
+- Nenhuma tabela do banco, edge function de IA, tela de propostas, fluxo de envio, criação de pedido ou mapeamento prévio sem evidência do payload real.
 
-### Do meu lado (após confirmação):
-1. Rodar **Buscar do Nomus** novamente
-2. Inspecionar a primeira linha de `nomus_proposals.raw` (e `nomus_sync_log`) para confirmar nomes reais dos campos JSON e ajustar os `pickStr/pickNum` se necessário (ex.: `valorTotal` vs `valor_total`, `idCliente` vs `cliente.id`)
-3. Validar que o `NOMUS_BASE_URL` cadastrado é a URL correta da REST do Nomus (caminho `integracaoErp`)
+## Resumo da entrega
 
-## Próximo passo sugerido
-
-Confirme dois pontos para eu seguir:
-- Qual o valor atual de `NOMUS_BASE_URL`? (pode colar aqui — não é segredo)
-- Você consegue ajustar os 2 campos no Nomus (autenticação habilitada + dias para trás)?
-
-Com isso eu rodo o sync e mostro o que voltou no `raw` para fecharmos o mapeamento de campos.
+Após aplicar:
+- secrets corrigidos
+- `client.ts` com mensagem de erro defensiva
+- relatório do `testNomusConnection` (status + corpo)
+- contagem de registros sincronizados por entidade
+- se houver campo desalinhado, lista do que precisa ser ajustado nos mappers (etapa separada, com base no `raw` real)
 
