@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { ArrowLeft, RefreshCw, Save, Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -10,9 +10,19 @@ import {
   upsertProposalDocument,
   autoFillFromNomus,
 } from "@/integrations/proposal-editor/server.functions";
-import type { DocumentPage } from "@/integrations/proposal-editor/types";
+import type {
+  DocumentPage,
+  CoverData,
+  ContextData,
+  SolutionData,
+  ScopeItem,
+} from "@/integrations/proposal-editor/types";
 import { EditorPagePanel } from "@/components/proposal-editor/EditorPagePanel";
 import { EditorPreviewStub } from "@/components/proposal-editor/EditorPreviewStub";
+import {
+  BlockEditorPanel,
+  type DocumentEditState,
+} from "@/components/proposal-editor/BlockEditorPanel";
 
 export const Route = createFileRoute("/app/propostas/$id/editor")({
   component: ProposalEditorPage,
@@ -34,25 +44,57 @@ function ProposalEditorPage() {
 
   const doc = data?.document;
   const [pages, setPages] = useState<DocumentPage[]>([]);
+  const [state, setState] = useState<DocumentEditState>({
+    cover_data: {},
+    solution_data: {},
+    context_data: {},
+    scope_items: [],
+    warranty_text: {},
+    manually_edited_fields: [],
+  });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
+  const hydratedFor = useRef<string | null>(null);
 
+  // Hidrata estado quando o doc chega (ou quando troca de proposta)
   useEffect(() => {
-    if (doc?.pages) {
-      const ps = doc.pages as unknown as DocumentPage[];
-      setPages(ps);
-      if (!selectedId && ps.length > 0) setSelectedId(ps[0].id);
-    }
+    if (!doc) return;
+    if (hydratedFor.current === doc.id) return;
+    hydratedFor.current = doc.id;
+    const ps = (doc.pages as unknown as DocumentPage[]) ?? [];
+    setPages(ps);
+    setState({
+      cover_data: (doc.cover_data ?? {}) as CoverData,
+      solution_data: (doc.solution_data ?? {}) as SolutionData,
+      context_data: (doc.context_data ?? {}) as ContextData,
+      scope_items: (doc.scope_items ?? []) as unknown as ScopeItem[],
+      warranty_text: (doc.warranty_text ?? {}) as { html?: string; text?: string },
+      manually_edited_fields: doc.manually_edited_fields ?? [],
+    });
+    if (!selectedId && ps.length > 0) setSelectedId(ps[0].id);
+    setDirty(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [doc?.id]);
 
   const saveMut = useMutation({
     mutationFn: () =>
-      saveDoc({ data: { proposalId: id, patch: { pages: pages as unknown as never[] } } }),
+      saveDoc({
+        data: {
+          proposalId: id,
+          patch: {
+            pages: pages as unknown as never[],
+            cover_data: state.cover_data as Record<string, unknown>,
+            solution_data: state.solution_data as Record<string, unknown>,
+            context_data: state.context_data as Record<string, unknown>,
+            scope_items: state.scope_items as unknown as Array<Record<string, unknown>>,
+            warranty_text: state.warranty_text as Record<string, unknown>,
+            manually_edited_fields: state.manually_edited_fields,
+          },
+        },
+      }),
     onSuccess: () => {
       setDirty(false);
       qc.invalidateQueries({ queryKey: ["proposal-document", id] });
-      toast.success("Documento salvo");
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -60,6 +102,8 @@ function ProposalEditorPage() {
   const fillMut = useMutation({
     mutationFn: () => autoFill({ data: { proposalId: id } }),
     onSuccess: (res) => {
+      // força re-hidratação
+      hydratedFor.current = null;
       qc.invalidateQueries({ queryKey: ["proposal-document", id] });
       toast.success(`Sincronizado · ${res.filledFromNomus} itens do Nomus`);
     },
@@ -72,20 +116,41 @@ function ProposalEditorPage() {
     const t = setTimeout(() => saveMut.mutate(), 2000);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pages, dirty]);
+  }, [pages, state, dirty]);
 
   const handlePagesChange = (next: DocumentPage[]) => {
     setPages(next);
     setDirty(true);
   };
 
+  const handleStateChange = (
+    patch: Partial<DocumentEditState>,
+    editedKeys?: string[],
+  ) => {
+    setState((prev) => {
+      const merged = { ...prev, ...patch };
+      if (editedKeys && editedKeys.length > 0) {
+        const set = new Set(prev.manually_edited_fields);
+        editedKeys.forEach((k) => set.add(k));
+        merged.manually_edited_fields = Array.from(set);
+      }
+      return merged;
+    });
+    setDirty(true);
+  };
+
+  const handlePageContentChange = (pageId: string, patch: Partial<DocumentPage>) => {
+    setPages((prev) => prev.map((p) => (p.id === pageId ? { ...p, ...patch } : p)));
+    setDirty(true);
+  };
+
   const documentData = useMemo(
     () => ({
-      cover_data: (doc?.cover_data ?? {}) as Record<string, unknown>,
-      context_data: (doc?.context_data ?? {}) as Record<string, unknown>,
-      scope_items: (doc?.scope_items ?? []) as Array<Record<string, unknown>>,
+      cover_data: state.cover_data as Record<string, unknown>,
+      context_data: state.context_data as Record<string, unknown>,
+      scope_items: state.scope_items as unknown as Array<Record<string, unknown>>,
     }),
-    [doc?.cover_data, doc?.context_data, doc?.scope_items],
+    [state.cover_data, state.context_data, state.scope_items],
   );
 
   const selectedPage = pages.find((p) => p.id === selectedId) ?? null;
@@ -113,7 +178,7 @@ function ProposalEditorPage() {
           <div className="text-sm">
             <div className="font-semibold">Editor de Proposta</div>
             <div className="text-xs text-muted-foreground">
-              {dirty
+              {dirty || saveMut.isPending
                 ? "Salvando…"
                 : doc?.last_edited_at
                   ? `Salvo às ${new Date(doc.last_edited_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`
@@ -157,8 +222,8 @@ function ProposalEditorPage() {
       {/* Split layout */}
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar esquerda */}
-        <aside className="flex w-[40%] min-w-[320px] max-w-[480px] flex-col border-r bg-background">
-          <div className="h-[40%] min-h-[200px] border-b">
+        <aside className="flex w-[40%] min-w-[360px] max-w-[520px] flex-col border-r bg-background">
+          <div className="h-[35%] min-h-[200px] border-b">
             <EditorPagePanel
               pages={pages}
               selectedId={selectedId}
@@ -167,19 +232,23 @@ function ProposalEditorPage() {
             />
           </div>
           <div className="flex-1 overflow-y-auto p-4">
-            <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Bloco selecionado
-            </h3>
             {selectedPage ? (
-              <div className="rounded-md border bg-muted/30 p-4 text-sm">
-                <div className="mb-1 font-semibold">{selectedPage.title}</div>
-                <div className="text-xs text-muted-foreground">
-                  Tipo: <span className="font-mono">{selectedPage.type}</span>
+              <>
+                <div className="mb-3 flex items-center justify-between">
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    {selectedPage.title}
+                  </h3>
+                  <span className="font-mono text-[10px] text-muted-foreground">
+                    {selectedPage.type}
+                  </span>
                 </div>
-                <div className="mt-3 text-xs text-muted-foreground">
-                  Os campos editáveis deste bloco serão exibidos aqui na Etapa 2.
-                </div>
-              </div>
+                <BlockEditorPanel
+                  page={selectedPage}
+                  state={state}
+                  onChange={handleStateChange}
+                  onPageContentChange={handlePageContentChange}
+                />
+              </>
             ) : (
               <div className="text-sm text-muted-foreground">
                 Selecione uma página para editar.
