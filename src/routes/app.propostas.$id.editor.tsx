@@ -226,8 +226,17 @@ function ProposalEditorPage() {
             )}
             Salvar
           </Button>
-          <Button size="sm" disabled title="Disponível na Etapa 3">
-            <RefreshCw className="mr-1.5 h-3.5 w-3.5" /> Visualizar PDF
+          <Button
+            size="sm"
+            onClick={() => pdfMut.mutate()}
+            disabled={pdfMut.isPending}
+          >
+            {pdfMut.isPending ? (
+              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+            )}
+            Visualizar PDF
           </Button>
         </div>
       </div>
