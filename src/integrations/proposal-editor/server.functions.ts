@@ -422,6 +422,22 @@ export const generateProposalPdf = createServerFn({ method: "POST" })
       (doc.attached_pdf_paths ?? []) as string[],
     );
 
+    // Modo preview-inline: retorna base64 direto, sem upload (muito mais rápido para prévia ao vivo)
+    if (mode === "preview-inline") {
+      // Converte Uint8Array → base64 sem usar Buffer (compatível com Worker)
+      let binary = "";
+      const bytes = finalBuffer;
+      const chunk = 0x8000;
+      for (let i = 0; i < bytes.length; i += chunk) {
+        binary += String.fromCharCode.apply(
+          null,
+          Array.from(bytes.subarray(i, i + chunk)) as unknown as number[],
+        );
+      }
+      const base64 = btoa(binary);
+      return { url: null as string | null, path: null as string | null, mode, contentBase64: base64, mime: "application/pdf" };
+    }
+
     const path = `${proposalId}/${mode}-${Date.now()}.pdf`;
     const { error: upErr } = await supabase.storage
       .from("proposal-pdfs")
@@ -436,7 +452,7 @@ export const generateProposalPdf = createServerFn({ method: "POST" })
       .createSignedUrl(path, 60 * 30); // 30 min
     if (sErr) throw new Error(sErr.message);
 
-    return { url: signed.signedUrl, path, mode };
+    return { url: signed.signedUrl, path, mode, contentBase64: null as string | null, mime: "application/pdf" };
   });
 
 /**
