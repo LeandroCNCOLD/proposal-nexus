@@ -90,7 +90,7 @@ function ProposalEditorPage() {
   const hydratedFor = useRef<string | null>(null);
 
   // Tabelas estruturadas (para o preview DOM em tempo real)
-  const { tables: proposalTables } = useEditorPreviewData(id);
+  const { tables: proposalTables, isLoadingTables } = useEditorPreviewData(id);
 
   // Hidrata estado quando o doc chega (ou quando troca de proposta)
   useEffect(() => {
@@ -403,26 +403,32 @@ function ProposalEditorPage() {
           <div className="flex-1 overflow-hidden">
             {previewMode === "dom" ? (
               <div className="h-full overflow-y-auto bg-slate-100 p-6">
-                <EditorProposalPreview
-                  proposal={{
-                    ...(doc ?? {}),
-                    custom_blocks: doc?.custom_blocks,
-                    attached_pdf_paths: doc?.attached_pdf_paths,
-                  }}
-                  document={{
-                    pages,
-                    cover_data: state.cover_data,
-                    context_data: state.context_data,
-                    solution_data: state.solution_data,
-                    scope_items: state.scope_items,
-                    warranty_text: state.warranty_text,
-                    custom_blocks: doc?.custom_blocks ?? {},
-                    attached_pdf_paths: doc?.attached_pdf_paths ?? [],
-                  }}
-                  template={tplBundle?.template ?? null}
-                  tables={proposalTables}
-                  selectedPageId={selectedId}
-                />
+                {isLoadingTables ? (
+                  <div className="rounded-xl border bg-background p-6 text-sm text-muted-foreground">
+                    Carregando preview...
+                  </div>
+                ) : (
+                  <EditorProposalPreview
+                    proposal={{
+                      ...(doc ?? {}),
+                      custom_blocks: doc?.custom_blocks,
+                      attached_pdf_paths: doc?.attached_pdf_paths,
+                    }}
+                    document={{
+                      pages,
+                      cover_data: state.cover_data,
+                      context_data: state.context_data,
+                      solution_data: state.solution_data,
+                      scope_items: state.scope_items,
+                      warranty_text: state.warranty_text,
+                      custom_blocks: doc?.custom_blocks ?? {},
+                      attached_pdf_paths: doc?.attached_pdf_paths ?? [],
+                    }}
+                    template={tplBundle?.template ?? null}
+                    tables={proposalTables}
+                    selectedPageId={selectedId}
+                  />
+                )}
               </div>
             ) : (
               <ProposalPreviewLive
