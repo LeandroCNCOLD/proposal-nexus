@@ -1,87 +1,88 @@
 
 
-## Diagnóstico: lentidão no editor de propostas
+## Migração `proposal_tables` — análise e plano de adoção
 
-Você está percebendo lentidão no editor (rota `/app/propostas/.../editor`). Analisei a arquitetura e identifiquei os gargalos principais.
+Você colou uma migração SQL que **redesenha** a tabela `proposal_tables`. Hoje a tabela já existe no banco com um schema diferente do que a sua migração propõe. Antes de aplicar é preciso decidir como conciliar.
 
-### O que está acontecendo (causas reais)
+### Comparação: schema atual × schema proposto
 
-**1. PDF é regenerado do zero a cada alteração (gargalo principal)**
-Hoje, toda vez que você muda qualquer campo na prévia ao vivo (`ProposalPreviewLive.tsx`), o fluxo é:
-- Server function `generateProposalPdf` roda no Worker
-- Renderiza o documento completo (capa + sobre + cases + clientes + escopo + características + equipamentos + investimento + impostos + garantia + contracapa) com `@react-pdf/renderer`
-- Faz **upload** do PDF gerado para o storage do Lovable Cloud
-- Gera **signed URL**
-- O cliente faz `fetch` da URL, converte em **Blob**, e cria `URL.createObjectURL`
+| Coluna | Hoje | Proposto | Observação |
+|---|---|---|---|
+| `id` | uuid pk | uuid pk | igual |
+| `proposal_id` | uuid (sem FK) | uuid + **FK ON DELETE CASCADE** | proposto é melhor |
+| `page_id` | text **NOT NULL** | text **NULL** | muda nulabilidade |
+| `type` | text NOT NULL | renomeada para `table_type` | **breaking** |
+| `title` | text | text | igual |
+| — | — | `subtitle` text | nova |
+| `rows` | jsonb | jsonb | igual |
+| `columns` | jsonb | **removida** (vai para `settings.columns`) | **breaking** |
+| — | — | `settings` jsonb | nova |
+| — | — | `sort_order` int | nova |
+| — | — | `created_by`, `updated_by` | novas |
+| `created_at`/`updated_at` | sim | sim | igual |
+| Unique | `(proposal_id, page_id)` | `(proposal_id, coalesce(page_id,''), table_type, sort_order)` | permite múltiplas tabelas por página |
+| Trigger updated_at | não tem | tem | proposto é melhor |
+| RLS | select=true / modify autenticado | select/insert/update/delete autenticado | equivalente |
 
-Cada ciclo desses leva vários segundos. Os PDFs de template têm imagens enormes embutidas (`cover_full` 6.4 MB, `about_full` 6 MB — vi nos logs), o que multiplica o tempo de render e o tamanho do upload/download.
+### Impacto no código atual
 
-**2. Sem debounce agressivo / sem cancelamento**
-Se você digita rápido, várias gerações de PDF disparam em paralelo (ou enfileiradas) e nenhuma é cancelada. A última vence, mas todas consomem CPU do Worker e largura de banda.
+A migração quebra os seguintes pontos do código que já está em produção:
 
-**3. Cada save dispara recarga total**
-Salvar um bloco invalida toda a query do documento, que recarrega proposta + template + assets + anexos + tabelas. Não há atualização incremental.
+1. **`src/integrations/proposal-editor/tables.functions.ts`** — usa `type`, `columns`, e o conflict target `proposal_id,page_id`. Tudo precisa ser atualizado para `table_type`, `settings`, e novo conflict target.
+2. **`src/integrations/proposal-editor/types.ts`** — o type `ProposalTable` reflete colunas antigas.
+3. **`src/components/proposal-editor/blocks/StructuredTableEditor.tsx`** e **`TableBlockEditor.tsx`** — leem/escrevem `columns` direto.
+4. **Renderer PDF** (`ContentPages.tsx`/`StandardPage.tsx`) — consome `columns` direto.
+5. **`src/integrations/supabase/types.ts`** — regenerado automaticamente após a migração.
 
-**4. Imagens do template não são otimizadas**
-PNGs de 6 MB são embarcados como base64 no PDF a cada render. Isso é lento no Worker (CPU + memória) e pesado no transporte.
+### Decisão necessária
 
-**5. TipTap com várias extensões**
-RichTextEditor agora carrega Image + Table + TableRow + TableCell + TableHeader + StarterKit. Em páginas com muitos blocos rich-text, cada instância tem custo de mount.
+Existem 3 caminhos possíveis. Escolha um:
 
-### Plano de otimização (ordem de impacto)
+**Opção A — Adotar a migração nova como veio (recomendado se a tabela ainda não tem dados em produção)**
+- Aplica a migração exata que você colou + um `ALTER TABLE` prévio que **dropa** a tabela antiga (ou renomeia colunas) para evitar conflito.
+- Atualiza todo o código (server functions, types, editores, PDF) para o novo schema (`table_type`, `settings.columns`, `sort_order`).
+- Ganhos: FK com cascade, múltiplas tabelas por página (sort_order), trigger de updated_at, settings flexível, helper `proposal_table_default_settings`.
+- Custo: ~5 arquivos editados + perda dos dados atuais em `proposal_tables` (se houver).
 
-**Fase A — Ganhos imediatos (fazer primeiro)**
+**Opção B — Migração não-destrutiva (preserva dados existentes)**
+- Em vez de recriar a tabela, gera um `ALTER TABLE`:
+  - `ADD COLUMN settings jsonb`, `subtitle`, `sort_order`, `created_by`, `updated_by`
+  - `RENAME COLUMN type TO table_type`
+  - Move `columns` existente para `settings->'columns'` via `UPDATE`, depois `DROP COLUMN columns`
+  - `ALTER COLUMN page_id DROP NOT NULL`
+  - Adiciona FK `proposal_id` com cascade
+  - Substitui o unique por `(proposal_id, coalesce(page_id,''), table_type, sort_order)`
+  - Cria trigger `set_proposal_tables_updated_at` e função `proposal_table_default_settings`
+- Atualiza o mesmo código da Opção A.
+- Ganhos: preserva linhas já criadas.
+- Custo: migração mais cuidadosa + mesmos ~5 arquivos.
 
-1. **Debounce + cancelamento na prévia ao vivo**
-   - Aumentar debounce de regeneração de PDF para ~1.5s após a última edição
-   - Usar `AbortController` para cancelar a geração anterior quando uma nova começa
-   - Usar `useMutation` do TanStack Query com `mutationKey` para deduplicar
+**Opção C — Não aplicar agora**
+- Mantém o schema atual; descarta a migração.
 
-2. **Modo "preview rápido" sem upload**
-   - Criar variante `mode: "preview-inline"` em `generateProposalPdf` que retorna o PDF como **base64/binário diretamente na resposta**, pulando upload + signed URL
-   - Cliente cria Blob direto da resposta. Elimina 2 round-trips (upload + fetch).
+### Detalhes técnicos (se Opção A ou B aprovada)
 
-3. **Botão "Atualizar prévia" opcional**
-   - Adicionar toggle "Auto-atualizar" (default ligado mas com debounce maior); quando desligado, prévia só atualiza ao clicar em "Atualizar". Útil quando o usuário sabe que vai fazer várias edições seguidas.
-
-**Fase B — Otimização das imagens do template**
-
-4. **Comprimir imagens do template**
-   - Reprocessar `cover_full` e `about_full` para JPEG ~85% qualidade, redimensionar para no máx 2000px no maior lado. Esperado: 6 MB → ~400 KB cada.
-   - Cachear os bytes das imagens no servidor entre renders consecutivos da mesma proposta.
-
-5. **Lazy-load de assets no PDF**
-   - Carregar do storage só os assets das páginas visíveis no template em vez de todos.
-
-**Fase C — Render incremental (se ainda for lento depois de A e B)**
-
-6. **Render parcial por página**
-   - Permitir gerar só a(s) página(s) afetada(s) pela última edição (ex.: editou capa → regera só a capa). Requer mudanças no `ProposalDocument` para suportar render seletivo + merge no cliente.
-
-7. **Preview HTML em vez de PDF para edição**
-   - Usar `EditorPreviewStub` (HTML/CSS) durante edição ativa, e só gerar PDF real ao salvar / clicar "Visualizar PDF". O HTML já existe no projeto — basta promovê-lo a default em modo edição.
-
-### Detalhes técnicos
+Arquivos a editar após a migração:
 
 ```text
-Fluxo atual (lento):
-[edit] → debounce → genPdf server → @react-pdf render (~2-4s)
-       → upload storage (~500ms-1s) → sign URL (~200ms)
-       → client fetch PDF (~500ms-2s) → Blob → iframe
-
-Fluxo proposto Fase A:
-[edit] → debounce 1.5s + abort prev → genPdf inline mode
-       → @react-pdf render → return base64 in response
-       → client Blob → iframe
-       (corta upload + sign + fetch externo)
+supabase/migrations/<timestamp>_proposal_tables_redesign.sql   (novo)
+src/integrations/proposal-editor/types.ts                       (renomear campos)
+src/integrations/proposal-editor/tables.functions.ts            (table_type + settings + sort_order; novo onConflict)
+src/components/proposal-editor/blocks/StructuredTableEditor.tsx (ler colunas de settings.columns)
+src/components/proposal-editor/blocks/TableBlockEditor.tsx      (idem)
+src/integrations/proposal-editor/pdf/ContentPages.tsx           (idem; usar settings.show_header etc.)
+src/integrations/proposal-editor/pdf/StandardPage.tsx           (se relevante)
 ```
 
-Arquivos que mudam na Fase A:
-- `src/integrations/proposal-editor/server.functions.ts` — adicionar `mode: "preview-inline"` que retorna `{ contentBase64, mime }`
-- `src/components/proposal-editor/ProposalPreviewLive.tsx` — debounce maior, AbortController, consumir base64
-- (opcional) toggle "Auto-atualizar" no painel da prévia
+Após a migração rodar, `src/integrations/supabase/types.ts` é regenerado automaticamente — não editar à mão.
 
-### Pergunta antes de implementar
+### Pergunta antes de avançar
 
-Quer que eu **comece pela Fase A** (debounce + cancelamento + preview inline sem upload — maior ganho com menor risco) e depois meçamos novamente, ou prefere começar pela **compressão das imagens do template** (Fase B), que também tem impacto grande mas exige reprocessar e re-upar os assets?
+Qual opção seguimos?
+
+1. **A** — recriar a tabela conforme você colou (perde dados de `proposal_tables` se houver)
+2. **B** — migração não-destrutiva preservando os dados existentes
+3. **C** — não aplicar agora
+
+Se A ou B, eu também já aplico no mesmo turno a atualização do código que consome essa tabela (server functions, types, editores e PDF).
 
