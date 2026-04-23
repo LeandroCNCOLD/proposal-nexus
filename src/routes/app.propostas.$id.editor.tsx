@@ -30,7 +30,9 @@ import type {
 } from "@/integrations/proposal-editor/types";
 import { EditorPagePanel } from "@/components/proposal-editor/EditorPagePanel";
 import { ProposalPreviewLive } from "@/components/proposal-editor/ProposalPreviewLive";
+import { ProposalPreviewA4 } from "@/components/proposal-editor/ProposalPreviewA4";
 import { ProposalAttachmentsPanel } from "@/components/proposal-editor/ProposalAttachmentsPanel";
+import { useProposalTables } from "@/features/proposal-editor/use-proposal-tables";
 import {
   BlockEditorPanel,
   type DocumentEditState,
