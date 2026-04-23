@@ -10,15 +10,44 @@ import {
   type ScopeItem,
   type SolutionData,
 } from "./types";
+import type { ProposalTemplate, TemplateAsset, TemplatePageConfig } from "./template.types";
 import { renderToBuffer } from "@react-pdf/renderer";
 import { createElement } from "react";
 import { ProposalDocumentPdf } from "./pdf/ProposalDocument";
 
 const proposalIdSchema = z.object({ proposalId: z.string().uuid() });
 
+const TEMPLATE_BUCKET = "proposal-template-assets";
+
+async function loadDefaultTemplateBundle(
+  supabase: Parameters<typeof requireSupabaseAuth.server>[0]["context"] extends { supabase: infer S } ? S : never,
+): Promise<{ template: ProposalTemplate; assets: TemplateAsset[] } | null> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sb = supabase as any;
+  const { data: tmpl } = await sb
+    .from("proposal_templates")
+    .select("*")
+    .eq("is_default", true)
+    .eq("is_active", true)
+    .maybeSingle();
+  if (!tmpl) return null;
+
+  const { data: assets } = await sb
+    .from("proposal_template_assets")
+    .select("*")
+    .eq("template_id", tmpl.id);
+
+  const enriched: TemplateAsset[] = (assets ?? []).map((a: { storage_path: string } & Record<string, unknown>) => ({
+    ...(a as unknown as TemplateAsset),
+    url: sb.storage.from(TEMPLATE_BUCKET).getPublicUrl(a.storage_path).data.publicUrl,
+  }));
+
+  return { template: tmpl as ProposalTemplate, assets: enriched };
+}
+
 /**
- * Carrega o documento da proposta. Se não existir, cria um com a estrutura
- * padrão (7 páginas do template CN Cold) e retorna.
+ * Carrega o documento da proposta. Se não existir, cria um aplicando o
+ * template padrão (cores, pages_config, textos fixos) e retorna.
  */
 export const getProposalDocument = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -37,12 +66,18 @@ export const getProposalDocument = createServerFn({ method: "POST" })
     if (selErr) throw new Error(selErr.message);
     if (existing) return { document: existing };
 
-    // Cria com defaults
+    // Aplica template padrão
+    const bundle = await loadDefaultTemplateBundle(supabase);
+    const pages: DocumentPage[] = (bundle?.template.pages_config as unknown as DocumentPage[] | undefined)
+      ?? DEFAULT_PAGES;
+
+    // Cria com defaults + template padrão
     const { data: created, error: insErr } = await supabase
       .from("proposal_documents")
       .insert({
         proposal_id: proposalId,
-        pages: DEFAULT_PAGES as unknown as never,
+        template_id: bundle?.template.id ?? null,
+        pages: pages as unknown as never,
         last_edited_by: userId,
       })
       .select("*")
