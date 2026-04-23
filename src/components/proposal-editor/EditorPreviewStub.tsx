@@ -16,8 +16,16 @@ interface Props {
  * Preview placeholder paginado A4. Será substituído pelo render real
  * com @react-pdf/renderer na Etapa 3.
  */
-export function EditorPreviewStub({ pages, selectedId, documentData }: Props) {
+export function EditorPreviewStub({ pages, selectedId, documentData, templateAssets }: Props) {
   const visible = pages.filter((p) => p.visible).sort((a, b) => a.order - b.order);
+  const coverFull = templateAssets?.find((a) => a.asset_kind === "cover_full")?.url;
+  const aboutFull = templateAssets?.find((a) => a.asset_kind === "about_full")?.url;
+  const clientsFull = templateAssets?.find((a) => a.asset_kind === "clients_full")?.url;
+  const fullByType: Record<string, string | undefined> = {
+    cover: coverFull,
+    about: aboutFull,
+    cases: clientsFull,
+  };
 
   return (
     <div className="flex h-full flex-col bg-muted/30">
@@ -32,6 +40,7 @@ export function EditorPreviewStub({ pages, selectedId, documentData }: Props) {
               page={page}
               isSelected={selectedId === page.id}
               documentData={documentData}
+              fullImageSrc={fullByType[page.type]}
             />
           ))}
         </div>
