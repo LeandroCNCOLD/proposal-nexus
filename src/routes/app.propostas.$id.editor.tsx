@@ -28,7 +28,7 @@ import type {
   ScopeItem,
 } from "@/integrations/proposal-editor/types";
 import { EditorPagePanel } from "@/components/proposal-editor/EditorPagePanel";
-import { EditorPreviewStub } from "@/components/proposal-editor/EditorPreviewStub";
+import { ProposalPreviewLive } from "@/components/proposal-editor/ProposalPreviewLive";
 import {
   BlockEditorPanel,
   type DocumentEditState,
@@ -320,6 +320,7 @@ function ProposalEditorPage() {
                   </span>
                 </div>
                 <BlockEditorPanel
+                  proposalId={id}
                   page={selectedPage}
                   state={state}
                   onChange={handleStateChange}
@@ -336,11 +337,9 @@ function ProposalEditorPage() {
 
         {/* Preview direita */}
         <main className="flex-1 overflow-hidden">
-          <EditorPreviewStub
-            pages={pages}
-            selectedId={selectedId}
-            documentData={documentData}
-            templateAssets={tplBundle?.assets ?? []}
+          <ProposalPreviewLive
+            proposalId={id}
+            version={pages.length + JSON.stringify(state).length}
           />
         </main>
       </div>
