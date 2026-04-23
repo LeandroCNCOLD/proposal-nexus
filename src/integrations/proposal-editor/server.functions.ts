@@ -348,7 +348,7 @@ export const autoFillFromNomus = createServerFn({ method: "POST" })
  */
 const generateSchema = z.object({
   proposalId: z.string().uuid(),
-  mode: z.enum(["preview", "final"]).default("preview"),
+  mode: z.enum(["preview", "final", "preview-inline"]).default("preview"),
 });
 
 export const generateProposalPdf = createServerFn({ method: "POST" })
