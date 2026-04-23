@@ -5,7 +5,7 @@ import {
   upsertProposalTableInputSchema,
   listProposalTablesInputSchema,
 } from "./proposal-tables.schema";
-import type { ProposalTable } from "./proposal-tables.types";
+// ProposalTable type is the consumer-side shape; server returns raw JSON rows.
 
 export const listProposalTables = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -30,13 +30,13 @@ export const listProposalTables = createServerFn({ method: "POST" })
       throw new Error(`Erro ao listar tabelas da proposta: ${error.message}`);
     }
 
-    return (rows ?? []) as unknown as ProposalTable[];
+    return (rows ?? []) as unknown as Array<Record<string, unknown>>;
   });
 
 export const upsertProposalTable = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => upsertProposalTableInputSchema.parse(input))
-  .handler(async ({ data, context }): Promise<ProposalTable> => {
+  .handler(async ({ data, context }) => {
     const { supabase } = context;
 
     const payload = {
@@ -61,7 +61,7 @@ export const upsertProposalTable = createServerFn({ method: "POST" })
       throw new Error(`Erro ao salvar tabela da proposta: ${error.message}`);
     }
 
-    return row as unknown as ProposalTable;
+    return row as unknown as Record<string, unknown>;
   });
 
 export const deleteProposalTable = createServerFn({ method: "POST" })
