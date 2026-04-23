@@ -8,10 +8,10 @@ import { toast } from "sonner";
 import {
   getProposalDocument,
   upsertProposalDocument,
-  autoFillFromNomus,
   generateProposalPdf,
   setProposalDocumentTemplate,
 } from "@/integrations/proposal-editor/server.functions";
+import { useAutoFillDocumentFromNomus } from "@/features/proposal-editor/use-auto-fill-document-from-nomus";
 import { createProposalSendVersion } from "@/features/proposal-editor/create-proposal-send-version.functions";
 import { listTemplates, getTemplate } from "@/integrations/proposal-editor/template.functions";
 import {
