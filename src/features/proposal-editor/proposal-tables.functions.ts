@@ -10,7 +10,7 @@ import type { ProposalTable } from "./proposal-tables.types";
 export const listProposalTables = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => listProposalTablesInputSchema.parse(input))
-  .handler(async ({ data, context }): Promise<ProposalTable[]> => {
+  .handler(async ({ data, context }) => {
     const { supabase } = context;
 
     let query = supabase
