@@ -139,7 +139,25 @@ export function TableBlockEditor({
         }}
         showTotal={showTotal}
       />
-      <div className="flex justify-end">
+      <div className="flex items-center justify-between gap-2">
+        {type === "impostos" || type === "equipamentos" ? (
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => importMut.mutate()}
+            disabled={importMut.isPending}
+            className="text-xs"
+          >
+            {importMut.isPending ? (
+              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Download className="mr-1.5 h-3.5 w-3.5" />
+            )}
+            {type === "impostos" ? "Importar tributos do Nomus" : "Popular com itens da proposta"}
+          </Button>
+        ) : (
+          <span />
+        )}
         <Button
           size="sm"
           variant="outline"
