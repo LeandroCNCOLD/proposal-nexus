@@ -402,6 +402,7 @@ export const generateProposalPdf = createServerFn({ method: "POST" })
     }
     if (!bundle) bundle = await loadDefaultTemplateBundle(supabase);
 
+    const storageBaseUrl = `${process.env.VITE_SUPABASE_URL ?? ""}/storage/v1/object/public/proposal-attachments`;
     const element = createElement(ProposalDocumentPdf, {
       pages,
       cover,
@@ -412,6 +413,7 @@ export const generateProposalPdf = createServerFn({ method: "POST" })
       template: bundle?.template ?? null,
       assets: bundle?.assets ?? [],
       tables,
+      storageBaseUrl,
     });
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
