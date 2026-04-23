@@ -30,6 +30,7 @@ import type {
 } from "@/integrations/proposal-editor/types";
 import { EditorPagePanel } from "@/components/proposal-editor/EditorPagePanel";
 import { ProposalPreviewLive } from "@/components/proposal-editor/ProposalPreviewLive";
+import { ProposalAttachmentsPanel } from "@/components/proposal-editor/ProposalAttachmentsPanel";
 import {
   BlockEditorPanel,
   type DocumentEditState,
@@ -363,6 +364,12 @@ function ProposalEditorPage() {
                 Selecione uma página para editar.
               </div>
             )}
+            <div className="mt-6 border-t pt-4">
+              <ProposalAttachmentsPanel
+                proposalId={id}
+                onChanged={() => qc.invalidateQueries({ queryKey: ["proposal-document", id] })}
+              />
+            </div>
           </div>
         </aside>
 
