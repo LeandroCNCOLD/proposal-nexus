@@ -298,15 +298,12 @@ function ProposalDetail() {
               <StatusBadge status={p.status as ProposalStatus} />
             </div>
             <dl className="grid gap-4 text-sm md:grid-cols-2">
-              {!isNomus && <Item label="Cliente" value={(p.clients as any)?.name ?? "—"} />}
-              <Item label="Segmento" value={p.segment ?? (p.clients as any)?.segment ?? "—"} />
-              <Item label="Região" value={p.region ?? "—"} />
               <Item label="Temperatura" value={p.temperature ? TEMPERATURE_LABELS[p.temperature] : "—"} />
               <Item label="Valor total" value={brl(Number(p.total_value ?? 0))} highlight />
               <Item label="Probabilidade" value={p.win_probability != null ? `${p.win_probability}%` : "—"} />
-              {!isNomus && <Item label="Validade" value={dateBR(p.valid_until)} />}
               <Item label="Próximo follow-up" value={dateBR(p.next_followup_at)} />
               <Item label="Enviada em" value={dateBR(p.sent_at)} />
+              {!isNomus && <Item label="Validade" value={dateBR(p.valid_until)} />}
               {!isNomus && <Item label="Criada em" value={dateBR(p.created_at)} />}
             </dl>
             {p.commercial_notes && (
