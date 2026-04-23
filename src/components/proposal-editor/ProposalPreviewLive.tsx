@@ -24,12 +24,26 @@ export function ProposalPreviewLive({ proposalId, version, debounceMs = 1500 }: 
 
   useEffect(() => {
     let cancelled = false;
+    let createdBlobUrl: string | null = null;
     const t = setTimeout(async () => {
       setLoading(true);
       setError(null);
       try {
         const res = await genPdf({ data: { proposalId, mode: "preview" } });
-        if (!cancelled) setUrl(res.url);
+        // Busca o PDF como blob para evitar bloqueio do Chrome em iframes cross-origin de PDF
+        const pdfRes = await fetch(res.url);
+        if (!pdfRes.ok) throw new Error(`HTTP ${pdfRes.status}`);
+        const blob = await pdfRes.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        createdBlobUrl = blobUrl;
+        if (!cancelled) {
+          setUrl((prev) => {
+            if (prev && prev.startsWith("blob:")) URL.revokeObjectURL(prev);
+            return blobUrl;
+          });
+        } else {
+          URL.revokeObjectURL(blobUrl);
+        }
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Falha ao gerar prévia");
       } finally {
@@ -39,6 +53,7 @@ export function ProposalPreviewLive({ proposalId, version, debounceMs = 1500 }: 
     return () => {
       cancelled = true;
       clearTimeout(t);
+      if (createdBlobUrl) URL.revokeObjectURL(createdBlobUrl);
     };
   }, [proposalId, version, debounceMs, genPdf]);
 
