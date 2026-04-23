@@ -1,128 +1,156 @@
-import { Text, View } from "@react-pdf/renderer";
-import { pdfStyles, colors } from "./styles";
+import { Text, View, Image } from "@react-pdf/renderer";
+import type { PdfPalette } from "./styles";
 import { StandardPage } from "./StandardPage";
 import type { ContextData, ScopeItem, SolutionData } from "../types";
+import type { ProposalTemplate, TemplateAsset, TemplateCaseItem, TemplateGarantiaItem, TemplateDiferencial } from "../template.types";
 
 const fmtBRL = (n?: number) =>
   typeof n === "number"
     ? n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
     : "—";
 
-function Bullet({ children }: { children: string }) {
+interface PageCtx {
+  palette: PdfPalette;
+  template: ProposalTemplate | null;
+  assets: TemplateAsset[];
+  logoUrl?: string;
+}
+
+function Bullet({ palette, children }: { palette: PdfPalette; children: string }) {
   return (
-    <View style={pdfStyles.bullet}>
-      <Text style={pdfStyles.bulletDot}>•</Text>
-      <Text style={pdfStyles.bulletText}>{children}</Text>
+    <View style={{ flexDirection: "row", marginBottom: 4 }}>
+      <Text style={{ width: 12, color: palette.accent }}>•</Text>
+      <Text style={{ flex: 1 }}>{children}</Text>
     </View>
   );
 }
 
-export function AboutPage() {
+export function AboutPage({ palette, template, assets, logoUrl }: PageCtx) {
+  const paragrafos = (template?.sobre_paragrafos ?? []) as string[];
+  const diferenciais = (template?.sobre_diferenciais ?? []) as TemplateDiferencial[];
+  const fotoFabrica = assets.find((a) => a.asset_kind === "about_photo")?.url;
   return (
-    <StandardPage title="Sobre a CN Cold">
-      <Text style={pdfStyles.paragraph}>
-        A CN Cold é especializada em refrigeração industrial, com soluções completas para câmaras
-        frigoríficas, túneis de congelamento, racks de compressores e sistemas de automação.
-        Atuamos em todo o Brasil com projetos sob medida, equipe técnica própria e atendimento
-        pós-venda.
-      </Text>
-      <Text style={pdfStyles.paragraph}>
-        Nossa missão é entregar eficiência energética, confiabilidade operacional e o menor custo
-        total de propriedade ao longo da vida útil do sistema.
-      </Text>
-      <View style={pdfStyles.divider} />
-      <Text style={pdfStyles.h3}>Nossos pilares</Text>
-      <Bullet>Engenharia própria com cálculo térmico detalhado</Bullet>
-      <Bullet>Equipamentos de marcas líderes (Bitzer, Copeland, Danfoss)</Bullet>
-      <Bullet>Comissionamento e treinamento da equipe operacional</Bullet>
-      <Bullet>Manutenção preventiva e suporte 24x7</Bullet>
+    <StandardPage title={template?.sobre_titulo || "Sobre a CN Cold"} palette={palette} template={template} logoUrl={logoUrl}>
+      {fotoFabrica ? (
+        <Image src={fotoFabrica} style={{ width: "100%", height: 160, objectFit: "cover", marginBottom: 12 }} />
+      ) : null}
+      {paragrafos.map((p, i) => (
+        <Text key={i} style={{ marginBottom: 8 }}>{p}</Text>
+      ))}
+      {diferenciais.length > 0 && (
+        <>
+          <View style={{ height: 1, backgroundColor: palette.border, marginVertical: 10 }} />
+          <Text style={{ fontSize: 12, fontFamily: "Helvetica-Bold", color: palette.primary, marginBottom: 6 }}>
+            Nossos diferenciais
+          </Text>
+          {diferenciais.map((d, i) => (
+            <View key={i} style={{ marginBottom: 6 }}>
+              <Text style={{ fontFamily: "Helvetica-Bold" }}>{d.titulo}</Text>
+              {d.descricao ? (
+                <Text style={{ fontSize: 9, color: palette.textMuted }}>{d.descricao}</Text>
+              ) : null}
+            </View>
+          ))}
+        </>
+      )}
     </StandardPage>
   );
 }
 
-export function CasesPage() {
+export function CasesPage({ palette, template, logoUrl }: PageCtx) {
+  const cases = (template?.cases_itens ?? []) as TemplateCaseItem[];
+  const clientes = (template?.clientes_lista ?? []) as string[];
   return (
-    <StandardPage title="Cases de sucesso">
-      <Text style={pdfStyles.paragraph}>
-        Mais de 200 projetos entregues nos setores de alimentos, frigoríficos, distribuidoras de
-        congelados, indústria farmacêutica e logística refrigerada.
-      </Text>
-      <Bullet>Frigorífico de aves — câmara de 2.500 m³ a -25 °C</Bullet>
-      <Bullet>Distribuidor de pescados — túnel de congelamento contínuo</Bullet>
-      <Bullet>Laticínio — sala de processamento climatizada com controle de umidade</Bullet>
+    <StandardPage title={template?.cases_titulo || "Cases / Projetos"} palette={palette} template={template} logoUrl={logoUrl}>
+      {template?.cases_subtitulo ? (
+        <Text style={{ marginBottom: 10, color: palette.textMuted }}>{template.cases_subtitulo}</Text>
+      ) : null}
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+        {cases.map((c, i) => (
+          <View key={i} style={{ width: "48%", marginBottom: 6, padding: 6, backgroundColor: palette.bgSoft, borderRadius: 3 }}>
+            <Text style={{ fontFamily: "Helvetica-Bold", fontSize: 9, color: palette.primary }}>
+              {c.titulo}
+            </Text>
+            {c.cliente ? (
+              <Text style={{ fontSize: 8, color: palette.textMuted }}>{c.cliente}</Text>
+            ) : null}
+            {c.descricao ? (
+              <Text style={{ fontSize: 8, marginTop: 2 }}>{c.descricao}</Text>
+            ) : null}
+          </View>
+        ))}
+      </View>
+      {clientes.length > 0 && (
+        <View style={{ marginTop: 14 }}>
+          <Text style={{ fontSize: 12, fontFamily: "Helvetica-Bold", color: palette.primary, marginBottom: 6 }}>
+            {template?.clientes_titulo || "Clientes que confiam na CN Cold"}
+          </Text>
+          <Text style={{ fontSize: 9, color: palette.textMuted }}>
+            {clientes.join(" · ")}
+          </Text>
+        </View>
+      )}
     </StandardPage>
   );
 }
 
-export function SolutionPage({ solution }: { solution: SolutionData }) {
+export function SolutionPage({ palette, template, logoUrl, solution }: PageCtx & { solution: SolutionData }) {
   return (
-    <StandardPage title="Nossa solução">
-      {solution.intro ? <Text style={pdfStyles.paragraph}>{solution.intro}</Text> : null}
-
+    <StandardPage title="Solução Proposta" palette={palette} template={template} logoUrl={logoUrl}>
+      {solution.intro ? <Text style={{ marginBottom: 8 }}>{solution.intro}</Text> : null}
       {solution.contempla && solution.contempla.length > 0 && (
         <>
-          <Text style={pdfStyles.h3}>O que contempla</Text>
-          {solution.contempla.map((c, i) => (
-            <Bullet key={i}>{c}</Bullet>
-          ))}
+          <Text style={{ fontSize: 12, fontFamily: "Helvetica-Bold", color: palette.primary, marginBottom: 6 }}>O que contempla</Text>
+          {solution.contempla.map((c, i) => (<Bullet key={i} palette={palette}>{c}</Bullet>))}
         </>
       )}
-
       {solution.diferenciais && solution.diferenciais.length > 0 && (
         <>
-          <Text style={[pdfStyles.h3, { marginTop: 10 }]}>Diferenciais</Text>
-          {solution.diferenciais.map((c, i) => (
-            <Bullet key={i}>{c}</Bullet>
-          ))}
+          <Text style={{ fontSize: 12, fontFamily: "Helvetica-Bold", color: palette.primary, marginBottom: 6, marginTop: 10 }}>Diferenciais</Text>
+          {solution.diferenciais.map((c, i) => (<Bullet key={i} palette={palette}>{c}</Bullet>))}
         </>
       )}
-
       {solution.impacto && solution.impacto.length > 0 && (
         <>
-          <Text style={[pdfStyles.h3, { marginTop: 10 }]}>Impacto esperado</Text>
-          {solution.impacto.map((c, i) => (
-            <Bullet key={i}>{c}</Bullet>
-          ))}
+          <Text style={{ fontSize: 12, fontFamily: "Helvetica-Bold", color: palette.primary, marginBottom: 6, marginTop: 10 }}>Impacto esperado</Text>
+          {solution.impacto.map((c, i) => (<Bullet key={i} palette={palette}>{c}</Bullet>))}
         </>
       )}
-
       {solution.conclusao ? (
         <>
-          <View style={pdfStyles.divider} />
-          <Text style={pdfStyles.paragraph}>{solution.conclusao}</Text>
+          <View style={{ height: 1, backgroundColor: palette.border, marginVertical: 10 }} />
+          <Text>{solution.conclusao}</Text>
         </>
       ) : null}
     </StandardPage>
   );
 }
 
-function InfoRow({ label, value }: { label: string; value?: string }) {
+function InfoRow({ palette, label, value }: { palette: PdfPalette; label: string; value?: string }) {
   return (
     <View style={{ flexDirection: "row", marginBottom: 4 }}>
-      <Text style={{ width: 110, color: colors.textMuted, fontSize: 9 }}>{label}</Text>
+      <Text style={{ width: 110, color: palette.textMuted, fontSize: 9 }}>{label}</Text>
       <Text style={{ flex: 1 }}>{value || "—"}</Text>
     </View>
   );
 }
 
-export function ContextPage({ ctx }: { ctx: ContextData }) {
+export function ContextPage({ palette, template, logoUrl, ctx }: PageCtx & { ctx: ContextData }) {
   return (
-    <StandardPage title="Contextualização">
-      <Text style={pdfStyles.h3}>Cliente</Text>
-      <InfoRow label="Razão social" value={ctx.cliente_razao} />
-      <InfoRow label="Nome fantasia" value={ctx.fantasia} />
-      <InfoRow label="CNPJ" value={ctx.cnpj} />
-      <InfoRow label="Endereço" value={ctx.endereco} />
+    <StandardPage title="Contextualização" palette={palette} template={template} logoUrl={logoUrl}>
+      <Text style={{ fontSize: 12, fontFamily: "Helvetica-Bold", color: palette.primary, marginBottom: 6 }}>Cliente</Text>
+      <InfoRow palette={palette} label="Razão social" value={ctx.cliente_razao} />
+      <InfoRow palette={palette} label="Nome fantasia" value={ctx.fantasia} />
+      <InfoRow palette={palette} label="CNPJ" value={ctx.cnpj} />
+      <InfoRow palette={palette} label="Endereço" value={ctx.endereco} />
 
       {ctx.contatos && ctx.contatos.length > 0 && (
         <>
-          <Text style={[pdfStyles.h3, { marginTop: 12 }]}>Contatos</Text>
+          <Text style={{ fontSize: 12, fontFamily: "Helvetica-Bold", color: palette.primary, marginBottom: 6, marginTop: 12 }}>Contatos</Text>
           {ctx.contatos.map((c, i) => (
             <View key={i} style={{ marginBottom: 6 }}>
-              <Text style={{ fontFamily: "Helvetica-Bold" }}>
-                {c.nome} {c.cargo ? `· ${c.cargo}` : ""}
-              </Text>
-              <Text style={pdfStyles.small}>
+              <Text style={{ fontFamily: "Helvetica-Bold" }}>{c.nome} {c.cargo ? `· ${c.cargo}` : ""}</Text>
+              <Text style={{ fontSize: 9, color: palette.textMuted }}>
                 {[c.email, c.telefone].filter(Boolean).join(" · ") || "—"}
               </Text>
             </View>
@@ -132,73 +160,53 @@ export function ContextPage({ ctx }: { ctx: ContextData }) {
 
       {ctx.caracteristicas && ctx.caracteristicas.length > 0 && (
         <>
-          <Text style={[pdfStyles.h3, { marginTop: 12 }]}>Características do projeto</Text>
-          {ctx.caracteristicas.map((c, i) => (
-            <Bullet key={i}>{c}</Bullet>
-          ))}
+          <Text style={{ fontSize: 12, fontFamily: "Helvetica-Bold", color: palette.primary, marginBottom: 6, marginTop: 12 }}>Características do projeto</Text>
+          {ctx.caracteristicas.map((c, i) => (<Bullet key={i} palette={palette}>{c}</Bullet>))}
         </>
       )}
 
       {ctx.texto_apresentacao ? (
         <>
-          <View style={pdfStyles.divider} />
-          <Text style={pdfStyles.paragraph}>{ctx.texto_apresentacao}</Text>
+          <View style={{ height: 1, backgroundColor: palette.border, marginVertical: 10 }} />
+          <Text>{ctx.texto_apresentacao}</Text>
         </>
       ) : null}
-
       {ctx.prazo_validade ? (
-        <Text style={[pdfStyles.small, { marginTop: 8 }]}>{ctx.prazo_validade}</Text>
+        <Text style={{ fontSize: 9, color: palette.textMuted, marginTop: 8 }}>{ctx.prazo_validade}</Text>
       ) : null}
     </StandardPage>
   );
 }
 
-export function ScopePage({ items }: { items: ScopeItem[] }) {
+export function ScopePage({ palette, template, logoUrl, items }: PageCtx & { items: ScopeItem[] }) {
   const total = items.reduce((s, it) => s + (it.valor_total ?? 0), 0);
   return (
-    <StandardPage title="Escopo de fornecimento">
+    <StandardPage title="Investimento" palette={palette} template={template} logoUrl={logoUrl}>
       {items.length === 0 ? (
-        <Text style={pdfStyles.paragraph}>Nenhum item informado.</Text>
+        <Text>Nenhum item informado.</Text>
       ) : (
-        <View style={pdfStyles.table}>
-          <View style={pdfStyles.tableHeader}>
-            <Text style={[pdfStyles.tableCellHeader, { flex: 0.4 }]}>#</Text>
-            <Text style={[pdfStyles.tableCellHeader, { flex: 4 }]}>Descrição</Text>
-            <Text style={[pdfStyles.tableCellHeader, { flex: 1, textAlign: "right" }]}>Qtd</Text>
-            <Text style={[pdfStyles.tableCellHeader, { flex: 1.5, textAlign: "right" }]}>
-              Unitário
-            </Text>
-            <Text style={[pdfStyles.tableCellHeader, { flex: 1.5, textAlign: "right" }]}>Total</Text>
+        <View style={{ borderWidth: 1, borderColor: palette.border, marginTop: 6 }}>
+          <View style={{ flexDirection: "row", backgroundColor: palette.primary }}>
+            <Text style={{ flex: 0.4, padding: 6, fontSize: 9, color: palette.white, fontFamily: "Helvetica-Bold" }}>#</Text>
+            <Text style={{ flex: 4, padding: 6, fontSize: 9, color: palette.white, fontFamily: "Helvetica-Bold" }}>Descrição</Text>
+            <Text style={{ flex: 1, padding: 6, fontSize: 9, color: palette.white, fontFamily: "Helvetica-Bold", textAlign: "right" }}>Qtd</Text>
+            <Text style={{ flex: 1.5, padding: 6, fontSize: 9, color: palette.white, fontFamily: "Helvetica-Bold", textAlign: "right" }}>Unitário</Text>
+            <Text style={{ flex: 1.5, padding: 6, fontSize: 9, color: palette.white, fontFamily: "Helvetica-Bold", textAlign: "right" }}>Total</Text>
           </View>
           {items.map((it, i) => (
-            <View key={it.id ?? i} style={pdfStyles.tableRow} wrap={false}>
-              <Text style={[pdfStyles.tableCell, { flex: 0.4 }]}>{i + 1}</Text>
-              <View style={[pdfStyles.tableCell, { flex: 4 }]}>
-                <Text style={{ fontFamily: "Helvetica-Bold" }}>{it.titulo}</Text>
-                {it.descricao ? (
-                  <Text style={{ fontSize: 8, color: colors.textMuted }}>{it.descricao}</Text>
-                ) : null}
+            <View key={it.id ?? i} style={{ flexDirection: "row", borderBottomWidth: 1, borderBottomColor: palette.border }} wrap={false}>
+              <Text style={{ flex: 0.4, padding: 6, fontSize: 9 }}>{i + 1}</Text>
+              <View style={{ flex: 4, padding: 6 }}>
+                <Text style={{ fontFamily: "Helvetica-Bold", fontSize: 9 }}>{it.titulo}</Text>
+                {it.descricao ? <Text style={{ fontSize: 8, color: palette.textMuted }}>{it.descricao}</Text> : null}
               </View>
-              <Text style={[pdfStyles.tableCell, { flex: 1, textAlign: "right" }]}>
-                {it.quantidade ?? "—"} {it.unidade || ""}
-              </Text>
-              <Text style={[pdfStyles.tableCell, { flex: 1.5, textAlign: "right" }]}>
-                {fmtBRL(it.valor_unitario)}
-              </Text>
-              <Text style={[pdfStyles.tableCell, { flex: 1.5, textAlign: "right" }]}>
-                {fmtBRL(it.valor_total)}
-              </Text>
+              <Text style={{ flex: 1, padding: 6, fontSize: 9, textAlign: "right" }}>{it.quantidade ?? "—"} {it.unidade || ""}</Text>
+              <Text style={{ flex: 1.5, padding: 6, fontSize: 9, textAlign: "right" }}>{fmtBRL(it.valor_unitario)}</Text>
+              <Text style={{ flex: 1.5, padding: 6, fontSize: 9, textAlign: "right" }}>{fmtBRL(it.valor_total)}</Text>
             </View>
           ))}
-          <View
-            style={{
-              flexDirection: "row",
-              backgroundColor: colors.bgSoft,
-              padding: 6,
-              justifyContent: "flex-end",
-            }}
-          >
-            <Text style={{ fontFamily: "Helvetica-Bold", color: colors.primary }}>
+          <View style={{ flexDirection: "row", backgroundColor: palette.bgSoft, padding: 8, justifyContent: "flex-end" }}>
+            <Text style={{ fontFamily: "Helvetica-Bold", color: palette.primary, fontSize: 11 }}>
               Total geral: {fmtBRL(total)}
             </Text>
           </View>
@@ -208,37 +216,38 @@ export function ScopePage({ items }: { items: ScopeItem[] }) {
   );
 }
 
-export function WarrantyPage({ text }: { text: { html?: string; text?: string } }) {
-  const body =
-    text.text ||
-    "A CN Cold garante os equipamentos fornecidos contra defeitos de fabricação por 12 meses a partir da data de comissionamento, incluindo peças e mão de obra técnica. A garantia cobre uso normal e operação dentro das especificações de projeto.";
+export function WarrantyPage({ palette, template, logoUrl, text }: PageCtx & { text: { html?: string; text?: string } }) {
+  const body = text.text || template?.garantia_texto || "Garantia integral conforme contrato.";
+  const items = (template?.garantia_itens ?? []) as TemplateGarantiaItem[];
   return (
-    <StandardPage title="Garantia">
-      <Text style={pdfStyles.paragraph}>{body}</Text>
-      <View style={pdfStyles.divider} />
-      <Text style={pdfStyles.h3}>Não cobre</Text>
-      <Bullet>Danos por uso indevido ou fora das especificações de projeto</Bullet>
-      <Bullet>Falta de manutenção preventiva conforme manual</Bullet>
-      <Bullet>Intervenções de terceiros não autorizados</Bullet>
+    <StandardPage title="Prazo e Garantia" palette={palette} template={template} logoUrl={logoUrl}>
+      {template?.prazo_entrega_padrao ? (
+        <View style={{ marginBottom: 12, padding: 10, backgroundColor: palette.bgSoft, borderRadius: 3 }}>
+          <Text style={{ fontFamily: "Helvetica-Bold", color: palette.primary, marginBottom: 4 }}>Prazo de entrega</Text>
+          <Text>{template.prazo_entrega_padrao}</Text>
+        </View>
+      ) : null}
+      <Text style={{ marginBottom: 8 }}>{body}</Text>
+      {items.length > 0 && (
+        <>
+          <View style={{ height: 1, backgroundColor: palette.border, marginVertical: 10 }} />
+          {items.map((it, i) => (
+            <View key={i} style={{ marginBottom: 6 }}>
+              <Text style={{ fontFamily: "Helvetica-Bold" }}>{it.titulo}</Text>
+              {it.descricao ? <Text style={{ fontSize: 9, color: palette.textMuted }}>{it.descricao}</Text> : null}
+            </View>
+          ))}
+        </>
+      )}
     </StandardPage>
   );
 }
 
-export function CustomRichPage({ title, html }: { title: string; html?: string }) {
-  // Etapa 5 fará render rico de HTML; por ora, plain text
-  const plain = html
-    ? html
-        .replace(/<[^>]+>/g, " ")
-        .replace(/\s+/g, " ")
-        .trim()
-    : "";
+export function CustomRichPage({ palette, template, logoUrl, title, html }: PageCtx & { title: string; html?: string }) {
+  const plain = html ? html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim() : "";
   return (
-    <StandardPage title={title}>
-      {plain ? (
-        <Text style={pdfStyles.paragraph}>{plain}</Text>
-      ) : (
-        <Text style={pdfStyles.small}>Página em branco.</Text>
-      )}
+    <StandardPage title={title} palette={palette} template={template} logoUrl={logoUrl}>
+      {plain ? <Text>{plain}</Text> : <Text style={{ fontSize: 9, color: palette.textMuted }}>Página em branco.</Text>}
     </StandardPage>
   );
 }

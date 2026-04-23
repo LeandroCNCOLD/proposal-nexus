@@ -10,15 +10,45 @@ import {
   type ScopeItem,
   type SolutionData,
 } from "./types";
+import type { ProposalTemplate, TemplateAsset, TemplatePageConfig } from "./template.types";
 import { renderToBuffer } from "@react-pdf/renderer";
 import { createElement } from "react";
 import { ProposalDocumentPdf } from "./pdf/ProposalDocument";
 
 const proposalIdSchema = z.object({ proposalId: z.string().uuid() });
 
+const TEMPLATE_BUCKET = "proposal-template-assets";
+
+async function loadDefaultTemplateBundle(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+): Promise<{ template: ProposalTemplate; assets: TemplateAsset[] } | null> {
+  const { data: tmpl } = await supabase
+    .from("proposal_templates")
+    .select("*")
+    .eq("is_default", true)
+    .eq("is_active", true)
+    .maybeSingle();
+  if (!tmpl) return null;
+
+  const { data: assets } = await supabase
+    .from("proposal_template_assets")
+    .select("*")
+    .eq("template_id", tmpl.id);
+
+  const enriched: TemplateAsset[] = (assets ?? []).map(
+    (a: { storage_path: string } & Record<string, unknown>) => ({
+      ...(a as unknown as TemplateAsset),
+      url: supabase.storage.from(TEMPLATE_BUCKET).getPublicUrl(a.storage_path).data.publicUrl,
+    }),
+  );
+
+  return { template: tmpl as ProposalTemplate, assets: enriched };
+}
+
 /**
- * Carrega o documento da proposta. Se não existir, cria um com a estrutura
- * padrão (7 páginas do template CN Cold) e retorna.
+ * Carrega o documento da proposta. Se não existir, cria um aplicando o
+ * template padrão (cores, pages_config, textos fixos) e retorna.
  */
 export const getProposalDocument = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -37,12 +67,18 @@ export const getProposalDocument = createServerFn({ method: "POST" })
     if (selErr) throw new Error(selErr.message);
     if (existing) return { document: existing };
 
-    // Cria com defaults
+    // Aplica template padrão
+    const bundle = await loadDefaultTemplateBundle(supabase);
+    const pages: DocumentPage[] = (bundle?.template.pages_config as unknown as DocumentPage[] | undefined)
+      ?? DEFAULT_PAGES;
+
+    // Cria com defaults + template padrão
     const { data: created, error: insErr } = await supabase
       .from("proposal_documents")
       .insert({
         proposal_id: proposalId,
-        pages: DEFAULT_PAGES as unknown as never,
+        template_id: bundle?.template.id ?? null,
+        pages: pages as unknown as never,
         last_edited_by: userId,
       })
       .select("*")
@@ -261,6 +297,28 @@ export const generateProposalPdf = createServerFn({ method: "POST" })
     const scope = (doc.scope_items ?? []) as unknown as ScopeItem[];
     const warranty = (doc.warranty_text ?? {}) as { html?: string; text?: string };
 
+    // Carrega template (do documento ou padrão)
+    let bundle: { template: ProposalTemplate; assets: TemplateAsset[] } | null = null;
+    if (doc.template_id) {
+      const { data: tmpl } = await supabase
+        .from("proposal_templates")
+        .select("*")
+        .eq("id", doc.template_id)
+        .maybeSingle();
+      if (tmpl) {
+        const { data: assets } = await supabase
+          .from("proposal_template_assets")
+          .select("*")
+          .eq("template_id", tmpl.id);
+        const enriched: TemplateAsset[] = (assets ?? []).map((a) => ({
+          ...(a as unknown as TemplateAsset),
+          url: supabase.storage.from(TEMPLATE_BUCKET).getPublicUrl(a.storage_path).data.publicUrl,
+        }));
+        bundle = { template: tmpl as unknown as ProposalTemplate, assets: enriched };
+      }
+    }
+    if (!bundle) bundle = await loadDefaultTemplateBundle(supabase);
+
     const element = createElement(ProposalDocumentPdf, {
       pages,
       cover,
@@ -268,6 +326,8 @@ export const generateProposalPdf = createServerFn({ method: "POST" })
       context: ctx,
       scope,
       warranty,
+      template: bundle?.template ?? null,
+      assets: bundle?.assets ?? [],
     });
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
