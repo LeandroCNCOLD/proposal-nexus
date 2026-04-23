@@ -83,8 +83,12 @@ type ItemRow = {
 
 export function NomusProposalDetail({
   nomusProposalId,
+  localContact,
+  localClient,
 }: {
   nomusProposalId: string;
+  localContact?: { name?: string; email?: string; phone?: string; role?: string } | null;
+  localClient?: { name?: string; document?: string; city?: string; state?: string } | null;
 }) {
   const { data, isLoading } = useQuery({
     queryKey: ["nomus-proposal-full", nomusProposalId],
@@ -131,8 +135,26 @@ export function NomusProposalDetail({
       <Section title="Informações gerais (Nomus)">
         <Grid>
           <Field label="Empresa" value={p.empresa_nome} />
-          <Field label="Cliente" value={p.cliente_nome} />
-          <Field label="Contato" value={p.contato_nome} />
+          <Field
+            label="Cliente"
+            value={
+              <div>
+                <div>{p.cliente_nome ?? localClient?.name ?? "—"}</div>
+                {(localClient?.document || localClient?.city) && (
+                  <div className="text-[11px] text-muted-foreground mt-0.5">
+                    {localClient?.document}
+                    {localClient?.document && localClient?.city ? " · " : ""}
+                    {localClient?.city}
+                    {localClient?.city && localClient?.state ? `/${localClient.state}` : ""}
+                  </div>
+                )}
+              </div>
+            }
+          />
+          <Field
+            label="Contato"
+            value={<ContactCell nomusName={p.contato_nome} local={localContact ?? null} />}
+          />
           <Field label="Vendedor" value={p.vendedor_nome} />
           <Field label="Representante" value={p.representante_nome} />
           <Field label="Tabela de preço" value={p.tabela_preco_nome} />
@@ -427,5 +449,59 @@ function SubRow({ label, value }: { label: string; value: number | null | undefi
       </td>
       <td className="px-3 py-1" />
     </tr>
+  );
+}
+
+function ContactCell({
+  nomusName,
+  local,
+}: {
+  nomusName: string | null;
+  local: { name?: string; email?: string; phone?: string; role?: string } | null;
+}) {
+  const name = local?.name || nomusName || "—";
+  const phoneDigits = (local?.phone ?? "").replace(/\D/g, "");
+  const waLink = phoneDigits
+    ? `https://wa.me/${phoneDigits.length <= 11 ? "55" + phoneDigits : phoneDigits}`
+    : null;
+  return (
+    <div>
+      <div>{name}</div>
+      {local?.role && (
+        <div className="text-[11px] text-muted-foreground mt-0.5">{local.role}</div>
+      )}
+      {(local?.email || local?.phone) && (
+        <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px]">
+          {local?.email && (
+            <a
+              href={`mailto:${local.email}`}
+              className="text-primary hover:underline"
+              title="Enviar e-mail"
+            >
+              {local.email}
+            </a>
+          )}
+          {local?.phone && (
+            <span className="text-muted-foreground">{local.phone}</span>
+          )}
+          {waLink && (
+            <a
+              href={waLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-success hover:underline"
+              title="Abrir no WhatsApp"
+            >
+              WhatsApp
+            </a>
+          )}
+        </div>
+      )}
+      {!local?.email && !local?.phone && nomusName && (
+        <div className="mt-0.5 text-[11px] text-muted-foreground italic">
+          Telefone/e-mail não sincronizados
+        </div>
+      )}
+    </div>
   );
 }
