@@ -11,6 +11,14 @@ import {
   type ScopeItem,
   type SolutionData,
 } from "./types";
+import {
+  getDefaultTableSettings,
+  getDefaultTableRows,
+} from "@/features/proposal-editor/proposal-tables.defaults";
+import type {
+  ProposalTableRow,
+  ProposalTableType,
+} from "@/features/proposal-editor/proposal-tables.types";
 import type { ProposalTemplate, TemplateAsset, TemplatePageConfig } from "./template.types";
 import { renderToBuffer } from "@react-pdf/renderer";
 import { createElement } from "react";
