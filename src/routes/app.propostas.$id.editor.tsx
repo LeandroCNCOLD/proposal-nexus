@@ -112,7 +112,18 @@ function ProposalEditorPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  // Auto-save debounce 2s
+  const pdfMut = useMutation({
+    mutationFn: async () => {
+      if (dirty) await saveMut.mutateAsync();
+      return genPdf({ data: { proposalId: id, mode: "preview" } });
+    },
+    onSuccess: (res) => {
+      window.open(res.url, "_blank", "noopener,noreferrer");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+
   useEffect(() => {
     if (!dirty) return;
     const t = setTimeout(() => saveMut.mutate(), 2000);
