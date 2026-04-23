@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Loader2, Save } from "lucide-react";
+import { Loader2, Save, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,6 +9,8 @@ import { toast } from "sonner";
 import {
   listProposalTables,
   upsertProposalTable,
+  importNomusTributos,
+  populateEquipamentosFromItems,
 } from "@/integrations/proposal-editor/tables.functions";
 import {
   DEFAULT_TABLE_COLUMNS,
