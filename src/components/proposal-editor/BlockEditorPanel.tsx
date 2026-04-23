@@ -12,7 +12,7 @@ import { ScopeBlockEditor } from "./blocks/ScopeBlockEditor";
 import { WarrantyBlockEditor } from "./blocks/WarrantyBlockEditor";
 import { CustomRichBlockEditor } from "./blocks/CustomRichBlockEditor";
 import { StaticBlockNotice } from "./blocks/StaticBlockNotice";
-import { TableBlockEditor } from "./blocks/TableBlockEditor";
+import { PageTablesEditor } from "@/components/proposal-editor/tables/PageTablesEditor";
 
 export interface DocumentEditState {
   cover_data: CoverData;
@@ -76,54 +76,15 @@ export function BlockEditorPanel({ proposalId, page, state, onChange, onPageCont
         />
       );
     case "caracteristicas":
-      return (
-        <TableBlockEditor
-          proposalId={proposalId}
-          pageId={page.id}
-          type="caracteristicas"
-          defaultTitle={page.title || "Características técnicas"}
-          helpText="Liste as características técnicas relevantes do equipamento ou solução."
-        />
-      );
     case "equipamento":
-      return (
-        <TableBlockEditor
-          proposalId={proposalId}
-          pageId={page.id}
-          type="equipamentos"
-          defaultTitle={page.title || "Equipamentos"}
-          helpText="Modelos, descrição e quantidades. Cada linha corresponde a um equipamento."
-        />
-      );
     case "investimento":
-      return (
-        <TableBlockEditor
-          proposalId={proposalId}
-          pageId={page.id}
-          type="investimento"
-          defaultTitle={page.title || "Resumo de investimento"}
-          showTotal
-          helpText="Total = quantidade × valor unitário. O total geral é calculado automaticamente."
-        />
-      );
     case "impostos":
-      return (
-        <TableBlockEditor
-          proposalId={proposalId}
-          pageId={page.id}
-          type="impostos"
-          defaultTitle={page.title || "Tributação"}
-          helpText="Tributos incidentes sobre a operação. Você pode importar do Nomus pelo botão Sincronizar."
-        />
-      );
     case "pagamento":
       return (
-        <TableBlockEditor
+        <PageTablesEditor
           proposalId={proposalId}
           pageId={page.id}
-          type="pagamento"
-          defaultTitle={page.title || "Condições de pagamento"}
-          helpText="Parcelas, vencimentos e percentuais."
+          pageType={page.type}
         />
       );
     case "custom-rich":
