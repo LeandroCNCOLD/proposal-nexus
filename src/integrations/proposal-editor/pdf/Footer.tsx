@@ -1,4 +1,4 @@
-import { Text, View, StyleSheet } from "@react-pdf/renderer";
+import { Text, View, StyleSheet, Image as Image_ } from "@react-pdf/renderer";
 import type { PdfPalette } from "./styles";
 import type { ProposalTemplate } from "../template.types";
 
