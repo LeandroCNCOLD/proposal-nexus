@@ -1,10 +1,44 @@
-// Design tokens do PDF CN Cold (cores aproximadas do template original)
+// Design tokens do PDF — derivados do template (cores podem ser sobrescritas)
 import { StyleSheet } from "@react-pdf/renderer";
 
-export const colors = {
-  primary: "#0B2545", // azul escuro CN Cold
+export const DEFAULT_COLORS = {
+  primary: "#0B2545",
   primarySoft: "#13315C",
-  accent: "#1FB6FF", // azul gelo
+  accent: "#1FB6FF",
+  accent2: "#2AA9E0",
+};
+
+export interface PdfPalette {
+  primary: string;
+  primarySoft: string;
+  accent: string;
+  accent2: string;
+  text: string;
+  textMuted: string;
+  border: string;
+  white: string;
+  bgSoft: string;
+}
+
+export function makePalette(opts?: Partial<PdfPalette>): PdfPalette {
+  return {
+    primary: opts?.primary ?? DEFAULT_COLORS.primary,
+    primarySoft: opts?.primarySoft ?? DEFAULT_COLORS.primarySoft,
+    accent: opts?.accent ?? DEFAULT_COLORS.accent,
+    accent2: opts?.accent2 ?? DEFAULT_COLORS.accent2,
+    text: opts?.text ?? "#1F2937",
+    textMuted: opts?.textMuted ?? "#6B7280",
+    border: opts?.border ?? "#E5E7EB",
+    white: opts?.white ?? "#FFFFFF",
+    bgSoft: opts?.bgSoft ?? "#F3F6FA",
+  };
+}
+
+// Estilos legados (mantidos para compatibilidade até refator completo)
+export const colors = {
+  primary: DEFAULT_COLORS.primary,
+  primarySoft: DEFAULT_COLORS.primarySoft,
+  accent: DEFAULT_COLORS.accent,
   text: "#1F2937",
   textMuted: "#6B7280",
   border: "#E5E7EB",
@@ -14,8 +48,8 @@ export const colors = {
 
 export const pdfStyles = StyleSheet.create({
   page: {
-    paddingTop: 56,
-    paddingBottom: 64,
+    paddingTop: 90,
+    paddingBottom: 80,
     paddingHorizontal: 48,
     fontFamily: "Helvetica",
     fontSize: 10,
@@ -34,11 +68,7 @@ export const pdfStyles = StyleSheet.create({
   paragraph: { marginBottom: 8 },
   small: { fontSize: 9, color: colors.textMuted },
   divider: { height: 1, backgroundColor: colors.border, marginVertical: 10 },
-  bandTop: {
-    height: 6,
-    backgroundColor: colors.primary,
-    marginBottom: 18,
-  },
+  bandTop: { height: 6, backgroundColor: colors.primary, marginBottom: 18 },
   footer: {
     position: "absolute",
     bottom: 24,
