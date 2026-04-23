@@ -30,9 +30,9 @@ import type {
 } from "@/integrations/proposal-editor/types";
 import { EditorPagePanel } from "@/components/proposal-editor/EditorPagePanel";
 import { ProposalPreviewLive } from "@/components/proposal-editor/ProposalPreviewLive";
-import { ProposalPreviewA4 } from "@/components/proposal-editor/ProposalPreviewA4";
+import { EditorProposalPreview } from "@/components/proposal-editor/preview/EditorProposalPreview";
+import { useEditorPreviewData } from "@/components/proposal-editor/preview/use-editor-preview-data";
 import { ProposalAttachmentsPanel } from "@/components/proposal-editor/ProposalAttachmentsPanel";
-import { useProposalTables } from "@/features/proposal-editor/use-proposal-tables";
 import {
   BlockEditorPanel,
   type DocumentEditState,
@@ -90,8 +90,7 @@ function ProposalEditorPage() {
   const hydratedFor = useRef<string | null>(null);
 
   // Tabelas estruturadas (para o preview DOM em tempo real)
-  const { data: tablesData } = useProposalTables({ proposalId: id });
-  const proposalTables = tablesData?.tables ?? [];
+  const { tables: proposalTables } = useEditorPreviewData(id);
 
   // Hidrata estado quando o doc chega (ou quando troca de proposta)
   useEffect(() => {
@@ -403,23 +402,28 @@ function ProposalEditorPage() {
           </div>
           <div className="flex-1 overflow-hidden">
             {previewMode === "dom" ? (
-              <ProposalPreviewA4
-                pages={pages}
-                selectedId={selectedId}
-                state={{
-                  cover_data: state.cover_data,
-                  context_data: state.context_data,
-                  solution_data: state.solution_data,
-                  scope_items: state.scope_items,
-                  warranty_text: state.warranty_text,
-                  custom_blocks: (doc?.custom_blocks ?? {}) as Record<string, unknown>,
-                  attached_pdf_paths: (doc?.attached_pdf_paths ?? []) as string[],
-                }}
-                template={tplBundle?.template ?? null}
-                templateAssets={tplBundle?.assets ?? []}
-                tables={proposalTables}
-                onSelectPage={setSelectedId}
-              />
+              <div className="h-full overflow-y-auto bg-slate-100 p-6">
+                <EditorProposalPreview
+                  proposal={{
+                    ...(doc ?? {}),
+                    custom_blocks: doc?.custom_blocks,
+                    attached_pdf_paths: doc?.attached_pdf_paths,
+                  }}
+                  document={{
+                    pages,
+                    cover_data: state.cover_data,
+                    context_data: state.context_data,
+                    solution_data: state.solution_data,
+                    scope_items: state.scope_items,
+                    warranty_text: state.warranty_text,
+                    custom_blocks: doc?.custom_blocks ?? {},
+                    attached_pdf_paths: doc?.attached_pdf_paths ?? [],
+                  }}
+                  template={tplBundle?.template ?? null}
+                  tables={proposalTables}
+                  selectedPageId={selectedId}
+                />
+              </div>
             ) : (
               <ProposalPreviewLive
                 proposalId={id}
