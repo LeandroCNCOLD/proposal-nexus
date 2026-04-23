@@ -135,8 +135,26 @@ export function NomusProposalDetail({
       <Section title="Informações gerais (Nomus)">
         <Grid>
           <Field label="Empresa" value={p.empresa_nome} />
-          <Field label="Cliente" value={p.cliente_nome} />
-          <Field label="Contato" value={p.contato_nome} />
+          <Field
+            label="Cliente"
+            value={
+              <div>
+                <div>{p.cliente_nome ?? localClient?.name ?? "—"}</div>
+                {(localClient?.document || localClient?.city) && (
+                  <div className="text-[11px] text-muted-foreground mt-0.5">
+                    {localClient?.document}
+                    {localClient?.document && localClient?.city ? " · " : ""}
+                    {localClient?.city}
+                    {localClient?.city && localClient?.state ? `/${localClient.state}` : ""}
+                  </div>
+                )}
+              </div>
+            }
+          />
+          <Field
+            label="Contato"
+            value={<ContactCell nomusName={p.contato_nome} local={localContact ?? null} />}
+          />
           <Field label="Vendedor" value={p.vendedor_nome} />
           <Field label="Representante" value={p.representante_nome} />
           <Field label="Tabela de preço" value={p.tabela_preco_nome} />
