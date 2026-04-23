@@ -14,11 +14,42 @@ import {
 import type { ProposalTemplate, TemplateAsset, TemplatePageConfig } from "./template.types";
 import { renderToBuffer } from "@react-pdf/renderer";
 import { createElement } from "react";
+import { PDFDocument } from "pdf-lib";
 import { ProposalDocumentPdf } from "./pdf/ProposalDocument";
 
 const proposalIdSchema = z.object({ proposalId: z.string().uuid() });
 
 const TEMPLATE_BUCKET = "proposal-template-assets";
+const ATTACHMENT_BUCKET = "proposal-files";
+
+/**
+ * Faz merge do PDF principal com os anexos (na ordem de attached_pdf_paths).
+ * Anexos com falha de download são silenciosamente ignorados.
+ */
+async function mergeWithAttachments(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  mainPdf: Uint8Array,
+  paths: string[],
+): Promise<Uint8Array> {
+  if (!paths || paths.length === 0) return mainPdf;
+  const merged = await PDFDocument.load(mainPdf);
+  for (const path of paths) {
+    try {
+      const { data: blob, error } = await supabase.storage
+        .from(ATTACHMENT_BUCKET)
+        .download(path);
+      if (error || !blob) continue;
+      const buf = new Uint8Array(await blob.arrayBuffer());
+      const attached = await PDFDocument.load(buf);
+      const copied = await merged.copyPages(attached, attached.getPageIndices());
+      copied.forEach((p) => merged.addPage(p));
+    } catch (err) {
+      console.warn(`[mergeWithAttachments] falhou em ${path}:`, err);
+    }
+  }
+  return await merged.save();
+}
 
 async function loadDefaultTemplateBundle(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -385,11 +416,16 @@ export const generateProposalPdf = createServerFn({ method: "POST" })
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const buffer = await renderToBuffer(element as any);
+    const finalBuffer = await mergeWithAttachments(
+      supabase,
+      new Uint8Array(buffer),
+      (doc.attached_pdf_paths ?? []) as string[],
+    );
 
     const path = `${proposalId}/${mode}-${Date.now()}.pdf`;
     const { error: upErr } = await supabase.storage
       .from("proposal-pdfs")
-      .upload(path, buffer, {
+      .upload(path, finalBuffer, {
         contentType: "application/pdf",
         upsert: true,
       });
@@ -480,11 +516,16 @@ export const createProposalSendVersion = createServerFn({ method: "POST" })
     });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const buffer = await renderToBuffer(element as any);
+    const finalBuffer = await mergeWithAttachments(
+      supabase,
+      new Uint8Array(buffer),
+      (doc.attached_pdf_paths ?? []) as string[],
+    );
 
     const finalPath = `${proposalId}/final-${Date.now()}.pdf`;
     const { error: upErr } = await supabase.storage
       .from("proposal-pdfs")
-      .upload(finalPath, buffer, { contentType: "application/pdf", upsert: true });
+      .upload(finalPath, finalBuffer, { contentType: "application/pdf", upsert: true });
     if (upErr) throw new Error(`Falha ao salvar PDF final: ${upErr.message}`);
 
     // 3) Próximo número de versão
