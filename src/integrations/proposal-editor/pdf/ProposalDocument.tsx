@@ -3,6 +3,7 @@ import type { CoverData, ContextData, DocumentPage, ScopeItem, SolutionData } fr
 import type { ProposalTemplate, TemplateAsset } from "../template.types";
 import { CoverPage } from "./CoverPage";
 import { AboutPage, CasesPage, ContextPage, CustomRichPage, ScopePage, SolutionPage, WarrantyPage } from "./ContentPages";
+import { FullImagePage } from "./FullImagePage";
 import { makePalette } from "./styles";
 
 export interface ProposalDocumentProps {
@@ -26,6 +27,11 @@ export function ProposalDocumentPdf(props: ProposalDocumentProps) {
   const logoUrl = props.assets.find((a) => a.asset_kind === "logo")?.url;
   const ctxBase = { palette, template: props.template, assets: props.assets, logoUrl };
 
+  // Imagens A4 completas (substituem o layout dinâmico quando presentes)
+  const coverFull = props.assets.find((a) => a.asset_kind === "cover_full")?.url;
+  const aboutFull = props.assets.find((a) => a.asset_kind === "about_full")?.url;
+  const clientsFull = props.assets.find((a) => a.asset_kind === "clients_full")?.url;
+
   return (
     <Document
       title={props.cover.projeto || "Proposta CN Cold"}
@@ -35,11 +41,17 @@ export function ProposalDocumentPdf(props: ProposalDocumentProps) {
       {visible.map((p) => {
         switch (p.type) {
           case "cover":
-            return <CoverPage key={p.id} palette={palette} template={props.template} assets={props.assets} cover={props.cover} />;
+            return coverFull
+              ? <FullImagePage key={p.id} src={coverFull} />
+              : <CoverPage key={p.id} palette={palette} template={props.template} assets={props.assets} cover={props.cover} />;
           case "about":
-            return <AboutPage key={p.id} {...ctxBase} />;
+            return aboutFull
+              ? <FullImagePage key={p.id} src={aboutFull} />
+              : <AboutPage key={p.id} {...ctxBase} />;
           case "cases":
-            return <CasesPage key={p.id} {...ctxBase} />;
+            return clientsFull
+              ? <FullImagePage key={p.id} src={clientsFull} />
+              : <CasesPage key={p.id} {...ctxBase} />;
           case "solution":
             return <SolutionPage key={p.id} {...ctxBase} solution={props.solution} />;
           case "context":
