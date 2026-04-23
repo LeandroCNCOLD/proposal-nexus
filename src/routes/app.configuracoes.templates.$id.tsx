@@ -357,6 +357,24 @@ function TemplateEditorPage() {
               </p>
             </div>
           </Card>
+
+          <Card className="p-5 space-y-3">
+            <h3 className="text-sm font-semibold">Diferenciais</h3>
+            <p className="text-xs text-muted-foreground">
+              Lista de diferenciais exibidos na página Sobre / Apresentação.
+            </p>
+            <StructuredListEditor<TemplateDiferencial>
+              items={form.sobre_diferenciais ?? []}
+              fields={[
+                { key: "titulo", label: "Título", placeholder: "Ex.: Engenharia própria" },
+                { key: "descricao", label: "Descrição", type: "textarea", rows: 2 },
+              ]}
+              emptyItem={() => ({ titulo: "", descricao: "" })}
+              itemTitle={(it) => it.titulo}
+              onChange={(items) => update("sobre_diferenciais", items)}
+              addLabel="Adicionar diferencial"
+            />
+          </Card>
         </TabsContent>
 
         <TabsContent value="clients" className="mt-4 space-y-4">
@@ -390,18 +408,103 @@ function TemplateEditorPage() {
               />
             </div>
           </Card>
+
+          <Card className="p-5 space-y-3">
+            <h3 className="text-sm font-semibold">Cases / Projetos em destaque</h3>
+            <div className="space-y-2">
+              <Label>Subtítulo da seção de Cases</Label>
+              <Input
+                value={form.cases_subtitulo ?? ""}
+                onChange={(e) => update("cases_subtitulo", e.target.value)}
+                placeholder="Ex.: Projetos entregues nos últimos 12 meses"
+              />
+            </div>
+            <StructuredListEditor<TemplateCaseItem>
+              items={form.cases_itens ?? []}
+              fields={[
+                { key: "titulo", label: "Título", placeholder: "Ex.: Câmara fria 200m³" },
+                { key: "cliente", label: "Cliente", placeholder: "Ex.: Frigorífico XYZ" },
+                { key: "descricao", label: "Descrição", type: "textarea", rows: 3 },
+              ]}
+              emptyItem={() => ({ titulo: "", cliente: "", descricao: "" })}
+              itemTitle={(it) => it.titulo}
+              onChange={(items) => update("cases_itens", items)}
+              addLabel="Adicionar case"
+            />
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="scope" className="mt-4 space-y-4">
+          <Card className="p-5 space-y-3">
+            <h3 className="text-sm font-semibold">Itens padrão de apresentação do escopo</h3>
+            <p className="text-xs text-muted-foreground">
+              Estes itens são pré-carregados em novas propostas como sugestões na página de Escopo.
+            </p>
+            <Textarea
+              rows={10}
+              value={(form.escopo_apresentacao_itens ?? []).join("\n")}
+              onChange={(e) =>
+                update(
+                  "escopo_apresentacao_itens",
+                  e.target.value.split("\n").map((s) => s.trim()).filter(Boolean),
+                )
+              }
+              placeholder="Um item por linha"
+            />
+          </Card>
         </TabsContent>
 
         <TabsContent value="warranty" className="mt-4 space-y-4">
           <Card className="p-5 space-y-4">
             <div className="space-y-2">
-              <Label>Texto da garantia</Label>
+              <Label>Texto introdutório da garantia</Label>
               <Textarea
-                rows={10}
+                rows={6}
                 value={form.garantia_texto ?? ""}
                 onChange={(e) => update("garantia_texto", e.target.value)}
               />
             </div>
+          </Card>
+
+          <Card className="p-5 space-y-3">
+            <h3 className="text-sm font-semibold">Itens de garantia</h3>
+            <p className="text-xs text-muted-foreground">
+              Lista estruturada de coberturas/exclusões. Cada item vira um bloco no PDF.
+            </p>
+            <StructuredListEditor<TemplateGarantiaItem>
+              items={form.garantia_itens ?? []}
+              fields={[
+                { key: "titulo", label: "Título", placeholder: "Ex.: Compressor" },
+                { key: "descricao", label: "Descrição", type: "textarea", rows: 3 },
+              ]}
+              emptyItem={() => ({ titulo: "", descricao: "" })}
+              itemTitle={(it) => it.titulo}
+              onChange={(items) => update("garantia_itens", items)}
+              addLabel="Adicionar item de garantia"
+            />
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="banking" className="mt-4 space-y-4">
+          <Card className="p-5 space-y-3">
+            <h3 className="text-sm font-semibold">Dados bancários</h3>
+            <p className="text-xs text-muted-foreground">
+              Adicione um ou mais bancos. Aparecem na seção "Forma de pagamento" do PDF.
+            </p>
+            <StructuredListEditor<TemplateBancario>
+              items={form.dados_bancarios ?? []}
+              fields={[
+                { key: "banco", label: "Banco", placeholder: "Ex.: Itaú" },
+                { key: "agencia", label: "Agência" },
+                { key: "conta", label: "Conta" },
+                { key: "pix", label: "Chave PIX" },
+                { key: "titular", label: "Titular" },
+              ]}
+              emptyItem={() => ({ banco: "", agencia: "", conta: "", pix: "", titular: "" })}
+              itemTitle={(it) => it.banco}
+              onChange={(items) => update("dados_bancarios", items)}
+              addLabel="Adicionar banco"
+            />
           </Card>
         </TabsContent>
 
