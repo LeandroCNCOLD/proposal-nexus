@@ -294,20 +294,20 @@ function ProposalDetail() {
         <div className="space-y-6 lg:col-span-2">
           <div className="rounded-xl border bg-card p-6 shadow-[var(--shadow-sm)]">
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-sm font-semibold">Resumo</h2>
+              <h2 className="text-sm font-semibold">Resumo comercial</h2>
               <StatusBadge status={p.status as ProposalStatus} />
             </div>
             <dl className="grid gap-4 text-sm md:grid-cols-2">
-              <Item label="Cliente" value={(p.clients as any)?.name ?? "—"} />
-              <Item label="Segmento" value={p.segment ?? "—"} />
+              {!isNomus && <Item label="Cliente" value={(p.clients as any)?.name ?? "—"} />}
+              <Item label="Segmento" value={p.segment ?? (p.clients as any)?.segment ?? "—"} />
               <Item label="Região" value={p.region ?? "—"} />
               <Item label="Temperatura" value={p.temperature ? TEMPERATURE_LABELS[p.temperature] : "—"} />
               <Item label="Valor total" value={brl(Number(p.total_value ?? 0))} highlight />
               <Item label="Probabilidade" value={p.win_probability != null ? `${p.win_probability}%` : "—"} />
-              <Item label="Validade" value={dateBR(p.valid_until)} />
+              {!isNomus && <Item label="Validade" value={dateBR(p.valid_until)} />}
               <Item label="Próximo follow-up" value={dateBR(p.next_followup_at)} />
               <Item label="Enviada em" value={dateBR(p.sent_at)} />
-              <Item label="Criada em" value={dateBR(p.created_at)} />
+              {!isNomus && <Item label="Criada em" value={dateBR(p.created_at)} />}
             </dl>
             {p.commercial_notes && (
               <div className="mt-4 rounded-md border bg-secondary/30 p-3 text-sm">
