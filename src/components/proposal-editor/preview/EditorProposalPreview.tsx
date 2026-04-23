@@ -156,7 +156,7 @@ export function EditorProposalPreview({
             />
           }
         >
-          {renderPageContent({ page, document, palette, tables })}
+          {renderPageContent({ page, document: resolvedDocument, palette, tables: resolvedTables })}
         </EditorA4Page>
       ))}
     </div>
