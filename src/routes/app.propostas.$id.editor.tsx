@@ -339,6 +339,7 @@ function ProposalEditorPage() {
             pages={pages}
             selectedId={selectedId}
             documentData={documentData}
+            templateAssets={tplBundle?.assets ?? []}
           />
         </main>
       </div>
