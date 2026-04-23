@@ -53,10 +53,12 @@ function PagePreviewCard({
   page,
   isSelected,
   documentData,
+  fullImageSrc,
 }: {
   page: DocumentPage;
   isSelected: boolean;
   documentData: Props["documentData"];
+  fullImageSrc?: string;
 }) {
   const cover = documentData.cover_data ?? {};
   const ctx = documentData.context_data ?? {};
@@ -69,11 +71,19 @@ function PagePreviewCard({
         isSelected ? "ring-2 ring-primary ring-offset-2" : ""
       }`}
     >
-      <div className="absolute right-3 top-3 rounded bg-black/70 px-2 py-0.5 text-[10px] font-mono text-white">
+      <div className="absolute right-3 top-3 z-10 rounded bg-black/70 px-2 py-0.5 text-[10px] font-mono text-white">
         {page.title}
       </div>
 
-      {page.type === "cover" && (
+      {fullImageSrc && (
+        <img
+          src={fullImageSrc}
+          alt={page.title}
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+      )}
+
+      {!fullImageSrc && page.type === "cover" && (
         <div className="flex h-full flex-col justify-between bg-gradient-to-br from-slate-900 to-slate-700 p-12 text-white">
           <div className="text-2xl font-bold tracking-wide">CN COLD</div>
           <div className="space-y-2">
