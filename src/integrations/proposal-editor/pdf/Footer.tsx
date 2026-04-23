@@ -58,11 +58,31 @@ export function BrandHeader({
   palette,
   logoUrl,
   pageTitle,
+  bannerUrl,
 }: {
   palette: PdfPalette;
   logoUrl?: string;
   pageTitle?: string;
+  bannerUrl?: string;
 }) {
+  // Quando há um banner enviado pelo usuário, usar a imagem inteira como cabeçalho.
+  if (bannerUrl) {
+    return (
+      <View
+        fixed
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 54,
+        }}
+      >
+        {/* eslint-disable-next-line jsx-a11y/alt-text */}
+        <Image_ src={bannerUrl} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+      </View>
+    );
+  }
   return (
     <View
       fixed
