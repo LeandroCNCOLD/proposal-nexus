@@ -42,7 +42,13 @@ export function FullPageImageUploader({
   title,
   description,
   current,
+  aspect = "a4",
 }: FullPageImageUploaderProps) {
+  const aspectClass = aspect === "banner" ? "aspect-[8/1]" : "aspect-[1/1.414]";
+  const sizeHint =
+    aspect === "banner"
+      ? "Recomendado: faixa horizontal larga (ex.: 2000 × 250 px)."
+      : "Formato recomendado: PNG ou JPG em A4 retrato (ex.: 1240 × 1754 px ou 2480 × 3508 px).";
   const qc = useQueryClient();
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
