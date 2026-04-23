@@ -154,7 +154,6 @@ function ProposalEditorPage() {
     if (!dirty) return;
     const t = setTimeout(() => saveMut.mutate(), 2000);
     return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pages, state, dirty]);
 
   const handlePagesChange = (next: DocumentPage[]) => {
