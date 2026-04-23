@@ -172,11 +172,23 @@ function ProposalEditorPage() {
   const sendMut = useMutation({
     mutationFn: async () => {
       if (dirty) await saveMut.mutateAsync();
-      return sendVersion({ data: { proposalId: id } });
+      const pdfRes = await genPdf({ data: { proposalId: id, mode: "final" } });
+      if (!pdfRes.path) throw new Error("Falha ao gerar PDF: caminho indisponível");
+      return sendVersion({
+        data: {
+          proposalId: id,
+          pdfStoragePath: pdfRes.path,
+          channel: "system",
+          recipient: null,
+          subject: null,
+          message: null,
+        },
+      });
     },
-    onSuccess: (res) => {
+    onSuccess: (version) => {
       qc.invalidateQueries({ queryKey: ["proposal-document", id] });
-      toast.success(`Versão ${res.version.version_number} gerada e congelada`);
+      qc.invalidateQueries({ queryKey: ["proposal-versions", id] });
+      toast.success(`Versão ${version.version_number} gerada e congelada`);
     },
     onError: (e: Error) => toast.error(e.message),
   });
