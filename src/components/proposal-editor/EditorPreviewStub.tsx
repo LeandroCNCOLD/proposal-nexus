@@ -1,4 +1,5 @@
 import type { DocumentPage } from "@/integrations/proposal-editor/types";
+import type { TemplateAsset } from "@/integrations/proposal-editor/template.types";
 
 interface Props {
   pages: DocumentPage[];
@@ -8,6 +9,7 @@ interface Props {
     context_data?: Record<string, unknown>;
     scope_items?: Array<Record<string, unknown>>;
   };
+  templateAssets?: TemplateAsset[];
 }
 
 /**
