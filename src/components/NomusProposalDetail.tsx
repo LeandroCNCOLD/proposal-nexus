@@ -83,8 +83,12 @@ type ItemRow = {
 
 export function NomusProposalDetail({
   nomusProposalId,
+  localContact,
+  localClient,
 }: {
   nomusProposalId: string;
+  localContact?: { name?: string; email?: string; phone?: string; role?: string } | null;
+  localClient?: { name?: string; document?: string; city?: string; state?: string } | null;
 }) {
   const { data, isLoading } = useQuery({
     queryKey: ["nomus-proposal-full", nomusProposalId],
