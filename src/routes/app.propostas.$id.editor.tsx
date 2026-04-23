@@ -139,8 +139,18 @@ function ProposalEditorPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const tplMut = useMutation({
+    mutationFn: (templateId: string) =>
+      setTpl({ data: { proposalId: id, templateId, applyPagesConfig: true } }),
+    onSuccess: () => {
+      hydratedFor.current = null;
+      qc.invalidateQueries({ queryKey: ["proposal-document", id] });
+      toast.success("Template aplicado");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
-  useEffect(() => {
+
     if (!dirty) return;
     const t = setTimeout(() => saveMut.mutate(), 2000);
     return () => clearTimeout(t);
