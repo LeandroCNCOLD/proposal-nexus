@@ -297,6 +297,28 @@ export const generateProposalPdf = createServerFn({ method: "POST" })
     const scope = (doc.scope_items ?? []) as unknown as ScopeItem[];
     const warranty = (doc.warranty_text ?? {}) as { html?: string; text?: string };
 
+    // Carrega template (do documento ou padrão)
+    let bundle: { template: ProposalTemplate; assets: TemplateAsset[] } | null = null;
+    if (doc.template_id) {
+      const { data: tmpl } = await supabase
+        .from("proposal_templates")
+        .select("*")
+        .eq("id", doc.template_id)
+        .maybeSingle();
+      if (tmpl) {
+        const { data: assets } = await supabase
+          .from("proposal_template_assets")
+          .select("*")
+          .eq("template_id", tmpl.id);
+        const enriched: TemplateAsset[] = (assets ?? []).map((a) => ({
+          ...(a as unknown as TemplateAsset),
+          url: supabase.storage.from(TEMPLATE_BUCKET).getPublicUrl(a.storage_path).data.publicUrl,
+        }));
+        bundle = { template: tmpl as unknown as ProposalTemplate, assets: enriched };
+      }
+    }
+    if (!bundle) bundle = await loadDefaultTemplateBundle(supabase);
+
     const element = createElement(ProposalDocumentPdf, {
       pages,
       cover,
@@ -304,6 +326,8 @@ export const generateProposalPdf = createServerFn({ method: "POST" })
       context: ctx,
       scope,
       warranty,
+      template: bundle?.template ?? null,
+      assets: bundle?.assets ?? [],
     });
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
