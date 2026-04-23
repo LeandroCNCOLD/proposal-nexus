@@ -125,21 +125,23 @@ export const createProposalSendVersion = createServerFn({ method: "POST" })
 
     const { error: eventError } = await supabase
       .from("proposal_send_events")
-      .insert({
-        proposal_id: data.proposalId,
-        version_id: version.id,
-        channel: data.channel,
-        recipient: data.recipient ?? null,
-        subject: data.subject ?? null,
-        message: data.message ?? null,
-        delivery_status: "generated",
-        sent_by: userId,
-        metadata: {
-          pdf_storage_path: data.pdfStoragePath,
-          version_number: versionNumber,
-          generated_at: snapshot.generated_at,
+      .insert([
+        {
+          proposal_id: data.proposalId,
+          version_id: version.id,
+          channel: data.channel,
+          recipient: data.recipient ?? null,
+          subject: data.subject ?? null,
+          message: data.message ?? null,
+          delivery_status: "generated",
+          sent_by: userId,
+          metadata: {
+            pdf_storage_path: data.pdfStoragePath,
+            version_number: versionNumber,
+            generated_at: snapshot.generated_at,
+          },
         },
-      });
+      ]);
 
     if (eventError) {
       throw new Error(`Erro ao registrar evento de envio: ${eventError.message}`);
