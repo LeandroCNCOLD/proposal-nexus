@@ -33,12 +33,14 @@ function ProposalDetail() {
     queryKey: ["proposal", id],
     queryFn: async () => {
       const { data, error } = await supabase.from("proposals")
-        .select("*, clients(name, segment), client_contacts(name, email)")
+        .select("*, clients(name, segment, document, city, state), client_contacts(name, email, phone, role)")
         .eq("id", id).single();
       if (error) throw error;
       return data;
     },
   });
+
+  const isNomus = !!p?.nomus_proposal_id;
 
   const { data: timeline = [] } = useQuery({
     queryKey: ["proposal-timeline", id],
