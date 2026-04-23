@@ -10,6 +10,7 @@ import { EditorTaxesPreview } from "./page-renderers/EditorTaxesPreview";
 import { EditorPaymentPreview } from "./page-renderers/EditorPaymentPreview";
 import { EditorBackCoverPreview } from "./page-renderers/EditorBackCoverPreview";
 import { EditorAttachedPdfPreview } from "./page-renderers/EditorAttachedPdfPreview";
+import { resolveDeep, type PlaceholderContext } from "@/features/proposal-editor/placeholders";
 
 type Props = {
   proposal: any;
@@ -17,6 +18,7 @@ type Props = {
   template: any;
   tables: ProposalTable[];
   selectedPageId?: string | null;
+  placeholderContext?: PlaceholderContext;
 };
 
 function renderPageContent(params: {
@@ -116,10 +118,21 @@ export function EditorProposalPreview({
   template,
   tables,
   selectedPageId,
+  placeholderContext,
 }: Props) {
   const palette = buildEditorPreviewPalette(template);
 
-  const pages = (document?.pages ?? [])
+  // Resolve placeholders dinamicamente em todo o documento + tabelas (preview ao vivo)
+  const resolvedDocument = React.useMemo(
+    () => (placeholderContext ? resolveDeep(document, placeholderContext) : document),
+    [document, placeholderContext],
+  );
+  const resolvedTables = React.useMemo(
+    () => (placeholderContext ? resolveDeep(tables, placeholderContext) : tables),
+    [tables, placeholderContext],
+  );
+
+  const pages = (resolvedDocument?.pages ?? [])
     .filter((page: any) => page.visible !== false)
     .filter((page: any) => !selectedPageId || page.id === selectedPageId);
 
