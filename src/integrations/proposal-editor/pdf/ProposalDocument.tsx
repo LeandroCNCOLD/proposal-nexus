@@ -34,7 +34,7 @@ export interface ProposalDocumentProps {
   warranty: { html?: string; text?: string };
   template: ProposalTemplate | null;
   assets: TemplateAsset[];
-  tables?: ProposalTableNew[];
+  tables?: ProposalTable[];
   storageBaseUrl?: string;
 }
 
