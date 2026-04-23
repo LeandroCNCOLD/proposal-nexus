@@ -381,11 +381,52 @@ function ProposalEditorPage() {
         </aside>
 
         {/* Preview direita */}
-        <main className="flex-1 overflow-hidden">
-          <ProposalPreviewLive
-            proposalId={id}
-            version={pages.length + JSON.stringify(state).length}
-          />
+        <main className="flex flex-1 flex-col overflow-hidden">
+          <div className="flex items-center justify-end gap-1 border-b bg-background px-3 py-1.5">
+            <span className="mr-1 text-[11px] text-muted-foreground">Preview:</span>
+            <Button
+              size="sm"
+              variant={previewMode === "dom" ? "default" : "ghost"}
+              className="h-7 px-2 text-xs"
+              onClick={() => setPreviewMode("dom")}
+            >
+              Estrutural (ao vivo)
+            </Button>
+            <Button
+              size="sm"
+              variant={previewMode === "pdf" ? "default" : "ghost"}
+              className="h-7 px-2 text-xs"
+              onClick={() => setPreviewMode("pdf")}
+            >
+              PDF real
+            </Button>
+          </div>
+          <div className="flex-1 overflow-hidden">
+            {previewMode === "dom" ? (
+              <ProposalPreviewA4
+                pages={pages}
+                selectedId={selectedId}
+                state={{
+                  cover_data: state.cover_data,
+                  context_data: state.context_data,
+                  solution_data: state.solution_data,
+                  scope_items: state.scope_items,
+                  warranty_text: state.warranty_text,
+                  custom_blocks: (doc?.custom_blocks ?? {}) as Record<string, unknown>,
+                  attached_pdf_paths: (doc?.attached_pdf_paths ?? []) as string[],
+                }}
+                template={tplBundle?.template ?? null}
+                templateAssets={tplBundle?.assets ?? []}
+                tables={proposalTables}
+                onSelectPage={setSelectedId}
+              />
+            ) : (
+              <ProposalPreviewLive
+                proposalId={id}
+                version={pages.length + JSON.stringify(state).length}
+              />
+            )}
+          </div>
         </main>
       </div>
     </div>
