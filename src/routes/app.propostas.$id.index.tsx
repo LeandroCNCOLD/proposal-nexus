@@ -33,7 +33,7 @@ function ProposalDetail() {
     queryKey: ["proposal", id],
     queryFn: async () => {
       const { data, error } = await supabase.from("proposals")
-        .select("*, clients(name, segment, document, city, state), client_contacts(name, email, phone, role)")
+        .select("*, clients(name, trade_name, segment, document, city, state, region, notes), client_contacts(name, email, phone, role)")
         .eq("id", id).single();
       if (error) throw error;
       return data;
