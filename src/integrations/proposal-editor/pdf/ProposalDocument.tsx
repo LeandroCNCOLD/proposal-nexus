@@ -35,6 +35,7 @@ export interface ProposalDocumentProps {
   template: ProposalTemplate | null;
   assets: TemplateAsset[];
   tables?: ProposalTable[];
+  storageBaseUrl?: string;
 }
 
 export function ProposalDocumentPdf(props: ProposalDocumentProps) {
