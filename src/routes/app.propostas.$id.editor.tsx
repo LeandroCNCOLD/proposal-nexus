@@ -150,7 +150,7 @@ function ProposalEditorPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-
+  useEffect(() => {
     if (!dirty) return;
     const t = setTimeout(() => saveMut.mutate(), 2000);
     return () => clearTimeout(t);
