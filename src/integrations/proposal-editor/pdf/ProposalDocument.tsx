@@ -34,7 +34,8 @@ export interface ProposalDocumentProps {
   warranty: { html?: string; text?: string };
   template: ProposalTemplate | null;
   assets: TemplateAsset[];
-  tables?: ProposalTable[];
+  tables?: ProposalTableNew[];
+  storageBaseUrl?: string;
 }
 
 export function ProposalDocumentPdf(props: ProposalDocumentProps) {
