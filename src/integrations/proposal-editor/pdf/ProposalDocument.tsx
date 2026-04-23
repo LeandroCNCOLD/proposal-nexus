@@ -117,7 +117,6 @@ export function ProposalDocumentPdf(props: ProposalDocumentProps) {
                   title={p.title || "Base de cálculo dos impostos"}
                   tables={pageTables}
                   palette={palette}
-                  note={null}
                 />
               </StandardPage>
             );
