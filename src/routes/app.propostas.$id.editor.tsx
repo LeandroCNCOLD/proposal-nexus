@@ -9,6 +9,7 @@ import {
   getProposalDocument,
   upsertProposalDocument,
   autoFillFromNomus,
+  generateProposalPdf,
 } from "@/integrations/proposal-editor/server.functions";
 import type {
   DocumentPage,
@@ -36,6 +37,7 @@ function ProposalEditorPage() {
   const getDoc = useServerFn(getProposalDocument);
   const saveDoc = useServerFn(upsertProposalDocument);
   const autoFill = useServerFn(autoFillFromNomus);
+  const genPdf = useServerFn(generateProposalPdf);
 
   const { data, isLoading } = useQuery({
     queryKey: ["proposal-document", id],
@@ -110,7 +112,18 @@ function ProposalEditorPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  // Auto-save debounce 2s
+  const pdfMut = useMutation({
+    mutationFn: async () => {
+      if (dirty) await saveMut.mutateAsync();
+      return genPdf({ data: { proposalId: id, mode: "preview" } });
+    },
+    onSuccess: (res) => {
+      window.open(res.url, "_blank", "noopener,noreferrer");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+
   useEffect(() => {
     if (!dirty) return;
     const t = setTimeout(() => saveMut.mutate(), 2000);
@@ -213,8 +226,17 @@ function ProposalEditorPage() {
             )}
             Salvar
           </Button>
-          <Button size="sm" disabled title="Disponível na Etapa 3">
-            <RefreshCw className="mr-1.5 h-3.5 w-3.5" /> Visualizar PDF
+          <Button
+            size="sm"
+            onClick={() => pdfMut.mutate()}
+            disabled={pdfMut.isPending}
+          >
+            {pdfMut.isPending ? (
+              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+            )}
+            Visualizar PDF
           </Button>
         </div>
       </div>
