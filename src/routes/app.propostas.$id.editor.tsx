@@ -2,16 +2,16 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, RefreshCw, Save, Loader2, Sparkles, Send } from "lucide-react";
+import { ArrowLeft, RefreshCw, Save, Loader2, Sparkles, Send, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import {
   getProposalDocument,
   upsertProposalDocument,
-  autoFillFromNomus,
   generateProposalPdf,
   setProposalDocumentTemplate,
 } from "@/integrations/proposal-editor/server.functions";
+import { useAutoFillDocumentFromNomus } from "@/features/proposal-editor/use-auto-fill-document-from-nomus";
 import { createProposalSendVersion } from "@/features/proposal-editor/create-proposal-send-version.functions";
 import { listTemplates, getTemplate } from "@/integrations/proposal-editor/template.functions";
 import {
@@ -49,7 +49,6 @@ function ProposalEditorPage() {
 
   const getDoc = useServerFn(getProposalDocument);
   const saveDoc = useServerFn(upsertProposalDocument);
-  const autoFill = useServerFn(autoFillFromNomus);
   const genPdf = useServerFn(generateProposalPdf);
   const setTpl = useServerFn(setProposalDocumentTemplate);
   const sendVersion = useServerFn(createProposalSendVersion);
@@ -135,16 +134,25 @@ function ProposalEditorPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const fillMut = useMutation({
-    mutationFn: () => autoFill({ data: { proposalId: id } }),
-    onSuccess: (res) => {
-      // força re-hidratação
-      hydratedFor.current = null;
-      qc.invalidateQueries({ queryKey: ["proposal-document", id] });
-      toast.success(`Sincronizado · ${res.filledFromNomus} itens do Nomus`);
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
+  const fillMut = useAutoFillDocumentFromNomus(id);
+  const handleFill = (overwrite: boolean) => {
+    if (overwrite && !window.confirm(
+      "Reprocessar tudo do Nomus vai sobrescrever também os campos editados manualmente. Continuar?"
+    )) return;
+    fillMut.mutate(
+      { overwriteManualFields: overwrite },
+      {
+        onSuccess: (res) => {
+          hydratedFor.current = null;
+          const tablesMsg = res.tablesUpdated.length > 0
+            ? ` · ${res.tablesUpdated.length} tabela(s) atualizada(s)`
+            : "";
+          toast.success(`Sincronizado · ${res.filledFromNomus} itens do Nomus${tablesMsg}`);
+        },
+        onError: (e: Error) => toast.error(e.message),
+      },
+    );
+  };
 
   const pdfMut = useMutation({
     mutationFn: async () => {
@@ -291,7 +299,7 @@ function ProposalEditorPage() {
           <Button
             size="sm"
             variant="outline"
-            onClick={() => fillMut.mutate()}
+            onClick={() => handleFill(false)}
             disabled={fillMut.isPending}
           >
             {fillMut.isPending ? (
@@ -300,6 +308,17 @@ function ProposalEditorPage() {
               <Sparkles className="mr-1.5 h-3.5 w-3.5" />
             )}
             Sincronizar do Nomus
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="text-destructive hover:text-destructive"
+            onClick={() => handleFill(true)}
+            disabled={fillMut.isPending}
+            title="Reprocessa todos os campos do Nomus, incluindo os editados manualmente"
+          >
+            <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
+            Reprocessar tudo
           </Button>
           <Button
             size="sm"

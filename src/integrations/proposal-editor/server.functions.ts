@@ -11,6 +11,14 @@ import {
   type ScopeItem,
   type SolutionData,
 } from "./types";
+import {
+  getDefaultTableSettings,
+  getDefaultTableRows,
+} from "@/features/proposal-editor/proposal-tables.defaults";
+import type {
+  ProposalTableRow,
+  ProposalTableType,
+} from "@/features/proposal-editor/proposal-tables.types";
 import type { ProposalTemplate, TemplateAsset, TemplatePageConfig } from "./template.types";
 import { renderToBuffer } from "@react-pdf/renderer";
 import { createElement } from "react";
@@ -205,15 +213,22 @@ export const upsertProposalDocument = createServerFn({ method: "POST" })
   });
 
 /**
- * Auto-preenche o documento com dados do Nomus + clientes + contatos + escopo.
- * Não sobrescreve campos listados em `manually_edited_fields`.
+ * Auto-preenche o documento com dados do Nomus + clientes + contatos + escopo +
+ * tabelas estruturadas (investimento, impostos, pagamento).
+ * Não sobrescreve campos listados em `manually_edited_fields`, exceto quando
+ * `overwriteManualFields` for `true`.
  */
+const autoFillSchema = z.object({
+  proposalId: z.string().uuid(),
+  overwriteManualFields: z.boolean().optional(),
+});
+
 export const autoFillFromNomus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => proposalIdSchema.parse(input))
+  .inputValidator((input: unknown) => autoFillSchema.parse(input))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const { proposalId } = data;
+    const { proposalId, overwriteManualFields = false } = data;
 
     // Carrega documento + proposta + cliente + contato + nomus_proposal
     const { data: proposal, error: pErr } = await supabase
@@ -232,7 +247,9 @@ export const autoFillFromNomus = createServerFn({ method: "POST" })
       .maybeSingle();
     if (dErr) throw new Error(dErr.message);
 
-    const manuallyEdited = new Set<string>(doc?.manually_edited_fields ?? []);
+    const manuallyEdited = new Set<string>(
+      overwriteManualFields ? [] : (doc?.manually_edited_fields ?? []),
+    );
 
     // Nomus proposal (busca por nomus_proposal_id ou nomus_id)
     let nomusProp: Record<string, unknown> | null = null;
@@ -339,7 +356,114 @@ export const autoFillFromNomus = createServerFn({ method: "POST" })
       .single();
     if (uErr) throw new Error(uErr.message);
 
-    return { document: updated, filledFromNomus: nomusItems.length };
+    // ============= Tabelas estruturadas =============
+    const pagesArr = ((updated?.pages ?? doc?.pages) as DocumentPage[] | undefined) ?? [];
+    const findPageId = (...types: string[]): string | null => {
+      const found = pagesArr.find((p) => types.includes(p.type));
+      return found?.id ?? null;
+    };
+
+    const tablesUpdated: string[] = [];
+
+    const upsertTable = async (
+      tableType: ProposalTableType,
+      pageId: string | null,
+      rows: ProposalTableRow[],
+      title?: string,
+    ) => {
+      if (!pageId) return;
+      const fieldKey = `proposal_tables.${tableType}`;
+      if (manuallyEdited.has(fieldKey)) return;
+      if (rows.length === 0) return;
+
+      // Estratégia: apaga existentes desse (proposal, page, type) e insere novas
+      await supabase
+        .from("proposal_tables")
+        .delete()
+        .eq("proposal_id", proposalId)
+        .eq("page_id", pageId)
+        .eq("table_type", tableType);
+
+      const { error: insErr } = await supabase.from("proposal_tables").insert({
+        proposal_id: proposalId,
+        page_id: pageId,
+        table_type: tableType,
+        title: title ?? null,
+        subtitle: null,
+        rows: rows as never,
+        settings: getDefaultTableSettings(tableType) as never,
+        sort_order: 0,
+        created_by: userId,
+        updated_by: userId,
+      } as never);
+      if (insErr) {
+        console.warn(`[autoFillFromNomus] falhou ao inserir tabela ${tableType}:`, insErr.message);
+        return;
+      }
+      tablesUpdated.push(tableType);
+    };
+
+    // 1) Investimento — itens da proposta Nomus
+    if (nomusItems.length > 0) {
+      const investimentoPageId = findPageId("investimento", "equipamento");
+      const rows: ProposalTableRow[] = nomusItems.map((it, idx) => ({
+        item: idx + 1,
+        descricao: (it.description as string) ?? `Item ${idx + 1}`,
+        quantidade: Number(it.quantity ?? 0),
+        unidade: (it.unit_value_with_unit as string) ?? "un",
+        valor_unitario: Number(it.unit_price ?? 0),
+        valor_total: Number(it.total_with_discount ?? it.total ?? 0),
+      }));
+      await upsertTable("investimento", investimentoPageId, rows);
+    }
+
+    // 2) Impostos — calculados a partir do nomus_proposals
+    if (nomusProp) {
+      const impostosPageId = findPageId("impostos");
+      const valorProdutos = Number(nomusProp.valor_produtos ?? 0);
+      const fmt = (recolher: unknown, fallback: string): string => {
+        const v = Number(recolher ?? 0);
+        if (!valorProdutos || !v) return fallback;
+        const pct = (v / valorProdutos) * 100;
+        return `${pct.toFixed(2).replace(".", ",")}%`;
+      };
+      const rows: ProposalTableRow[] = [
+        {
+          ipi: fmt(nomusProp.ipi_recolher, "0% (Isento)"),
+          icms: fmt(nomusProp.icms_recolher, "12,00%"),
+          pis: fmt(nomusProp.pis_recolher, "1,65%"),
+          cofins: fmt(nomusProp.cofins_recolher, "7,60%"),
+        },
+      ];
+      await upsertTable("impostos", impostosPageId, rows);
+    }
+
+    // 3) Pagamento — usa a condição do Nomus se houver, senão defaults
+    if (nomusProp) {
+      const pagamentoPageId = findPageId("pagamento");
+      const condNome = (nomusProp.condicao_pagamento_nome as string | null) ?? null;
+      let rows: ProposalTableRow[] = getDefaultTableRows("pagamento");
+      if (condNome) {
+        // Tenta extrair parcelas do tipo "30/60/90" ou similar
+        const matches = condNome.match(/\d+/g);
+        if (matches && matches.length >= 1) {
+          const total = matches.length;
+          const pct = Math.floor(100 / total);
+          rows = matches.map((dias, i) => ({
+            forma_pagamento: i === 0 ? "Depósito Bancário" : "Boleto Bancário",
+            parcela: `${i + 1}/${total} (${dias} dias)`,
+            porcentagem: i === total - 1 ? `${100 - pct * (total - 1)}%` : `${pct}%`,
+          }));
+        }
+      }
+      await upsertTable("pagamento", pagamentoPageId, rows, condNome ?? undefined);
+    }
+
+    return {
+      document: updated,
+      filledFromNomus: nomusItems.length,
+      tablesUpdated,
+    };
   });
 
 /**
