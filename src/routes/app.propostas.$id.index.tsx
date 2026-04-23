@@ -317,6 +317,42 @@ function ProposalDetail() {
             )}
           </div>
 
+          {p.clients && (
+            <div className="rounded-xl border bg-card p-6 shadow-[var(--shadow-sm)]">
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="text-sm font-semibold">Cliente</h2>
+                {(p.clients as any)?.segment && (
+                  <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+                    {(p.clients as any).segment}
+                  </span>
+                )}
+              </div>
+              <dl className="grid gap-4 text-sm md:grid-cols-2">
+                <Item label="Razão social" value={(p.clients as any)?.name ?? "—"} />
+                <Item label="Nome fantasia" value={(p.clients as any)?.trade_name ?? "—"} />
+                <Item label="CNPJ" value={(p.clients as any)?.document ?? "—"} />
+                <Item label="Segmento" value={(p.clients as any)?.segment ?? "—"} />
+                <Item
+                  label="Localização"
+                  value={
+                    [(p.clients as any)?.city, (p.clients as any)?.state]
+                      .filter(Boolean)
+                      .join(" / ") || "—"
+                  }
+                />
+                <Item label="Região" value={(p.clients as any)?.region ?? p.region ?? "—"} />
+              </dl>
+              {(p.clients as any)?.notes && (
+                <div className="mt-4 rounded-md border bg-secondary/30 p-3 text-sm">
+                  <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                    Notas do cliente
+                  </div>
+                  {(p.clients as any).notes}
+                </div>
+              )}
+            </div>
+          )}
+
           {p.nomus_proposal_id && (
             <NomusProposalDetail
               nomusProposalId={p.nomus_proposal_id}
