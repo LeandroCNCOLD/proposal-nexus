@@ -134,16 +134,25 @@ function ProposalEditorPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const fillMut = useMutation({
-    mutationFn: () => autoFill({ data: { proposalId: id } }),
-    onSuccess: (res) => {
-      // força re-hidratação
-      hydratedFor.current = null;
-      qc.invalidateQueries({ queryKey: ["proposal-document", id] });
-      toast.success(`Sincronizado · ${res.filledFromNomus} itens do Nomus`);
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
+  const fillMut = useAutoFillDocumentFromNomus(id);
+  const handleFill = (overwrite: boolean) => {
+    if (overwrite && !window.confirm(
+      "Reprocessar tudo do Nomus vai sobrescrever também os campos editados manualmente. Continuar?"
+    )) return;
+    fillMut.mutate(
+      { overwriteManualFields: overwrite },
+      {
+        onSuccess: (res) => {
+          hydratedFor.current = null;
+          const tablesMsg = res.tablesUpdated.length > 0
+            ? ` · ${res.tablesUpdated.length} tabela(s) atualizada(s)`
+            : "";
+          toast.success(`Sincronizado · ${res.filledFromNomus} itens do Nomus${tablesMsg}`);
+        },
+        onError: (e: Error) => toast.error(e.message),
+      },
+    );
+  };
 
   const pdfMut = useMutation({
     mutationFn: async () => {
