@@ -29,6 +29,7 @@ import { Route as AppConfiguracoesIndexRouteImport } from './routes/app.configur
 import { Route as AppPropostasPedidosNfRouteImport } from './routes/app.propostas.pedidos-nf'
 import { Route as AppPropostasNovaRouteImport } from './routes/app.propostas.nova'
 import { Route as AppPropostasIdRouteImport } from './routes/app.propostas.$id'
+import { Route as AppConfiguracoesTemplatesRouteImport } from './routes/app.configuracoes.templates'
 import { Route as AppConfiguracoesNomusRouteImport } from './routes/app.configuracoes.nomus'
 import { Route as AppConfiguracoesApiNomusRouteImport } from './routes/app.configuracoes.api-nomus'
 import { Route as ApiNomusTestRouteImport } from './routes/api.nomus.test'
@@ -140,6 +141,12 @@ const AppPropostasIdRoute = AppPropostasIdRouteImport.update({
   path: '/propostas/$id',
   getParentRoute: () => AppRoute,
 } as any)
+const AppConfiguracoesTemplatesRoute =
+  AppConfiguracoesTemplatesRouteImport.update({
+    id: '/templates',
+    path: '/templates',
+    getParentRoute: () => AppConfiguracoesRoute,
+  } as any)
 const AppConfiguracoesNomusRoute = AppConfiguracoesNomusRouteImport.update({
   id: '/nomus',
   path: '/nomus',
@@ -216,6 +223,7 @@ export interface FileRoutesByFullPath {
   '/api/nomus/test': typeof ApiNomusTestRoute
   '/app/configuracoes/api-nomus': typeof AppConfiguracoesApiNomusRoute
   '/app/configuracoes/nomus': typeof AppConfiguracoesNomusRouteWithChildren
+  '/app/configuracoes/templates': typeof AppConfiguracoesTemplatesRoute
   '/app/propostas/$id': typeof AppPropostasIdRouteWithChildren
   '/app/propostas/nova': typeof AppPropostasNovaRoute
   '/app/propostas/pedidos-nf': typeof AppPropostasPedidosNfRoute
@@ -246,6 +254,7 @@ export interface FileRoutesByTo {
   '/api/nomus/test': typeof ApiNomusTestRoute
   '/app/configuracoes/api-nomus': typeof AppConfiguracoesApiNomusRoute
   '/app/configuracoes/nomus': typeof AppConfiguracoesNomusRouteWithChildren
+  '/app/configuracoes/templates': typeof AppConfiguracoesTemplatesRoute
   '/app/propostas/nova': typeof AppPropostasNovaRoute
   '/app/propostas/pedidos-nf': typeof AppPropostasPedidosNfRoute
   '/app/configuracoes': typeof AppConfiguracoesIndexRoute
@@ -278,6 +287,7 @@ export interface FileRoutesById {
   '/api/nomus/test': typeof ApiNomusTestRoute
   '/app/configuracoes/api-nomus': typeof AppConfiguracoesApiNomusRoute
   '/app/configuracoes/nomus': typeof AppConfiguracoesNomusRouteWithChildren
+  '/app/configuracoes/templates': typeof AppConfiguracoesTemplatesRoute
   '/app/propostas/$id': typeof AppPropostasIdRouteWithChildren
   '/app/propostas/nova': typeof AppPropostasNovaRoute
   '/app/propostas/pedidos-nf': typeof AppPropostasPedidosNfRoute
@@ -312,6 +322,7 @@ export interface FileRouteTypes {
     | '/api/nomus/test'
     | '/app/configuracoes/api-nomus'
     | '/app/configuracoes/nomus'
+    | '/app/configuracoes/templates'
     | '/app/propostas/$id'
     | '/app/propostas/nova'
     | '/app/propostas/pedidos-nf'
@@ -342,6 +353,7 @@ export interface FileRouteTypes {
     | '/api/nomus/test'
     | '/app/configuracoes/api-nomus'
     | '/app/configuracoes/nomus'
+    | '/app/configuracoes/templates'
     | '/app/propostas/nova'
     | '/app/propostas/pedidos-nf'
     | '/app/configuracoes'
@@ -373,6 +385,7 @@ export interface FileRouteTypes {
     | '/api/nomus/test'
     | '/app/configuracoes/api-nomus'
     | '/app/configuracoes/nomus'
+    | '/app/configuracoes/templates'
     | '/app/propostas/$id'
     | '/app/propostas/nova'
     | '/app/propostas/pedidos-nf'
@@ -541,6 +554,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPropostasIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/configuracoes/templates': {
+      id: '/app/configuracoes/templates'
+      path: '/templates'
+      fullPath: '/app/configuracoes/templates'
+      preLoaderRoute: typeof AppConfiguracoesTemplatesRouteImport
+      parentRoute: typeof AppConfiguracoesRoute
+    }
     '/app/configuracoes/nomus': {
       id: '/app/configuracoes/nomus'
       path: '/nomus'
@@ -631,12 +651,14 @@ const AppConfiguracoesNomusRouteWithChildren =
 interface AppConfiguracoesRouteChildren {
   AppConfiguracoesApiNomusRoute: typeof AppConfiguracoesApiNomusRoute
   AppConfiguracoesNomusRoute: typeof AppConfiguracoesNomusRouteWithChildren
+  AppConfiguracoesTemplatesRoute: typeof AppConfiguracoesTemplatesRoute
   AppConfiguracoesIndexRoute: typeof AppConfiguracoesIndexRoute
 }
 
 const AppConfiguracoesRouteChildren: AppConfiguracoesRouteChildren = {
   AppConfiguracoesApiNomusRoute: AppConfiguracoesApiNomusRoute,
   AppConfiguracoesNomusRoute: AppConfiguracoesNomusRouteWithChildren,
+  AppConfiguracoesTemplatesRoute: AppConfiguracoesTemplatesRoute,
   AppConfiguracoesIndexRoute: AppConfiguracoesIndexRoute,
 }
 

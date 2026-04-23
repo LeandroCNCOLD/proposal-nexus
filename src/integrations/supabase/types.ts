@@ -1592,6 +1592,7 @@ export type Database = {
           proposal_id: string
           scope_items: Json
           solution_data: Json
+          template_id: string | null
           template_version: string
           updated_at: string
           warranty_text: Json
@@ -1611,6 +1612,7 @@ export type Database = {
           proposal_id: string
           scope_items?: Json
           solution_data?: Json
+          template_id?: string | null
           template_version?: string
           updated_at?: string
           warranty_text?: Json
@@ -1630,6 +1632,7 @@ export type Database = {
           proposal_id?: string
           scope_items?: Json
           solution_data?: Json
+          template_id?: string | null
           template_version?: string
           updated_at?: string
           warranty_text?: Json
@@ -1640,6 +1643,13 @@ export type Database = {
             columns: ["proposal_id"]
             isOneToOne: true
             referencedRelation: "proposals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposal_documents_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "proposal_templates"
             referencedColumns: ["id"]
           },
         ]
@@ -1892,6 +1902,164 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      proposal_template_assets: {
+        Row: {
+          asset_kind: string
+          id: string
+          label: string | null
+          mime_type: string | null
+          position: number | null
+          size_bytes: number | null
+          storage_path: string
+          template_id: string
+          uploaded_at: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          asset_kind: string
+          id?: string
+          label?: string | null
+          mime_type?: string | null
+          position?: number | null
+          size_bytes?: number | null
+          storage_path: string
+          template_id: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          asset_kind?: string
+          id?: string
+          label?: string | null
+          mime_type?: string | null
+          position?: number | null
+          size_bytes?: number | null
+          storage_path?: string
+          template_id?: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proposal_template_assets_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "proposal_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      proposal_templates: {
+        Row: {
+          accent_color: string
+          accent_color_2: string
+          capa_subtitulo: string | null
+          capa_tagline: string | null
+          capa_titulo: string | null
+          cases_itens: Json
+          cases_subtitulo: string | null
+          cases_titulo: string | null
+          clientes_lista: Json
+          clientes_titulo: string | null
+          created_at: string
+          created_by: string | null
+          dados_bancarios: Json
+          description: string | null
+          empresa_cidade: string
+          empresa_email: string
+          empresa_nome: string
+          empresa_site: string
+          empresa_telefone: string
+          escopo_apresentacao_itens: Json
+          garantia_itens: Json
+          garantia_texto: string | null
+          id: string
+          is_active: boolean
+          is_default: boolean
+          name: string
+          pages_config: Json
+          prazo_entrega_padrao: string | null
+          primary_color: string
+          sobre_diferenciais: Json
+          sobre_paragrafos: Json
+          sobre_titulo: string | null
+          updated_at: string
+          validade_padrao_dias: number | null
+        }
+        Insert: {
+          accent_color?: string
+          accent_color_2?: string
+          capa_subtitulo?: string | null
+          capa_tagline?: string | null
+          capa_titulo?: string | null
+          cases_itens?: Json
+          cases_subtitulo?: string | null
+          cases_titulo?: string | null
+          clientes_lista?: Json
+          clientes_titulo?: string | null
+          created_at?: string
+          created_by?: string | null
+          dados_bancarios?: Json
+          description?: string | null
+          empresa_cidade?: string
+          empresa_email?: string
+          empresa_nome?: string
+          empresa_site?: string
+          empresa_telefone?: string
+          escopo_apresentacao_itens?: Json
+          garantia_itens?: Json
+          garantia_texto?: string | null
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          name: string
+          pages_config?: Json
+          prazo_entrega_padrao?: string | null
+          primary_color?: string
+          sobre_diferenciais?: Json
+          sobre_paragrafos?: Json
+          sobre_titulo?: string | null
+          updated_at?: string
+          validade_padrao_dias?: number | null
+        }
+        Update: {
+          accent_color?: string
+          accent_color_2?: string
+          capa_subtitulo?: string | null
+          capa_tagline?: string | null
+          capa_titulo?: string | null
+          cases_itens?: Json
+          cases_subtitulo?: string | null
+          cases_titulo?: string | null
+          clientes_lista?: Json
+          clientes_titulo?: string | null
+          created_at?: string
+          created_by?: string | null
+          dados_bancarios?: Json
+          description?: string | null
+          empresa_cidade?: string
+          empresa_email?: string
+          empresa_nome?: string
+          empresa_site?: string
+          empresa_telefone?: string
+          escopo_apresentacao_itens?: Json
+          garantia_itens?: Json
+          garantia_texto?: string | null
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          name?: string
+          pages_config?: Json
+          prazo_entrega_padrao?: string | null
+          primary_color?: string
+          sobre_diferenciais?: Json
+          sobre_paragrafos?: Json
+          sobre_titulo?: string | null
+          updated_at?: string
+          validade_padrao_dias?: number | null
+        }
+        Relationships: []
       }
       proposal_timeline_events: {
         Row: {
