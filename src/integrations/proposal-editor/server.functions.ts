@@ -734,3 +734,126 @@ export const createProposalSendVersion = createServerFn({ method: "POST" })
 
     return { version: created, path: finalPath };
   });
+
+/**
+ * Materializa (grava) os placeholders {{...}} resolvidos no documento.
+ * Chama o builder de contexto a partir dos dados atuais e substitui inline em
+ * cover_data, context_data, solution_data, scope_items, warranty_text, custom_blocks
+ * e nas linhas/títulos das tabelas estruturadas. Operação irreversível.
+ */
+export const materializeDocumentPlaceholders = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => proposalIdSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { proposalId } = data;
+
+    const { buildPlaceholderContext, resolveDeep } = await import(
+      "@/features/proposal-editor/placeholders"
+    );
+
+    const { data: prop } = await supabase
+      .from("proposals")
+      .select(
+        "number, title, valid_until, delivery_term, total_value, payment_terms, nomus_payment_term_name, nomus_price_table_name, nomus_seller_name, created_at, nomus_proposal_id, nomus_id, sales_owner_id, clients:client_id(name, trade_name, document, city, state), client_contacts:contact_id(name, email, phone, role)",
+      )
+      .eq("id", proposalId)
+      .maybeSingle();
+    if (!prop) throw new Error("Proposta não encontrada");
+
+    const nomusKey = (prop as Record<string, unknown>).nomus_proposal_id ?? (prop as Record<string, unknown>).nomus_id;
+    let nomusProposal: Record<string, unknown> | null = null;
+    let nomusItems: Array<Record<string, unknown>> = [];
+    if (nomusKey) {
+      const { data: np } = await supabase
+        .from("nomus_proposals")
+        .select("id, valor_produtos, valor_descontos, valor_total, condicao_pagamento_nome, tabela_preco_nome, vendedor_nome, data_emissao, validade, observacoes, prazo_entrega_dias")
+        .eq("nomus_id", nomusKey as string)
+        .maybeSingle();
+      if (np) {
+        nomusProposal = np as Record<string, unknown>;
+        const { data: items } = await supabase
+          .from("nomus_proposal_items")
+          .select("description, quantity, unit_value_with_unit")
+          .eq("nomus_proposal_id", (np as { id: string }).id)
+          .order("position", { ascending: true });
+        nomusItems = (items ?? []) as Array<Record<string, unknown>>;
+      }
+    }
+
+    let seller: Record<string, unknown> | null = null;
+    const ownerId = (prop as Record<string, unknown>).sales_owner_id as string | null;
+    if (ownerId) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name, job_title, phone")
+        .eq("id", ownerId)
+        .maybeSingle();
+      seller = (profile as Record<string, unknown>) ?? null;
+    }
+
+    const { data: doc } = await supabase
+      .from("proposal_documents")
+      .select("*")
+      .eq("proposal_id", proposalId)
+      .single();
+    if (!doc) throw new Error("Documento não encontrado");
+
+    let template: Record<string, unknown> | null = null;
+    if (doc.template_id) {
+      const { data: tmpl } = await supabase
+        .from("proposal_templates")
+        .select("empresa_nome, empresa_email, empresa_telefone, empresa_site, empresa_cidade")
+        .eq("id", doc.template_id)
+        .maybeSingle();
+      template = (tmpl as Record<string, unknown>) ?? null;
+    }
+
+    const ctx = buildPlaceholderContext({
+      proposal: prop as never,
+      client: (prop as Record<string, unknown>).clients as never,
+      contact: (prop as Record<string, unknown>).client_contacts as never,
+      seller: seller as never,
+      nomusProposal: nomusProposal as never,
+      nomusItems: nomusItems as never,
+      template: template as never,
+    });
+
+    const patch: Record<string, unknown> = {
+      cover_data: resolveDeep(doc.cover_data, ctx),
+      context_data: resolveDeep(doc.context_data, ctx),
+      solution_data: resolveDeep(doc.solution_data, ctx),
+      scope_items: resolveDeep(doc.scope_items, ctx),
+      warranty_text: resolveDeep(doc.warranty_text, ctx),
+      custom_blocks: resolveDeep(doc.custom_blocks, ctx),
+      pages: resolveDeep(doc.pages, ctx),
+      last_edited_by: userId,
+      last_edited_at: new Date().toISOString(),
+    };
+
+    const { error: updErr } = await supabase
+      .from("proposal_documents")
+      .update(patch as never)
+      .eq("proposal_id", proposalId);
+    if (updErr) throw new Error(updErr.message);
+
+    // Resolve também tabelas (rows/title/subtitle)
+    const { data: tables } = await supabase
+      .from("proposal_tables")
+      .select("id, rows, title, subtitle")
+      .eq("proposal_id", proposalId);
+    let tablesUpdated = 0;
+    for (const t of tables ?? []) {
+      const newRows = resolveDeep(t.rows, ctx);
+      const newTitle = t.title ? resolveDeep(t.title, ctx) : t.title;
+      const newSubtitle = t.subtitle ? resolveDeep(t.subtitle, ctx) : t.subtitle;
+      const { error: tErr } = await supabase
+        .from("proposal_tables")
+        .update({ rows: newRows, title: newTitle, subtitle: newSubtitle } as never)
+        .eq("id", (t as { id: string }).id);
+      if (!tErr) tablesUpdated++;
+    }
+
+    return { ok: true, tablesUpdated };
+  });
+

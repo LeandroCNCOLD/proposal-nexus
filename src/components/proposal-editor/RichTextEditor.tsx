@@ -34,6 +34,7 @@ import { cn } from "@/lib/utils";
 import { useServerFn } from "@tanstack/react-start";
 import { uploadInlineImage } from "@/integrations/proposal-editor/inline-images.functions";
 import { toast } from "sonner";
+import { PlaceholderMention } from "./PlaceholderMention";
 
 interface Props {
   value?: string;
@@ -271,6 +272,7 @@ export function RichTextEditor({
       TableRow,
       TableHeader,
       TableCell,
+      PlaceholderMention,
     ],
     content: value ?? "",
     editorProps: {

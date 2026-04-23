@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, RefreshCw, Save, Loader2, Sparkles, Send, RotateCcw } from "lucide-react";
+import { ArrowLeft, RefreshCw, Save, Loader2, Sparkles, Send, RotateCcw, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import {
@@ -10,6 +10,7 @@ import {
   upsertProposalDocument,
   generateProposalPdf,
   setProposalDocumentTemplate,
+  materializeDocumentPlaceholders,
 } from "@/integrations/proposal-editor/server.functions";
 import { useAutoFillDocumentFromNomus } from "@/features/proposal-editor/use-auto-fill-document-from-nomus";
 import { createProposalSendVersion } from "@/features/proposal-editor/create-proposal-send-version.functions";
@@ -54,6 +55,7 @@ function ProposalEditorPage() {
   const sendVersion = useServerFn(createProposalSendVersion);
   const listTpls = useServerFn(listTemplates);
   const getTpl = useServerFn(getTemplate);
+  const materializeFn = useServerFn(materializeDocumentPlaceholders);
 
   const { data, isLoading } = useQuery({
     queryKey: ["proposal-document", id],
@@ -88,8 +90,11 @@ function ProposalEditorPage() {
   const [previewMode, setPreviewMode] = useState<"dom" | "pdf">("dom");
   const hydratedFor = useRef<string | null>(null);
 
-  // Tabelas estruturadas (para o preview DOM em tempo real)
-  const { tables: proposalTables, isLoadingTables } = useEditorPreviewData(id);
+  // Tabelas estruturadas + contexto de placeholders (para o preview DOM em tempo real)
+  const { tables: proposalTables, isLoadingTables, placeholderContext } = useEditorPreviewData(
+    id,
+    tplBundle ?? null,
+  );
 
   // Hidrata estado quando o doc chega (ou quando troca de proposta)
   useEffect(() => {
@@ -197,6 +202,17 @@ function ProposalEditorPage() {
       qc.invalidateQueries({ queryKey: ["proposal-document", id] });
       qc.invalidateQueries({ queryKey: ["proposal-versions", id] });
       toast.success(`Versão ${version.version_number} gerada e congelada`);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const materializeMut = useMutation({
+    mutationFn: () => materializeFn({ data: { proposalId: id } }),
+    onSuccess: (res) => {
+      hydratedFor.current = null;
+      qc.invalidateQueries({ queryKey: ["proposal-document", id] });
+      qc.invalidateQueries({ queryKey: ["proposal-tables", id] });
+      toast.success(`Variáveis materializadas · ${res.tablesUpdated} tabela(s) atualizada(s)`);
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -332,6 +348,24 @@ function ProposalEditorPage() {
               <Save className="mr-1.5 h-3.5 w-3.5" />
             )}
             Salvar
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              if (window.confirm("Materializar substitui todas as variáveis {{...}} pelos valores atuais. Esta ação não é reversível. Continuar?")) {
+                materializeMut.mutate();
+              }
+            }}
+            disabled={materializeMut.isPending}
+            title="Substitui {{variáveis}} pelos valores reais no documento"
+          >
+            {materializeMut.isPending ? (
+              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Wand2 className="mr-1.5 h-3.5 w-3.5" />
+            )}
+            Materializar
           </Button>
           <Button
             size="sm"
