@@ -1855,37 +1855,49 @@ export type Database = {
       }
       proposal_tables: {
         Row: {
-          columns: Json | null
           created_at: string
+          created_by: string | null
           id: string
-          page_id: string
+          page_id: string | null
           proposal_id: string
           rows: Json
+          settings: Json
+          sort_order: number
+          subtitle: string | null
+          table_type: string
           title: string | null
-          type: string
           updated_at: string
+          updated_by: string | null
         }
         Insert: {
-          columns?: Json | null
           created_at?: string
+          created_by?: string | null
           id?: string
-          page_id: string
+          page_id?: string | null
           proposal_id: string
           rows?: Json
+          settings?: Json
+          sort_order?: number
+          subtitle?: string | null
+          table_type: string
           title?: string | null
-          type: string
           updated_at?: string
+          updated_by?: string | null
         }
         Update: {
-          columns?: Json | null
           created_at?: string
+          created_by?: string | null
           id?: string
-          page_id?: string
+          page_id?: string | null
           proposal_id?: string
           rows?: Json
+          settings?: Json
+          sort_order?: number
+          subtitle?: string | null
+          table_type?: string
           title?: string | null
-          type?: string
           updated_at?: string
+          updated_by?: string | null
         }
         Relationships: [
           {
@@ -2400,6 +2412,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      proposal_table_default_settings: {
+        Args: { p_table_type: string }
+        Returns: Json
       }
     }
     Enums: {
