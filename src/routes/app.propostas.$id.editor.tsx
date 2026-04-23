@@ -206,6 +206,17 @@ function ProposalEditorPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const materializeMut = useMutation({
+    mutationFn: () => materializeFn({ data: { proposalId: id } }),
+    onSuccess: (res) => {
+      hydratedFor.current = null;
+      qc.invalidateQueries({ queryKey: ["proposal-document", id] });
+      qc.invalidateQueries({ queryKey: ["proposal-tables", id] });
+      toast.success(`Variáveis materializadas · ${res.tablesUpdated} tabela(s) atualizada(s)`);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   useEffect(() => {
     if (!dirty) return;
     const t = setTimeout(() => saveMut.mutate(), 2000);
@@ -337,6 +348,24 @@ function ProposalEditorPage() {
               <Save className="mr-1.5 h-3.5 w-3.5" />
             )}
             Salvar
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              if (window.confirm("Materializar substitui todas as variáveis {{...}} pelos valores atuais. Esta ação não é reversível. Continuar?")) {
+                materializeMut.mutate();
+              }
+            }}
+            disabled={materializeMut.isPending}
+            title="Substitui {{variáveis}} pelos valores reais no documento"
+          >
+            {materializeMut.isPending ? (
+              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Wand2 className="mr-1.5 h-3.5 w-3.5" />
+            )}
+            Materializar
           </Button>
           <Button
             size="sm"
