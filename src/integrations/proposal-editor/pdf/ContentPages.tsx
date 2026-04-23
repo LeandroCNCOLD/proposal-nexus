@@ -27,12 +27,12 @@ function Bullet({ palette, children }: { palette: PdfPalette; children: string }
   );
 }
 
-export function AboutPage({ palette, template, assets, logoUrl }: PageCtx) {
+export function AboutPage({ palette, template, assets, logoUrl, headerBannerUrl, footerBannerUrl }: PageCtx) {
   const paragrafos = (template?.sobre_paragrafos ?? []) as string[];
   const diferenciais = (template?.sobre_diferenciais ?? []) as TemplateDiferencial[];
   const fotoFabrica = assets.find((a) => a.asset_kind === "about_photo")?.url;
   return (
-    <StandardPage title={template?.sobre_titulo || "Sobre a CN Cold"} palette={palette} template={template} logoUrl={logoUrl}>
+    <StandardPage title={template?.sobre_titulo || "Sobre a CN Cold"} palette={palette} template={template} logoUrl={logoUrl} headerBannerUrl={headerBannerUrl} footerBannerUrl={footerBannerUrl}>
       {fotoFabrica ? (
         <Image src={fotoFabrica} style={{ width: "100%", height: 160, objectFit: "cover", marginBottom: 12 }} />
       ) : null}
