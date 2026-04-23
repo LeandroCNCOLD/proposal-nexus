@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Loader2, Save } from "lucide-react";
+import { Loader2, Save, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,6 +9,8 @@ import { toast } from "sonner";
 import {
   listProposalTables,
   upsertProposalTable,
+  importNomusTributos,
+  populateEquipamentosFromItems,
 } from "@/integrations/proposal-editor/tables.functions";
 import {
   DEFAULT_TABLE_COLUMNS,
@@ -37,6 +39,8 @@ export function TableBlockEditor({
 }: Props) {
   const list = useServerFn(listProposalTables);
   const upsert = useServerFn(upsertProposalTable);
+  const importTrib = useServerFn(importNomusTributos);
+  const popEquip = useServerFn(populateEquipamentosFromItems);
   const qc = useQueryClient();
 
   const { data, isLoading } = useQuery({
@@ -73,6 +77,23 @@ export function TableBlockEditor({
       setDirty(false);
       qc.invalidateQueries({ queryKey: ["proposal-tables", proposalId] });
       toast.success("Tabela salva");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const importMut = useMutation({
+    mutationFn: async () => {
+      if (type === "impostos") {
+        return importTrib({ data: { proposalId, pageId } });
+      }
+      if (type === "equipamentos") {
+        return popEquip({ data: { proposalId, pageId } });
+      }
+      throw new Error("Importação não suportada para este tipo.");
+    },
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: ["proposal-tables", proposalId] });
+      toast.success(`Importado: ${res.count} linha(s)`);
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -118,7 +139,25 @@ export function TableBlockEditor({
         }}
         showTotal={showTotal}
       />
-      <div className="flex justify-end">
+      <div className="flex items-center justify-between gap-2">
+        {type === "impostos" || type === "equipamentos" ? (
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => importMut.mutate()}
+            disabled={importMut.isPending}
+            className="text-xs"
+          >
+            {importMut.isPending ? (
+              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Download className="mr-1.5 h-3.5 w-3.5" />
+            )}
+            {type === "impostos" ? "Importar tributos do Nomus" : "Popular com itens da proposta"}
+          </Button>
+        ) : (
+          <span />
+        )}
         <Button
           size="sm"
           variant="outline"

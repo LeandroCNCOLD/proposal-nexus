@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, RefreshCw, Save, Loader2, Sparkles } from "lucide-react";
+import { ArrowLeft, RefreshCw, Save, Loader2, Sparkles, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import {
@@ -11,6 +11,7 @@ import {
   autoFillFromNomus,
   generateProposalPdf,
   setProposalDocumentTemplate,
+  createProposalSendVersion,
 } from "@/integrations/proposal-editor/server.functions";
 import { listTemplates, getTemplate } from "@/integrations/proposal-editor/template.functions";
 import {
@@ -48,6 +49,7 @@ function ProposalEditorPage() {
   const autoFill = useServerFn(autoFillFromNomus);
   const genPdf = useServerFn(generateProposalPdf);
   const setTpl = useServerFn(setProposalDocumentTemplate);
+  const sendVersion = useServerFn(createProposalSendVersion);
   const listTpls = useServerFn(listTemplates);
   const getTpl = useServerFn(getTemplate);
 
@@ -156,6 +158,18 @@ function ProposalEditorPage() {
       qc.invalidateQueries({ queryKey: ["proposal-document", id] });
       qc.invalidateQueries({ queryKey: ["proposal-template-bundle"] });
       toast.success("Template aplicado");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const sendMut = useMutation({
+    mutationFn: async () => {
+      if (dirty) await saveMut.mutateAsync();
+      return sendVersion({ data: { proposalId: id } });
+    },
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: ["proposal-document", id] });
+      toast.success(`Versão ${res.version.version_number} gerada e congelada`);
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -283,6 +297,7 @@ function ProposalEditorPage() {
           </Button>
           <Button
             size="sm"
+            variant="outline"
             onClick={() => pdfMut.mutate()}
             disabled={pdfMut.isPending}
           >
@@ -292,6 +307,22 @@ function ProposalEditorPage() {
               <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
             )}
             Visualizar PDF
+          </Button>
+          <Button
+            size="sm"
+            onClick={() => {
+              if (confirm("Gerar versão final imutável e congelar este documento como envio?")) {
+                sendMut.mutate();
+              }
+            }}
+            disabled={sendMut.isPending}
+          >
+            {sendMut.isPending ? (
+              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Send className="mr-1.5 h-3.5 w-3.5" />
+            )}
+            Enviar proposta
           </Button>
         </div>
       </div>
