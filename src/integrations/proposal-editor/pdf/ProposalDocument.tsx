@@ -15,6 +15,7 @@ import {
   PagamentoPage,
 } from "./TechnicalPages";
 import { FullImagePage } from "./FullImagePage";
+import { StandardPage } from "./StandardPage";
 import { makePalette } from "./styles";
 import { CharacteristicsPage } from "@/components/proposal-pdf/CharacteristicsPage";
 import { InvestmentPage } from "@/components/proposal-pdf/InvestmentPage";
