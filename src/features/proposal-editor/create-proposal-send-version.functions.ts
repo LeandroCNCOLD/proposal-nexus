@@ -104,16 +104,18 @@ export const createProposalSendVersion = createServerFn({ method: "POST" })
 
     const { data: version, error: versionError } = await supabase
       .from("proposal_send_versions")
-      .insert({
-        proposal_id: data.proposalId,
-        version_number: versionNumber,
-        pdf_storage_path: data.pdfStoragePath,
-        template_snapshot: snapshot.template_snapshot,
-        document_snapshot: documentSnapshotFull,
-        is_current: true,
-        notes: data.notes ?? null,
-        generated_by: userId,
-      })
+      .insert([
+        {
+          proposal_id: data.proposalId,
+          version_number: versionNumber,
+          pdf_storage_path: data.pdfStoragePath,
+          template_snapshot: snapshot.template_snapshot as never,
+          document_snapshot: documentSnapshotFull as never,
+          is_current: true,
+          notes: data.notes ?? null,
+          generated_by: userId,
+        },
+      ])
       .select("*")
       .single();
 
