@@ -297,6 +297,7 @@ function ProposalEditorPage() {
           </Button>
           <Button
             size="sm"
+            variant="outline"
             onClick={() => pdfMut.mutate()}
             disabled={pdfMut.isPending}
           >
@@ -306,6 +307,22 @@ function ProposalEditorPage() {
               <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
             )}
             Visualizar PDF
+          </Button>
+          <Button
+            size="sm"
+            onClick={() => {
+              if (confirm("Gerar versão final imutável e congelar este documento como envio?")) {
+                sendMut.mutate();
+              }
+            }}
+            disabled={sendMut.isPending}
+          >
+            {sendMut.isPending ? (
+              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Send className="mr-1.5 h-3.5 w-3.5" />
+            )}
+            Enviar proposta
           </Button>
         </div>
       </div>
