@@ -13,12 +13,19 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { FullPageImageUploader } from "@/components/template-editor/FullPageImageUploader";
+import { StructuredListEditor } from "@/components/template-editor/StructuredListEditor";
 import {
   getTemplate,
   updateTemplate,
   setDefaultTemplate,
 } from "@/integrations/proposal-editor/template.functions";
-import type { ProposalTemplate } from "@/integrations/proposal-editor/template.types";
+import type {
+  ProposalTemplate,
+  TemplateBancario,
+  TemplateCaseItem,
+  TemplateDiferencial,
+  TemplateGarantiaItem,
+} from "@/integrations/proposal-editor/template.types";
 
 export const Route = createFileRoute("/app/configuracoes/templates/$id")({
   component: TemplateEditorPage,
