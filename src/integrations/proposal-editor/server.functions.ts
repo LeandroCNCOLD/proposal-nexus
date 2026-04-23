@@ -229,3 +229,62 @@ export const autoFillFromNomus = createServerFn({ method: "POST" })
 
     return { document: updated, filledFromNomus: nomusItems.length };
   });
+
+/**
+ * Gera o PDF da proposta. Modo `preview` retorna URL temporária assinada
+ * sem persistir versão. Modo `final` será implementado na Etapa 4.
+ */
+const generateSchema = z.object({
+  proposalId: z.string().uuid(),
+  mode: z.enum(["preview", "final"]).default("preview"),
+});
+
+export const generateProposalPdf = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => generateSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const { proposalId, mode } = data;
+
+    const { data: doc, error } = await supabase
+      .from("proposal_documents")
+      .select("*")
+      .eq("proposal_id", proposalId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!doc) throw new Error("Documento não encontrado. Abra o editor primeiro.");
+
+    const pages = (doc.pages as unknown as DocumentPage[]) ?? DEFAULT_PAGES;
+    const cover = (doc.cover_data ?? {}) as CoverData;
+    const solution = (doc.solution_data ?? {}) as SolutionData;
+    const ctx = (doc.context_data ?? {}) as ContextData;
+    const scope = (doc.scope_items ?? []) as unknown as ScopeItem[];
+    const warranty = (doc.warranty_text ?? {}) as { html?: string; text?: string };
+
+    const element = createElement(ProposalDocumentPdf, {
+      pages,
+      cover,
+      solution,
+      context: ctx,
+      scope,
+      warranty,
+    });
+
+    const buffer = await renderToBuffer(element);
+
+    const path = `${proposalId}/${mode}-${Date.now()}.pdf`;
+    const { error: upErr } = await supabase.storage
+      .from("proposal-pdfs")
+      .upload(path, buffer, {
+        contentType: "application/pdf",
+        upsert: true,
+      });
+    if (upErr) throw new Error(`Falha ao salvar PDF: ${upErr.message}`);
+
+    const { data: signed, error: sErr } = await supabase.storage
+      .from("proposal-pdfs")
+      .createSignedUrl(path, 60 * 30); // 30 min
+    if (sErr) throw new Error(sErr.message);
+
+    return { url: signed.signedUrl, path, mode };
+  });
