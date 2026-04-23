@@ -77,7 +77,7 @@ export function PageTablesEditor({ proposalId, pageId, pageType }: Props) {
   const [localTables, setLocalTables] = React.useState<ProposalTable[]>([]);
 
   React.useEffect(() => {
-    setLocalTables(data ?? []);
+    setLocalTables(data?.tables ?? []);
   }, [data]);
 
   const handleLocalChange = (index: number, nextTable: ProposalTable) => {
