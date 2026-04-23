@@ -49,6 +49,7 @@ function ProposalEditorPage() {
   const genPdf = useServerFn(generateProposalPdf);
   const setTpl = useServerFn(setProposalDocumentTemplate);
   const listTpls = useServerFn(listTemplates);
+  const getTpl = useServerFn(getTemplate);
 
   const { data, isLoading } = useQuery({
     queryKey: ["proposal-document", id],
@@ -58,6 +59,14 @@ function ProposalEditorPage() {
   const { data: tplsData } = useQuery({
     queryKey: ["proposal-templates-list"],
     queryFn: () => listTpls(),
+  });
+
+  const currentTemplateId = data?.document?.template_id ?? null;
+  const { data: tplBundle } = useQuery({
+    queryKey: ["proposal-template-bundle", currentTemplateId],
+    queryFn: () =>
+      getTpl({ data: currentTemplateId ? { templateId: currentTemplateId } : {} }),
+    enabled: !!data?.document,
   });
 
   const doc = data?.document;
