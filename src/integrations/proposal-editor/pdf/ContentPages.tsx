@@ -14,6 +14,8 @@ interface PageCtx {
   template: ProposalTemplate | null;
   assets: TemplateAsset[];
   logoUrl?: string;
+  headerBannerUrl?: string;
+  footerBannerUrl?: string;
 }
 
 function Bullet({ palette, children }: { palette: PdfPalette; children: string }) {
