@@ -10,7 +10,16 @@ import {
   upsertProposalDocument,
   autoFillFromNomus,
   generateProposalPdf,
+  setProposalDocumentTemplate,
 } from "@/integrations/proposal-editor/server.functions";
+import { listTemplates } from "@/integrations/proposal-editor/template.functions";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import type {
   DocumentPage,
   CoverData,
@@ -38,10 +47,17 @@ function ProposalEditorPage() {
   const saveDoc = useServerFn(upsertProposalDocument);
   const autoFill = useServerFn(autoFillFromNomus);
   const genPdf = useServerFn(generateProposalPdf);
+  const setTpl = useServerFn(setProposalDocumentTemplate);
+  const listTpls = useServerFn(listTemplates);
 
   const { data, isLoading } = useQuery({
     queryKey: ["proposal-document", id],
     queryFn: () => getDoc({ data: { proposalId: id } }),
+  });
+
+  const { data: tplsData } = useQuery({
+    queryKey: ["proposal-templates-list"],
+    queryFn: () => listTpls(),
   });
 
   const doc = data?.document;
@@ -123,6 +139,16 @@ function ProposalEditorPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const tplMut = useMutation({
+    mutationFn: (templateId: string) =>
+      setTpl({ data: { proposalId: id, templateId, applyPagesConfig: true } }),
+    onSuccess: () => {
+      hydratedFor.current = null;
+      qc.invalidateQueries({ queryKey: ["proposal-document", id] });
+      toast.success("Template aplicado");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   useEffect(() => {
     if (!dirty) return;
@@ -200,6 +226,26 @@ function ProposalEditorPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 mr-2">
+            <span className="text-xs text-muted-foreground">Template:</span>
+            <Select
+              value={doc?.template_id ?? ""}
+              onValueChange={(v) => v && tplMut.mutate(v)}
+              disabled={tplMut.isPending}
+            >
+              <SelectTrigger className="h-8 w-[200px] text-xs">
+                <SelectValue placeholder="Escolher template…" />
+              </SelectTrigger>
+              <SelectContent>
+                {(tplsData?.templates ?? []).map((t) => (
+                  <SelectItem key={t.id} value={t.id} className="text-xs">
+                    {t.name}
+                    {t.is_default ? " (padrão)" : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <Button
             size="sm"
             variant="outline"
