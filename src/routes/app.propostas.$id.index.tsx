@@ -318,7 +318,11 @@ function ProposalDetail() {
           </div>
 
           {p.nomus_proposal_id && (
-            <NomusProposalDetail nomusProposalId={p.nomus_proposal_id} />
+            <NomusProposalDetail
+              nomusProposalId={p.nomus_proposal_id}
+              localContact={(p.client_contacts as { name?: string; email?: string; phone?: string; role?: string } | null) ?? null}
+              localClient={(p.clients as { name?: string; document?: string; city?: string; state?: string } | null) ?? null}
+            />
           )}
 
           <div className="rounded-xl border bg-card p-6 shadow-[var(--shadow-sm)]">
