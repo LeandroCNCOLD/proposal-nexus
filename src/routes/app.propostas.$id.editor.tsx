@@ -49,6 +49,7 @@ function ProposalEditorPage() {
   const autoFill = useServerFn(autoFillFromNomus);
   const genPdf = useServerFn(generateProposalPdf);
   const setTpl = useServerFn(setProposalDocumentTemplate);
+  const sendVersion = useServerFn(createProposalSendVersion);
   const listTpls = useServerFn(listTemplates);
   const getTpl = useServerFn(getTemplate);
 
