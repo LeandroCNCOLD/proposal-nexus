@@ -131,25 +131,47 @@ export function ProposalPreviewLive({ proposalId, version, debounceMs = 1500 }: 
             <RefreshCw className="mr-1 h-3 w-3" /> Atualizar
           </Button>
           {url ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-6 px-2 text-xs"
-              onClick={() => window.open(url, "_blank", "noopener")}
-            >
-              Nova aba
-            </Button>
+            <>
+              <a
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex h-6 items-center rounded-md px-2 text-xs hover:bg-accent hover:text-accent-foreground"
+              >
+                Nova aba
+              </a>
+              <a
+                href={url}
+                download={`proposta-${proposalId}.pdf`}
+                className="inline-flex h-6 items-center rounded-md px-2 text-xs hover:bg-accent hover:text-accent-foreground"
+              >
+                Baixar
+              </a>
+            </>
           ) : null}
         </div>
       </div>
       <div className="flex-1 bg-slate-200">
         {url ? (
-          <iframe
+          <object
             key={url}
-            src={url}
-            title="Prévia da proposta"
-            className="h-full w-full border-0"
-          />
+            data={`${url}#toolbar=1&navpanes=0&view=FitH`}
+            type="application/pdf"
+            className="h-full w-full"
+            aria-label="Prévia da proposta"
+          >
+            <div className="flex h-full flex-col items-center justify-center gap-2 p-4 text-center text-xs text-muted-foreground">
+              <p>Seu navegador bloqueou a visualização inline do PDF.</p>
+              <a
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary underline"
+              >
+                Abrir prévia em nova aba
+              </a>
+            </div>
+          </object>
         ) : !loading && !error ? (
           <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
             Edite o documento para gerar a prévia.
