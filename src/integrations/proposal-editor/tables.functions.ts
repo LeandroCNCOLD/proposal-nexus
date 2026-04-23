@@ -2,7 +2,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import type { ProposalTable } from "./types";
+import type { ProposalTable, TableColumn } from "./types";
 
 const proposalIdSchema = z.object({ proposalId: z.string().uuid() });
 
@@ -15,6 +15,7 @@ export const listProposalTables = createServerFn({ method: "POST" })
       .from("proposal_tables")
       .select("*")
       .eq("proposal_id", data.proposalId)
+      .order("sort_order", { ascending: true })
       .order("created_at", { ascending: true });
     if (error) throw new Error(error.message);
     return { tables: (rows ?? []) as unknown as ProposalTable[] };
@@ -23,10 +24,13 @@ export const listProposalTables = createServerFn({ method: "POST" })
 const upsertSchema = z.object({
   proposalId: z.string().uuid(),
   pageId: z.string().min(1),
-  type: z.string().min(1),
+  tableType: z.string().min(1),
   title: z.string().nullable().optional(),
+  subtitle: z.string().nullable().optional(),
   rows: z.array(z.record(z.any())),
   columns: z.array(z.any()).nullable().optional(),
+  settings: z.record(z.any()).nullable().optional(),
+  sortOrder: z.number().int().optional(),
 });
 
 export const upsertProposalTable = createServerFn({ method: "POST" })
@@ -34,17 +38,27 @@ export const upsertProposalTable = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => upsertSchema.parse(input))
   .handler(async ({ data, context }) => {
     const { supabase } = context;
+    // Merge columns into settings if provided separately
+    const settings: Record<string, unknown> = { ...(data.settings ?? {}) };
+    if (data.columns !== undefined && data.columns !== null) {
+      settings.columns = data.columns;
+    }
     const payload = {
       proposal_id: data.proposalId,
       page_id: data.pageId,
-      type: data.type,
+      table_type: data.tableType,
       title: data.title ?? null,
+      subtitle: data.subtitle ?? null,
       rows: data.rows as never,
-      columns: (data.columns ?? null) as never,
+      settings: settings as never,
+      sort_order: data.sortOrder ?? 0,
     };
     const { data: row, error } = await supabase
       .from("proposal_tables")
-      .upsert(payload, { onConflict: "proposal_id,page_id" })
+      // unique index uq_proposal_tables_proposal_page_type_sort
+      .upsert(payload as never, {
+        onConflict: "proposal_id,page_id,table_type,sort_order",
+      })
       .select("*")
       .single();
     if (error) throw new Error(error.message);
@@ -127,12 +141,13 @@ export const importNomusTributos = createServerFn({ method: "POST" })
         {
           proposal_id: proposalId,
           page_id: pageId,
-          type: "impostos",
+          table_type: "impostos",
           title: "Tributação (Nomus)",
           rows: rows as never,
-          columns: null as never,
-        },
-        { onConflict: "proposal_id,page_id" },
+          settings: {} as never,
+          sort_order: 0,
+        } as never,
+        { onConflict: "proposal_id,page_id,table_type,sort_order" },
       )
       .select("*")
       .single();
@@ -216,15 +231,24 @@ export const populateEquipamentosFromItems = createServerFn({ method: "POST" })
         {
           proposal_id: proposalId,
           page_id: pageId,
-          type: "equipamentos",
+          table_type: "equipamentos",
           title: "Equipamentos",
           rows: rows as never,
-          columns: null as never,
-        },
-        { onConflict: "proposal_id,page_id" },
+          settings: {} as never,
+          sort_order: 0,
+        } as never,
+        { onConflict: "proposal_id,page_id,table_type,sort_order" },
       )
       .select("*")
       .single();
     if (error) throw new Error(error.message);
     return { table: row, count: rows.length };
   });
+
+// Helper used by clients to read columns from a stored ProposalTable
+export function getTableColumns(t: Pick<ProposalTable, "settings"> | null | undefined): TableColumn[] | null {
+  if (!t) return null;
+  const cols = (t.settings as Record<string, unknown> | null | undefined)?.columns;
+  if (Array.isArray(cols)) return cols as TableColumn[];
+  return null;
+}

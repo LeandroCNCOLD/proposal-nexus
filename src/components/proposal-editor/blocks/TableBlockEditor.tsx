@@ -48,9 +48,11 @@ export function TableBlockEditor({
     queryFn: () => list({ data: { proposalId } }),
   });
 
-  const existing: ProposalTable | undefined = data?.tables.find((t) => t.page_id === pageId);
-  const columns: TableColumn[] =
-    (existing?.columns as TableColumn[] | null | undefined) ?? DEFAULT_TABLE_COLUMNS[type];
+  const existing: ProposalTable | undefined = data?.tables.find(
+    (t) => t.page_id === pageId && t.table_type === type,
+  );
+  const settingsColumns = (existing?.settings?.columns as TableColumn[] | undefined) ?? null;
+  const columns: TableColumn[] = settingsColumns ?? DEFAULT_TABLE_COLUMNS[type];
 
   const [title, setTitle] = useState(defaultTitle);
   const [rows, setRows] = useState<ProposalTableRow[]>([]);
@@ -71,7 +73,7 @@ export function TableBlockEditor({
   const saveMut = useMutation({
     mutationFn: () =>
       upsert({
-        data: { proposalId, pageId, type, title, rows, columns: null },
+        data: { proposalId, pageId, tableType: type, title, rows, columns: null },
       }),
     onSuccess: () => {
       setDirty(false);
