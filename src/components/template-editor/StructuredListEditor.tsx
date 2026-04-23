@@ -12,7 +12,7 @@ export interface FieldDef<T> {
   rows?: number;
 }
 
-interface Props<T extends Record<string, unknown>> {
+interface Props<T> {
   items: T[];
   fields: FieldDef<T>[];
   onChange: (items: T[]) => void;
@@ -22,7 +22,7 @@ interface Props<T extends Record<string, unknown>> {
   addLabel?: string;
 }
 
-export function StructuredListEditor<T extends Record<string, unknown>>({
+export function StructuredListEditor<T>({
   items,
   fields,
   onChange,
