@@ -33,7 +33,7 @@ function ProposalDetail() {
     queryKey: ["proposal", id],
     queryFn: async () => {
       const { data, error } = await supabase.from("proposals")
-        .select("*, clients(name, segment, document, city, state), client_contacts(name, email, phone, role)")
+        .select("*, clients(name, trade_name, segment, document, city, state, region, notes), client_contacts(name, email, phone, role)")
         .eq("id", id).single();
       if (error) throw error;
       return data;
@@ -298,15 +298,12 @@ function ProposalDetail() {
               <StatusBadge status={p.status as ProposalStatus} />
             </div>
             <dl className="grid gap-4 text-sm md:grid-cols-2">
-              {!isNomus && <Item label="Cliente" value={(p.clients as any)?.name ?? "—"} />}
-              <Item label="Segmento" value={p.segment ?? (p.clients as any)?.segment ?? "—"} />
-              <Item label="Região" value={p.region ?? "—"} />
               <Item label="Temperatura" value={p.temperature ? TEMPERATURE_LABELS[p.temperature] : "—"} />
               <Item label="Valor total" value={brl(Number(p.total_value ?? 0))} highlight />
               <Item label="Probabilidade" value={p.win_probability != null ? `${p.win_probability}%` : "—"} />
-              {!isNomus && <Item label="Validade" value={dateBR(p.valid_until)} />}
               <Item label="Próximo follow-up" value={dateBR(p.next_followup_at)} />
               <Item label="Enviada em" value={dateBR(p.sent_at)} />
+              {!isNomus && <Item label="Validade" value={dateBR(p.valid_until)} />}
               {!isNomus && <Item label="Criada em" value={dateBR(p.created_at)} />}
             </dl>
             {p.commercial_notes && (
@@ -316,6 +313,42 @@ function ProposalDetail() {
               </div>
             )}
           </div>
+
+          {p.clients && (
+            <div className="rounded-xl border bg-card p-6 shadow-[var(--shadow-sm)]">
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="text-sm font-semibold">Cliente</h2>
+                {(p.clients as any)?.segment && (
+                  <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+                    {(p.clients as any).segment}
+                  </span>
+                )}
+              </div>
+              <dl className="grid gap-4 text-sm md:grid-cols-2">
+                <Item label="Razão social" value={(p.clients as any)?.name ?? "—"} />
+                <Item label="Nome fantasia" value={(p.clients as any)?.trade_name ?? "—"} />
+                <Item label="CNPJ" value={(p.clients as any)?.document ?? "—"} />
+                <Item label="Segmento" value={(p.clients as any)?.segment ?? "—"} />
+                <Item
+                  label="Localização"
+                  value={
+                    [(p.clients as any)?.city, (p.clients as any)?.state]
+                      .filter(Boolean)
+                      .join(" / ") || "—"
+                  }
+                />
+                <Item label="Região" value={(p.clients as any)?.region ?? p.region ?? "—"} />
+              </dl>
+              {(p.clients as any)?.notes && (
+                <div className="mt-4 rounded-md border bg-secondary/30 p-3 text-sm">
+                  <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                    Notas do cliente
+                  </div>
+                  {(p.clients as any).notes}
+                </div>
+              )}
+            </div>
+          )}
 
           {p.nomus_proposal_id && (
             <NomusProposalDetail
