@@ -2,7 +2,17 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { DEFAULT_PAGES } from "./types";
+import {
+  DEFAULT_PAGES,
+  type ContextData,
+  type CoverData,
+  type DocumentPage,
+  type ScopeItem,
+  type SolutionData,
+} from "./types";
+import { renderToBuffer } from "@react-pdf/renderer";
+import { createElement } from "react";
+import { ProposalDocumentPdf } from "./pdf/ProposalDocument";
 
 const proposalIdSchema = z.object({ proposalId: z.string().uuid() });
 
