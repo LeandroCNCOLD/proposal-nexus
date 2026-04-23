@@ -13,12 +13,19 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { FullPageImageUploader } from "@/components/template-editor/FullPageImageUploader";
+import { StructuredListEditor } from "@/components/template-editor/StructuredListEditor";
 import {
   getTemplate,
   updateTemplate,
   setDefaultTemplate,
 } from "@/integrations/proposal-editor/template.functions";
-import type { ProposalTemplate } from "@/integrations/proposal-editor/template.types";
+import type {
+  ProposalTemplate,
+  TemplateBancario,
+  TemplateCaseItem,
+  TemplateDiferencial,
+  TemplateGarantiaItem,
+} from "@/integrations/proposal-editor/template.types";
 
 export const Route = createFileRoute("/app/configuracoes/templates/$id")({
   component: TemplateEditorPage,
@@ -90,11 +97,16 @@ function TemplateEditorPage() {
       capa_tagline: form.capa_tagline,
       sobre_titulo: form.sobre_titulo,
       sobre_paragrafos: form.sobre_paragrafos,
+      sobre_diferenciais: form.sobre_diferenciais,
       cases_titulo: form.cases_titulo,
       cases_subtitulo: form.cases_subtitulo,
+      cases_itens: form.cases_itens,
       clientes_titulo: form.clientes_titulo,
       clientes_lista: form.clientes_lista,
+      escopo_apresentacao_itens: form.escopo_apresentacao_itens,
       garantia_texto: form.garantia_texto,
+      garantia_itens: form.garantia_itens,
+      dados_bancarios: form.dados_bancarios,
       prazo_entrega_padrao: form.prazo_entrega_padrao,
       validade_padrao_dias: form.validade_padrao_dias,
     });
@@ -141,13 +153,15 @@ function TemplateEditorPage() {
       )}
 
       <Tabs defaultValue="basic" className="w-full">
-        <TabsList>
+        <TabsList className="flex flex-wrap h-auto">
           <TabsTrigger value="basic">Básico</TabsTrigger>
           <TabsTrigger value="brand">Marca</TabsTrigger>
           <TabsTrigger value="cover">Capa</TabsTrigger>
           <TabsTrigger value="about">Sobre</TabsTrigger>
-          <TabsTrigger value="clients">Clientes</TabsTrigger>
+          <TabsTrigger value="clients">Clientes / Cases</TabsTrigger>
+          <TabsTrigger value="scope">Escopo</TabsTrigger>
           <TabsTrigger value="warranty">Garantia</TabsTrigger>
+          <TabsTrigger value="banking">Bancário</TabsTrigger>
           <TabsTrigger value="assets">Imagens</TabsTrigger>
         </TabsList>
 
@@ -343,6 +357,24 @@ function TemplateEditorPage() {
               </p>
             </div>
           </Card>
+
+          <Card className="p-5 space-y-3">
+            <h3 className="text-sm font-semibold">Diferenciais</h3>
+            <p className="text-xs text-muted-foreground">
+              Lista de diferenciais exibidos na página Sobre / Apresentação.
+            </p>
+            <StructuredListEditor<TemplateDiferencial>
+              items={form.sobre_diferenciais ?? []}
+              fields={[
+                { key: "titulo", label: "Título", placeholder: "Ex.: Engenharia própria" },
+                { key: "descricao", label: "Descrição", type: "textarea", rows: 2 },
+              ]}
+              emptyItem={() => ({ titulo: "", descricao: "" })}
+              itemTitle={(it) => it.titulo}
+              onChange={(items) => update("sobre_diferenciais", items)}
+              addLabel="Adicionar diferencial"
+            />
+          </Card>
         </TabsContent>
 
         <TabsContent value="clients" className="mt-4 space-y-4">
@@ -376,18 +408,103 @@ function TemplateEditorPage() {
               />
             </div>
           </Card>
+
+          <Card className="p-5 space-y-3">
+            <h3 className="text-sm font-semibold">Cases / Projetos em destaque</h3>
+            <div className="space-y-2">
+              <Label>Subtítulo da seção de Cases</Label>
+              <Input
+                value={form.cases_subtitulo ?? ""}
+                onChange={(e) => update("cases_subtitulo", e.target.value)}
+                placeholder="Ex.: Projetos entregues nos últimos 12 meses"
+              />
+            </div>
+            <StructuredListEditor<TemplateCaseItem>
+              items={form.cases_itens ?? []}
+              fields={[
+                { key: "titulo", label: "Título", placeholder: "Ex.: Câmara fria 200m³" },
+                { key: "cliente", label: "Cliente", placeholder: "Ex.: Frigorífico XYZ" },
+                { key: "descricao", label: "Descrição", type: "textarea", rows: 3 },
+              ]}
+              emptyItem={() => ({ titulo: "", cliente: "", descricao: "" })}
+              itemTitle={(it) => it.titulo}
+              onChange={(items) => update("cases_itens", items)}
+              addLabel="Adicionar case"
+            />
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="scope" className="mt-4 space-y-4">
+          <Card className="p-5 space-y-3">
+            <h3 className="text-sm font-semibold">Itens padrão de apresentação do escopo</h3>
+            <p className="text-xs text-muted-foreground">
+              Estes itens são pré-carregados em novas propostas como sugestões na página de Escopo.
+            </p>
+            <Textarea
+              rows={10}
+              value={(form.escopo_apresentacao_itens ?? []).join("\n")}
+              onChange={(e) =>
+                update(
+                  "escopo_apresentacao_itens",
+                  e.target.value.split("\n").map((s) => s.trim()).filter(Boolean),
+                )
+              }
+              placeholder="Um item por linha"
+            />
+          </Card>
         </TabsContent>
 
         <TabsContent value="warranty" className="mt-4 space-y-4">
           <Card className="p-5 space-y-4">
             <div className="space-y-2">
-              <Label>Texto da garantia</Label>
+              <Label>Texto introdutório da garantia</Label>
               <Textarea
-                rows={10}
+                rows={6}
                 value={form.garantia_texto ?? ""}
                 onChange={(e) => update("garantia_texto", e.target.value)}
               />
             </div>
+          </Card>
+
+          <Card className="p-5 space-y-3">
+            <h3 className="text-sm font-semibold">Itens de garantia</h3>
+            <p className="text-xs text-muted-foreground">
+              Lista estruturada de coberturas/exclusões. Cada item vira um bloco no PDF.
+            </p>
+            <StructuredListEditor<TemplateGarantiaItem>
+              items={form.garantia_itens ?? []}
+              fields={[
+                { key: "titulo", label: "Título", placeholder: "Ex.: Compressor" },
+                { key: "descricao", label: "Descrição", type: "textarea", rows: 3 },
+              ]}
+              emptyItem={() => ({ titulo: "", descricao: "" })}
+              itemTitle={(it) => it.titulo}
+              onChange={(items) => update("garantia_itens", items)}
+              addLabel="Adicionar item de garantia"
+            />
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="banking" className="mt-4 space-y-4">
+          <Card className="p-5 space-y-3">
+            <h3 className="text-sm font-semibold">Dados bancários</h3>
+            <p className="text-xs text-muted-foreground">
+              Adicione um ou mais bancos. Aparecem na seção "Forma de pagamento" do PDF.
+            </p>
+            <StructuredListEditor<TemplateBancario>
+              items={form.dados_bancarios ?? []}
+              fields={[
+                { key: "banco", label: "Banco", placeholder: "Ex.: Itaú" },
+                { key: "agencia", label: "Agência" },
+                { key: "conta", label: "Conta" },
+                { key: "pix", label: "Chave PIX" },
+                { key: "titular", label: "Titular" },
+              ]}
+              emptyItem={() => ({ banco: "", agencia: "", conta: "", pix: "", titular: "" })}
+              itemTitle={(it) => it.banco}
+              onChange={(items) => update("dados_bancarios", items)}
+              addLabel="Adicionar banco"
+            />
           </Card>
         </TabsContent>
 
