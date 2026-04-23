@@ -162,6 +162,18 @@ function ProposalEditorPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const sendMut = useMutation({
+    mutationFn: async () => {
+      if (dirty) await saveMut.mutateAsync();
+      return sendVersion({ data: { proposalId: id } });
+    },
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: ["proposal-document", id] });
+      toast.success(`Versão ${res.version.version_number} gerada e congelada`);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   useEffect(() => {
     if (!dirty) return;
     const t = setTimeout(() => saveMut.mutate(), 2000);
