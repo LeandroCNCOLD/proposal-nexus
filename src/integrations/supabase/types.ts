@@ -1775,9 +1775,12 @@ export type Database = {
           generated_by: string | null
           id: string
           is_current: boolean
+          metadata: Json
           notes: string | null
           pdf_storage_path: string
           proposal_id: string
+          proposal_snapshot: Json
+          tables_snapshot: Json
           template_snapshot: Json | null
           version_number: number
         }
@@ -1787,9 +1790,12 @@ export type Database = {
           generated_by?: string | null
           id?: string
           is_current?: boolean
+          metadata?: Json
           notes?: string | null
           pdf_storage_path: string
           proposal_id: string
+          proposal_snapshot?: Json
+          tables_snapshot?: Json
           template_snapshot?: Json | null
           version_number: number
         }
@@ -1799,9 +1805,12 @@ export type Database = {
           generated_by?: string | null
           id?: string
           is_current?: boolean
+          metadata?: Json
           notes?: string | null
           pdf_storage_path?: string
           proposal_id?: string
+          proposal_snapshot?: Json
+          tables_snapshot?: Json
           template_snapshot?: Json | null
           version_number?: number
         }
