@@ -402,6 +402,7 @@ export const generateProposalPdf = createServerFn({ method: "POST" })
     }
     if (!bundle) bundle = await loadDefaultTemplateBundle(supabase);
 
+    const storageBaseUrl = `${process.env.VITE_SUPABASE_URL ?? ""}/storage/v1/object/public/proposal-attachments`;
     const element = createElement(ProposalDocumentPdf, {
       pages,
       cover,
@@ -412,6 +413,7 @@ export const generateProposalPdf = createServerFn({ method: "POST" })
       template: bundle?.template ?? null,
       assets: bundle?.assets ?? [],
       tables,
+      storageBaseUrl,
     });
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -519,6 +521,7 @@ export const createProposalSendVersion = createServerFn({ method: "POST" })
     const scope = (doc.scope_items ?? []) as unknown as ScopeItem[];
     const warranty = (doc.warranty_text ?? {}) as { html?: string; text?: string };
 
+    const storageBaseUrlV = `${process.env.VITE_SUPABASE_URL ?? ""}/storage/v1/object/public/proposal-attachments`;
     const element = createElement(ProposalDocumentPdf, {
       pages,
       cover,
@@ -529,6 +532,7 @@ export const createProposalSendVersion = createServerFn({ method: "POST" })
       template: templateRow,
       assets: templateAssets,
       tables,
+      storageBaseUrl: storageBaseUrlV,
     });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const buffer = await renderToBuffer(element as any);
