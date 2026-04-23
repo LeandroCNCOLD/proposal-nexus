@@ -37,9 +37,11 @@ export interface ProposalTableSettings {
   columns: ProposalTableColumn[];
 }
 
+export type ProposalTableCellValue = string | number | boolean | null;
+
 export interface ProposalTableRowBase {
   id?: string;
-  [key: string]: unknown;
+  [key: string]: ProposalTableCellValue | undefined;
 }
 
 export interface CaracteristicaRow extends ProposalTableRowBase {
