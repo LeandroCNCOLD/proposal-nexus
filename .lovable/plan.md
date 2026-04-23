@@ -1,144 +1,130 @@
 
 
-# Editor de Propostas WYSIWYG (CN Cold)
+# Evolução do Editor de Propostas — Fase 1 (crítico)
 
-## Visão geral
+Vamos implementar a **Fase 1** do briefing técnico: tipos de página reais, tabelas estruturadas, preview A4 fiel e snapshot de envio. Fase 2 (TipTap expandido, blocos avançados) fica para depois.
 
-Editor estilo Word **dentro da proposta**, baseado no esqueleto fixo de 7 páginas do template, com:
-- **Auto-preenchimento** de dados do Nomus + edição manual livre
-- **Preview ao vivo** (paginado A4) enquanto edita
-- **Versionamento** — ao "enviar/finalizar", PDF imutável vai para `proposal_send_versions` no Storage
-- **Páginas extras**: blocos pré-definidos do catálogo, páginas em branco rich-text, anexar PDFs externos
+## Escopo desta entrega
 
-## Stack técnica
+### 1. Banco de dados (migrations)
 
-- **Editor**: [TipTap v3](https://tiptap.dev/) (headless, extensível, já em React) — bold, itálico, listas, tabelas, imagens, headings, alinhamento, cores, links, undo/redo. Equivale a Word para uso comercial.
-- **Render PDF**: HTML/CSS → PDF via **Browserless** (chamada externa) ou **react-pdf** (puro JS, Worker-compat). Decisão na implementação: `react-pdf` é mais seguro para Worker; Browserless é fiel pixel-a-pixel mas exige API key. **Vou começar com `@react-pdf/renderer`** (totalmente compatível com Cloudflare Worker, sem dependência externa).
-- **Storage**: bucket `proposal-pdfs` (novo) para PDFs versionados.
-- **Persistência**: documento salvo como JSON estruturado (TipTap doc) → permite re-renderizar e editar a qualquer momento.
+**a) Nova tabela `proposal_tables`** — armazena tabelas estruturadas vinculadas à proposta (independente de `scope_items`):
+```
+proposal_tables {
+  id uuid pk,
+  proposal_id uuid not null,
+  page_id text not null,            -- vincula à DocumentPage
+  type text not null,               -- 'equipamentos' | 'impostos' | 'pagamento' | 'caracteristicas' | 'itens'
+  title text,
+  rows jsonb not null default '[]', -- linhas livres conforme schema do tipo
+  columns jsonb,                    -- override de colunas (opcional)
+  created_at, updated_at
+}
+```
+RLS: leitura por authenticated; escrita restrita ao criador da proposta + roles `gerente_comercial/diretoria/admin/engenharia` (mesmo padrão de `proposal_documents`).
 
-## Modelo de dados (migration)
+**b) Adicionar `document_snapshot jsonb` em `proposal_send_versions`** — hoje só guarda `template_snapshot`.
 
-### Nova tabela `proposal_documents`
-Um registro por proposta (1:1 com `proposals`):
-- `id`, `proposal_id` (FK unique), `template_version` (text, default `'cn-cold-v1'`)
-- `pages` (jsonb) — array ordenado de páginas: `[{ id, type: 'cover'|'about'|'cases'|'solution'|'context'|'scope'|'warranty'|'custom-rich'|'custom-block'|'attached-pdf', visible, order, content: {...} }]`
-- `cover_data` (jsonb) — { cliente, projeto, numero, data, responsavel, foto_capa_url }
-- `solution_data` (jsonb) — { intro_richtext, contempla[], diferenciais[], impacto[], conclusao_richtext }
-- `context_data` (jsonb) — { cliente_razao, fantasia, cnpj, endereco, caracteristicas[], contatos[], texto_apresentacao, prazo_validade }
-- `scope_items` (jsonb) — array reordenável
-- `warranty_text` (richtext jsonb)
-- `custom_blocks` (jsonb) — páginas extras
-- `attached_pdf_paths` (text[]) — paths no Storage
-- `last_edited_by` (uuid), `last_edited_at` (timestamptz)
-- `auto_filled_at` (timestamptz) — última sincronização com Nomus
+**c) `SINGLETON_KINDS`** — incluir `header_banner` e `footer_banner` (gap conhecido).
 
-### Nova tabela `proposal_document_assets`
-- `id`, `proposal_id`, `storage_path`, `mime_type`, `kind` (`'cover-photo'|'inline-image'|'attached-pdf'`), `uploaded_by`, `uploaded_at`
+### 2. Renderers PDF dedicados (`src/integrations/proposal-editor/pdf/`)
 
-### Bucket de storage `proposal-pdfs`
-- Privado, acessível só por authenticated. Path: `{proposal_id}/v{n}.pdf`
+Substituir o fallback `CustomRichPage` por componentes próprios em `ContentPages.tsx` (ou novo `TechnicalPages.tsx`):
 
-### RLS
-- `proposal_documents`: SELECT autenticado; INSERT/UPDATE para criador da proposta + `gerente_comercial`/`diretoria`/`admin`/`engenharia`
-- `proposal_document_assets`: idem
-- Storage policies idem
+| PageType | Componente | Conteúdo |
+|---|---|---|
+| `caracteristicas` | `CaracteristicasPage` | Tabela técnica (descrição/valor/unidade) |
+| `equipamento` | `EquipamentoPage` | Repetível por item: foto + ficha técnica |
+| `investimento` | `InvestimentoPage` | Tabela qtd × unitário × total + total geral |
+| `impostos` | `ImpostosPage` | Tabela ICMS/IPI/PIS/COFINS (lê `nomus_proposals`) |
+| `pagamento` | `PagamentoPage` | Tabela de parcelas (n × valor × vencimento) |
+| `differentials` | `DifferentialsPage` | Lista numerada com ícone + descrição |
+| `impact` | `ImpactPage` | Cards de impacto (KPI, valor, descrição) |
+| `nota` | `NotaPage` | Bloco de nota/aviso destacado |
+| `contracapa` | `ContracapaPage` | Versão fechamento (contato + assinatura) |
 
-## Arquitetura de UI
+Regras transversais:
+- Tabelas com **header repetido** (`<View fixed>` no `<Page>` parent) e linhas com `wrap={false}`.
+- Cabeçalho/rodapé do template em todas (já implementado via `StandardPage`).
+- Atualizar `ProposalDocument.tsx` para mapear cada `PageType` ao renderer (sem fallback genérico para os tipos acima).
 
-### Nova rota `/app/propostas/$id/editor`
-Layout split-screen:
-- **Esquerda (40%)**: árvore de páginas + painel contextual do bloco selecionado (campos estruturados ou TipTap toolbar)
-- **Direita (60%)**: preview WYSIWYG paginado A4 (`@react-pdf/renderer` `<PDFViewer>` em dev, ou render HTML clone do PDF em produção para performance)
+### 3. Editor — Sistema de tabelas estruturadas
 
-### Componentes novos
-- `ProposalDocumentEditor.tsx` — shell do editor
-- `EditorPagePanel.tsx` — sidebar com árvore drag-drop (dnd-kit) das páginas, botão "+ adicionar página"
-- `EditorBlockField.tsx` — renderiza editor apropriado por tipo de bloco
-- `RichTextEditor.tsx` — wrapper TipTap reutilizável (toolbar configurável)
-- `EditorPreview.tsx` — preview ao vivo (debounced 500ms)
-- `pdf/CoverPage.tsx`, `pdf/AboutPage.tsx`, `pdf/CasesPage.tsx`, `pdf/SolutionPage.tsx`, `pdf/ContextPage.tsx`, `pdf/ScopePage.tsx`, `pdf/WarrantyPage.tsx`, `pdf/CustomRichPage.tsx`, `pdf/AttachedPdfPage.tsx` — componentes `@react-pdf/renderer` que viram o PDF
-- `pdf/ProposalDocument.tsx` — composição final
-- `pdf/styles.ts` — design tokens do PDF (cores CN Cold, fontes Helvetica/Roboto, layout)
+**Novo componente** `src/components/proposal-editor/blocks/StructuredTableEditor.tsx`:
+- Grid editável (uma `<table>` HTML com inputs por célula).
+- Botões "Adicionar linha" / "Remover linha".
+- Cálculo automático de `valor_total = qtd × unitário` e total geral no rodapé.
+- Suporte a copiar/colar (paste TSV/CSV → split por `\t`/`\n`).
+- Schema de colunas por `type` (mapeamento estático no client).
 
-### Auto-preenchimento (botão "Sincronizar do Nomus")
-- Lê `nomus_proposals` + `nomus_proposal_items` + `clients` + `client_contacts` + `nomus_sellers` da proposta
-- Preenche `cover_data`, `context_data`, `scope_items` automaticamente
-- Não sobrescreve campos editados manualmente (flag `manually_edited` por campo)
+**Novos editores de bloco** (chamados por `BlockEditorPanel` conforme `page.type`):
+- `CaracteristicasBlockEditor`, `EquipamentoBlockEditor`, `InvestimentoBlockEditor`, `ImpostosBlockEditor`, `PagamentoBlockEditor` — todos consomem `StructuredTableEditor` com colunas pré-definidas.
+- Para `equipamento`: além da tabela, suporte a "repetir por item de `proposal_items`" (toggle `repeatable`).
 
-### Páginas extras (3 modos, conforme você escolheu)
-1. **Bloco do catálogo**: dropdown com presets — "Datasheet equipamento", "Galeria de fotos do projeto", "Cronograma de instalação", "Tabela técnica detalhada", "Memorial descritivo". Cada um vira um componente PDF próprio.
-2. **Página em branco rich-text**: TipTap livre, vira `CustomRichPage` no PDF.
-3. **PDF anexado**: upload pra `proposal-pdfs/attachments/`, merge no final via `pdf-lib` (compatível com Worker).
+**Server functions** (novo arquivo `src/integrations/proposal-editor/tables.functions.ts`):
+- `listProposalTables({ proposalId })`
+- `upsertProposalTable({ proposalId, pageId, type, title, rows, columns })`
+- `deleteProposalTable({ id })`
 
-## Geração e versionamento de PDF
+### 4. Preview A4 em tempo real
 
-### Server function `generateProposalPdf`
-- Input: `proposalId`, `mode: 'preview' | 'final'`
-- Lê `proposal_documents` + dados relacionados
-- Renderiza com `@react-pdf/renderer` server-side → `Buffer`
-- Se há `attached_pdf_paths` → baixa cada um, faz merge com `pdf-lib`
-- **Modo `preview`**: retorna URL temporária assinada, não persiste
-- **Modo `final`**:
-  - Salva em `proposal-pdfs/{proposal_id}/v{n+1}.pdf`
-  - Insere em `proposal_send_versions` com `version_number`, `is_current=true`, marca anteriores `is_current=false`
-  - Retorna URL assinada e `version_id`
+Substituir `EditorPreviewStub` por `<ProposalPreview mode="live" />` que usa `@react-pdf/renderer`'s `PDFViewer` (client-only, dynamic import) renderizando o **mesmo** `<ProposalDocumentPdf/>` usado no server. Vantagens: 100% fiel ao PDF final, paginação correta, header/footer/banners reais.
 
-### Botões na UI
-- **"Visualizar PDF"** (qualquer hora) → abre preview em nova aba
-- **"Salvar versão final"** → confirma → gera versão imutável → muda status pra `pronta_para_envio`
+- Debounced re-render (500ms) ao editar.
+- Fallback para o stub atual se `PDFViewer` falhar (browser sem worker).
 
-## Auto-save
+### 5. Integração Template → Documento (consolidar)
 
-- Debounce 2s em qualquer mudança → `updateProposalDocument` server fn
-- Indicador "salvando…" / "salvo às HH:MM" no header
-- Conflito de edição simultânea: lock otimista por `last_edited_at`
+Já existe `setProposalDocumentTemplate`. Ajustes:
+- Quando trocar template, **não** sobrescrever campos de tabela já preenchidos.
+- Garantir que `applyPagesConfig` traga **todos** os tipos novos do template para o documento.
 
-## Implementação por etapas (entregáveis)
+### 6. Snapshot completo no envio
 
-**Etapa 1 — Fundação** (esta sessão)
-1. Migration: `proposal_documents`, `proposal_document_assets`, bucket `proposal-pdfs`, RLS
-2. Server functions: `getProposalDocument`, `upsertProposalDocument`, `autoFillFromNomus`
-3. Rota `/app/propostas/$id/editor` com shell vazio + link "Editar documento" na tela da proposta
-4. Estrutura de páginas (sem editor ainda) + sidebar com árvore drag-drop
+Atualizar a função que gera versão de envio (a criar/ajustar `createProposalSendVersion`):
+```ts
+{
+  template_snapshot: { template_id, template_version, pages_config, primary_color, accent_color, accent_color_2, ... },
+  document_snapshot: { pages, cover_data, solution_data, context_data, scope_items, warranty_text, tables: [...] },
+  pdf_storage_path
+}
+```
+Versão enviada é imutável (sem UPDATE no `document_snapshot`).
 
-**Etapa 2 — Editor de blocos estruturados**
-5. Componentes de campo (cliente, projeto, contatos, características, escopo) com auto-preenchimento Nomus
-6. TipTap mínimo nas áreas rich-text (intro solução, conclusão, garantia)
+### 7. Anexos PDF (Fase 2 — apenas estrutura)
 
-**Etapa 3 — PDF**
-7. `@react-pdf/renderer` com todos os componentes de página fiéis ao template
-8. Server function `generateProposalPdf` modo preview
-9. Botão "Visualizar PDF"
+Manter `attached_pdf_paths` no schema (já existe). UI fica para Fase 2.
 
-**Etapa 4 — Versionamento e finalização**
-10. Modo final + integração com `proposal_send_versions`
-11. Histórico de versões na sidebar
+## Arquivos a criar/editar
 
-**Etapa 5 — Páginas extras**
-12. Bloco catálogo (datasheet, galeria, cronograma)
-13. Página em branco rich-text completo
-14. Anexo de PDF externo + merge com pdf-lib
+**Criar:**
+- `supabase/migrations/<timestamp>_proposal_tables.sql`
+- `src/integrations/proposal-editor/tables.functions.ts`
+- `src/integrations/proposal-editor/pdf/TechnicalPages.tsx` (Caracteristicas, Equipamento, Investimento, Impostos, Pagamento, Differentials, Impact, Nota, Contracapa)
+- `src/components/proposal-editor/blocks/StructuredTableEditor.tsx`
+- `src/components/proposal-editor/blocks/{Caracteristicas,Equipamento,Investimento,Impostos,Pagamento}BlockEditor.tsx`
+- `src/components/proposal-editor/ProposalPreviewLive.tsx`
 
-## Riscos e mitigações
+**Editar:**
+- `src/integrations/proposal-editor/types.ts` — adicionar `differentials`, `impact`, `nota` em `PageType`; tipos de linha por tabela.
+- `src/integrations/proposal-editor/pdf/ProposalDocument.tsx` — mapear novos tipos, passar `tables` como prop.
+- `src/integrations/proposal-editor/server.functions.ts` — `generateProposalPdf` carrega `proposal_tables` e injeta no documento; novo `createProposalSendVersion` com snapshot completo.
+- `src/integrations/proposal-editor/template.functions.ts` — adicionar `header_banner`/`footer_banner` em `SINGLETON_KINDS`.
+- `src/components/proposal-editor/BlockEditorPanel.tsx` — switch por `page.type` apontando para os novos editores.
+- `src/routes/app.propostas.$id.editor.tsx` — substituir `EditorPreviewStub` por `ProposalPreviewLive`; carregar `proposal_tables` via query.
 
-- **Fidelidade pixel-perfect ao template original**: `@react-pdf/renderer` é HTML-like mas não 100% idêntico ao Canva original. Vou usar as mesmas cores, fontes Helvetica/proxy de Montserrat, e replicar o layout. Aceitável para v1; se precisar fidelidade absoluta depois, migramos para Browserless+HTML.
-- **Imagens da capa e marca**: precisamos das fotos originais usadas no template (logo CN Cold, foto da capa "instalação industrial"). Posso usar as extraídas do PDF que você enviou como placeholder — você revisa depois e troca por arquivos definitivos.
-- **Worker SSR**: `@react-pdf/renderer` e `pdf-lib` são compatíveis. TipTap roda só no client. ✅
-- **Tamanho do bundle**: TipTap + extensões adiciona ~200KB. Aceitável para uma rota de editor profissional.
+## Critérios de aceite (Fase 1)
 
-## O que vai ficar diferente do template original (v1)
+- [ ] Página "Características" renderiza tabela (PDF + preview).
+- [ ] Página "Equipamentos" repete bloco por item de `proposal_items`.
+- [ ] Página "Investimento" calcula totais automaticamente.
+- [ ] Página "Pagamento" lista parcelas em tabela.
+- [ ] Página "Impostos" exibe tributos vindos do Nomus.
+- [ ] Preview A4 ao vivo bate visualmente com o PDF gerado.
+- [ ] Ao enviar proposta, `proposal_send_versions` salva `template_snapshot` + `document_snapshot` (com tabelas).
+- [ ] Trocar template não apaga tabelas estruturadas já preenchidas.
 
-- Fonte: Helvetica (PDF padrão) em vez da fonte custom do Canva — posso embutir Montserrat se você enviar o `.ttf`
-- Imagens decorativas da capa: vou começar com a foto que extraí do seu PDF
-- Cores e layout: idênticos
-- Footer com telefone/site/email: presente em todas as páginas
+## Fora de escopo (Fase 2)
 
-## Próximo passo
-
-Posso começar pela **Etapa 1** agora (migration + shell + auto-fill do Nomus) — são ~6 arquivos novos e a base que destrava todo o resto. As Etapas 2–5 vêm em sessões seguintes conforme sua prioridade.
-
-**Confirma a Etapa 1?** Se preferir, posso também:
-- (a) Começar pela Etapa 3 (PDF puro) primeiro, pra você ver o output rápido sem editor
-- (b) Ir pelo plano completo numerado e fazer Etapa 1 já
+TipTap expandido (listas/imagens/alinhamento/tabela), upload de PDFs anexos via UI, editores de listas no template (`sobre_diferenciais`, `cases_itens`, etc.), versionamento automático de `template_version`.
 
