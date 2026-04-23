@@ -47,10 +47,17 @@ function ProposalEditorPage() {
   const saveDoc = useServerFn(upsertProposalDocument);
   const autoFill = useServerFn(autoFillFromNomus);
   const genPdf = useServerFn(generateProposalPdf);
+  const setTpl = useServerFn(setProposalDocumentTemplate);
+  const listTpls = useServerFn(listTemplates);
 
   const { data, isLoading } = useQuery({
     queryKey: ["proposal-document", id],
     queryFn: () => getDoc({ data: { proposalId: id } }),
+  });
+
+  const { data: tplsData } = useQuery({
+    queryKey: ["proposal-templates-list"],
+    queryFn: () => listTpls(),
   });
 
   const doc = data?.document;
