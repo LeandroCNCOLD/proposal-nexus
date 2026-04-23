@@ -10,7 +10,16 @@ import {
   upsertProposalDocument,
   autoFillFromNomus,
   generateProposalPdf,
+  setProposalDocumentTemplate,
 } from "@/integrations/proposal-editor/server.functions";
+import { listTemplates } from "@/integrations/proposal-editor/template.functions";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import type {
   DocumentPage,
   CoverData,
