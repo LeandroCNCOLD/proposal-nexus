@@ -153,13 +153,15 @@ function TemplateEditorPage() {
       )}
 
       <Tabs defaultValue="basic" className="w-full">
-        <TabsList>
+        <TabsList className="flex flex-wrap h-auto">
           <TabsTrigger value="basic">Básico</TabsTrigger>
           <TabsTrigger value="brand">Marca</TabsTrigger>
           <TabsTrigger value="cover">Capa</TabsTrigger>
           <TabsTrigger value="about">Sobre</TabsTrigger>
-          <TabsTrigger value="clients">Clientes</TabsTrigger>
+          <TabsTrigger value="clients">Clientes / Cases</TabsTrigger>
+          <TabsTrigger value="scope">Escopo</TabsTrigger>
           <TabsTrigger value="warranty">Garantia</TabsTrigger>
+          <TabsTrigger value="banking">Bancário</TabsTrigger>
           <TabsTrigger value="assets">Imagens</TabsTrigger>
         </TabsList>
 
