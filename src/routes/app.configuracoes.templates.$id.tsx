@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { FullPageImageUploader } from "@/components/template-editor/FullPageImageUploader";
 import {
   getTemplate,
   updateTemplate,
@@ -250,7 +251,15 @@ function TemplateEditorPage() {
         </TabsContent>
 
         <TabsContent value="cover" className="mt-4 space-y-4">
+          <FullPageImageUploader
+            templateId={id}
+            assetKind="cover_full"
+            title="Imagem da capa (página inteira)"
+            description="Envie a arte completa da capa em A4. Quando presente, ela substitui o layout dinâmico — os campos abaixo (título, subtítulo, tagline) ficam ignorados no PDF."
+            current={data?.assets?.find((a) => a.asset_kind === "cover_full")}
+          />
           <Card className="p-5 space-y-4">
+            <h3 className="text-sm font-semibold">Layout dinâmico (usado quando não há imagem de capa)</h3>
             <div className="space-y-2">
               <Label>Título da capa</Label>
               <Input
@@ -276,7 +285,15 @@ function TemplateEditorPage() {
         </TabsContent>
 
         <TabsContent value="about" className="mt-4 space-y-4">
+          <FullPageImageUploader
+            templateId={id}
+            assetKind="about_full"
+            title="Imagem da página Sobre / Apresentação"
+            description="Envie a arte completa da página Sobre em A4. Quando presente, substitui o layout dinâmico desta seção no PDF."
+            current={data?.assets?.find((a) => a.asset_kind === "about_full")}
+          />
           <Card className="p-5 space-y-4">
+            <h3 className="text-sm font-semibold">Layout dinâmico (usado quando não há imagem)</h3>
             <div className="space-y-2">
               <Label>Título da seção "Sobre"</Label>
               <Input
@@ -304,7 +321,15 @@ function TemplateEditorPage() {
         </TabsContent>
 
         <TabsContent value="clients" className="mt-4 space-y-4">
+          <FullPageImageUploader
+            templateId={id}
+            assetKind="clients_full"
+            title="Imagem da página Clientes / Cases"
+            description="Envie a arte completa da página de Clientes/Cases em A4. Quando presente, substitui o layout dinâmico desta seção no PDF."
+            current={data?.assets?.find((a) => a.asset_kind === "clients_full")}
+          />
           <Card className="p-5 space-y-4">
+            <h3 className="text-sm font-semibold">Layout dinâmico (usado quando não há imagem)</h3>
             <div className="space-y-2">
               <Label>Título</Label>
               <Input

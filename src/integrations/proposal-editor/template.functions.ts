@@ -249,3 +249,92 @@ export const registerTemplateAsset = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { assetId: (created as { id: string }).id };
   });
+
+/**
+ * Faz upload de imagem (base64) para o bucket e registra o asset.
+ * Para asset_kinds de página-imagem (cover_full, about_full, clients_full,
+ * logo, about_photo, equipment_photo) remove o asset anterior do mesmo kind
+ * antes de salvar o novo, garantindo que só exista um por template.
+ */
+const SINGLETON_KINDS = new Set([
+  "cover_full",
+  "about_full",
+  "clients_full",
+  "logo",
+  "about_photo",
+  "equipment_photo",
+]);
+
+const uploadAssetSchema = z.object({
+  templateId: z.string().uuid(),
+  assetKind: z.string().min(1),
+  fileName: z.string().min(1),
+  mimeType: z.string().min(1),
+  /** Conteúdo do arquivo em base64 (sem prefixo data:). */
+  base64: z.string().min(1),
+  label: z.string().optional(),
+});
+
+export const uploadTemplateAsset = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => uploadAssetSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+
+    // Se for um kind único, remove os anteriores
+    if (SINGLETON_KINDS.has(data.assetKind)) {
+      const { data: prev } = await supabase
+        .from("proposal_template_assets")
+        .select("id, storage_path")
+        .eq("template_id", data.templateId)
+        .eq("asset_kind", data.assetKind);
+
+      const rows = (prev ?? []) as Array<{ id: string; storage_path: string }>;
+      if (rows.length > 0) {
+        await supabase.storage
+          .from(TEMPLATE_BUCKET)
+          .remove(rows.map((r) => r.storage_path));
+        await supabase
+          .from("proposal_template_assets")
+          .delete()
+          .in(
+            "id",
+            rows.map((r) => r.id),
+          );
+      }
+    }
+
+    // Decodifica base64 → Uint8Array
+    const binary = Uint8Array.from(atob(data.base64), (c) => c.charCodeAt(0));
+    const ext = (data.fileName.split(".").pop() || "bin").toLowerCase();
+    const safeName = `${data.assetKind}-${Date.now()}.${ext}`;
+    const storagePath = `${data.templateId}/${safeName}`;
+
+    const { error: upErr } = await supabase.storage
+      .from(TEMPLATE_BUCKET)
+      .upload(storagePath, binary, {
+        contentType: data.mimeType,
+        upsert: true,
+      });
+    if (upErr) throw new Error(upErr.message);
+
+    const { data: created, error } = await supabase
+      .from("proposal_template_assets")
+      .insert({
+        template_id: data.templateId,
+        asset_kind: data.assetKind,
+        label: data.label ?? null,
+        storage_path: storagePath,
+        mime_type: data.mimeType,
+        size_bytes: binary.byteLength,
+        uploaded_by: userId,
+      } as never)
+      .select("id")
+      .single();
+    if (error) throw new Error(error.message);
+
+    return {
+      assetId: (created as { id: string }).id,
+      storagePath,
+    };
+  });
