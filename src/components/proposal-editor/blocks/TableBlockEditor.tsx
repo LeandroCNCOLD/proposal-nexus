@@ -39,6 +39,8 @@ export function TableBlockEditor({
 }: Props) {
   const list = useServerFn(listProposalTables);
   const upsert = useServerFn(upsertProposalTable);
+  const importTrib = useServerFn(importNomusTributos);
+  const popEquip = useServerFn(populateEquipamentosFromItems);
   const qc = useQueryClient();
 
   const { data, isLoading } = useQuery({
@@ -75,6 +77,23 @@ export function TableBlockEditor({
       setDirty(false);
       qc.invalidateQueries({ queryKey: ["proposal-tables", proposalId] });
       toast.success("Tabela salva");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const importMut = useMutation({
+    mutationFn: async () => {
+      if (type === "impostos") {
+        return importTrib({ data: { proposalId, pageId } });
+      }
+      if (type === "equipamentos") {
+        return popEquip({ data: { proposalId, pageId } });
+      }
+      throw new Error("Importação não suportada para este tipo.");
+    },
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: ["proposal-tables", proposalId] });
+      toast.success(`Importado: ${res.count} linha(s)`);
     },
     onError: (e: Error) => toast.error(e.message),
   });
