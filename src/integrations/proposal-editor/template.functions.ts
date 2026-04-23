@@ -173,14 +173,16 @@ export const duplicateTemplate = createServerFn({ method: "POST" })
       .single();
     if (error) throw new Error(error.message);
 
-    const { id: _id, created_at: _ca, updated_at: _ua, ...rest } =
-      src as Record<string, unknown> & { id: string; created_at: string; updated_at: string };
-    void _id; void _ca; void _ua;
+    const srcRec = src as unknown as Record<string, unknown>;
+    const rest: Record<string, unknown> = { ...srcRec };
+    delete rest.id;
+    delete rest.created_at;
+    delete rest.updated_at;
 
     const { data: created, error: insErr } = await supabase
       .from("proposal_templates")
       .insert({
-        ...(rest as never),
+        ...rest,
         name: `${(src as { name: string }).name} (cópia)`,
         is_default: false,
         created_by: userId,
