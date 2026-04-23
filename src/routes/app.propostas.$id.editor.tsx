@@ -12,7 +12,7 @@ import {
   generateProposalPdf,
   setProposalDocumentTemplate,
 } from "@/integrations/proposal-editor/server.functions";
-import { listTemplates } from "@/integrations/proposal-editor/template.functions";
+import { listTemplates, getTemplate } from "@/integrations/proposal-editor/template.functions";
 import {
   Select,
   SelectContent,
@@ -49,6 +49,7 @@ function ProposalEditorPage() {
   const genPdf = useServerFn(generateProposalPdf);
   const setTpl = useServerFn(setProposalDocumentTemplate);
   const listTpls = useServerFn(listTemplates);
+  const getTpl = useServerFn(getTemplate);
 
   const { data, isLoading } = useQuery({
     queryKey: ["proposal-document", id],
@@ -58,6 +59,14 @@ function ProposalEditorPage() {
   const { data: tplsData } = useQuery({
     queryKey: ["proposal-templates-list"],
     queryFn: () => listTpls(),
+  });
+
+  const currentTemplateId = data?.document?.template_id ?? null;
+  const { data: tplBundle } = useQuery({
+    queryKey: ["proposal-template-bundle", currentTemplateId],
+    queryFn: () =>
+      getTpl({ data: currentTemplateId ? { templateId: currentTemplateId } : {} }),
+    enabled: !!data?.document,
   });
 
   const doc = data?.document;
@@ -145,6 +154,7 @@ function ProposalEditorPage() {
     onSuccess: () => {
       hydratedFor.current = null;
       qc.invalidateQueries({ queryKey: ["proposal-document", id] });
+      qc.invalidateQueries({ queryKey: ["proposal-template-bundle"] });
       toast.success("Template aplicado");
     },
     onError: (e: Error) => toast.error(e.message),
@@ -330,6 +340,7 @@ function ProposalEditorPage() {
             pages={pages}
             selectedId={selectedId}
             documentData={documentData}
+            templateAssets={tplBundle?.assets ?? []}
           />
         </main>
       </div>

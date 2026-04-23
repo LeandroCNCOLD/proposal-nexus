@@ -1,4 +1,5 @@
 import type { DocumentPage } from "@/integrations/proposal-editor/types";
+import type { TemplateAsset } from "@/integrations/proposal-editor/template.types";
 
 interface Props {
   pages: DocumentPage[];
@@ -8,14 +9,23 @@ interface Props {
     context_data?: Record<string, unknown>;
     scope_items?: Array<Record<string, unknown>>;
   };
+  templateAssets?: TemplateAsset[];
 }
 
 /**
  * Preview placeholder paginado A4. Será substituído pelo render real
  * com @react-pdf/renderer na Etapa 3.
  */
-export function EditorPreviewStub({ pages, selectedId, documentData }: Props) {
+export function EditorPreviewStub({ pages, selectedId, documentData, templateAssets }: Props) {
   const visible = pages.filter((p) => p.visible).sort((a, b) => a.order - b.order);
+  const coverFull = templateAssets?.find((a) => a.asset_kind === "cover_full")?.url;
+  const aboutFull = templateAssets?.find((a) => a.asset_kind === "about_full")?.url;
+  const clientsFull = templateAssets?.find((a) => a.asset_kind === "clients_full")?.url;
+  const fullByType: Record<string, string | undefined> = {
+    cover: coverFull,
+    about: aboutFull,
+    cases: clientsFull,
+  };
 
   return (
     <div className="flex h-full flex-col bg-muted/30">
@@ -30,6 +40,7 @@ export function EditorPreviewStub({ pages, selectedId, documentData }: Props) {
               page={page}
               isSelected={selectedId === page.id}
               documentData={documentData}
+              fullImageSrc={fullByType[page.type]}
             />
           ))}
         </div>
@@ -42,10 +53,12 @@ function PagePreviewCard({
   page,
   isSelected,
   documentData,
+  fullImageSrc,
 }: {
   page: DocumentPage;
   isSelected: boolean;
   documentData: Props["documentData"];
+  fullImageSrc?: string;
 }) {
   const cover = documentData.cover_data ?? {};
   const ctx = documentData.context_data ?? {};
@@ -58,11 +71,19 @@ function PagePreviewCard({
         isSelected ? "ring-2 ring-primary ring-offset-2" : ""
       }`}
     >
-      <div className="absolute right-3 top-3 rounded bg-black/70 px-2 py-0.5 text-[10px] font-mono text-white">
+      <div className="absolute right-3 top-3 z-10 rounded bg-black/70 px-2 py-0.5 text-[10px] font-mono text-white">
         {page.title}
       </div>
 
-      {page.type === "cover" && (
+      {fullImageSrc && (
+        <img
+          src={fullImageSrc}
+          alt={page.title}
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+      )}
+
+      {!fullImageSrc && page.type === "cover" && (
         <div className="flex h-full flex-col justify-between bg-gradient-to-br from-slate-900 to-slate-700 p-12 text-white">
           <div className="text-2xl font-bold tracking-wide">CN COLD</div>
           <div className="space-y-2">
@@ -76,7 +97,7 @@ function PagePreviewCard({
         </div>
       )}
 
-      {page.type === "about" && (
+      {!fullImageSrc && page.type === "about" && (
         <div className="p-12 text-slate-800">
           <h2 className="mb-4 text-2xl font-bold">Sobre a CN Cold</h2>
           <p className="text-sm leading-relaxed text-slate-600">
@@ -85,7 +106,7 @@ function PagePreviewCard({
         </div>
       )}
 
-      {page.type === "cases" && (
+      {!fullImageSrc && page.type === "cases" && (
         <div className="p-12 text-slate-800">
           <h2 className="mb-4 text-2xl font-bold">Cases de sucesso</h2>
           <p className="text-sm text-slate-600">Galeria de cases. Editável na Etapa 2.</p>
