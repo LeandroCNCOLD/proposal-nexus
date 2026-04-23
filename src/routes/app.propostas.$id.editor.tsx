@@ -299,7 +299,7 @@ function ProposalEditorPage() {
           <Button
             size="sm"
             variant="outline"
-            onClick={() => fillMut.mutate()}
+            onClick={() => handleFill(false)}
             disabled={fillMut.isPending}
           >
             {fillMut.isPending ? (
@@ -308,6 +308,17 @@ function ProposalEditorPage() {
               <Sparkles className="mr-1.5 h-3.5 w-3.5" />
             )}
             Sincronizar do Nomus
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="text-destructive hover:text-destructive"
+            onClick={() => handleFill(true)}
+            disabled={fillMut.isPending}
+            title="Reprocessa todos os campos do Nomus, incluindo os editados manualmente"
+          >
+            <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
+            Reprocessar tudo
           </Button>
           <Button
             size="sm"
