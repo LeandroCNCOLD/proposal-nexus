@@ -11,8 +11,8 @@ import {
   autoFillFromNomus,
   generateProposalPdf,
   setProposalDocumentTemplate,
-  createProposalSendVersion,
 } from "@/integrations/proposal-editor/server.functions";
+import { createProposalSendVersion } from "@/features/proposal-editor/create-proposal-send-version.functions";
 import { listTemplates, getTemplate } from "@/integrations/proposal-editor/template.functions";
 import {
   Select,
