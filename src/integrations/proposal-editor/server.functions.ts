@@ -20,11 +20,10 @@ const proposalIdSchema = z.object({ proposalId: z.string().uuid() });
 const TEMPLATE_BUCKET = "proposal-template-assets";
 
 async function loadDefaultTemplateBundle(
-  supabase: Parameters<typeof requireSupabaseAuth.server>[0]["context"] extends { supabase: infer S } ? S : never,
-): Promise<{ template: ProposalTemplate; assets: TemplateAsset[] } | null> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = supabase as any;
-  const { data: tmpl } = await sb
+  supabase: any,
+): Promise<{ template: ProposalTemplate; assets: TemplateAsset[] } | null> {
+  const { data: tmpl } = await supabase
     .from("proposal_templates")
     .select("*")
     .eq("is_default", true)
@@ -32,15 +31,17 @@ async function loadDefaultTemplateBundle(
     .maybeSingle();
   if (!tmpl) return null;
 
-  const { data: assets } = await sb
+  const { data: assets } = await supabase
     .from("proposal_template_assets")
     .select("*")
     .eq("template_id", tmpl.id);
 
-  const enriched: TemplateAsset[] = (assets ?? []).map((a: { storage_path: string } & Record<string, unknown>) => ({
-    ...(a as unknown as TemplateAsset),
-    url: sb.storage.from(TEMPLATE_BUCKET).getPublicUrl(a.storage_path).data.publicUrl,
-  }));
+  const enriched: TemplateAsset[] = (assets ?? []).map(
+    (a: { storage_path: string } & Record<string, unknown>) => ({
+      ...(a as unknown as TemplateAsset),
+      url: supabase.storage.from(TEMPLATE_BUCKET).getPublicUrl(a.storage_path).data.publicUrl,
+    }),
+  );
 
   return { template: tmpl as ProposalTemplate, assets: enriched };
 }
