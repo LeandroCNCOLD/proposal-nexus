@@ -16,6 +16,14 @@ import {
 } from "./TechnicalPages";
 import { FullImagePage } from "./FullImagePage";
 import { makePalette } from "./styles";
+import { CharacteristicsPage } from "@/components/proposal-pdf/CharacteristicsPage";
+import { InvestmentPage } from "@/components/proposal-pdf/InvestmentPage";
+import { TaxesPage } from "@/components/proposal-pdf/TaxesPage";
+import { PaymentPage } from "@/components/proposal-pdf/PaymentPage";
+import { BackCoverPage } from "@/components/proposal-pdf/BackCoverPage";
+import { AttachedPdfListPage } from "@/components/proposal-pdf/AttachedPdfListPage";
+import { getTablesForPage } from "@/features/proposal-editor/proposal-tables.selectors";
+import type { ProposalTable as ProposalTableNew } from "@/features/proposal-editor/proposal-tables.types";
 
 export interface ProposalDocumentProps {
   pages: DocumentPage[];
