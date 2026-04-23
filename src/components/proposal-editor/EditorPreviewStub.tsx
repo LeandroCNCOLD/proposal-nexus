@@ -97,7 +97,7 @@ function PagePreviewCard({
         </div>
       )}
 
-      {page.type === "about" && (
+      {!fullImageSrc && page.type === "about" && (
         <div className="p-12 text-slate-800">
           <h2 className="mb-4 text-2xl font-bold">Sobre a CN Cold</h2>
           <p className="text-sm leading-relaxed text-slate-600">
@@ -106,7 +106,7 @@ function PagePreviewCard({
         </div>
       )}
 
-      {page.type === "cases" && (
+      {!fullImageSrc && page.type === "cases" && (
         <div className="p-12 text-slate-800">
           <h2 className="mb-4 text-2xl font-bold">Cases de sucesso</h2>
           <p className="text-sm text-slate-600">Galeria de cases. Editável na Etapa 2.</p>
