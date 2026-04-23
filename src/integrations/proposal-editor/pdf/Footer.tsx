@@ -130,8 +130,6 @@ export function BrandHeader({
   );
 }
 
-// Workaround para o linter — re-import nominal
-import { Image as Image_ } from "@react-pdf/renderer";
 
 /** Numerador de páginas (canto inferior direito acima do rodapé azul). */
 export function PageNumber({ palette }: { palette: PdfPalette }) {
