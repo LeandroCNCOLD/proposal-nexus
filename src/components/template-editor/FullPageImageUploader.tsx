@@ -150,7 +150,7 @@ export function FullPageImageUploader({
 
       <div className="rounded-lg border bg-secondary/20 overflow-hidden">
         {current ? (
-          <div className="aspect-[1/1.414] w-full max-w-sm mx-auto bg-white">
+          <div className={`${aspectClass} w-full ${aspect === "banner" ? "" : "max-w-sm"} mx-auto bg-white`}>
             <img
               src={current.url}
               alt={title}
@@ -158,20 +158,18 @@ export function FullPageImageUploader({
             />
           </div>
         ) : (
-          <div className="aspect-[1/1.414] w-full max-w-sm mx-auto flex flex-col items-center justify-center text-muted-foreground gap-2">
+          <div className={`${aspectClass} w-full ${aspect === "banner" ? "" : "max-w-sm"} mx-auto flex flex-col items-center justify-center text-muted-foreground gap-2`}>
             <ImageIcon className="h-10 w-10 opacity-40" />
             <p className="text-xs">Nenhuma imagem enviada</p>
             <p className="text-[10px] uppercase tracking-wide opacity-70">
-              Proporção A4 (1:1.414)
+              {aspect === "banner" ? "Faixa horizontal" : "Proporção A4 (1:1.414)"}
             </p>
           </div>
         )}
       </div>
 
       <p className="text-[11px] text-muted-foreground">
-        Formato recomendado: PNG ou JPG em A4 retrato (ex.: 1240 × 1754 px ou
-        2480 × 3508 px). Quando enviada, esta imagem substitui o layout
-        dinâmico desta página no PDF gerado.
+        {sizeHint} Quando enviada, esta imagem substitui o layout dinâmico desta seção no PDF gerado.
       </p>
     </Card>
   );
