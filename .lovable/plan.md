@@ -1,130 +1,87 @@
 
 
-# Evolução do Editor de Propostas — Fase 1 (crítico)
+## Diagnóstico: lentidão no editor de propostas
 
-Vamos implementar a **Fase 1** do briefing técnico: tipos de página reais, tabelas estruturadas, preview A4 fiel e snapshot de envio. Fase 2 (TipTap expandido, blocos avançados) fica para depois.
+Você está percebendo lentidão no editor (rota `/app/propostas/.../editor`). Analisei a arquitetura e identifiquei os gargalos principais.
 
-## Escopo desta entrega
+### O que está acontecendo (causas reais)
 
-### 1. Banco de dados (migrations)
+**1. PDF é regenerado do zero a cada alteração (gargalo principal)**
+Hoje, toda vez que você muda qualquer campo na prévia ao vivo (`ProposalPreviewLive.tsx`), o fluxo é:
+- Server function `generateProposalPdf` roda no Worker
+- Renderiza o documento completo (capa + sobre + cases + clientes + escopo + características + equipamentos + investimento + impostos + garantia + contracapa) com `@react-pdf/renderer`
+- Faz **upload** do PDF gerado para o storage do Lovable Cloud
+- Gera **signed URL**
+- O cliente faz `fetch` da URL, converte em **Blob**, e cria `URL.createObjectURL`
 
-**a) Nova tabela `proposal_tables`** — armazena tabelas estruturadas vinculadas à proposta (independente de `scope_items`):
+Cada ciclo desses leva vários segundos. Os PDFs de template têm imagens enormes embutidas (`cover_full` 6.4 MB, `about_full` 6 MB — vi nos logs), o que multiplica o tempo de render e o tamanho do upload/download.
+
+**2. Sem debounce agressivo / sem cancelamento**
+Se você digita rápido, várias gerações de PDF disparam em paralelo (ou enfileiradas) e nenhuma é cancelada. A última vence, mas todas consomem CPU do Worker e largura de banda.
+
+**3. Cada save dispara recarga total**
+Salvar um bloco invalida toda a query do documento, que recarrega proposta + template + assets + anexos + tabelas. Não há atualização incremental.
+
+**4. Imagens do template não são otimizadas**
+PNGs de 6 MB são embarcados como base64 no PDF a cada render. Isso é lento no Worker (CPU + memória) e pesado no transporte.
+
+**5. TipTap com várias extensões**
+RichTextEditor agora carrega Image + Table + TableRow + TableCell + TableHeader + StarterKit. Em páginas com muitos blocos rich-text, cada instância tem custo de mount.
+
+### Plano de otimização (ordem de impacto)
+
+**Fase A — Ganhos imediatos (fazer primeiro)**
+
+1. **Debounce + cancelamento na prévia ao vivo**
+   - Aumentar debounce de regeneração de PDF para ~1.5s após a última edição
+   - Usar `AbortController` para cancelar a geração anterior quando uma nova começa
+   - Usar `useMutation` do TanStack Query com `mutationKey` para deduplicar
+
+2. **Modo "preview rápido" sem upload**
+   - Criar variante `mode: "preview-inline"` em `generateProposalPdf` que retorna o PDF como **base64/binário diretamente na resposta**, pulando upload + signed URL
+   - Cliente cria Blob direto da resposta. Elimina 2 round-trips (upload + fetch).
+
+3. **Botão "Atualizar prévia" opcional**
+   - Adicionar toggle "Auto-atualizar" (default ligado mas com debounce maior); quando desligado, prévia só atualiza ao clicar em "Atualizar". Útil quando o usuário sabe que vai fazer várias edições seguidas.
+
+**Fase B — Otimização das imagens do template**
+
+4. **Comprimir imagens do template**
+   - Reprocessar `cover_full` e `about_full` para JPEG ~85% qualidade, redimensionar para no máx 2000px no maior lado. Esperado: 6 MB → ~400 KB cada.
+   - Cachear os bytes das imagens no servidor entre renders consecutivos da mesma proposta.
+
+5. **Lazy-load de assets no PDF**
+   - Carregar do storage só os assets das páginas visíveis no template em vez de todos.
+
+**Fase C — Render incremental (se ainda for lento depois de A e B)**
+
+6. **Render parcial por página**
+   - Permitir gerar só a(s) página(s) afetada(s) pela última edição (ex.: editou capa → regera só a capa). Requer mudanças no `ProposalDocument` para suportar render seletivo + merge no cliente.
+
+7. **Preview HTML em vez de PDF para edição**
+   - Usar `EditorPreviewStub` (HTML/CSS) durante edição ativa, e só gerar PDF real ao salvar / clicar "Visualizar PDF". O HTML já existe no projeto — basta promovê-lo a default em modo edição.
+
+### Detalhes técnicos
+
+```text
+Fluxo atual (lento):
+[edit] → debounce → genPdf server → @react-pdf render (~2-4s)
+       → upload storage (~500ms-1s) → sign URL (~200ms)
+       → client fetch PDF (~500ms-2s) → Blob → iframe
+
+Fluxo proposto Fase A:
+[edit] → debounce 1.5s + abort prev → genPdf inline mode
+       → @react-pdf render → return base64 in response
+       → client Blob → iframe
+       (corta upload + sign + fetch externo)
 ```
-proposal_tables {
-  id uuid pk,
-  proposal_id uuid not null,
-  page_id text not null,            -- vincula à DocumentPage
-  type text not null,               -- 'equipamentos' | 'impostos' | 'pagamento' | 'caracteristicas' | 'itens'
-  title text,
-  rows jsonb not null default '[]', -- linhas livres conforme schema do tipo
-  columns jsonb,                    -- override de colunas (opcional)
-  created_at, updated_at
-}
-```
-RLS: leitura por authenticated; escrita restrita ao criador da proposta + roles `gerente_comercial/diretoria/admin/engenharia` (mesmo padrão de `proposal_documents`).
 
-**b) Adicionar `document_snapshot jsonb` em `proposal_send_versions`** — hoje só guarda `template_snapshot`.
+Arquivos que mudam na Fase A:
+- `src/integrations/proposal-editor/server.functions.ts` — adicionar `mode: "preview-inline"` que retorna `{ contentBase64, mime }`
+- `src/components/proposal-editor/ProposalPreviewLive.tsx` — debounce maior, AbortController, consumir base64
+- (opcional) toggle "Auto-atualizar" no painel da prévia
 
-**c) `SINGLETON_KINDS`** — incluir `header_banner` e `footer_banner` (gap conhecido).
+### Pergunta antes de implementar
 
-### 2. Renderers PDF dedicados (`src/integrations/proposal-editor/pdf/`)
-
-Substituir o fallback `CustomRichPage` por componentes próprios em `ContentPages.tsx` (ou novo `TechnicalPages.tsx`):
-
-| PageType | Componente | Conteúdo |
-|---|---|---|
-| `caracteristicas` | `CaracteristicasPage` | Tabela técnica (descrição/valor/unidade) |
-| `equipamento` | `EquipamentoPage` | Repetível por item: foto + ficha técnica |
-| `investimento` | `InvestimentoPage` | Tabela qtd × unitário × total + total geral |
-| `impostos` | `ImpostosPage` | Tabela ICMS/IPI/PIS/COFINS (lê `nomus_proposals`) |
-| `pagamento` | `PagamentoPage` | Tabela de parcelas (n × valor × vencimento) |
-| `differentials` | `DifferentialsPage` | Lista numerada com ícone + descrição |
-| `impact` | `ImpactPage` | Cards de impacto (KPI, valor, descrição) |
-| `nota` | `NotaPage` | Bloco de nota/aviso destacado |
-| `contracapa` | `ContracapaPage` | Versão fechamento (contato + assinatura) |
-
-Regras transversais:
-- Tabelas com **header repetido** (`<View fixed>` no `<Page>` parent) e linhas com `wrap={false}`.
-- Cabeçalho/rodapé do template em todas (já implementado via `StandardPage`).
-- Atualizar `ProposalDocument.tsx` para mapear cada `PageType` ao renderer (sem fallback genérico para os tipos acima).
-
-### 3. Editor — Sistema de tabelas estruturadas
-
-**Novo componente** `src/components/proposal-editor/blocks/StructuredTableEditor.tsx`:
-- Grid editável (uma `<table>` HTML com inputs por célula).
-- Botões "Adicionar linha" / "Remover linha".
-- Cálculo automático de `valor_total = qtd × unitário` e total geral no rodapé.
-- Suporte a copiar/colar (paste TSV/CSV → split por `\t`/`\n`).
-- Schema de colunas por `type` (mapeamento estático no client).
-
-**Novos editores de bloco** (chamados por `BlockEditorPanel` conforme `page.type`):
-- `CaracteristicasBlockEditor`, `EquipamentoBlockEditor`, `InvestimentoBlockEditor`, `ImpostosBlockEditor`, `PagamentoBlockEditor` — todos consomem `StructuredTableEditor` com colunas pré-definidas.
-- Para `equipamento`: além da tabela, suporte a "repetir por item de `proposal_items`" (toggle `repeatable`).
-
-**Server functions** (novo arquivo `src/integrations/proposal-editor/tables.functions.ts`):
-- `listProposalTables({ proposalId })`
-- `upsertProposalTable({ proposalId, pageId, type, title, rows, columns })`
-- `deleteProposalTable({ id })`
-
-### 4. Preview A4 em tempo real
-
-Substituir `EditorPreviewStub` por `<ProposalPreview mode="live" />` que usa `@react-pdf/renderer`'s `PDFViewer` (client-only, dynamic import) renderizando o **mesmo** `<ProposalDocumentPdf/>` usado no server. Vantagens: 100% fiel ao PDF final, paginação correta, header/footer/banners reais.
-
-- Debounced re-render (500ms) ao editar.
-- Fallback para o stub atual se `PDFViewer` falhar (browser sem worker).
-
-### 5. Integração Template → Documento (consolidar)
-
-Já existe `setProposalDocumentTemplate`. Ajustes:
-- Quando trocar template, **não** sobrescrever campos de tabela já preenchidos.
-- Garantir que `applyPagesConfig` traga **todos** os tipos novos do template para o documento.
-
-### 6. Snapshot completo no envio
-
-Atualizar a função que gera versão de envio (a criar/ajustar `createProposalSendVersion`):
-```ts
-{
-  template_snapshot: { template_id, template_version, pages_config, primary_color, accent_color, accent_color_2, ... },
-  document_snapshot: { pages, cover_data, solution_data, context_data, scope_items, warranty_text, tables: [...] },
-  pdf_storage_path
-}
-```
-Versão enviada é imutável (sem UPDATE no `document_snapshot`).
-
-### 7. Anexos PDF (Fase 2 — apenas estrutura)
-
-Manter `attached_pdf_paths` no schema (já existe). UI fica para Fase 2.
-
-## Arquivos a criar/editar
-
-**Criar:**
-- `supabase/migrations/<timestamp>_proposal_tables.sql`
-- `src/integrations/proposal-editor/tables.functions.ts`
-- `src/integrations/proposal-editor/pdf/TechnicalPages.tsx` (Caracteristicas, Equipamento, Investimento, Impostos, Pagamento, Differentials, Impact, Nota, Contracapa)
-- `src/components/proposal-editor/blocks/StructuredTableEditor.tsx`
-- `src/components/proposal-editor/blocks/{Caracteristicas,Equipamento,Investimento,Impostos,Pagamento}BlockEditor.tsx`
-- `src/components/proposal-editor/ProposalPreviewLive.tsx`
-
-**Editar:**
-- `src/integrations/proposal-editor/types.ts` — adicionar `differentials`, `impact`, `nota` em `PageType`; tipos de linha por tabela.
-- `src/integrations/proposal-editor/pdf/ProposalDocument.tsx` — mapear novos tipos, passar `tables` como prop.
-- `src/integrations/proposal-editor/server.functions.ts` — `generateProposalPdf` carrega `proposal_tables` e injeta no documento; novo `createProposalSendVersion` com snapshot completo.
-- `src/integrations/proposal-editor/template.functions.ts` — adicionar `header_banner`/`footer_banner` em `SINGLETON_KINDS`.
-- `src/components/proposal-editor/BlockEditorPanel.tsx` — switch por `page.type` apontando para os novos editores.
-- `src/routes/app.propostas.$id.editor.tsx` — substituir `EditorPreviewStub` por `ProposalPreviewLive`; carregar `proposal_tables` via query.
-
-## Critérios de aceite (Fase 1)
-
-- [ ] Página "Características" renderiza tabela (PDF + preview).
-- [ ] Página "Equipamentos" repete bloco por item de `proposal_items`.
-- [ ] Página "Investimento" calcula totais automaticamente.
-- [ ] Página "Pagamento" lista parcelas em tabela.
-- [ ] Página "Impostos" exibe tributos vindos do Nomus.
-- [ ] Preview A4 ao vivo bate visualmente com o PDF gerado.
-- [ ] Ao enviar proposta, `proposal_send_versions` salva `template_snapshot` + `document_snapshot` (com tabelas).
-- [ ] Trocar template não apaga tabelas estruturadas já preenchidas.
-
-## Fora de escopo (Fase 2)
-
-TipTap expandido (listas/imagens/alinhamento/tabela), upload de PDFs anexos via UI, editores de listas no template (`sobre_diferenciais`, `cases_itens`, etc.), versionamento automático de `template_version`.
+Quer que eu **comece pela Fase A** (debounce + cancelamento + preview inline sem upload — maior ganho com menor risco) e depois meçamos novamente, ou prefere começar pela **compressão das imagens do template** (Fase B), que também tem impacto grande mas exige reprocessar e re-upar os assets?
 
