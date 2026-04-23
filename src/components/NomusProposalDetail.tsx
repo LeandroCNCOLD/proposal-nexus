@@ -451,3 +451,57 @@ function SubRow({ label, value }: { label: string; value: number | null | undefi
     </tr>
   );
 }
+
+function ContactCell({
+  nomusName,
+  local,
+}: {
+  nomusName: string | null;
+  local: { name?: string; email?: string; phone?: string; role?: string } | null;
+}) {
+  const name = local?.name || nomusName || "—";
+  const phoneDigits = (local?.phone ?? "").replace(/\D/g, "");
+  const waLink = phoneDigits
+    ? `https://wa.me/${phoneDigits.length <= 11 ? "55" + phoneDigits : phoneDigits}`
+    : null;
+  return (
+    <div>
+      <div>{name}</div>
+      {local?.role && (
+        <div className="text-[11px] text-muted-foreground mt-0.5">{local.role}</div>
+      )}
+      {(local?.email || local?.phone) && (
+        <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px]">
+          {local?.email && (
+            <a
+              href={`mailto:${local.email}`}
+              className="text-primary hover:underline"
+              title="Enviar e-mail"
+            >
+              {local.email}
+            </a>
+          )}
+          {local?.phone && (
+            <span className="text-muted-foreground">{local.phone}</span>
+          )}
+          {waLink && (
+            <a
+              href={waLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-success hover:underline"
+              title="Abrir no WhatsApp"
+            >
+              WhatsApp
+            </a>
+          )}
+        </div>
+      )}
+      {!local?.email && !local?.phone && nomusName && (
+        <div className="mt-0.5 text-[11px] text-muted-foreground italic">
+          Telefone/e-mail não sincronizados
+        </div>
+      )}
+    </div>
+  );
+}
