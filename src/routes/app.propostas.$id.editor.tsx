@@ -146,7 +146,7 @@ function ProposalEditorPage() {
       return genPdf({ data: { proposalId: id, mode: "preview" } });
     },
     onSuccess: (res) => {
-      window.open(res.url, "_blank", "noopener,noreferrer");
+      if (res.url) window.open(res.url, "_blank", "noopener,noreferrer");
     },
     onError: (e: Error) => toast.error(e.message),
   });
