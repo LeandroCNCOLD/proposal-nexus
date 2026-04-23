@@ -13,10 +13,12 @@ import type { TemplateAsset } from "@/integrations/proposal-editor/template.type
 
 interface FullPageImageUploaderProps {
   templateId: string;
-  assetKind: "cover_full" | "about_full" | "clients_full";
+  assetKind: "cover_full" | "about_full" | "clients_full" | "header_banner" | "footer_banner";
   title: string;
   description: string;
   current: TemplateAsset | undefined;
+  /** Proporção do preview. Default 1:1.414 (A4). Use "banner" para faixas largas. */
+  aspect?: "a4" | "banner";
 }
 
 const MAX_BYTES = 8 * 1024 * 1024; // 8 MB
