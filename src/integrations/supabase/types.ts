@@ -1770,6 +1770,7 @@ export type Database = {
       }
       proposal_send_versions: {
         Row: {
+          document_snapshot: Json | null
           generated_at: string
           generated_by: string | null
           id: string
@@ -1781,6 +1782,7 @@ export type Database = {
           version_number: number
         }
         Insert: {
+          document_snapshot?: Json | null
           generated_at?: string
           generated_by?: string | null
           id?: string
@@ -1792,6 +1794,7 @@ export type Database = {
           version_number: number
         }
         Update: {
+          document_snapshot?: Json | null
           generated_at?: string
           generated_by?: string | null
           id?: string
@@ -1843,6 +1846,50 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "proposal_status_history_proposal_id_fkey"
+            columns: ["proposal_id"]
+            isOneToOne: false
+            referencedRelation: "proposals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      proposal_tables: {
+        Row: {
+          columns: Json | null
+          created_at: string
+          id: string
+          page_id: string
+          proposal_id: string
+          rows: Json
+          title: string | null
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          columns?: Json | null
+          created_at?: string
+          id?: string
+          page_id: string
+          proposal_id: string
+          rows?: Json
+          title?: string | null
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          columns?: Json | null
+          created_at?: string
+          id?: string
+          page_id?: string
+          proposal_id?: string
+          rows?: Json
+          title?: string | null
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proposal_tables_proposal_id_fkey"
             columns: ["proposal_id"]
             isOneToOne: false
             referencedRelation: "proposals"

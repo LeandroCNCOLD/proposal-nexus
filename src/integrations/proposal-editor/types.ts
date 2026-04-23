@@ -16,6 +16,9 @@ export type PageType =
   | "prazo-garantia"
   | "warranty"
   | "contracapa"
+  | "differentials"
+  | "impact"
+  | "nota"
   | "custom-rich"
   | "custom-block"
   | "attached-pdf";
@@ -81,6 +84,81 @@ export interface CustomBlock {
   title?: string;
   data: Record<string, unknown>;
 }
+
+// ============= Tabelas estruturadas =============
+
+export type ProposalTableType =
+  | "caracteristicas"
+  | "equipamentos"
+  | "investimento"
+  | "impostos"
+  | "pagamento"
+  | "itens";
+
+export interface TableColumn {
+  key: string;
+  label: string;
+  type?: "text" | "number" | "currency" | "date";
+  width?: number; // peso relativo (flex)
+  align?: "left" | "right" | "center";
+  computed?: boolean; // valor calculado, não editável
+}
+
+export interface ProposalTableRow {
+  [key: string]: string | number | null | undefined;
+}
+
+export interface ProposalTable {
+  id: string;
+  proposal_id: string;
+  page_id: string;
+  type: ProposalTableType | string;
+  title: string | null;
+  rows: ProposalTableRow[];
+  columns: TableColumn[] | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Schemas de colunas padrão por tipo de tabela. */
+export const DEFAULT_TABLE_COLUMNS: Record<string, TableColumn[]> = {
+  caracteristicas: [
+    { key: "descricao", label: "Característica", type: "text", width: 3 },
+    { key: "valor", label: "Valor", type: "text", width: 2 },
+    { key: "unidade", label: "Unidade", type: "text", width: 1 },
+  ],
+  equipamentos: [
+    { key: "modelo", label: "Modelo", type: "text", width: 2 },
+    { key: "descricao", label: "Descrição", type: "text", width: 3 },
+    { key: "quantidade", label: "Qtd", type: "number", width: 1, align: "right" },
+    { key: "unidade", label: "Un", type: "text", width: 1 },
+  ],
+  investimento: [
+    { key: "descricao", label: "Descrição", type: "text", width: 4 },
+    { key: "quantidade", label: "Qtd", type: "number", width: 1, align: "right" },
+    { key: "unidade", label: "Un", type: "text", width: 1 },
+    { key: "valor_unitario", label: "Valor Unitário", type: "currency", width: 2, align: "right" },
+    { key: "valor_total", label: "Total", type: "currency", width: 2, align: "right", computed: true },
+  ],
+  impostos: [
+    { key: "tributo", label: "Tributo", type: "text", width: 2 },
+    { key: "aliquota", label: "Alíquota (%)", type: "number", width: 1, align: "right" },
+    { key: "base_calculo", label: "Base de cálculo", type: "currency", width: 2, align: "right" },
+    { key: "valor", label: "Valor", type: "currency", width: 2, align: "right" },
+  ],
+  pagamento: [
+    { key: "parcela", label: "Parcela", type: "text", width: 1 },
+    { key: "vencimento", label: "Vencimento", type: "text", width: 2 },
+    { key: "percentual", label: "%", type: "number", width: 1, align: "right" },
+    { key: "valor", label: "Valor", type: "currency", width: 2, align: "right" },
+    { key: "observacao", label: "Observação", type: "text", width: 3 },
+  ],
+  itens: [
+    { key: "descricao", label: "Descrição", type: "text", width: 4 },
+    { key: "quantidade", label: "Qtd", type: "number", width: 1, align: "right" },
+    { key: "valor", label: "Valor", type: "currency", width: 2, align: "right" },
+  ],
+};
 
 export interface ProposalDocument {
   id: string;

@@ -263,6 +263,8 @@ const SINGLETON_KINDS = new Set([
   "logo",
   "about_photo",
   "equipment_photo",
+  "header_banner",
+  "footer_banner",
 ]);
 
 const uploadAssetSchema = z.object({

@@ -7,6 +7,7 @@ import {
   type ContextData,
   type CoverData,
   type DocumentPage,
+  type ProposalTable,
   type ScopeItem,
   type SolutionData,
 } from "./types";
@@ -341,6 +342,13 @@ export const generateProposalPdf = createServerFn({ method: "POST" })
     const scope = (doc.scope_items ?? []) as unknown as ScopeItem[];
     const warranty = (doc.warranty_text ?? {}) as { html?: string; text?: string };
 
+    // Carrega tabelas estruturadas
+    const { data: tablesRows } = await supabase
+      .from("proposal_tables")
+      .select("*")
+      .eq("proposal_id", proposalId);
+    const tables = (tablesRows ?? []) as unknown as ProposalTable[];
+
     // Carrega template (do documento ou padrão)
     let bundle: { template: ProposalTemplate; assets: TemplateAsset[] } | null = null;
     if (doc.template_id) {
@@ -372,6 +380,7 @@ export const generateProposalPdf = createServerFn({ method: "POST" })
       warranty,
       template: bundle?.template ?? null,
       assets: bundle?.assets ?? [],
+      tables,
     });
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -392,4 +401,151 @@ export const generateProposalPdf = createServerFn({ method: "POST" })
     if (sErr) throw new Error(sErr.message);
 
     return { url: signed.signedUrl, path, mode };
+  });
+
+/**
+ * Cria uma versão imutável de envio com snapshots completos do template e do
+ * documento (incluindo tabelas estruturadas) + caminho do PDF gerado.
+ */
+const sendVersionSchema = z.object({
+  proposalId: z.string().uuid(),
+  notes: z.string().optional(),
+});
+
+export const createProposalSendVersion = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => sendVersionSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { proposalId, notes } = data;
+
+    // 1) Carrega documento + template + tabelas
+    const { data: doc, error: dErr } = await supabase
+      .from("proposal_documents")
+      .select("*")
+      .eq("proposal_id", proposalId)
+      .single();
+    if (dErr) throw new Error(dErr.message);
+
+    let templateRow: ProposalTemplate | null = null;
+    let templateAssets: TemplateAsset[] = [];
+    if (doc.template_id) {
+      const { data: tmpl } = await supabase
+        .from("proposal_templates")
+        .select("*")
+        .eq("id", doc.template_id)
+        .maybeSingle();
+      if (tmpl) {
+        templateRow = tmpl as unknown as ProposalTemplate;
+        const { data: assets } = await supabase
+          .from("proposal_template_assets")
+          .select("*")
+          .eq("template_id", doc.template_id);
+        templateAssets = (assets ?? []).map((a) => ({
+          ...(a as unknown as TemplateAsset),
+          url: supabase.storage.from(TEMPLATE_BUCKET).getPublicUrl(a.storage_path).data.publicUrl,
+        }));
+      }
+    }
+    if (!templateRow) {
+      const fallback = await loadDefaultTemplateBundle(supabase);
+      templateRow = fallback?.template ?? null;
+      templateAssets = fallback?.assets ?? [];
+    }
+
+    const { data: tablesRows } = await supabase
+      .from("proposal_tables")
+      .select("*")
+      .eq("proposal_id", proposalId);
+    const tables = (tablesRows ?? []) as unknown as ProposalTable[];
+
+    // 2) Renderiza PDF final
+    const pages = (doc.pages as unknown as DocumentPage[]) ?? DEFAULT_PAGES;
+    const cover = (doc.cover_data ?? {}) as CoverData;
+    const solution = (doc.solution_data ?? {}) as SolutionData;
+    const ctx = (doc.context_data ?? {}) as ContextData;
+    const scope = (doc.scope_items ?? []) as unknown as ScopeItem[];
+    const warranty = (doc.warranty_text ?? {}) as { html?: string; text?: string };
+
+    const element = createElement(ProposalDocumentPdf, {
+      pages,
+      cover,
+      solution,
+      context: ctx,
+      scope,
+      warranty,
+      template: templateRow,
+      assets: templateAssets,
+      tables,
+    });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const buffer = await renderToBuffer(element as any);
+
+    const finalPath = `${proposalId}/final-${Date.now()}.pdf`;
+    const { error: upErr } = await supabase.storage
+      .from("proposal-pdfs")
+      .upload(finalPath, buffer, { contentType: "application/pdf", upsert: true });
+    if (upErr) throw new Error(`Falha ao salvar PDF final: ${upErr.message}`);
+
+    // 3) Próximo número de versão
+    const { data: prev } = await supabase
+      .from("proposal_send_versions")
+      .select("version_number")
+      .eq("proposal_id", proposalId)
+      .order("version_number", { ascending: false })
+      .limit(1);
+    const nextVersion =
+      ((prev?.[0] as { version_number?: number } | undefined)?.version_number ?? 0) + 1;
+
+    // marca versões anteriores como não-correntes
+    await supabase
+      .from("proposal_send_versions")
+      .update({ is_current: false } as never)
+      .eq("proposal_id", proposalId);
+
+    // 4) Snapshots imutáveis
+    const templateSnapshot = templateRow
+      ? {
+          template_id: templateRow.id,
+          template_version: doc.template_version,
+          name: templateRow.name,
+          primary_color: templateRow.primary_color,
+          accent_color: templateRow.accent_color,
+          accent_color_2: templateRow.accent_color_2,
+          pages_config: templateRow.pages_config,
+          empresa_nome: templateRow.empresa_nome,
+          empresa_email: templateRow.empresa_email,
+          empresa_telefone: templateRow.empresa_telefone,
+          empresa_site: templateRow.empresa_site,
+          empresa_cidade: templateRow.empresa_cidade,
+        }
+      : null;
+
+    const documentSnapshot = {
+      pages,
+      cover_data: cover,
+      solution_data: solution,
+      context_data: ctx,
+      scope_items: scope,
+      warranty_text: warranty,
+      tables,
+    };
+
+    const { data: created, error: insErr } = await supabase
+      .from("proposal_send_versions")
+      .insert({
+        proposal_id: proposalId,
+        version_number: nextVersion,
+        pdf_storage_path: finalPath,
+        template_snapshot: templateSnapshot as never,
+        document_snapshot: documentSnapshot as never,
+        is_current: true,
+        notes: notes ?? null,
+        generated_by: userId,
+      } as never)
+      .select("*")
+      .single();
+    if (insErr) throw new Error(insErr.message);
+
+    return { version: created, path: finalPath };
   });
