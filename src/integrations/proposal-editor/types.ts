@@ -108,16 +108,40 @@ export interface ProposalTableRow {
   [key: string]: string | number | null | undefined;
 }
 
+export type ProposalTableSettingsValue =
+  | string
+  | number
+  | boolean
+  | null
+  | TableColumn[]
+  | string[]
+  | undefined;
+
+export interface ProposalTableSettings {
+  columns?: TableColumn[];
+  show_header?: boolean;
+  repeat_header?: boolean;
+  show_grand_total?: boolean;
+  grand_total_label?: string;
+  currency_columns?: string[];
+  sum_columns?: string[];
+  [key: string]: ProposalTableSettingsValue;
+}
+
 export interface ProposalTable {
   id: string;
   proposal_id: string;
-  page_id: string;
-  type: ProposalTableType | string;
+  page_id: string | null;
+  table_type: ProposalTableType | string;
   title: string | null;
+  subtitle: string | null;
   rows: ProposalTableRow[];
-  columns: TableColumn[] | null;
+  settings: ProposalTableSettings | null;
+  sort_order: number;
   created_at: string;
   updated_at: string;
+  created_by?: string | null;
+  updated_by?: string | null;
 }
 
 /** Schemas de colunas padrão por tipo de tabela. */

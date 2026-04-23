@@ -157,7 +157,8 @@ function TablePage({
   showTotal,
   intro,
 }: TablePageProps) {
-  const columns = (table?.columns?.length ? table.columns : defaultColumns) as TableColumn[];
+  const settingsCols = (table?.settings?.columns as TableColumn[] | undefined) ?? null;
+  const columns = (settingsCols && settingsCols.length ? settingsCols : defaultColumns) as TableColumn[];
   const rows = (table?.rows ?? []) as ProposalTableRow[];
   return (
     <StandardPage
