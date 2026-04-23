@@ -59,7 +59,8 @@ export function ProposalPreviewLive({ proposalId, version, debounceMs = 1500 }: 
 
         let blob: Blob;
         if (res.contentBase64) {
-          blob = new Blob([base64ToBytes(res.contentBase64)], { type: res.mime ?? "application/pdf" });
+          const bytes = base64ToBytes(res.contentBase64);
+          blob = new Blob([bytes.buffer as ArrayBuffer], { type: res.mime ?? "application/pdf" });
         } else if (res.url) {
           const pdfRes = await fetch(res.url);
           if (!pdfRes.ok) throw new Error(`HTTP ${pdfRes.status}`);
