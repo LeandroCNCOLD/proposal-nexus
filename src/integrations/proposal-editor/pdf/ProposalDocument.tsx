@@ -49,8 +49,11 @@ export function ProposalDocumentPdf(props: ProposalDocumentProps) {
   const headerBannerUrl = props.assets.find((a) => a.asset_kind === "header_banner")?.url;
   const footerBannerUrl = props.assets.find((a) => a.asset_kind === "footer_banner")?.url;
   const ctxBase = { palette, template: props.template, assets: props.assets, logoUrl, headerBannerUrl, footerBannerUrl };
+  const stdBase = { palette, template: props.template, logoUrl, headerBannerUrl, footerBannerUrl };
   const tables = props.tables ?? [];
+  const proposalTables = (props.tables ?? []) as unknown as ProposalTableNew[];
   const tableFor = (pageId: string) => tables.find((t) => t.page_id === pageId) ?? null;
+  const storageBaseUrl = props.storageBaseUrl;
 
   // Imagens A4 completas (substituem o layout dinâmico quando presentes)
   const coverFull = props.assets.find((a) => a.asset_kind === "cover_full")?.url;
