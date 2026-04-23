@@ -108,6 +108,15 @@ export interface ProposalTableRow {
   [key: string]: string | number | null | undefined;
 }
 
+export type ProposalTableSettingsValue =
+  | string
+  | number
+  | boolean
+  | null
+  | TableColumn[]
+  | string[]
+  | undefined;
+
 export interface ProposalTableSettings {
   columns?: TableColumn[];
   show_header?: boolean;
@@ -116,7 +125,7 @@ export interface ProposalTableSettings {
   grand_total_label?: string;
   currency_columns?: string[];
   sum_columns?: string[];
-  [key: string]: unknown;
+  [key: string]: ProposalTableSettingsValue;
 }
 
 export interface ProposalTable {
