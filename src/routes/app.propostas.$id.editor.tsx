@@ -154,6 +154,7 @@ function ProposalEditorPage() {
     onSuccess: () => {
       hydratedFor.current = null;
       qc.invalidateQueries({ queryKey: ["proposal-document", id] });
+      qc.invalidateQueries({ queryKey: ["proposal-template-bundle"] });
       toast.success("Template aplicado");
     },
     onError: (e: Error) => toast.error(e.message),
