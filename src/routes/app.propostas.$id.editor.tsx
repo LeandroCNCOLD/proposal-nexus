@@ -86,7 +86,12 @@ function ProposalEditorPage() {
   });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
+  const [previewMode, setPreviewMode] = useState<"dom" | "pdf">("dom");
   const hydratedFor = useRef<string | null>(null);
+
+  // Tabelas estruturadas (para o preview DOM em tempo real)
+  const { data: tablesData } = useProposalTables({ proposalId: id });
+  const proposalTables = tablesData?.tables ?? [];
 
   // Hidrata estado quando o doc chega (ou quando troca de proposta)
   useEffect(() => {
