@@ -12,7 +12,7 @@ import {
   generateProposalPdf,
   setProposalDocumentTemplate,
 } from "@/integrations/proposal-editor/server.functions";
-import { listTemplates } from "@/integrations/proposal-editor/template.functions";
+import { listTemplates, getTemplate } from "@/integrations/proposal-editor/template.functions";
 import {
   Select,
   SelectContent,
