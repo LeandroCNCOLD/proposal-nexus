@@ -55,6 +55,7 @@ function ProposalEditorPage() {
   const sendVersion = useServerFn(createProposalSendVersion);
   const listTpls = useServerFn(listTemplates);
   const getTpl = useServerFn(getTemplate);
+  const materializeFn = useServerFn(materializeDocumentPlaceholders);
 
   const { data, isLoading } = useQuery({
     queryKey: ["proposal-document", id],
