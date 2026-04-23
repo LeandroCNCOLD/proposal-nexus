@@ -516,11 +516,16 @@ export const createProposalSendVersion = createServerFn({ method: "POST" })
     });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const buffer = await renderToBuffer(element as any);
+    const finalBuffer = await mergeWithAttachments(
+      supabase,
+      new Uint8Array(buffer),
+      (doc.attached_pdf_paths ?? []) as string[],
+    );
 
     const finalPath = `${proposalId}/final-${Date.now()}.pdf`;
     const { error: upErr } = await supabase.storage
       .from("proposal-pdfs")
-      .upload(finalPath, buffer, { contentType: "application/pdf", upsert: true });
+      .upload(finalPath, finalBuffer, { contentType: "application/pdf", upsert: true });
     if (upErr) throw new Error(`Falha ao salvar PDF final: ${upErr.message}`);
 
     // 3) Próximo número de versão
