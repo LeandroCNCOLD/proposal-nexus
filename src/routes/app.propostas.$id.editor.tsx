@@ -226,6 +226,26 @@ function ProposalEditorPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 mr-2">
+            <span className="text-xs text-muted-foreground">Template:</span>
+            <Select
+              value={doc?.template_id ?? ""}
+              onValueChange={(v) => v && tplMut.mutate(v)}
+              disabled={tplMut.isPending}
+            >
+              <SelectTrigger className="h-8 w-[200px] text-xs">
+                <SelectValue placeholder="Escolher template…" />
+              </SelectTrigger>
+              <SelectContent>
+                {(tplsData?.templates ?? []).map((t) => (
+                  <SelectItem key={t.id} value={t.id} className="text-xs">
+                    {t.name}
+                    {t.is_default ? " (padrão)" : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <Button
             size="sm"
             variant="outline"
