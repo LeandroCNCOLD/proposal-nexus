@@ -213,16 +213,11 @@ export const upsertProposalDocument = createServerFn({ method: "POST" })
   });
 
 /**
- * Auto-preenche o documento com dados do Nomus + clientes + contatos + escopo.
- * Não sobrescreve campos listados em `manually_edited_fields`.
+ * Auto-preenche o documento com dados do Nomus + clientes + contatos + escopo +
+ * tabelas estruturadas (investimento, impostos, pagamento).
+ * Não sobrescreve campos listados em `manually_edited_fields`, exceto quando
+ * `overwriteManualFields` for `true`.
  */
-export const autoFillFromNomus = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => proposalIdSchema.parse(input))
-  .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    const { proposalId } = data;
-
 const autoFillSchema = z.object({
   proposalId: z.string().uuid(),
   overwriteManualFields: z.boolean().optional(),
