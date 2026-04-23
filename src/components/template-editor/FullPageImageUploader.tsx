@@ -68,10 +68,10 @@ export function FullPageImageUploader({
   });
 
   const deleteMut = useMutation({
-    mutationFn: () =>
-      current
-        ? deleteTemplateAsset({ data: { assetId: current.id } })
-        : Promise.resolve(),
+    mutationFn: async () => {
+      if (!current) return;
+      await deleteTemplateAsset({ data: { assetId: current.id } });
+    },
     onSuccess: () => {
       toast.success(`${title} removida`);
       qc.invalidateQueries({ queryKey: ["proposal-template", templateId] });
