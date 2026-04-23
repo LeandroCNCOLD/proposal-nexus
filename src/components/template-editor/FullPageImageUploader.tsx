@@ -13,10 +13,12 @@ import type { TemplateAsset } from "@/integrations/proposal-editor/template.type
 
 interface FullPageImageUploaderProps {
   templateId: string;
-  assetKind: "cover_full" | "about_full" | "clients_full";
+  assetKind: "cover_full" | "about_full" | "clients_full" | "header_banner" | "footer_banner";
   title: string;
   description: string;
   current: TemplateAsset | undefined;
+  /** Proporção do preview. Default 1:1.414 (A4). Use "banner" para faixas largas. */
+  aspect?: "a4" | "banner";
 }
 
 const MAX_BYTES = 8 * 1024 * 1024; // 8 MB
@@ -40,7 +42,13 @@ export function FullPageImageUploader({
   title,
   description,
   current,
+  aspect = "a4",
 }: FullPageImageUploaderProps) {
+  const aspectClass = aspect === "banner" ? "aspect-[8/1]" : "aspect-[1/1.414]";
+  const sizeHint =
+    aspect === "banner"
+      ? "Recomendado: faixa horizontal larga (ex.: 2000 × 250 px)."
+      : "Formato recomendado: PNG ou JPG em A4 retrato (ex.: 1240 × 1754 px ou 2480 × 3508 px).";
   const qc = useQueryClient();
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -142,7 +150,7 @@ export function FullPageImageUploader({
 
       <div className="rounded-lg border bg-secondary/20 overflow-hidden">
         {current ? (
-          <div className="aspect-[1/1.414] w-full max-w-sm mx-auto bg-white">
+          <div className={`${aspectClass} w-full ${aspect === "banner" ? "" : "max-w-sm"} mx-auto bg-white`}>
             <img
               src={current.url}
               alt={title}
@@ -150,20 +158,18 @@ export function FullPageImageUploader({
             />
           </div>
         ) : (
-          <div className="aspect-[1/1.414] w-full max-w-sm mx-auto flex flex-col items-center justify-center text-muted-foreground gap-2">
+          <div className={`${aspectClass} w-full ${aspect === "banner" ? "" : "max-w-sm"} mx-auto flex flex-col items-center justify-center text-muted-foreground gap-2`}>
             <ImageIcon className="h-10 w-10 opacity-40" />
             <p className="text-xs">Nenhuma imagem enviada</p>
             <p className="text-[10px] uppercase tracking-wide opacity-70">
-              Proporção A4 (1:1.414)
+              {aspect === "banner" ? "Faixa horizontal" : "Proporção A4 (1:1.414)"}
             </p>
           </div>
         )}
       </div>
 
       <p className="text-[11px] text-muted-foreground">
-        Formato recomendado: PNG ou JPG em A4 retrato (ex.: 1240 × 1754 px ou
-        2480 × 3508 px). Quando enviada, esta imagem substitui o layout
-        dinâmico desta página no PDF gerado.
+        {sizeHint} Quando enviada, esta imagem substitui o layout dinâmico desta seção no PDF gerado.
       </p>
     </Card>
   );

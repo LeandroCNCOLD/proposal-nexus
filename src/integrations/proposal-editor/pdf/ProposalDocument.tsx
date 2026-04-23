@@ -25,7 +25,9 @@ export function ProposalDocumentPdf(props: ProposalDocumentProps) {
     accent2: props.template?.accent_color_2,
   });
   const logoUrl = props.assets.find((a) => a.asset_kind === "logo")?.url;
-  const ctxBase = { palette, template: props.template, assets: props.assets, logoUrl };
+  const headerBannerUrl = props.assets.find((a) => a.asset_kind === "header_banner")?.url;
+  const footerBannerUrl = props.assets.find((a) => a.asset_kind === "footer_banner")?.url;
+  const ctxBase = { palette, template: props.template, assets: props.assets, logoUrl, headerBannerUrl, footerBannerUrl };
 
   // Imagens A4 completas (substituem o layout dinâmico quando presentes)
   const coverFull = props.assets.find((a) => a.asset_kind === "cover_full")?.url;

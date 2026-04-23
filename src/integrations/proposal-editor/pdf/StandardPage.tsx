@@ -10,12 +10,16 @@ export function StandardPage({
   palette,
   template,
   logoUrl,
+  headerBannerUrl,
+  footerBannerUrl,
 }: {
   title?: string;
   children: ReactNode;
   palette: PdfPalette;
   template: ProposalTemplate | null;
   logoUrl?: string;
+  headerBannerUrl?: string;
+  footerBannerUrl?: string;
 }) {
   return (
     <Page
@@ -30,7 +34,7 @@ export function StandardPage({
         lineHeight: 1.5,
       }}
     >
-      <BrandHeader palette={palette} logoUrl={logoUrl} pageTitle={title} />
+      <BrandHeader palette={palette} logoUrl={logoUrl} pageTitle={title} bannerUrl={headerBannerUrl} />
       {title ? (
         <View style={{ marginBottom: 14 }}>
           <Text
@@ -53,7 +57,7 @@ export function StandardPage({
         </View>
       ) : null}
       {children}
-      <BrandFooter palette={palette} template={template} />
+      <BrandFooter palette={palette} template={template} bannerUrl={footerBannerUrl} />
       <PageNumber palette={palette} />
     </Page>
   );

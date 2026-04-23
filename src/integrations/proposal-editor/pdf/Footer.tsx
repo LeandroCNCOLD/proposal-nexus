@@ -1,4 +1,4 @@
-import { Text, View, StyleSheet } from "@react-pdf/renderer";
+import { Text, View, StyleSheet, Image as Image_ } from "@react-pdf/renderer";
 import type { PdfPalette } from "./styles";
 import type { ProposalTemplate } from "../template.types";
 
@@ -23,10 +23,23 @@ const s = StyleSheet.create({
 export function BrandFooter({
   palette,
   template,
+  bannerUrl,
 }: {
   palette: PdfPalette;
   template: ProposalTemplate | null;
+  bannerUrl?: string;
 }) {
+  if (bannerUrl) {
+    return (
+      <View
+        fixed
+        style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 48 }}
+      >
+        {/* eslint-disable-next-line jsx-a11y/alt-text */}
+        <Image_ src={bannerUrl} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+      </View>
+    );
+  }
   const tel = template?.empresa_telefone ?? "";
   const site = template?.empresa_site ?? "";
   const email = template?.empresa_email ?? "";
@@ -58,11 +71,31 @@ export function BrandHeader({
   palette,
   logoUrl,
   pageTitle,
+  bannerUrl,
 }: {
   palette: PdfPalette;
   logoUrl?: string;
   pageTitle?: string;
+  bannerUrl?: string;
 }) {
+  // Quando há um banner enviado pelo usuário, usar a imagem inteira como cabeçalho.
+  if (bannerUrl) {
+    return (
+      <View
+        fixed
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 54,
+        }}
+      >
+        {/* eslint-disable-next-line jsx-a11y/alt-text */}
+        <Image_ src={bannerUrl} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+      </View>
+    );
+  }
   return (
     <View
       fixed
@@ -97,8 +130,6 @@ export function BrandHeader({
   );
 }
 
-// Workaround para o linter — re-import nominal
-import { Image as Image_ } from "@react-pdf/renderer";
 
 /** Numerador de páginas (canto inferior direito acima do rodapé azul). */
 export function PageNumber({ palette }: { palette: PdfPalette }) {

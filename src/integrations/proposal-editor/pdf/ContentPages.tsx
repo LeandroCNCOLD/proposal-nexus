@@ -14,6 +14,8 @@ interface PageCtx {
   template: ProposalTemplate | null;
   assets: TemplateAsset[];
   logoUrl?: string;
+  headerBannerUrl?: string;
+  footerBannerUrl?: string;
 }
 
 function Bullet({ palette, children }: { palette: PdfPalette; children: string }) {
@@ -25,12 +27,12 @@ function Bullet({ palette, children }: { palette: PdfPalette; children: string }
   );
 }
 
-export function AboutPage({ palette, template, assets, logoUrl }: PageCtx) {
+export function AboutPage({ palette, template, assets, logoUrl, headerBannerUrl, footerBannerUrl }: PageCtx) {
   const paragrafos = (template?.sobre_paragrafos ?? []) as string[];
   const diferenciais = (template?.sobre_diferenciais ?? []) as TemplateDiferencial[];
   const fotoFabrica = assets.find((a) => a.asset_kind === "about_photo")?.url;
   return (
-    <StandardPage title={template?.sobre_titulo || "Sobre a CN Cold"} palette={palette} template={template} logoUrl={logoUrl}>
+    <StandardPage title={template?.sobre_titulo || "Sobre a CN Cold"} palette={palette} template={template} logoUrl={logoUrl} headerBannerUrl={headerBannerUrl} footerBannerUrl={footerBannerUrl}>
       {fotoFabrica ? (
         <Image src={fotoFabrica} style={{ width: "100%", height: 160, objectFit: "cover", marginBottom: 12 }} />
       ) : null}
@@ -57,11 +59,11 @@ export function AboutPage({ palette, template, assets, logoUrl }: PageCtx) {
   );
 }
 
-export function CasesPage({ palette, template, logoUrl }: PageCtx) {
+export function CasesPage({ palette, template, logoUrl, headerBannerUrl, footerBannerUrl }: PageCtx) {
   const cases = (template?.cases_itens ?? []) as TemplateCaseItem[];
   const clientes = (template?.clientes_lista ?? []) as string[];
   return (
-    <StandardPage title={template?.cases_titulo || "Cases / Projetos"} palette={palette} template={template} logoUrl={logoUrl}>
+    <StandardPage title={template?.cases_titulo || "Cases / Projetos"} palette={palette} template={template} logoUrl={logoUrl} headerBannerUrl={headerBannerUrl} footerBannerUrl={footerBannerUrl}>
       {template?.cases_subtitulo ? (
         <Text style={{ marginBottom: 10, color: palette.textMuted }}>{template.cases_subtitulo}</Text>
       ) : null}
@@ -94,9 +96,9 @@ export function CasesPage({ palette, template, logoUrl }: PageCtx) {
   );
 }
 
-export function SolutionPage({ palette, template, logoUrl, solution }: PageCtx & { solution: SolutionData }) {
+export function SolutionPage({ palette, template, logoUrl, headerBannerUrl, footerBannerUrl, solution }: PageCtx & { solution: SolutionData }) {
   return (
-    <StandardPage title="Solução Proposta" palette={palette} template={template} logoUrl={logoUrl}>
+    <StandardPage title="Solução Proposta" palette={palette} template={template} logoUrl={logoUrl} headerBannerUrl={headerBannerUrl} footerBannerUrl={footerBannerUrl}>
       {solution.intro ? <Text style={{ marginBottom: 8 }}>{solution.intro}</Text> : null}
       {solution.contempla && solution.contempla.length > 0 && (
         <>
@@ -135,9 +137,9 @@ function InfoRow({ palette, label, value }: { palette: PdfPalette; label: string
   );
 }
 
-export function ContextPage({ palette, template, logoUrl, ctx }: PageCtx & { ctx: ContextData }) {
+export function ContextPage({ palette, template, logoUrl, headerBannerUrl, footerBannerUrl, ctx }: PageCtx & { ctx: ContextData }) {
   return (
-    <StandardPage title="Contextualização" palette={palette} template={template} logoUrl={logoUrl}>
+    <StandardPage title="Contextualização" palette={palette} template={template} logoUrl={logoUrl} headerBannerUrl={headerBannerUrl} footerBannerUrl={footerBannerUrl}>
       <Text style={{ fontSize: 12, fontFamily: "Helvetica-Bold", color: palette.primary, marginBottom: 6 }}>Cliente</Text>
       <InfoRow palette={palette} label="Razão social" value={ctx.cliente_razao} />
       <InfoRow palette={palette} label="Nome fantasia" value={ctx.fantasia} />
@@ -178,10 +180,10 @@ export function ContextPage({ palette, template, logoUrl, ctx }: PageCtx & { ctx
   );
 }
 
-export function ScopePage({ palette, template, logoUrl, items }: PageCtx & { items: ScopeItem[] }) {
+export function ScopePage({ palette, template, logoUrl, headerBannerUrl, footerBannerUrl, items }: PageCtx & { items: ScopeItem[] }) {
   const total = items.reduce((s, it) => s + (it.valor_total ?? 0), 0);
   return (
-    <StandardPage title="Investimento" palette={palette} template={template} logoUrl={logoUrl}>
+    <StandardPage title="Investimento" palette={palette} template={template} logoUrl={logoUrl} headerBannerUrl={headerBannerUrl} footerBannerUrl={footerBannerUrl}>
       {items.length === 0 ? (
         <Text>Nenhum item informado.</Text>
       ) : (
@@ -216,11 +218,11 @@ export function ScopePage({ palette, template, logoUrl, items }: PageCtx & { ite
   );
 }
 
-export function WarrantyPage({ palette, template, logoUrl, text }: PageCtx & { text: { html?: string; text?: string } }) {
+export function WarrantyPage({ palette, template, logoUrl, headerBannerUrl, footerBannerUrl, text }: PageCtx & { text: { html?: string; text?: string } }) {
   const body = text.text || template?.garantia_texto || "Garantia integral conforme contrato.";
   const items = (template?.garantia_itens ?? []) as TemplateGarantiaItem[];
   return (
-    <StandardPage title="Prazo e Garantia" palette={palette} template={template} logoUrl={logoUrl}>
+    <StandardPage title="Prazo e Garantia" palette={palette} template={template} logoUrl={logoUrl} headerBannerUrl={headerBannerUrl} footerBannerUrl={footerBannerUrl}>
       {template?.prazo_entrega_padrao ? (
         <View style={{ marginBottom: 12, padding: 10, backgroundColor: palette.bgSoft, borderRadius: 3 }}>
           <Text style={{ fontFamily: "Helvetica-Bold", color: palette.primary, marginBottom: 4 }}>Prazo de entrega</Text>
@@ -243,10 +245,10 @@ export function WarrantyPage({ palette, template, logoUrl, text }: PageCtx & { t
   );
 }
 
-export function CustomRichPage({ palette, template, logoUrl, title, html }: PageCtx & { title: string; html?: string }) {
+export function CustomRichPage({ palette, template, logoUrl, headerBannerUrl, footerBannerUrl, title, html }: PageCtx & { title: string; html?: string }) {
   const plain = html ? html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim() : "";
   return (
-    <StandardPage title={title} palette={palette} template={template} logoUrl={logoUrl}>
+    <StandardPage title={title} palette={palette} template={template} logoUrl={logoUrl} headerBannerUrl={headerBannerUrl} footerBannerUrl={footerBannerUrl}>
       {plain ? <Text>{plain}</Text> : <Text style={{ fontSize: 9, color: palette.textMuted }}>Página em branco.</Text>}
     </StandardPage>
   );

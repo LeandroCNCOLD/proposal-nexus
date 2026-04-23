@@ -248,6 +248,31 @@ function TemplateEditorPage() {
               </div>
             </div>
           </Card>
+
+          <Card className="p-5 space-y-4">
+            <h3 className="text-sm font-semibold">Cabeçalho e rodapé das páginas internas</h3>
+            <p className="text-xs text-muted-foreground">
+              Estas faixas aparecem no topo e na base de todas as páginas de conteúdo
+              (depois de Capa, Sobre e Clientes). Quando você envia uma imagem, ela
+              substitui a faixa azul padrão.
+            </p>
+            <FullPageImageUploader
+              templateId={id}
+              assetKind="header_banner"
+              title="Faixa de cabeçalho"
+              description="Imagem horizontal exibida no topo de cada página interna (54px de altura). Use uma faixa larga em PNG/JPG."
+              current={data?.assets?.find((a) => a.asset_kind === "header_banner")}
+              aspect="banner"
+            />
+            <FullPageImageUploader
+              templateId={id}
+              assetKind="footer_banner"
+              title="Faixa de rodapé"
+              description="Imagem horizontal exibida na base de cada página interna (48px de altura). Quando ausente, é usado o rodapé azul com telefone, site, e-mail e cidade."
+              current={data?.assets?.find((a) => a.asset_kind === "footer_banner")}
+              aspect="banner"
+            />
+          </Card>
         </TabsContent>
 
         <TabsContent value="cover" className="mt-4 space-y-4">
