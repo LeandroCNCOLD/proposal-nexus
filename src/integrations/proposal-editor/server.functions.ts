@@ -270,7 +270,8 @@ export const generateProposalPdf = createServerFn({ method: "POST" })
       warranty,
     });
 
-    const buffer = await renderToBuffer(element);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const buffer = await renderToBuffer(element as any);
 
     const path = `${proposalId}/${mode}-${Date.now()}.pdf`;
     const { error: upErr } = await supabase.storage
