@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { FullPageImageUploader } from "@/components/template-editor/FullPageImageUploader";
 import {
   getTemplate,
   updateTemplate,
