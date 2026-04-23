@@ -23,10 +23,23 @@ const s = StyleSheet.create({
 export function BrandFooter({
   palette,
   template,
+  bannerUrl,
 }: {
   palette: PdfPalette;
   template: ProposalTemplate | null;
+  bannerUrl?: string;
 }) {
+  if (bannerUrl) {
+    return (
+      <View
+        fixed
+        style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 48 }}
+      >
+        {/* eslint-disable-next-line jsx-a11y/alt-text */}
+        <Image_ src={bannerUrl} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+      </View>
+    );
+  }
   const tel = template?.empresa_telefone ?? "";
   const site = template?.empresa_site ?? "";
   const email = template?.empresa_email ?? "";
