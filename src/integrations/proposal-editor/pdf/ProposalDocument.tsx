@@ -15,6 +15,7 @@ import {
   PagamentoPage,
 } from "./TechnicalPages";
 import { FullImagePage } from "./FullImagePage";
+import { StandardPage } from "./StandardPage";
 import { makePalette } from "./styles";
 import { CharacteristicsPage } from "@/components/proposal-pdf/CharacteristicsPage";
 import { InvestmentPage } from "@/components/proposal-pdf/InvestmentPage";
@@ -49,8 +50,11 @@ export function ProposalDocumentPdf(props: ProposalDocumentProps) {
   const headerBannerUrl = props.assets.find((a) => a.asset_kind === "header_banner")?.url;
   const footerBannerUrl = props.assets.find((a) => a.asset_kind === "footer_banner")?.url;
   const ctxBase = { palette, template: props.template, assets: props.assets, logoUrl, headerBannerUrl, footerBannerUrl };
+  const stdBase = { palette, template: props.template, logoUrl, headerBannerUrl, footerBannerUrl };
   const tables = props.tables ?? [];
+  const proposalTables = (props.tables ?? []) as unknown as ProposalTableNew[];
   const tableFor = (pageId: string) => tables.find((t) => t.page_id === pageId) ?? null;
+  const storageBaseUrl = props.storageBaseUrl;
 
   // Imagens A4 completas (substituem o layout dinâmico quando presentes)
   const coverFull = props.assets.find((a) => a.asset_kind === "cover_full")?.url;
@@ -64,6 +68,7 @@ export function ProposalDocumentPdf(props: ProposalDocumentProps) {
       subject={props.cover.cliente || ""}
     >
       {visible.map((p) => {
+        const pageTables = getTablesForPage(proposalTables, p.id, p.type);
         switch (p.type) {
           case "cover":
             return coverFull
@@ -85,15 +90,69 @@ export function ProposalDocumentPdf(props: ProposalDocumentProps) {
           case "scope":
             return <ScopePage key={p.id} {...ctxBase} items={props.scope} />;
           case "investimento":
-            return <InvestimentoPage key={p.id} {...ctxBase} table={tableFor(p.id)} pageTitle={p.title} />;
-          case "caracteristicas":
-            return <CaracteristicasPage key={p.id} {...ctxBase} table={tableFor(p.id)} pageTitle={p.title} />;
           case "equipamento":
-            return <EquipamentoPage key={p.id} {...ctxBase} table={tableFor(p.id)} pageTitle={p.title} />;
+            return (
+              <StandardPage key={p.id} title={p.title || "Resumo dos itens inclusos no orçamento"} {...stdBase}>
+                <InvestmentPage
+                  title={p.title || "Resumo dos itens inclusos no orçamento"}
+                  tables={pageTables}
+                  palette={palette}
+                />
+              </StandardPage>
+            );
+          case "caracteristicas":
+            return (
+              <StandardPage key={p.id} title={p.title || "Características técnicas"} {...stdBase}>
+                <CharacteristicsPage
+                  title={p.title || "Características técnicas"}
+                  tables={pageTables}
+                  palette={palette}
+                />
+              </StandardPage>
+            );
           case "impostos":
-            return <ImpostosPage key={p.id} {...ctxBase} table={tableFor(p.id)} pageTitle={p.title} />;
+            return (
+              <StandardPage key={p.id} title={p.title || "Base de cálculo dos impostos"} {...stdBase}>
+                <TaxesPage
+                  title={p.title || "Base de cálculo dos impostos"}
+                  tables={pageTables}
+                  palette={palette}
+                />
+              </StandardPage>
+            );
           case "pagamento":
-            return <PagamentoPage key={p.id} {...ctxBase} table={tableFor(p.id)} pageTitle={p.title} />;
+            return (
+              <StandardPage key={p.id} title={p.title || "Condições de pagamento"} {...stdBase}>
+                <PaymentPage
+                  title={p.title || "Condições de pagamento"}
+                  tables={pageTables}
+                  palette={palette}
+                />
+              </StandardPage>
+            );
+          case "contracapa":
+            return (
+              <StandardPage key={p.id} title={p.title || "Informações finais"} {...stdBase}>
+                <BackCoverPage
+                  title={p.title || "Informações finais"}
+                  deliveryText={null}
+                  warrantyText={props.warranty?.text ?? props.warranty?.html ?? null}
+                  noteText={null}
+                  palette={palette}
+                />
+              </StandardPage>
+            );
+          case "attached-pdf":
+            return (
+              <StandardPage key={p.id} title={p.title || "Anexos da proposta"} {...stdBase}>
+                <AttachedPdfListPage
+                  title={p.title || "Anexos da proposta"}
+                  pdfPaths={[]}
+                  palette={palette}
+                  storageBaseUrl={storageBaseUrl}
+                />
+              </StandardPage>
+            );
           case "differentials":
             return <DifferentialsPage key={p.id} {...ctxBase} pageTitle={p.title} />;
           case "impact":
@@ -107,8 +166,6 @@ export function ProposalDocumentPdf(props: ProposalDocumentProps) {
             );
           case "nota":
             return <NotaPage key={p.id} {...ctxBase} pageTitle={p.title} text={p.content?.text as string | undefined} />;
-          case "contracapa":
-            return <ContracapaPage key={p.id} {...ctxBase} responsavel={props.cover.responsavel} />;
           case "warranty":
           case "prazo-garantia":
             return <WarrantyPage key={p.id} {...ctxBase} text={props.warranty} />;
