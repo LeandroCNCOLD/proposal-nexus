@@ -9,6 +9,7 @@ import {
   getProposalDocument,
   upsertProposalDocument,
   autoFillFromNomus,
+  generateProposalPdf,
 } from "@/integrations/proposal-editor/server.functions";
 import type {
   DocumentPage,
@@ -36,6 +37,7 @@ function ProposalEditorPage() {
   const getDoc = useServerFn(getProposalDocument);
   const saveDoc = useServerFn(upsertProposalDocument);
   const autoFill = useServerFn(autoFillFromNomus);
+  const genPdf = useServerFn(generateProposalPdf);
 
   const { data, isLoading } = useQuery({
     queryKey: ["proposal-document", id],
