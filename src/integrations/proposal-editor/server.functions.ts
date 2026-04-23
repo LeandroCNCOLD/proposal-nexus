@@ -88,6 +88,50 @@ export const getProposalDocument = createServerFn({ method: "POST" })
     return { document: created };
   });
 
+/** Troca o template aplicado ao documento da proposta. */
+export const setProposalDocumentTemplate = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        proposalId: z.string().uuid(),
+        templateId: z.string().uuid().nullable(),
+        applyPagesConfig: z.boolean().optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { proposalId, templateId, applyPagesConfig } = data;
+
+    const patch: Record<string, unknown> = {
+      template_id: templateId,
+      last_edited_by: userId,
+      last_edited_at: new Date().toISOString(),
+    };
+
+    if (applyPagesConfig && templateId) {
+      const { data: tmpl } = await supabase
+        .from("proposal_templates")
+        .select("pages_config")
+        .eq("id", templateId)
+        .maybeSingle();
+      const pgs = (tmpl as { pages_config?: unknown } | null)?.pages_config;
+      if (Array.isArray(pgs) && pgs.length > 0) {
+        patch.pages = pgs;
+      }
+    }
+
+    const { data: updated, error } = await supabase
+      .from("proposal_documents")
+      .update(patch as never)
+      .eq("proposal_id", proposalId)
+      .select("*")
+      .single();
+    if (error) throw new Error(error.message);
+    return { document: updated };
+  });
+
 const upsertSchema = z.object({
   proposalId: z.string().uuid(),
   patch: z.object({
