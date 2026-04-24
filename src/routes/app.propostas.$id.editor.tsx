@@ -2,8 +2,19 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, Save, Loader2, Sparkles, RotateCcw, Eye, FileCheck, BookmarkPlus, Download } from "lucide-react";
+import { ArrowLeft, Save, Loader2, Sparkles, RotateCcw, Eye, FileCheck, BookmarkPlus, LayoutTemplate } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import {
   getProposalDocument,
@@ -220,7 +231,47 @@ function ProposalEditorPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  // auto-save
+  // Estado dos diálogos de templates
+  const [saveTplOpen, setSaveTplOpen] = useState(false);
+  const [tplName, setTplName] = useState("");
+  const [tplDesc, setTplDesc] = useState("");
+  const [applyTplOpen, setApplyTplOpen] = useState(false);
+  const [pickedTplId, setPickedTplId] = useState<string>("");
+
+  const saveAsTplMut = useMutation({
+    mutationFn: async () => {
+      if (dirty) await saveMut.mutateAsync();
+      return saveAsTpl({
+        data: {
+          proposalId: id,
+          name: tplName.trim(),
+          description: tplDesc.trim() || undefined,
+        },
+      });
+    },
+    onSuccess: (res) => {
+      setSaveTplOpen(false);
+      setTplName("");
+      setTplDesc("");
+      qc.invalidateQueries({ queryKey: ["proposal-templates-list"] });
+      toast.success(`Modelo salvo · ${res.pageCount} página(s)`);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const applyLayoutMut = useMutation({
+    mutationFn: () =>
+      applyTplLayout({ data: { proposalId: id, templateId: pickedTplId } }),
+    onSuccess: () => {
+      setApplyTplOpen(false);
+      setPickedTplId("");
+      hydratedFor.current = null;
+      qc.invalidateQueries({ queryKey: ["proposal-document", id] });
+      toast.success("Layout do modelo aplicado");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   useEffect(() => {
     if (!dirty) return;
     const t = setTimeout(() => saveMut.mutate(), 1500);
@@ -361,6 +412,111 @@ function ProposalEditorPage() {
             )}
             Pré-visualizar PDF
           </Button>
+
+          {/* Salvar como modelo */}
+          <Dialog open={saveTplOpen} onOpenChange={setSaveTplOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm" variant="outline">
+                <BookmarkPlus className="mr-1.5 h-3.5 w-3.5" />
+                Salvar como modelo
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Salvar layout como modelo</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="tpl-name">Nome do modelo</Label>
+                  <Input
+                    id="tpl-name"
+                    value={tplName}
+                    onChange={(e) => setTplName(e.target.value)}
+                    placeholder="Ex: Modelo padrão refrigeração"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="tpl-desc">Descrição (opcional)</Label>
+                  <Textarea
+                    id="tpl-desc"
+                    value={tplDesc}
+                    onChange={(e) => setTplDesc(e.target.value)}
+                    placeholder="O que este modelo contém…"
+                    rows={3}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Salva páginas, posições, estilos, imagens de fundo e textos fixos.
+                  Campos dinâmicos continuam puxando dados da proposta.
+                </p>
+              </div>
+              <DialogFooter>
+                <Button variant="ghost" onClick={() => setSaveTplOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={() => saveAsTplMut.mutate()}
+                  disabled={!tplName.trim() || saveAsTplMut.isPending}
+                >
+                  {saveAsTplMut.isPending && (
+                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  )}
+                  Salvar modelo
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Aplicar layout de modelo */}
+          <Dialog open={applyTplOpen} onOpenChange={setApplyTplOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm" variant="outline">
+                <LayoutTemplate className="mr-1.5 h-3.5 w-3.5" />
+                Aplicar modelo
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Aplicar layout de um modelo</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label>Modelo</Label>
+                  <Select value={pickedTplId} onValueChange={setPickedTplId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Escolha um modelo…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(tplsList.templates ?? []).map((t) => (
+                        <SelectItem key={t.id} value={t.id}>
+                          {t.name}
+                          {t.is_default ? " (padrão)" : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <p className="text-xs text-destructive">
+                  Atenção: as páginas atuais serão substituídas pelas do modelo.
+                </p>
+              </div>
+              <DialogFooter>
+                <Button variant="ghost" onClick={() => setApplyTplOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={() => applyLayoutMut.mutate()}
+                  disabled={!pickedTplId || applyLayoutMut.isPending}
+                >
+                  {applyLayoutMut.isPending && (
+                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  )}
+                  Aplicar
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
           <Button
             size="sm"
             onClick={() => versionMut.mutate()}
