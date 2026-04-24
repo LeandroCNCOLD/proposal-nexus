@@ -38,8 +38,11 @@ interface Props {
   onChange: (next: DocumentPage[]) => void;
 }
 
-export function PageSidebar({ pages, selectedId, onSelect, onChange }: Props) {
+export function PageSidebar({ pages, selectedId, proposalId, onSelect, onChange }: Props) {
   const sorted = [...pages].sort((a, b) => a.order - b.order);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingPageId, setUploadingPageId] = useState<string | null>(null);
+  const uploadFn = useServerFn(uploadInlineImage);
 
   const move = (id: string, dir: -1 | 1) => {
     const idx = sorted.findIndex((p) => p.id === id);
