@@ -12,8 +12,7 @@ export const COLDPRO_STEPS: ColdProStep[] = [
   { id: "ambiente", title: "Ambiente", description: "Dimensões e condições" },
   { id: "produtos", title: "Produtos", description: "Cargas de produto" },
   { id: "extras", title: "Cargas extras", description: "Pessoas, motores, infiltração" },
-  { id: "resultado", title: "Resultado", description: "Cálculo de carga térmica" },
-  { id: "equipamento", title: "Equipamento", description: "Seleção e relatório" },
+  { id: "resultado", title: "Resultado", description: "Cálculo, seleção e relatório" },
 ];
 
 type Props = {
