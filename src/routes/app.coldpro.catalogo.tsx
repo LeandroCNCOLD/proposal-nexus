@@ -39,6 +39,10 @@ function CatalogoPage() {
   const [search, setSearch] = useState("");
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
 
+  const [pageSize, setPageSize] = useState<number>(20);
+  const [page, setPage] = useState<number>(1);
+  const [groupByLine, setGroupByLine] = useState<boolean>(false);
+
   // Lista de modelos do catálogo
   const modelsQuery = useQuery({
     queryKey: ["coldpro-models"],
@@ -46,8 +50,9 @@ function CatalogoPage() {
       const { data, error } = await supabase
         .from("coldpro_equipment_models")
         .select("id, modelo, linha, designacao_hp, refrigerante, gabinete, tipo_degelo, active, created_at")
-        .order("modelo")
-        .limit(500);
+        .order("linha", { ascending: true, nullsFirst: false })
+        .order("modelo", { ascending: true })
+        .limit(5000);
       if (error) throw error;
       return data;
     },
