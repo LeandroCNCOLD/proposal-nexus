@@ -35,6 +35,12 @@ const IMAGE_FIELD_BY_KIND: Record<EquipmentImageKind, string> = {
   biblock: "biblock_image_path",
 };
 
+const IMAGE_GALLERY_FIELD_BY_KIND: Record<EquipmentImageKind, string> = {
+  plugin: "plugin_image_paths",
+  split: "split_image_paths",
+  biblock: "biblock_image_paths",
+};
+
 const IMAGE_LABEL_BY_KIND: Record<EquipmentImageKind, string> = {
   plugin: "Plug-in",
   split: "Split",
@@ -98,9 +104,15 @@ export function ColdProModelDetailDialog({ modelId, open, onOpenChange }: Props)
         .from("coldpro-equipment-images")
         .upload(path, file, { upsert: true });
       if (uploadError) throw uploadError;
+      const currentGallery = ((detailQuery.data?.model?.[
+        IMAGE_GALLERY_FIELD_BY_KIND[kind] as keyof typeof detailQuery.data.model
+      ] as string[] | null) ?? []).filter(Boolean);
       const { error: updateError } = await supabase
         .from("coldpro_equipment_models")
-        .update({ [IMAGE_FIELD_BY_KIND[kind]]: path } as never)
+        .update({
+          [IMAGE_FIELD_BY_KIND[kind]]: path,
+          [IMAGE_GALLERY_FIELD_BY_KIND[kind]]: [path, ...currentGallery],
+        } as never)
         .eq("id", modelId);
       if (updateError) throw updateError;
     },
@@ -292,6 +304,7 @@ export function ColdProModelDetailDialog({ modelId, open, onOpenChange }: Props)
                     key={kind}
                     kind={kind}
                     path={m[IMAGE_FIELD_BY_KIND[kind] as keyof typeof m] as string | null}
+                    paths={(m[IMAGE_GALLERY_FIELD_BY_KIND[kind] as keyof typeof m] as string[] | null) ?? []}
                     uploading={imageMutation.isPending}
                     onSelect={(file) => imageMutation.mutate({ kind, file })}
                   />
@@ -542,18 +555,18 @@ function Field({ label, value }: { label: string; value: unknown }) {
 function EquipmentImageCard({
   kind,
   path,
+  paths,
   uploading,
   onSelect,
 }: {
   kind: EquipmentImageKind;
   path: string | null;
+  paths: string[];
   uploading: boolean;
   onSelect: (file: File) => void;
 }) {
   const inputId = `coldpro-image-${kind}`;
-  const publicUrl = path
-    ? supabase.storage.from("coldpro-equipment-images").getPublicUrl(path).data.publicUrl
-    : null;
+  const gallery = Array.from(new Set([path, ...paths].filter((p): p is string => !!p)));
 
   return (
     <div className="rounded-md border bg-card p-3">
@@ -578,8 +591,17 @@ function EquipmentImageCard({
           event.currentTarget.value = "";
         }}
       />
-      {publicUrl ? (
-        <img src={publicUrl} alt={`Foto ${IMAGE_LABEL_BY_KIND[kind]} do equipamento`} className="aspect-[4/3] w-full rounded-md border object-contain" />
+      {gallery.length > 0 ? (
+        <div className="grid gap-2">
+          <img src={toEquipmentImageUrl(gallery[0])} alt={`Foto ${IMAGE_LABEL_BY_KIND[kind]} do equipamento`} className="aspect-[4/3] w-full rounded-md border object-contain" />
+          {gallery.length > 1 && (
+            <div className="grid grid-cols-3 gap-2">
+              {gallery.slice(1).map((item) => (
+                <img key={item} src={toEquipmentImageUrl(item)} alt={`Foto adicional ${IMAGE_LABEL_BY_KIND[kind]}`} className="aspect-square rounded-md border object-cover" />
+              ))}
+            </div>
+          )}
+        </div>
       ) : (
         <div className="flex aspect-[4/3] w-full items-center justify-center rounded-md border border-dashed text-sm text-muted-foreground">
           Sem foto cadastrada
@@ -587,6 +609,10 @@ function EquipmentImageCard({
       )}
     </div>
   );
+}
+
+function toEquipmentImageUrl(path: string): string {
+  return supabase.storage.from("coldpro-equipment-images").getPublicUrl(path).data.publicUrl;
 }
 
 function EmptyBlock({ label }: { label: string }) {
