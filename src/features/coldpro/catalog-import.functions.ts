@@ -20,7 +20,7 @@ export type ImportOutcome = {
 /**
  * Persiste o resultado do parser no banco:
  * 1) cria registro em coldpro_catalog_imports
- * 2) upsert por (modelo, refrigerante, gabinete) em coldpro_equipment_models
+ * 2) upsert por variação oficial (modelo, refrigerante, gabinete, tensão/fase) em coldpro_equipment_models
  * 3) cria/atualiza compressores, condensador, evaporador
  * 4) insere os pontos de performance
  * 5) salva linhas brutas em coldpro_catalog_import_rows (em batches)
@@ -67,11 +67,11 @@ export async function importParsedCatalog(
   }
   const importId = importRow.id as string;
 
-  // Agrupa linhas por chave de modelo para criar 1 modelo por (modelo+refrig+gabinete)
+  // Agrupa linhas por variação oficial: mesmo nome pode existir em tensões/fases diferentes.
   const validRows = result.rows.filter((r) => r.isValid && r.modelo);
   const groups = new Map<string, ParsedRow[]>();
   for (const r of validRows) {
-    const key = `${r.modelo}|${r.refrigerante ?? ""}|${r.gabinete ?? ""}`;
+    const key = buildCatalogVariantKey(r);
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key)!.push(r);
   }
@@ -92,13 +92,13 @@ export async function importParsedCatalog(
   // Para cada grupo: upsert do modelo, depois insere pontos de performance
   for (const [, rows] of groups) {
     const head = rows[0];
-    // upsert manual: tenta achar
+    const electrical = parseElectricalConfiguration(head.performance.voltage);
+    const catalogVariantKey = buildCatalogVariantKey(head);
+    // upsert manual: tenta achar variação elétrica exata
     const { data: existing } = await supabase
       .from("coldpro_equipment_models")
       .select("id")
-      .eq("modelo", head.modelo!)
-      .eq("refrigerante", head.refrigerante ?? "")
-      .eq("gabinete", head.gabinete ?? "")
+      .eq("catalog_variant_key", catalogVariantKey)
       .maybeSingle();
 
     let modelId: string;
@@ -112,6 +112,11 @@ export async function importParsedCatalog(
       gwp_ar6: head.gwp_ar6,
       odp_ar6: head.odp_ar6,
       tipo_degelo: head.tipo_degelo,
+      electrical_configuration: head.performance.voltage,
+      voltage_value_v: electrical.voltageValue,
+      phase_count: electrical.phaseCount,
+      frequency_hz: electrical.frequencyHz,
+      catalog_variant_key: catalogVariantKey,
       source_import_id: importId,
       raw: head.raw,
       active: true,
@@ -270,5 +275,27 @@ export async function importParsedCatalog(
     modelsCreated,
     modelsUpdated,
     performancePoints: perfPoints,
+  };
+}
+
+function buildCatalogVariantKey(row: ParsedRow): string {
+  return [row.modelo, row.refrigerante ?? "", row.gabinete ?? "", row.performance.voltage ?? "SEM TENSAO"]
+    .map((part) => String(part ?? "").trim().toUpperCase())
+    .join("|");
+}
+
+function parseElectricalConfiguration(voltage: string | null): {
+  voltageValue: number | null;
+  phaseCount: number | null;
+  frequencyHz: number | null;
+} {
+  const source = voltage ?? "";
+  const voltageValue = source.match(/(\d+)\s*v/i)?.[1];
+  const phaseCount = source.match(/(\d+)\s*f/i)?.[1];
+  const frequencyHz = source.match(/(\d+)\s*hz/i)?.[1];
+  return {
+    voltageValue: voltageValue ? Number(voltageValue) : null,
+    phaseCount: phaseCount ? Number(phaseCount) : null,
+    frequencyHz: frequencyHz ? Number(frequencyHz) : null,
   };
 }
