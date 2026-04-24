@@ -5,7 +5,8 @@ import type { DocumentBlock } from "../types";
 import type { ProposalTable } from "../types";
 import type { ProposalTemplate } from "../template.types";
 import type { PdfStyles, PdfTheme } from "./styles";
-import { fmtCurrency, fmtDateBR, fmtNumber, htmlToPlainParagraphs } from "./utils";
+import { fmtCurrency, fmtDateBR, fmtNumber } from "./utils";
+import { renderRichHtml } from "./rich-text";
 
 interface BlockRenderContext {
   styles: PdfStyles;
@@ -33,18 +34,12 @@ export function renderBlock(block: DocumentBlock, ctx: BlockRenderContext): Reac
 
     case "rich_text": {
       const html = (block.data.html as string) ?? "";
-      const paragraphs = htmlToPlainParagraphs(html);
+      const rendered = renderRichHtml(html, styles);
       return (
         <View key={key} style={{ marginBottom: 6 }}>
           {block.title ? <Text style={styles.blockTitle}>{block.title}</Text> : null}
-          {paragraphs.length === 0 ? (
+          {rendered ?? (
             <Text style={[styles.p, { color: theme.muted, fontStyle: "italic" }]}>—</Text>
-          ) : (
-            paragraphs.map((p, i) => (
-              <Text key={i} style={styles.p}>
-                {p}
-              </Text>
-            ))
           )}
         </View>
       );
