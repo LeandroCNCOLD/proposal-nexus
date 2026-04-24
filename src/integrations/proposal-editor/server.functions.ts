@@ -671,6 +671,7 @@ export const createProposalSendVersion = createServerFn({ method: "POST" })
     const { ProposalPdfDocument } = await import("./pdf/ProposalPdfDocument");
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const cliente = (proposal as any).clients;
+    const revCtx = await loadRevisionContext(supabase, proposal.id, proposal.title);
 
     const baseBuffer = await renderToBuffer(
       ProposalPdfDocument({
@@ -682,6 +683,8 @@ export const createProposalSendVersion = createServerFn({ method: "POST" })
             valid_until: proposal.valid_until,
             created_at: proposal.created_at,
             client_name: cliente?.trade_name ?? cliente?.name ?? null,
+            revision: revCtx.revision,
+            revision_history: revCtx.history,
           },
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           pages: (doc.pages as any) ?? [],
