@@ -40,7 +40,7 @@ function buildColdProItemDescription(params: {
 }
 
 export const pushColdProToProposal = createServerFn({ method: "POST" })
-  .validator(inputSchema)
+  .inputValidator(inputSchema)
   .handler(async ({ data }) => {
     const supabase = supabaseAdmin;
 

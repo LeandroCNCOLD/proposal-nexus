@@ -11,7 +11,7 @@ export const listColdProProjects = createServerFn({ method: "GET" }).handler(asy
 });
 
 export const createColdProProject = createServerFn({ method: "POST" })
-  .validator(z.object({ proposal_id: z.string().uuid().nullable().optional(), name: z.string().min(1), application_type: z.string().default("cold_room") }))
+  .inputValidator(z.object({ proposal_id: z.string().uuid().nullable().optional(), name: z.string().min(1), application_type: z.string().default("cold_room") }))
   .handler(async ({ data }) => {
     const supabase = supabaseAdmin;
     const { data: row, error } = await supabase.from("coldpro_projects").insert({ proposal_id: data.proposal_id ?? null, name: data.name, application_type: data.application_type }).select("*").single();
@@ -20,7 +20,7 @@ export const createColdProProject = createServerFn({ method: "POST" })
   });
 
 export const getColdProProjectBundle = createServerFn({ method: "GET" })
-  .validator(z.object({ projectId: z.string().uuid() }))
+  .inputValidator(z.object({ projectId: z.string().uuid() }))
   .handler(async ({ data }) => {
     const supabase = supabaseAdmin;
     const { data: project, error: projectError } = await supabase.from("coldpro_projects").select("*").eq("id", data.projectId).single();
@@ -37,7 +37,7 @@ export const getColdProProjectBundle = createServerFn({ method: "GET" })
   });
 
 export const createColdProEnvironment = createServerFn({ method: "POST" })
-  .validator(z.object({ projectId: z.string().uuid(), name: z.string().min(1), environment_type: z.string().default("cold_room") }))
+  .inputValidator(z.object({ projectId: z.string().uuid(), name: z.string().min(1), environment_type: z.string().default("cold_room") }))
   .handler(async ({ data }) => {
     const supabase = supabaseAdmin;
     const { data: insulation } = await supabase.from("coldpro_insulation_materials").select("id").eq("name", "PIR").limit(1).maybeSingle();
@@ -47,7 +47,7 @@ export const createColdProEnvironment = createServerFn({ method: "POST" })
   });
 
 export const updateColdProEnvironment = createServerFn({ method: "POST" })
-  .validator(z.object({ id: z.string().uuid(), patch: z.record(z.string(), z.unknown()) }))
+  .inputValidator(z.object({ id: z.string().uuid(), patch: z.record(z.string(), z.unknown()) }))
   .handler(async ({ data }) => {
     const supabase = supabaseAdmin;
     const patch = { ...data.patch } as any;
@@ -61,7 +61,7 @@ export const updateColdProEnvironment = createServerFn({ method: "POST" })
   });
 
 export const upsertColdProEnvironmentProduct = createServerFn({ method: "POST" })
-  .validator(z.object({
+  .inputValidator(z.object({
     id: z.string().uuid().optional(), environment_id: z.string().uuid(), product_name: z.string().min(1), mass_kg_day: z.number().default(0), mass_kg_hour: z.number().default(0), inlet_temp_c: z.number().default(0), outlet_temp_c: z.number().default(0), process_time_h: z.number().default(24), packaging_mass_kg_day: z.number().default(0), packaging_specific_heat_kcal_kg_c: z.number().default(0.4), specific_heat_above_kcal_kg_c: z.number().default(0), specific_heat_below_kcal_kg_c: z.number().default(0), latent_heat_kcal_kg: z.number().default(0), initial_freezing_temp_c: z.number().nullable().optional()
   }))
   .handler(async ({ data }) => {
@@ -72,7 +72,7 @@ export const upsertColdProEnvironmentProduct = createServerFn({ method: "POST" }
   });
 
 export const upsertColdProTunnel = createServerFn({ method: "POST" })
-  .validator(z.object({
+  .inputValidator(z.object({
     id: z.string().uuid().optional(), environment_id: z.string().uuid(), tunnel_type: z.string().default("blast_freezer"), operation_mode: z.string().default("continuous"), product_name: z.string().default("Produto"), product_thickness_mm: z.number().default(0), product_unit_weight_kg: z.number().default(0), units_per_cycle: z.number().default(0), cycles_per_hour: z.number().default(0), mass_kg_hour: z.number().default(0), inlet_temp_c: z.number().default(0), outlet_temp_c: z.number().default(-18), freezing_temp_c: z.number().nullable().optional(), air_temp_c: z.number().default(-35), air_velocity_m_s: z.number().default(3), process_time_min: z.number().default(60), specific_heat_above_kcal_kg_c: z.number().default(0.8), specific_heat_below_kcal_kg_c: z.number().default(0.4), latent_heat_kcal_kg: z.number().default(60), packaging_mass_kg_hour: z.number().default(0), packaging_specific_heat_kcal_kg_c: z.number().default(0.4), belt_motor_kw: z.number().default(0), internal_fans_kw: z.number().default(0), other_internal_kw: z.number().default(0)
   }))
   .handler(async ({ data }) => {
@@ -83,7 +83,7 @@ export const upsertColdProTunnel = createServerFn({ method: "POST" })
   });
 
 export const calculateColdProEnvironment = createServerFn({ method: "POST" })
-  .validator(z.object({ environmentId: z.string().uuid() }))
+  .inputValidator(z.object({ environmentId: z.string().uuid() }))
   .handler(async ({ data }) => {
     const supabase = supabaseAdmin;
     const { data: env, error: envError } = await supabase.from("coldpro_environments").select("*").eq("id", data.environmentId).single();
@@ -108,7 +108,7 @@ export const calculateColdProEnvironment = createServerFn({ method: "POST" })
   });
 
 export const autoSelectColdProEquipment = createServerFn({ method: "POST" })
-  .validator(z.object({ environmentId: z.string().uuid() }))
+  .inputValidator(z.object({ environmentId: z.string().uuid() }))
   .handler(async ({ data }) => {
     const supabase = supabaseAdmin;
     const { data: env, error: envError } = await supabase.from("coldpro_environments").select("*").eq("id", data.environmentId).single();
