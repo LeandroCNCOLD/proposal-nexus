@@ -29,6 +29,12 @@ import { ProposalCanvas } from "@/components/proposal-editor/ProposalCanvas";
 import { ProposalAttachmentsPanel } from "@/components/proposal-editor/ProposalAttachmentsPanel";
 import { ProposalVersionsPanel } from "@/components/proposal-editor/ProposalVersionsPanel";
 import { supabase } from "@/integrations/supabase/client";
+import { PageSizePicker } from "@/components/proposal-editor/PageSizePicker";
+import {
+  DEFAULT_PAGE_SIZE,
+  resolvePageSize,
+  type DocumentPageSize,
+} from "@/integrations/proposal-editor/page-sizes";
 
 export const Route = createFileRoute("/app/propostas/$id/editor")({
   component: ProposalEditorPage,
@@ -113,6 +119,17 @@ function ProposalEditorPage() {
   const [docFontFamily, setDocFontFamily] = useState<string>(
     () => (typeof window !== "undefined" && localStorage.getItem(`docFont:${id}`)) || "Inter, system-ui, sans-serif",
   );
+  const [pageSize, setPageSize] = useState<DocumentPageSize>(() => {
+    if (typeof window === "undefined") return DEFAULT_PAGE_SIZE;
+    try {
+      const raw = localStorage.getItem(`pageSize:${id}`);
+      if (raw) return JSON.parse(raw) as DocumentPageSize;
+    } catch {
+      /* ignore */
+    }
+    return DEFAULT_PAGE_SIZE;
+  });
+  const { wPx: pageWidthPx, hPx: pageHeightPx } = resolvePageSize(pageSize);
   const hydratedFor = useRef<string | null>(null);
 
   useEffect(() => {
