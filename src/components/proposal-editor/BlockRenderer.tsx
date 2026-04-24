@@ -1,8 +1,11 @@
 // Renderer de blocos do Page Builder. Cada bloco edita seus próprios dados
 // inline no canvas A4, e seu container externo (ProposalCanvas) faz o
 // posicionamento absoluto + drag/resize via react-rnd.
-import { useMemo } from "react";
-import { Trash2, Lock, Plus, Sparkles } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+import { Trash2, Lock, Plus, Sparkles, Upload, Loader2 } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
+import { uploadInlineImage } from "@/integrations/proposal-editor/inline-images.functions";
+import { toast } from "sonner";
 import type { DocumentBlock, BlockType } from "@/integrations/proposal-editor/types";
 import type {
   ProposalTemplate,
