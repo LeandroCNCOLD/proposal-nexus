@@ -21,6 +21,7 @@ import {
 } from "@/integrations/proposal-editor/template.functions";
 import type {
   ProposalTemplate,
+  TemplateAsset,
   TemplateBancario,
   TemplateCaseItem,
   TemplateDiferencial,
@@ -41,7 +42,7 @@ function TemplateEditorPage() {
     queryFn: () => getTemplate({ data: { templateId: id } }),
   });
 
-  const bundle = data as { template: ProposalTemplate; assets: Array<{ id: string; asset_kind: string; url: string; label: string | null; storage_path: string }> } | null | undefined;
+  const bundle = data as { template: ProposalTemplate; assets: TemplateAsset[] } | null | undefined;
   const [form, setForm] = useState<ProposalTemplate | null>(null);
 
   useEffect(() => {
