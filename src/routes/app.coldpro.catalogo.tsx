@@ -22,6 +22,7 @@ import {
   importParsedCatalog,
   type ImportProgress,
 } from "@/features/coldpro/catalog-import.functions";
+import { ColdProModelDetailDialog } from "@/components/coldpro/ColdProModelDetailDialog";
 
 export const Route = createFileRoute("/app/coldpro/catalogo")({
   component: CatalogoPage,
