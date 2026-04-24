@@ -1,12 +1,16 @@
 // Sidebar fina de páginas — lista, seleciona, reordena, oculta e adiciona páginas.
+import { useRef, useState } from "react";
 import {
   Eye,
   EyeOff,
   GripVertical,
+  Image as ImageIcon,
+  Loader2,
   Plus,
   Trash2,
   ChevronUp,
   ChevronDown,
+  Upload,
 } from "lucide-react";
 import {
   ADDABLE_PAGE_TYPES,
@@ -21,17 +25,24 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useServerFn } from "@tanstack/react-start";
+import { uploadInlineImage } from "@/integrations/proposal-editor/inline-images.functions";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 interface Props {
   pages: DocumentPage[];
   selectedId: string | null;
+  proposalId: string;
   onSelect: (id: string) => void;
   onChange: (next: DocumentPage[]) => void;
 }
 
-export function PageSidebar({ pages, selectedId, onSelect, onChange }: Props) {
+export function PageSidebar({ pages, selectedId, proposalId, onSelect, onChange }: Props) {
   const sorted = [...pages].sort((a, b) => a.order - b.order);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingPageId, setUploadingPageId] = useState<string | null>(null);
+  const uploadFn = useServerFn(uploadInlineImage);
 
   const move = (id: string, dir: -1 | 1) => {
     const idx = sorted.findIndex((p) => p.id === id);
@@ -58,6 +69,57 @@ export function PageSidebar({ pages, selectedId, onSelect, onChange }: Props) {
     ];
     onChange(next);
   };
+
+  const setPageBg = (
+    pageId: string,
+    patch: Partial<Pick<DocumentPage, "backgroundImageUrl" | "backgroundImagePath" | "backgroundImageFit">>,
+  ) => {
+    onChange(pages.map((p) => (p.id === pageId ? { ...p, ...patch } : p)));
+  };
+
+  const handleBgFile = async (pageId: string, file: File) => {
+    if (!file.type.startsWith("image/")) {
+      toast.error("Envie uma imagem (PNG, JPG, WEBP).");
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      toast.error("Imagem maior que 8 MB.");
+      return;
+    }
+    setUploadingPageId(pageId);
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => {
+          const s = r.result as string;
+          const i = s.indexOf(",");
+          resolve(i >= 0 ? s.slice(i + 1) : s);
+        };
+        r.onerror = () => reject(r.error);
+        r.readAsDataURL(file);
+      });
+      const res = await uploadFn({
+        data: {
+          proposalId,
+          filename: file.name,
+          contentBase64: base64,
+          mimeType: file.type || "image/png",
+        },
+      });
+      setPageBg(pageId, {
+        backgroundImagePath: res.path,
+        backgroundImageUrl: res.url,
+        backgroundImageFit: "cover",
+      });
+      toast.success("Imagem de fundo aplicada");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao subir imagem");
+    } finally {
+      setUploadingPageId(null);
+    }
+  };
+
+  const selectedPage = sorted.find((p) => p.id === selectedId) ?? null;
 
   return (
     <div className="flex h-full flex-col">
@@ -153,6 +215,90 @@ export function PageSidebar({ pages, selectedId, onSelect, onChange }: Props) {
           </div>
         ) : null}
       </div>
+
+      {/* Painel de imagem de fundo da página selecionada */}
+      {selectedPage ? (
+        <div className="border-t bg-muted/30 px-3 py-2.5">
+          <div className="mb-1.5 flex items-center justify-between">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Imagem de fundo
+            </span>
+            {selectedPage.backgroundImageUrl ? (
+              <button
+                type="button"
+                onClick={() =>
+                  setPageBg(selectedPage.id, {
+                    backgroundImageUrl: undefined,
+                    backgroundImagePath: undefined,
+                  })
+                }
+                className="text-[10px] text-destructive hover:underline"
+              >
+                Remover
+              </button>
+            ) : null}
+          </div>
+          {selectedPage.backgroundImageUrl ? (
+            <div className="mb-2 aspect-[1/1.414] w-full overflow-hidden rounded border bg-white">
+              <img
+                src={selectedPage.backgroundImageUrl}
+                alt=""
+                className={`h-full w-full ${selectedPage.backgroundImageFit === "contain" ? "object-contain" : "object-cover"}`}
+              />
+            </div>
+          ) : null}
+          <div className="flex items-center gap-1">
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 flex-1 text-[11px]"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploadingPageId === selectedPage.id}
+            >
+              {uploadingPageId === selectedPage.id ? (
+                <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+              ) : selectedPage.backgroundImageUrl ? (
+                <Upload className="mr-1 h-3 w-3" />
+              ) : (
+                <ImageIcon className="mr-1 h-3 w-3" />
+              )}
+              {selectedPage.backgroundImageUrl ? "Substituir" : "Enviar imagem"}
+            </Button>
+            {selectedPage.backgroundImageUrl ? (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 px-2 text-[11px]"
+                onClick={() =>
+                  setPageBg(selectedPage.id, {
+                    backgroundImageFit:
+                      selectedPage.backgroundImageFit === "contain" ? "cover" : "contain",
+                  })
+                }
+                title="Alternar entre preencher (cover) e caber (contain)"
+              >
+                {selectedPage.backgroundImageFit === "contain" ? "Caber" : "Preencher"}
+              </Button>
+            ) : null}
+          </div>
+          <p className="mt-1.5 text-[9px] leading-tight text-muted-foreground">
+            A imagem cobre toda a página A4 e fica atrás dos blocos. Ideal para capas, contracapas
+            ou layouts pictóricos. Para reaproveitar em todas as propostas, configure em{" "}
+            <strong>Templates de Proposta</strong>.
+          </p>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f && selectedPage) handleBgFile(selectedPage.id, f);
+              e.target.value = "";
+            }}
+          />
+        </div>
+      ) : null}
     </div>
   );
 }

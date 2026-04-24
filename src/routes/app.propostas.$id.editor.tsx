@@ -351,6 +351,7 @@ function ProposalEditorPage() {
             <PageSidebar
               pages={pages}
               selectedId={selectedId}
+              proposalId={id}
               onSelect={setSelectedId}
               onChange={handlePagesChange}
             />

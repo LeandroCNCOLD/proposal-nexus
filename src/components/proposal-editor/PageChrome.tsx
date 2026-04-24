@@ -9,15 +9,47 @@ interface Props {
   pageType: PageType;
   pageNumber: number;
   totalPages: number;
+  /** Imagem de fundo customizada da página (sobrepõe o chrome padrão). */
+  backgroundImageUrl?: string;
+  backgroundImageFit?: "cover" | "contain";
 }
 
 function findAsset(assets: TemplateAsset[], kind: string): TemplateAsset | undefined {
   return assets.find((a) => a.asset_kind === kind);
 }
 
-export function PageChrome({ template, assets, pageType, pageNumber, totalPages }: Props) {
+export function PageChrome({ template, assets, pageType, pageNumber, totalPages, backgroundImageUrl, backgroundImageFit = "cover" }: Props) {
   const primary = template?.primary_color ?? "#0c2340";
   const accent = template?.accent_color ?? "#2d8a9e";
+
+  // Se a página tem imagem de fundo personalizada, ela domina o A4 (substitui chrome).
+  if (backgroundImageUrl) {
+    return (
+      <div className="absolute inset-0 bg-white">
+        <img
+          src={backgroundImageUrl}
+          alt=""
+          className={`absolute inset-0 h-full w-full ${backgroundImageFit === "contain" ? "object-contain" : "object-cover"}`}
+          draggable={false}
+        />
+      </div>
+    );
+  }
+
+  if (pageType === "custom-bg") {
+    // Página criada para receber imagem de fundo, ainda sem upload.
+    return (
+      <div
+        className="absolute inset-0 flex items-center justify-center text-center text-xs text-muted-foreground"
+        style={{ background: "repeating-linear-gradient(45deg,#f8fafc,#f8fafc 12px,#eef2f7 12px,#eef2f7 24px)" }}
+      >
+        <div className="rounded-md border border-dashed bg-white/90 p-4">
+          Página com imagem de fundo<br />
+          <span className="text-[10px]">Selecione esta página na barra lateral e use <strong>Imagem de fundo</strong> para enviar a arte.</span>
+        </div>
+      </div>
+    );
+  }
 
   if (pageType === "cover") {
     const coverAsset = findAsset(assets, "cover_full");

@@ -193,6 +193,8 @@ export function ProposalCanvas({
               pageType={page.type}
               pageNumber={idx + 1}
               totalPages={sorted.length}
+              backgroundImageUrl={page.backgroundImageUrl}
+              backgroundImageFit={page.backgroundImageFit}
             />
 
             {/* Camada de blocos posicionados absolutamente */}
