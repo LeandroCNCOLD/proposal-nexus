@@ -41,11 +41,12 @@ function TemplateEditorPage() {
     queryFn: () => getTemplate({ data: { templateId: id } }),
   });
 
+  const bundle = data as { template: ProposalTemplate; assets: Array<{ id: string; asset_kind: string; url: string; label: string | null; storage_path: string }> } | null | undefined;
   const [form, setForm] = useState<ProposalTemplate | null>(null);
 
   useEffect(() => {
-    if (data?.template) setForm(data.template);
-  }, [data]);
+    if (bundle?.template) setForm(bundle.template);
+  }, [bundle]);
 
   const saveMutation = useMutation({
     mutationFn: async (patch: Partial<ProposalTemplate>) =>

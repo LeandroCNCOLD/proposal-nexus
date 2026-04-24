@@ -4,6 +4,7 @@ import { Image, Text, View } from "@react-pdf/renderer";
 import type { DocumentBlock } from "../types";
 import type { ProposalTable } from "../types";
 import type { ProposalTemplate } from "../template.types";
+import { normalizeDadosBancarios } from "../template.types";
 import type { PdfStyles, PdfTheme } from "./styles";
 import { fmtCurrency, fmtDateBR, fmtNumber } from "./utils";
 import { renderRichHtml } from "./rich-text";
@@ -142,7 +143,7 @@ export function renderBlock(block: DocumentBlock, ctx: BlockRenderContext): Reac
     }
 
     case "bank_data": {
-      const banks = template?.dados_bancarios ?? [];
+      const banks = normalizeDadosBancarios(template?.dados_bancarios);
       if (banks.length === 0) return null;
       return (
         <View key={key}>
