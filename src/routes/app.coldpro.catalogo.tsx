@@ -11,7 +11,11 @@ import {
 import {
   Upload, FileSpreadsheet, CheckCircle2, AlertTriangle, Database,
   Loader2, ArrowLeft, History, Layers, Thermometer,
+  ChevronLeft, ChevronRight, FolderTree,
 } from "lucide-react";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -39,6 +43,10 @@ function CatalogoPage() {
   const [search, setSearch] = useState("");
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
 
+  const [pageSize, setPageSize] = useState<number>(20);
+  const [page, setPage] = useState<number>(1);
+  const [groupByLine, setGroupByLine] = useState<boolean>(false);
+
   // Lista de modelos do catálogo
   const modelsQuery = useQuery({
     queryKey: ["coldpro-models"],
@@ -46,8 +54,9 @@ function CatalogoPage() {
       const { data, error } = await supabase
         .from("coldpro_equipment_models")
         .select("id, modelo, linha, designacao_hp, refrigerante, gabinete, tipo_degelo, active, created_at")
-        .order("modelo")
-        .limit(500);
+        .order("linha", { ascending: true, nullsFirst: false })
+        .order("modelo", { ascending: true })
+        .limit(5000);
       if (error) throw error;
       return data;
     },
@@ -122,6 +131,23 @@ function CatalogoPage() {
       m.refrigerante?.toLowerCase().includes(q)
     );
   });
+
+  // Reset de página quando filtros mudam
+  const totalPages = Math.max(1, Math.ceil(filteredModels.length / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const pagedModels = filteredModels.slice((safePage - 1) * pageSize, safePage * pageSize);
+
+  // Agrupamento por linha (aplicado sobre página atual)
+  const groupedModels = (() => {
+    if (!groupByLine) return null;
+    const map = new Map<string, typeof pagedModels>();
+    for (const m of pagedModels) {
+      const key = m.linha ?? "Sem linha";
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(m);
+    }
+    return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+  })();
 
   return (
     <div className="space-y-6 p-6">
@@ -275,18 +301,28 @@ function CatalogoPage() {
 
         {/* Modelos no catálogo */}
         <Card className="p-6">
-          <div className="mb-4 flex items-center justify-between">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <Layers className="h-5 w-5 text-primary" />
               <h2 className="text-lg font-semibold">Modelos no catálogo</h2>
               <Badge variant="secondary">{modelsQuery.data?.length ?? 0}</Badge>
             </div>
-            <Input
-              placeholder="Buscar modelo, linha ou refrigerante..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="max-w-xs"
-            />
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                variant={groupByLine ? "default" : "outline"}
+                size="sm"
+                onClick={() => { setGroupByLine((v) => !v); setPage(1); }}
+              >
+                <FolderTree className="mr-1.5 h-4 w-4" />
+                Agrupar por linha
+              </Button>
+              <Input
+                placeholder="Buscar modelo, linha ou refrigerante..."
+                value={search}
+                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                className="max-w-xs"
+              />
+            </div>
           </div>
 
           {modelsQuery.isLoading ? (
@@ -300,44 +336,133 @@ function CatalogoPage() {
               <p className="text-sm">Nenhum modelo cadastrado ainda. Importe a planilha acima para começar.</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Modelo</TableHead>
-                    <TableHead>Linha</TableHead>
-                    <TableHead>HP</TableHead>
-                    <TableHead>Refrigerante</TableHead>
-                    <TableHead>Gabinete</TableHead>
-                    <TableHead>Degelo</TableHead>
-                    <TableHead className="text-right">Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredModels.map((m) => (
-                    <TableRow
-                      key={m.id}
-                      className="cursor-pointer hover:bg-muted/50"
-                      onClick={() => setSelectedModelId(m.id)}
-                    >
-                      <TableCell className="font-medium text-primary">{m.modelo}</TableCell>
-                      <TableCell>{m.linha ?? "—"}</TableCell>
-                      <TableCell>{m.designacao_hp ?? "—"}</TableCell>
-                      <TableCell>{m.refrigerante ?? "—"}</TableCell>
-                      <TableCell>{m.gabinete ?? "—"}</TableCell>
-                      <TableCell>{m.tipo_degelo ?? "—"}</TableCell>
-                      <TableCell className="text-right">
-                        {m.active ? (
-                          <Badge variant="default" className="bg-emerald-600">Ativo</Badge>
-                        ) : (
-                          <Badge variant="secondary">Inativo</Badge>
-                        )}
-                      </TableCell>
+            <>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Modelo</TableHead>
+                      <TableHead>Linha</TableHead>
+                      <TableHead>HP</TableHead>
+                      <TableHead>Refrigerante</TableHead>
+                      <TableHead>Gabinete</TableHead>
+                      <TableHead>Degelo</TableHead>
+                      <TableHead className="text-right">Status</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                  </TableHeader>
+                  <TableBody>
+                    {groupedModels
+                      ? groupedModels.map(([linha, items]) => (
+                          <>
+                            <TableRow key={`group-${linha}`} className="bg-muted/40 hover:bg-muted/40">
+                              <TableCell colSpan={7} className="py-2 font-semibold text-sm">
+                                <span className="inline-flex items-center gap-2">
+                                  <FolderTree className="h-4 w-4 text-primary" />
+                                  {linha}
+                                  <Badge variant="secondary">{items.length}</Badge>
+                                </span>
+                              </TableCell>
+                            </TableRow>
+                            {items.map((m) => (
+                              <TableRow
+                                key={m.id}
+                                className="cursor-pointer hover:bg-muted/50"
+                                onClick={() => setSelectedModelId(m.id)}
+                              >
+                                <TableCell className="font-medium text-primary pl-8">{m.modelo}</TableCell>
+                                <TableCell>{m.linha ?? "—"}</TableCell>
+                                <TableCell>{m.designacao_hp ?? "—"}</TableCell>
+                                <TableCell>{m.refrigerante ?? "—"}</TableCell>
+                                <TableCell>{m.gabinete ?? "—"}</TableCell>
+                                <TableCell>{m.tipo_degelo ?? "—"}</TableCell>
+                                <TableCell className="text-right">
+                                  {m.active ? (
+                                    <Badge variant="default" className="bg-emerald-600">Ativo</Badge>
+                                  ) : (
+                                    <Badge variant="secondary">Inativo</Badge>
+                                  )}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </>
+                        ))
+                      : pagedModels.map((m) => (
+                          <TableRow
+                            key={m.id}
+                            className="cursor-pointer hover:bg-muted/50"
+                            onClick={() => setSelectedModelId(m.id)}
+                          >
+                            <TableCell className="font-medium text-primary">{m.modelo}</TableCell>
+                            <TableCell>{m.linha ?? "—"}</TableCell>
+                            <TableCell>{m.designacao_hp ?? "—"}</TableCell>
+                            <TableCell>{m.refrigerante ?? "—"}</TableCell>
+                            <TableCell>{m.gabinete ?? "—"}</TableCell>
+                            <TableCell>{m.tipo_degelo ?? "—"}</TableCell>
+                            <TableCell className="text-right">
+                              {m.active ? (
+                                <Badge variant="default" className="bg-emerald-600">Ativo</Badge>
+                              ) : (
+                                <Badge variant="secondary">Inativo</Badge>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Paginação */}
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm">
+                <div className="text-muted-foreground">
+                  Mostrando{" "}
+                  <span className="font-medium text-foreground">
+                    {(safePage - 1) * pageSize + 1}
+                    {" – "}
+                    {Math.min(safePage * pageSize, filteredModels.length)}
+                  </span>{" "}
+                  de{" "}
+                  <span className="font-medium text-foreground">{filteredModels.length}</span> modelos
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-muted-foreground">Por página:</span>
+                  <Select
+                    value={String(pageSize)}
+                    onValueChange={(v) => { setPageSize(Number(v)); setPage(1); }}
+                  >
+                    <SelectTrigger className="w-[90px] h-8">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="20">20</SelectItem>
+                      <SelectItem value="30">30</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                      <SelectItem value="100">100</SelectItem>
+                      <SelectItem value="9999">Todos</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={safePage <= 1}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <span className="min-w-[80px] text-center text-muted-foreground">
+                    Página {safePage} / {totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={safePage >= totalPages}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </>
           )}
         </Card>
 
