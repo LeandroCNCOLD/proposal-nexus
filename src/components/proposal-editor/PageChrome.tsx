@@ -54,7 +54,7 @@ export function PageChrome({ template, assets, pageType, pageNumber, totalPages,
   if (pageType === "cover") {
     const coverAsset = findAsset(assets, "cover_full");
     return (
-      <div className="absolute inset-0">
+      <div className="pointer-events-none absolute inset-0">
         {coverAsset ? (
           <img
             src={coverAsset.url}
