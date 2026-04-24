@@ -74,7 +74,17 @@ export function PageSidebar({ pages, selectedId, proposalId, onSelect, onChange 
 
   const setPageBg = (
     pageId: string,
-    patch: Partial<Pick<DocumentPage, "backgroundImageUrl" | "backgroundImagePath" | "backgroundImageFit">>,
+    patch: Partial<
+      Pick<
+        DocumentPage,
+        | "backgroundImageUrl"
+        | "backgroundImagePath"
+        | "backgroundImageFit"
+        | "hideHeader"
+        | "hideFooter"
+        | "footerText"
+      >
+    >,
   ) => {
     onChange(pages.map((p) => (p.id === pageId ? { ...p, ...patch } : p)));
   };
@@ -248,7 +258,17 @@ function SelectedPagePanel({
   uploadingPageId: string | null;
   onSetBg: (
     pageId: string,
-    patch: Partial<Pick<DocumentPage, "backgroundImageUrl" | "backgroundImagePath" | "backgroundImageFit">>,
+    patch: Partial<
+      Pick<
+        DocumentPage,
+        | "backgroundImageUrl"
+        | "backgroundImagePath"
+        | "backgroundImageFit"
+        | "hideHeader"
+        | "hideFooter"
+        | "footerText"
+      >
+    >,
   ) => void;
   onUpload: (pageId: string, file: File) => void;
   fileInputRef: React.RefObject<HTMLInputElement | null>;
