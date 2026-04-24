@@ -2,7 +2,7 @@
 // inline no canvas A4, e seu container externo (ProposalCanvas) faz o
 // posicionamento absoluto + drag/resize via react-rnd.
 import { useMemo, useRef, useState } from "react";
-import { Trash2, Lock, Plus, Sparkles, Upload, Loader2 } from "lucide-react";
+import { Trash2, Lock, Plus, Sparkles, Upload, Loader2, ChevronsUp, ChevronsDown, ChevronUp, ChevronDown } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { uploadInlineImage } from "@/integrations/proposal-editor/inline-images.functions";
 import { toast } from "sonner";
@@ -36,6 +36,10 @@ interface Props {
   onChange: (next: DocumentBlock) => void;
   onDelete: () => void;
   onDuplicate: () => void;
+  onBringForward: () => void;
+  onSendBackward: () => void;
+  onBringToFront: () => void;
+  onSendToBack: () => void;
 }
 
 /** Valores dinâmicos preenchidos a partir da proposta + Nomus. */
@@ -61,6 +65,10 @@ export function BlockRenderer({
   onChange,
   onDelete,
   onDuplicate,
+  onBringForward,
+  onSendBackward,
+  onBringToFront,
+  onSendToBack,
 }: Props) {
   const setData = (patch: Record<string, unknown>) =>
     onChange({ ...block, data: { ...block.data, ...patch } });
@@ -159,6 +167,43 @@ export function BlockRenderer({
             title="Duplicar bloco"
           >
             Duplicar
+          </Button>
+          <span className="mx-1 text-muted-foreground/50">·</span>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-6 w-6 p-0"
+            onClick={onSendToBack}
+            title="Enviar para trás de tudo"
+          >
+            <ChevronsDown className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-6 w-6 p-0"
+            onClick={onSendBackward}
+            title="Voltar uma camada"
+          >
+            <ChevronDown className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-6 w-6 p-0"
+            onClick={onBringForward}
+            title="Trazer uma camada para frente"
+          >
+            <ChevronUp className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-6 w-6 p-0"
+            onClick={onBringToFront}
+            title="Trazer para frente de tudo"
+          >
+            <ChevronsUp className="h-3.5 w-3.5" />
           </Button>
           {!block.locked ? (
             <Button
