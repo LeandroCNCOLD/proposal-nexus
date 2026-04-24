@@ -17,7 +17,8 @@ import { ALL_STATUSES, STATUS_LABELS, TEMPERATURE_LABELS, type ProposalStatus } 
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
-import { nomusCreatePedido, generateProposalFile, sendProposalFile } from "@/integrations/nomus/server.functions";
+import { nomusCreatePedido, sendProposalFile } from "@/integrations/nomus/server.functions";
+import { createProposalSendVersion } from "@/integrations/proposal-editor/server.functions";
 import { NomusProposalDetail } from "@/components/NomusProposalDetail";
 
 export const Route = createFileRoute("/app/propostas/$id/")({ component: ProposalDetail });
@@ -52,7 +53,7 @@ function ProposalDetail() {
   });
 
   const createPedido = useServerFn(nomusCreatePedido);
-  const generateFile = useServerFn(generateProposalFile);
+  const generateFile = useServerFn(createProposalSendVersion);
   const sendFile = useServerFn(sendProposalFile);
 
   const { data: versions = [] } = useQuery({
