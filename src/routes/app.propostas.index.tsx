@@ -158,21 +158,26 @@ function ProposalsList() {
               <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-12">Carregando...</TableCell></TableRow>
             ) : filtered.length === 0 ? (
               <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-12">Nenhuma proposta encontrada.</TableCell></TableRow>
-            ) : filtered.map((p) => (
+            ) : filtered.map((p) => {
+              const parsed = parseTitle(p.title);
+              const displayNumber = parsed.cn || p.number;
+              const displayClient = (p.clients as any)?.name ?? parsed.client ?? "—";
+              return (
               <TableRow key={p.id} className="cursor-pointer">
                 <TableCell className="font-mono text-xs">
-                  <Link to="/app/propostas/$id" params={{ id: p.id }} className="hover:text-primary">{p.number}</Link>
+                  <Link to="/app/propostas/$id" params={{ id: p.id }} className="hover:text-primary">{displayNumber}</Link>
                 </TableCell>
                 <TableCell className="font-medium max-w-xs truncate">
-                  <Link to="/app/propostas/$id" params={{ id: p.id }}>{p.title}</Link>
+                  <Link to="/app/propostas/$id" params={{ id: p.id }}>{displayClient}</Link>
                 </TableCell>
-                <TableCell className="text-sm">{(p.clients as any)?.name ?? "—"}</TableCell>
+                <TableCell className="text-sm">{(p.clients as any)?.name ?? parsed.client ?? "—"}</TableCell>
                 <TableCell><StatusBadge status={p.status as ProposalStatus} /></TableCell>
                 <TableCell className="text-right tabular-nums font-medium">{brl(Number(p.total_value ?? 0))}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">{dateBR(p.valid_until)}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">{dateBR((p as any)._nomus?.criada_em_nomus ?? (p as any)._nomus?.data_emissao ?? p.created_at)}</TableCell>
               </TableRow>
-            ))}
+              );
+            })}
           </TableBody>
         </Table>
       </div>
