@@ -295,6 +295,11 @@ export function ColdProModelDetailDialog({ modelId, open, onOpenChange }: Props)
                   <p className="mt-1 text-sm">{m.notes}</p>
                 </div>
               )}
+
+              <CommercialFeaturesBlock
+                features={normalizeCommercialFeatures(m.commercial_features)}
+                source={m.commercial_description_source as string | null}
+              />
             </TabsContent>
 
             <TabsContent value="images" className="mt-4">
