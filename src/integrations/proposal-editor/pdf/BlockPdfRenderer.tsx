@@ -246,8 +246,20 @@ export function renderBlock(block: DocumentBlock, ctx: BlockRenderContext): Reac
         label: overrides[f.key]?.label ?? f.label,
         value: overrides[f.key]?.value ?? f.value,
       }));
+      // Respeita layout.background: "white" pinta fundo branco; "transparent" (default) deixa só o conteúdo.
+      const bgKind = (block.data.layout as { background?: string } | undefined)?.background;
+      const fillBg = bgKind === "white" ? "#ffffff" : undefined;
       return (
-        <View key={key} style={{ width: "100%", padding: 6, gap: 4 }}>
+        <View
+          key={key}
+          style={{
+            width: "100%",
+            padding: 6,
+            gap: 4,
+            backgroundColor: fillBg,
+            borderRadius: fillBg ? 4 : undefined,
+          }}
+        >
           {items.map((it) => (
             <View
               key={it.key}
