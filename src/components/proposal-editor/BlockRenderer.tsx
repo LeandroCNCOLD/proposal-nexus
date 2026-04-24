@@ -570,26 +570,35 @@ function BlockBody({
     case "proposal_number_box": {
       const hasCustomFs = typeof block.data.fontSize === "number";
       return (
-        <div className="flex h-full flex-col justify-center text-right leading-tight">
-          <p
-            className="uppercase tracking-widest opacity-60"
-            style={{ fontSize: hasCustomFs ? "0.6em" : "10px" }}
+        <div className="flex h-full flex-wrap items-baseline justify-end gap-x-2 gap-y-0.5 leading-tight">
+          <span
+            className="font-semibold uppercase tracking-wider opacity-70"
+            style={{ fontSize: hasCustomFs ? "0.7em" : "11px" }}
           >
-            Proposta Nº
-          </p>
-          <p
-            className={hasCustomFs ? "font-bold leading-tight" : "text-2xl font-bold leading-tight"}
-            style={{ color: "inherit", fontSize: hasCustomFs ? "1.4em" : undefined }}
+            Proposta Nº:
+          </span>
+          <span
+            className={hasCustomFs ? "font-bold" : "text-xl font-bold"}
+            style={{ color: "inherit", fontSize: hasCustomFs ? "1.1em" : undefined }}
           >
             {proposalContext.proposal_number ?? "—"}
-          </p>
+          </span>
           {proposalContext.data_emissao ? (
-            <p
-              className="opacity-70"
-              style={{ fontSize: hasCustomFs ? "0.65em" : "10px" }}
-            >
-              {proposalContext.data_emissao}
-            </p>
+            <>
+              <span className="basis-full" aria-hidden />
+              <span
+                className="font-semibold uppercase tracking-wider opacity-70"
+                style={{ fontSize: hasCustomFs ? "0.65em" : "10px" }}
+              >
+                Emissão:
+              </span>
+              <span
+                className="opacity-90"
+                style={{ fontSize: hasCustomFs ? "0.85em" : "11px" }}
+              >
+                {proposalContext.data_emissao}
+              </span>
+            </>
           ) : null}
         </div>
       );
@@ -601,26 +610,26 @@ function BlockBody({
       const value = resolveDynamicField(fieldKey, proposalContext, template);
       const hasCustomFs = typeof block.data.fontSize === "number";
       return (
-        <div className="group/df flex h-full flex-col justify-center leading-tight">
-          <p
-            className="uppercase tracking-widest opacity-60"
-            style={{ fontSize: hasCustomFs ? "0.55em" : "9px" }}
+        <div className="group/df relative flex h-full flex-wrap items-baseline gap-x-2 gap-y-0.5 leading-tight">
+          <span
+            className="shrink-0 font-semibold uppercase tracking-wider opacity-70"
+            style={{ fontSize: hasCustomFs ? "0.7em" : "11px" }}
           >
-            {label}
-          </p>
-          <p
-            className={hasCustomFs ? "font-semibold leading-tight" : "text-lg font-semibold leading-tight"}
-            style={{ color: "inherit", fontSize: hasCustomFs ? "1.1em" : undefined }}
+            {label}:
+          </span>
+          <span
+            className={hasCustomFs ? "min-w-0 flex-1 font-semibold" : "min-w-0 flex-1 text-base font-semibold"}
+            style={{ color: "inherit", fontSize: hasCustomFs ? "1em" : undefined }}
           >
             {value || "—"}
-          </p>
+          </span>
           {/* Editor de chave — só aparece em hover/seleção pra não roubar espaço do conteúdo */}
           <Input
             value={fieldKey}
             disabled={locked}
             onChange={(e) => setData({ fieldKey: e.target.value })}
             placeholder="ex: client_name"
-            className="absolute bottom-1 left-1 right-1 mt-1 h-5 w-auto text-[9px] opacity-0 transition group-hover/df:opacity-80 focus:opacity-100"
+            className="absolute bottom-0 left-0 right-0 h-5 w-auto text-[9px] opacity-0 transition group-hover/df:opacity-80 focus:opacity-100"
             onMouseDown={(e) => e.stopPropagation()}
           />
         </div>
