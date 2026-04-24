@@ -141,11 +141,35 @@ function CrmPage() {
       if (!started.ok) throw new Error(started.error);
 
       let last = started.job;
-      for (let guard = 0; guard < 120; guard += 1) {
-        const batch = await processSyncBatch({ data: { jobId: started.job.id, maxPages: 1 } });
-        if (!batch.ok) throw new Error(batch.error);
-        last = batch.job;
-        if (batch.done) break;
+      let consecutiveTimeouts = 0;
+      const MAX_CONSECUTIVE_TIMEOUTS = 3;
+
+      for (let guard = 0; guard < 200; guard += 1) {
+        try {
+          const batch = await processSyncBatch({ data: { jobId: started.job.id, maxPages: 1 } });
+          if (!batch.ok) {
+            // Erro reportado pelo handler — não insistir cegamente
+            throw new Error(batch.error);
+          }
+          consecutiveTimeouts = 0;
+          last = batch.job;
+          if (batch.done) break;
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          // 504 da gateway: o batch provavelmente continuou rodando no servidor.
+          // Esperamos um pouco e re-tentamos para retomar do ponto onde parou.
+          if (msg.includes("upstream request timeout") || msg.includes("504")) {
+            consecutiveTimeouts += 1;
+            if (consecutiveTimeouts >= MAX_CONSECUTIVE_TIMEOUTS) {
+              throw new Error(
+                "A API do Nomus está respondendo muito devagar. A sincronização foi pausada — tente novamente em alguns instantes.",
+              );
+            }
+            await new Promise((r) => setTimeout(r, 3000));
+            continue;
+          }
+          throw e;
+        }
       }
       if (last?.status !== "completed") {
         throw new Error("A sincronização foi pausada antes de concluir. Tente novamente para continuar.");
