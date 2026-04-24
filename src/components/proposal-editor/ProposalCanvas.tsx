@@ -318,6 +318,14 @@ export function ProposalCanvas({
                         onDelete={() => deleteBlock(page.id, block.id)}
                         onDuplicate={() => duplicateBlock(page.id, block.id)}
                       />
+                      {selected && block.type === "container" ? (
+                        <ContainerToolbar
+                          container={block}
+                          children={page.blocks.filter((b) => isInsideContainer(b, block))}
+                          onUpdateBlocks={(next) => updateManyBlocks(page.id, next)}
+                          onUpdateContainer={(next) => updateBlock(page.id, next)}
+                        />
+                      ) : null}
                     </Rnd>
                   );
                 })}
