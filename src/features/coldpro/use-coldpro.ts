@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { listColdProProjects, createColdProProject, getColdProProjectBundle, createColdProEnvironment, updateColdProEnvironment, upsertColdProEnvironmentProduct, upsertColdProTunnel, calculateColdProEnvironment, autoSelectColdProEquipment } from "./coldpro.functions";
+import { pushColdProToProposal } from "./push-coldpro-to-proposal.functions";
 
 export function useColdProProjects() {
   return useQuery({ queryKey: ["coldpro-projects"], queryFn: () => listColdProProjects() });
@@ -34,4 +35,12 @@ export function useCalculateColdProEnvironment(projectId: string) {
 export function useAutoSelectColdProEquipment(projectId: string) {
   const qc = useQueryClient();
   return useMutation({ mutationFn: (environmentId: string) => autoSelectColdProEquipment({ data: { environmentId } }), onSuccess: () => qc.invalidateQueries({ queryKey: ["coldpro-project", projectId] }) });
+}
+export function usePushColdProToProposal(projectId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (mode: "append" | "replace_coldpro_items" = "append") =>
+      pushColdProToProposal({ data: { projectId, mode } }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["coldpro-project", projectId] }),
+  });
 }
