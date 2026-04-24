@@ -536,7 +536,12 @@ export function RichTextEditor({
 
   return (
     <div className={cn("rounded-md border bg-background", className)}>
-      <Toolbar editor={editor} minimal={minimal} onPickImage={handlePickImage} />
+      <Toolbar
+        editor={editor}
+        minimal={minimal}
+        onPickImage={handlePickImage}
+        aiContextHint={aiContextHint}
+      />
       <EditorContent editor={editor} />
       {proposalId && (
         <input
