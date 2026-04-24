@@ -87,8 +87,10 @@ export function BlockRenderer({
     if (layout?.color) s.color = layout.color;
     if (layout?.fontScale) s.fontSize = `${layout.fontScale}em`;
     if (layout?.align) s.textAlign = layout.align;
+    const ff = block.data.fontFamily as string | undefined;
+    if (ff) s.fontFamily = ff;
     return s;
-  }, [layout, template?.primary_color]);
+  }, [layout, template?.primary_color, block.data.fontFamily]);
 
   return (
     <div
