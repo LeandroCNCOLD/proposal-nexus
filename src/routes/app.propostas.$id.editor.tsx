@@ -39,6 +39,8 @@ function ProposalEditorPage() {
   const saveDoc = useServerFn(upsertProposalDocument);
   const setTpl = useServerFn(setProposalDocumentTemplate);
   const autoFill = useServerFn(autoFillFromNomus);
+  const genPdf = useServerFn(generateProposalPdf);
+  const createVersion = useServerFn(createProposalSendVersion);
   const listTpls = useServerFn(listTemplates);
 
   const { data, isLoading } = useQuery({
