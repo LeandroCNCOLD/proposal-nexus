@@ -163,11 +163,16 @@ export type ParsedRow = {
     model: string | null;
     tube_in: number | null;
     tube_mm: number | null;
+    tube_outer_mm: number | null;
+    tube_inner_mm: number | null;
     tube_thickness: number | null;
+    tube_length_m: number | null;
+    tube_count: number | null;
     geometry: string | null;
     volume: number | null;
     fan: string | null;
     airflow: number | null;
+    air_throw: number | null;
   };
   // Evaporador
   evaporator: {
@@ -175,13 +180,18 @@ export type ParsedRow = {
     reheat: string | null;
     tube_in: number | null;
     tube_mm: number | null;
+    tube_outer_mm: number | null;
+    tube_inner_mm: number | null;
     tube_thickness: number | null;
+    tube_length_m: number | null;
+    tube_count: number | null;
     geometry: string | null;
     volume: number | null;
     area: number | null;
     qty: number | null;
     fan: string | null;
     airflow: number | null;
+    air_throw: number | null;
   };
   // Performance
   performance: {
