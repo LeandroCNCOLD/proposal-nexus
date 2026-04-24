@@ -146,10 +146,12 @@ function CrmPage() {
     enabled: !!activeTab,
   });
 
-  // Botão de sincronização
+  // Botão de sincronização — só do funil ativo, pra caber no timeout do Worker.
   const pullMutation = useMutation({
     mutationFn: async () => {
-      const r = await pull({ data: {} });
+      const r = await pull({
+        data: activeTab ? { tipos: [activeTab], maxItems: 500 } : { maxItems: 500 },
+      });
       if (!r.ok) throw new Error(r.error);
       return r;
     },
