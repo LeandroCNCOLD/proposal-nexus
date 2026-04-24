@@ -673,72 +673,108 @@ export type Database = {
           air_throw_m: number | null
           airflow_m3_h: number | null
           calculated_internal_volume_l: number | null
+          circuits: number | null
           complementary_source: string | null
           complementary_source_sheet: string | null
           condenser_model: string | null
+          corrected_internal_volume_l: number | null
           created_at: string
           equipment_model_id: string
           fan_diameter_mm: number | null
           fan_model: string | null
+          fin_spacing_mm: number | null
           geometry: string | null
           id: string
           internal_volume_l: number | null
+          occupancy_factor: number | null
+          occupied_internal_volume_l: number | null
+          rows: number | null
+          total_tube_length_m: number | null
+          total_tubes: number | null
           tube_count: number | null
           tube_diameter_in: number | null
           tube_diameter_mm: number | null
           tube_inner_diameter_mm: number | null
           tube_length_m: number | null
+          tube_length_mm: number | null
           tube_outer_diameter_mm: number | null
           tube_thickness_mm: number | null
           tube_wall_thickness_mm: number | null
+          tubes_per_circuit: number | null
+          tubes_per_row: number | null
+          volume_correction_factor: number | null
         }
         Insert: {
           air_application_height_m?: number | null
           air_throw_m?: number | null
           airflow_m3_h?: number | null
           calculated_internal_volume_l?: number | null
+          circuits?: number | null
           complementary_source?: string | null
           complementary_source_sheet?: string | null
           condenser_model?: string | null
+          corrected_internal_volume_l?: number | null
           created_at?: string
           equipment_model_id: string
           fan_diameter_mm?: number | null
           fan_model?: string | null
+          fin_spacing_mm?: number | null
           geometry?: string | null
           id?: string
           internal_volume_l?: number | null
+          occupancy_factor?: number | null
+          occupied_internal_volume_l?: number | null
+          rows?: number | null
+          total_tube_length_m?: number | null
+          total_tubes?: number | null
           tube_count?: number | null
           tube_diameter_in?: number | null
           tube_diameter_mm?: number | null
           tube_inner_diameter_mm?: number | null
           tube_length_m?: number | null
+          tube_length_mm?: number | null
           tube_outer_diameter_mm?: number | null
           tube_thickness_mm?: number | null
           tube_wall_thickness_mm?: number | null
+          tubes_per_circuit?: number | null
+          tubes_per_row?: number | null
+          volume_correction_factor?: number | null
         }
         Update: {
           air_application_height_m?: number | null
           air_throw_m?: number | null
           airflow_m3_h?: number | null
           calculated_internal_volume_l?: number | null
+          circuits?: number | null
           complementary_source?: string | null
           complementary_source_sheet?: string | null
           condenser_model?: string | null
+          corrected_internal_volume_l?: number | null
           created_at?: string
           equipment_model_id?: string
           fan_diameter_mm?: number | null
           fan_model?: string | null
+          fin_spacing_mm?: number | null
           geometry?: string | null
           id?: string
           internal_volume_l?: number | null
+          occupancy_factor?: number | null
+          occupied_internal_volume_l?: number | null
+          rows?: number | null
+          total_tube_length_m?: number | null
+          total_tubes?: number | null
           tube_count?: number | null
           tube_diameter_in?: number | null
           tube_diameter_mm?: number | null
           tube_inner_diameter_mm?: number | null
           tube_length_m?: number | null
+          tube_length_mm?: number | null
           tube_outer_diameter_mm?: number | null
           tube_thickness_mm?: number | null
           tube_wall_thickness_mm?: number | null
+          tubes_per_circuit?: number | null
+          tubes_per_row?: number | null
+          volume_correction_factor?: number | null
         }
         Relationships: [
           {
@@ -756,81 +792,117 @@ export type Database = {
           air_throw_m: number | null
           airflow_m3_h: number | null
           calculated_internal_volume_l: number | null
+          circuits: number | null
           complementary_source: string | null
           complementary_source_sheet: string | null
+          corrected_internal_volume_l: number | null
           created_at: string
           equipment_model_id: string
           evaporator_model: string | null
           evaporator_quantity: number | null
           fan_diameter_mm: number | null
           fan_model: string | null
+          fin_spacing_mm: number | null
           geometry: string | null
           id: string
           internal_volume_l: number | null
+          occupancy_factor: number | null
+          occupied_internal_volume_l: number | null
           reheating: string | null
+          rows: number | null
           surface_area_m2: number | null
+          total_tube_length_m: number | null
+          total_tubes: number | null
           tube_count: number | null
           tube_diameter_in: number | null
           tube_diameter_mm: number | null
           tube_inner_diameter_mm: number | null
           tube_length_m: number | null
+          tube_length_mm: number | null
           tube_outer_diameter_mm: number | null
           tube_thickness_mm: number | null
           tube_wall_thickness_mm: number | null
+          tubes_per_circuit: number | null
+          tubes_per_row: number | null
+          volume_correction_factor: number | null
         }
         Insert: {
           air_application_height_m?: number | null
           air_throw_m?: number | null
           airflow_m3_h?: number | null
           calculated_internal_volume_l?: number | null
+          circuits?: number | null
           complementary_source?: string | null
           complementary_source_sheet?: string | null
+          corrected_internal_volume_l?: number | null
           created_at?: string
           equipment_model_id: string
           evaporator_model?: string | null
           evaporator_quantity?: number | null
           fan_diameter_mm?: number | null
           fan_model?: string | null
+          fin_spacing_mm?: number | null
           geometry?: string | null
           id?: string
           internal_volume_l?: number | null
+          occupancy_factor?: number | null
+          occupied_internal_volume_l?: number | null
           reheating?: string | null
+          rows?: number | null
           surface_area_m2?: number | null
+          total_tube_length_m?: number | null
+          total_tubes?: number | null
           tube_count?: number | null
           tube_diameter_in?: number | null
           tube_diameter_mm?: number | null
           tube_inner_diameter_mm?: number | null
           tube_length_m?: number | null
+          tube_length_mm?: number | null
           tube_outer_diameter_mm?: number | null
           tube_thickness_mm?: number | null
           tube_wall_thickness_mm?: number | null
+          tubes_per_circuit?: number | null
+          tubes_per_row?: number | null
+          volume_correction_factor?: number | null
         }
         Update: {
           air_application_height_m?: number | null
           air_throw_m?: number | null
           airflow_m3_h?: number | null
           calculated_internal_volume_l?: number | null
+          circuits?: number | null
           complementary_source?: string | null
           complementary_source_sheet?: string | null
+          corrected_internal_volume_l?: number | null
           created_at?: string
           equipment_model_id?: string
           evaporator_model?: string | null
           evaporator_quantity?: number | null
           fan_diameter_mm?: number | null
           fan_model?: string | null
+          fin_spacing_mm?: number | null
           geometry?: string | null
           id?: string
           internal_volume_l?: number | null
+          occupancy_factor?: number | null
+          occupied_internal_volume_l?: number | null
           reheating?: string | null
+          rows?: number | null
           surface_area_m2?: number | null
+          total_tube_length_m?: number | null
+          total_tubes?: number | null
           tube_count?: number | null
           tube_diameter_in?: number | null
           tube_diameter_mm?: number | null
           tube_inner_diameter_mm?: number | null
           tube_length_m?: number | null
+          tube_length_mm?: number | null
           tube_outer_diameter_mm?: number | null
           tube_thickness_mm?: number | null
           tube_wall_thickness_mm?: number | null
+          tubes_per_circuit?: number | null
+          tubes_per_row?: number | null
+          volume_correction_factor?: number | null
         }
         Relationships: [
           {
@@ -4148,6 +4220,14 @@ export type Database = {
     }
     Functions: {
       _parse_nomus_date: { Args: { s: string }; Returns: string }
+      coldpro_calculate_coil_volume_l: {
+        Args: {
+          p_correction_factor?: number
+          p_inner_diameter_mm: number
+          p_total_tube_length_m: number
+        }
+        Returns: number
+      }
       coldpro_calculate_tube_volume_l: {
         Args: {
           p_inner_diameter_mm: number
@@ -4156,6 +4236,7 @@ export type Database = {
         }
         Returns: number
       }
+      coldpro_parse_coil_model: { Args: { p_model: string }; Returns: Json }
       has_any_role: {
         Args: {
           _roles: Database["public"]["Enums"]["app_role"][]
