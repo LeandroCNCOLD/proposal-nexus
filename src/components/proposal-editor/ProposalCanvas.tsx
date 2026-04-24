@@ -344,6 +344,7 @@ export function ProposalCanvas({
                           children={page.blocks.filter((b) => isInsideContainer(b, block))}
                           onUpdateBlocks={(next) => updateManyBlocks(page.id, next)}
                           onUpdateContainer={(next) => updateBlock(page.id, next)}
+                          onDeleteWithChildren={() => deleteContainerWithChildren(page.id, block.id)}
                         />
                       ) : null}
                     </Rnd>
