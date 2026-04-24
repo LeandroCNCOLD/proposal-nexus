@@ -215,7 +215,78 @@ export function ColdProModelDetailDialog({ modelId, open, onOpenChange }: Props)
               )}
             </TabsContent>
 
-            {/* Curva de performance */}
+            {/* Elétrico */}
+            <TabsContent value="electrical" className="mt-4">
+              {data.perfPoints.length === 0 ? (
+                <EmptyBlock label="Sem dados elétricos. Importe pontos de performance para ver as informações elétricas." />
+              ) : (
+                (() => {
+                  const elec = aggregateElectrical(data.perfPoints);
+                  return (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                        <Field label="Tensão" value={elec.voltages.join(" / ") || "—"} />
+                        <Field label="Pot. compressor (kW)" value={elec.compPowerRange} />
+                        <Field label="Pot. ventiladores (kW)" value={elec.fanPowerRange} />
+                        <Field label="Pot. total (kW)" value={elec.totalPowerRange} />
+                        <Field label="Corrente compressor (A)" value={elec.compCurrentRange} />
+                        <Field label="Corrente ventiladores (A)" value={elec.fanCurrentRange} />
+                        <Field label="Corrente nominal estim. (A)" value={elec.estCurrentRange} />
+                        <Field label="Corrente de partida (A)" value={elec.startCurrentRange} />
+                        <Field label="Carga de fluido (kg)" value={elec.fluidChargeRange} />
+                      </div>
+
+                      <div className="rounded-md border">
+                        <div className="border-b bg-muted/30 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                          Detalhamento por ponto de operação
+                        </div>
+                        <div className="overflow-x-auto">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead className="text-right">T. Evap (°C)</TableHead>
+                                <TableHead className="text-right">T. Cond (°C)</TableHead>
+                                <TableHead>Tensão</TableHead>
+                                <TableHead className="text-right">I. Comp (A)</TableHead>
+                                <TableHead className="text-right">I. Vent (A)</TableHead>
+                                <TableHead className="text-right">I. Nom. (A)</TableHead>
+                                <TableHead className="text-right">I. Partida (A)</TableHead>
+                                <TableHead className="text-right">P. Comp (kW)</TableHead>
+                                <TableHead className="text-right">P. Vent (kW)</TableHead>
+                                <TableHead className="text-right">P. Total (kW)</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {data.perfPoints.map((p) => (
+                                <TableRow key={p.id}>
+                                  <TableCell className="text-right">{fmt(p.evaporation_temp_c)}</TableCell>
+                                  <TableCell className="text-right">{fmt(p.condensation_temp_c)}</TableCell>
+                                  <TableCell>{p.voltage ?? "—"}</TableCell>
+                                  <TableCell className="text-right">{fmt(p.compressor_current_a, 2)}</TableCell>
+                                  <TableCell className="text-right">{fmt(p.fan_current_a, 2)}</TableCell>
+                                  <TableCell className="text-right">{fmt(p.estimated_current_a, 2)}</TableCell>
+                                  <TableCell className="text-right">{fmt(p.starting_current_a, 1)}</TableCell>
+                                  <TableCell className="text-right">{fmt(p.compressor_power_kw, 2)}</TableCell>
+                                  <TableCell className="text-right">{fmt(p.fan_power_kw, 2)}</TableCell>
+                                  <TableCell className="text-right font-medium">{fmt(p.total_power_kw, 2)}</TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      </div>
+
+                      <div className="rounded-md border bg-amber-500/5 border-amber-500/30 p-3 text-xs text-muted-foreground">
+                        💡 Dica para dimensionamento de cabos: use a <strong>corrente nominal estimada</strong> mais alta como base
+                        e a <strong>corrente de partida</strong> para selecionar disjuntores e dispositivos de proteção.
+                      </div>
+                    </div>
+                  );
+                })()
+              )}
+            </TabsContent>
+
+
             <TabsContent value="performance" className="mt-4">
               {data.perfPoints.length === 0 ? (
                 <EmptyBlock label="Nenhum ponto de curva cadastrado para este modelo." />
