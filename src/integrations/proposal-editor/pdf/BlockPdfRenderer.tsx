@@ -23,6 +23,9 @@ export function renderBlock(block: DocumentBlock, ctx: BlockRenderContext): Reac
 
   switch (block.type) {
     case "container": {
+      const printVisible = (block.data.printVisible as boolean | undefined) ?? true;
+      // Container marcado como "não imprime" — apenas organiza no editor.
+      if (!printVisible) return null;
       const title = (block.data.title as string | undefined) ?? block.title;
       const borderColor = (block.data.borderColor as string | undefined) ?? "#cbd5e1";
       const borderWidth = (block.data.borderWidth as number | undefined) ?? 1;
