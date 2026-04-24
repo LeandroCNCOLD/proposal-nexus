@@ -107,9 +107,14 @@ export function BlockRenderer({
     return s;
   }, [layout, template?.primary_color, block.data.fontFamily, block.data.fontSize]);
 
+  const hasCustomFontSize =
+    typeof block.data.fontSize === "number" && (block.data.fontSize as number) > 0;
+
   return (
     <div
-      className={`group relative h-full w-full rounded-md transition ${cardBg} ${
+      className={`group relative h-full w-full overflow-hidden rounded-md transition ${cardBg} ${
+        hasCustomFontSize ? "pe-inherit-font" : ""
+      } ${
         selected
           ? "outline outline-2 outline-primary ring-2 ring-primary/30"
           : "outline-dashed outline-1 outline-transparent hover:outline-2 hover:outline-primary/70 hover:bg-primary/5 hover:shadow-[0_0_0_4px_rgba(59,130,246,0.15)]"
