@@ -432,8 +432,8 @@ export const autoFillFromNomus = createServerFn({ method: "POST" })
   });
 
 /**
- * Geração de PDF temporariamente desativada — será reimplementada na próxima fase
- * para o novo schema de blocos.
+ * Gera o PDF da proposta usando o novo renderer baseado em blocos.
+ * Sobe para storage `proposal-pdfs` e retorna URL assinada.
  */
 const generateSchema = z.object({
   proposalId: z.string().uuid(),
@@ -443,9 +443,95 @@ const generateSchema = z.object({
 export const generateProposalPdf = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => generateSchema.parse(input))
-  .handler(async ({ data }) => {
-    void data;
-    throw new Error(
-      "Geração de PDF está sendo refatorada para o novo Page Builder. Disponível em breve.",
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const { proposalId, mode } = data;
+
+    // Carrega proposta + cliente
+    const { data: proposal, error: pErr } = await supabase
+      .from("proposals")
+      .select(
+        "id, number, title, valid_until, created_at, clients:client_id(name, trade_name)",
+      )
+      .eq("id", proposalId)
+      .single();
+    if (pErr || !proposal) throw new Error(pErr?.message ?? "Proposta não encontrada.");
+
+    // Documento (páginas + blocos)
+    const { data: doc, error: dErr } = await supabase
+      .from("proposal_documents")
+      .select("*")
+      .eq("proposal_id", proposalId)
+      .maybeSingle();
+    if (dErr) throw new Error(dErr.message);
+    if (!doc) throw new Error("Abra o editor da proposta antes de gerar o PDF.");
+
+    // Tabelas estruturadas
+    const { data: tables } = await supabase
+      .from("proposal_tables")
+      .select("*")
+      .eq("proposal_id", proposalId);
+
+    // Template (cores, dados bancários, branding)
+    let template = null;
+    if (doc.template_id) {
+      const { data: tpl } = await supabase
+        .from("proposal_templates")
+        .select("*")
+        .eq("id", doc.template_id)
+        .maybeSingle();
+      template = tpl;
+    } else {
+      const bundle = await loadDefaultTemplateBundle(supabase);
+      template = bundle?.template ?? null;
+    }
+
+    // Renderiza
+    const { renderToBuffer } = await import("@react-pdf/renderer");
+    const { ProposalPdfDocument } = await import("./pdf/ProposalPdfDocument");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const cliente = (proposal as any).clients;
+
+    const buffer = await renderToBuffer(
+      ProposalPdfDocument({
+        data: {
+          proposal: {
+            id: proposal.id,
+            number: proposal.number,
+            title: proposal.title,
+            valid_until: proposal.valid_until,
+            created_at: proposal.created_at,
+            client_name: cliente?.trade_name ?? cliente?.name ?? null,
+          },
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          pages: (doc.pages as any) ?? [],
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          tables: (tables as any) ?? [],
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          template: template as any,
+        },
+      }) as never,
     );
+
+    // Upload
+    const ts = Date.now();
+    const path = `${proposalId}/${mode}-${ts}.pdf`;
+    const { error: upErr } = await supabase.storage
+      .from("proposal-pdfs")
+      .upload(path, buffer, {
+        contentType: "application/pdf",
+        upsert: true,
+      });
+    if (upErr) throw new Error(`Falha ao salvar PDF: ${upErr.message}`);
+
+    const { data: signed, error: sErr } = await supabase.storage
+      .from("proposal-pdfs")
+      .createSignedUrl(path, 60 * 60); // 1h
+    if (sErr) throw new Error(`Falha ao gerar URL: ${sErr.message}`);
+
+    return {
+      url: signed.signedUrl,
+      path,
+      mode,
+    };
   });
