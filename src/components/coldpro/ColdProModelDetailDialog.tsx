@@ -103,7 +103,7 @@ export function ColdProModelDetailDialog({ modelId, open, onOpenChange }: Props)
           </div>
         ) : (
           <Tabs defaultValue="overview" className="mt-2">
-            <TabsList className="grid w-full grid-cols-5">
+            <TabsList className="grid w-full grid-cols-6">
               <TabsTrigger value="overview">
                 <Info className="mr-1 h-4 w-4" />
                 Geral
@@ -119,6 +119,10 @@ export function ColdProModelDetailDialog({ modelId, open, onOpenChange }: Props)
               <TabsTrigger value="evaporator">
                 <Snowflake className="mr-1 h-4 w-4" />
                 Evaporador
+              </TabsTrigger>
+              <TabsTrigger value="electrical">
+                <Zap className="mr-1 h-4 w-4" />
+                Elétrico
               </TabsTrigger>
               <TabsTrigger value="performance">
                 <Activity className="mr-1 h-4 w-4" />
