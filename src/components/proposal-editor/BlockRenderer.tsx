@@ -231,8 +231,15 @@ export function BlockRenderer({
         </div>
       ) : null}
 
-      {/* Conteúdo do bloco */}
-      <div className="h-full w-full overflow-hidden p-3">
+      {/* Conteúdo do bloco — padding adapta ao tamanho da fonte para não cortar conteúdo */}
+      <div
+        className="h-full w-full overflow-hidden"
+        style={{
+          padding: hasCustomFontSize
+            ? `${Math.max(2, Math.min(8, ((block.data.fontSize as number) ?? 12) / 3))}px`
+            : "12px",
+        }}
+      >
         <BlockBody
           block={block}
           template={template}
