@@ -246,7 +246,8 @@ function CandidateCard({
       </div>
 
       <div className="mt-3 text-[11px] text-muted-foreground">
-        Ponto de curva: Tevap {fmt(candidate.point_used.evaporation_temp_c)}°C · Tcond {fmt(candidate.point_used.condensation_temp_c)}°C
+        {candidate.point_used.polynomial ? "Curva polinomial" : "Ponto de curva"}: Tevap {fmt(candidate.point_used.evaporation_temp_c)}°C · Tcond {fmt(candidate.point_used.condensation_temp_c)}°C
+        {candidate.point_used.polynomial_r2 !== null && ` · R² ${fmt(candidate.point_used.polynomial_r2, 3)}`}
         {candidate.point_used.interpolated && " · interpolado"}
       </div>
 
