@@ -125,6 +125,16 @@ export function ProposalCanvas({
     });
   };
 
+  /** Atualiza vários blocos de uma página de uma só vez (preserva os demais). */
+  const updateManyBlocks = (pageId: string, updated: DocumentBlock[]) => {
+    const map = new Map(updated.map((b) => [b.id, b]));
+    updatePage(pageId, {
+      blocks: (pages.find((p) => p.id === pageId)?.blocks ?? []).map(
+        (b) => map.get(b.id) ?? b,
+      ),
+    });
+  };
+
   const deleteBlock = (pageId: string, blockId: string) => {
     updatePage(pageId, {
       blocks: (pages.find((p) => p.id === pageId)?.blocks ?? [])
