@@ -305,6 +305,15 @@ function ProposalsList() {
                 <TableCell className="text-sm">{representante}</TableCell>
                 <TableCell className="text-sm">{vendedor}</TableCell>
                 <TableCell><StatusBadge status={p.status as ProposalStatus} /></TableCell>
+                <TableCell>
+                  <span
+                    title={`${sla.detail}${p.next_followup_at ? ` · próx. follow-up ${dateBR(p.next_followup_at)}` : ""}`}
+                    className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium ${slaClasses[sla.level]}`}
+                  >
+                    <span className={`h-1.5 w-1.5 rounded-full ${slaDot[sla.level]}`} />
+                    {sla.label}
+                  </span>
+                </TableCell>
                 <TableCell className="text-right tabular-nums font-medium">{brl(Number(p.total_value ?? 0))}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">{dateBR(p.valid_until)}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">{dateBR((p as any)._nomus?.criada_em_nomus ?? (p as any)._nomus?.data_emissao ?? p.created_at)}</TableCell>
