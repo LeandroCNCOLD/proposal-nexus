@@ -135,6 +135,7 @@ function ProposalEditorPage() {
         toast.error(res.error);
         return;
       }
+      qc.invalidateQueries({ queryKey: ["proposal-send-versions", id] });
       toast.success(`Versão v${res.version_number} gerada`);
     },
     onError: (e: Error) => toast.error(e.message),
