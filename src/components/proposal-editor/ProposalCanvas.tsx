@@ -340,11 +340,13 @@ export function ProposalCanvas({
                         })
                       }
                       onClick={(e: React.MouseEvent) => {
+                         if (isLockedCoverOverlay) return;
                         e.stopPropagation();
                         onSelectBlock(block.id);
                       }}
                       style={{
                          zIndex: isLockedCoverOverlay ? 0 : selected ? 1000 : block.order + 10,
+                         pointerEvents: isLockedCoverOverlay ? "none" : "auto",
                       }}
                     >
                       <BlockRenderer
