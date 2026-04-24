@@ -600,3 +600,12 @@ function ModelRow({ m, indent, onClick }: { m: ModelRowData; indent?: boolean; o
     </TableRow>
   );
 }
+
+function splitEquipmentTypes(value: string | null): string[] {
+  if (!value) return ["—"];
+  const types = value
+    .split("/")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  return types.length ? types : [value];
+}
