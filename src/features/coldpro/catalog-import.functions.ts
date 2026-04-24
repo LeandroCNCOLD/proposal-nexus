@@ -230,7 +230,7 @@ export async function importParsedCatalog(
       const slice = perfRows.slice(i, i + batchSize);
       const { error } = await supabase
         .from("coldpro_equipment_performance_points")
-        .insert(slice);
+        .insert(slice as never);
       if (error) throw new Error(`Falha insert performance: ${error.message}`);
       perfPoints += slice.length;
     }
