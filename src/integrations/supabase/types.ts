@@ -374,6 +374,11 @@ export type Database = {
           process_time_h: number
           product_id: string | null
           product_name: string
+          respiration_rate_0c_w_kg: number | null
+          respiration_rate_10c_w_kg: number | null
+          respiration_rate_15c_w_kg: number | null
+          respiration_rate_20c_w_kg: number | null
+          respiration_rate_5c_w_kg: number | null
           specific_heat_above_kcal_kg_c: number
           specific_heat_below_kcal_kg_c: number
         }
@@ -394,6 +399,11 @@ export type Database = {
           process_time_h?: number
           product_id?: string | null
           product_name: string
+          respiration_rate_0c_w_kg?: number | null
+          respiration_rate_10c_w_kg?: number | null
+          respiration_rate_15c_w_kg?: number | null
+          respiration_rate_20c_w_kg?: number | null
+          respiration_rate_5c_w_kg?: number | null
           specific_heat_above_kcal_kg_c?: number
           specific_heat_below_kcal_kg_c?: number
         }
@@ -414,6 +424,11 @@ export type Database = {
           process_time_h?: number
           product_id?: string | null
           product_name?: string
+          respiration_rate_0c_w_kg?: number | null
+          respiration_rate_10c_w_kg?: number | null
+          respiration_rate_15c_w_kg?: number | null
+          respiration_rate_20c_w_kg?: number | null
+          respiration_rate_5c_w_kg?: number | null
           specific_heat_above_kcal_kg_c?: number
           specific_heat_below_kcal_kg_c?: number
         }
