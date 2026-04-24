@@ -239,6 +239,31 @@ function ProposalEditorPage() {
             )}
             Salvar
           </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => previewMut.mutate()}
+            disabled={previewMut.isPending}
+          >
+            {previewMut.isPending ? (
+              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Eye className="mr-1.5 h-3.5 w-3.5" />
+            )}
+            Pré-visualizar PDF
+          </Button>
+          <Button
+            size="sm"
+            onClick={() => versionMut.mutate()}
+            disabled={versionMut.isPending}
+          >
+            {versionMut.isPending ? (
+              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <FileCheck className="mr-1.5 h-3.5 w-3.5" />
+            )}
+            Gerar nova versão
+          </Button>
         </div>
       </div>
 
