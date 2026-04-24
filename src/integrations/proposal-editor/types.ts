@@ -65,10 +65,31 @@ export interface BlockLayout {
   h: number;
   fontScale?: number;
   align?: "left" | "center" | "right";
-  /** Estilo do "card" do bloco no canvas (não afeta PDF). */
+  /** Estilo legado do "card" do bloco. Usado como fallback quando bgMode não está definido. */
   background?: "white" | "transparent" | "primary" | "muted";
   /** Cor explícita do texto. */
   color?: string;
+  // ===== Editor de caixa avançado (refletido no editor e no PDF) =====
+  /** Tipo de fundo: nenhum (transparente), cor sólida ou gradiente linear. */
+  bgMode?: "none" | "solid" | "gradient";
+  /** Cor de fundo sólida (hex). */
+  bgColor?: string;
+  /** Cor inicial do gradiente. */
+  bgGradientFrom?: string;
+  /** Cor final do gradiente. */
+  bgGradientTo?: string;
+  /** Ângulo do gradiente (graus). */
+  bgGradientAngle?: number;
+  /** Opacidade do fundo (0-100). */
+  bgOpacity?: number;
+  /** Raio das bordas em px. */
+  borderRadius?: number;
+  /** Espessura da borda em px (0 = sem borda). */
+  borderWidth?: number;
+  /** Cor da borda. */
+  borderColor?: string;
+  /** Estilo da borda. */
+  borderStyle?: "solid" | "dashed" | "dotted";
 }
 
 export interface DocumentBlock {

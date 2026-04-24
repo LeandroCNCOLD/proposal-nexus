@@ -25,6 +25,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { RichTextEditor } from "./RichTextEditor";
+import { BoxStyleEditor, layoutToBoxStyle } from "./BoxStyleEditor";
 
 interface Props {
   block: DocumentBlock;
@@ -80,16 +81,28 @@ export function BlockRenderer({
   }, [block.source]);
 
   const layout = block.data.layout;
+  // Quando há configuração avançada (bgMode/borderWidth/etc), o estilo é aplicado
+  // diretamente via inline-style, e desabilitamos as classes legadas para não conflitar.
+  const hasAdvancedBox =
+    !!layout && (
+      layout.bgMode !== undefined ||
+      layout.borderWidth !== undefined ||
+      layout.borderRadius !== undefined ||
+      layout.bgOpacity !== undefined
+    );
   const cardBg = useMemo(() => {
+    if (hasAdvancedBox) return "";
     const bg = layout?.background ?? "transparent";
     if (bg === "white") return "bg-white shadow-sm";
     if (bg === "primary") return "text-white";
     if (bg === "muted") return "bg-muted/60";
     return "";
-  }, [layout?.background]);
+  }, [layout?.background, hasAdvancedBox]);
   const cardStyle: React.CSSProperties = useMemo(() => {
     const s: React.CSSProperties = {};
-    if (layout?.background === "primary") {
+    if (hasAdvancedBox) {
+      Object.assign(s, layoutToBoxStyle(layout, template?.primary_color ?? undefined));
+    } else if (layout?.background === "primary") {
       s.background = template?.primary_color ?? "#0c2340";
     }
     if (layout?.color) s.color = layout.color;
@@ -105,7 +118,7 @@ export function BlockRenderer({
       s.lineHeight = 1.25;
     }
     return s;
-  }, [layout, template?.primary_color, block.data.fontFamily, block.data.fontSize]);
+  }, [layout, template?.primary_color, block.data.fontFamily, block.data.fontSize, hasAdvancedBox]);
 
   const hasCustomFontSize =
     typeof block.data.fontSize === "number" && (block.data.fontSize as number) > 0;
@@ -171,23 +184,12 @@ export function BlockRenderer({
             </button>
           ))}
           <span className="mx-1 text-muted-foreground/50">·</span>
-          {/* Fundo do bloco — alterna entre Branco e Transparente.
-              Útil para esconder a "caixa" no PDF e exibir só o conteúdo. */}
-          {(["white", "transparent"] as const).map((bg) => (
-            <button
-              key={bg}
-              type="button"
-              className={`rounded px-1.5 text-[10px] ${
-                (layout?.background ?? "transparent") === bg
-                  ? "bg-primary text-primary-foreground"
-                  : "hover:bg-muted"
-              }`}
-              onClick={() => setData({ layout: { ...layout!, background: bg } })}
-              title={bg === "white" ? "Fundo branco (caixa visível)" : "Fundo transparente (sem caixa)"}
-            >
-              {bg === "white" ? "▭ Caixa" : "◌ Sem caixa"}
-            </button>
-          ))}
+          {/* Editor avançado de caixa: fundo (transparente/sólido/gradiente),
+              opacidade, raio e borda — refletido no editor e no PDF. */}
+          <BoxStyleEditor
+            layout={layout}
+            onChange={(nextLayout) => setData({ layout: nextLayout })}
+          />
           <span className="mx-1 text-muted-foreground/50">·</span>
           <Button
             size="sm"
