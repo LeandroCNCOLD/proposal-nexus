@@ -491,6 +491,22 @@ export function ContainerToolbar({
           </div>
         </DropdownMenuContent>
       </DropdownMenu>
+
+      <span className="mx-0.5 text-muted-foreground/40">|</span>
+
+      <ToolBtn
+        title={`Excluir caixa e ${children.length} item(ns) dentro`}
+        onClick={() => {
+          const msg =
+            children.length > 0
+              ? `Excluir esta caixa e os ${children.length} item(ns) dentro dela?`
+              : "Excluir esta caixa?";
+          if (typeof window !== "undefined" && !window.confirm(msg)) return;
+          onDeleteWithChildren();
+        }}
+      >
+        <Trash2 className="h-3.5 w-3.5 text-destructive" />
+      </ToolBtn>
     </div>
   );
 }
