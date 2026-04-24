@@ -304,6 +304,7 @@ export function ColdProModelDetailDialog({ modelId, open, onOpenChange }: Props)
                     key={kind}
                     kind={kind}
                     path={m[IMAGE_FIELD_BY_KIND[kind] as keyof typeof m] as string | null}
+                    paths={(m[IMAGE_GALLERY_FIELD_BY_KIND[kind] as keyof typeof m] as string[] | null) ?? []}
                     uploading={imageMutation.isPending}
                     onSelect={(file) => imageMutation.mutate({ kind, file })}
                   />
