@@ -43,19 +43,7 @@ function parseBrDateTime(input: unknown): string | null {
   return null;
 }
 
-/** Resolve o cliente local pelo nome (campo `pessoa` do Nomus). */
-async function resolveClienteIdByName(pessoa: string | null): Promise<string | null> {
-  if (!pessoa) return null;
-  const trimmed = pessoa.trim();
-  if (!trimmed) return null;
-  const { data } = await supabaseAdmin
-    .from("clients")
-    .select("id")
-    .ilike("name", trimmed)
-    .limit(1)
-    .maybeSingle();
-  return data?.id ?? null;
-}
+// (resolveClienteIdByName removido — agora resolvido em batch dentro do handler)
 
 type NomusProcessRaw = {
   id?: number | string;
