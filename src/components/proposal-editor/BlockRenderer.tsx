@@ -310,6 +310,8 @@ function BlockBody({
   proposalContext,
   proposalId,
   pageId,
+  pageTitle,
+  pageType,
   selected,
   setData,
   onChange,
@@ -320,6 +322,8 @@ function BlockBody({
   proposalContext: ProposalDynamicContext;
   proposalId?: string;
   pageId?: string;
+  pageTitle?: string;
+  pageType?: string;
   selected: boolean;
   setData: (patch: Record<string, unknown>) => void;
   onChange: (next: DocumentBlock) => void;
