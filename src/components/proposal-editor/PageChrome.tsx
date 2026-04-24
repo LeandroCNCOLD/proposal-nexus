@@ -81,7 +81,7 @@ export function PageChrome({ template, assets, pageType, pageNumber, totalPages,
     const backAsset = findAsset(assets, "back_cover");
     const logoAsset = findAsset(assets, "logo");
     return (
-      <div className="absolute inset-0">
+      <div className="pointer-events-none absolute inset-0">
         {backAsset ? (
           <img src={backAsset.url} alt="" className="absolute inset-0 h-full w-full object-cover" draggable={false} />
         ) : (
