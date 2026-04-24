@@ -343,3 +343,179 @@ export const uploadTemplateAsset = createServerFn({ method: "POST" })
       storagePath,
     };
   });
+
+/* ============================================================ */
+/*  Salvar layout da proposta como TEMPLATE reutilizável         */
+/* ============================================================ */
+
+const PROPOSAL_FILES_BUCKET = "proposal-files";
+
+/**
+ * Cria (ou atualiza) um template a partir do layout atual de uma proposta.
+ * Copia as imagens de fundo das páginas (proposal-files → proposal-template-assets)
+ * para que o template seja reutilizável em outras propostas.
+ */
+const saveAsTemplateSchema = z.object({
+  proposalId: z.string().uuid(),
+  name: z.string().min(1).max(120),
+  description: z.string().max(500).optional(),
+  /** Quando informado, atualiza um template existente ao invés de criar novo. */
+  templateId: z.string().uuid().optional(),
+});
+
+export const saveProposalAsTemplate = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => saveAsTemplateSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+
+    // 1. Carrega o documento da proposta com pages
+    const { data: doc, error: docErr } = await supabase
+      .from("proposal_documents")
+      .select("pages, template_id")
+      .eq("proposal_id", data.proposalId)
+      .maybeSingle();
+    if (docErr) throw new Error(docErr.message);
+    if (!doc) throw new Error("Proposta sem documento.");
+
+    const pages = (doc.pages ?? []) as Array<Record<string, unknown>>;
+
+    // 2. Decide template alvo: novo ou existente
+    let targetId = data.templateId;
+
+    if (!targetId) {
+      // Cria novo, herdando dados visuais do template atual da proposta (se houver)
+      let baseTpl: Record<string, unknown> = {};
+      if (doc.template_id) {
+        const { data: src } = await supabase
+          .from("proposal_templates")
+          .select("*")
+          .eq("id", doc.template_id)
+          .maybeSingle();
+        if (src) {
+          baseTpl = { ...(src as unknown as Record<string, unknown>) };
+          delete baseTpl.id;
+          delete baseTpl.created_at;
+          delete baseTpl.updated_at;
+        }
+      }
+      const { data: created, error: insErr } = await supabase
+        .from("proposal_templates")
+        .insert({
+          ...baseTpl,
+          name: data.name,
+          description: data.description ?? null,
+          is_default: false,
+          is_active: true,
+          created_by: userId,
+        } as never)
+        .select("id")
+        .single();
+      if (insErr) throw new Error(insErr.message);
+      targetId = (created as { id: string }).id;
+    }
+
+    // 3. Copia imagens de fundo das páginas para o bucket público de templates.
+    //    pages que apontam para "proposal-files" são copiadas; outras ficam.
+    const copiedPages = await Promise.all(
+      pages.map(async (page) => {
+        const path = page.backgroundImagePath as string | undefined;
+        if (!path) return page;
+        // Se já está no bucket de templates, mantém
+        if (path.startsWith("template-bg/")) return page;
+        try {
+          const { data: blob, error: dlErr } = await supabase.storage
+            .from(PROPOSAL_FILES_BUCKET)
+            .download(path);
+          if (dlErr || !blob) return page;
+          const ext = path.split(".").pop() || "bin";
+          const newPath = `template-bg/${targetId}/${crypto.randomUUID()}.${ext}`;
+          const buf = new Uint8Array(await blob.arrayBuffer());
+          const { error: upErr } = await supabase.storage
+            .from(TEMPLATE_BUCKET)
+            .upload(newPath, buf, {
+              contentType: blob.type || "image/png",
+              upsert: true,
+            });
+          if (upErr) return page;
+          const { data: pub } = supabase.storage
+            .from(TEMPLATE_BUCKET)
+            .getPublicUrl(newPath);
+          return {
+            ...page,
+            backgroundImagePath: newPath,
+            backgroundImageUrl: pub.publicUrl,
+          };
+        } catch {
+          return page;
+        }
+      }),
+    );
+
+    // 4. Salva o snapshot completo em pages_template
+    const { error: updErr } = await supabase
+      .from("proposal_templates")
+      .update({
+        pages_template: copiedPages as never,
+        ...(data.templateId ? { name: data.name, description: data.description ?? null } : {}),
+      } as never)
+      .eq("id", targetId);
+    if (updErr) throw new Error(updErr.message);
+
+    return { templateId: targetId, pageCount: copiedPages.length };
+  });
+
+/**
+ * Aplica o pages_template de um modelo na proposta atual (substitui as páginas).
+ * Mantém referências às imagens de fundo do bucket público de templates.
+ */
+const applyTemplateLayoutSchema = z.object({
+  proposalId: z.string().uuid(),
+  templateId: z.string().uuid(),
+});
+
+export const applyTemplateLayoutToProposal = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => applyTemplateLayoutSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+
+    const { data: tpl, error: tplErr } = await supabase
+      .from("proposal_templates")
+      .select("pages_template")
+      .eq("id", data.templateId)
+      .maybeSingle();
+    if (tplErr) throw new Error(tplErr.message);
+    if (!tpl) throw new Error("Template não encontrado.");
+
+    const pages = (tpl.pages_template ?? []) as Array<Record<string, unknown>>;
+    if (!Array.isArray(pages) || pages.length === 0) {
+      throw new Error("Este template ainda não tem um layout salvo.");
+    }
+
+    // Gera novos IDs para evitar colisões caso o usuário aplique o mesmo template
+    // múltiplas vezes ou edite após aplicar.
+    const stamp = Date.now().toString(36);
+    const reIded = pages.map((p, i) => ({
+      ...p,
+      id: `page-${stamp}-${i}`,
+      blocks: Array.isArray(p.blocks)
+        ? (p.blocks as Array<Record<string, unknown>>).map((b, j) => ({
+            ...b,
+            id: `blk-${stamp}-${i}-${j}`,
+          }))
+        : [],
+    }));
+
+    const { error } = await supabase
+      .from("proposal_documents")
+      .update({
+        pages: reIded as never,
+        last_edited_by: userId,
+        last_edited_at: new Date().toISOString(),
+      } as never)
+      .eq("proposal_id", data.proposalId);
+    if (error) throw new Error(error.message);
+
+    return { ok: true, pageCount: reIded.length };
+  });

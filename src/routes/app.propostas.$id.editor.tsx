@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, Save, Loader2, Sparkles, RotateCcw, Eye, FileCheck } from "lucide-react";
+import { ArrowLeft, Save, Loader2, Sparkles, RotateCcw, Eye, FileCheck, BookmarkPlus, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import {
@@ -13,7 +13,11 @@ import {
   generateProposalPdf,
   createProposalSendVersion,
 } from "@/integrations/proposal-editor/server.functions";
-import { listTemplates } from "@/integrations/proposal-editor/template.functions";
+import {
+  listTemplates,
+  saveProposalAsTemplate,
+  applyTemplateLayoutToProposal,
+} from "@/integrations/proposal-editor/template.functions";
 import {
   Select,
   SelectContent,
@@ -25,7 +29,7 @@ import type { DocumentPage } from "@/integrations/proposal-editor/types";
 import type { ProposalTemplate, TemplateAsset } from "@/integrations/proposal-editor/template.types";
 import type { ProposalDynamicContext } from "@/components/proposal-editor/BlockRenderer";
 import { PageSidebar } from "@/components/proposal-editor/PageSidebar";
-import { FieldsPalette } from "@/components/proposal-editor/FieldsPalette";
+// (Paleta global removida — agora a paleta é contextual por página, dentro de PageSidebar.)
 import { ProposalCanvas } from "@/components/proposal-editor/ProposalCanvas";
 import { ProposalAttachmentsPanel } from "@/components/proposal-editor/ProposalAttachmentsPanel";
 import { ProposalVersionsPanel } from "@/components/proposal-editor/ProposalVersionsPanel";
@@ -53,6 +57,8 @@ function ProposalEditorPage() {
   const genPdf = useServerFn(generateProposalPdf);
   const createVersion = useServerFn(createProposalSendVersion);
   const listTpls = useServerFn(listTemplates);
+  const saveAsTpl = useServerFn(saveProposalAsTemplate);
+  const applyTplLayout = useServerFn(applyTemplateLayoutToProposal);
 
   const { data, isLoading } = useQuery({
     queryKey: ["proposal-document", id],
@@ -374,16 +380,13 @@ function ProposalEditorPage() {
       <div className="flex flex-1 overflow-hidden">
         <aside className="flex w-[260px] shrink-0 flex-col border-r bg-background">
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-            <div className="min-h-0 flex-1 overflow-hidden">
-              <PageSidebar
-                pages={pages}
-                selectedId={selectedId}
-                proposalId={id}
-                onSelect={setSelectedId}
-                onChange={handlePagesChange}
-              />
-            </div>
-            <FieldsPalette />
+            <PageSidebar
+              pages={pages}
+              selectedId={selectedId}
+              proposalId={id}
+              onSelect={setSelectedId}
+              onChange={handlePagesChange}
+            />
           </div>
           <div className="space-y-3 border-t p-3">
             <ProposalAttachmentsPanel
