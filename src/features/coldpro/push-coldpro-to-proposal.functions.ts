@@ -85,7 +85,7 @@ export const pushColdProToProposal = createServerFn({ method: "POST" })
       const { error: deleteError } = await supabase
         .from("proposal_items")
         .delete()
-        .eq("proposal_id", project.proposal_id)
+        .eq("proposal_id", proposalId)
         .ilike("description", "CN ColdPro —%");
 
       if (deleteError) throw new Error(deleteError.message);
@@ -96,7 +96,7 @@ export const pushColdProToProposal = createServerFn({ method: "POST" })
       const selection = (selections ?? []).find((s: any) => s.environment_id === env.id);
 
       return {
-        proposal_id: project.proposal_id,
+        proposal_id: proposalId,
         equipment_id: null,
         description: buildColdProItemDescription({ env, result, selection }),
         quantity: selection?.quantity ?? 1,
@@ -129,14 +129,14 @@ export const pushColdProToProposal = createServerFn({ method: "POST" })
       .update({
         technical_notes: `Dados técnicos enviados pelo CN ColdPro:\n\n${technicalSummary}`,
       })
-      .eq("id", project.proposal_id);
+      .eq("id", proposalId);
 
     if (proposalError) throw new Error(proposalError.message);
 
     await supabase
       .from("proposal_timeline_events")
       .insert({
-        proposal_id: project.proposal_id,
+        proposal_id: proposalId,
         event_type: "observacao",
         description: "Resultados técnicos do CN ColdPro enviados para a proposta.",
         metadata: {
@@ -154,6 +154,6 @@ export const pushColdProToProposal = createServerFn({ method: "POST" })
     return {
       success: true,
       inserted_items: items.length,
-      proposal_id: project.proposal_id,
+      proposal_id: proposalId,
     };
   });
