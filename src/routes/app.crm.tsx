@@ -276,7 +276,17 @@ function KanbanBoardRich({
   stages,
   loading,
 }: {
-  stages: Array<{ etapa: string; count: number; totalValue: number; proposalCount: number; avgTicket: number; processes: EnrichedCard[] }>;
+  stages: Array<{
+    etapa: string;
+    is_won?: boolean;
+    is_lost?: boolean;
+    color?: string | null;
+    count: number;
+    totalValue: number;
+    proposalCount: number;
+    avgTicket: number;
+    processes: EnrichedCard[];
+  }>;
   loading: boolean;
 }) {
   if (loading) {
@@ -291,37 +301,48 @@ function KanbanBoardRich({
   }
 
   return (
-    <div className="flex gap-4 overflow-x-auto pb-4">
-      {stages.map((col) => (
-        <div
-          key={col.etapa}
-          className="flex w-[300px] shrink-0 flex-col rounded-lg border border-border bg-muted/30"
-        >
-          <div className="border-b border-border bg-card/50 px-3 py-2">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-foreground">{col.etapa}</h3>
-              <Badge variant="outline" className="text-xs">{col.count}</Badge>
-            </div>
-            <p className="mt-0.5 text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
-              {brl(col.totalValue)}
-            </p>
-            {col.proposalCount > 0 && (
-              <p className="text-[10px] text-muted-foreground">
-                {col.proposalCount} proposta{col.proposalCount > 1 ? "s" : ""} · ticket médio {brl(col.avgTicket)}
-              </p>
-            )}
-          </div>
-          <div className="flex flex-col gap-2 p-2">
-            {col.processes.length === 0 ? (
-              <div className="rounded-md border border-dashed border-border/60 p-3 text-center text-xs text-muted-foreground">
-                Vazio
+    <div className="flex gap-3 overflow-x-auto pb-4">
+      {stages.map((col) => {
+        const accent = col.is_won
+          ? "border-t-emerald-500"
+          : col.is_lost
+            ? "border-t-rose-500"
+            : "border-t-primary/40";
+        return (
+          <div
+            key={col.etapa}
+            className={`flex w-[290px] shrink-0 flex-col rounded-md border border-border border-t-2 ${accent} bg-muted/20`}
+          >
+            <div className="border-b border-border bg-card px-3 py-2">
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="truncate text-[13px] font-semibold uppercase tracking-wide text-foreground">
+                  {col.etapa}
+                </h3>
+                <Badge variant="secondary" className="h-5 px-1.5 text-[10px] font-semibold">
+                  {col.count}
+                </Badge>
               </div>
-            ) : (
-              col.processes.map((p) => <KanbanCardRich key={p.id} card={p} />)
-            )}
+              <p className="mt-1 text-[12px] font-bold text-emerald-700 dark:text-emerald-400">
+                {brl(col.totalValue)}
+              </p>
+              <p className="text-[10px] text-muted-foreground">
+                {col.proposalCount > 0
+                  ? `${col.proposalCount} proposta${col.proposalCount > 1 ? "s" : ""} · ticket ${brl(col.avgTicket)}`
+                  : "sem propostas vinculadas"}
+              </p>
+            </div>
+            <div className="flex max-h-[calc(100vh-260px)] flex-col gap-2 overflow-y-auto p-2">
+              {col.processes.length === 0 ? (
+                <div className="rounded-md border border-dashed border-border/50 p-4 text-center text-[11px] text-muted-foreground">
+                  Vazio
+                </div>
+              ) : (
+                col.processes.map((p) => <KanbanCardRich key={p.id} card={p} />)
+              )}
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
