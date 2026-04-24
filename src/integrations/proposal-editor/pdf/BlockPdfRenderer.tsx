@@ -218,7 +218,46 @@ export function renderBlock(block: DocumentBlock, ctx: BlockRenderContext): Reac
       );
     }
 
-    default:
+    case "proposal_summary_box": {
+      // Renderiza Cliente / Projeto / Proposta / Data / Responsável Comercial
+      // com os valores do template/contexto. Quebra de linha automática.
+      const overrides =
+        (block.data.overrides as Record<string, { label?: string; value?: string }> | undefined) ??
+        {};
+      const ctxData = (block.data.context as Record<string, string | undefined> | undefined) ?? {};
+      const items = [
+        { key: "cliente", label: "Cliente:", value: ctxData.client_name ?? "" },
+        { key: "projeto", label: "Projeto:", value: ctxData.proposal_title ?? "" },
+        { key: "proposta", label: "Proposta:", value: ctxData.proposal_number ?? "" },
+        { key: "data", label: "Data:", value: ctxData.data_emissao ?? "" },
+        {
+          key: "responsavel",
+          label: "Responsável Comercial:",
+          value: (block.data.responsavel as string | undefined) ?? ctxData.vendedor ?? "",
+        },
+      ].map((f) => ({
+        key: f.key,
+        label: overrides[f.key]?.label ?? f.label,
+        value: overrides[f.key]?.value ?? f.value,
+      }));
+      return (
+        <View key={key} style={{ width: "100%", padding: 6, gap: 4 }}>
+          {items.map((it) => (
+            <View
+              key={it.key}
+              style={{ flexDirection: "row", gap: 6, alignItems: "flex-start" }}
+            >
+              <Text style={{ fontSize: 10, fontWeight: 700, color: theme.text }}>
+                {it.label}
+              </Text>
+              <Text style={{ fontSize: 10, color: theme.text, flex: 1 }}>
+                {it.value || "—"}
+              </Text>
+            </View>
+          ))}
+        </View>
+      );
+    }
       return (
         <View key={key} style={styles.notice}>
           <Text>Bloco "{block.type}" sem renderer dedicado.</Text>
