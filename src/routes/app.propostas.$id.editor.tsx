@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, Save, Loader2, Sparkles, RotateCcw } from "lucide-react";
+import { ArrowLeft, Save, Loader2, Sparkles, RotateCcw, Eye, FileCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import {
@@ -10,6 +10,8 @@ import {
   upsertProposalDocument,
   setProposalDocumentTemplate,
   autoFillFromNomus,
+  generateProposalPdf,
+  createProposalSendVersion,
 } from "@/integrations/proposal-editor/server.functions";
 import { listTemplates } from "@/integrations/proposal-editor/template.functions";
 import {
@@ -37,6 +39,8 @@ function ProposalEditorPage() {
   const saveDoc = useServerFn(upsertProposalDocument);
   const setTpl = useServerFn(setProposalDocumentTemplate);
   const autoFill = useServerFn(autoFillFromNomus);
+  const genPdf = useServerFn(generateProposalPdf);
+  const createVersion = useServerFn(createProposalSendVersion);
   const listTpls = useServerFn(listTemplates);
 
   const { data, isLoading } = useQuery({
@@ -103,6 +107,34 @@ function ProposalEditorPage() {
       hydratedFor.current = null;
       qc.invalidateQueries({ queryKey: ["proposal-document", id] });
       toast.success("Template aplicado");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const previewMut = useMutation({
+    mutationFn: async () => {
+      // Garante que mudanças locais estão salvas antes de gerar
+      if (dirty) await saveMut.mutateAsync();
+      return genPdf({ data: { proposalId: id, mode: "preview" } });
+    },
+    onSuccess: (res) => {
+      window.open(res.url, "_blank", "noopener");
+      toast.success("Pré-visualização gerada");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const versionMut = useMutation({
+    mutationFn: async () => {
+      if (dirty) await saveMut.mutateAsync();
+      return createVersion({ data: { proposalId: id } });
+    },
+    onSuccess: (res) => {
+      if (!res.ok) {
+        toast.error(res.error);
+        return;
+      }
+      toast.success(`Versão v${res.version_number} gerada`);
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -206,6 +238,31 @@ function ProposalEditorPage() {
               <Save className="mr-1.5 h-3.5 w-3.5" />
             )}
             Salvar
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => previewMut.mutate()}
+            disabled={previewMut.isPending}
+          >
+            {previewMut.isPending ? (
+              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Eye className="mr-1.5 h-3.5 w-3.5" />
+            )}
+            Pré-visualizar PDF
+          </Button>
+          <Button
+            size="sm"
+            onClick={() => versionMut.mutate()}
+            disabled={versionMut.isPending}
+          >
+            {versionMut.isPending ? (
+              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <FileCheck className="mr-1.5 h-3.5 w-3.5" />
+            )}
+            Gerar nova versão
           </Button>
         </div>
       </div>
