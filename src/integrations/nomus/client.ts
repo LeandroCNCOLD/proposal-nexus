@@ -340,6 +340,8 @@ export async function listPage<T = unknown>(
     operation: "list-page",
     direction: "pull",
     triggeredBy: opts.triggeredBy ?? null,
+    timeoutMs: 10_000,
+    maxAttempts: 1,
   });
   if (!res.ok) {
     if (res.status === 400) return { ok: true, items: [], hasMore: false };
