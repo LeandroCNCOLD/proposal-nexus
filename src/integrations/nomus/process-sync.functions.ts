@@ -373,7 +373,7 @@ export const startNomusProcessSyncJob = createServerFn({ method: "POST" })
         status: "queued",
         tipos: (data?.tipos ?? []).map((t) => t.trim()).filter(Boolean),
         max_items: data?.maxItems ?? 5000,
-        page_size: 20,
+        page_size: 10,
         current_page: 1,
       })
       .select("*")
