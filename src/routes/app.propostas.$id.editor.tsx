@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, Save, Loader2, Sparkles, RotateCcw } from "lucide-react";
+import { ArrowLeft, Save, Loader2, Sparkles, RotateCcw, Eye, FileCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import {
@@ -10,6 +10,8 @@ import {
   upsertProposalDocument,
   setProposalDocumentTemplate,
   autoFillFromNomus,
+  generateProposalPdf,
+  createProposalSendVersion,
 } from "@/integrations/proposal-editor/server.functions";
 import { listTemplates } from "@/integrations/proposal-editor/template.functions";
 import {
