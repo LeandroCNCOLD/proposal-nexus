@@ -22,6 +22,54 @@ import type { ProposalTemplate, TemplateAsset } from "./template.types";
 const proposalIdSchema = z.object({ proposalId: z.string().uuid() });
 const TEMPLATE_BUCKET = "proposal-template-assets";
 
+// Carrega histórico de revisões da família CN##### a partir do título da proposta.
+// Retorna { revision, history } — revisão atual (0 se for original) e lista ordenada.
+async function loadRevisionContext(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  proposalId: string,
+  title: string | null,
+): Promise<{ revision: number; history: Array<{ numero: string; date: string | null; total_value: number | null; is_current: boolean }> }> {
+  const m = (title ?? "").match(/(CN\d{3,})/i);
+  if (!m) return { revision: 0, history: [] };
+  const cn = m[1].toUpperCase();
+  const { data: rows } = await supabase
+    .from("proposals")
+    .select("id, total_value, created_at, nomus_id")
+    .ilike("title", `%${cn}%`);
+  const list = (rows ?? []) as Array<{ id: string; total_value: number | null; created_at: string; nomus_id: string | null }>;
+  if (list.length <= 1) return { revision: 0, history: [] };
+  const nomusIds = list.map((r) => r.nomus_id).filter(Boolean) as string[];
+  const numMap = new Map<string, { numero: string | null; criada_em_nomus: string | null; data_emissao: string | null }>();
+  if (nomusIds.length > 0) {
+    const { data: np } = await supabase
+      .from("nomus_proposals")
+      .select("nomus_id, numero, criada_em_nomus, data_emissao")
+      .in("nomus_id", nomusIds);
+    (np ?? []).forEach((n: { nomus_id: string; numero: string | null; criada_em_nomus: string | null; data_emissao: string | null }) => numMap.set(n.nomus_id, n));
+  }
+  let currentRev = 0;
+  const history = list.map((r) => {
+    const nm = r.nomus_id ? numMap.get(r.nomus_id) ?? null : null;
+    const numero = nm?.numero ?? cn;
+    const revMatch = numero.match(/Rev\.?\s*(\d+)/i);
+    const rev = revMatch ? parseInt(revMatch[1], 10) : 0;
+    const isCurrent = r.id === proposalId;
+    if (isCurrent) currentRev = rev;
+    return {
+      numero,
+      date: nm?.criada_em_nomus ?? nm?.data_emissao ?? r.created_at,
+      total_value: r.total_value,
+      is_current: isCurrent,
+    };
+  }).sort((a, b) => {
+    const ra = parseInt(a.numero.match(/Rev\.?\s*(\d+)/i)?.[1] ?? "0", 10);
+    const rb = parseInt(b.numero.match(/Rev\.?\s*(\d+)/i)?.[1] ?? "0", 10);
+    return rb - ra;
+  });
+  return { revision: currentRev, history };
+}
+
 async function loadDefaultTemplateBundle(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: any,
