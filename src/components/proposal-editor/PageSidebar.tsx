@@ -46,7 +46,20 @@ export function PageSidebar({ pages, selectedId, proposalId, onSelect, onChange 
   const sorted = [...pages].sort((a, b) => a.order - b.order);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadingPageId, setUploadingPageId] = useState<string | null>(null);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
   const uploadFn = useServerFn(uploadInlineImage);
+
+  const reorder = (sourceId: string, targetId: string) => {
+    if (sourceId === targetId) return;
+    const next = [...sorted];
+    const from = next.findIndex((p) => p.id === sourceId);
+    const to = next.findIndex((p) => p.id === targetId);
+    if (from < 0 || to < 0) return;
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    onChange(next.map((p, i) => ({ ...p, order: i })));
+  };
 
   const move = (id: string, dir: -1 | 1) => {
     const idx = sorted.findIndex((p) => p.id === id);
