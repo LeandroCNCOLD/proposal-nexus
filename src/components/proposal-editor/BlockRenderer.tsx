@@ -69,6 +69,8 @@ export function BlockRenderer({
   proposalContext,
   proposalId,
   pageId,
+  pageTitle,
+  pageType,
   onChange,
   onDelete,
   onDuplicate,
