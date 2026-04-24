@@ -22,6 +22,7 @@ import {
   importParsedCatalog,
   type ImportProgress,
 } from "@/features/coldpro/catalog-import.functions";
+import { ColdProModelDetailDialog } from "@/components/coldpro/ColdProModelDetailDialog";
 
 export const Route = createFileRoute("/app/coldpro/catalogo")({
   component: CatalogoPage,
@@ -36,6 +37,7 @@ function CatalogoPage() {
   const [importing, setImporting] = useState(false);
   const [progress, setProgress] = useState<ImportProgress | null>(null);
   const [search, setSearch] = useState("");
+  const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
 
   // Lista de modelos do catálogo
   const modelsQuery = useQuery({
@@ -313,8 +315,12 @@ function CatalogoPage() {
                 </TableHeader>
                 <TableBody>
                   {filteredModels.map((m) => (
-                    <TableRow key={m.id}>
-                      <TableCell className="font-medium">{m.modelo}</TableCell>
+                    <TableRow
+                      key={m.id}
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => setSelectedModelId(m.id)}
+                    >
+                      <TableCell className="font-medium text-primary">{m.modelo}</TableCell>
                       <TableCell>{m.linha ?? "—"}</TableCell>
                       <TableCell>{m.designacao_hp ?? "—"}</TableCell>
                       <TableCell>{m.refrigerante ?? "—"}</TableCell>
@@ -392,6 +398,12 @@ function CatalogoPage() {
             </div>
           )}
         </Card>
+
+      <ColdProModelDetailDialog
+        modelId={selectedModelId}
+        open={!!selectedModelId}
+        onOpenChange={(o) => { if (!o) setSelectedModelId(null); }}
+      />
       </div>
   );
 }
