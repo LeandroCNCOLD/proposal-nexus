@@ -214,3 +214,67 @@ function StandardPdfPage({
     </Page>
   );
 }
+
+interface RevisionCoverProps {
+  proposal: ProposalPdfData["proposal"];
+  template: ProposalTemplate | null;
+  styles: ReturnType<typeof buildStyles>;
+}
+
+function RevisionCoverPage({ proposal, template, styles }: RevisionCoverProps) {
+  const revs = (proposal.revision_history ?? []).slice().sort((a, b) => {
+    const ra = parseInt(a.numero.match(/Rev\.?\s*(\d+)/i)?.[1] ?? "0", 10);
+    const rb = parseInt(b.numero.match(/Rev\.?\s*(\d+)/i)?.[1] ?? "0", 10);
+    return rb - ra;
+  });
+  const fmtBRL = (v: number | null) =>
+    v == null ? "—" : v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+  return (
+    <Page size="A4" style={styles.page}>
+      <View style={{ paddingTop: 60, paddingHorizontal: 50 }}>
+        <Text style={{ fontSize: 10, color: "#64748b", letterSpacing: 2, marginBottom: 8 }}>
+          CONTROLE DE REVISÃO
+        </Text>
+        <Text style={{ fontSize: 28, fontFamily: "Helvetica-Bold", marginBottom: 6 }}>
+          Revisão {String(proposal.revision ?? 0).padStart(2, "0")}
+        </Text>
+        <Text style={{ fontSize: 12, color: "#475569", marginBottom: 24 }}>
+          Proposta {proposal.number} — esta é a versão vigente que substitui as anteriores.
+        </Text>
+
+        <Text style={{ fontSize: 11, fontFamily: "Helvetica-Bold", marginBottom: 10, color: "#0f172a" }}>
+          Histórico de Revisões
+        </Text>
+
+        <View style={{ borderTopWidth: 1, borderTopColor: "#e2e8f0" }}>
+          {revs.map((r) => (
+            <View
+              key={r.numero}
+              style={{
+                flexDirection: "row",
+                paddingVertical: 8,
+                borderBottomWidth: 1,
+                borderBottomColor: "#e2e8f0",
+              }}
+            >
+              <Text style={{ width: 140, fontSize: 10, fontFamily: "Helvetica-Bold" }}>
+                {r.numero} {r.is_current ? "(atual)" : ""}
+              </Text>
+              <Text style={{ flex: 1, fontSize: 10, color: "#475569" }}>
+                {fmtDateBR(r.date)}
+              </Text>
+              <Text style={{ width: 130, fontSize: 10, textAlign: "right" }}>
+                {fmtBRL(r.total_value)}
+              </Text>
+            </View>
+          ))}
+        </View>
+
+        <Text style={{ fontSize: 9, color: "#94a3b8", marginTop: 24 }}>
+          {template?.empresa_nome ?? "CN Cold"} — Documento gerado automaticamente.
+        </Text>
+      </View>
+    </Page>
+  );
+}
