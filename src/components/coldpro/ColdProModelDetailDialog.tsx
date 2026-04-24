@@ -296,6 +296,8 @@ export function ColdProModelDetailDialog({ modelId, open, onOpenChange }: Props)
                 </div>
               )}
 
+              <SmartDescriptionBlock model={m as Record<string, unknown>} />
+
               <CommercialFeaturesBlock
                 features={normalizeCommercialFeatures(m.commercial_features)}
                 source={m.commercial_description_source as string | null}
