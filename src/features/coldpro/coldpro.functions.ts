@@ -67,7 +67,7 @@ export const upsertColdProEnvironmentProduct = createServerFn({ method: "POST" }
   }))
   .handler(async ({ data }) => {
     const supabase = supabaseAdmin;
-    const { data: row, error } = await supabase.from("coldpro_environment_products").upsert(data, { onConflict: "id" }).select("*").single();
+    const { data: row, error } = await supabase.from("coldpro_environment_products").upsert(data as any, { onConflict: "id" }).select("*").single();
     if (error) throw new Error(error.message);
     return row;
   });
