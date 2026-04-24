@@ -232,7 +232,7 @@ function selectCapacityForModel(
  */
 export async function findEquipmentCandidates(
   input: SelectionInput,
-  db: typeof supabase = supabase,
+  db: any = supabase,
 ): Promise<SelectionCandidate[]> {
   const surplusMin = input.surplus_target_min ?? 5;
   const surplusMax = input.surplus_target_max ?? 25;
