@@ -25,6 +25,7 @@ import type { DocumentPage } from "@/integrations/proposal-editor/types";
 import { PageSidebar } from "@/components/proposal-editor/PageSidebar";
 import { ProposalCanvas } from "@/components/proposal-editor/ProposalCanvas";
 import { ProposalAttachmentsPanel } from "@/components/proposal-editor/ProposalAttachmentsPanel";
+import { ProposalVersionsPanel } from "@/components/proposal-editor/ProposalVersionsPanel";
 
 export const Route = createFileRoute("/app/propostas/$id/editor")({
   component: ProposalEditorPage,
@@ -134,6 +135,7 @@ function ProposalEditorPage() {
         toast.error(res.error);
         return;
       }
+      qc.invalidateQueries({ queryKey: ["proposal-send-versions", id] });
       toast.success(`Versão v${res.version_number} gerada`);
     },
     onError: (e: Error) => toast.error(e.message),
@@ -278,11 +280,12 @@ function ProposalEditorPage() {
               onChange={handlePagesChange}
             />
           </div>
-          <div className="border-t p-3">
+          <div className="space-y-3 border-t p-3">
             <ProposalAttachmentsPanel
               proposalId={id}
               onChanged={() => qc.invalidateQueries({ queryKey: ["proposal-document", id] })}
             />
+            <ProposalVersionsPanel proposalId={id} />
           </div>
         </aside>
 
