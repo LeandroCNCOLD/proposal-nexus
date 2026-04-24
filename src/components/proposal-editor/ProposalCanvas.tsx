@@ -291,7 +291,7 @@ export function ProposalCanvas({
       {sorted.length === 0 ? (
         <div
           className="mx-auto mb-8 flex items-center justify-center rounded-md border border-dashed bg-background text-sm text-muted-foreground"
-          style={{ width: A4_W, height: 200 }}
+          style={{ width: pageW, height: 200 }}
         >
           Nenhuma página visível. Adicione uma página na barra lateral.
         </div>
