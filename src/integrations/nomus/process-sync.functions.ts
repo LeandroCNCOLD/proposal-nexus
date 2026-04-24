@@ -184,14 +184,43 @@ export const pullNomusProcesses = createServerFn({ method: "POST" })
       }
     }
 
-    // 4) Cache de etapas em UM upsert por tipo (lista pequena)
-    const stageRows: Array<{ tipo: string; etapa: string; last_seen_at: string }> = [];
-    for (const [tipo, etapas] of stagesByTipo.entries()) {
-      for (const etapa of etapas) {
-        stageRows.push({ tipo, etapa, last_seen_at: now });
+    // 4) Cache de etapas: registra cada (tipo, etapa) vista. Para etapas NOVAS,
+    //    define display_order = MAX existente + 10 para que apareçam no final do funil
+    //    automaticamente. Etapas já cadastradas mantêm a ordem/flags atuais (apenas
+    //    atualizamos last_seen_at).
+    if (stagesByTipo.size > 0) {
+      const tipos = Array.from(stagesByTipo.keys());
+      const { data: existing } = await supabaseAdmin
+        .from("crm_funnel_stages")
+        .select("tipo, etapa, display_order")
+        .in("tipo", tipos);
+      const known = new Set<string>();
+      const maxOrderByTipo = new Map<string, number>();
+      for (const e of existing ?? []) {
+        known.add(`${e.tipo}|${e.etapa}`);
+        const cur = maxOrderByTipo.get(e.tipo) ?? 0;
+        if ((e.display_order ?? 0) > cur) maxOrderByTipo.set(e.tipo, e.display_order ?? 0);
       }
-    }
-    if (stageRows.length > 0) {
+
+      const stageRows: Array<{
+        tipo: string;
+        etapa: string;
+        last_seen_at: string;
+        display_order?: number;
+      }> = [];
+      for (const [tipo, etapas] of stagesByTipo.entries()) {
+        let nextOrder = (maxOrderByTipo.get(tipo) ?? 0) + 10;
+        for (const etapa of etapas) {
+          const key = `${tipo}|${etapa}`;
+          if (known.has(key)) {
+            stageRows.push({ tipo, etapa, last_seen_at: now });
+          } else {
+            stageRows.push({ tipo, etapa, last_seen_at: now, display_order: nextOrder });
+            nextOrder += 10;
+            known.add(key);
+          }
+        }
+      }
       await supabaseAdmin
         .from("crm_funnel_stages")
         .upsert(stageRows, { onConflict: "tipo,etapa" });
