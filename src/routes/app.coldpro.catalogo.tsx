@@ -344,7 +344,7 @@ function CatalogoPage() {
             <div className="flex items-center gap-2">
               <Layers className="h-5 w-5 text-primary" />
               <h2 className="text-lg font-semibold">Modelos no catálogo</h2>
-              <Badge variant="secondary">{modelsQuery.data?.length ?? 0}</Badge>
+              <Badge variant="secondary">{catalogRows.length}</Badge>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <Button
