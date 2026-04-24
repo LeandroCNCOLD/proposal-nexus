@@ -121,14 +121,14 @@ export async function importParsedCatalog(
       modelId = existing.id;
       const { error } = await supabase
         .from("coldpro_equipment_models")
-        .update(modelPayload)
+        .update(modelPayload as never)
         .eq("id", modelId);
       if (error) throw new Error(`Falha update modelo ${head.modelo}: ${error.message}`);
       modelsUpdated++;
     } else {
       const { data: ins, error } = await supabase
         .from("coldpro_equipment_models")
-        .insert(modelPayload)
+        .insert(modelPayload as never)
         .select("id")
         .single();
       if (error || !ins) throw new Error(`Falha insert modelo ${head.modelo}: ${error?.message}`);
@@ -230,7 +230,7 @@ export async function importParsedCatalog(
       const slice = perfRows.slice(i, i + batchSize);
       const { error } = await supabase
         .from("coldpro_equipment_performance_points")
-        .insert(slice);
+        .insert(slice as never);
       if (error) throw new Error(`Falha insert performance: ${error.message}`);
       perfPoints += slice.length;
     }

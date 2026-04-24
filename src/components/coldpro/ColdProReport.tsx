@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Download, Send } from "lucide-react";
+import { Download, Send, FileText, Loader2 } from "lucide-react";
 
 function fmt(value: unknown, digits = 2) {
   return new Intl.NumberFormat("pt-BR", { maximumFractionDigits: digits }).format(Number(value ?? 0));
@@ -13,6 +13,9 @@ type Props = {
   products: any[];
   onPushToProposal?: () => void;
   isPushing?: boolean;
+  onGeneratePdf?: () => void;
+  isGeneratingPdf?: boolean;
+  lastPdfUrl?: string | null;
 };
 
 export function ColdProReport({
@@ -23,6 +26,9 @@ export function ColdProReport({
   products,
   onPushToProposal,
   isPushing,
+  onGeneratePdf,
+  isGeneratingPdf,
+  lastPdfUrl,
 }: Props) {
   const handlePrint = () => window.print();
 
@@ -46,14 +52,36 @@ export function ColdProReport({
             Memorial de cálculo consolidado dos ambientes do projeto.
           </p>
         </div>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={handlePrint}
-            className="inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm hover:bg-muted"
-          >
-            <Download className="h-4 w-4" /> Baixar PDF
-          </button>
+        <div className="flex flex-wrap gap-2">
+          {onGeneratePdf ? (
+            <button
+              type="button"
+              onClick={onGeneratePdf}
+              disabled={isGeneratingPdf}
+              className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground disabled:opacity-50"
+            >
+              {isGeneratingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+              {isGeneratingPdf ? "Gerando PDF..." : "Gerar memorial PDF"}
+            </button>
+          ) : null}
+          {lastPdfUrl ? (
+            <a
+              href={lastPdfUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm hover:bg-muted"
+            >
+              <Download className="h-4 w-4" /> Baixar último PDF
+            </a>
+          ) : (
+            <button
+              type="button"
+              onClick={handlePrint}
+              className="inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm hover:bg-muted"
+            >
+              <Download className="h-4 w-4" /> Imprimir versão simples
+            </button>
+          )}
           {onPushToProposal ? (
             <button
               type="button"
