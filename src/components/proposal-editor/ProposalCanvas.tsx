@@ -49,6 +49,10 @@ interface Props {
   selectedBlockId: string | null;
   proposalId: string;
   documentFontFamily?: string;
+  /** Largura do papel em px (default = A4_W). */
+  pageWidthPx?: number;
+  /** Altura do papel em px (default = A4_H). */
+  pageHeightPx?: number;
   onSelectBlock: (id: string | null) => void;
   onPagesChange: (next: DocumentPage[]) => void;
   onSelect: (id: string) => void;
@@ -88,11 +92,15 @@ export function ProposalCanvas({
   selectedBlockId,
   proposalId,
   documentFontFamily,
+  pageWidthPx,
+  pageHeightPx,
   onSelectBlock,
   onPagesChange,
   onSelect,
 }: Props) {
   const sorted = [...pages].sort((a, b) => a.order - b.order).filter((p) => p.visible);
+  const pageW = pageWidthPx ?? A4_W;
+  const pageH = pageHeightPx ?? A4_H;
   const containerRef = useRef<HTMLDivElement>(null);
   const pageRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
@@ -131,7 +139,7 @@ export function ProposalCanvas({
     const layout = (src.data.layout as BlockLayout | undefined) ?? defaultLayoutFor(src.type);
     const cloned = makeBlock(
       src.type,
-      { ...src.data, layout: { ...layout, x: Math.min(layout.x + 20, A4_W - layout.w - 10), y: Math.min(layout.y + 20, A4_H - layout.h - 10) } },
+      { ...src.data, layout: { ...layout, x: Math.min(layout.x + 20, pageW - layout.w - 10), y: Math.min(layout.y + 20, pageH - layout.h - 10) } },
       { title: src.title, source: src.source, order: page.blocks.length },
     );
     updatePage(pageId, { blocks: [...page.blocks, cloned] });
@@ -179,7 +187,7 @@ export function ProposalCanvas({
               "relative mx-auto mb-8 overflow-hidden bg-white shadow-lg ring-1 ring-black/10 transition",
               page.id === selectedId && "ring-2 ring-primary",
             )}
-            style={{ width: A4_W, height: A4_H }}
+            style={{ width: pageW, height: pageH }}
             onClick={(e) => {
               e.stopPropagation();
               onSelect(page.id);
@@ -283,7 +291,7 @@ export function ProposalCanvas({
       {sorted.length === 0 ? (
         <div
           className="mx-auto mb-8 flex items-center justify-center rounded-md border border-dashed bg-background text-sm text-muted-foreground"
-          style={{ width: A4_W, height: 200 }}
+          style={{ width: pageW, height: 200 }}
         >
           Nenhuma página visível. Adicione uma página na barra lateral.
         </div>

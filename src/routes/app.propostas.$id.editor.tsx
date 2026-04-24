@@ -29,6 +29,12 @@ import { ProposalCanvas } from "@/components/proposal-editor/ProposalCanvas";
 import { ProposalAttachmentsPanel } from "@/components/proposal-editor/ProposalAttachmentsPanel";
 import { ProposalVersionsPanel } from "@/components/proposal-editor/ProposalVersionsPanel";
 import { supabase } from "@/integrations/supabase/client";
+import { PageSizePicker } from "@/components/proposal-editor/PageSizePicker";
+import {
+  DEFAULT_PAGE_SIZE,
+  resolvePageSize,
+  type DocumentPageSize,
+} from "@/integrations/proposal-editor/page-sizes";
 
 export const Route = createFileRoute("/app/propostas/$id/editor")({
   component: ProposalEditorPage,
@@ -113,6 +119,17 @@ function ProposalEditorPage() {
   const [docFontFamily, setDocFontFamily] = useState<string>(
     () => (typeof window !== "undefined" && localStorage.getItem(`docFont:${id}`)) || "Inter, system-ui, sans-serif",
   );
+  const [pageSize, setPageSize] = useState<DocumentPageSize>(() => {
+    if (typeof window === "undefined") return DEFAULT_PAGE_SIZE;
+    try {
+      const raw = localStorage.getItem(`pageSize:${id}`);
+      if (raw) return JSON.parse(raw) as DocumentPageSize;
+    } catch {
+      /* ignore */
+    }
+    return DEFAULT_PAGE_SIZE;
+  });
+  const { wPx: pageWidthPx, hPx: pageHeightPx } = resolvePageSize(pageSize);
   const hydratedFor = useRef<string | null>(null);
 
   useEffect(() => {
@@ -241,6 +258,14 @@ function ProposalEditorPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <PageSizePicker
+            value={pageSize}
+            onChange={(next) => {
+              setPageSize(next);
+              if (typeof window !== "undefined")
+                localStorage.setItem(`pageSize:${id}`, JSON.stringify(next));
+            }}
+          />
           <div className="mr-2 flex items-center gap-1.5">
             <span className="text-xs text-muted-foreground">Fonte:</span>
             <Select
@@ -378,6 +403,8 @@ function ProposalEditorPage() {
             onPagesChange={handlePagesChange}
             proposalId={id}
             documentFontFamily={docFontFamily}
+            pageWidthPx={pageWidthPx}
+            pageHeightPx={pageHeightPx}
           />
         </main>
       </div>
