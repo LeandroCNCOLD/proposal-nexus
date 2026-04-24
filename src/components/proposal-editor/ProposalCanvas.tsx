@@ -278,6 +278,7 @@ export function ProposalCanvas({
     clearMultiSelection();
   };
 
+  const duplicateBlock = (pageId: string, blockId: string) => {
     const page = pages.find((p) => p.id === pageId);
     if (!page) return;
     const src = page.blocks.find((b) => b.id === blockId);
