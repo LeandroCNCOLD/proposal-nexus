@@ -141,118 +141,131 @@ export function BlockRenderer({
           Clique para editar · {block.type}
         </div>
       ) : null}
-      {/* Toolbar do bloco selecionado */}
+      {/* Toolbar do bloco selecionado — agrupada por seções rotuladas */}
       {selected ? (
         <div
-          className="absolute -top-9 left-0 z-50 flex items-center gap-1 rounded-md border bg-background px-1.5 py-1 shadow-sm"
+          className="absolute -top-10 left-0 z-50 flex items-center gap-2 rounded-md border bg-background px-2 py-1 shadow-lg"
           onMouseDown={(e) => e.stopPropagation()}
         >
-          <span className="font-mono text-[10px] text-muted-foreground">{block.type}</span>
-          {sourceBadge ? (
-            <Badge variant={sourceBadge.variant} className="h-4 px-1.5 text-[9px]">
-              {sourceBadge.label}
-            </Badge>
-          ) : null}
-          {block.locked ? (
-            <Lock className="h-3 w-3 text-muted-foreground" aria-label="Bloqueado" />
-          ) : null}
-          <span className="mx-1 text-muted-foreground/50">·</span>
-          {(["left", "center", "right"] as const).map((a) => (
-            <button
-              key={a}
-              type="button"
-              className={`rounded px-1 text-[10px] ${
-                (layout?.align ?? "left") === a ? "bg-primary text-primary-foreground" : "hover:bg-muted"
-              }`}
-              onClick={() => setData({ layout: { ...layout!, align: a } })}
-              title={`Alinhar ${a}`}
+          {/* Identificação */}
+          <div className="flex items-center gap-1">
+            <span className="font-mono text-[10px] text-muted-foreground">{block.type}</span>
+            {sourceBadge ? (
+              <Badge variant={sourceBadge.variant} className="h-4 px-1.5 text-[9px]">
+                {sourceBadge.label}
+              </Badge>
+            ) : null}
+            {block.locked ? (
+              <Lock className="h-3 w-3 text-muted-foreground" aria-label="Bloqueado" />
+            ) : null}
+          </div>
+
+          {/* Grupo: Texto (alinhamento + tamanho) */}
+          <ToolbarGroup label="Texto">
+            {(["left", "center", "right"] as const).map((a) => (
+              <button
+                key={a}
+                type="button"
+                className={`rounded px-1 text-[10px] ${
+                  (layout?.align ?? "left") === a ? "bg-primary text-primary-foreground" : "hover:bg-muted"
+                }`}
+                onClick={() => setData({ layout: { ...layout!, align: a } })}
+                title={`Alinhar ${a}`}
+              >
+                {a === "left" ? "⟸" : a === "center" ? "⇔" : "⟹"}
+              </button>
+            ))}
+            {[0.85, 1, 1.15, 1.3].map((s) => (
+              <button
+                key={s}
+                type="button"
+                className={`rounded px-1 text-[10px] ${
+                  (layout?.fontScale ?? 1) === s ? "bg-primary text-primary-foreground" : "hover:bg-muted"
+                }`}
+                onClick={() => setData({ layout: { ...layout!, fontScale: s } })}
+                title={`Tamanho ${s}x`}
+              >
+                {s === 1 ? "1x" : `${s}x`}
+              </button>
+            ))}
+          </ToolbarGroup>
+
+          {/* Grupo: Caixa (fundo, transparência, borda) — destaque visual para
+              indicar que é onde se edita a aparência da caixa em si. */}
+          <ToolbarGroup label="Caixa" highlight>
+            <BoxStyleEditor
+              layout={layout}
+              onChange={(nextLayout) => setData({ layout: nextLayout })}
+            />
+          </ToolbarGroup>
+
+          {/* Grupo: Camadas */}
+          <ToolbarGroup label="Camada">
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-6 w-6 p-0"
+              onClick={onSendToBack}
+              title="Enviar para trás de tudo"
             >
-              {a === "left" ? "⟸" : a === "center" ? "⇔" : "⟹"}
-            </button>
-          ))}
-          <span className="mx-1 text-muted-foreground/50">·</span>
-          {[0.85, 1, 1.15, 1.3].map((s) => (
-            <button
-              key={s}
-              type="button"
-              className={`rounded px-1 text-[10px] ${
-                (layout?.fontScale ?? 1) === s ? "bg-primary text-primary-foreground" : "hover:bg-muted"
-              }`}
-              onClick={() => setData({ layout: { ...layout!, fontScale: s } })}
-              title={`Tamanho ${s}x`}
+              <ChevronsDown className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-6 w-6 p-0"
+              onClick={onSendBackward}
+              title="Voltar uma camada"
             >
-              {s === 1 ? "1x" : `${s}x`}
-            </button>
-          ))}
-          <span className="mx-1 text-muted-foreground/50">·</span>
-          {/* Editor avançado de caixa: fundo (transparente/sólido/gradiente),
-              opacidade, raio e borda — refletido no editor e no PDF. */}
-          <BoxStyleEditor
-            layout={layout}
-            onChange={(nextLayout) => setData({ layout: nextLayout })}
-          />
-          <span className="mx-1 text-muted-foreground/50">·</span>
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-6 px-2 text-[10px]"
-            onClick={onDuplicate}
-            title="Duplicar bloco"
-          >
-            Duplicar
-          </Button>
-          <span className="mx-1 text-muted-foreground/50">·</span>
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-6 w-6 p-0"
-            onClick={onSendToBack}
-            title="Enviar para trás de tudo"
-          >
-            <ChevronsDown className="h-3.5 w-3.5" />
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-6 w-6 p-0"
-            onClick={onSendBackward}
-            title="Voltar uma camada"
-          >
-            <ChevronDown className="h-3.5 w-3.5" />
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-6 w-6 p-0"
-            onClick={onBringForward}
-            title="Trazer uma camada para frente"
-          >
-            <ChevronUp className="h-3.5 w-3.5" />
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-6 w-6 p-0"
-            onClick={onBringToFront}
-            title="Trazer para frente de tudo"
-          >
-            <ChevronsUp className="h-3.5 w-3.5" />
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-6 w-6 p-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
-            onClick={(e) => {
-              e.stopPropagation();
-              if (block.locked) {
-                if (!window.confirm("Este bloco está bloqueado. Deseja excluí-lo mesmo assim?")) return;
-              }
-              onDelete?.();
-            }}
-            title={block.locked ? "Excluir bloco bloqueado" : "Excluir bloco"}
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </Button>
+              <ChevronDown className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-6 w-6 p-0"
+              onClick={onBringForward}
+              title="Trazer uma camada para frente"
+            >
+              <ChevronUp className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-6 w-6 p-0"
+              onClick={onBringToFront}
+              title="Trazer para frente de tudo"
+            >
+              <ChevronsUp className="h-3.5 w-3.5" />
+            </Button>
+          </ToolbarGroup>
+
+          {/* Grupo: Ações da caixa (duplicar, excluir) */}
+          <ToolbarGroup label="Ações">
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-6 px-2 text-[10px]"
+              onClick={onDuplicate}
+              title="Duplicar a caixa inteira"
+            >
+              Duplicar
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-6 w-6 p-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (block.locked) {
+                  if (!window.confirm("Esta caixa está bloqueada. Deseja excluí-la mesmo assim?")) return;
+                }
+                onDelete?.();
+              }}
+              title={block.locked ? "Excluir caixa bloqueada" : "Excluir caixa"}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </ToolbarGroup>
         </div>
       ) : null}
 
