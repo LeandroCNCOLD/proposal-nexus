@@ -172,13 +172,43 @@ export function PageSidebar({ pages, selectedId, proposalId, onSelect, onChange 
       <div className="flex-1 overflow-y-auto py-1">
         {sorted.map((page, i) => {
           const isSelected = page.id === selectedId;
+          const isDragging = draggingId === page.id;
+          const isDragOver = dragOverId === page.id && draggingId && draggingId !== page.id;
           return (
             <div
               key={page.id}
+              draggable
+              onDragStart={(e) => {
+                setDraggingId(page.id);
+                e.dataTransfer.effectAllowed = "move";
+                e.dataTransfer.setData("text/plain", page.id);
+              }}
+              onDragEnd={() => {
+                setDraggingId(null);
+                setDragOverId(null);
+              }}
+              onDragOver={(e) => {
+                if (!draggingId || draggingId === page.id) return;
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "move";
+                setDragOverId(page.id);
+              }}
+              onDragLeave={() => {
+                setDragOverId((cur) => (cur === page.id ? null : cur));
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                const sourceId = e.dataTransfer.getData("text/plain") || draggingId;
+                if (sourceId) reorder(sourceId, page.id);
+                setDraggingId(null);
+                setDragOverId(null);
+              }}
               className={cn(
-                "group flex items-center gap-1 px-2 py-1.5 text-xs transition",
+                "group flex items-center gap-1 px-2 py-1.5 text-xs transition cursor-grab active:cursor-grabbing",
                 isSelected ? "bg-accent text-accent-foreground" : "hover:bg-muted/60",
                 !page.visible && "opacity-50",
+                isDragging && "opacity-40",
+                isDragOver && "border-t-2 border-primary",
               )}
             >
               <GripVertical className="h-3 w-3 shrink-0 text-muted-foreground" />
