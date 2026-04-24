@@ -414,6 +414,9 @@ export function ColdProMemorialPdf({
                 <View style={[styles.pillRow, { marginTop: 6 }]}>
                   <Text style={styles.pill}>Vazão total: {fmt(selection.air_flow_total_m3_h, 0)} m³/h</Text>
                   <Text style={styles.pill}>Trocas/h: {fmt(selection.air_changes_hour)}</Text>
+                  <Text style={styles.pill}>Potência: {selection.total_power_kw ? `${fmt(selection.total_power_kw)} kW` : "—"}</Text>
+                  <Text style={styles.pill}>COP: {selection.cop ? fmt(selection.cop) : "—"}</Text>
+                  <Text style={styles.pill}>Método: {selection.selection_method === "polynomial" ? "curva polinomial" : selection.selection_method === "interpolated" ? "interpolado" : "ponto de curva"}</Text>
                   {selection.notes && <Text style={styles.pill}>{selection.notes}</Text>}
                 </View>
               </>
