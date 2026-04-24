@@ -117,6 +117,54 @@ function ProposalsList() {
     return { cn: m2 ? m2[1].toUpperCase() : "", client: t };
   };
 
+  // SLA — semáforo baseado em dias desde a última atividade (updated_at) e follow-up vencido.
+  // Status fechados (ganha/perdida/cancelada) ficam em estado neutro (sem cobrança).
+  type SLAState = {
+    level: "ok" | "warn" | "alert" | "critical" | "neutral";
+    label: string;
+    days: number;
+    detail: string;
+  };
+  const closedStatuses = new Set(["ganha", "perdida", "cancelada"]);
+  const computeSLA = (p: any): SLAState => {
+    const now = Date.now();
+    const lastActivity = new Date(p.updated_at ?? p.created_at).getTime();
+    const days = Math.floor((now - lastActivity) / 86_400_000);
+
+    if (closedStatuses.has(p.status)) {
+      return { level: "neutral", label: "Encerrada", days, detail: `Última atualização há ${days}d` };
+    }
+
+    const next = p.next_followup_at ? new Date(p.next_followup_at).getTime() : null;
+    const followupOverdue = next != null && next < now;
+    const overdueDays = followupOverdue && next != null ? Math.floor((now - next) / 86_400_000) : 0;
+
+    if (followupOverdue && overdueDays > 3) {
+      return { level: "critical", label: `Follow-up ${overdueDays}d atrasado`, days, detail: `Sem atividade há ${days}d` };
+    }
+    if (days > 14) return { level: "critical", label: `${days}d sem atividade`, days, detail: "SLA estourado" };
+    if (days > 7) return { level: "alert", label: `${days}d sem atividade`, days, detail: "Atenção: contatar cliente" };
+    if (days > 3 || followupOverdue) {
+      return { level: "warn", label: `${days}d sem atividade`, days, detail: followupOverdue ? `Follow-up vencido há ${overdueDays}d` : "Em risco" };
+    }
+    return { level: "ok", label: `${days}d`, days, detail: "Dentro do SLA" };
+  };
+  const slaClasses: Record<SLAState["level"], string> = {
+    ok: "bg-emerald-500/10 text-emerald-600 ring-1 ring-emerald-500/20",
+    warn: "bg-amber-500/10 text-amber-600 ring-1 ring-amber-500/20",
+    alert: "bg-orange-500/10 text-orange-600 ring-1 ring-orange-500/20",
+    critical: "bg-red-500/10 text-red-600 ring-1 ring-red-500/20",
+    neutral: "bg-muted text-muted-foreground ring-1 ring-border",
+  };
+  const slaDot: Record<SLAState["level"], string> = {
+    ok: "bg-emerald-500",
+    warn: "bg-amber-500",
+    alert: "bg-orange-500",
+    critical: "bg-red-500 animate-pulse",
+    neutral: "bg-muted-foreground/40",
+  };
+
+
   // Extrai número da revisão a partir do "numero" do Nomus (ex.: "CN00146 Rev. 02" → 2; "CN00146" → 0)
   const parseRevision = (numero: string | null | undefined) => {
     if (!numero) return 0;
