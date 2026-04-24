@@ -127,9 +127,9 @@ function CrmPage() {
 
   const pullMutation = useMutation({
     mutationFn: async () => {
-      const r = await pull({
-        data: activeTab ? { tipos: [activeTab], maxItems: 500 } : { maxItems: 500 },
-      });
+      // Puxa volume amplo do Nomus (todos os tipos) e filtramos client-side por aba.
+      // Não passamos `tipos` porque ele atua como filtro PÓS-paginação e descartaria muitos.
+      const r = await pull({ data: { maxItems: 5000 } });
       if (!r.ok) throw new Error(r.error);
       return r;
     },
