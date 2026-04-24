@@ -8,6 +8,7 @@ import { normalizeDadosBancarios } from "../template.types";
 import type { PdfStyles, PdfTheme } from "./styles";
 import { fmtCurrency, fmtDateBR, fmtNumber } from "./utils";
 import { renderRichHtml } from "./rich-text";
+import { layoutToPdfBoxStyle } from "@/components/proposal-editor/BoxStyleEditor";
 
 interface BlockRenderContext {
   styles: PdfStyles;
