@@ -35,6 +35,9 @@ function buildColdProItemDescription(params: {
     `Capacidade total oferecida: ${fmt(selection?.capacity_total_kcal_h, " kcal/h")}`,
     `Vazão total de ar: ${fmt(selection?.air_flow_total_m3_h, " m³/h")}`,
     `Trocas internas por hora: ${fmt(selection?.air_changes_hour)}`,
+    `Potência estimada na curva: ${fmt(selection?.total_power_kw, " kW")}`,
+    `COP estimado: ${fmt(selection?.cop)}`,
+    `Método de seleção: ${selection?.selection_method === "polynomial" ? "curva polinomial" : selection?.selection_method === "interpolated" ? "interpolação da curva" : selection?.selection_method === "catalog_point" ? "ponto de curva" : "legado"}`,
     `Sobra técnica: ${fmt(selection?.surplus_percent, "%")}`,
   ].join("\n");
 }
