@@ -160,13 +160,15 @@ function ProposalsList() {
         </Select>
       </div>
 
-      <div className="rounded-xl border bg-card shadow-[var(--shadow-sm)]">
+      <div className="rounded-xl border bg-card shadow-[var(--shadow-sm)] overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead className="w-32">Número</TableHead>
-              <TableHead>Título</TableHead>
               <TableHead>Cliente</TableHead>
+              <TableHead>CNPJ</TableHead>
+              <TableHead>Representante</TableHead>
+              <TableHead>Vendedor</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Valor</TableHead>
               <TableHead>Validade</TableHead>
@@ -175,13 +177,16 @@ function ProposalsList() {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-12">Carregando...</TableCell></TableRow>
+              <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-12">Carregando...</TableCell></TableRow>
             ) : filtered.length === 0 ? (
-              <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-12">Nenhuma proposta encontrada.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-12">Nenhuma proposta encontrada.</TableCell></TableRow>
             ) : filtered.map((p) => {
               const parsed = parseTitle(p.title);
               const displayNumber = parsed.cn || p.number;
               const displayClient = (p.clients as any)?.name ?? parsed.client ?? "—";
+              const cnpj = formatCNPJ((p as any)._cnpj);
+              const representante = (p as any)._nomus?.representante_nome ?? "—";
+              const vendedor = (p as any)._nomus?.vendedor_nome ?? "—";
               return (
               <TableRow key={p.id} className="cursor-pointer">
                 <TableCell className="font-mono text-xs">
@@ -190,7 +195,9 @@ function ProposalsList() {
                 <TableCell className="font-medium max-w-xs truncate">
                   <Link to="/app/propostas/$id" params={{ id: p.id }}>{displayClient}</Link>
                 </TableCell>
-                <TableCell className="text-sm">{(p.clients as any)?.name ?? parsed.client ?? "—"}</TableCell>
+                <TableCell className="text-sm font-mono text-muted-foreground whitespace-nowrap">{cnpj}</TableCell>
+                <TableCell className="text-sm">{representante}</TableCell>
+                <TableCell className="text-sm">{vendedor}</TableCell>
                 <TableCell><StatusBadge status={p.status as ProposalStatus} /></TableCell>
                 <TableCell className="text-right tabular-nums font-medium">{brl(Number(p.total_value ?? 0))}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">{dateBR(p.valid_until)}</TableCell>
