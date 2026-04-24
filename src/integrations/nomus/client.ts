@@ -319,6 +319,33 @@ function extractBatch<T>(payload: unknown): T[] {
   return [];
 }
 
+export async function listPage<T = unknown>(
+  endpoint: string,
+  query: Record<string, string | number | undefined> = {},
+  opts: {
+    entity: string;
+    triggeredBy?: string | null;
+    pageSize?: number;
+    page: number;
+  },
+): Promise<{ ok: true; items: T[]; hasMore: boolean } | { ok: false; error: string }> {
+  const pageSize = opts.pageSize ?? LIST_DEFAULT_PAGE_SIZE;
+  const res = await nomusFetch<unknown>(endpoint, {
+    method: "GET",
+    query: { ...query, pagina: opts.page },
+    entity: opts.entity,
+    operation: "list-page",
+    direction: "pull",
+    triggeredBy: opts.triggeredBy ?? null,
+  });
+  if (!res.ok) {
+    if (res.status === 400) return { ok: true, items: [], hasMore: false };
+    return { ok: false, error: res.error };
+  }
+  const items = extractBatch<T>(res.data);
+  return { ok: true, items, hasMore: items.length >= pageSize };
+}
+
 /**
  * Pagina por `pagina=N` até o Nomus devolver lista vazia ou batch menor que
  * o `pageSize`. Faz de-duplicação por `id` para sobreviver a APIs que
