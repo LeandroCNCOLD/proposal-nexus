@@ -392,9 +392,6 @@ function CatalogoPage() {
                       <TableHead>Modelo</TableHead>
                       <TableHead>Linha</TableHead>
                       <TableHead>Tipo</TableHead>
-                      <TableHead>Refrig.</TableHead>
-                      <TableHead>Gabinete</TableHead>
-                      <TableHead>Versões elétricas</TableHead>
                       <TableHead className="text-right">Pontos</TableHead>
                       <TableHead className="text-right">Status</TableHead>
                     </TableRow>
@@ -404,7 +401,7 @@ function CatalogoPage() {
                       ? groupedModels.map(([linha, items]) => (
                           <>
                             <TableRow key={`group-${linha}`} className="bg-muted/40 hover:bg-muted/40">
-                              <TableCell colSpan={8} className="py-2 font-semibold text-sm">
+                              <TableCell colSpan={5} className="py-2 font-semibold text-sm">
                                 <span className="inline-flex items-center gap-2">
                                   <FolderTree className="h-4 w-4 text-primary" />
                                   {linha}
@@ -562,7 +559,6 @@ type ModelRowData = {
   modelo: string | null;
   linha: string | null;
   designacao_hp: string | null;
-  refrigerante: string | null;
   gabinete: string | null;
   tipo_gabinete: string | null;
   tipo_degelo: string | null;
@@ -602,28 +598,6 @@ function ModelRow({ m, indent, onClick }: { m: ModelRowData; indent?: boolean; o
               {tipo}
             </Badge>
           ))}
-        </div>
-      </TableCell>
-      <TableCell>
-        <Badge variant="outline" className="font-mono text-xs">{m.refrigerante ?? "—"}</Badge>
-      </TableCell>
-      <TableCell className="text-xs">{m.gabinete ?? "—"}</TableCell>
-      <TableCell>
-        <div className="flex flex-wrap gap-1">
-          {m.electrical_configuration && (
-            <Badge variant="outline" className="font-mono text-[10px] py-0 px-1.5">
-              {m.electrical_configuration}
-            </Badge>
-          )}
-          {m.voltages.length === 0 && !m.electrical_configuration ? (
-            <span className="text-xs text-muted-foreground">—</span>
-          ) : (
-            m.voltages.filter((v) => v !== m.electrical_configuration).map((v) => (
-              <Badge key={v} variant="secondary" className="font-mono text-[10px] py-0 px-1.5">
-                {v}
-              </Badge>
-            ))
-          )}
         </div>
       </TableCell>
       <TableCell className="text-right text-sm font-medium tabular-nums">

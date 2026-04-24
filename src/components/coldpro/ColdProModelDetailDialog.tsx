@@ -18,7 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Loader2, Snowflake, Wind, Cog, Activity, Info, Zap, ImageIcon, Upload } from "lucide-react";
+import { Loader2, Snowflake, Wind, Cog, Activity, Info, Zap, ImageIcon, Upload, Droplets } from "lucide-react";
 import { toast } from "sonner";
 
 type Props = {
@@ -55,7 +55,7 @@ export function ColdProModelDetailDialog({ modelId, open, onOpenChange }: Props)
     queryFn: async () => {
       if (!modelId) return null;
 
-      const [model, compressors, condenser, evaporator, perfPoints] = await Promise.all([
+      const [model, compressors, condenser, evaporator, perfPoints, refrigerants] = await Promise.all([
         supabase
           .from("coldpro_equipment_models")
           .select("*")
@@ -83,6 +83,10 @@ export function ColdProModelDetailDialog({ modelId, open, onOpenChange }: Props)
           .order("evaporation_temp_c", { ascending: false })
           .order("condensation_temp_c", { ascending: true })
           .limit(500),
+        (supabase as any)
+          .from("coldpro_equipment_model_refrigerants")
+          .select("is_primary, compatibility_notes, source, refrigerant:coldpro_refrigerants(*)")
+          .eq("equipment_model_id", modelId),
       ]);
 
       return {
@@ -91,6 +95,7 @@ export function ColdProModelDetailDialog({ modelId, open, onOpenChange }: Props)
         condenser: condenser.data,
         evaporator: evaporator.data,
         perfPoints: perfPoints.data ?? [],
+        refrigerants: refrigerants.data ?? [],
       };
     },
   });
@@ -137,8 +142,6 @@ export function ColdProModelDetailDialog({ modelId, open, onOpenChange }: Props)
           <DialogDescription className="flex flex-wrap gap-2 pt-1">
             {m?.linha && <Badge variant="outline">{m.linha}</Badge>}
             {m?.designacao_hp && <Badge variant="secondary">{m.designacao_hp}</Badge>}
-            {m?.refrigerante && <Badge variant="outline">{m.refrigerante}</Badge>}
-            {m?.gabinete && <Badge variant="outline">Gab. {m.gabinete}</Badge>}
             {m?.tipo_degelo && <Badge variant="outline">Degelo: {m.tipo_degelo}</Badge>}
           </DialogDescription>
         </DialogHeader>
@@ -154,7 +157,7 @@ export function ColdProModelDetailDialog({ modelId, open, onOpenChange }: Props)
           </div>
         ) : (
             <Tabs defaultValue="overview" className="mt-2">
-              <TabsList className="grid w-full grid-cols-7">
+              <TabsList className="grid w-full grid-cols-8">
               <TabsTrigger value="overview">
                 <Info className="mr-1 h-4 w-4" />
                 Geral
@@ -175,6 +178,10 @@ export function ColdProModelDetailDialog({ modelId, open, onOpenChange }: Props)
                 <Zap className="mr-1 h-4 w-4" />
                 Elétrico
               </TabsTrigger>
+              <TabsTrigger value="refrigerants">
+                <Droplets className="mr-1 h-4 w-4" />
+                Fluidos
+              </TabsTrigger>
               <TabsTrigger value="images">
                 <ImageIcon className="mr-1 h-4 w-4" />
                 Fotos
@@ -191,16 +198,8 @@ export function ColdProModelDetailDialog({ modelId, open, onOpenChange }: Props)
                 <Field label="Modelo" value={m.modelo} />
                 <Field label="Linha" value={m.linha} />
                 <Field label="Designação HP" value={m.designacao_hp} />
-                <Field label="Refrigerante" value={m.refrigerante} />
-                <Field label="Gabinete" value={m.gabinete} />
                 <Field label="Tipo gabinete" value={m.tipo_gabinete} />
                 <Field label="Tipo degelo" value={m.tipo_degelo} />
-                <Field label="Configuração elétrica" value={m.electrical_configuration} />
-                <Field label="Tensão nominal (V)" value={m.voltage_value_v} />
-                <Field label="Fases" value={m.phase_count} />
-                <Field label="Frequência (Hz)" value={m.frequency_hz} />
-                <Field label="GWP (AR6)" value={m.gwp_ar6} />
-                <Field label="ODP (AR6)" value={m.odp_ar6} />
                 <Field
                   label="Status"
                   value={m.active ? "Ativo" : "Inativo"}
@@ -306,6 +305,10 @@ export function ColdProModelDetailDialog({ modelId, open, onOpenChange }: Props)
                 features={normalizeCommercialFeatures(m.commercial_features)}
                 source={m.commercial_description_source as string | null}
               />
+            </TabsContent>
+
+            <TabsContent value="refrigerants" className="mt-4">
+              <RefrigerantsBlock rows={data.refrigerants as RefrigerantRelation[]} />
             </TabsContent>
 
             <TabsContent value="images" className="mt-4">
@@ -645,6 +648,83 @@ function CommercialFeaturesBlock({ features, source }: { features: string[]; sou
           </li>
         ))}
       </ul>
+    </div>
+  );
+}
+
+type Refrigerant = {
+  code: string;
+  name: string;
+  family: string | null;
+  composition: string | null;
+  description: string | null;
+  typical_applications: string | null;
+  safety_class: string | null;
+  ashrae_class: string | null;
+  gwp_ar6: number | null;
+  odp_ar6: number | null;
+  glide_k: number | null;
+  boiling_point_c: number | null;
+  critical_temperature_c: number | null;
+  liquid_density_kg_l: number | null;
+  reference_temperature_c: number | null;
+  oil_compatibility: string | null;
+  notes: string | null;
+};
+
+type RefrigerantRelation = {
+  is_primary: boolean;
+  compatibility_notes: string | null;
+  source: string | null;
+  refrigerant: Refrigerant | null;
+};
+
+function RefrigerantsBlock({ rows }: { rows: RefrigerantRelation[] }) {
+  const items = rows.map((row) => row.refrigerant).filter((item): item is Refrigerant => !!item);
+  if (items.length === 0) return <EmptyBlock label="Sem fluidos refrigerantes vinculados a este modelo." />;
+
+  return (
+    <div className="space-y-4">
+      {rows.map((row) => {
+        const r = row.refrigerant;
+        if (!r) return null;
+        return (
+          <div key={r.code} className="rounded-md border bg-card p-4">
+            <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="text-lg font-semibold">{r.code}</h3>
+                  {row.is_primary && <Badge variant="secondary">Principal</Badge>}
+                  {r.safety_class && <Badge variant="outline">Classe {r.safety_class}</Badge>}
+                </div>
+                <p className="mt-1 text-sm text-muted-foreground">{r.description}</p>
+              </div>
+              {r.gwp_ar6 != null && <Badge variant="outline" className="font-mono">GWP AR6: {fmt(r.gwp_ar6, 0)}</Badge>}
+            </div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              <Field label="Nome" value={r.name} />
+              <Field label="Família" value={r.family} />
+              <Field label="Composição" value={r.composition} />
+              <Field label="Aplicações típicas" value={r.typical_applications} />
+              <Field label="Classe ASHRAE" value={r.ashrae_class} />
+              <Field label="ODP AR6" value={r.odp_ar6} />
+              <Field label="Glide (K)" value={r.glide_k} />
+              <Field label="Ebulição (°C)" value={r.boiling_point_c} />
+              <Field label="Temp. crítica (°C)" value={r.critical_temperature_c} />
+              <Field label="Densidade líquida (kg/L)" value={r.liquid_density_kg_l} />
+              <Field label="Temp. ref. densidade (°C)" value={r.reference_temperature_c} />
+              <Field label="Compatibilidade óleo" value={r.oil_compatibility} />
+            </div>
+            {(row.compatibility_notes || r.notes || row.source) && (
+              <div className="mt-3 rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground">
+                {row.compatibility_notes && <p>{row.compatibility_notes}</p>}
+                {r.notes && <p className="mt-1">{r.notes}</p>}
+                {row.source && <p className="mt-1">Origem: {row.source}</p>}
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }

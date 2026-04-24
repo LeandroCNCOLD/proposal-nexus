@@ -959,6 +959,44 @@ export type Database = {
           },
         ]
       }
+      coldpro_equipment_model_refrigerants: {
+        Row: {
+          compatibility_notes: string | null
+          created_at: string
+          equipment_model_id: string
+          id: string
+          is_primary: boolean
+          refrigerant_id: string
+          source: string | null
+        }
+        Insert: {
+          compatibility_notes?: string | null
+          created_at?: string
+          equipment_model_id: string
+          id?: string
+          is_primary?: boolean
+          refrigerant_id: string
+          source?: string | null
+        }
+        Update: {
+          compatibility_notes?: string | null
+          created_at?: string
+          equipment_model_id?: string
+          id?: string
+          is_primary?: boolean
+          refrigerant_id?: string
+          source?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coldpro_equipment_model_refrigerants_refrigerant_id_fkey"
+            columns: ["refrigerant_id"]
+            isOneToOne: false
+            referencedRelation: "coldpro_refrigerants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       coldpro_equipment_models: {
         Row: {
           active: boolean
@@ -1452,6 +1490,78 @@ export type Database = {
           reference_temperature_c?: number
           refrigerant?: string
           source?: string | null
+        }
+        Relationships: []
+      }
+      coldpro_refrigerants: {
+        Row: {
+          active: boolean
+          ashrae_class: string | null
+          boiling_point_c: number | null
+          code: string
+          composition: string | null
+          created_at: string
+          critical_temperature_c: number | null
+          description: string | null
+          family: string | null
+          glide_k: number | null
+          gwp_ar6: number | null
+          id: string
+          liquid_density_kg_l: number | null
+          name: string
+          notes: string | null
+          odp_ar6: number | null
+          oil_compatibility: string | null
+          reference_temperature_c: number | null
+          safety_class: string | null
+          typical_applications: string | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          ashrae_class?: string | null
+          boiling_point_c?: number | null
+          code: string
+          composition?: string | null
+          created_at?: string
+          critical_temperature_c?: number | null
+          description?: string | null
+          family?: string | null
+          glide_k?: number | null
+          gwp_ar6?: number | null
+          id?: string
+          liquid_density_kg_l?: number | null
+          name: string
+          notes?: string | null
+          odp_ar6?: number | null
+          oil_compatibility?: string | null
+          reference_temperature_c?: number | null
+          safety_class?: string | null
+          typical_applications?: string | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          ashrae_class?: string | null
+          boiling_point_c?: number | null
+          code?: string
+          composition?: string | null
+          created_at?: string
+          critical_temperature_c?: number | null
+          description?: string | null
+          family?: string | null
+          glide_k?: number | null
+          gwp_ar6?: number | null
+          id?: string
+          liquid_density_kg_l?: number | null
+          name?: string
+          notes?: string | null
+          odp_ar6?: number | null
+          oil_compatibility?: string | null
+          reference_temperature_c?: number | null
+          safety_class?: string | null
+          typical_applications?: string | null
+          updated_at?: string
         }
         Relationships: []
       }
