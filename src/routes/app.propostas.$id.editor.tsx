@@ -412,6 +412,111 @@ function ProposalEditorPage() {
             )}
             Pré-visualizar PDF
           </Button>
+
+          {/* Salvar como modelo */}
+          <Dialog open={saveTplOpen} onOpenChange={setSaveTplOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm" variant="outline">
+                <BookmarkPlus className="mr-1.5 h-3.5 w-3.5" />
+                Salvar como modelo
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Salvar layout como modelo</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="tpl-name">Nome do modelo</Label>
+                  <Input
+                    id="tpl-name"
+                    value={tplName}
+                    onChange={(e) => setTplName(e.target.value)}
+                    placeholder="Ex: Modelo padrão refrigeração"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="tpl-desc">Descrição (opcional)</Label>
+                  <Textarea
+                    id="tpl-desc"
+                    value={tplDesc}
+                    onChange={(e) => setTplDesc(e.target.value)}
+                    placeholder="O que este modelo contém…"
+                    rows={3}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Salva páginas, posições, estilos, imagens de fundo e textos fixos.
+                  Campos dinâmicos continuam puxando dados da proposta.
+                </p>
+              </div>
+              <DialogFooter>
+                <Button variant="ghost" onClick={() => setSaveTplOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={() => saveAsTplMut.mutate()}
+                  disabled={!tplName.trim() || saveAsTplMut.isPending}
+                >
+                  {saveAsTplMut.isPending && (
+                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  )}
+                  Salvar modelo
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Aplicar layout de modelo */}
+          <Dialog open={applyTplOpen} onOpenChange={setApplyTplOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm" variant="outline">
+                <LayoutTemplate className="mr-1.5 h-3.5 w-3.5" />
+                Aplicar modelo
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Aplicar layout de um modelo</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label>Modelo</Label>
+                  <Select value={pickedTplId} onValueChange={setPickedTplId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Escolha um modelo…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(tplsList.templates ?? []).map((t) => (
+                        <SelectItem key={t.id} value={t.id}>
+                          {t.name}
+                          {t.is_default ? " (padrão)" : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <p className="text-xs text-destructive">
+                  Atenção: as páginas atuais serão substituídas pelas do modelo.
+                </p>
+              </div>
+              <DialogFooter>
+                <Button variant="ghost" onClick={() => setApplyTplOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={() => applyLayoutMut.mutate()}
+                  disabled={!pickedTplId || applyLayoutMut.isPending}
+                >
+                  {applyLayoutMut.isPending && (
+                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  )}
+                  Aplicar
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
           <Button
             size="sm"
             onClick={() => versionMut.mutate()}
