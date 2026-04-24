@@ -87,8 +87,10 @@ export function BlockRenderer({
     if (layout?.color) s.color = layout.color;
     if (layout?.fontScale) s.fontSize = `${layout.fontScale}em`;
     if (layout?.align) s.textAlign = layout.align;
+    const ff = block.data.fontFamily as string | undefined;
+    if (ff) s.fontFamily = ff;
     return s;
-  }, [layout, template?.primary_color]);
+  }, [layout, template?.primary_color, block.data.fontFamily]);
 
   return (
     <div
@@ -205,12 +207,15 @@ function BlockBody({
       const borderColor = (block.data.borderColor as string | undefined) ?? "#cbd5e1";
       const borderWidth = (block.data.borderWidth as number | undefined) ?? 1;
       const radius = (block.data.radius as number | undefined) ?? 8;
+      const backgroundColor =
+        (block.data.backgroundColor as string | undefined) ?? "transparent";
       return (
         <div
           className="relative h-full w-full"
           style={{
             border: `${borderWidth}px solid ${borderColor}`,
             borderRadius: radius,
+            background: backgroundColor,
           }}
         >
           {title ? (

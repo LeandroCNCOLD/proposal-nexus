@@ -27,6 +27,8 @@ export function renderBlock(block: DocumentBlock, ctx: BlockRenderContext): Reac
       const borderColor = (block.data.borderColor as string | undefined) ?? "#cbd5e1";
       const borderWidth = (block.data.borderWidth as number | undefined) ?? 1;
       const radius = (block.data.radius as number | undefined) ?? 6;
+      const backgroundColor =
+        (block.data.backgroundColor as string | undefined) ?? undefined;
       return (
         <View
           key={key}
@@ -37,6 +39,8 @@ export function renderBlock(block: DocumentBlock, ctx: BlockRenderContext): Reac
             borderColor,
             borderStyle: "solid",
             borderRadius: radius,
+            backgroundColor:
+              backgroundColor && backgroundColor !== "transparent" ? backgroundColor : undefined,
           }}
         >
           {title ? (

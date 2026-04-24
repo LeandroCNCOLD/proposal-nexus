@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { PageChrome } from "./PageChrome";
 import { PALETTE_DRAG_MIME, parsePaletteItem } from "./FieldsPalette";
+import { ContainerToolbar, isInsideContainer } from "./ContainerToolbar";
 import { cn } from "@/lib/utils";
 
 // Handles visíveis (8 pontos: cantos + meios) — só aparecem no bloco selecionado.
@@ -120,6 +121,16 @@ export function ProposalCanvas({
     updatePage(pageId, {
       blocks: (pages.find((p) => p.id === pageId)?.blocks ?? []).map((b) =>
         b.id === next.id ? next : b,
+      ),
+    });
+  };
+
+  /** Atualiza vários blocos de uma página de uma só vez (preserva os demais). */
+  const updateManyBlocks = (pageId: string, updated: DocumentBlock[]) => {
+    const map = new Map(updated.map((b) => [b.id, b]));
+    updatePage(pageId, {
+      blocks: (pages.find((p) => p.id === pageId)?.blocks ?? []).map(
+        (b) => map.get(b.id) ?? b,
       ),
     });
   };
@@ -307,6 +318,14 @@ export function ProposalCanvas({
                         onDelete={() => deleteBlock(page.id, block.id)}
                         onDuplicate={() => duplicateBlock(page.id, block.id)}
                       />
+                      {selected && block.type === "container" ? (
+                        <ContainerToolbar
+                          container={block}
+                          children={page.blocks.filter((b) => isInsideContainer(b, block))}
+                          onUpdateBlocks={(next) => updateManyBlocks(page.id, next)}
+                          onUpdateContainer={(next) => updateBlock(page.id, next)}
+                        />
+                      ) : null}
                     </Rnd>
                   );
                 })}
