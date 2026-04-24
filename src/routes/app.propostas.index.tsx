@@ -62,7 +62,7 @@ function ProposalsList() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("proposals")
-        .select("id, number, title, status, total_value, valid_until, created_at, nomus_id, clients(name, document)")
+        .select("id, number, title, status, total_value, valid_until, created_at, updated_at, next_followup_at, closed_at, nomus_id, clients(name, document)")
         .order("created_at", { ascending: false });
       if (error) throw error;
       const rows = data ?? [];
@@ -116,6 +116,54 @@ function ProposalsList() {
     const m2 = t.match(/(CN\d{3,})/i);
     return { cn: m2 ? m2[1].toUpperCase() : "", client: t };
   };
+
+  // SLA — semáforo baseado em dias desde a última atividade (updated_at) e follow-up vencido.
+  // Status fechados (ganha/perdida/cancelada) ficam em estado neutro (sem cobrança).
+  type SLAState = {
+    level: "ok" | "warn" | "alert" | "critical" | "neutral";
+    label: string;
+    days: number;
+    detail: string;
+  };
+  const closedStatuses = new Set(["ganha", "perdida", "cancelada"]);
+  const computeSLA = (p: any): SLAState => {
+    const now = Date.now();
+    const lastActivity = new Date(p.updated_at ?? p.created_at).getTime();
+    const days = Math.floor((now - lastActivity) / 86_400_000);
+
+    if (closedStatuses.has(p.status)) {
+      return { level: "neutral", label: "Encerrada", days, detail: `Última atualização há ${days}d` };
+    }
+
+    const next = p.next_followup_at ? new Date(p.next_followup_at).getTime() : null;
+    const followupOverdue = next != null && next < now;
+    const overdueDays = followupOverdue && next != null ? Math.floor((now - next) / 86_400_000) : 0;
+
+    if (followupOverdue && overdueDays > 3) {
+      return { level: "critical", label: `Follow-up ${overdueDays}d atrasado`, days, detail: `Sem atividade há ${days}d` };
+    }
+    if (days > 14) return { level: "critical", label: `${days}d sem atividade`, days, detail: "SLA estourado" };
+    if (days > 7) return { level: "alert", label: `${days}d sem atividade`, days, detail: "Atenção: contatar cliente" };
+    if (days > 3 || followupOverdue) {
+      return { level: "warn", label: `${days}d sem atividade`, days, detail: followupOverdue ? `Follow-up vencido há ${overdueDays}d` : "Em risco" };
+    }
+    return { level: "ok", label: `${days}d`, days, detail: "Dentro do SLA" };
+  };
+  const slaClasses: Record<SLAState["level"], string> = {
+    ok: "bg-emerald-500/10 text-emerald-600 ring-1 ring-emerald-500/20",
+    warn: "bg-amber-500/10 text-amber-600 ring-1 ring-amber-500/20",
+    alert: "bg-orange-500/10 text-orange-600 ring-1 ring-orange-500/20",
+    critical: "bg-red-500/10 text-red-600 ring-1 ring-red-500/20",
+    neutral: "bg-muted text-muted-foreground ring-1 ring-border",
+  };
+  const slaDot: Record<SLAState["level"], string> = {
+    ok: "bg-emerald-500",
+    warn: "bg-amber-500",
+    alert: "bg-orange-500",
+    critical: "bg-red-500 animate-pulse",
+    neutral: "bg-muted-foreground/40",
+  };
+
 
   // Extrai número da revisão a partir do "numero" do Nomus (ex.: "CN00146 Rev. 02" → 2; "CN00146" → 0)
   const parseRevision = (numero: string | null | undefined) => {
@@ -214,6 +262,7 @@ function ProposalsList() {
               <TableHead>Representante</TableHead>
               <TableHead>Vendedor</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>SLA</TableHead>
               <TableHead className="text-right">Valor</TableHead>
               <TableHead>Validade</TableHead>
               <TableHead>Criada</TableHead>
@@ -221,9 +270,9 @@ function ProposalsList() {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-12">Carregando...</TableCell></TableRow>
+              <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-12">Carregando...</TableCell></TableRow>
             ) : filtered.length === 0 ? (
-              <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-12">Nenhuma proposta encontrada.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-12">Nenhuma proposta encontrada.</TableCell></TableRow>
             ) : filtered.map((p) => {
               const parsed = parseTitle(p.title);
               const displayNumber = parsed.cn || p.number;
@@ -233,6 +282,7 @@ function ProposalsList() {
               const vendedor = (p as any)._nomus?.vendedor_nome ?? "—";
               const currentRev = (p as any)._currentRevision ?? 0;
               const totalRevs = (p as any)._totalRevisions ?? 1;
+              const sla = computeSLA(p);
               return (
               <TableRow key={p.id} className="cursor-pointer">
                 <TableCell className="font-mono text-xs">
@@ -255,6 +305,15 @@ function ProposalsList() {
                 <TableCell className="text-sm">{representante}</TableCell>
                 <TableCell className="text-sm">{vendedor}</TableCell>
                 <TableCell><StatusBadge status={p.status as ProposalStatus} /></TableCell>
+                <TableCell>
+                  <span
+                    title={`${sla.detail}${p.next_followup_at ? ` · próx. follow-up ${dateBR(p.next_followup_at)}` : ""}`}
+                    className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium ${slaClasses[sla.level]}`}
+                  >
+                    <span className={`h-1.5 w-1.5 rounded-full ${slaDot[sla.level]}`} />
+                    {sla.label}
+                  </span>
+                </TableCell>
                 <TableCell className="text-right tabular-nums font-medium">{brl(Number(p.total_value ?? 0))}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">{dateBR(p.valid_until)}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">{dateBR((p as any)._nomus?.criada_em_nomus ?? (p as any)._nomus?.data_emissao ?? p.created_at)}</TableCell>
