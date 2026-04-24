@@ -1,5 +1,5 @@
 export const KW_TO_KCAL_H = 859.845;
-export const KCAL_H_TO_KW = 1 / 860;
+export const KCAL_H_TO_KW = 1 / KW_TO_KCAL_H;
 export const TR_TO_KCAL_H = 3024;
 export const KCAL_H_TO_TR = 1 / 3024;
 export const KJ_TO_KCAL = 0.2388458966;
