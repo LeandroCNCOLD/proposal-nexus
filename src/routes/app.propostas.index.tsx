@@ -99,6 +99,14 @@ function ProposalsList() {
     },
   });
 
+  // Formata CNPJ no padrão 00.000.000/0000-00
+  const formatCNPJ = (raw: string | null | undefined) => {
+    if (!raw) return "—";
+    const d = raw.replace(/\D/g, "");
+    if (d.length !== 14) return raw;
+    return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8, 12)}-${d.slice(12, 14)}`;
+  };
+
   // Extrai "CN#####" e nome do cliente do título no formato "CN00155 — WEG SOLAR"
   const parseTitle = (title: string | null | undefined) => {
     const t = (title ?? "").trim();
