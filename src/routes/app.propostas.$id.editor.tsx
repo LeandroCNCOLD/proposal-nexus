@@ -110,6 +110,9 @@ function ProposalEditorPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
+  const [docFontFamily, setDocFontFamily] = useState<string>(
+    () => (typeof window !== "undefined" && localStorage.getItem(`docFont:${id}`)) || "Inter, system-ui, sans-serif",
+  );
   const hydratedFor = useRef<string | null>(null);
 
   useEffect(() => {
@@ -352,6 +355,8 @@ function ProposalEditorPage() {
             onSelectBlock={setSelectedBlockId}
             onSelect={setSelectedId}
             onPagesChange={handlePagesChange}
+            proposalId={id}
+            documentFontFamily={docFontFamily}
           />
         </main>
       </div>
