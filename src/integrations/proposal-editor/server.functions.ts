@@ -751,3 +751,41 @@ export const createProposalSendVersion = createServerFn({ method: "POST" })
       mergedAttachments: attachedBuffers.length,
     };
   });
+
+/** Lista versões geradas para uma proposta. */
+export const listProposalSendVersions = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => proposalIdSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const { data: rows, error } = await supabase
+      .from("proposal_send_versions")
+      .select(
+        "id, version_number, pdf_storage_path, generated_at, generated_by, is_current, notes, metadata",
+      )
+      .eq("proposal_id", data.proposalId)
+      .order("version_number", { ascending: false });
+    if (error) throw new Error(error.message);
+    return { versions: rows ?? [] };
+  });
+
+/** Gera URL assinada para download/visualização de uma versão. */
+export const getProposalSendVersionUrl = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ versionId: z.string().uuid() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const { data: ver, error } = await supabase
+      .from("proposal_send_versions")
+      .select("pdf_storage_path")
+      .eq("id", data.versionId)
+      .single();
+    if (error || !ver) throw new Error(error?.message ?? "Versão não encontrada.");
+    const { data: signed, error: sErr } = await supabase.storage
+      .from("proposal-files")
+      .createSignedUrl((ver as { pdf_storage_path: string }).pdf_storage_path, 60 * 60);
+    if (sErr) throw new Error(sErr.message);
+    return { url: signed.signedUrl };
+  });
