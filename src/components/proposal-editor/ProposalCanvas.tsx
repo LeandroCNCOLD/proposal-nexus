@@ -638,6 +638,8 @@ export function ProposalCanvas({
                 </DropdownMenu>
               </div>
             ) : null}
+              </div>
+            </div>
           </div>
         );
       })}
@@ -649,6 +651,7 @@ export function ProposalCanvas({
           Nenhuma página visível. Adicione uma página na barra lateral.
         </div>
       ) : null}
+      </div>
     </div>
   );
 }
