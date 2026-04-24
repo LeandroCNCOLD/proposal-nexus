@@ -247,9 +247,19 @@ export function renderBlock(block: DocumentBlock, ctx: BlockRenderContext): Reac
         label: overrides[f.key]?.label ?? f.label,
         value: overrides[f.key]?.value ?? f.value,
       }));
-      // Respeita layout.background: "white" pinta fundo branco; "transparent" (default) deixa só o conteúdo.
-      const bgKind = (block.data.layout as { background?: string } | undefined)?.background;
-      const fillBg = bgKind === "white" ? "#ffffff" : undefined;
+      // Aplica configuração avançada de caixa do BoxStyleEditor (fundo, opacidade, borda, raio).
+      // Mantém compatibilidade com o legado layout.background.
+      const layout = block.data.layout as
+        | (import("../types").BlockLayout | undefined);
+      const advancedHas =
+        !!layout && (layout.bgMode !== undefined || layout.borderWidth !== undefined || layout.borderRadius !== undefined || layout.bgOpacity !== undefined);
+      const boxStyle = advancedHas
+        ? layoutToPdfBoxStyle(layout, template?.primary_color ?? undefined)
+        : (() => {
+            const bgKind = layout?.background;
+            const fillBg = bgKind === "white" ? "#ffffff" : undefined;
+            return { backgroundColor: fillBg, borderRadius: fillBg ? 4 : undefined };
+          })();
       return (
         <View
           key={key}
@@ -257,8 +267,7 @@ export function renderBlock(block: DocumentBlock, ctx: BlockRenderContext): Reac
             width: "100%",
             padding: 6,
             gap: 4,
-            backgroundColor: fillBg,
-            borderRadius: fillBg ? 4 : undefined,
+            ...boxStyle,
           }}
         >
           {items.map((it) => (
