@@ -873,6 +873,7 @@ function blockKindLabel(t: BlockType): string {
     responsible_info: "Responsável",
     responsible_info_box: "Responsável",
     proposal_number_box: "Nº da proposta",
+    proposal_summary_box: "Resumo da proposta",
     dynamic_field: "Campo dinâmico",
     differentials_list: "Diferenciais",
     cases_list: "Cases",
