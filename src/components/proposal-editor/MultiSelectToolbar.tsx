@@ -239,23 +239,23 @@ export function MultiSelectToolbar({
       <span className="mx-0.5 text-muted-foreground/40">|</span>
 
       {/* Igualar tamanho */}
-      <ToolBtn title="Igualar largura" onClick={() => equalize("w")}>
+      <ToolBtn title="Igualar largura" onClick={() => equalize("w")} disabled={!isMulti}>
         <StretchHorizontal className="h-3.5 w-3.5" />
       </ToolBtn>
-      <ToolBtn title="Igualar altura" onClick={() => equalize("h")}>
+      <ToolBtn title="Igualar altura" onClick={() => equalize("h")} disabled={!isMulti}>
         <StretchVertical className="h-3.5 w-3.5" />
       </ToolBtn>
-      <ToolBtn title="Igualar tamanho (ambos)" onClick={() => equalize("both")}>
+      <ToolBtn title="Igualar tamanho (ambos)" onClick={() => equalize("both")} disabled={!isMulti}>
         <Maximize2 className="h-3.5 w-3.5" />
       </ToolBtn>
 
       <span className="mx-0.5 text-muted-foreground/40">|</span>
 
       {/* Empilhar */}
-      <ToolBtn title="Empilhar verticalmente" onClick={() => stack("vertical")}>
+      <ToolBtn title="Empilhar verticalmente" onClick={() => stack("vertical")} disabled={!isMulti}>
         <Rows3 className="h-3.5 w-3.5" />
       </ToolBtn>
-      <ToolBtn title="Empilhar horizontalmente" onClick={() => stack("horizontal")}>
+      <ToolBtn title="Empilhar horizontalmente" onClick={() => stack("horizontal")} disabled={!isMulti}>
         <Columns3 className="h-3.5 w-3.5" />
       </ToolBtn>
 
