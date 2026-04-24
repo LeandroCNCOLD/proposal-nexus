@@ -16,6 +16,9 @@ type Props = {
 export function ColdProEnvironmentForm({ environment, insulationMaterials, onSave }: Props) {
   const [form, setForm] = React.useState<any>(environment);
   React.useEffect(() => setForm(environment), [environment]);
+  const isTunnel = ["blast_freezer", "cooling_tunnel"].includes(form?.environment_type);
+  const isClimatized = form?.environment_type === "climatized_room";
+  const isSeed = form?.environment_type === "seed_storage";
 
   const set = (key: string, value: unknown) =>
     setForm((prev: any) => ({ ...prev, [key]: value }));
@@ -52,6 +55,7 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, onSav
               <option value="blast_freezer">Túnel congelamento</option>
               <option value="cooling_tunnel">Túnel resfriamento</option>
               <option value="seed_storage">Câmara de sementes</option>
+              <option value="climatized_room">Ambiente climatizado</option>
             </ColdProSelect>
           </ColdProField>
           <ColdProField label="Nome do ambiente">
@@ -110,8 +114,8 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, onSav
           <ColdProField label="Tempo compressor" unit="h/dia">
             <ColdProInput {...num("compressor_runtime_hours_day")} />
           </ColdProField>
-          <ColdProField label="Fator segurança" unit="%">
-            <ColdProInput {...num("safety_factor_percent")} />
+          <ColdProField label="Operação diária" unit="h/dia">
+            <ColdProInput {...num("operation_hours_day")} />
           </ColdProField>
         </div>
       </div>
@@ -123,10 +127,29 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, onSav
           <ColdProField label="Temperatura interna" unit="°C">
             <ColdProInput {...num("internal_temp_c")} />
           </ColdProField>
+          {(isClimatized || isSeed) ? (
+            <ColdProField label="Umidade relativa interna" unit="%">
+              <ColdProInput {...num("relative_humidity_percent")} />
+            </ColdProField>
+          ) : null}
+          {isTunnel ? (
+            <ColdProField label="Temperatura de referência do processo" unit="°C">
+              <ColdProInput {...num("internal_temp_c")} />
+            </ColdProField>
+          ) : null}
         </div>
         <div>
           <ColdProField label="Temperatura externa" unit="°C">
             <ColdProInput {...num("external_temp_c")} />
+          </ColdProField>
+          <ColdProField label="Temperatura sob o piso" unit="°C">
+            <ColdProInput {...num("floor_temp_c")} />
+          </ColdProField>
+          <ColdProField label="Piso isolado">
+            <ColdProSelect value={form?.has_floor_insulation ? "sim" : "nao"} onChange={(e) => set("has_floor_insulation", e.target.value === "sim")}>
+              <option value="nao">Não</option>
+              <option value="sim">Sim</option>
+            </ColdProSelect>
           </ColdProField>
         </div>
       </div>
