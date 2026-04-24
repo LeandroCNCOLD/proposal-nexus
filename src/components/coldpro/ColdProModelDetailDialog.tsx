@@ -28,6 +28,7 @@ type Props = {
 };
 
 export function ColdProModelDetailDialog({ modelId, open, onOpenChange }: Props) {
+  const qc = useQueryClient();
   const detailQuery = useQuery({
     queryKey: ["coldpro-model-detail", modelId],
     enabled: !!modelId && open,
@@ -72,6 +73,28 @@ export function ColdProModelDetailDialog({ modelId, open, onOpenChange }: Props)
         perfPoints: perfPoints.data ?? [],
       };
     },
+  });
+
+  const imageMutation = useMutation({
+    mutationFn: async ({ kind, file }: { kind: EquipmentImageKind; file: File }) => {
+      if (!modelId) throw new Error("Modelo não selecionado");
+      const ext = file.name.split(".").pop() || "jpg";
+      const path = `${modelId}/${kind}-${Date.now()}.${ext}`;
+      const { error: uploadError } = await supabase.storage
+        .from("coldpro-equipment-images")
+        .upload(path, file, { upsert: true });
+      if (uploadError) throw uploadError;
+      const { error: updateError } = await supabase
+        .from("coldpro_equipment_models")
+        .update({ [IMAGE_FIELD_BY_KIND[kind]]: path } as never)
+        .eq("id", modelId);
+      if (updateError) throw updateError;
+    },
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["coldpro-model-detail", modelId] });
+      toast.success("Foto do equipamento atualizada.");
+    },
+    onError: (err) => toast.error(`Falha ao enviar foto: ${err instanceof Error ? err.message : "desconhecido"}`),
   });
 
   const data = detailQuery.data;
