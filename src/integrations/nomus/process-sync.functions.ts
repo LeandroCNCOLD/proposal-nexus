@@ -373,7 +373,7 @@ export const startNomusProcessSyncJob = createServerFn({ method: "POST" })
         status: "queued",
         tipos: (data?.tipos ?? []).map((t) => t.trim()).filter(Boolean),
         max_items: data?.maxItems ?? 5000,
-        page_size: 20,
+        page_size: 10,
         current_page: 1,
       })
       .select("*")
@@ -429,7 +429,7 @@ export const processNomusProcessSyncBatch = createServerFn({ method: "POST" })
         const page = await listPage<NomusProcessRaw>(
           NOMUS_ENDPOINTS.processos,
           {},
-          { entity: "processos", pageSize: Number(job.page_size ?? 20), page: currentPage, triggeredBy: userId },
+          { entity: "processos", pageSize: Number(job.page_size ?? 10), page: currentPage, triggeredBy: userId },
         );
         if (!page.ok) throw new Error(page.error);
 
