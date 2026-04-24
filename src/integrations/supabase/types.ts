@@ -358,8 +358,14 @@ export type Database = {
       }
       coldpro_environment_products: {
         Row: {
+          allow_phase_change: boolean
+          characteristic_thickness_m: number | null
           created_at: string
+          default_convective_coefficient_w_m2_k: number | null
+          density_kg_m3: number | null
           environment_id: string
+          freezable_water_content_percent: number | null
+          frozen_water_fraction: number | null
           id: string
           initial_freezing_temp_c: number | null
           inlet_temp_c: number
@@ -381,10 +387,18 @@ export type Database = {
           respiration_rate_5c_w_kg: number | null
           specific_heat_above_kcal_kg_c: number
           specific_heat_below_kcal_kg_c: number
+          thermal_conductivity_frozen_w_m_k: number | null
+          thermal_conductivity_unfrozen_w_m_k: number | null
         }
         Insert: {
+          allow_phase_change?: boolean
+          characteristic_thickness_m?: number | null
           created_at?: string
+          default_convective_coefficient_w_m2_k?: number | null
+          density_kg_m3?: number | null
           environment_id: string
+          freezable_water_content_percent?: number | null
+          frozen_water_fraction?: number | null
           id?: string
           initial_freezing_temp_c?: number | null
           inlet_temp_c?: number
@@ -406,10 +420,18 @@ export type Database = {
           respiration_rate_5c_w_kg?: number | null
           specific_heat_above_kcal_kg_c?: number
           specific_heat_below_kcal_kg_c?: number
+          thermal_conductivity_frozen_w_m_k?: number | null
+          thermal_conductivity_unfrozen_w_m_k?: number | null
         }
         Update: {
+          allow_phase_change?: boolean
+          characteristic_thickness_m?: number | null
           created_at?: string
+          default_convective_coefficient_w_m2_k?: number | null
+          density_kg_m3?: number | null
           environment_id?: string
+          freezable_water_content_percent?: number | null
+          frozen_water_fraction?: number | null
           id?: string
           initial_freezing_temp_c?: number | null
           inlet_temp_c?: number
@@ -431,6 +453,8 @@ export type Database = {
           respiration_rate_5c_w_kg?: number | null
           specific_heat_above_kcal_kg_c?: number
           specific_heat_below_kcal_kg_c?: number
+          thermal_conductivity_frozen_w_m_k?: number | null
+          thermal_conductivity_unfrozen_w_m_k?: number | null
         }
         Relationships: [
           {
@@ -1424,14 +1448,19 @@ export type Database = {
       }
       coldpro_products: {
         Row: {
+          allow_phase_change: boolean
           ash_content_percent: number | null
           carbohydrate_content_percent: number | null
           category: string | null
+          characteristic_thickness_m: number | null
           created_at: string
           data_confidence: string
+          default_convective_coefficient_w_m2_k: number | null
           density_kg_m3: number | null
           fat_content_percent: number | null
           fiber_content_percent: number | null
+          freezable_water_content_percent: number | null
+          frozen_water_fraction: number | null
           id: string
           initial_freezing_temp_c: number | null
           is_ashrae_reference: boolean
@@ -1448,18 +1477,25 @@ export type Database = {
           source_reference: string | null
           specific_heat_above_kcal_kg_c: number
           specific_heat_below_kcal_kg_c: number
+          thermal_conductivity_frozen_w_m_k: number | null
+          thermal_conductivity_unfrozen_w_m_k: number | null
           thermal_conductivity_w_m_k: number | null
           water_content_percent: number | null
         }
         Insert: {
+          allow_phase_change?: boolean
           ash_content_percent?: number | null
           carbohydrate_content_percent?: number | null
           category?: string | null
+          characteristic_thickness_m?: number | null
           created_at?: string
           data_confidence?: string
+          default_convective_coefficient_w_m2_k?: number | null
           density_kg_m3?: number | null
           fat_content_percent?: number | null
           fiber_content_percent?: number | null
+          freezable_water_content_percent?: number | null
+          frozen_water_fraction?: number | null
           id?: string
           initial_freezing_temp_c?: number | null
           is_ashrae_reference?: boolean
@@ -1476,18 +1512,25 @@ export type Database = {
           source_reference?: string | null
           specific_heat_above_kcal_kg_c?: number
           specific_heat_below_kcal_kg_c?: number
+          thermal_conductivity_frozen_w_m_k?: number | null
+          thermal_conductivity_unfrozen_w_m_k?: number | null
           thermal_conductivity_w_m_k?: number | null
           water_content_percent?: number | null
         }
         Update: {
+          allow_phase_change?: boolean
           ash_content_percent?: number | null
           carbohydrate_content_percent?: number | null
           category?: string | null
+          characteristic_thickness_m?: number | null
           created_at?: string
           data_confidence?: string
+          default_convective_coefficient_w_m2_k?: number | null
           density_kg_m3?: number | null
           fat_content_percent?: number | null
           fiber_content_percent?: number | null
+          freezable_water_content_percent?: number | null
+          frozen_water_fraction?: number | null
           id?: string
           initial_freezing_temp_c?: number | null
           is_ashrae_reference?: boolean
@@ -1504,6 +1547,8 @@ export type Database = {
           source_reference?: string | null
           specific_heat_above_kcal_kg_c?: number
           specific_heat_below_kcal_kg_c?: number
+          thermal_conductivity_frozen_w_m_k?: number | null
+          thermal_conductivity_unfrozen_w_m_k?: number | null
           thermal_conductivity_w_m_k?: number | null
           water_content_percent?: number | null
         }
@@ -1749,9 +1794,12 @@ export type Database = {
           air_temp_c: number
           air_velocity_m_s: number
           belt_motor_kw: number
+          convective_coefficient_w_m2_k: number | null
           created_at: string
           cycles_per_hour: number
+          density_kg_m3: number | null
           environment_id: string
+          estimated_freezing_time_min: number | null
           freezing_temp_c: number | null
           id: string
           inlet_temp_c: number
@@ -1767,8 +1815,11 @@ export type Database = {
           product_name: string
           product_thickness_mm: number
           product_unit_weight_kg: number
+          recommended_airflow_m3_h: number | null
+          retention_status: string | null
           specific_heat_above_kcal_kg_c: number
           specific_heat_below_kcal_kg_c: number
+          thermal_conductivity_frozen_w_m_k: number | null
           tunnel_type: string
           units_per_cycle: number
           updated_at: string
@@ -1777,9 +1828,12 @@ export type Database = {
           air_temp_c?: number
           air_velocity_m_s?: number
           belt_motor_kw?: number
+          convective_coefficient_w_m2_k?: number | null
           created_at?: string
           cycles_per_hour?: number
+          density_kg_m3?: number | null
           environment_id: string
+          estimated_freezing_time_min?: number | null
           freezing_temp_c?: number | null
           id?: string
           inlet_temp_c?: number
@@ -1795,8 +1849,11 @@ export type Database = {
           product_name?: string
           product_thickness_mm?: number
           product_unit_weight_kg?: number
+          recommended_airflow_m3_h?: number | null
+          retention_status?: string | null
           specific_heat_above_kcal_kg_c?: number
           specific_heat_below_kcal_kg_c?: number
+          thermal_conductivity_frozen_w_m_k?: number | null
           tunnel_type?: string
           units_per_cycle?: number
           updated_at?: string
@@ -1805,9 +1862,12 @@ export type Database = {
           air_temp_c?: number
           air_velocity_m_s?: number
           belt_motor_kw?: number
+          convective_coefficient_w_m2_k?: number | null
           created_at?: string
           cycles_per_hour?: number
+          density_kg_m3?: number | null
           environment_id?: string
+          estimated_freezing_time_min?: number | null
           freezing_temp_c?: number | null
           id?: string
           inlet_temp_c?: number
@@ -1823,8 +1883,11 @@ export type Database = {
           product_name?: string
           product_thickness_mm?: number
           product_unit_weight_kg?: number
+          recommended_airflow_m3_h?: number | null
+          retention_status?: string | null
           specific_heat_above_kcal_kg_c?: number
           specific_heat_below_kcal_kg_c?: number
+          thermal_conductivity_frozen_w_m_k?: number | null
           tunnel_type?: string
           units_per_cycle?: number
           updated_at?: string

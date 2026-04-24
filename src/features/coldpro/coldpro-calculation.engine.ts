@@ -9,6 +9,7 @@ import {
   AIR_DENSITY_KG_M3,
   AIR_SPECIFIC_HEAT_KCAL_KG_C,
   DEFAULT_PEOPLE_LOAD_KCAL_H,
+  KCAL_TO_KJ,
   kcalhToKw,
   kcalhToTr,
   kwToKcalh,
@@ -16,6 +17,45 @@ import {
 } from "./coldpro.constants";
 
 const W_TO_KCAL_H = 0.859845;
+
+export function calculateConvectionCoefficient(airVelocityMS?: number | null, fallback?: number | null): number | null {
+  const velocity = n(airVelocityMS);
+  if (velocity <= 0) return fallback ?? null;
+  return round2(10 + 10 * Math.pow(velocity, 0.8));
+}
+
+export function calculateRecommendedAirFlowM3H(powerKw: number, deltaTAirK = 6): number {
+  const delta = deltaTAirK > 0 ? deltaTAirK : 6;
+  const airCpKjKgK = AIR_SPECIFIC_HEAT_KCAL_KG_C * KCAL_TO_KJ;
+  const m3s = n(powerKw) / (AIR_DENSITY_KG_M3 * airCpKjKgK * delta);
+  return round2(m3s * 3600);
+}
+
+export function estimateFreezingTimePlankMin(params: {
+  thicknessM?: number | null;
+  densityKgM3?: number | null;
+  thermalConductivityFrozenWMK?: number | null;
+  freezingTempC?: number | null;
+  latentHeatKcalKg?: number | null;
+  frozenWaterFraction?: number | null;
+  airTempC?: number | null;
+  airVelocityMS?: number | null;
+  convectiveCoefficientWM2K?: number | null;
+}): number | null {
+  const thickness = n(params.thicknessM);
+  const density = n(params.densityKgM3);
+  const conductivity = n(params.thermalConductivityFrozenWMK);
+  const tfreeze = n(params.freezingTempC, NaN);
+  const latent = n(params.latentHeatKcalKg) * KCAL_TO_KJ;
+  const frozenFraction = n(params.frozenWaterFraction, 0.9) || 0.9;
+  const h = n(params.convectiveCoefficientWM2K) || n(calculateConvectionCoefficient(params.airVelocityMS));
+  const deltaT = tfreeze - n(params.airTempC);
+  if (thickness <= 0 || density <= 0 || conductivity <= 0 || !Number.isFinite(tfreeze) || latent <= 0 || h <= 0 || deltaT <= 0) return null;
+  const halfThickness = thickness / 2;
+  const latentJkg = latent * frozenFraction * 1000;
+  const seconds = (density * latentJkg / deltaT) * (halfThickness / h + (halfThickness * halfThickness) / (2 * conductivity));
+  return round2(seconds / 60);
+}
 
 function n(value: unknown, fallback = 0): number {
   const parsed = Number(value);
@@ -114,14 +154,16 @@ export function calculateProductLoadBreakdown(product: ColdProEnvironmentProduct
   const cpAbove = n(product.specific_heat_above_kcal_kg_c);
   const cpBelow = n(product.specific_heat_below_kcal_kg_c);
   const latent = n(product.latent_heat_kcal_kg);
+  const allowPhaseChange = product.allow_phase_change !== false;
+  const frozenFraction = n(product.frozen_water_fraction, 1) || 1;
 
   let sensibleAbove = 0;
   let latentLoad = 0;
   let sensibleBelow = 0;
 
-  if (tfreeze !== null && tfreeze !== undefined && tin > tfreeze && tout < tfreeze) {
+  if (allowPhaseChange && tfreeze !== null && tfreeze !== undefined && tin > tfreeze && tout < tfreeze) {
     sensibleAbove = massDay * cpAbove * positive(tin - tfreeze);
-    latentLoad = massDay * latent;
+    latentLoad = massDay * latent * frozenFraction;
     sensibleBelow = massDay * cpBelow * positive(tfreeze - tout);
   } else {
     const cp = tin >= 0 && tout >= 0 ? cpAbove : cpBelow || cpAbove;
@@ -139,6 +181,7 @@ export function calculateProductLoadBreakdown(product: ColdProEnvironmentProduct
     cp_above_kcal_kg_c: cpAbove,
     cp_below_kcal_kg_c: cpBelow,
     latent_heat_kcal_kg: latent,
+    frozen_water_fraction: frozenFraction,
     sensible_above_kcal_h: round2(sensibleAbove / hours),
     latent_kcal_h: round2(latentLoad / hours),
     sensible_below_kcal_h: round2(sensibleBelow / hours),
@@ -199,6 +242,18 @@ export function calculateTunnelLoad(tunnel: ColdProTunnel) {
   const cpAbove = n(tunnel.specific_heat_above_kcal_kg_c);
   const cpBelow = n(tunnel.specific_heat_below_kcal_kg_c);
   const latent = n(tunnel.latent_heat_kcal_kg);
+  const thicknessM = n(tunnel.product_thickness_mm) / 1000;
+  const convectiveCoefficient = calculateConvectionCoefficient(tunnel.air_velocity_m_s, tunnel.convective_coefficient_w_m2_k);
+  const estimatedFreezingTimeMin = estimateFreezingTimePlankMin({
+    thicknessM,
+    densityKgM3: tunnel.density_kg_m3,
+    thermalConductivityFrozenWMK: tunnel.thermal_conductivity_frozen_w_m_k,
+    freezingTempC: tunnel.freezing_temp_c,
+    latentHeatKcalKg: tunnel.latent_heat_kcal_kg,
+    airTempC: tunnel.air_temp_c,
+    airVelocityMS: tunnel.air_velocity_m_s,
+    convectiveCoefficientWM2K: convectiveCoefficient,
+  });
 
   let sensibleAbove = 0;
   let latentLoad = 0;
@@ -216,6 +271,9 @@ export function calculateTunnelLoad(tunnel: ColdProTunnel) {
   const packaging = n(tunnel.packaging_mass_kg_hour) * n(tunnel.packaging_specific_heat_kcal_kg_c) * Math.abs(tin - tout);
   const internalLoads = kwToKcalh(n(tunnel.belt_motor_kw) + n(tunnel.internal_fans_kw) + n(tunnel.other_internal_kw));
   const total = sensibleAbove + latentLoad + sensibleBelow + packaging + internalLoads;
+  const processTimeMin = n(tunnel.process_time_min);
+  const retentionMargin = estimatedFreezingTimeMin && processTimeMin > 0 ? processTimeMin / estimatedFreezingTimeMin : null;
+  const retentionStatus = !retentionMargin ? "Sem dados suficientes" : retentionMargin < 1 ? "Insuficiente" : retentionMargin < 1.1 ? "Adequado com baixa margem" : retentionMargin > 1.8 ? "Tempo elevado / validar produtividade" : "Adequado";
 
   return {
     mass_kg_hour: round2(massHour),
@@ -228,7 +286,12 @@ export function calculateTunnelLoad(tunnel: ColdProTunnel) {
     total_kw: round2(kcalhToKw(total)),
     total_tr: round2(kcalhToTr(total)),
     air_velocity_m_s: n(tunnel.air_velocity_m_s),
-    process_time_min: n(tunnel.process_time_min),
+    process_time_min: processTimeMin,
+    convective_coefficient_w_m2_k: convectiveCoefficient,
+    estimated_freezing_time_min: estimatedFreezingTimeMin,
+    retention_margin: retentionMargin ? round2(retentionMargin) : null,
+    retention_status: retentionStatus,
+    recommended_airflow_m3_h: calculateRecommendedAirFlowM3H(kcalhToKw(total)),
   };
 }
 
