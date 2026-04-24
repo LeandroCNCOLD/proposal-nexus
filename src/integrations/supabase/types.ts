@@ -234,6 +234,88 @@ export type Database = {
         }
         Relationships: []
       }
+      crm_attachments: {
+        Row: {
+          id: string
+          mime_type: string | null
+          name: string
+          process_id: string
+          size_bytes: number | null
+          storage_path: string
+          uploaded_at: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          id?: string
+          mime_type?: string | null
+          name: string
+          process_id: string
+          size_bytes?: number | null
+          storage_path: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          id?: string
+          mime_type?: string | null
+          name?: string
+          process_id?: string
+          size_bytes?: number | null
+          storage_path?: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_attachments_process_id_fkey"
+            columns: ["process_id"]
+            isOneToOne: false
+            referencedRelation: "nomus_processes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_followups: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          done_at: string | null
+          id: string
+          note: string | null
+          process_id: string
+          scheduled_for: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          done_at?: string | null
+          id?: string
+          note?: string | null
+          process_id: string
+          scheduled_for: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          done_at?: string | null
+          id?: string
+          note?: string | null
+          process_id?: string
+          scheduled_for?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_followups_process_id_fkey"
+            columns: ["process_id"]
+            isOneToOne: false
+            referencedRelation: "nomus_processes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       crm_funnel_stages: {
         Row: {
           color: string | null
@@ -278,6 +360,172 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      crm_notes: {
+        Row: {
+          body: string
+          created_at: string
+          created_by: string | null
+          id: string
+          process_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          process_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          process_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_notes_process_id_fkey"
+            columns: ["process_id"]
+            isOneToOne: false
+            referencedRelation: "nomus_processes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_process_meta: {
+        Row: {
+          created_at: string
+          decisor: string | null
+          interesse: string | null
+          probabilidade_label: string | null
+          probabilidade_pct: number | null
+          process_id: string
+          projeto_estado: string | null
+          segmento_override: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          decisor?: string | null
+          interesse?: string | null
+          probabilidade_label?: string | null
+          probabilidade_pct?: number | null
+          process_id: string
+          projeto_estado?: string | null
+          segmento_override?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          decisor?: string | null
+          interesse?: string | null
+          probabilidade_label?: string | null
+          probabilidade_pct?: number | null
+          process_id?: string
+          projeto_estado?: string | null
+          segmento_override?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_process_meta_process_id_fkey"
+            columns: ["process_id"]
+            isOneToOne: true
+            referencedRelation: "nomus_processes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_process_proposals: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          is_primary: boolean
+          nomus_proposal_id: string | null
+          process_id: string
+          proposal_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_primary?: boolean
+          nomus_proposal_id?: string | null
+          process_id: string
+          proposal_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_primary?: boolean
+          nomus_proposal_id?: string | null
+          process_id?: string
+          proposal_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_process_proposals_nomus_proposal_id_fkey"
+            columns: ["nomus_proposal_id"]
+            isOneToOne: false
+            referencedRelation: "nomus_proposals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_process_proposals_process_id_fkey"
+            columns: ["process_id"]
+            isOneToOne: false
+            referencedRelation: "nomus_processes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_process_proposals_proposal_id_fkey"
+            columns: ["proposal_id"]
+            isOneToOne: false
+            referencedRelation: "proposals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_stage_changes: {
+        Row: {
+          changed_at: string
+          changed_by: string | null
+          from_etapa: string | null
+          id: string
+          process_id: string
+          to_etapa: string
+        }
+        Insert: {
+          changed_at?: string
+          changed_by?: string | null
+          from_etapa?: string | null
+          id?: string
+          process_id: string
+          to_etapa: string
+        }
+        Update: {
+          changed_at?: string
+          changed_by?: string | null
+          from_etapa?: string | null
+          id?: string
+          process_id?: string
+          to_etapa?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_stage_changes_process_id_fkey"
+            columns: ["process_id"]
+            isOneToOne: false
+            referencedRelation: "nomus_processes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       crm_user_funnels: {
         Row: {
