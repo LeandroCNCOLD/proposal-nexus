@@ -40,7 +40,7 @@ export function PageChrome({ template, assets, pageType, pageNumber, totalPages,
     // Página criada para receber imagem de fundo, ainda sem upload.
     return (
       <div
-        className="absolute inset-0 flex items-center justify-center text-center text-xs text-muted-foreground"
+        className="pointer-events-none absolute inset-0 flex items-center justify-center text-center text-xs text-muted-foreground"
         style={{ background: "repeating-linear-gradient(45deg,#f8fafc,#f8fafc 12px,#eef2f7 12px,#eef2f7 24px)" }}
       >
         <div className="rounded-md border border-dashed bg-white/90 p-4">
