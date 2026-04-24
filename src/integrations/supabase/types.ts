@@ -603,7 +603,9 @@ export type Database = {
       }
       coldpro_equipment_condensers: {
         Row: {
+          air_throw_m: number | null
           airflow_m3_h: number | null
+          calculated_internal_volume_l: number | null
           condenser_model: string | null
           created_at: string
           equipment_model_id: string
@@ -611,12 +613,19 @@ export type Database = {
           geometry: string | null
           id: string
           internal_volume_l: number | null
+          tube_count: number | null
           tube_diameter_in: number | null
           tube_diameter_mm: number | null
+          tube_inner_diameter_mm: number | null
+          tube_length_m: number | null
+          tube_outer_diameter_mm: number | null
           tube_thickness_mm: number | null
+          tube_wall_thickness_mm: number | null
         }
         Insert: {
+          air_throw_m?: number | null
           airflow_m3_h?: number | null
+          calculated_internal_volume_l?: number | null
           condenser_model?: string | null
           created_at?: string
           equipment_model_id: string
@@ -624,12 +633,19 @@ export type Database = {
           geometry?: string | null
           id?: string
           internal_volume_l?: number | null
+          tube_count?: number | null
           tube_diameter_in?: number | null
           tube_diameter_mm?: number | null
+          tube_inner_diameter_mm?: number | null
+          tube_length_m?: number | null
+          tube_outer_diameter_mm?: number | null
           tube_thickness_mm?: number | null
+          tube_wall_thickness_mm?: number | null
         }
         Update: {
+          air_throw_m?: number | null
           airflow_m3_h?: number | null
+          calculated_internal_volume_l?: number | null
           condenser_model?: string | null
           created_at?: string
           equipment_model_id?: string
@@ -637,9 +653,14 @@ export type Database = {
           geometry?: string | null
           id?: string
           internal_volume_l?: number | null
+          tube_count?: number | null
           tube_diameter_in?: number | null
           tube_diameter_mm?: number | null
+          tube_inner_diameter_mm?: number | null
+          tube_length_m?: number | null
+          tube_outer_diameter_mm?: number | null
           tube_thickness_mm?: number | null
+          tube_wall_thickness_mm?: number | null
         }
         Relationships: [
           {
@@ -653,7 +674,9 @@ export type Database = {
       }
       coldpro_equipment_evaporators: {
         Row: {
+          air_throw_m: number | null
           airflow_m3_h: number | null
+          calculated_internal_volume_l: number | null
           created_at: string
           equipment_model_id: string
           evaporator_model: string | null
@@ -664,12 +687,19 @@ export type Database = {
           internal_volume_l: number | null
           reheating: string | null
           surface_area_m2: number | null
+          tube_count: number | null
           tube_diameter_in: number | null
           tube_diameter_mm: number | null
+          tube_inner_diameter_mm: number | null
+          tube_length_m: number | null
+          tube_outer_diameter_mm: number | null
           tube_thickness_mm: number | null
+          tube_wall_thickness_mm: number | null
         }
         Insert: {
+          air_throw_m?: number | null
           airflow_m3_h?: number | null
+          calculated_internal_volume_l?: number | null
           created_at?: string
           equipment_model_id: string
           evaporator_model?: string | null
@@ -680,12 +710,19 @@ export type Database = {
           internal_volume_l?: number | null
           reheating?: string | null
           surface_area_m2?: number | null
+          tube_count?: number | null
           tube_diameter_in?: number | null
           tube_diameter_mm?: number | null
+          tube_inner_diameter_mm?: number | null
+          tube_length_m?: number | null
+          tube_outer_diameter_mm?: number | null
           tube_thickness_mm?: number | null
+          tube_wall_thickness_mm?: number | null
         }
         Update: {
+          air_throw_m?: number | null
           airflow_m3_h?: number | null
+          calculated_internal_volume_l?: number | null
           created_at?: string
           equipment_model_id?: string
           evaporator_model?: string | null
@@ -696,9 +733,14 @@ export type Database = {
           internal_volume_l?: number | null
           reheating?: string | null
           surface_area_m2?: number | null
+          tube_count?: number | null
           tube_diameter_in?: number | null
           tube_diameter_mm?: number | null
+          tube_inner_diameter_mm?: number | null
+          tube_length_m?: number | null
+          tube_outer_diameter_mm?: number | null
           tube_thickness_mm?: number | null
+          tube_wall_thickness_mm?: number | null
         }
         Relationships: [
           {
@@ -4016,6 +4058,14 @@ export type Database = {
     }
     Functions: {
       _parse_nomus_date: { Args: { s: string }; Returns: string }
+      coldpro_calculate_tube_volume_l: {
+        Args: {
+          p_inner_diameter_mm: number
+          p_tube_count?: number
+          p_tube_length_m: number
+        }
+        Returns: number
+      }
       has_any_role: {
         Args: {
           _roles: Database["public"]["Enums"]["app_role"][]
