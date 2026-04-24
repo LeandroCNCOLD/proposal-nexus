@@ -62,20 +62,40 @@ function ProposalsList() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("proposals")
-        .select("id, number, title, status, total_value, valid_until, created_at, nomus_id, clients(name)")
+        .select("id, number, title, status, total_value, valid_until, created_at, nomus_id, clients(name, document)")
         .order("created_at", { ascending: false });
       if (error) throw error;
       const rows = data ?? [];
       const nomusIds = rows.map((r) => r.nomus_id).filter(Boolean) as string[];
-      const nomusMap = new Map<string, { criada_em_nomus: string | null; data_emissao: string | null }>();
+      const nomusMap = new Map<string, { criada_em_nomus: string | null; data_emissao: string | null; representante_nome: string | null; vendedor_nome: string | null; cliente_nomus_id: string | null }>();
       if (nomusIds.length > 0) {
         const { data: np } = await supabase
           .from("nomus_proposals")
-          .select("nomus_id, criada_em_nomus, data_emissao")
+          .select("nomus_id, criada_em_nomus, data_emissao, representante_nome, vendedor_nome, cliente_nomus_id")
           .in("nomus_id", nomusIds);
-        (np ?? []).forEach((n) => nomusMap.set(n.nomus_id, { criada_em_nomus: n.criada_em_nomus, data_emissao: n.data_emissao }));
+        (np ?? []).forEach((n) => nomusMap.set(n.nomus_id, {
+          criada_em_nomus: n.criada_em_nomus,
+          data_emissao: n.data_emissao,
+          representante_nome: n.representante_nome,
+          vendedor_nome: n.vendedor_nome,
+          cliente_nomus_id: n.cliente_nomus_id,
+        }));
       }
-      return rows.map((r) => ({ ...r, _nomus: r.nomus_id ? nomusMap.get(r.nomus_id) ?? null : null }));
+      // Buscar CNPJ de clientes via nomus_id quando não há clients vinculado
+      const clienteNomusIds = Array.from(new Set((Array.from(nomusMap.values()).map((v) => v.cliente_nomus_id).filter(Boolean)) as string[]));
+      const cnpjMap = new Map<string, string>();
+      if (clienteNomusIds.length > 0) {
+        const { data: cs } = await supabase
+          .from("clients")
+          .select("nomus_id, document")
+          .in("nomus_id", clienteNomusIds);
+        (cs ?? []).forEach((c) => { if (c.nomus_id && c.document) cnpjMap.set(c.nomus_id, c.document); });
+      }
+      return rows.map((r) => {
+        const nm = r.nomus_id ? nomusMap.get(r.nomus_id) ?? null : null;
+        const cnpj = (r.clients as any)?.document ?? (nm?.cliente_nomus_id ? cnpjMap.get(nm.cliente_nomus_id) ?? null : null);
+        return { ...r, _nomus: nm, _cnpj: cnpj };
+      });
     },
   });
 
