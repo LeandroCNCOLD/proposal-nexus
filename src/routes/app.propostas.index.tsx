@@ -262,6 +262,7 @@ function ProposalsList() {
               <TableHead>Representante</TableHead>
               <TableHead>Vendedor</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>SLA</TableHead>
               <TableHead className="text-right">Valor</TableHead>
               <TableHead>Validade</TableHead>
               <TableHead>Criada</TableHead>
