@@ -267,8 +267,8 @@ export function renderBlock(block: DocumentBlock, ctx: BlockRenderContext): Reac
             width: "100%",
             padding: 6,
             gap: 4,
-            ...boxStyle,
-          }}
+            ...(boxStyle as Record<string, unknown>),
+          } as never}
         >
           {items.map((it) => (
             <View
