@@ -2805,6 +2805,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      next_funnel_stage_order: { Args: { _tipo: string }; Returns: number }
       proposal_table_default_settings: {
         Args: { p_table_type: string }
         Returns: Json
