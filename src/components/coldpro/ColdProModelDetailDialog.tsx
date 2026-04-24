@@ -18,7 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Loader2, Snowflake, Wind, Cog, Activity, Info, Zap, ImageIcon, Upload } from "lucide-react";
+import { Loader2, Snowflake, Wind, Cog, Activity, Info, Zap, ImageIcon, Upload, Droplets } from "lucide-react";
 import { toast } from "sonner";
 
 type Props = {
@@ -55,7 +55,7 @@ export function ColdProModelDetailDialog({ modelId, open, onOpenChange }: Props)
     queryFn: async () => {
       if (!modelId) return null;
 
-      const [model, compressors, condenser, evaporator, perfPoints] = await Promise.all([
+      const [model, compressors, condenser, evaporator, perfPoints, refrigerants] = await Promise.all([
         supabase
           .from("coldpro_equipment_models")
           .select("*")
@@ -83,6 +83,10 @@ export function ColdProModelDetailDialog({ modelId, open, onOpenChange }: Props)
           .order("evaporation_temp_c", { ascending: false })
           .order("condensation_temp_c", { ascending: true })
           .limit(500),
+        (supabase as any)
+          .from("coldpro_equipment_model_refrigerants")
+          .select("is_primary, compatibility_notes, source, refrigerant:coldpro_refrigerants(*)")
+          .eq("equipment_model_id", modelId),
       ]);
 
       return {
@@ -91,6 +95,7 @@ export function ColdProModelDetailDialog({ modelId, open, onOpenChange }: Props)
         condenser: condenser.data,
         evaporator: evaporator.data,
         perfPoints: perfPoints.data ?? [],
+        refrigerants: refrigerants.data ?? [],
       };
     },
   });
@@ -137,8 +142,6 @@ export function ColdProModelDetailDialog({ modelId, open, onOpenChange }: Props)
           <DialogDescription className="flex flex-wrap gap-2 pt-1">
             {m?.linha && <Badge variant="outline">{m.linha}</Badge>}
             {m?.designacao_hp && <Badge variant="secondary">{m.designacao_hp}</Badge>}
-            {m?.refrigerante && <Badge variant="outline">{m.refrigerante}</Badge>}
-            {m?.gabinete && <Badge variant="outline">Gab. {m.gabinete}</Badge>}
             {m?.tipo_degelo && <Badge variant="outline">Degelo: {m.tipo_degelo}</Badge>}
           </DialogDescription>
         </DialogHeader>
@@ -154,7 +157,7 @@ export function ColdProModelDetailDialog({ modelId, open, onOpenChange }: Props)
           </div>
         ) : (
             <Tabs defaultValue="overview" className="mt-2">
-              <TabsList className="grid w-full grid-cols-7">
+              <TabsList className="grid w-full grid-cols-8">
               <TabsTrigger value="overview">
                 <Info className="mr-1 h-4 w-4" />
                 Geral
@@ -174,6 +177,10 @@ export function ColdProModelDetailDialog({ modelId, open, onOpenChange }: Props)
               <TabsTrigger value="electrical">
                 <Zap className="mr-1 h-4 w-4" />
                 Elétrico
+              </TabsTrigger>
+              <TabsTrigger value="refrigerants">
+                <Droplets className="mr-1 h-4 w-4" />
+                Fluidos
               </TabsTrigger>
               <TabsTrigger value="images">
                 <ImageIcon className="mr-1 h-4 w-4" />
