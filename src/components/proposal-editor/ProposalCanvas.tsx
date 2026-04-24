@@ -47,6 +47,8 @@ interface Props {
   assets: TemplateAsset[];
   proposalContext: ProposalDynamicContext;
   selectedBlockId: string | null;
+  proposalId: string;
+  documentFontFamily?: string;
   onSelectBlock: (id: string | null) => void;
   onPagesChange: (next: DocumentPage[]) => void;
   onSelect: (id: string) => void;
