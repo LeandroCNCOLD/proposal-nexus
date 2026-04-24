@@ -100,8 +100,18 @@ export const calculateColdProEnvironment = createServerFn({ method: "POST" })
       insulation = row;
     }
     if (!insulation) throw new Error("Material isolante não encontrado.");
-    const result = calculateColdProLoad({ env, products: products ?? [], insulation, tunnel: tunnel ?? null });
-    const { data: saved, error } = await supabase.from("coldpro_results").insert({ environment_id: data.environmentId, ...result, calculation_input: { environment: env, products: products ?? [], tunnel, insulation } }).select("*").single();
+    const result = calculateColdProLoad({ env: env as any, products: (products ?? []) as any, insulation: insulation as any, tunnel: (tunnel ?? null) as any });
+    const { calculation_breakdown, ...resultRest } = result;
+    const { data: saved, error } = await supabase
+      .from("coldpro_results")
+      .insert({
+        environment_id: data.environmentId,
+        ...resultRest,
+        calculation_breakdown: calculation_breakdown as any,
+        calculation_input: { environment: env, products: products ?? [], tunnel, insulation } as any,
+      })
+      .select("*")
+      .single();
     if (error) throw new Error(error.message);
     await supabase.from("coldpro_projects").update({ status: "calculated", calculated_at: new Date().toISOString() }).eq("id", env.coldpro_project_id);
     return saved;
