@@ -272,6 +272,14 @@ export function PageSidebar({ pages, selectedId, proposalId, onSelect, onChange 
                 </button>
                 <button
                   type="button"
+                  onClick={() => duplicate(page.id)}
+                  className="p-0.5 hover:text-foreground"
+                  title="Duplicar página"
+                >
+                  <Copy className="h-3 w-3" />
+                </button>
+                <button
+                  type="button"
                   onClick={() => toggleVisible(page.id)}
                   className="p-0.5 hover:text-foreground"
                   title={page.visible ? "Ocultar" : "Mostrar"}
