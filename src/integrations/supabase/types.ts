@@ -234,6 +234,81 @@ export type Database = {
         }
         Relationships: []
       }
+      crm_funnel_stages: {
+        Row: {
+          color: string | null
+          created_at: string
+          display_order: number
+          etapa: string
+          first_seen_at: string
+          id: string
+          is_hidden: boolean
+          is_lost: boolean
+          is_won: boolean
+          last_seen_at: string
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          display_order?: number
+          etapa: string
+          first_seen_at?: string
+          id?: string
+          is_hidden?: boolean
+          is_lost?: boolean
+          is_won?: boolean
+          last_seen_at?: string
+          tipo: string
+          updated_at?: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          display_order?: number
+          etapa?: string
+          first_seen_at?: string
+          id?: string
+          is_hidden?: boolean
+          is_lost?: boolean
+          is_won?: boolean
+          last_seen_at?: string
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      crm_user_funnels: {
+        Row: {
+          created_at: string
+          display_order: number
+          id: string
+          is_active: boolean
+          tipo: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          tipo: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          tipo?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       documents: {
         Row: {
           category: string | null
@@ -900,6 +975,84 @@ export type Database = {
           nomus_id?: string
           raw?: Json | null
           synced_at?: string
+        }
+        Relationships: []
+      }
+      nomus_processes: {
+        Row: {
+          cliente_id: string | null
+          created_at: string
+          data_criacao: string | null
+          data_hora_programada: string | null
+          descricao: string | null
+          equipe: string | null
+          etapa: string | null
+          id: string
+          last_pushed_at: string | null
+          local_dirty: boolean
+          nome: string | null
+          nomus_id: string
+          origem: string | null
+          pessoa: string | null
+          prioridade: string | null
+          proposal_id: string | null
+          proximo_contato: string | null
+          raw: Json | null
+          reportador: string | null
+          responsavel: string | null
+          synced_at: string
+          tipo: string | null
+          updated_at: string
+        }
+        Insert: {
+          cliente_id?: string | null
+          created_at?: string
+          data_criacao?: string | null
+          data_hora_programada?: string | null
+          descricao?: string | null
+          equipe?: string | null
+          etapa?: string | null
+          id?: string
+          last_pushed_at?: string | null
+          local_dirty?: boolean
+          nome?: string | null
+          nomus_id: string
+          origem?: string | null
+          pessoa?: string | null
+          prioridade?: string | null
+          proposal_id?: string | null
+          proximo_contato?: string | null
+          raw?: Json | null
+          reportador?: string | null
+          responsavel?: string | null
+          synced_at?: string
+          tipo?: string | null
+          updated_at?: string
+        }
+        Update: {
+          cliente_id?: string | null
+          created_at?: string
+          data_criacao?: string | null
+          data_hora_programada?: string | null
+          descricao?: string | null
+          equipe?: string | null
+          etapa?: string | null
+          id?: string
+          last_pushed_at?: string | null
+          local_dirty?: boolean
+          nome?: string | null
+          nomus_id?: string
+          origem?: string | null
+          pessoa?: string | null
+          prioridade?: string | null
+          proposal_id?: string | null
+          proximo_contato?: string | null
+          raw?: Json | null
+          reportador?: string | null
+          responsavel?: string | null
+          synced_at?: string
+          tipo?: string | null
+          updated_at?: string
         }
         Relationships: []
       }
