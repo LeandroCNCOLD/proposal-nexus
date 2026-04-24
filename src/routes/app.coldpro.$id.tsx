@@ -268,6 +268,7 @@ function ColdProProjectPage() {
                   ) : (
                     <ColdProProductForm
                       environmentId={selectedEnv.id}
+                      productCatalog={data?.productCatalog ?? []}
                       onSave={(payload) =>
                         upsertProduct.mutate(payload, {
                           onSuccess: () => toast.success("Produto adicionado"),
