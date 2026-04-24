@@ -47,18 +47,42 @@ function CatalogoPage() {
   const [page, setPage] = useState<number>(1);
   const [groupByLine, setGroupByLine] = useState<boolean>(false);
 
-  // Lista de modelos do catálogo
+  // Lista de modelos do catálogo + agregado de tensões/pontos por modelo
   const modelsQuery = useQuery({
     queryKey: ["coldpro-models"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("coldpro_equipment_models")
-        .select("id, modelo, linha, designacao_hp, refrigerante, gabinete, tipo_degelo, active, created_at")
-        .order("linha", { ascending: true, nullsFirst: false })
-        .order("modelo", { ascending: true })
-        .limit(5000);
-      if (error) throw error;
-      return data;
+      const [modelsRes, perfRes] = await Promise.all([
+        supabase
+          .from("coldpro_equipment_models")
+          .select("id, modelo, linha, designacao_hp, refrigerante, gabinete, tipo_degelo, active, created_at")
+          .order("linha", { ascending: true, nullsFirst: false })
+          .order("modelo", { ascending: true })
+          .limit(5000),
+        supabase
+          .from("coldpro_equipment_performance_points")
+          .select("equipment_model_id, voltage")
+          .limit(10000),
+      ]);
+      if (modelsRes.error) throw modelsRes.error;
+      if (perfRes.error) throw perfRes.error;
+
+      const stats = new Map<string, { points: number; voltages: Set<string> }>();
+      for (const p of perfRes.data ?? []) {
+        const key = p.equipment_model_id;
+        if (!key) continue;
+        if (!stats.has(key)) stats.set(key, { points: 0, voltages: new Set() });
+        const s = stats.get(key)!;
+        s.points++;
+        if (p.voltage) s.voltages.add(p.voltage);
+      }
+      return (modelsRes.data ?? []).map((m) => {
+        const s = stats.get(m.id);
+        return {
+          ...m,
+          point_count: s?.points ?? 0,
+          voltages: s ? Array.from(s.voltages).sort() : [],
+        };
+      });
     },
   });
 
