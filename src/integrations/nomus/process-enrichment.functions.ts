@@ -186,11 +186,34 @@ export const getFunnelData = createServerFn({ method: "POST" })
       byStage.get(key)!.push(e);
     }
 
-    const stages = Array.from(byStage.entries()).map(([etapa, items]) => {
+    // 5.1) Busca a estrutura oficial do funil (todas as etapas conhecidas, na ordem do Nomus)
+    const { data: stageDefs } = await supabase
+      .from("crm_funnel_stages")
+      .select("etapa, display_order, is_won, is_lost, is_hidden, color")
+      .eq("tipo", data.tipo)
+      .eq("is_hidden", false)
+      .order("display_order", { ascending: true });
+
+    const orderedEtapas: Array<{ etapa: string; is_won: boolean; is_lost: boolean; color: string | null }> = [];
+    const seen = new Set<string>();
+    for (const sd of stageDefs ?? []) {
+      orderedEtapas.push({ etapa: sd.etapa, is_won: sd.is_won, is_lost: sd.is_lost, color: sd.color });
+      seen.add(sd.etapa);
+    }
+    // Acrescenta etapas que apareceram em processos mas não estão cadastradas (ex: "Sem etapa" ou novas)
+    for (const k of byStage.keys()) {
+      if (!seen.has(k)) orderedEtapas.push({ etapa: k, is_won: false, is_lost: false, color: null });
+    }
+
+    const stages = orderedEtapas.map(({ etapa, is_won, is_lost, color }) => {
+      const items = byStage.get(etapa) ?? [];
       const totalValue = items.reduce((s, x) => s + (x.proposta_valor ?? 0), 0);
       const proposalCount = items.reduce((s, x) => s + x.propostas_count, 0);
       return {
         etapa,
+        is_won,
+        is_lost,
+        color,
         count: items.length,
         totalValue,
         proposalCount,
