@@ -25,7 +25,7 @@ export function PageChrome({ template, assets, pageType, pageNumber, totalPages,
   // Se a página tem imagem de fundo personalizada, ela domina o A4 (substitui chrome).
   if (backgroundImageUrl) {
     return (
-      <div className="absolute inset-0 bg-white">
+      <div className="pointer-events-none absolute inset-0 bg-white">
         <img
           src={backgroundImageUrl}
           alt=""
