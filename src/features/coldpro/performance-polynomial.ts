@@ -82,7 +82,16 @@ function fitTarget(points: CurvePoint[], target: PolynomialTarget, degree: 1 | 2
   const termCount = degree === 2 ? QUADRATIC_TERMS.length : LINEAR_TERMS.length;
   if (rows.length < termCount) return null;
 
-  const x = rows.map(({ point }) => featureVector(point as Required<Pick<CurvePoint, "temperature_room_c" | "evaporation_temp_c" | "condensation_temp_c">>, degree));
+  const x = rows.map(({ point }) =>
+    featureVector(
+      {
+        temperature_room_c: point.temperature_room_c ?? 0,
+        evaporation_temp_c: point.evaporation_temp_c ?? 0,
+        condensation_temp_c: point.condensation_temp_c ?? 0,
+      },
+      degree,
+    ),
+  );
   const y = rows.map(({ value }) => value);
   const coefficients = solveLeastSquares(x, y);
   if (!coefficients) return null;
