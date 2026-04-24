@@ -353,6 +353,136 @@ export const pullNomusProcesses = createServerFn({ method: "POST" })
     };
   });
 
+export const startNomusProcessSyncJob = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    z
+      .object({
+        tipos: z.array(z.string()).optional(),
+        maxItems: z.number().int().min(1).max(50_000).optional(),
+      })
+      .optional()
+      .default({}),
+  )
+  .handler(async ({ data, context }) => {
+    const userId = context.userId;
+    const { data: job, error } = await (supabaseAdmin as any)
+      .from("nomus_process_sync_jobs")
+      .insert({
+        requested_by: userId,
+        status: "queued",
+        tipos: (data?.tipos ?? []).map((t) => t.trim()).filter(Boolean),
+        max_items: data?.maxItems ?? 5000,
+        page_size: 50,
+        current_page: 1,
+      })
+      .select("*")
+      .single();
+    if (error) return { ok: false as const, error: error.message };
+    return { ok: true as const, job };
+  });
+
+export const getNomusProcessSyncJob = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(z.object({ jobId: z.string().uuid() }))
+  .handler(async ({ data, context }) => {
+    const { data: job, error } = await context.supabase
+      .from("nomus_process_sync_jobs" as any)
+      .select("*")
+      .eq("id", data.jobId)
+      .maybeSingle();
+    if (error) return { ok: false as const, error: error.message };
+    if (!job) return { ok: false as const, error: "Job de sincronização não encontrado" };
+    return { ok: true as const, job };
+  });
+
+export const processNomusProcessSyncBatch = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(z.object({ jobId: z.string().uuid(), maxPages: z.number().int().min(1).max(3).optional() }))
+  .handler(async ({ data, context }) => {
+    const userId = context.userId;
+    const { data: job, error: jobErr } = await (supabaseAdmin as any)
+      .from("nomus_process_sync_jobs")
+      .select("*")
+      .eq("id", data.jobId)
+      .maybeSingle();
+    if (jobErr) return { ok: false as const, error: jobErr.message };
+    if (!job) return { ok: false as const, error: "Job de sincronização não encontrado" };
+    if (!["queued", "running"].includes(job.status)) return { ok: true as const, job, done: true as const };
+
+    const now = new Date().toISOString();
+    await (supabaseAdmin as any)
+      .from("nomus_process_sync_jobs")
+      .update({ status: "running", started_at: job.started_at ?? now, last_error: null })
+      .eq("id", job.id);
+
+    let currentPage = Number(job.current_page ?? 1);
+    let processed = Number(job.processed_items ?? 0);
+    let upserted = Number(job.upserted_items ?? 0);
+    let stagesCount = Number(job.stages_discovered ?? 0);
+    const maxPages = data.maxPages ?? 1;
+    const tipos: string[] = Array.isArray(job.tipos) ? job.tipos : [];
+
+    try {
+      for (let i = 0; i < maxPages && processed < Number(job.max_items); i += 1) {
+        const page = await listPage<NomusProcessRaw>(
+          NOMUS_ENDPOINTS.processos,
+          {},
+          { entity: "processos", pageSize: Number(job.page_size ?? 50), page: currentPage, triggeredBy: userId },
+        );
+        if (!page.ok) throw new Error(page.error);
+
+        const wantedItems = tipos.length
+          ? page.items.filter((p) => tipos.includes((p.tipo ?? "").trim()))
+          : page.items;
+        const persisted = await persistNomusProcessBatch(wantedItems, userId);
+        processed += page.items.length;
+        upserted += persisted.upserted;
+        stagesCount += persisted.stagesDiscovered.reduce((sum, s) => sum + s.etapas.length, 0);
+        currentPage += 1;
+
+        if (!page.hasMore || page.items.length === 0 || processed >= Number(job.max_items)) {
+          const finishedAt = new Date().toISOString();
+          const { data: updated } = await (supabaseAdmin as any)
+            .from("nomus_process_sync_jobs")
+            .update({
+              status: "completed",
+              current_page: currentPage,
+              processed_items: processed,
+              upserted_items: upserted,
+              stages_discovered: stagesCount,
+              finished_at: finishedAt,
+            })
+            .eq("id", job.id)
+            .select("*")
+            .single();
+          await supabaseAdmin.from("nomus_sync_state").upsert(
+            { entity: "processos", last_synced_at: finishedAt, total_synced: upserted, running: false, last_error: null, updated_at: finishedAt },
+            { onConflict: "entity" },
+          );
+          return { ok: true as const, job: updated, done: true as const };
+        }
+      }
+
+      const { data: updated } = await (supabaseAdmin as any)
+        .from("nomus_process_sync_jobs")
+        .update({ status: "running", current_page: currentPage, processed_items: processed, upserted_items: upserted, stages_discovered: stagesCount })
+        .eq("id", job.id)
+        .select("*")
+        .single();
+      return { ok: true as const, job: updated, done: false as const };
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      const { data: updated } = await (supabaseAdmin as any)
+        .from("nomus_process_sync_jobs")
+        .update({ status: "failed", last_error: msg, finished_at: new Date().toISOString() })
+        .eq("id", job.id)
+        .select("*")
+        .single();
+      return { ok: false as const, error: msg, job: updated };
+    }
+  });
+
 // ---------------- listar tipos disponíveis (para o seletor de funis) ----------------
 
 export const listAvailableProcessTypes = createServerFn({ method: "GET" })
