@@ -239,24 +239,26 @@ function ColdProProjectPage() {
 
               {/* STEP 0 - AMBIENTE */}
               {stepIndex === 0 && (
-                <ColdProEnvironmentForm
-                  environment={selectedEnv}
-                  insulationMaterials={data?.insulationMaterials ?? []}
-                  onSave={(patch) => {
-                    updateEnv.mutate(
-                      { id: selectedEnv.id, patch },
-                      {
-                        onSuccess: () => toast.success("Ambiente salvo"),
-                        onError: (e: any) => toast.error(e?.message ?? "Erro ao salvar"),
-                      },
-                    );
-                  }}
-                />
-                <ColdProSectionLoadSummary
-                  title="Prévia da carga do ambiente"
-                  rows={[{ label: "Transmissão por paredes, teto e piso", value: result?.transmission_kcal_h }]}
-                  total={environmentLoad}
-                />
+                <div className="space-y-4">
+                  <ColdProEnvironmentForm
+                    environment={selectedEnv}
+                    insulationMaterials={data?.insulationMaterials ?? []}
+                    onSave={(patch) => {
+                      updateEnv.mutate(
+                        { id: selectedEnv.id, patch },
+                        {
+                          onSuccess: () => toast.success("Ambiente salvo"),
+                          onError: (e: any) => toast.error(e?.message ?? "Erro ao salvar"),
+                        },
+                      );
+                    }}
+                  />
+                  <ColdProSectionLoadSummary
+                    title="Prévia da carga do ambiente"
+                    rows={[{ label: "Transmissão por paredes, teto e piso", value: result?.transmission_kcal_h }]}
+                    total={environmentLoad}
+                  />
+                </div>
               )}
 
               {/* STEP 1 - PRODUTOS / TÚNEL */}
@@ -319,31 +321,33 @@ function ColdProProjectPage() {
 
               {/* STEP 2 - CARGAS EXTRAS */}
               {stepIndex === 2 && (
-                <ColdProExtraLoadsForm
-                  environment={selectedEnv}
-                  onSave={(patch) =>
-                    updateEnv.mutate(
-                      { id: selectedEnv.id, patch },
-                      {
-                        onSuccess: () => toast.success("Cargas extras salvas"),
-                        onError: (e: any) => toast.error(e?.message ?? "Erro ao salvar"),
-                      },
-                    )
-                  }
-                />
-                <ColdProSectionLoadSummary
-                  title="Prévia das cargas extras"
-                  rows={[
-                    { label: "Infiltração", value: result?.infiltration_kcal_h },
-                    { label: "Pessoas", value: result?.people_kcal_h },
-                    { label: "Iluminação", value: result?.lighting_kcal_h },
-                    { label: "Motores", value: result?.motors_kcal_h },
-                    { label: "Ventiladores", value: result?.fans_kcal_h },
-                    { label: "Degelo", value: result?.defrost_kcal_h },
-                    { label: "Outras cargas", value: result?.other_kcal_h },
-                  ]}
-                  total={extraLoad}
-                />
+                <div className="space-y-4">
+                  <ColdProExtraLoadsForm
+                    environment={selectedEnv}
+                    onSave={(patch) =>
+                      updateEnv.mutate(
+                        { id: selectedEnv.id, patch },
+                        {
+                          onSuccess: () => toast.success("Cargas extras salvas"),
+                          onError: (e: any) => toast.error(e?.message ?? "Erro ao salvar"),
+                        },
+                      )
+                    }
+                  />
+                  <ColdProSectionLoadSummary
+                    title="Prévia das cargas extras"
+                    rows={[
+                      { label: "Infiltração", value: result?.infiltration_kcal_h },
+                      { label: "Pessoas", value: result?.people_kcal_h },
+                      { label: "Iluminação", value: result?.lighting_kcal_h },
+                      { label: "Motores", value: result?.motors_kcal_h },
+                      { label: "Ventiladores", value: result?.fans_kcal_h },
+                      { label: "Degelo", value: result?.defrost_kcal_h },
+                      { label: "Outras cargas", value: result?.other_kcal_h },
+                    ]}
+                    total={extraLoad}
+                  />
+                </div>
               )}
 
               {/* STEP 3 - RESULTADO */}
@@ -367,8 +371,8 @@ function ColdProProjectPage() {
                 </div>
               )}
 
-              {/* STEP 4 - EQUIPAMENTO + RELATÓRIO */}
-              {stepIndex === 4 && (
+              {/* RESULTADO - EQUIPAMENTO + RELATÓRIO */}
+              {stepIndex === 3 && (
                 <div className="space-y-6">
                   {/* Seleção por curva real do catálogo */}
                   <ColdProRealSelection
