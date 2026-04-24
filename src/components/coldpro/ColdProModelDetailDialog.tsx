@@ -141,8 +141,8 @@ export function ColdProModelDetailDialog({ modelId, open, onOpenChange }: Props)
             Modelo não encontrado.
           </div>
         ) : (
-          <Tabs defaultValue="overview" className="mt-2">
-            <TabsList className="grid w-full grid-cols-6">
+            <Tabs defaultValue="overview" className="mt-2">
+              <TabsList className="grid w-full grid-cols-7">
               <TabsTrigger value="overview">
                 <Info className="mr-1 h-4 w-4" />
                 Geral
@@ -162,6 +162,10 @@ export function ColdProModelDetailDialog({ modelId, open, onOpenChange }: Props)
               <TabsTrigger value="electrical">
                 <Zap className="mr-1 h-4 w-4" />
                 Elétrico
+              </TabsTrigger>
+              <TabsTrigger value="images">
+                <ImageIcon className="mr-1 h-4 w-4" />
+                Fotos
               </TabsTrigger>
               <TabsTrigger value="performance">
                 <Activity className="mr-1 h-4 w-4" />
@@ -279,6 +283,20 @@ export function ColdProModelDetailDialog({ modelId, open, onOpenChange }: Props)
                   <p className="mt-1 text-sm">{m.notes}</p>
                 </div>
               )}
+            </TabsContent>
+
+            <TabsContent value="images" className="mt-4">
+              <div className="grid gap-3 md:grid-cols-3">
+                {(["plugin", "split", "biblock"] as EquipmentImageKind[]).map((kind) => (
+                  <EquipmentImageCard
+                    key={kind}
+                    kind={kind}
+                    path={m[IMAGE_FIELD_BY_KIND[kind] as keyof typeof m] as string | null}
+                    uploading={imageMutation.isPending}
+                    onSelect={(file) => imageMutation.mutate({ kind, file })}
+                  />
+                ))}
+              </div>
             </TabsContent>
 
             {/* Compressores */}
