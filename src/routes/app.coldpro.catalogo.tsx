@@ -367,10 +367,10 @@ function CatalogoPage() {
                     <TableRow>
                       <TableHead>Modelo</TableHead>
                       <TableHead>Linha</TableHead>
-                      <TableHead>HP</TableHead>
-                      <TableHead>Refrigerante</TableHead>
+                      <TableHead>Refrig.</TableHead>
                       <TableHead>Gabinete</TableHead>
-                      <TableHead>Degelo</TableHead>
+                      <TableHead>Versões elétricas</TableHead>
+                      <TableHead className="text-right">Pontos</TableHead>
                       <TableHead className="text-right">Status</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -383,53 +383,17 @@ function CatalogoPage() {
                                 <span className="inline-flex items-center gap-2">
                                   <FolderTree className="h-4 w-4 text-primary" />
                                   {linha}
-                                  <Badge variant="secondary">{items.length}</Badge>
+                                  <Badge variant="secondary">{items.length} modelos</Badge>
                                 </span>
                               </TableCell>
                             </TableRow>
                             {items.map((m) => (
-                              <TableRow
-                                key={m.id}
-                                className="cursor-pointer hover:bg-muted/50"
-                                onClick={() => setSelectedModelId(m.id)}
-                              >
-                                <TableCell className="font-medium text-primary pl-8">{m.modelo}</TableCell>
-                                <TableCell>{m.linha ?? "—"}</TableCell>
-                                <TableCell>{m.designacao_hp ?? "—"}</TableCell>
-                                <TableCell>{m.refrigerante ?? "—"}</TableCell>
-                                <TableCell>{m.gabinete ?? "—"}</TableCell>
-                                <TableCell>{m.tipo_degelo ?? "—"}</TableCell>
-                                <TableCell className="text-right">
-                                  {m.active ? (
-                                    <Badge variant="default" className="bg-emerald-600">Ativo</Badge>
-                                  ) : (
-                                    <Badge variant="secondary">Inativo</Badge>
-                                  )}
-                                </TableCell>
-                              </TableRow>
+                              <ModelRow key={m.id} m={m} indent onClick={() => setSelectedModelId(m.id)} />
                             ))}
                           </>
                         ))
                       : pagedModels.map((m) => (
-                          <TableRow
-                            key={m.id}
-                            className="cursor-pointer hover:bg-muted/50"
-                            onClick={() => setSelectedModelId(m.id)}
-                          >
-                            <TableCell className="font-medium text-primary">{m.modelo}</TableCell>
-                            <TableCell>{m.linha ?? "—"}</TableCell>
-                            <TableCell>{m.designacao_hp ?? "—"}</TableCell>
-                            <TableCell>{m.refrigerante ?? "—"}</TableCell>
-                            <TableCell>{m.gabinete ?? "—"}</TableCell>
-                            <TableCell>{m.tipo_degelo ?? "—"}</TableCell>
-                            <TableCell className="text-right">
-                              {m.active ? (
-                                <Badge variant="default" className="bg-emerald-600">Ativo</Badge>
-                              ) : (
-                                <Badge variant="secondary">Inativo</Badge>
-                              )}
-                            </TableCell>
-                          </TableRow>
+                          <ModelRow key={m.id} m={m} onClick={() => setSelectedModelId(m.id)} />
                         ))}
                   </TableBody>
                 </Table>
