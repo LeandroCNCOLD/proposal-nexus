@@ -652,6 +652,83 @@ function CommercialFeaturesBlock({ features, source }: { features: string[]; sou
   );
 }
 
+type Refrigerant = {
+  code: string;
+  name: string;
+  family: string | null;
+  composition: string | null;
+  description: string | null;
+  typical_applications: string | null;
+  safety_class: string | null;
+  ashrae_class: string | null;
+  gwp_ar6: number | null;
+  odp_ar6: number | null;
+  glide_k: number | null;
+  boiling_point_c: number | null;
+  critical_temperature_c: number | null;
+  liquid_density_kg_l: number | null;
+  reference_temperature_c: number | null;
+  oil_compatibility: string | null;
+  notes: string | null;
+};
+
+type RefrigerantRelation = {
+  is_primary: boolean;
+  compatibility_notes: string | null;
+  source: string | null;
+  refrigerant: Refrigerant | null;
+};
+
+function RefrigerantsBlock({ rows }: { rows: RefrigerantRelation[] }) {
+  const items = rows.map((row) => row.refrigerant).filter((item): item is Refrigerant => !!item);
+  if (items.length === 0) return <EmptyBlock label="Sem fluidos refrigerantes vinculados a este modelo." />;
+
+  return (
+    <div className="space-y-4">
+      {rows.map((row) => {
+        const r = row.refrigerant;
+        if (!r) return null;
+        return (
+          <div key={r.code} className="rounded-md border bg-card p-4">
+            <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="text-lg font-semibold">{r.code}</h3>
+                  {row.is_primary && <Badge variant="secondary">Principal</Badge>}
+                  {r.safety_class && <Badge variant="outline">Classe {r.safety_class}</Badge>}
+                </div>
+                <p className="mt-1 text-sm text-muted-foreground">{r.description}</p>
+              </div>
+              {r.gwp_ar6 != null && <Badge variant="outline" className="font-mono">GWP AR6: {fmt(r.gwp_ar6, 0)}</Badge>}
+            </div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              <Field label="Nome" value={r.name} />
+              <Field label="Família" value={r.family} />
+              <Field label="Composição" value={r.composition} />
+              <Field label="Aplicações típicas" value={r.typical_applications} />
+              <Field label="Classe ASHRAE" value={r.ashrae_class} />
+              <Field label="ODP AR6" value={r.odp_ar6} />
+              <Field label="Glide (K)" value={r.glide_k} />
+              <Field label="Ebulição (°C)" value={r.boiling_point_c} />
+              <Field label="Temp. crítica (°C)" value={r.critical_temperature_c} />
+              <Field label="Densidade líquida (kg/L)" value={r.liquid_density_kg_l} />
+              <Field label="Temp. ref. densidade (°C)" value={r.reference_temperature_c} />
+              <Field label="Compatibilidade óleo" value={r.oil_compatibility} />
+            </div>
+            {(row.compatibility_notes || r.notes || row.source) && (
+              <div className="mt-3 rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground">
+                {row.compatibility_notes && <p>{row.compatibility_notes}</p>}
+                {r.notes && <p className="mt-1">{r.notes}</p>}
+                {row.source && <p className="mt-1">Origem: {row.source}</p>}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function normalizeCommercialFeatures(value: unknown): string[] {
   return Array.isArray(value)
     ? value.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
