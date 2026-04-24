@@ -27,12 +27,14 @@ import { Route as AppClientesRouteImport } from './routes/app.clientes'
 import { Route as AppAprovacoesRouteImport } from './routes/app.aprovacoes'
 import { Route as AppPropostasIndexRouteImport } from './routes/app.propostas.index'
 import { Route as AppConfiguracoesIndexRouteImport } from './routes/app.configuracoes.index'
+import { Route as AppColdproIndexRouteImport } from './routes/app.coldpro.index'
 import { Route as AppPropostasPedidosNfRouteImport } from './routes/app.propostas.pedidos-nf'
 import { Route as AppPropostasNovaRouteImport } from './routes/app.propostas.nova'
 import { Route as AppPropostasIdRouteImport } from './routes/app.propostas.$id'
 import { Route as AppCrmIdRouteImport } from './routes/app.crm.$id'
 import { Route as AppConfiguracoesNomusRouteImport } from './routes/app.configuracoes.nomus'
 import { Route as AppConfiguracoesApiNomusRouteImport } from './routes/app.configuracoes.api-nomus'
+import { Route as AppColdproIdRouteImport } from './routes/app.coldpro.$id'
 import { Route as ApiNomusTestRouteImport } from './routes/api.nomus.test'
 import { Route as AppPropostasIdIndexRouteImport } from './routes/app.propostas.$id.index'
 import { Route as AppConfiguracoesTemplatesIndexRouteImport } from './routes/app.configuracoes.templates.index'
@@ -134,6 +136,11 @@ const AppConfiguracoesIndexRoute = AppConfiguracoesIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppConfiguracoesRoute,
 } as any)
+const AppColdproIndexRoute = AppColdproIndexRouteImport.update({
+  id: '/coldpro/',
+  path: '/coldpro/',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppPropostasPedidosNfRoute = AppPropostasPedidosNfRouteImport.update({
   id: '/propostas/pedidos-nf',
   path: '/propostas/pedidos-nf',
@@ -165,6 +172,11 @@ const AppConfiguracoesApiNomusRoute =
     path: '/api-nomus',
     getParentRoute: () => AppConfiguracoesRoute,
   } as any)
+const AppColdproIdRoute = AppColdproIdRouteImport.update({
+  id: '/coldpro/$id',
+  path: '/coldpro/$id',
+  getParentRoute: () => AppRoute,
+} as any)
 const ApiNomusTestRoute = ApiNomusTestRouteImport.update({
   id: '/api/nomus/test',
   path: '/api/nomus/test',
@@ -241,12 +253,14 @@ export interface FileRoutesByFullPath {
   '/hooks/nomus-cron': typeof HooksNomusCronRoute
   '/app/': typeof AppIndexRoute
   '/api/nomus/test': typeof ApiNomusTestRoute
+  '/app/coldpro/$id': typeof AppColdproIdRoute
   '/app/configuracoes/api-nomus': typeof AppConfiguracoesApiNomusRoute
   '/app/configuracoes/nomus': typeof AppConfiguracoesNomusRouteWithChildren
   '/app/crm/$id': typeof AppCrmIdRoute
   '/app/propostas/$id': typeof AppPropostasIdRouteWithChildren
   '/app/propostas/nova': typeof AppPropostasNovaRoute
   '/app/propostas/pedidos-nf': typeof AppPropostasPedidosNfRoute
+  '/app/coldpro/': typeof AppColdproIndexRoute
   '/app/configuracoes/': typeof AppConfiguracoesIndexRoute
   '/app/propostas/': typeof AppPropostasIndexRoute
   '/api/public/nomus/exhaustive-probe': typeof ApiPublicNomusExhaustiveProbeRoute
@@ -275,11 +289,13 @@ export interface FileRoutesByTo {
   '/hooks/nomus-cron': typeof HooksNomusCronRoute
   '/app': typeof AppIndexRoute
   '/api/nomus/test': typeof ApiNomusTestRoute
+  '/app/coldpro/$id': typeof AppColdproIdRoute
   '/app/configuracoes/api-nomus': typeof AppConfiguracoesApiNomusRoute
   '/app/configuracoes/nomus': typeof AppConfiguracoesNomusRouteWithChildren
   '/app/crm/$id': typeof AppCrmIdRoute
   '/app/propostas/nova': typeof AppPropostasNovaRoute
   '/app/propostas/pedidos-nf': typeof AppPropostasPedidosNfRoute
+  '/app/coldpro': typeof AppColdproIndexRoute
   '/app/configuracoes': typeof AppConfiguracoesIndexRoute
   '/app/propostas': typeof AppPropostasIndexRoute
   '/api/public/nomus/exhaustive-probe': typeof ApiPublicNomusExhaustiveProbeRoute
@@ -311,12 +327,14 @@ export interface FileRoutesById {
   '/hooks/nomus-cron': typeof HooksNomusCronRoute
   '/app/': typeof AppIndexRoute
   '/api/nomus/test': typeof ApiNomusTestRoute
+  '/app/coldpro/$id': typeof AppColdproIdRoute
   '/app/configuracoes/api-nomus': typeof AppConfiguracoesApiNomusRoute
   '/app/configuracoes/nomus': typeof AppConfiguracoesNomusRouteWithChildren
   '/app/crm/$id': typeof AppCrmIdRoute
   '/app/propostas/$id': typeof AppPropostasIdRouteWithChildren
   '/app/propostas/nova': typeof AppPropostasNovaRoute
   '/app/propostas/pedidos-nf': typeof AppPropostasPedidosNfRoute
+  '/app/coldpro/': typeof AppColdproIndexRoute
   '/app/configuracoes/': typeof AppConfiguracoesIndexRoute
   '/app/propostas/': typeof AppPropostasIndexRoute
   '/api/public/nomus/exhaustive-probe': typeof ApiPublicNomusExhaustiveProbeRoute
@@ -349,12 +367,14 @@ export interface FileRouteTypes {
     | '/hooks/nomus-cron'
     | '/app/'
     | '/api/nomus/test'
+    | '/app/coldpro/$id'
     | '/app/configuracoes/api-nomus'
     | '/app/configuracoes/nomus'
     | '/app/crm/$id'
     | '/app/propostas/$id'
     | '/app/propostas/nova'
     | '/app/propostas/pedidos-nf'
+    | '/app/coldpro/'
     | '/app/configuracoes/'
     | '/app/propostas/'
     | '/api/public/nomus/exhaustive-probe'
@@ -383,11 +403,13 @@ export interface FileRouteTypes {
     | '/hooks/nomus-cron'
     | '/app'
     | '/api/nomus/test'
+    | '/app/coldpro/$id'
     | '/app/configuracoes/api-nomus'
     | '/app/configuracoes/nomus'
     | '/app/crm/$id'
     | '/app/propostas/nova'
     | '/app/propostas/pedidos-nf'
+    | '/app/coldpro'
     | '/app/configuracoes'
     | '/app/propostas'
     | '/api/public/nomus/exhaustive-probe'
@@ -418,12 +440,14 @@ export interface FileRouteTypes {
     | '/hooks/nomus-cron'
     | '/app/'
     | '/api/nomus/test'
+    | '/app/coldpro/$id'
     | '/app/configuracoes/api-nomus'
     | '/app/configuracoes/nomus'
     | '/app/crm/$id'
     | '/app/propostas/$id'
     | '/app/propostas/nova'
     | '/app/propostas/pedidos-nf'
+    | '/app/coldpro/'
     | '/app/configuracoes/'
     | '/app/propostas/'
     | '/api/public/nomus/exhaustive-probe'
@@ -577,6 +601,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppConfiguracoesIndexRouteImport
       parentRoute: typeof AppConfiguracoesRoute
     }
+    '/app/coldpro/': {
+      id: '/app/coldpro/'
+      path: '/coldpro'
+      fullPath: '/app/coldpro/'
+      preLoaderRoute: typeof AppColdproIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/propostas/pedidos-nf': {
       id: '/app/propostas/pedidos-nf'
       path: '/propostas/pedidos-nf'
@@ -618,6 +649,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/app/configuracoes/api-nomus'
       preLoaderRoute: typeof AppConfiguracoesApiNomusRouteImport
       parentRoute: typeof AppConfiguracoesRoute
+    }
+    '/app/coldpro/$id': {
+      id: '/app/coldpro/$id'
+      path: '/coldpro/$id'
+      fullPath: '/app/coldpro/$id'
+      preLoaderRoute: typeof AppColdproIdRouteImport
+      parentRoute: typeof AppRoute
     }
     '/api/nomus/test': {
       id: '/api/nomus/test'
@@ -763,9 +801,11 @@ interface AppRouteChildren {
   AppSeletorRoute: typeof AppSeletorRoute
   AppTarefasRoute: typeof AppTarefasRoute
   AppIndexRoute: typeof AppIndexRoute
+  AppColdproIdRoute: typeof AppColdproIdRoute
   AppPropostasIdRoute: typeof AppPropostasIdRouteWithChildren
   AppPropostasNovaRoute: typeof AppPropostasNovaRoute
   AppPropostasPedidosNfRoute: typeof AppPropostasPedidosNfRoute
+  AppColdproIndexRoute: typeof AppColdproIndexRoute
   AppPropostasIndexRoute: typeof AppPropostasIndexRoute
 }
 
@@ -782,9 +822,11 @@ const AppRouteChildren: AppRouteChildren = {
   AppSeletorRoute: AppSeletorRoute,
   AppTarefasRoute: AppTarefasRoute,
   AppIndexRoute: AppIndexRoute,
+  AppColdproIdRoute: AppColdproIdRoute,
   AppPropostasIdRoute: AppPropostasIdRouteWithChildren,
   AppPropostasNovaRoute: AppPropostasNovaRoute,
   AppPropostasPedidosNfRoute: AppPropostasPedidosNfRoute,
+  AppColdproIndexRoute: AppColdproIndexRoute,
   AppPropostasIndexRoute: AppPropostasIndexRoute,
 }
 
@@ -805,3 +847,12 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}
