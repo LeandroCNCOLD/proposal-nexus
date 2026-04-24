@@ -227,26 +227,48 @@ export function renderBlock(block: DocumentBlock, ctx: BlockRenderContext): Reac
     }
 
     case "proposal_summary_box": {
-      // Renderiza Cliente / Projeto / Proposta / Data / Responsável Comercial
-      // com os valores reais da proposta. Quebra de linha automática (Text com flex:1).
+      // Suporta tanto a nova estrutura `data.fields` (gestão visual no editor)
+      // quanto o formato legado com `data.overrides`.
+      type SummaryField = { key: string; label: string; valueKey?: string; value?: string };
+      const customFields = block.data.fields as SummaryField[] | undefined;
       const overrides =
         (block.data.overrides as Record<string, { label?: string; value?: string }> | undefined) ??
         {};
-      const items = [
-        { key: "cliente", label: "Cliente:", value: proposal?.client_name ?? "" },
-        { key: "projeto", label: "Projeto:", value: proposal?.title ?? "" },
-        { key: "proposta", label: "Proposta:", value: proposal?.number ?? "" },
-        { key: "data", label: "Data:", value: proposal?.created_at ? fmtDateBR(proposal.created_at) : "" },
-        {
-          key: "responsavel",
-          label: "Responsável Comercial:",
-          value: (block.data.responsavel as string | undefined) ?? "",
-        },
-      ].map((f) => ({
-        key: f.key,
-        label: overrides[f.key]?.label ?? f.label,
-        value: overrides[f.key]?.value ?? f.value,
-      }));
+
+      // Mapa de chaves de valor → valor real da proposta para o PDF.
+      const proposalValues: Record<string, string> = {
+        client_name: proposal?.client_name ?? "",
+        proposal_title: proposal?.title ?? "",
+        proposal_number: proposal?.number ?? "",
+        data_emissao: proposal?.created_at ? fmtDateBR(proposal.created_at) : "",
+        validade: "",
+        vendedor: (block.data.responsavel as string | undefined) ?? "",
+        empresa_telefone: template?.empresa_telefone ?? "",
+        empresa_email: template?.empresa_email ?? "",
+        empresa_site: template?.empresa_site ?? "",
+      };
+
+      const items = customFields
+        ? customFields.map((f) => ({
+            key: f.key,
+            label: f.label,
+            value: f.value !== undefined ? f.value : f.valueKey ? proposalValues[f.valueKey] ?? "" : "",
+          }))
+        : [
+            { key: "cliente", label: "Cliente:", value: proposal?.client_name ?? "" },
+            { key: "projeto", label: "Projeto:", value: proposal?.title ?? "" },
+            { key: "proposta", label: "Proposta:", value: proposal?.number ?? "" },
+            { key: "data", label: "Data:", value: proposal?.created_at ? fmtDateBR(proposal.created_at) : "" },
+            {
+              key: "responsavel",
+              label: "Responsável Comercial:",
+              value: (block.data.responsavel as string | undefined) ?? "",
+            },
+          ].map((f) => ({
+            key: f.key,
+            label: overrides[f.key]?.label ?? f.label,
+            value: overrides[f.key]?.value ?? f.value,
+          }));
       // Aplica configuração avançada de caixa do BoxStyleEditor (fundo, opacidade, borda, raio).
       // Mantém compatibilidade com o legado layout.background.
       const layout = block.data.layout as
