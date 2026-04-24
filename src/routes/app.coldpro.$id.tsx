@@ -352,7 +352,7 @@ function ColdProProjectPage() {
 
               {/* STEP 3 - RESULTADO */}
               {stepIndex === 3 && (
-                <div className="space-y-4">
+                <div className="space-y-6">
                   <div className="rounded-2xl border bg-background p-4">
                     <h3 className="mb-2 text-base font-semibold">Calcular carga térmica</h3>
                     <p className="mb-3 text-sm text-muted-foreground">
@@ -368,12 +368,7 @@ function ColdProProjectPage() {
                     </button>
                   </div>
                   <ColdProResultCard result={result} />
-                </div>
-              )}
 
-              {/* RESULTADO - EQUIPAMENTO + RELATÓRIO */}
-              {stepIndex === 3 && (
-                <div className="space-y-6">
                   {/* Seleção por curva real do catálogo */}
                   <ColdProRealSelection
                     environment={selectedEnv}
