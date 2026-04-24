@@ -70,6 +70,57 @@ export function PageSidebar({ pages, selectedId, proposalId, onSelect, onChange 
     onChange(next);
   };
 
+  const setPageBg = (
+    pageId: string,
+    patch: Partial<Pick<DocumentPage, "backgroundImageUrl" | "backgroundImagePath" | "backgroundImageFit">>,
+  ) => {
+    onChange(pages.map((p) => (p.id === pageId ? { ...p, ...patch } : p)));
+  };
+
+  const handleBgFile = async (pageId: string, file: File) => {
+    if (!file.type.startsWith("image/")) {
+      toast.error("Envie uma imagem (PNG, JPG, WEBP).");
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      toast.error("Imagem maior que 8 MB.");
+      return;
+    }
+    setUploadingPageId(pageId);
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => {
+          const s = r.result as string;
+          const i = s.indexOf(",");
+          resolve(i >= 0 ? s.slice(i + 1) : s);
+        };
+        r.onerror = () => reject(r.error);
+        r.readAsDataURL(file);
+      });
+      const res = await uploadFn({
+        data: {
+          proposalId,
+          filename: file.name,
+          contentBase64: base64,
+          mimeType: file.type || "image/png",
+        },
+      });
+      setPageBg(pageId, {
+        backgroundImagePath: res.path,
+        backgroundImageUrl: res.url,
+        backgroundImageFit: "cover",
+      });
+      toast.success("Imagem de fundo aplicada");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao subir imagem");
+    } finally {
+      setUploadingPageId(null);
+    }
+  };
+
+  const selectedPage = sorted.find((p) => p.id === selectedId) ?? null;
+
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-center justify-between border-b px-3 py-2">
