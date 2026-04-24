@@ -66,6 +66,7 @@ export function BlockRenderer({
   assets,
   proposalContext,
   proposalId,
+  pageId,
   onChange,
   onDelete,
   onDuplicate,
