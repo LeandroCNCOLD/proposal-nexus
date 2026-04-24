@@ -85,6 +85,44 @@ function ProposalDetail() {
     },
   });
 
+  // Carrega todas as revisões da família CN##### (mesmo cliente, mesmo CN base)
+  const { data: revisions = [] } = useQuery({
+    queryKey: ["proposal-revisions", id, p?.title, p?.client_id],
+    enabled: !!p?.title,
+    queryFn: async () => {
+      const m = (p?.title ?? "").match(/(CN\d{3,})/i);
+      const cn = m ? m[1].toUpperCase() : null;
+      if (!cn) return [];
+      const { data: rows } = await supabase
+        .from("proposals")
+        .select("id, title, number, total_value, created_at, status, nomus_id")
+        .ilike("title", `%${cn}%`);
+      const list = rows ?? [];
+      const nomusIds = list.map((r) => r.nomus_id).filter(Boolean) as string[];
+      const numMap = new Map<string, { numero: string | null; criada_em_nomus: string | null; data_emissao: string | null }>();
+      if (nomusIds.length > 0) {
+        const { data: np } = await supabase
+          .from("nomus_proposals")
+          .select("nomus_id, numero, criada_em_nomus, data_emissao")
+          .in("nomus_id", nomusIds);
+        (np ?? []).forEach((n) => numMap.set(n.nomus_id, n));
+      }
+      return list.map((r) => {
+        const nm = r.nomus_id ? numMap.get(r.nomus_id) ?? null : null;
+        const numero = nm?.numero ?? r.number;
+        const revMatch = numero?.match(/Rev\.?\s*(\d+)/i);
+        const rev = revMatch ? parseInt(revMatch[1], 10) : 0;
+        return {
+          ...r,
+          _rev: rev,
+          _numero: numero,
+          _date: nm?.criada_em_nomus ?? nm?.data_emissao ?? r.created_at,
+          _isCurrent: r.id === id,
+        };
+      }).sort((a, b) => b._rev - a._rev);
+    },
+  });
+
   const latestResumo = insights.find((i: any) => i.insight_type === "resumo");
   const latestProx = insights.find((i: any) => i.insight_type === "proximo_passo");
 
@@ -314,6 +352,40 @@ function ProposalDetail() {
               </div>
             )}
           </div>
+
+          {revisions.length > 1 && (
+            <div className="rounded-xl border bg-card p-6 shadow-[var(--shadow-sm)]">
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="text-sm font-semibold">Linha do tempo de revisões</h2>
+                <span className="text-xs text-muted-foreground">{revisions.length} versões da proposta</span>
+              </div>
+              <ol className="relative border-l-2 border-border ml-2 space-y-4">
+                {revisions.map((rev: any) => (
+                  <li key={rev.id} className="ml-4">
+                    <span className={`absolute -left-[7px] flex h-3 w-3 rounded-full ${rev._isCurrent ? "bg-primary ring-4 ring-primary/20" : "bg-muted-foreground/40"}`} />
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-mono text-sm font-semibold">{rev._numero}</span>
+                      {rev._isCurrent ? (
+                        <span className="rounded-md bg-primary/10 text-primary px-1.5 py-0.5 text-[10px] font-semibold">Atual</span>
+                      ) : (
+                        <button
+                          onClick={() => navigate({ to: "/app/propostas/$id", params: { id: rev.id } })}
+                          className="text-xs text-primary hover:underline"
+                        >
+                          Abrir
+                        </button>
+                      )}
+                      <StatusBadge status={rev.status as ProposalStatus} />
+                    </div>
+                    <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                      <span>{dateBR(rev._date)}</span>
+                      <span className="tabular-nums">{brl(Number(rev.total_value ?? 0))}</span>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
 
           {p.clients && (
             <div className="rounded-xl border bg-card p-6 shadow-[var(--shadow-sm)]">
