@@ -559,6 +559,59 @@ function Field({ label, value }: { label: string; value: unknown }) {
   );
 }
 
+function SmartDescriptionBlock({ model }: { model: Record<string, unknown> }) {
+  const description = typeof model.smart_description === "string" ? model.smart_description : "";
+  const applications = Array.isArray(model.recommended_applications)
+    ? model.recommended_applications.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+    : [];
+  const commercial = normalizeCommercialFeatures(model.commercial_highlights);
+  const technical = normalizeCommercialFeatures(model.technical_highlights);
+  const source = typeof model.description_source === "string" ? model.description_source : null;
+  const confidence = typeof model.description_confidence === "string" ? model.description_confidence : null;
+
+  if (!description && applications.length === 0 && commercial.length === 0 && technical.length === 0) {
+    return <EmptyBlock label="Sem descrição inteligente cadastrada para este modelo." />;
+  }
+
+  return (
+    <div className="rounded-md border bg-primary/5 border-primary/20 p-4 space-y-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="text-sm font-semibold">Descrição inteligente do modelo</div>
+          {source && <div className="text-xs text-muted-foreground">Origem: {source}</div>}
+        </div>
+        {confidence && <Badge variant="secondary">Confiança {confidence}</Badge>}
+      </div>
+      {description && <p className="text-sm leading-relaxed">{description}</p>}
+      {applications.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {applications.map((item) => (
+            <Badge key={item} variant="outline" className="bg-background/70">{item}</Badge>
+          ))}
+        </div>
+      )}
+      <div className="grid gap-3 md:grid-cols-2">
+        <HighlightList title="Diferenciais comerciais" items={commercial} />
+        <HighlightList title="Diferenciais técnicos" items={technical} />
+      </div>
+    </div>
+  );
+}
+
+function HighlightList({ title, items }: { title: string; items: string[] }) {
+  if (items.length === 0) return null;
+  return (
+    <div className="rounded-md border bg-background/70 p-3">
+      <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</div>
+      <ul className="space-y-1.5 text-sm">
+        {items.map((item) => (
+          <li key={item} className="leading-relaxed">{item}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function CommercialFeaturesBlock({ features, source }: { features: string[]; source: string | null }) {
   if (features.length === 0) {
     return <EmptyBlock label="Sem características comerciais cadastradas para este modelo." />;
