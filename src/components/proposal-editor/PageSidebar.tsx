@@ -1,6 +1,7 @@
 // Sidebar fina de páginas — lista, seleciona, reordena, oculta e adiciona páginas.
 import { useRef, useState } from "react";
 import {
+  Copy,
   Eye,
   EyeOff,
   GripVertical,
