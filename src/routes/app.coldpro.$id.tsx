@@ -319,18 +319,46 @@ function ColdProProjectPage() {
               {/* STEP 4 - EQUIPAMENTO + RELATÓRIO */}
               {stepIndex === 4 && (
                 <div className="space-y-6">
+                  {/* Seleção por curva real do catálogo */}
+                  <ColdProRealSelection
+                    environment={selectedEnv}
+                    result={result}
+                    isSelecting={saveCatalogSel.isPending}
+                    onSelect={async (cand) => {
+                      try {
+                        await saveCatalogSel.mutateAsync({
+                          environmentId: selectedEnv.id,
+                          modelName: cand.model.modelo,
+                          quantity: cand.quantity,
+                          capacityUnitKcalH: cand.capacity_unit_kcal_h,
+                          capacityTotalKcalH: cand.capacity_total_kcal_h,
+                          airFlowUnitM3H: cand.evaporator_airflow_m3_h,
+                          airFlowTotalM3H: cand.air_flow_total_m3_h,
+                          surplusKcalH: cand.surplus_kcal_h,
+                          surplusPercent: cand.surplus_percent,
+                          airChangesHour: cand.air_changes_hour,
+                          notes: `Catálogo · Tevap ${cand.point_used.evaporation_temp_c}°C / Tcond ${cand.point_used.condensation_temp_c}°C${cand.point_used.interpolated ? " (interpolado)" : ""}`,
+                        });
+                        toast.success(`${cand.model.modelo} selecionado`);
+                      } catch (e: any) {
+                        toast.error(e?.message ?? "Erro ao salvar seleção");
+                      }
+                    }}
+                  />
+
+                  {/* Auto-select clássico (fallback) */}
                   <div className="rounded-2xl border bg-background p-4">
-                    <h3 className="mb-2 text-base font-semibold">Seleção de equipamento</h3>
+                    <h3 className="mb-2 text-base font-semibold">Seleção automática rápida (legado)</h3>
                     <p className="mb-3 text-sm text-muted-foreground">
-                      Selecione automaticamente o equipamento CN COLD que melhor atende a carga térmica calculada.
+                      Use a seleção legada por capacidade fixa caso o catálogo ainda não esteja completo.
                     </p>
                     <button
                       type="button"
-                      className="rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground"
+                      className="rounded-md border bg-background px-4 py-2 text-sm hover:bg-muted"
                       onClick={handleAutoSelect}
                       disabled={autoSelect.isPending}
                     >
-                      {autoSelect.isPending ? "Selecionando..." : "Selecionar equipamento"}
+                      {autoSelect.isPending ? "Selecionando..." : "Selecionar pelo modo legado"}
                     </button>
                   </div>
 
