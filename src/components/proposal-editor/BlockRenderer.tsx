@@ -97,8 +97,15 @@ export function BlockRenderer({
     if (layout?.align) s.textAlign = layout.align;
     const ff = block.data.fontFamily as string | undefined;
     if (ff) s.fontFamily = ff;
+    // fontSize em px (definido pelo escalonamento do container ou pelo usuário).
+    // Aplicado no wrapper para cascatear aos filhos textuais via herança CSS.
+    const fs = block.data.fontSize as number | undefined;
+    if (typeof fs === "number" && fs > 0) {
+      s.fontSize = `${fs}px`;
+      s.lineHeight = 1.25;
+    }
     return s;
-  }, [layout, template?.primary_color, block.data.fontFamily]);
+  }, [layout, template?.primary_color, block.data.fontFamily, block.data.fontSize]);
 
   return (
     <div
