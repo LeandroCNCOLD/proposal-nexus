@@ -171,6 +171,24 @@ export function BlockRenderer({
             </button>
           ))}
           <span className="mx-1 text-muted-foreground/50">·</span>
+          {/* Fundo do bloco — alterna entre Branco e Transparente.
+              Útil para esconder a "caixa" no PDF e exibir só o conteúdo. */}
+          {(["white", "transparent"] as const).map((bg) => (
+            <button
+              key={bg}
+              type="button"
+              className={`rounded px-1.5 text-[10px] ${
+                (layout?.background ?? "transparent") === bg
+                  ? "bg-primary text-primary-foreground"
+                  : "hover:bg-muted"
+              }`}
+              onClick={() => setData({ layout: { ...layout!, background: bg } })}
+              title={bg === "white" ? "Fundo branco (caixa visível)" : "Fundo transparente (sem caixa)"}
+            >
+              {bg === "white" ? "▭ Caixa" : "◌ Sem caixa"}
+            </button>
+          ))}
+          <span className="mx-1 text-muted-foreground/50">·</span>
           <Button
             size="sm"
             variant="ghost"
