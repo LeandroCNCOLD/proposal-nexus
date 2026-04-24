@@ -198,16 +198,8 @@ export function ColdProModelDetailDialog({ modelId, open, onOpenChange }: Props)
                 <Field label="Modelo" value={m.modelo} />
                 <Field label="Linha" value={m.linha} />
                 <Field label="Designação HP" value={m.designacao_hp} />
-                <Field label="Refrigerante" value={m.refrigerante} />
-                <Field label="Gabinete" value={m.gabinete} />
                 <Field label="Tipo gabinete" value={m.tipo_gabinete} />
                 <Field label="Tipo degelo" value={m.tipo_degelo} />
-                <Field label="Configuração elétrica" value={m.electrical_configuration} />
-                <Field label="Tensão nominal (V)" value={m.voltage_value_v} />
-                <Field label="Fases" value={m.phase_count} />
-                <Field label="Frequência (Hz)" value={m.frequency_hz} />
-                <Field label="GWP (AR6)" value={m.gwp_ar6} />
-                <Field label="ODP (AR6)" value={m.odp_ar6} />
                 <Field
                   label="Status"
                   value={m.active ? "Ativo" : "Inativo"}
@@ -313,6 +305,10 @@ export function ColdProModelDetailDialog({ modelId, open, onOpenChange }: Props)
                 features={normalizeCommercialFeatures(m.commercial_features)}
                 source={m.commercial_description_source as string | null}
               />
+            </TabsContent>
+
+            <TabsContent value="refrigerants" className="mt-4">
+              <RefrigerantsBlock rows={data.refrigerants as RefrigerantRelation[]} />
             </TabsContent>
 
             <TabsContent value="images" className="mt-4">
