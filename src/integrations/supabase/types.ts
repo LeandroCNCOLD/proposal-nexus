@@ -716,6 +716,9 @@ export type Database = {
           application_type: string | null
           biblock_image_path: string | null
           biblock_image_paths: string[]
+          commercial_description: string | null
+          commercial_description_source: string | null
+          commercial_features: Json
           created_at: string
           designacao_hp: string | null
           gabinete: string | null
@@ -741,6 +744,9 @@ export type Database = {
           application_type?: string | null
           biblock_image_path?: string | null
           biblock_image_paths?: string[]
+          commercial_description?: string | null
+          commercial_description_source?: string | null
+          commercial_features?: Json
           created_at?: string
           designacao_hp?: string | null
           gabinete?: string | null
@@ -766,6 +772,9 @@ export type Database = {
           application_type?: string | null
           biblock_image_path?: string | null
           biblock_image_paths?: string[]
+          commercial_description?: string | null
+          commercial_description_source?: string | null
+          commercial_features?: Json
           created_at?: string
           designacao_hp?: string | null
           gabinete?: string | null
