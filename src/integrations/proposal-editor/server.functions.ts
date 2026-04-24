@@ -1,15 +1,13 @@
-// Server functions do editor de propostas (CN Cold)
+// Server functions do editor de propostas (CN Cold v2 — Page Builder com blocos)
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import {
   DEFAULT_PAGES,
-  type ContextData,
-  type CoverData,
+  makeDefaultPage,
   type DocumentPage,
-  type ProposalTable,
-  type ScopeItem,
-  type SolutionData,
+  type PageType,
+  type DocumentBlock,
 } from "./types";
 import {
   getDefaultTableSettings,
@@ -19,45 +17,10 @@ import type {
   ProposalTableRow,
   ProposalTableType,
 } from "@/features/proposal-editor/proposal-tables.types";
-import type { ProposalTemplate, TemplateAsset, TemplatePageConfig } from "./template.types";
-import { renderToBuffer } from "@react-pdf/renderer";
-import { createElement } from "react";
-import { PDFDocument } from "pdf-lib";
-import { ProposalDocumentPdf } from "./pdf/ProposalDocument";
+import type { ProposalTemplate, TemplateAsset } from "./template.types";
 
 const proposalIdSchema = z.object({ proposalId: z.string().uuid() });
-
 const TEMPLATE_BUCKET = "proposal-template-assets";
-const ATTACHMENT_BUCKET = "proposal-files";
-
-/**
- * Faz merge do PDF principal com os anexos (na ordem de attached_pdf_paths).
- * Anexos com falha de download são silenciosamente ignorados.
- */
-async function mergeWithAttachments(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  supabase: any,
-  mainPdf: Uint8Array,
-  paths: string[],
-): Promise<Uint8Array> {
-  if (!paths || paths.length === 0) return mainPdf;
-  const merged = await PDFDocument.load(mainPdf);
-  for (const path of paths) {
-    try {
-      const { data: blob, error } = await supabase.storage
-        .from(ATTACHMENT_BUCKET)
-        .download(path);
-      if (error || !blob) continue;
-      const buf = new Uint8Array(await blob.arrayBuffer());
-      const attached = await PDFDocument.load(buf);
-      const copied = await merged.copyPages(attached, attached.getPageIndices());
-      copied.forEach((p) => merged.addPage(p));
-    } catch (err) {
-      console.warn(`[mergeWithAttachments] falhou em ${path}:`, err);
-    }
-  }
-  return await merged.save();
-}
 
 async function loadDefaultTemplateBundle(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -88,7 +51,7 @@ async function loadDefaultTemplateBundle(
 
 /**
  * Carrega o documento da proposta. Se não existir, cria um aplicando o
- * template padrão (cores, pages_config, textos fixos) e retorna.
+ * template padrão (cores, pages_config, textos fixos).
  */
 export const getProposalDocument = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -97,7 +60,6 @@ export const getProposalDocument = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const { proposalId } = data;
 
-    // Tenta carregar
     const { data: existing, error: selErr } = await supabase
       .from("proposal_documents")
       .select("*")
@@ -107,12 +69,20 @@ export const getProposalDocument = createServerFn({ method: "POST" })
     if (selErr) throw new Error(selErr.message);
     if (existing) return { document: existing };
 
-    // Aplica template padrão
     const bundle = await loadDefaultTemplateBundle(supabase);
-    const pages: DocumentPage[] = (bundle?.template.pages_config as unknown as DocumentPage[] | undefined)
-      ?? DEFAULT_PAGES;
+    const tplPages = bundle?.template?.pages_config as unknown;
+    let pages: DocumentPage[] = DEFAULT_PAGES;
+    if (Array.isArray(tplPages) && tplPages.length > 0) {
+      // Converte pages_config simples (sem blocks) em páginas com blocos default
+      pages = (tplPages as Array<Record<string, unknown>>).map((p, i) =>
+        makeDefaultPage(
+          (p.type as PageType) ?? "custom-rich",
+          (p.title as string) ?? "Página",
+          typeof p.order === "number" ? p.order : i,
+        ),
+      );
+    }
 
-    // Cria com defaults + template padrão
     const { data: created, error: insErr } = await supabase
       .from("proposal_documents")
       .insert({
@@ -158,7 +128,13 @@ export const setProposalDocumentTemplate = createServerFn({ method: "POST" })
         .maybeSingle();
       const pgs = (tmpl as { pages_config?: unknown } | null)?.pages_config;
       if (Array.isArray(pgs) && pgs.length > 0) {
-        patch.pages = pgs;
+        patch.pages = (pgs as Array<Record<string, unknown>>).map((p, i) =>
+          makeDefaultPage(
+            (p.type as PageType) ?? "custom-rich",
+            (p.title as string) ?? "Página",
+            typeof p.order === "number" ? p.order : i,
+          ),
+        );
       }
     }
 
@@ -176,20 +152,11 @@ const upsertSchema = z.object({
   proposalId: z.string().uuid(),
   patch: z.object({
     pages: z.array(z.any()).optional(),
-    cover_data: z.record(z.any()).optional(),
-    solution_data: z.record(z.any()).optional(),
-    context_data: z.record(z.any()).optional(),
-    scope_items: z.array(z.any()).optional(),
-    warranty_text: z.record(z.any()).optional(),
-    custom_blocks: z.array(z.any()).optional(),
     attached_pdf_paths: z.array(z.string()).optional(),
-    manually_edited_fields: z.array(z.string()).optional(),
   }),
 });
 
-/**
- * Salva (parcial) o documento. Atualiza last_edited_by/at automaticamente.
- */
+/** Salva (parcial) o documento. */
 export const upsertProposalDocument = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => upsertSchema.parse(input))
@@ -213,10 +180,9 @@ export const upsertProposalDocument = createServerFn({ method: "POST" })
   });
 
 /**
- * Auto-preenche o documento com dados do Nomus + clientes + contatos + escopo +
- * tabelas estruturadas (investimento, impostos, pagamento).
- * Não sobrescreve campos listados em `manually_edited_fields`, exceto quando
- * `overwriteManualFields` for `true`.
+ * Auto-preenche os blocos do documento com dados do Nomus + cliente + contato.
+ * Atualiza apenas blocos com `source = "nomus"` e que não estão `locked`.
+ * Também popula tabelas estruturadas (investimento, impostos, pagamento).
  */
 const autoFillSchema = z.object({
   proposalId: z.string().uuid(),
@@ -228,9 +194,8 @@ export const autoFillFromNomus = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => autoFillSchema.parse(input))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const { proposalId, overwriteManualFields = false } = data;
+    const { proposalId } = data;
 
-    // Carrega documento + proposta + cliente + contato + nomus_proposal
     const { data: proposal, error: pErr } = await supabase
       .from("proposals")
       .select(
@@ -246,12 +211,8 @@ export const autoFillFromNomus = createServerFn({ method: "POST" })
       .eq("proposal_id", proposalId)
       .maybeSingle();
     if (dErr) throw new Error(dErr.message);
+    if (!doc) throw new Error("Documento não encontrado. Abra o editor primeiro.");
 
-    const manuallyEdited = new Set<string>(
-      overwriteManualFields ? [] : (doc?.manually_edited_fields ?? []),
-    );
-
-    // Nomus proposal (busca por nomus_proposal_id ou nomus_id)
     let nomusProp: Record<string, unknown> | null = null;
     let nomusItems: Array<Record<string, unknown>> = [];
     const nomusKey = proposal.nomus_proposal_id ?? proposal.nomus_id;
@@ -279,87 +240,100 @@ export const autoFillFromNomus = createServerFn({ method: "POST" })
       | { name?: string; email?: string; phone?: string; role?: string }
       | null;
 
-    const setIf = <T extends Record<string, unknown>>(target: T, prefix: string, key: string, value: unknown): T => {
-      const fieldKey = `${prefix}.${key}`;
-      if (manuallyEdited.has(fieldKey)) return target;
-      if (value === undefined || value === null || value === "") return target;
-      return { ...target, [key]: value };
-    };
-
-    let cover_data = (doc?.cover_data ?? {}) as Record<string, unknown>;
-    cover_data = setIf(cover_data, "cover_data", "cliente", cliente?.trade_name || cliente?.name);
-    cover_data = setIf(cover_data, "cover_data", "projeto", proposal.title);
-    cover_data = setIf(cover_data, "cover_data", "numero", proposal.number);
-    cover_data = setIf(cover_data, "cover_data", "data", new Date().toISOString().slice(0, 10));
-    cover_data = setIf(cover_data, "cover_data", "responsavel", (nomusProp?.vendedor_nome as string) ?? null);
-
-    let context_data = (doc?.context_data ?? {}) as Record<string, unknown>;
-    context_data = setIf(context_data, "context_data", "cliente_razao", cliente?.name);
-    context_data = setIf(context_data, "context_data", "fantasia", cliente?.trade_name);
-    context_data = setIf(context_data, "context_data", "cnpj", cliente?.document);
-    context_data = setIf(
-      context_data,
-      "context_data",
-      "endereco",
-      [cliente?.city, cliente?.state].filter(Boolean).join(" / ") || null,
-    );
-    if (!manuallyEdited.has("context_data.contatos") && contato?.name) {
-      context_data = {
-        ...context_data,
-        contatos: [
-          {
-            nome: contato.name,
-            cargo: contato.role ?? "",
-            email: contato.email ?? "",
-            telefone: contato.phone ?? "",
-          },
-        ],
-      };
-    }
-    context_data = setIf(
-      context_data,
-      "context_data",
-      "prazo_validade",
-      proposal.valid_until ? `Validade: ${proposal.valid_until}` : null,
-    );
-
-    // Escopo a partir dos itens da proposta Nomus
-    let scope_items = (doc?.scope_items ?? []) as Array<Record<string, unknown>>;
-    if (!manuallyEdited.has("scope_items") && nomusItems.length > 0) {
-      scope_items = nomusItems.map((it, idx) => ({
-        id: (it.id as string) ?? `scope-${idx}`,
-        titulo: (it.description as string) ?? `Item ${idx + 1}`,
-        descricao: (it.additional_info as string) ?? "",
-        quantidade: Number(it.quantity ?? 0),
-        unidade: (it.unit_value_with_unit as string) ?? "un",
-        valor_unitario: Number(it.unit_price ?? 0),
-        valor_total: Number(it.total_with_discount ?? it.total ?? 0),
-      }));
-    }
+    // Auto-fill blocos com source=nomus
+    const pages = (doc.pages as unknown as DocumentPage[]) ?? [];
+    const updatedPages: DocumentPage[] = pages.map((page) => {
+      const updatedBlocks: DocumentBlock[] = page.blocks.map((block) => {
+        if (block.source !== "nomus" || block.locked) return block;
+        switch (block.type) {
+          case "client_info":
+            return {
+              ...block,
+              data: {
+                ...block.data,
+                cliente: cliente?.trade_name || cliente?.name || block.data.cliente,
+                cnpj: cliente?.document || block.data.cnpj,
+                endereco:
+                  [cliente?.city, cliente?.state].filter(Boolean).join(" / ") ||
+                  block.data.endereco,
+              },
+            };
+          case "project_info":
+            return {
+              ...block,
+              data: {
+                ...block.data,
+                projeto: proposal.title || block.data.projeto,
+                numero: proposal.number || block.data.numero,
+                data: new Date().toISOString().slice(0, 10),
+              },
+            };
+          case "responsible_info":
+            return {
+              ...block,
+              data: {
+                ...block.data,
+                responsavel: (nomusProp?.vendedor_nome as string) ?? block.data.responsavel,
+              },
+            };
+          case "key_value_list":
+            if (page.type === "context") {
+              return {
+                ...block,
+                data: {
+                  items: [
+                    { label: "Cliente", value: cliente?.name ?? "" },
+                    { label: "CNPJ", value: cliente?.document ?? "" },
+                    {
+                      label: "Endereço",
+                      value: [cliente?.city, cliente?.state].filter(Boolean).join(" / "),
+                    },
+                    {
+                      label: "Contato",
+                      value: contato
+                        ? `${contato.name ?? ""}${contato.email ? ` · ${contato.email}` : ""}`
+                        : "",
+                    },
+                  ],
+                },
+              };
+            }
+            return block;
+          case "included_items":
+            if (page.type === "scope" && nomusItems.length > 0) {
+              return {
+                ...block,
+                data: {
+                  items: nomusItems.map(
+                    (it, i) => (it.description as string) ?? `Item ${i + 1}`,
+                  ),
+                },
+              };
+            }
+            return block;
+          default:
+            return block;
+        }
+      });
+      return { ...page, blocks: updatedBlocks };
+    });
 
     const { data: updated, error: uErr } = await supabase
       .from("proposal_documents")
-      .upsert(
-        {
-          proposal_id: proposalId,
-          pages: (doc?.pages as never) ?? (DEFAULT_PAGES as unknown as never),
-          cover_data: cover_data as never,
-          context_data: context_data as never,
-          scope_items: scope_items as never,
-          auto_filled_at: new Date().toISOString(),
-          last_edited_by: userId,
-          last_edited_at: new Date().toISOString(),
-        },
-        { onConflict: "proposal_id" },
-      )
+      .update({
+        pages: updatedPages as unknown as never,
+        auto_filled_at: new Date().toISOString(),
+        last_edited_by: userId,
+        last_edited_at: new Date().toISOString(),
+      } as never)
+      .eq("proposal_id", proposalId)
       .select("*")
       .single();
     if (uErr) throw new Error(uErr.message);
 
     // ============= Tabelas estruturadas =============
-    const pagesArr = ((updated?.pages ?? doc?.pages) as DocumentPage[] | undefined) ?? [];
     const findPageId = (...types: string[]): string | null => {
-      const found = pagesArr.find((p) => types.includes(p.type));
+      const found = updatedPages.find((p) => types.includes(p.type));
       return found?.id ?? null;
     };
 
@@ -371,12 +345,7 @@ export const autoFillFromNomus = createServerFn({ method: "POST" })
       rows: ProposalTableRow[],
       title?: string,
     ) => {
-      if (!pageId) return;
-      const fieldKey = `proposal_tables.${tableType}`;
-      if (manuallyEdited.has(fieldKey)) return;
-      if (rows.length === 0) return;
-
-      // Estratégia: apaga existentes desse (proposal, page, type) e insere novas
+      if (!pageId || rows.length === 0) return;
       await supabase
         .from("proposal_tables")
         .delete()
@@ -403,7 +372,6 @@ export const autoFillFromNomus = createServerFn({ method: "POST" })
       tablesUpdated.push(tableType);
     };
 
-    // 1) Investimento — itens da proposta Nomus
     if (nomusItems.length > 0) {
       const investimentoPageId = findPageId("investimento", "equipamento");
       const rows: ProposalTableRow[] = nomusItems.map((it, idx) => ({
@@ -417,7 +385,6 @@ export const autoFillFromNomus = createServerFn({ method: "POST" })
       await upsertTable("investimento", investimentoPageId, rows);
     }
 
-    // 2) Impostos — calculados a partir do nomus_proposals
     if (nomusProp) {
       const impostosPageId = findPageId("impostos");
       const valorProdutos = Number(nomusProp.valor_produtos ?? 0);
@@ -438,13 +405,11 @@ export const autoFillFromNomus = createServerFn({ method: "POST" })
       await upsertTable("impostos", impostosPageId, rows);
     }
 
-    // 3) Pagamento — usa a condição do Nomus se houver, senão defaults
     if (nomusProp) {
       const pagamentoPageId = findPageId("pagamento");
       const condNome = (nomusProp.condicao_pagamento_nome as string | null) ?? null;
       let rows: ProposalTableRow[] = getDefaultTableRows("pagamento");
       if (condNome) {
-        // Tenta extrair parcelas do tipo "30/60/90" ou similar
         const matches = condNome.match(/\d+/g);
         if (matches && matches.length >= 1) {
           const total = matches.length;
@@ -467,8 +432,8 @@ export const autoFillFromNomus = createServerFn({ method: "POST" })
   });
 
 /**
- * Gera o PDF da proposta. Modo `preview` retorna URL temporária assinada
- * sem persistir versão. Modo `final` será implementado na Etapa 4.
+ * Geração de PDF temporariamente desativada — será reimplementada na próxima fase
+ * para o novo schema de blocos.
  */
 const generateSchema = z.object({
   proposalId: z.string().uuid(),
@@ -478,382 +443,9 @@ const generateSchema = z.object({
 export const generateProposalPdf = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => generateSchema.parse(input))
-  .handler(async ({ data, context }) => {
-    const { supabase } = context;
-    const { proposalId, mode } = data;
-
-    const { data: doc, error } = await supabase
-      .from("proposal_documents")
-      .select("*")
-      .eq("proposal_id", proposalId)
-      .maybeSingle();
-    if (error) throw new Error(error.message);
-    if (!doc) throw new Error("Documento não encontrado. Abra o editor primeiro.");
-
-    const pages = (doc.pages as unknown as DocumentPage[]) ?? DEFAULT_PAGES;
-    const cover = (doc.cover_data ?? {}) as CoverData;
-    const solution = (doc.solution_data ?? {}) as SolutionData;
-    const ctx = (doc.context_data ?? {}) as ContextData;
-    const scope = (doc.scope_items ?? []) as unknown as ScopeItem[];
-    const warranty = (doc.warranty_text ?? {}) as { html?: string; text?: string };
-
-    // Carrega tabelas estruturadas
-    const { data: tablesRows } = await supabase
-      .from("proposal_tables")
-      .select("*")
-      .eq("proposal_id", proposalId);
-    const tables = (tablesRows ?? []) as unknown as ProposalTable[];
-
-    // Carrega template (do documento ou padrão)
-    let bundle: { template: ProposalTemplate; assets: TemplateAsset[] } | null = null;
-    if (doc.template_id) {
-      const { data: tmpl } = await supabase
-        .from("proposal_templates")
-        .select("*")
-        .eq("id", doc.template_id)
-        .maybeSingle();
-      if (tmpl) {
-        const { data: assets } = await supabase
-          .from("proposal_template_assets")
-          .select("*")
-          .eq("template_id", tmpl.id);
-        const enriched: TemplateAsset[] = (assets ?? []).map((a) => ({
-          ...(a as unknown as TemplateAsset),
-          url: supabase.storage.from(TEMPLATE_BUCKET).getPublicUrl(a.storage_path).data.publicUrl,
-        }));
-        bundle = { template: tmpl as unknown as ProposalTemplate, assets: enriched };
-      }
-    }
-    if (!bundle) bundle = await loadDefaultTemplateBundle(supabase);
-
-    const storageBaseUrl = `${process.env.VITE_SUPABASE_URL ?? ""}/storage/v1/object/public/proposal-attachments`;
-    const element = createElement(ProposalDocumentPdf, {
-      pages,
-      cover,
-      solution,
-      context: ctx,
-      scope,
-      warranty,
-      template: bundle?.template ?? null,
-      assets: bundle?.assets ?? [],
-      tables,
-      storageBaseUrl,
-    });
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const buffer = await renderToBuffer(element as any);
-    const finalBuffer = await mergeWithAttachments(
-      supabase,
-      new Uint8Array(buffer),
-      (doc.attached_pdf_paths ?? []) as string[],
+  .handler(async ({ data }) => {
+    void data;
+    throw new Error(
+      "Geração de PDF está sendo refatorada para o novo Page Builder. Disponível em breve.",
     );
-
-    // Modo preview-inline: retorna base64 direto, sem upload (muito mais rápido para prévia ao vivo)
-    if (mode === "preview-inline") {
-      // Converte Uint8Array → base64 sem usar Buffer (compatível com Worker)
-      let binary = "";
-      const bytes = finalBuffer;
-      const chunk = 0x8000;
-      for (let i = 0; i < bytes.length; i += chunk) {
-        binary += String.fromCharCode.apply(
-          null,
-          Array.from(bytes.subarray(i, i + chunk)) as unknown as number[],
-        );
-      }
-      const base64 = btoa(binary);
-      return { url: null as string | null, path: null as string | null, mode, contentBase64: base64, mime: "application/pdf" };
-    }
-
-    const path = `${proposalId}/${mode}-${Date.now()}.pdf`;
-    const { error: upErr } = await supabase.storage
-      .from("proposal-pdfs")
-      .upload(path, finalBuffer, {
-        contentType: "application/pdf",
-        upsert: true,
-      });
-    if (upErr) throw new Error(`Falha ao salvar PDF: ${upErr.message}`);
-
-    const { data: signed, error: sErr } = await supabase.storage
-      .from("proposal-pdfs")
-      .createSignedUrl(path, 60 * 30); // 30 min
-    if (sErr) throw new Error(sErr.message);
-
-    return { url: signed.signedUrl, path, mode, contentBase64: null as string | null, mime: "application/pdf" };
   });
-
-/**
- * Cria uma versão imutável de envio com snapshots completos do template e do
- * documento (incluindo tabelas estruturadas) + caminho do PDF gerado.
- */
-const sendVersionSchema = z.object({
-  proposalId: z.string().uuid(),
-  notes: z.string().optional(),
-});
-
-export const createProposalSendVersion = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => sendVersionSchema.parse(input))
-  .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    const { proposalId, notes } = data;
-
-    // 1) Carrega documento + template + tabelas
-    const { data: doc, error: dErr } = await supabase
-      .from("proposal_documents")
-      .select("*")
-      .eq("proposal_id", proposalId)
-      .single();
-    if (dErr) throw new Error(dErr.message);
-
-    let templateRow: ProposalTemplate | null = null;
-    let templateAssets: TemplateAsset[] = [];
-    if (doc.template_id) {
-      const { data: tmpl } = await supabase
-        .from("proposal_templates")
-        .select("*")
-        .eq("id", doc.template_id)
-        .maybeSingle();
-      if (tmpl) {
-        templateRow = tmpl as unknown as ProposalTemplate;
-        const { data: assets } = await supabase
-          .from("proposal_template_assets")
-          .select("*")
-          .eq("template_id", doc.template_id);
-        templateAssets = (assets ?? []).map((a) => ({
-          ...(a as unknown as TemplateAsset),
-          url: supabase.storage.from(TEMPLATE_BUCKET).getPublicUrl(a.storage_path).data.publicUrl,
-        }));
-      }
-    }
-    if (!templateRow) {
-      const fallback = await loadDefaultTemplateBundle(supabase);
-      templateRow = fallback?.template ?? null;
-      templateAssets = fallback?.assets ?? [];
-    }
-
-    const { data: tablesRows } = await supabase
-      .from("proposal_tables")
-      .select("*")
-      .eq("proposal_id", proposalId);
-    const tables = (tablesRows ?? []) as unknown as ProposalTable[];
-
-    // 2) Renderiza PDF final
-    const pages = (doc.pages as unknown as DocumentPage[]) ?? DEFAULT_PAGES;
-    const cover = (doc.cover_data ?? {}) as CoverData;
-    const solution = (doc.solution_data ?? {}) as SolutionData;
-    const ctx = (doc.context_data ?? {}) as ContextData;
-    const scope = (doc.scope_items ?? []) as unknown as ScopeItem[];
-    const warranty = (doc.warranty_text ?? {}) as { html?: string; text?: string };
-
-    const storageBaseUrlV = `${process.env.VITE_SUPABASE_URL ?? ""}/storage/v1/object/public/proposal-attachments`;
-    const element = createElement(ProposalDocumentPdf, {
-      pages,
-      cover,
-      solution,
-      context: ctx,
-      scope,
-      warranty,
-      template: templateRow,
-      assets: templateAssets,
-      tables,
-      storageBaseUrl: storageBaseUrlV,
-    });
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const buffer = await renderToBuffer(element as any);
-    const finalBuffer = await mergeWithAttachments(
-      supabase,
-      new Uint8Array(buffer),
-      (doc.attached_pdf_paths ?? []) as string[],
-    );
-
-    const finalPath = `${proposalId}/final-${Date.now()}.pdf`;
-    const { error: upErr } = await supabase.storage
-      .from("proposal-pdfs")
-      .upload(finalPath, finalBuffer, { contentType: "application/pdf", upsert: true });
-    if (upErr) throw new Error(`Falha ao salvar PDF final: ${upErr.message}`);
-
-    // 3) Próximo número de versão
-    const { data: prev } = await supabase
-      .from("proposal_send_versions")
-      .select("version_number")
-      .eq("proposal_id", proposalId)
-      .order("version_number", { ascending: false })
-      .limit(1);
-    const nextVersion =
-      ((prev?.[0] as { version_number?: number } | undefined)?.version_number ?? 0) + 1;
-
-    // marca versões anteriores como não-correntes
-    await supabase
-      .from("proposal_send_versions")
-      .update({ is_current: false } as never)
-      .eq("proposal_id", proposalId);
-
-    // 4) Snapshots imutáveis
-    const templateSnapshot = templateRow
-      ? {
-          template_id: templateRow.id,
-          template_version: doc.template_version,
-          name: templateRow.name,
-          primary_color: templateRow.primary_color,
-          accent_color: templateRow.accent_color,
-          accent_color_2: templateRow.accent_color_2,
-          pages_config: templateRow.pages_config,
-          empresa_nome: templateRow.empresa_nome,
-          empresa_email: templateRow.empresa_email,
-          empresa_telefone: templateRow.empresa_telefone,
-          empresa_site: templateRow.empresa_site,
-          empresa_cidade: templateRow.empresa_cidade,
-        }
-      : null;
-
-    const documentSnapshot = {
-      pages,
-      cover_data: cover,
-      solution_data: solution,
-      context_data: ctx,
-      scope_items: scope,
-      warranty_text: warranty,
-      tables,
-    };
-
-    const { data: created, error: insErr } = await supabase
-      .from("proposal_send_versions")
-      .insert({
-        proposal_id: proposalId,
-        version_number: nextVersion,
-        pdf_storage_path: finalPath,
-        template_snapshot: templateSnapshot as never,
-        document_snapshot: documentSnapshot as never,
-        is_current: true,
-        notes: notes ?? null,
-        generated_by: userId,
-      } as never)
-      .select("*")
-      .single();
-    if (insErr) throw new Error(insErr.message);
-
-    return { version: created, path: finalPath };
-  });
-
-/**
- * Materializa (grava) os placeholders {{...}} resolvidos no documento.
- * Chama o builder de contexto a partir dos dados atuais e substitui inline em
- * cover_data, context_data, solution_data, scope_items, warranty_text, custom_blocks
- * e nas linhas/títulos das tabelas estruturadas. Operação irreversível.
- */
-export const materializeDocumentPlaceholders = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => proposalIdSchema.parse(input))
-  .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    const { proposalId } = data;
-
-    const { buildPlaceholderContext, resolveDeep } = await import(
-      "@/features/proposal-editor/placeholders"
-    );
-
-    const { data: prop } = await supabase
-      .from("proposals")
-      .select(
-        "number, title, valid_until, delivery_term, total_value, payment_terms, nomus_payment_term_name, nomus_price_table_name, nomus_seller_name, created_at, nomus_proposal_id, nomus_id, sales_owner_id, clients:client_id(name, trade_name, document, city, state), client_contacts:contact_id(name, email, phone, role)",
-      )
-      .eq("id", proposalId)
-      .maybeSingle();
-    if (!prop) throw new Error("Proposta não encontrada");
-
-    const nomusKey = (prop as Record<string, unknown>).nomus_proposal_id ?? (prop as Record<string, unknown>).nomus_id;
-    let nomusProposal: Record<string, unknown> | null = null;
-    let nomusItems: Array<Record<string, unknown>> = [];
-    if (nomusKey) {
-      const { data: np } = await supabase
-        .from("nomus_proposals")
-        .select("id, valor_produtos, valor_descontos, valor_total, condicao_pagamento_nome, tabela_preco_nome, vendedor_nome, data_emissao, validade, observacoes, prazo_entrega_dias")
-        .eq("nomus_id", nomusKey as string)
-        .maybeSingle();
-      if (np) {
-        nomusProposal = np as Record<string, unknown>;
-        const { data: items } = await supabase
-          .from("nomus_proposal_items")
-          .select("description, quantity, unit_value_with_unit")
-          .eq("nomus_proposal_id", (np as { id: string }).id)
-          .order("position", { ascending: true });
-        nomusItems = (items ?? []) as Array<Record<string, unknown>>;
-      }
-    }
-
-    let seller: Record<string, unknown> | null = null;
-    const ownerId = (prop as Record<string, unknown>).sales_owner_id as string | null;
-    if (ownerId) {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("full_name, job_title, phone")
-        .eq("id", ownerId)
-        .maybeSingle();
-      seller = (profile as Record<string, unknown>) ?? null;
-    }
-
-    const { data: doc } = await supabase
-      .from("proposal_documents")
-      .select("*")
-      .eq("proposal_id", proposalId)
-      .single();
-    if (!doc) throw new Error("Documento não encontrado");
-
-    let template: Record<string, unknown> | null = null;
-    if (doc.template_id) {
-      const { data: tmpl } = await supabase
-        .from("proposal_templates")
-        .select("empresa_nome, empresa_email, empresa_telefone, empresa_site, empresa_cidade")
-        .eq("id", doc.template_id)
-        .maybeSingle();
-      template = (tmpl as Record<string, unknown>) ?? null;
-    }
-
-    const ctx = buildPlaceholderContext({
-      proposal: prop as never,
-      client: (prop as Record<string, unknown>).clients as never,
-      contact: (prop as Record<string, unknown>).client_contacts as never,
-      seller: seller as never,
-      nomusProposal: nomusProposal as never,
-      nomusItems: nomusItems as never,
-      template: template as never,
-    });
-
-    const patch: Record<string, unknown> = {
-      cover_data: resolveDeep(doc.cover_data, ctx),
-      context_data: resolveDeep(doc.context_data, ctx),
-      solution_data: resolveDeep(doc.solution_data, ctx),
-      scope_items: resolveDeep(doc.scope_items, ctx),
-      warranty_text: resolveDeep(doc.warranty_text, ctx),
-      custom_blocks: resolveDeep(doc.custom_blocks, ctx),
-      pages: resolveDeep(doc.pages, ctx),
-      last_edited_by: userId,
-      last_edited_at: new Date().toISOString(),
-    };
-
-    const { error: updErr } = await supabase
-      .from("proposal_documents")
-      .update(patch as never)
-      .eq("proposal_id", proposalId);
-    if (updErr) throw new Error(updErr.message);
-
-    // Resolve também tabelas (rows/title/subtitle)
-    const { data: tables } = await supabase
-      .from("proposal_tables")
-      .select("id, rows, title, subtitle")
-      .eq("proposal_id", proposalId);
-    let tablesUpdated = 0;
-    for (const t of tables ?? []) {
-      const newRows = resolveDeep(t.rows, ctx);
-      const newTitle = t.title ? resolveDeep(t.title, ctx) : t.title;
-      const newSubtitle = t.subtitle ? resolveDeep(t.subtitle, ctx) : t.subtitle;
-      const { error: tErr } = await supabase
-        .from("proposal_tables")
-        .update({ rows: newRows, title: newTitle, subtitle: newSubtitle } as never)
-        .eq("id", (t as { id: string }).id);
-      if (!tErr) tablesUpdated++;
-    }
-
-    return { ok: true, tablesUpdated };
-  });
-
