@@ -17,7 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Loader2, Snowflake, Wind, Cog, Activity, Info } from "lucide-react";
+import { Loader2, Snowflake, Wind, Cog, Activity, Info, Zap } from "lucide-react";
 
 type Props = {
   modelId: string | null;
