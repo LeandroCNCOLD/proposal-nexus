@@ -111,6 +111,34 @@ function ProposalEditorPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const previewMut = useMutation({
+    mutationFn: async () => {
+      // Garante que mudanças locais estão salvas antes de gerar
+      if (dirty) await saveMut.mutateAsync();
+      return genPdf({ data: { proposalId: id, mode: "preview" } });
+    },
+    onSuccess: (res) => {
+      window.open(res.url, "_blank", "noopener");
+      toast.success("Pré-visualização gerada");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const versionMut = useMutation({
+    mutationFn: async () => {
+      if (dirty) await saveMut.mutateAsync();
+      return createVersion({ data: { proposalId: id } });
+    },
+    onSuccess: (res) => {
+      if (!res.ok) {
+        toast.error(res.error);
+        return;
+      }
+      toast.success(`Versão v${res.version_number} gerada`);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   // auto-save
   useEffect(() => {
     if (!dirty) return;
