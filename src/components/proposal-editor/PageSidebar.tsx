@@ -217,18 +217,71 @@ export function PageSidebar({ pages, selectedId, proposalId, onSelect, onChange 
         ) : null}
       </div>
 
-      {/* Painel de imagem de fundo da página selecionada */}
+      {/* Painel contextual da página selecionada (recolhível) */}
       {selectedPage ? (
-        <div className="border-t bg-muted/30 px-3 py-2.5">
-          <div className="mb-1.5 flex items-center justify-between">
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Imagem de fundo
-            </span>
-            {selectedPage.backgroundImageUrl ? (
+        <SelectedPagePanel
+          page={selectedPage}
+          uploadingPageId={uploadingPageId}
+          onSetBg={setPageBg}
+          onUpload={handleBgFile}
+          fileInputRef={fileInputRef}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Painel contextual: aparece abaixo da lista quando há página         */
+/* selecionada. Contém imagem de fundo + paleta de campos sugeridos.   */
+/* Pode ser recolhido para liberar espaço na sidebar.                  */
+/* ------------------------------------------------------------------ */
+function SelectedPagePanel({
+  page,
+  uploadingPageId,
+  onSetBg,
+  onUpload,
+  fileInputRef,
+}: {
+  page: DocumentPage;
+  uploadingPageId: string | null;
+  onSetBg: (
+    pageId: string,
+    patch: Partial<Pick<DocumentPage, "backgroundImageUrl" | "backgroundImagePath" | "backgroundImageFit">>,
+  ) => void;
+  onUpload: (pageId: string, file: File) => void;
+  fileInputRef: React.RefObject<HTMLInputElement>;
+}) {
+  const [openBg, setOpenBg] = useState(false);
+
+  return (
+    <div className="border-t bg-muted/20">
+      {/* ----- Imagem de fundo (recolhível) ----- */}
+      <button
+        type="button"
+        onClick={() => setOpenBg((v) => !v)}
+        className="flex w-full items-center justify-between px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground hover:bg-muted/40"
+      >
+        <span className="flex items-center gap-1.5">
+          {openBg ? (
+            <ChevronDown className="h-3.5 w-3.5" />
+          ) : (
+            <ChevronRight className="h-3.5 w-3.5" />
+          )}
+          Imagem de fundo
+        </span>
+        {page.backgroundImageUrl ? (
+          <span className="text-[9px] font-normal text-emerald-600">● aplicada</span>
+        ) : null}
+      </button>
+      {openBg ? (
+        <div className="px-3 pb-3">
+          <div className="mb-1.5 flex items-center justify-end">
+            {page.backgroundImageUrl ? (
               <button
                 type="button"
                 onClick={() =>
-                  setPageBg(selectedPage.id, {
+                  onSetBg(page.id, {
                     backgroundImageUrl: undefined,
                     backgroundImagePath: undefined,
                   })
@@ -239,12 +292,12 @@ export function PageSidebar({ pages, selectedId, proposalId, onSelect, onChange 
               </button>
             ) : null}
           </div>
-          {selectedPage.backgroundImageUrl ? (
+          {page.backgroundImageUrl ? (
             <div className="mb-2 aspect-[1/1.414] w-full overflow-hidden rounded border bg-white">
               <img
-                src={selectedPage.backgroundImageUrl}
+                src={page.backgroundImageUrl}
                 alt=""
-                className={`h-full w-full ${selectedPage.backgroundImageFit === "contain" ? "object-contain" : "object-cover"}`}
+                className={`h-full w-full ${page.backgroundImageFit === "contain" ? "object-contain" : "object-cover"}`}
               />
             </div>
           ) : null}
@@ -254,38 +307,36 @@ export function PageSidebar({ pages, selectedId, proposalId, onSelect, onChange 
               variant="outline"
               className="h-7 flex-1 text-[11px]"
               onClick={() => fileInputRef.current?.click()}
-              disabled={uploadingPageId === selectedPage.id}
+              disabled={uploadingPageId === page.id}
             >
-              {uploadingPageId === selectedPage.id ? (
+              {uploadingPageId === page.id ? (
                 <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-              ) : selectedPage.backgroundImageUrl ? (
+              ) : page.backgroundImageUrl ? (
                 <Upload className="mr-1 h-3 w-3" />
               ) : (
                 <ImageIcon className="mr-1 h-3 w-3" />
               )}
-              {selectedPage.backgroundImageUrl ? "Substituir" : "Enviar imagem"}
+              {page.backgroundImageUrl ? "Substituir" : "Enviar imagem"}
             </Button>
-            {selectedPage.backgroundImageUrl ? (
+            {page.backgroundImageUrl ? (
               <Button
                 size="sm"
                 variant="ghost"
                 className="h-7 px-2 text-[11px]"
                 onClick={() =>
-                  setPageBg(selectedPage.id, {
+                  onSetBg(page.id, {
                     backgroundImageFit:
-                      selectedPage.backgroundImageFit === "contain" ? "cover" : "contain",
+                      page.backgroundImageFit === "contain" ? "cover" : "contain",
                   })
                 }
                 title="Alternar entre preencher (cover) e caber (contain)"
               >
-                {selectedPage.backgroundImageFit === "contain" ? "Caber" : "Preencher"}
+                {page.backgroundImageFit === "contain" ? "Caber" : "Preencher"}
               </Button>
             ) : null}
           </div>
           <p className="mt-1.5 text-[9px] leading-tight text-muted-foreground">
-            A imagem cobre toda a página A4 e fica atrás dos blocos. Ideal para capas, contracapas
-            ou layouts pictóricos. Para reaproveitar em todas as propostas, configure em{" "}
-            <strong>Templates de Proposta</strong>.
+            A imagem cobre toda a página A4 e fica atrás dos blocos.
           </p>
           <input
             ref={fileInputRef}
@@ -294,12 +345,15 @@ export function PageSidebar({ pages, selectedId, proposalId, onSelect, onChange 
             className="hidden"
             onChange={(e) => {
               const f = e.target.files?.[0];
-              if (f && selectedPage) handleBgFile(selectedPage.id, f);
+              if (f) onUpload(page.id, f);
               e.target.value = "";
             }}
           />
         </div>
       ) : null}
+
+      {/* ----- Paleta de campos contextual ----- */}
+      <InlinePagePalette pageType={page.type} pageTitle={page.title} />
     </div>
   );
 }
