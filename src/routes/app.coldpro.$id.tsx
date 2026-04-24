@@ -352,26 +352,26 @@ function ColdProProjectPage() {
                 </div>
               )}
 
-              {/* Navegação */}
-              <div className="flex items-center justify-between print:hidden">
+              {/* Navegação inferior */}
+              <div className="flex items-center justify-between rounded-xl border bg-background px-4 py-3 shadow-sm print:hidden">
                 <button
                   type="button"
                   onClick={prev}
                   disabled={stepIndex === 0}
-                  className="inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm hover:bg-muted disabled:opacity-50"
+                  className="inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-sm text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-40 disabled:hover:bg-transparent"
                 >
                   <ArrowLeft className="h-4 w-4" /> Anterior
                 </button>
-                <div className="text-xs text-muted-foreground">
-                  Etapa {stepIndex + 1} de {COLDPRO_STEPS.length} · {COLDPRO_STEPS[stepIndex].title}
+                <div className="text-[11px] uppercase tracking-widest text-muted-foreground">
+                  {COLDPRO_STEPS[stepIndex].description}
                 </div>
                 <button
                   type="button"
                   onClick={next}
                   disabled={stepIndex === COLDPRO_STEPS.length - 1}
-                  className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground disabled:opacity-50"
+                  className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-1.5 text-sm font-medium text-primary-foreground shadow-sm transition hover:bg-primary/90 disabled:opacity-40"
                 >
-                  Próxima <ArrowRight className="h-4 w-4" />
+                  Próxima etapa <ArrowRight className="h-4 w-4" />
                 </button>
               </div>
             </>
