@@ -16,7 +16,6 @@ type Props = {
 export function ColdProEnvironmentForm({ environment, insulationMaterials, onSave }: Props) {
   const [form, setForm] = React.useState<any>(environment);
   React.useEffect(() => setForm(environment), [environment]);
-  const isTunnel = ["blast_freezer", "cooling_tunnel"].includes(form?.environment_type);
   const isClimatized = form?.environment_type === "climatized_room";
   const isSeed = form?.environment_type === "seed_storage";
 
@@ -130,11 +129,6 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, onSav
           {(isClimatized || isSeed) ? (
             <ColdProField label="Umidade relativa interna" unit="%">
               <ColdProInput {...num("relative_humidity_percent")} />
-            </ColdProField>
-          ) : null}
-          {isTunnel ? (
-            <ColdProField label="Temperatura de referência do processo" unit="°C">
-              <ColdProInput {...num("internal_temp_c")} />
             </ColdProField>
           ) : null}
         </div>
