@@ -1,5 +1,6 @@
 // Documento PDF principal do Page Builder. Itera por DocumentPage[] e
 // renderiza cada página com seus blocos.
+import type { ReactElement } from "react";
 import { Document, Page, Text, View } from "@react-pdf/renderer";
 import type { DocumentPage } from "../types";
 import type { ProposalTable } from "../types";
