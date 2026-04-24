@@ -279,7 +279,7 @@ function BlockBody({
       // sem borda/fundo reais — esta caixa não aparecerá no PDF final.
       const editorBorder = printVisible
         ? `${borderWidth}px solid ${borderColor}`
-        : `1px dashed ${selected ? "#3b82f6" : "#cbd5e1"}`;
+        : `1px dashed #cbd5e1`;
       const editorBg = printVisible ? backgroundColor : "transparent";
       return (
         <div
