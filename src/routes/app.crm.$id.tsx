@@ -54,26 +54,26 @@ function CrmDetailPage() {
     <>
       <PageHeader
         title={(p.nome ?? p.pessoa ?? `Processo #${p.nomus_id}`) as string}
-        subtitle={
-          <span className="flex flex-wrap items-center gap-2">
-            <Badge variant="outline">{p.tipo ?? "—"}</Badge>
-            <Badge>{p.etapa ?? "—"}</Badge>
-            <span className="text-emerald-700 dark:text-emerald-400 font-semibold">{brl(totalValue)}</span>
-            <span className="text-muted-foreground">· {totalProposals} proposta{totalProposals !== 1 ? "s" : ""}</span>
-            {ageDays !== null && <span className="text-muted-foreground">· idade {ageDays}d</span>}
-            {proxOverdue && (
-              <span className="flex items-center gap-1 text-destructive">
-                <AlertTriangle className="h-3 w-3" /> Contato vencido
-              </span>
-            )}
-          </span>
-        }
         actions={
           <Button asChild variant="outline" size="sm">
             <Link to="/app/crm"><ArrowLeft className="mr-2 h-4 w-4" /> Voltar ao funil</Link>
           </Button>
         }
       />
+      <div className="mb-4 flex flex-wrap items-center gap-2 text-sm">
+        <Badge variant="outline">{p.tipo ?? "—"}</Badge>
+        <Badge>{p.etapa ?? "—"}</Badge>
+        <span className="font-semibold text-emerald-700 dark:text-emerald-400">{brl(totalValue)}</span>
+        <span className="text-muted-foreground">
+          · {totalProposals} proposta{totalProposals !== 1 ? "s" : ""}
+        </span>
+        {ageDays !== null && <span className="text-muted-foreground">· idade {ageDays}d</span>}
+        {proxOverdue && (
+          <span className="flex items-center gap-1 text-destructive">
+            <AlertTriangle className="h-3 w-3" /> Contato vencido
+          </span>
+        )}
+      </div>
 
       <Tabs defaultValue="overview" className="w-full">
         <TabsList className="mb-4">
