@@ -2,6 +2,7 @@ import { z } from "zod";
 import { createServerFn } from "@tanstack/react-start";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { calculateColdProLoad } from "./coldpro-calculation.engine";
+import { findEquipmentCandidates, suggestApplication, suggestEvaporationTemp } from "./equipment-selection.engine";
 
 export const listColdProProjects = createServerFn({ method: "GET" }).handler(async () => {
   const supabase = supabaseAdmin;
@@ -125,21 +126,20 @@ export const autoSelectColdProEquipment = createServerFn({ method: "POST" })
     if (envError) throw new Error(envError.message);
     const { data: result, error: resultError } = await supabase.from("coldpro_results").select("*").eq("environment_id", data.environmentId).order("created_at", { ascending: false }).limit(1).single();
     if (resultError) throw new Error("Calcule a carga térmica antes de selecionar equipamento.");
-    const { data: equipmentList } = await supabase.from("coldpro_equipment_catalog").select("*").eq("active", true).eq("application_type", env.environment_type).order("capacity_kcal_h", { ascending: true });
-    const catalog = equipmentList ?? [];
-    if (catalog.length === 0) throw new Error("Nenhum equipamento cadastrado para esta aplicação.");
-    let best = catalog[0];
-    let qty = Math.ceil(Number(result.total_required_kcal_h) / Number(best.capacity_kcal_h));
-    for (const eq of catalog) {
-      const q = Math.ceil(Number(result.total_required_kcal_h) / Number(eq.capacity_kcal_h));
-      if (q <= qty) { best = eq; qty = q; }
-    }
-    const capacityTotal = Number(best.capacity_kcal_h) * qty;
-    const surplus = capacityTotal - Number(result.total_required_kcal_h);
-    const surplusPercent = Number(result.total_required_kcal_h) > 0 ? (surplus / Number(result.total_required_kcal_h)) * 100 : 0;
-    const airFlowTotal = Number(best.air_flow_m3_h ?? 0) * qty;
-    const airChanges = Number(env.volume_m3) > 0 ? airFlowTotal / Number(env.volume_m3) : 0;
-    const { data: selection, error } = await supabase.from("coldpro_equipment_selections").insert({ environment_id: data.environmentId, equipment_id: best.id, model: best.model, quantity: qty, capacity_unit_kcal_h: best.capacity_kcal_h, capacity_total_kcal_h: capacityTotal, air_flow_unit_m3_h: best.air_flow_m3_h, air_flow_total_m3_h: airFlowTotal, air_throw_m: best.air_throw_m, surplus_kcal_h: surplus, surplus_percent: surplusPercent, air_changes_hour: airChanges }).select("*").single();
+    const candidates = await findEquipmentCandidates({
+      required_kcal_h: Number(result.total_required_kcal_h),
+      internal_temp_c: Number(env.internal_temp_c),
+      evaporation_temp_c: suggestEvaporationTemp(Number(env.internal_temp_c)),
+      condensation_temp_c: Math.max(40, Math.round(Number(env.external_temp_c ?? 35) + 10)),
+      application: suggestApplication(Number(env.internal_temp_c)),
+      refrigerant: null,
+      volume_m3: Number(env.volume_m3 ?? 0),
+    }, supabase);
+    const best = candidates[0];
+    if (!best) throw new Error("Nenhum equipamento encontrado com curva de rendimento para esta carga térmica.");
+
+    await supabase.from("coldpro_equipment_selections").delete().eq("environment_id", data.environmentId);
+    const { data: selection, error } = await supabase.from("coldpro_equipment_selections").insert({ environment_id: data.environmentId, equipment_model_id: best.model.id, model: best.model.modelo, refrigerant: best.refrigerant, quantity: best.quantity, capacity_unit_kcal_h: best.capacity_unit_kcal_h, capacity_total_kcal_h: best.capacity_total_kcal_h, air_flow_unit_m3_h: best.evaporator_airflow_m3_h ?? 0, air_flow_total_m3_h: best.air_flow_total_m3_h, total_power_kw: best.total_power_kw, cop: best.cop, surplus_kcal_h: best.surplus_kcal_h, surplus_percent: best.surplus_percent, air_changes_hour: best.air_changes_hour ?? 0, selection_method: best.point_used.polynomial ? "polynomial" : best.point_used.interpolated ? "interpolated" : "catalog_point", curve_temperature_room_c: best.point_used.temperature_room_c, curve_evaporation_temp_c: best.point_used.evaporation_temp_c, curve_condensation_temp_c: best.point_used.condensation_temp_c, curve_polynomial_r2: best.point_used.polynomial_r2, curve_interpolated: best.point_used.interpolated, curve_metadata: { score: best.score, warnings: best.warnings }, notes: `Curva de rendimento · Tevap ${best.point_used.evaporation_temp_c}°C / Tcond ${best.point_used.condensation_temp_c}°C${best.point_used.polynomial ? " · polinomial" : best.point_used.interpolated ? " · interpolado" : ""}` } as any).select("*").single();
     if (error) throw new Error(error.message);
     return selection;
   });
