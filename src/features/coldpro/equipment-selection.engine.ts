@@ -316,6 +316,7 @@ export async function findEquipmentCandidates(
     const warnings: string[] = [];
     if (surplusPct < 0) warnings.push("Subdimensionado para a carga requerida");
     if (surplusPct > 50) warnings.push("Superdimensionado (>50% de folga)");
+    if (sel.used.polynomial) warnings.push("Capacidade estimada por curva polinomial do catálogo");
     if (sel.used.interpolated) warnings.push("Capacidade interpolada entre pontos do catálogo");
 
     candidates.push({
@@ -323,6 +324,8 @@ export async function findEquipmentCandidates(
       evaporator_airflow_m3_h: airflowUnit,
       point_used: {
         interpolated: sel.used.interpolated,
+        polynomial: sel.used.polynomial,
+        polynomial_r2: sel.used.polynomial_r2,
         temperature_room_c: sel.used.t_room,
         evaporation_temp_c: sel.used.t_evap,
         condensation_temp_c: sel.used.t_cond,
