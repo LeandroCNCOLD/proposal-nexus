@@ -492,7 +492,7 @@ export const generateProposalPdf = createServerFn({ method: "POST" })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const cliente = (proposal as any).clients;
 
-    const buffer = await renderToBuffer(
+    const baseBuffer = await renderToBuffer(
       ProposalPdfDocument({
         data: {
           proposal: {
@@ -513,12 +513,32 @@ export const generateProposalPdf = createServerFn({ method: "POST" })
       }) as never,
     );
 
+    // Mescla PDFs anexados (best-effort)
+    const attachedPaths = (doc.attached_pdf_paths as string[] | null) ?? [];
+    const attachedBuffers: Uint8Array[] = [];
+    for (const p of attachedPaths) {
+      const { data: file, error } = await supabase.storage
+        .from("proposal-files")
+        .download(p);
+      if (error || !file) {
+        console.warn(`[generateProposalPdf] anexo não baixado: ${p}`, error?.message);
+        continue;
+      }
+      attachedBuffers.push(new Uint8Array(await file.arrayBuffer()));
+    }
+
+    let finalBuffer: Uint8Array | Buffer = baseBuffer as Buffer;
+    if (attachedBuffers.length > 0) {
+      const { mergePdfBuffers } = await import("./pdf/merge");
+      finalBuffer = await mergePdfBuffers(baseBuffer as Buffer, attachedBuffers);
+    }
+
     // Upload
     const ts = Date.now();
     const path = `${proposalId}/${mode}-${ts}.pdf`;
     const { error: upErr } = await supabase.storage
       .from("proposal-pdfs")
-      .upload(path, buffer, {
+      .upload(path, finalBuffer, {
         contentType: "application/pdf",
         upsert: true,
       });
@@ -533,5 +553,201 @@ export const generateProposalPdf = createServerFn({ method: "POST" })
       url: signed.signedUrl,
       path,
       mode,
+      mergedAttachments: attachedBuffers.length,
+    };
+  });
+
+// ============= Versões de envio (snapshot) =============
+
+/**
+ * Gera o PDF final, salva em `proposal-files`, e cria um registro em
+ * `proposal_send_versions` com snapshot completo (proposta, documento, tabelas, template).
+ * Marca versões anteriores como `is_current=false`.
+ */
+export const createProposalSendVersion = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ proposalId: z.string().uuid(), notes: z.string().optional() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { proposalId, notes } = data;
+
+    // 1) Carrega proposta + cliente
+    const { data: proposal, error: pErr } = await supabase
+      .from("proposals")
+      .select(
+        "id, number, title, status, valid_until, payment_terms, delivery_term, total_value, created_at, clients:client_id(name, trade_name, document, city, state)",
+      )
+      .eq("id", proposalId)
+      .single();
+    if (pErr || !proposal) {
+      return { ok: false as const, error: pErr?.message ?? "Proposta não encontrada." };
+    }
+
+    // 2) Documento
+    const { data: doc, error: dErr } = await supabase
+      .from("proposal_documents")
+      .select("*")
+      .eq("proposal_id", proposalId)
+      .maybeSingle();
+    if (dErr || !doc) {
+      return { ok: false as const, error: dErr?.message ?? "Documento não encontrado." };
+    }
+
+    // 3) Tabelas estruturadas
+    const { data: tables } = await supabase
+      .from("proposal_tables")
+      .select("*")
+      .eq("proposal_id", proposalId);
+
+    // 4) Template
+    let template: Record<string, unknown> | null = null;
+    if (doc.template_id) {
+      const { data: tpl } = await supabase
+        .from("proposal_templates")
+        .select("*")
+        .eq("id", doc.template_id)
+        .maybeSingle();
+      template = tpl as Record<string, unknown> | null;
+    } else {
+      const bundle = await loadDefaultTemplateBundle(supabase);
+      template = (bundle?.template ?? null) as Record<string, unknown> | null;
+    }
+
+    // 5) Renderiza PDF + merge anexos
+    const { renderToBuffer } = await import("@react-pdf/renderer");
+    const { ProposalPdfDocument } = await import("./pdf/ProposalPdfDocument");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const cliente = (proposal as any).clients;
+
+    const baseBuffer = await renderToBuffer(
+      ProposalPdfDocument({
+        data: {
+          proposal: {
+            id: proposal.id,
+            number: proposal.number,
+            title: proposal.title,
+            valid_until: proposal.valid_until,
+            created_at: proposal.created_at,
+            client_name: cliente?.trade_name ?? cliente?.name ?? null,
+          },
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          pages: (doc.pages as any) ?? [],
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          tables: (tables as any) ?? [],
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          template: template as any,
+        },
+      }) as never,
+    );
+
+    const attachedPaths = (doc.attached_pdf_paths as string[] | null) ?? [];
+    const attachedBuffers: Uint8Array[] = [];
+    for (const p of attachedPaths) {
+      const { data: file, error } = await supabase.storage
+        .from("proposal-files")
+        .download(p);
+      if (error || !file) continue;
+      attachedBuffers.push(new Uint8Array(await file.arrayBuffer()));
+    }
+
+    let finalBuffer: Uint8Array | Buffer = baseBuffer as Buffer;
+    if (attachedBuffers.length > 0) {
+      const { mergePdfBuffers } = await import("./pdf/merge");
+      finalBuffer = await mergePdfBuffers(baseBuffer as Buffer, attachedBuffers);
+    }
+
+    // 6) Próxima versão
+    const { data: lastVer } = await supabase
+      .from("proposal_send_versions")
+      .select("version_number")
+      .eq("proposal_id", proposalId)
+      .order("version_number", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const nextVer = ((lastVer as { version_number: number } | null)?.version_number ?? 0) + 1;
+    const path = `${proposalId}/v${nextVer}-${Date.now()}.pdf`;
+
+    // 7) Upload no bucket de envios
+    const { error: upErr } = await supabase.storage
+      .from("proposal-files")
+      .upload(path, finalBuffer, { contentType: "application/pdf", upsert: false });
+    if (upErr) return { ok: false as const, error: `Falha ao salvar PDF: ${upErr.message}` };
+
+    // 8) Marca versões anteriores como não-atuais
+    await supabase
+      .from("proposal_send_versions")
+      .update({ is_current: false } as never)
+      .eq("proposal_id", proposalId);
+
+    // 9) Snapshot
+    const proposalSnapshot = {
+      id: proposal.id,
+      number: proposal.number,
+      title: proposal.title,
+      status: proposal.status,
+      valid_until: proposal.valid_until,
+      payment_terms: proposal.payment_terms,
+      delivery_term: proposal.delivery_term,
+      total_value: proposal.total_value,
+      client_name: cliente?.trade_name ?? cliente?.name ?? null,
+    };
+    const documentSnapshot = {
+      document_id: doc.id,
+      proposal_id: doc.proposal_id,
+      template_id: doc.template_id,
+      pages: doc.pages,
+      attached_pdf_paths: doc.attached_pdf_paths,
+      updated_at: doc.updated_at,
+    };
+    const templateSnapshot = template
+      ? {
+          template_id: (template.id as string) ?? null,
+          template_version: doc.template_version,
+          name: (template.name as string) ?? null,
+          colors: {
+            primary: template.primary_color,
+            accent: template.accent_color,
+            accent2: template.accent_color_2,
+          },
+          empresa: {
+            nome: template.empresa_nome,
+            cidade: template.empresa_cidade,
+            email: template.empresa_email,
+            site: template.empresa_site,
+            telefone: template.empresa_telefone,
+          },
+        }
+      : null;
+
+    const { data: ver, error: insErr } = await supabase
+      .from("proposal_send_versions")
+      .insert({
+        proposal_id: proposalId,
+        version_number: nextVer,
+        pdf_storage_path: path,
+        generated_by: userId,
+        is_current: true,
+        notes: notes ?? null,
+        proposal_snapshot: proposalSnapshot as never,
+        document_snapshot: documentSnapshot as never,
+        tables_snapshot: ((tables ?? []) as unknown) as never,
+        template_snapshot: templateSnapshot as never,
+        metadata: {
+          merged_attachments: attachedBuffers.length,
+          generated_at: new Date().toISOString(),
+        } as never,
+      } as never)
+      .select("id")
+      .single();
+    if (insErr) return { ok: false as const, error: `Falha ao registrar versão: ${insErr.message}` };
+
+    return {
+      ok: true as const,
+      version_id: (ver as { id: string }).id,
+      version_number: nextVer,
+      path,
+      mergedAttachments: attachedBuffers.length,
     };
   });
