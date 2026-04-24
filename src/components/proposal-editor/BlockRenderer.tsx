@@ -570,35 +570,36 @@ function BlockBody({
     case "proposal_number_box": {
       const hasCustomFs = typeof block.data.fontSize === "number";
       return (
-        <div className="flex h-full flex-wrap items-baseline justify-end gap-x-2 gap-y-0.5 leading-tight">
-          <span
-            className="font-semibold uppercase tracking-wider opacity-70"
-            style={{ fontSize: hasCustomFs ? "0.7em" : "11px" }}
-          >
-            Proposta Nº:
-          </span>
-          <span
-            className={hasCustomFs ? "font-bold" : "text-xl font-bold"}
-            style={{ color: "inherit", fontSize: hasCustomFs ? "1.1em" : undefined }}
-          >
-            {proposalContext.proposal_number ?? "—"}
-          </span>
+        <div className="flex h-full flex-col justify-center gap-0.5 leading-tight">
+          <div className="flex items-baseline gap-2">
+            <span
+              className="shrink-0 font-bold uppercase tracking-wider opacity-80"
+              style={{ fontSize: hasCustomFs ? "0.75em" : "12px" }}
+            >
+              Proposta Nº:
+            </span>
+            <span
+              className={hasCustomFs ? "min-w-0 flex-1 truncate font-semibold" : "min-w-0 flex-1 truncate text-base font-semibold"}
+              style={{ color: "inherit", fontSize: hasCustomFs ? "1em" : undefined }}
+            >
+              {proposalContext.proposal_number ?? "—"}
+            </span>
+          </div>
           {proposalContext.data_emissao ? (
-            <>
-              <span className="basis-full" aria-hidden />
+            <div className="flex items-baseline gap-2">
               <span
-                className="font-semibold uppercase tracking-wider opacity-70"
-                style={{ fontSize: hasCustomFs ? "0.65em" : "10px" }}
+                className="shrink-0 font-bold uppercase tracking-wider opacity-80"
+                style={{ fontSize: hasCustomFs ? "0.75em" : "12px" }}
               >
-                Emissão:
+                Data:
               </span>
               <span
-                className="opacity-90"
-                style={{ fontSize: hasCustomFs ? "0.85em" : "11px" }}
+                className={hasCustomFs ? "min-w-0 flex-1 truncate font-semibold" : "min-w-0 flex-1 truncate text-base font-semibold"}
+                style={{ color: "inherit", fontSize: hasCustomFs ? "1em" : undefined }}
               >
                 {proposalContext.data_emissao}
               </span>
-            </>
+            </div>
           ) : null}
         </div>
       );
@@ -610,19 +611,22 @@ function BlockBody({
       const value = resolveDynamicField(fieldKey, proposalContext, template);
       const hasCustomFs = typeof block.data.fontSize === "number";
       return (
-        <div className="group/df relative flex h-full flex-wrap items-baseline gap-x-2 gap-y-0.5 leading-tight">
-          <span
-            className="shrink-0 font-semibold uppercase tracking-wider opacity-70"
-            style={{ fontSize: hasCustomFs ? "0.7em" : "11px" }}
-          >
-            {label}:
-          </span>
-          <span
-            className={hasCustomFs ? "min-w-0 flex-1 font-semibold" : "min-w-0 flex-1 text-base font-semibold"}
-            style={{ color: "inherit", fontSize: hasCustomFs ? "1em" : undefined }}
-          >
-            {value || "—"}
-          </span>
+        <div className="group/df relative flex h-full items-center leading-tight">
+          <div className="flex w-full items-baseline gap-2">
+            <span
+              className="shrink-0 whitespace-nowrap font-bold uppercase tracking-wider opacity-80"
+              style={{ fontSize: hasCustomFs ? "0.75em" : "12px" }}
+            >
+              {label}:
+            </span>
+            <span
+              className={hasCustomFs ? "min-w-0 flex-1 truncate font-semibold" : "min-w-0 flex-1 truncate text-base font-semibold"}
+              style={{ color: "inherit", fontSize: hasCustomFs ? "1em" : undefined }}
+              title={value || undefined}
+            >
+              {value || "—"}
+            </span>
+          </div>
           {/* Editor de chave — só aparece em hover/seleção pra não roubar espaço do conteúdo */}
           <Input
             value={fieldKey}
