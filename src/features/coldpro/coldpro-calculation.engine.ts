@@ -154,14 +154,16 @@ export function calculateProductLoadBreakdown(product: ColdProEnvironmentProduct
   const cpAbove = n(product.specific_heat_above_kcal_kg_c);
   const cpBelow = n(product.specific_heat_below_kcal_kg_c);
   const latent = n(product.latent_heat_kcal_kg);
+  const allowPhaseChange = product.allow_phase_change !== false;
+  const frozenFraction = n(product.frozen_water_fraction, 1) || 1;
 
   let sensibleAbove = 0;
   let latentLoad = 0;
   let sensibleBelow = 0;
 
-  if (tfreeze !== null && tfreeze !== undefined && tin > tfreeze && tout < tfreeze) {
+  if (allowPhaseChange && tfreeze !== null && tfreeze !== undefined && tin > tfreeze && tout < tfreeze) {
     sensibleAbove = massDay * cpAbove * positive(tin - tfreeze);
-    latentLoad = massDay * latent;
+    latentLoad = massDay * latent * frozenFraction;
     sensibleBelow = massDay * cpBelow * positive(tfreeze - tout);
   } else {
     const cp = tin >= 0 && tout >= 0 ? cpAbove : cpBelow || cpAbove;
@@ -179,6 +181,7 @@ export function calculateProductLoadBreakdown(product: ColdProEnvironmentProduct
     cp_above_kcal_kg_c: cpAbove,
     cp_below_kcal_kg_c: cpBelow,
     latent_heat_kcal_kg: latent,
+    frozen_water_fraction: frozenFraction,
     sensible_above_kcal_h: round2(sensibleAbove / hours),
     latent_kcal_h: round2(latentLoad / hours),
     sensible_below_kcal_h: round2(sensibleBelow / hours),
