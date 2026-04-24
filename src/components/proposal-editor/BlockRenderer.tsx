@@ -958,11 +958,21 @@ function BlockBody({
     case "characteristics_table":
     case "equipments_table":
     case "technical_table": {
+      if (proposalId && pageId) {
+        return (
+          <InlineTablePreview
+            proposalId={proposalId}
+            pageId={pageId}
+            blockType={block.type}
+            title={block.title ?? blockKindLabel(block.type)}
+          />
+        );
+      }
       return (
         <div className="rounded border border-dashed bg-muted/40 p-3 text-xs opacity-80">
           <p className="font-semibold">{block.title ?? blockKindLabel(block.type)}</p>
           <p className="mt-1">
-            Tabela estruturada — edite na aba de tabelas. O conteúdo será renderizado no PDF.
+            Tabela estruturada — abra a aba de tabelas para editar o conteúdo.
           </p>
         </div>
       );
