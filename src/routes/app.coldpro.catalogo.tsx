@@ -37,6 +37,7 @@ function CatalogoPage() {
   const [importing, setImporting] = useState(false);
   const [progress, setProgress] = useState<ImportProgress | null>(null);
   const [search, setSearch] = useState("");
+  const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
 
   // Lista de modelos do catálogo
   const modelsQuery = useQuery({
