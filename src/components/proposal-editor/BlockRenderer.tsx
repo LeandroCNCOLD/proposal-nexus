@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { RichTextEditor } from "./RichTextEditor";
 import { BoxStyleEditor } from "./BoxStyleEditor";
+import { InlineTablePreview } from "./InlineTablePreview";
 import { layoutToBoxStyle } from "@/integrations/proposal-editor/box-style";
 
 interface Props {
@@ -35,6 +36,7 @@ interface Props {
   assets: TemplateAsset[];
   proposalContext: ProposalDynamicContext;
   proposalId?: string;
+  pageId?: string;
   onChange: (next: DocumentBlock) => void;
   onDelete: () => void;
   onDuplicate: () => void;
