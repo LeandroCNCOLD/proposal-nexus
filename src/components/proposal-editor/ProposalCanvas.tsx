@@ -440,9 +440,9 @@ export function ProposalCanvas({
       }}
       onClick={() => clearMultiSelection()}
     >
-      {/* Barra de ferramentas do canvas: réguas + grade */}
+      {/* Barra de ferramentas do canvas: réguas + grade + ferramentas de seleção */}
       <div
-        className="sticky top-0 z-40 flex items-center gap-2 border-b bg-slate-100/95 px-4 py-1.5 backdrop-blur"
+        className="sticky top-0 z-40 flex flex-wrap items-center gap-2 border-b bg-slate-100/95 px-4 py-1.5 backdrop-blur"
         onClick={(e) => e.stopPropagation()}
       >
         <Button
@@ -465,28 +465,32 @@ export function ProposalCanvas({
           <Grid3x3 className="h-3.5 w-3.5" />
           Grade
         </Button>
-        <span className="ml-auto text-[10px] text-muted-foreground">
-          Dica: Shift+clique para selecionar vários blocos · arraste a seleção para movê-los juntos
-        </span>
-      </div>
 
-      {/* Toolbar flutuante de alinhamento (multi-seleção) */}
-      {selectedBlocksOnPage.length >= 2 ? (
-        <MultiSelectToolbar
-          blocks={selectedBlocksOnPage}
-          pageW={pageW}
-          pageH={pageH}
-          onUpdateBlocks={(next) => {
-            const pageId = selectedId ?? sorted[0]?.id;
-            if (pageId) updateManyBlocks(pageId, next);
-          }}
-          onDeleteBlocks={(ids) => {
-            const pageId = selectedId ?? sorted[0]?.id;
-            if (pageId) deleteBlocks(pageId, ids);
-          }}
-          onClear={clearMultiSelection}
-        />
-      ) : null}
+        {/* Ferramentas de alinhamento — aparecem com 1+ bloco selecionado */}
+        {selectedBlocksOnPage.length >= 1 ? (
+          <>
+            <span className="mx-1 text-muted-foreground/40">|</span>
+            <MultiSelectToolbar
+              blocks={selectedBlocksOnPage}
+              pageW={pageW}
+              pageH={pageH}
+              onUpdateBlocks={(next) => {
+                const pageId = selectedId ?? sorted[0]?.id;
+                if (pageId) updateManyBlocks(pageId, next);
+              }}
+              onDeleteBlocks={(ids) => {
+                const pageId = selectedId ?? sorted[0]?.id;
+                if (pageId) deleteBlocks(pageId, ids);
+              }}
+              onClear={clearMultiSelection}
+            />
+          </>
+        ) : (
+          <span className="ml-auto text-[10px] text-muted-foreground">
+            Dica: Shift+clique para selecionar vários blocos · arraste a seleção para movê-los juntos
+          </span>
+        )}
+      </div>
 
       <div className="p-6">
       {sorted.map((page, idx) => {
