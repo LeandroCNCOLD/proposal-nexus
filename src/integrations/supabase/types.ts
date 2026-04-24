@@ -186,6 +186,72 @@ export type Database = {
         }
         Relationships: []
       }
+      coldpro_booster_models: {
+        Row: {
+          absorbed_power_kw: number | null
+          active: boolean
+          air_application_height_m: number | null
+          air_throw_m: number | null
+          airflow_m3_h: number | null
+          created_at: string
+          current_220_1f_a: number | null
+          current_220_3f_a: number | null
+          current_380_3f_a: number | null
+          fan_description: string | null
+          fan_diameter_mm: number | null
+          id: string
+          modelo: string
+          raw: Json
+          source_sheet: string | null
+          updated_at: string
+          voltage_220_1f_available: boolean
+          voltage_220_3f_available: boolean
+          voltage_380_3f_available: boolean
+        }
+        Insert: {
+          absorbed_power_kw?: number | null
+          active?: boolean
+          air_application_height_m?: number | null
+          air_throw_m?: number | null
+          airflow_m3_h?: number | null
+          created_at?: string
+          current_220_1f_a?: number | null
+          current_220_3f_a?: number | null
+          current_380_3f_a?: number | null
+          fan_description?: string | null
+          fan_diameter_mm?: number | null
+          id?: string
+          modelo: string
+          raw?: Json
+          source_sheet?: string | null
+          updated_at?: string
+          voltage_220_1f_available?: boolean
+          voltage_220_3f_available?: boolean
+          voltage_380_3f_available?: boolean
+        }
+        Update: {
+          absorbed_power_kw?: number | null
+          active?: boolean
+          air_application_height_m?: number | null
+          air_throw_m?: number | null
+          airflow_m3_h?: number | null
+          created_at?: string
+          current_220_1f_a?: number | null
+          current_220_3f_a?: number | null
+          current_380_3f_a?: number | null
+          fan_description?: string | null
+          fan_diameter_mm?: number | null
+          id?: string
+          modelo?: string
+          raw?: Json
+          source_sheet?: string | null
+          updated_at?: string
+          voltage_220_1f_available?: boolean
+          voltage_220_3f_available?: boolean
+          voltage_380_3f_available?: boolean
+        }
+        Relationships: []
+      }
       coldpro_catalog_import_rows: {
         Row: {
           created_at: string
@@ -603,12 +669,16 @@ export type Database = {
       }
       coldpro_equipment_condensers: {
         Row: {
+          air_application_height_m: number | null
           air_throw_m: number | null
           airflow_m3_h: number | null
           calculated_internal_volume_l: number | null
+          complementary_source: string | null
+          complementary_source_sheet: string | null
           condenser_model: string | null
           created_at: string
           equipment_model_id: string
+          fan_diameter_mm: number | null
           fan_model: string | null
           geometry: string | null
           id: string
@@ -623,12 +693,16 @@ export type Database = {
           tube_wall_thickness_mm: number | null
         }
         Insert: {
+          air_application_height_m?: number | null
           air_throw_m?: number | null
           airflow_m3_h?: number | null
           calculated_internal_volume_l?: number | null
+          complementary_source?: string | null
+          complementary_source_sheet?: string | null
           condenser_model?: string | null
           created_at?: string
           equipment_model_id: string
+          fan_diameter_mm?: number | null
           fan_model?: string | null
           geometry?: string | null
           id?: string
@@ -643,12 +717,16 @@ export type Database = {
           tube_wall_thickness_mm?: number | null
         }
         Update: {
+          air_application_height_m?: number | null
           air_throw_m?: number | null
           airflow_m3_h?: number | null
           calculated_internal_volume_l?: number | null
+          complementary_source?: string | null
+          complementary_source_sheet?: string | null
           condenser_model?: string | null
           created_at?: string
           equipment_model_id?: string
+          fan_diameter_mm?: number | null
           fan_model?: string | null
           geometry?: string | null
           id?: string
@@ -674,13 +752,17 @@ export type Database = {
       }
       coldpro_equipment_evaporators: {
         Row: {
+          air_application_height_m: number | null
           air_throw_m: number | null
           airflow_m3_h: number | null
           calculated_internal_volume_l: number | null
+          complementary_source: string | null
+          complementary_source_sheet: string | null
           created_at: string
           equipment_model_id: string
           evaporator_model: string | null
           evaporator_quantity: number | null
+          fan_diameter_mm: number | null
           fan_model: string | null
           geometry: string | null
           id: string
@@ -697,13 +779,17 @@ export type Database = {
           tube_wall_thickness_mm: number | null
         }
         Insert: {
+          air_application_height_m?: number | null
           air_throw_m?: number | null
           airflow_m3_h?: number | null
           calculated_internal_volume_l?: number | null
+          complementary_source?: string | null
+          complementary_source_sheet?: string | null
           created_at?: string
           equipment_model_id: string
           evaporator_model?: string | null
           evaporator_quantity?: number | null
+          fan_diameter_mm?: number | null
           fan_model?: string | null
           geometry?: string | null
           id?: string
@@ -720,13 +806,17 @@ export type Database = {
           tube_wall_thickness_mm?: number | null
         }
         Update: {
+          air_application_height_m?: number | null
           air_throw_m?: number | null
           airflow_m3_h?: number | null
           calculated_internal_volume_l?: number | null
+          complementary_source?: string | null
+          complementary_source_sheet?: string | null
           created_at?: string
           equipment_model_id?: string
           evaporator_model?: string | null
           evaporator_quantity?: number | null
+          fan_diameter_mm?: number | null
           fan_model?: string | null
           geometry?: string | null
           id?: string

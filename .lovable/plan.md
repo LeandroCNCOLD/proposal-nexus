@@ -1,111 +1,95 @@
-## Objetivo
+Plano para aproveitar a planilha oficial sem alterar capacidade, potência elétrica e corrente existentes
 
-Usar os documentos das linhas LT, LT MAX, MT, BF, HT e AGRO junto com os dados já cadastrados no catálogo para criar descrições mais inteligentes, específicas por modelo e por aplicação, em vez de uma descrição genérica igual para todos.
+Diagnóstico inicial
+- O banco atual tem 70 variações de modelos e 1.232 pontos de curva.
+- Desses pontos, há 280 pontos em 220V trifásico e 952 em 380V trifásico.
+- A diferença para as 288 máquinas/pontos 220V trifásico indica que faltam 8 pontos ou uma variação de modelo/linha que não foi importada corretamente.
+- Os campos novos de flecha de ar e cálculo detalhado de volume dos aletados existem na estrutura, mas ainda estão vazios no banco.
+- A planilha enviada tem abas por linha/produto. A pré-leitura confirmou pelo menos dados úteis de Booster com: modelo, diâmetro de ventilador, vazão, alcance/flecha, pé direito, tensões disponíveis, potência e corrente.
 
-## O que encontrei
+Regras de segurança técnica
+- Não sobrescrever capacidade em kcal/h do catálogo anterior.
+- Não sobrescrever potência elétrica do compressor/ventiladores/total do catálogo anterior.
+- Não sobrescrever corrente elétrica do catálogo anterior.
+- Usar a nova planilha como fonte complementar para campos físicos/comerciais/aplicação, principalmente:
+  - flecha de ar / alcance
+  - pé direito / altura de aplicação
+  - diâmetro de ventilador
+  - vazão de ar, apenas como campo comparativo quando já existir no banco
+  - dados dimensionais dos aletados: diâmetro externo, diâmetro interno, parede, volume interno/calculado quando disponível
+  - tensões disponíveis como disponibilidade comercial, sem substituir as curvas elétricas oficiais já importadas
 
-- O catálogo já tem campos para descrição comercial e características comerciais por modelo.
-- As linhas LT, MT, BF, HT, LT MAX e AGRO já têm alguma descrição preenchida.
-- As linhas `LT COMPACTice` e `MT COMPACTice` ainda estão sem descrição.
-- O banco já tem dados técnicos úteis para enriquecer a descrição:
-  - modelo, linha, tipo de gabinete, refrigerante e degelo;
-  - faixas de temperatura de aplicação;
-  - faixa de capacidade frigorífica por modelo;
-  - potência elétrica mínima/máxima;
-  - vazão do evaporador e condensador;
-  - dados de ventilador, compressores, condensador e evaporador.
-- Os documentos trazem informações comerciais por linha: faixa de aplicação, vantagens, descrição geral, características técnicas, dados de aplicação e condições de operação.
-- Alguns documentos tiveram parsing parcial ou falharam no extrator automático, especialmente AGRO. Na implementação, vou tratar isso com leitura/conversão alternativa para não depender só do parser.
+O que será implementado
 
-## Ajuste proposto
+1. Criar uma rotina de análise da planilha oficial
+- Ler todas as abas da planilha enviada.
+- Identificar automaticamente cabeçalhos por aba, mesmo com formatos diferentes.
+- Gerar um inventário por aba com:
+  - quantidade de modelos encontrados
+  - modelos por linha: BF, LT, MT, HT, AGRO, COMPACTice, Booster etc.
+  - colunas técnicas disponíveis
+  - colunas que podem ser usadas no catálogo
+  - colunas que devem ser bloqueadas para não alterar dados críticos
 
-### 1. Criar uma estrutura de descrição inteligente
+2. Comparar planilha oficial x banco atual
+- Cruzar modelos por nome normalizado, linha e quando possível por gabinete/refrigerante/tensão.
+- Separar os resultados em quatro grupos:
+  - match exato: modelo encontrado com segurança
+  - match provável: precisa conferência por diferença de nomenclatura
+  - modelo da planilha ausente no banco
+  - modelo do banco ausente na planilha
+- Conferir especificamente os 220V 3F para explicar a diferença entre 280 e 288.
 
-Para cada modelo, gerar um bloco padronizado com:
+3. Complementar campos seguros no banco
+- Para evaporadores e condensadores:
+  - preencher flecha de ar quando vier como “alcance” ou “flecha”
+  - preencher pé direito/altura de aplicação em campo dedicado se necessário
+  - preencher diâmetro do ventilador quando disponível
+  - preencher diâmetro externo/interno/parede do tubo quando a aba trouxer esses dados
+  - calcular volume interno somente quando houver diâmetro interno + comprimento + quantidade de tubos; caso contrário, preservar o volume informado na planilha/banco
+- Para Booster:
+  - criar/ajustar estrutura para tratar Booster como item técnico/acessório do catálogo, sem misturar com curvas de equipamentos frigoríficos
+  - preservar potência e corrente como dados próprios de Booster, sem usar para substituir dados de modelos CN/UCN
 
-- **Resumo comercial do modelo**: texto curto e vendedor, específico para o modelo.
-- **Aplicação recomendada**: congelados, resfriados, climatizados, blast freezer, baixa temperatura, alta temperatura etc.
-- **Faixa operacional**: temperaturas de câmara e capacidade frigorífica do próprio modelo.
-- **Diferenciais técnicos**: degelo, refrigerante, tipo de gabinete, vazão de ar, alcance, potência e construção.
-- **Mensagem por porte**: modelos menores com linguagem de praticidade/compactação; modelos médios com versatilidade; modelos grandes com robustez, alta vazão e aplicações severas.
-- **Observações comerciais**: por exemplo, quando só houver Split, destacar aplicação para instalações maiores ou mais técnicas.
+4. Atualizar a importação do catálogo
+- Ajustar o parser para reconhecer abas por linha, não apenas uma aba única.
+- Adicionar aliases para nomes encontrados na planilha oficial:
+  - “ALCANCE (m)” → flecha de ar
+  - “PÉ DIREITO (m)” → altura de aplicação
+  - “Ø VENTILADOR” → diâmetro/modelo do ventilador
+  - variações de diâmetro interno/externo/parede de tubo
+- Adicionar trava de importação: campos críticos de curva só serão lidos para comparação/relatório, não para atualização automática.
 
-Exemplo de resultado esperado:
+5. Atualizar a interface do catálogo
+- Na página principal, mostrar resumo confiável:
+  - total de variações
+  - total 220V 3F
+  - total 380V 3F
+  - pontos de curva por tensão
+- No detalhe do modelo, mostrar:
+  - Flecha de ar / alcance
+  - Pé direito / altura recomendada de aplicação
+  - Diâmetro/modelo do ventilador
+  - Dados do aletado: diâmetros, parede, volume informado e volume calculado
+  - Aviso visual quando um dado veio da planilha complementar e não da curva original
 
-```text
-CN 1000 LT
-Equipamento de baixa temperatura para câmaras de congelados entre -25 °C e -12 °C, indicado para operações que exigem estabilidade térmica e degelo eficiente. O modelo entrega faixa de capacidade cadastrada de X a Y kcal/h, com alta vazão de ar e longo alcance, adequado para câmaras de médio/grande porte. Disponível em plug-in, bi-bloco e split, com degelo por gás quente, baixa carga de fluido e conjunto testado em fábrica.
-```
+6. Gerar um relatório de divergências
+- Antes de gravar dados complementares, gerar uma tabela de conferência com:
+  - modelos encontrados na planilha e no banco
+  - modelos sem correspondência
+  - campos que seriam preenchidos
+  - campos críticos divergentes que NÃO serão alterados
+  - explicação da diferença 280 vs 288 nos pontos 220V 3F
 
-### 2. Melhorar o banco para guardar a descrição enriquecida
+Resultado esperado
+- Catálogo mais rico para análise técnica e aplicação, com flecha de ar, altura de aplicação e dados físicos dos aletados.
+- Curvas críticas de capacidade, potência elétrica e corrente preservadas sem alteração.
+- Diagnóstico claro dos 8 pontos/modelos 220V 3F faltantes.
+- Importação mais inteligente por abas/linhas da planilha oficial.
 
-Adicionar novos campos na tabela de modelos para separar melhor a informação:
-
-- `smart_description`: descrição final inteligente do modelo.
-- `recommended_applications`: lista de aplicações recomendadas.
-- `application_summary`: resumo da aplicação da linha/modelo.
-- `commercial_highlights`: bullets comerciais mais importantes.
-- `technical_highlights`: bullets técnicos calculados do banco.
-- `description_confidence`: indicador simples de qualidade do vínculo, por exemplo `alta`, `media`, `baixa`.
-- `description_source`: origem: documento da linha + dados técnicos do banco.
-
-Também manterei os campos atuais (`commercial_description` e `commercial_features`) para não quebrar a tela existente.
-
-### 3. Mapear regras por linha e aplicação
-
-Criar regras para cada linha:
-
-- **MT**: resfriados, câmaras entre aproximadamente -4 °C e 8 °C, alta vazão, degelo por gás quente, condensador menos suscetível a obstrução.
-- **LT**: congelados, câmaras entre aproximadamente -12 °C e -25 °C, degelo por gás quente e resistência auxiliar.
-- **LT MAX**: congelados de maior exigência, subresfriamento adicional integrado, modelos maiores em Split.
-- **BF**: blast freezing/congelamento rápido, temperaturas aproximadamente -20 °C a -35 °C, evaporador vertical de alta vazão e longo alcance, foco em processo severo.
-- **HT**: climatizados/alta temperatura, aproximadamente 10 °C a 20 °C, fluidos de menor impacto ambiental conforme documento.
-- **AGRO**: climatizados/agro, usar conteúdo do documento e dados do banco para descrever aplicação em conservação/climatização de produtos agro.
-- **COMPACTice MT/LT**: criar descrição base usando o padrão da linha MT/LT, mas com linguagem de equipamento compacto/fechado, porque esses modelos estão sem descrição hoje.
-
-### 4. Gerar textos por modelo com dados reais do catálogo
-
-Para cada modelo, cruzar:
-
-- dados gerais do modelo;
-- faixa mínima/máxima de capacidade nos pontos de performance;
-- faixa de temperatura de câmara;
-- potência elétrica mínima/máxima;
-- vazão de evaporador/condensador;
-- tipo de gabinete;
-- descrição e vantagens extraídas do documento da linha.
-
-Assim, a descrição deixa de ser apenas “linha LT” ou “linha MT” e passa a refletir o tamanho e a aplicação real daquele modelo.
-
-### 5. Ajustar a tela do catálogo
-
-No detalhe do modelo, melhorar a aba “Geral” para exibir uma área mais clara:
-
-- título: **Descrição inteligente do modelo**;
-- resumo comercial em destaque;
-- chips de aplicação recomendada;
-- cards com dados importantes: faixa de temperatura, capacidade, vazão, potência e gabinete;
-- listas separadas de **Diferenciais comerciais** e **Diferenciais técnicos**;
-- origem da descrição, para saber se veio do documento LT, MT, BF etc.
-
-Também posso adicionar um pequeno indicador na listagem do catálogo dizendo quais modelos já têm descrição inteligente.
-
-## Implementação técnica
-
-- Criar migration para os novos campos no catálogo.
-- Processar os documentos enviados e extrair as regras por linha.
-- Fazer atualização em lote dos modelos no banco, com `UPDATE` por modelo/linha.
-- Não alterar os arquivos gerados automaticamente do backend.
-- Atualizar `ColdProModelDetailDialog.tsx` para renderizar os novos blocos.
-- Atualizar a listagem do catálogo se necessário para mostrar status da descrição.
-- Preservar as descrições existentes e preencher os novos campos sem apagar histórico.
-
-## Resultado esperado
-
-Depois da implementação, cada modelo terá uma descrição mais útil para proposta comercial e seleção técnica, combinando:
-
-```text
-Documento da linha + dados reais do modelo + aplicação + porte do equipamento
-```
-
-Isso deixa o catálogo mais inteligente para o vendedor escolher o equipamento e explicar rapidamente por que aquele modelo se aplica ao projeto.
+Detalhes técnicos
+- Serão necessários ajustes no parser `catalog-import.parser.ts` para ler múltiplas abas.
+- Serão necessários ajustes na rotina de persistência `catalog-import.functions.ts` para atualizar apenas campos permitidos.
+- Se a planilha tiver campos novos que ainda não existem no banco, será criada migração apenas para estrutura, por exemplo: `air_application_height_m`, `fan_diameter_mm`, `complementary_source`, `complementary_source_sheet`.
+- Atualizações de dados serão feitas separadamente da estrutura, com relatório antes/depois.
+- A tela `app/coldpro/catalogo` e o diálogo `ColdProModelDetailDialog` serão atualizados para exibir os novos campos e o resumo de qualidade dos dados.
