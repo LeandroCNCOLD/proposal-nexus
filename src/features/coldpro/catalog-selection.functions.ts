@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { createServerSupabase } from "@/integrations/supabase/server";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 const SaveSelectionSchema = z.object({
   environmentId: z.string().uuid(),
@@ -19,7 +19,7 @@ const SaveSelectionSchema = z.object({
 export const saveCatalogEquipmentSelection = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => SaveSelectionSchema.parse(input))
   .handler(async ({ data }) => {
-    const supabase = createServerSupabase();
+    const supabase = supabaseAdmin;
 
     // Substitui a seleção atual do ambiente (apenas 1 por ambiente)
     await supabase
