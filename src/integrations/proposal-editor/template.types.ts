@@ -1,5 +1,7 @@
 // Tipos do template de proposta (lados client + server compartilháveis)
 
+import type { DocumentPage } from "./types";
+
 export interface TemplatePageConfig {
   id: string;
   type: string;
@@ -70,12 +72,15 @@ export interface ProposalTemplate {
   garantia_texto: string | null;
   garantia_itens: TemplateGarantiaItem[];
 
-  dados_bancarios: TemplateBancario[];
+  /** Pode estar como array ou objeto único no banco — normalizar antes de usar. */
+  dados_bancarios: TemplateBancario[] | TemplateBancario;
 
   prazo_entrega_padrao: string | null;
   validade_padrao_dias: number | null;
 
   pages_config: TemplatePageConfig[];
+  /** Layout salvo de uma proposta como modelo (com blocos posicionados). */
+  pages_template?: DocumentPage[];
 }
 
 export interface TemplateAsset {
@@ -91,4 +96,14 @@ export interface TemplateAsset {
 export interface TemplateBundle {
   template: ProposalTemplate;
   assets: TemplateAsset[];
+}
+
+/** Normaliza dados_bancarios garantindo array. */
+export function normalizeDadosBancarios(
+  raw: TemplateBancario[] | TemplateBancario | null | undefined,
+): TemplateBancario[] {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw;
+  if (typeof raw === "object" && (raw.banco || raw.pix || raw.conta)) return [raw];
+  return [];
 }

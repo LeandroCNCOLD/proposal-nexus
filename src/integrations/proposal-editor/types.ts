@@ -43,15 +43,36 @@ export type BlockType =
   | "cover_identity"
   | "client_info"
   | "project_info"
-  | "responsible_info";
+  | "responsible_info"
+  | "client_info_box"
+  | "project_info_box"
+  | "responsible_info_box"
+  | "proposal_number_box"
+  | "dynamic_field"
+  | "differentials_list"
+  | "cases_list";
 
 export type BlockSource = "manual" | "nomus" | "template";
+
+/** Posicionamento absoluto no papel A4 (816 x 1056 px). */
+export interface BlockLayout {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  fontScale?: number;
+  align?: "left" | "center" | "right";
+  /** Estilo do "card" do bloco no canvas (não afeta PDF). */
+  background?: "white" | "transparent" | "primary" | "muted";
+  /** Cor explícita do texto. */
+  color?: string;
+}
 
 export interface DocumentBlock {
   id: string;
   type: BlockType;
   title?: string;
-  data: Record<string, unknown>;
+  data: Record<string, unknown> & { layout?: BlockLayout };
   source?: BlockSource;
   locked?: boolean;
   order: number;
@@ -180,23 +201,74 @@ export const DEFAULT_TABLE_COLUMNS: Record<string, TableColumn[]> = {
 
 // ============= Defaults de páginas e blocos =============
 
+/** Dimensões do papel A4 no canvas (96dpi). */
+export const A4_W = 816;
+export const A4_H = 1056;
+
 let _uid = 0;
 const uid = (prefix: string) => `${prefix}-${Date.now().toString(36)}-${(_uid++).toString(36)}`;
 
 export function makeBlock(
   type: BlockType,
   data: Record<string, unknown> = {},
-  opts: { title?: string; source?: BlockSource; locked?: boolean; order?: number } = {},
+  opts: { title?: string; source?: BlockSource; locked?: boolean; order?: number; layout?: BlockLayout } = {},
 ): DocumentBlock {
+  const dataWithLayout = opts.layout ? { ...data, layout: opts.layout } : data;
   return {
     id: uid("blk"),
     type,
     title: opts.title,
-    data,
+    data: dataWithLayout,
     source: opts.source ?? "manual",
     locked: opts.locked ?? false,
     order: opts.order ?? 0,
   };
+}
+
+/** Layout default centralizado para blocos novos adicionados à mão. */
+export function defaultLayoutFor(type: BlockType, index = 0): BlockLayout {
+  const baseY = 120 + index * 80;
+  switch (type) {
+    case "heading":
+      return { x: 60, y: baseY, w: 696, h: 60 };
+    case "rich_text":
+      return { x: 60, y: baseY, w: 696, h: 180 };
+    case "image":
+      return { x: 60, y: baseY, w: 400, h: 260 };
+    case "client_info_box":
+    case "project_info_box":
+    case "responsible_info_box":
+      return { x: 60, y: baseY, w: 696, h: 160, background: "white" };
+    case "proposal_number_box":
+      return { x: 540, y: 960, w: 220, h: 56, background: "white", align: "right" };
+    case "dynamic_field":
+      return { x: 60, y: baseY, w: 320, h: 40, background: "transparent" };
+    case "bank_data":
+      return { x: 60, y: baseY, w: 696, h: 220, background: "white" };
+    case "signature":
+      return { x: 60, y: baseY, w: 360, h: 100 };
+    case "attached_pdf":
+      return { x: 60, y: baseY, w: 696, h: 80, background: "muted" };
+    case "investment_table":
+    case "tax_table":
+    case "payment_table":
+    case "characteristics_table":
+    case "equipments_table":
+    case "technical_table":
+      return { x: 60, y: baseY, w: 696, h: 280 };
+    case "differentials_list":
+    case "cases_list":
+      return { x: 60, y: baseY, w: 696, h: 320 };
+    case "included_items":
+    case "excluded_items":
+      return { x: 60, y: baseY, w: 696, h: 200 };
+    case "key_value_list":
+      return { x: 60, y: baseY, w: 696, h: 180 };
+    case "cover_identity":
+      return { x: 0, y: 0, w: A4_W, h: A4_H };
+    default:
+      return { x: 60, y: baseY, w: 696, h: 160 };
+  }
 }
 
 export function makeDefaultBlocksForPage(type: PageType): DocumentBlock[] {
@@ -206,133 +278,160 @@ export function makeDefaultBlocksForPage(type: PageType): DocumentBlock[] {
   switch (type) {
     case "cover":
       return orderedFromList([
-        makeBlock("cover_identity", {}, { source: "template", locked: true }),
-        makeBlock("client_info", { cliente: "" }, { source: "nomus" }),
-        makeBlock("project_info", { projeto: "", numero: "", data: "", revisao: "" }, { source: "nomus" }),
-        makeBlock("responsible_info", { responsavel: "", cargo: "", email: "", telefone: "" }, { source: "nomus" }),
-        makeBlock("image", { kind: "cover", url: null }, { title: "Imagem de capa" }),
+        makeBlock(
+          "cover_identity",
+          {},
+          { source: "template", locked: true, layout: { x: 0, y: 0, w: A4_W, h: A4_H } },
+        ),
+        makeBlock(
+          "dynamic_field",
+          { fieldKey: "client_name", label: "Cliente" },
+          { source: "nomus", layout: { x: 60, y: 360, w: 696, h: 60, background: "transparent", color: "#ffffff", fontScale: 1.4, align: "left" } },
+        ),
+        makeBlock(
+          "dynamic_field",
+          { fieldKey: "proposal_title", label: "Projeto" },
+          { source: "nomus", layout: { x: 60, y: 430, w: 696, h: 60, background: "transparent", color: "#ffffff", fontScale: 1.2, align: "left" } },
+        ),
+        makeBlock(
+          "proposal_number_box",
+          {},
+          { source: "nomus", layout: { x: 540, y: 960, w: 220, h: 60, background: "white", align: "right" } },
+        ),
       ]);
 
     case "about":
       return orderedFromList([
-        makeBlock("heading", { text: "Sobre a CN Cold", level: 1 }, { source: "template" }),
-        makeBlock("rich_text", { html: "" }, { source: "template" }),
+        makeBlock("heading", { text: "Sobre a CN Cold", level: 1 }, { source: "template", layout: { x: 60, y: 120, w: 696, h: 60 } }),
+        makeBlock("rich_text", { html: "" }, { source: "template", layout: { x: 60, y: 200, w: 696, h: 360 } }),
+        makeBlock("differentials_list", { items: [] }, { source: "template", layout: { x: 60, y: 580, w: 696, h: 360 } }),
       ]);
 
     case "cases":
+      return orderedFromList([
+        makeBlock("heading", { text: "Cases de sucesso", level: 1 }, { source: "template", layout: { x: 60, y: 120, w: 696, h: 60 } }),
+        makeBlock("cases_list", { items: [] }, { source: "template", layout: { x: 60, y: 200, w: 696, h: 760 } }),
+      ]);
+
     case "clientes":
       return orderedFromList([
-        makeBlock("heading", { text: "Cases / Clientes", level: 1 }, { source: "template" }),
-        makeBlock("rich_text", { html: "Conteúdo definido no template." }, { source: "template", locked: true }),
+        makeBlock("heading", { text: "Nossos clientes", level: 1 }, { source: "template", layout: { x: 60, y: 120, w: 696, h: 60 } }),
+        makeBlock("included_items", { items: [] }, { source: "template", layout: { x: 60, y: 200, w: 696, h: 760 } }),
       ]);
 
     case "context":
       return orderedFromList([
-        makeBlock("heading", { text: "Contextualização", level: 1 }),
-        makeBlock("key_value_list", {
-          items: [
-            { label: "Cliente", value: "" },
-            { label: "CNPJ", value: "" },
-            { label: "Endereço", value: "" },
-            { label: "Contato", value: "" },
-          ],
-        }, { source: "nomus" }),
-        makeBlock("rich_text", { html: "" }, { title: "Texto de apresentação" }),
+        makeBlock("heading", { text: "Contextualização", level: 1 }, { layout: { x: 60, y: 120, w: 696, h: 60 } }),
+        makeBlock(
+          "client_info_box",
+          { cliente: "", cnpj: "", endereco: "", contato: "" },
+          { source: "nomus", layout: { x: 60, y: 200, w: 696, h: 200, background: "white" } },
+        ),
+        makeBlock(
+          "project_info_box",
+          { projeto: "", numero: "", data: "", revisao: "" },
+          { source: "nomus", layout: { x: 60, y: 420, w: 696, h: 180, background: "white" } },
+        ),
+        makeBlock(
+          "responsible_info_box",
+          { responsavel: "", cargo: "", email: "", telefone: "" },
+          { source: "nomus", layout: { x: 60, y: 620, w: 696, h: 180, background: "white" } },
+        ),
       ]);
 
     case "solution":
       return orderedFromList([
-        makeBlock("heading", { text: "Nossa solução", level: 1 }),
-        makeBlock("rich_text", { html: "" }, { title: "Introdução" }),
-        makeBlock("included_items", { items: [] as string[] }, { title: "O que está incluído" }),
-        makeBlock("excluded_items", { items: [] as string[] }, { title: "O que NÃO está incluído" }),
+        makeBlock("heading", { text: "Nossa solução", level: 1 }, { layout: { x: 60, y: 120, w: 696, h: 60 } }),
+        makeBlock("rich_text", { html: "" }, { title: "Introdução", layout: { x: 60, y: 200, w: 696, h: 220 } }),
+        makeBlock("included_items", { items: [] }, { title: "O que está incluído", layout: { x: 60, y: 440, w: 340, h: 460 } }),
+        makeBlock("excluded_items", { items: [] }, { title: "O que NÃO está incluído", layout: { x: 416, y: 440, w: 340, h: 460 } }),
       ]);
 
     case "scope":
       return orderedFromList([
-        makeBlock("heading", { text: "Escopo de fornecimento", level: 1 }),
-        makeBlock("included_items", { items: [] as string[] }, { source: "nomus", title: "Itens" }),
+        makeBlock("heading", { text: "Escopo de fornecimento", level: 1 }, { layout: { x: 60, y: 120, w: 696, h: 60 } }),
+        makeBlock("included_items", { items: [] }, { source: "nomus", title: "Itens", layout: { x: 60, y: 200, w: 696, h: 760 } }),
       ]);
 
     case "caracteristicas":
       return orderedFromList([
-        makeBlock("heading", { text: "Características técnicas", level: 1 }),
-        makeBlock("characteristics_table", { rows: [] }),
-        makeBlock("rich_text", { html: "" }, { title: "Observações" }),
+        makeBlock("heading", { text: "Características técnicas", level: 1 }, { layout: { x: 60, y: 120, w: 696, h: 60 } }),
+        makeBlock("characteristics_table", { rows: [] }, { layout: { x: 60, y: 200, w: 696, h: 540 } }),
+        makeBlock("rich_text", { html: "" }, { title: "Observações", layout: { x: 60, y: 760, w: 696, h: 200 } }),
       ]);
 
     case "equipamento":
       return orderedFromList([
-        makeBlock("heading", { text: "Equipamentos", level: 1 }),
-        makeBlock("equipments_table", { rows: [] }, { source: "nomus" }),
+        makeBlock("heading", { text: "Equipamentos", level: 1 }, { layout: { x: 60, y: 120, w: 696, h: 60 } }),
+        makeBlock("equipments_table", { rows: [] }, { source: "nomus", layout: { x: 60, y: 200, w: 696, h: 760 } }),
       ]);
 
     case "investimento":
       return orderedFromList([
-        makeBlock("heading", { text: "Investimento", level: 1 }),
-        makeBlock("investment_table", { rows: [] }, { source: "nomus" }),
+        makeBlock("heading", { text: "Investimento", level: 1 }, { layout: { x: 60, y: 120, w: 696, h: 60 } }),
+        makeBlock("investment_table", { rows: [] }, { source: "nomus", layout: { x: 60, y: 200, w: 696, h: 760 } }),
       ]);
 
     case "impostos":
       return orderedFromList([
-        makeBlock("heading", { text: "Base de cálculo dos impostos", level: 1 }),
-        makeBlock("tax_table", { rows: [] }, { source: "nomus" }),
-        makeBlock("rich_text", { html: "" }, { title: "Observação fiscal" }),
+        makeBlock("heading", { text: "Base de cálculo dos impostos", level: 1 }, { layout: { x: 60, y: 120, w: 696, h: 60 } }),
+        makeBlock("tax_table", { rows: [] }, { source: "nomus", layout: { x: 60, y: 200, w: 696, h: 220 } }),
+        makeBlock("rich_text", { html: "" }, { title: "Observação fiscal", layout: { x: 60, y: 440, w: 696, h: 360 } }),
       ]);
 
     case "pagamento":
       return orderedFromList([
-        makeBlock("heading", { text: "Condições de pagamento", level: 1 }),
-        makeBlock("payment_table", { rows: [] }, { source: "nomus" }),
-        makeBlock("bank_data", {}, { source: "template", title: "Dados bancários" }),
-        makeBlock("rich_text", { html: "" }, { title: "Observação financeira" }),
+        makeBlock("heading", { text: "Condições de pagamento", level: 1 }, { layout: { x: 60, y: 120, w: 696, h: 60 } }),
+        makeBlock("payment_table", { rows: [] }, { source: "nomus", layout: { x: 60, y: 200, w: 696, h: 220 } }),
+        makeBlock("bank_data", {}, { source: "template", title: "Dados bancários", layout: { x: 60, y: 440, w: 696, h: 280, background: "white" } }),
+        makeBlock("rich_text", { html: "" }, { title: "Observação financeira", layout: { x: 60, y: 740, w: 696, h: 220 } }),
       ]);
 
     case "warranty":
     case "prazo-garantia":
       return orderedFromList([
-        makeBlock("heading", { text: "Garantia", level: 1 }),
-        makeBlock("rich_text", { html: "" }, { source: "template" }),
+        makeBlock("heading", { text: "Garantia", level: 1 }, { layout: { x: 60, y: 120, w: 696, h: 60 } }),
+        makeBlock("rich_text", { html: "" }, { source: "template", layout: { x: 60, y: 200, w: 696, h: 360 } }),
+        makeBlock("key_value_list", { items: [] }, { source: "template", layout: { x: 60, y: 580, w: 696, h: 360 } }),
       ]);
 
     case "contracapa":
       return orderedFromList([
-        makeBlock("heading", { text: "Informações finais", level: 1 }, { source: "template" }),
-        makeBlock("rich_text", { html: "" }, { title: "Prazo de entrega" }),
-        makeBlock("rich_text", { html: "" }, { title: "Garantia" }),
-        makeBlock("signature", {}, { source: "template" }),
+        makeBlock("heading", { text: "Obrigado!", level: 1 }, { source: "template", layout: { x: 60, y: 360, w: 696, h: 80, align: "center", color: "#ffffff" } }),
+        makeBlock("dynamic_field", { fieldKey: "empresa_telefone", label: "Telefone" }, { source: "template", layout: { x: 60, y: 600, w: 696, h: 60, align: "center", color: "#ffffff" } }),
+        makeBlock("dynamic_field", { fieldKey: "empresa_site", label: "Site" }, { source: "template", layout: { x: 60, y: 660, w: 696, h: 60, align: "center", color: "#ffffff" } }),
       ]);
 
     case "differentials":
       return orderedFromList([
-        makeBlock("heading", { text: "Nossos diferenciais", level: 1 }, { source: "template" }),
-        makeBlock("rich_text", { html: "" }, { source: "template", locked: true }),
+        makeBlock("heading", { text: "Nossos diferenciais", level: 1 }, { source: "template", layout: { x: 60, y: 120, w: 696, h: 60 } }),
+        makeBlock("differentials_list", { items: [] }, { source: "template", layout: { x: 60, y: 200, w: 696, h: 760 } }),
       ]);
 
     case "impact":
       return orderedFromList([
-        makeBlock("heading", { text: "Impacto esperado", level: 1 }),
-        makeBlock("rich_text", { html: "" }),
+        makeBlock("heading", { text: "Impacto esperado", level: 1 }, { layout: { x: 60, y: 120, w: 696, h: 60 } }),
+        makeBlock("rich_text", { html: "" }, { layout: { x: 60, y: 200, w: 696, h: 760 } }),
       ]);
 
     case "nota":
       return orderedFromList([
-        makeBlock("heading", { text: "Nota", level: 1 }),
-        makeBlock("rich_text", { html: "" }),
+        makeBlock("heading", { text: "Nota", level: 1 }, { layout: { x: 60, y: 120, w: 696, h: 60 } }),
+        makeBlock("rich_text", { html: "" }, { layout: { x: 60, y: 200, w: 696, h: 760 } }),
       ]);
 
     case "attached-pdf":
       return orderedFromList([
-        makeBlock("heading", { text: "Anexos da proposta", level: 1 }),
-        makeBlock("attached_pdf", { paths: [] as string[] }),
+        makeBlock("heading", { text: "Anexos da proposta", level: 1 }, { layout: { x: 60, y: 120, w: 696, h: 60 } }),
+        makeBlock("attached_pdf", { paths: [] as string[] }, { layout: { x: 60, y: 200, w: 696, h: 220 } }),
       ]);
 
     case "custom-rich":
     case "custom-block":
     default:
       return orderedFromList([
-        makeBlock("heading", { text: "Página livre", level: 1 }),
-        makeBlock("rich_text", { html: "" }),
+        makeBlock("heading", { text: "Página livre", level: 1 }, { layout: { x: 60, y: 120, w: 696, h: 60 } }),
+        makeBlock("rich_text", { html: "" }, { layout: { x: 60, y: 200, w: 696, h: 760 } }),
       ]);
   }
 }
