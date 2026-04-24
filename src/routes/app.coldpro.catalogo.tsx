@@ -83,6 +83,8 @@ function CatalogoPage() {
         total: voltageRes.data?.length ?? 0,
         v220_3f: voltageRes.data?.filter((m) => m.voltage_value_v === 220 && m.phase_count === 3).length ?? 0,
         v380_3f: voltageRes.data?.filter((m) => m.voltage_value_v === 380 && m.phase_count === 3).length ?? 0,
+        points220_3f: (perfRes.data ?? []).filter((p) => /220/i.test(p.voltage ?? "") && /(3F|tri|trif)/i.test(p.voltage ?? "")).length,
+        points380_3f: (perfRes.data ?? []).filter((p) => /380/i.test(p.voltage ?? "") && /(3F|tri|trif)/i.test(p.voltage ?? "")).length,
       };
 
       const rows = (modelsRes.data ?? []).map((m) => {
@@ -349,6 +351,7 @@ function CatalogoPage() {
                 <>
                   <Badge variant="outline" className="font-mono">220V 3F: {modelsQuery.data.voltageSummary.v220_3f}</Badge>
                   <Badge variant="outline" className="font-mono">380V 3F: {modelsQuery.data.voltageSummary.v380_3f}</Badge>
+                  <Badge variant="secondary" className="font-mono">Curvas 220V 3F: {modelsQuery.data.voltageSummary.points220_3f}</Badge>
                 </>
               )}
             </div>
