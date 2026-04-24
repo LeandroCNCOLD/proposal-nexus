@@ -1,8 +1,11 @@
 // Renderer de blocos do Page Builder. Cada bloco edita seus próprios dados
 // inline no canvas A4, e seu container externo (ProposalCanvas) faz o
 // posicionamento absoluto + drag/resize via react-rnd.
-import { useMemo } from "react";
-import { Trash2, Lock, Plus, Sparkles } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+import { Trash2, Lock, Plus, Sparkles, Upload, Loader2 } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
+import { uploadInlineImage } from "@/integrations/proposal-editor/inline-images.functions";
+import { toast } from "sonner";
 import type { DocumentBlock, BlockType } from "@/integrations/proposal-editor/types";
 import type {
   ProposalTemplate,
@@ -29,6 +32,7 @@ interface Props {
   template: ProposalTemplate | null;
   assets: TemplateAsset[];
   proposalContext: ProposalDynamicContext;
+  proposalId?: string;
   onChange: (next: DocumentBlock) => void;
   onDelete: () => void;
   onDuplicate: () => void;
@@ -53,6 +57,7 @@ export function BlockRenderer({
   template,
   assets,
   proposalContext,
+  proposalId,
   onChange,
   onDelete,
   onDuplicate,
@@ -166,6 +171,7 @@ export function BlockRenderer({
           template={template}
           assets={assets}
           proposalContext={proposalContext}
+          proposalId={proposalId}
           setData={setData}
           onChange={onChange}
         />
@@ -179,6 +185,7 @@ function BlockBody({
   template,
   assets,
   proposalContext,
+  proposalId,
   setData,
   onChange,
 }: {
@@ -186,6 +193,7 @@ function BlockBody({
   template: ProposalTemplate | null;
   assets: TemplateAsset[];
   proposalContext: ProposalDynamicContext;
+  proposalId?: string;
   setData: (patch: Record<string, unknown>) => void;
   onChange: (next: DocumentBlock) => void;
 }) {
@@ -221,6 +229,7 @@ function BlockBody({
             value={html}
             onChange={(v) => setData({ html: v })}
             placeholder="Escreva o conteúdo…"
+            proposalId={proposalId}
           />
         </div>
       );
@@ -236,22 +245,32 @@ function BlockBody({
             </p>
           ) : null}
           {url ? (
-            <img src={url} alt="" className="max-h-full max-w-full rounded border" />
+            <img src={url} alt="" className="h-full max-h-full w-full max-w-full rounded border object-contain" />
           ) : (
             <div className="flex h-32 items-center justify-center rounded border-2 border-dashed text-xs opacity-60">
               Sem imagem
             </div>
           )}
-          <Input
-            value={url ?? ""}
-            onChange={(e) => setData({ url: e.target.value || null })}
-            placeholder="URL da imagem…"
-            disabled={locked}
-            className="h-7 text-xs"
-          />
+          <div className="flex items-center gap-1">
+            <Input
+              value={url ?? ""}
+              onChange={(e) => setData({ url: e.target.value || null })}
+              placeholder="URL da imagem ou faça upload…"
+              disabled={locked}
+              className="h-7 text-xs"
+            />
+            {proposalId ? (
+              <ImageUploadButton
+                proposalId={proposalId}
+                onUploaded={(u) => setData({ url: u })}
+                disabled={locked}
+              />
+            ) : null}
+          </div>
         </div>
       );
     }
+
 
     case "key_value_list": {
       const items = (block.data.items as Array<{ label: string; value: string }> | undefined) ?? [];
@@ -734,6 +753,77 @@ function FieldPicker({
         ))}
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+
+function ImageUploadButton({
+  proposalId,
+  onUploaded,
+  disabled,
+}: {
+  proposalId: string;
+  onUploaded: (url: string) => void;
+  disabled?: boolean;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const upload = useServerFn(uploadInlineImage);
+  const [busy, setBusy] = useState(false);
+
+  const onChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Selecione uma imagem.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Máx 5MB.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const buf = await file.arrayBuffer();
+      const bytes = new Uint8Array(buf);
+      let bin = "";
+      for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+      const res = await upload({
+        data: {
+          proposalId,
+          filename: file.name,
+          contentBase64: btoa(bin),
+          mimeType: file.type,
+        },
+      });
+      onUploaded(res.url);
+      toast.success("Imagem enviada.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Falha ao enviar.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <>
+      <Button
+        size="sm"
+        variant="outline"
+        className="h-7 px-2 text-[10px]"
+        disabled={disabled || busy}
+        onClick={() => inputRef.current?.click()}
+        title="Fazer upload de imagem"
+      >
+        {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Upload className="h-3 w-3" />}
+      </Button>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={onChange}
+      />
+    </>
   );
 }
 

@@ -9,6 +9,9 @@ import { Table } from "@tiptap/extension-table";
 import { TableRow } from "@tiptap/extension-table-row";
 import { TableCell } from "@tiptap/extension-table-cell";
 import { TableHeader } from "@tiptap/extension-table-header";
+import { TextStyle } from "@tiptap/extension-text-style";
+import { Color } from "@tiptap/extension-color";
+import { FontFamily } from "@tiptap/extension-font-family";
 import { useEffect, useRef } from "react";
 import {
   Bold,
@@ -29,12 +32,13 @@ import {
   Trash2,
   Rows,
   Columns,
+  Strikethrough,
+  Eraser,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useServerFn } from "@tanstack/react-start";
 import { uploadInlineImage } from "@/integrations/proposal-editor/inline-images.functions";
 import { toast } from "sonner";
-// Placeholders foram removidos na refatoração do Page Builder (Etapa 9).
 
 interface Props {
   value?: string;
@@ -45,6 +49,69 @@ interface Props {
   /** Quando definido, habilita upload de imagens inline para a proposta. */
   proposalId?: string;
 }
+
+const FONT_SIZES = [
+  { label: "10", value: "10px" },
+  { label: "12", value: "12px" },
+  { label: "14", value: "14px" },
+  { label: "16", value: "16px" },
+  { label: "18", value: "18px" },
+  { label: "20", value: "20px" },
+  { label: "24", value: "24px" },
+  { label: "32", value: "32px" },
+];
+
+const FONT_FAMILIES = [
+  { label: "Padrão", value: "" },
+  { label: "Sans (Inter)", value: "Inter, system-ui, sans-serif" },
+  { label: "Serif (Georgia)", value: "Georgia, 'Times New Roman', serif" },
+  { label: "Mono", value: "ui-monospace, SFMono-Regular, monospace" },
+  { label: "Helvetica", value: "Helvetica, Arial, sans-serif" },
+];
+
+const TEXT_COLORS = [
+  "#000000", "#374151", "#6b7280", "#ffffff",
+  "#dc2626", "#ea580c", "#d97706", "#16a34a",
+  "#0ea5e9", "#2563eb", "#7c3aed", "#db2777",
+];
+
+// Extensão de FontSize via TextStyle (sem dependência adicional).
+import { Extension } from "@tiptap/core";
+const FontSize = Extension.create({
+  name: "fontSize",
+  addOptions() {
+    return { types: ["textStyle"] };
+  },
+  addGlobalAttributes() {
+    return [
+      {
+        types: this.options.types,
+        attributes: {
+          fontSize: {
+            default: null,
+            parseHTML: (el) => (el as HTMLElement).style.fontSize || null,
+            renderHTML: (attrs) => {
+              if (!attrs.fontSize) return {};
+              return { style: `font-size: ${attrs.fontSize}` };
+            },
+          },
+        },
+      },
+    ];
+  },
+  addCommands() {
+    return {
+      setFontSize:
+        (size: string) =>
+        ({ chain }: { chain: () => { setMark: (a: string, b: object) => { run: () => boolean } } }) =>
+          chain().setMark("textStyle", { fontSize: size }).run(),
+      unsetFontSize:
+        () =>
+        ({ chain }: { chain: () => { setMark: (a: string, b: object) => { run: () => boolean } } }) =>
+          chain().setMark("textStyle", { fontSize: null }).run(),
+    } as never;
+  },
+});
 
 function ToolbarBtn({
   onClick,
@@ -62,6 +129,7 @@ function ToolbarBtn({
   return (
     <button
       type="button"
+      onMouseDown={(e) => e.preventDefault()}
       onClick={onClick}
       disabled={disabled}
       title={title}
@@ -85,8 +153,55 @@ function Toolbar({
   onPickImage?: () => void;
 }) {
   const inTable = editor.isActive("table");
+  const currentColor = (editor.getAttributes("textStyle").color as string) ?? "";
+  const currentFont = (editor.getAttributes("textStyle").fontFamily as string) ?? "";
+  const currentSize = (editor.getAttributes("textStyle").fontSize as string) ?? "";
+
   return (
     <div className="flex flex-wrap items-center gap-0.5 border-b bg-muted/30 px-2 py-1">
+      {!minimal && (
+        <>
+          <select
+            value={currentFont}
+            onChange={(e) => {
+              const v = e.target.value;
+              if (v) editor.chain().focus().setFontFamily(v).run();
+              else editor.chain().focus().unsetFontFamily().run();
+            }}
+            className="h-6 rounded border bg-background px-1 text-[10px]"
+            title="Fonte"
+          >
+            {FONT_FAMILIES.map((f) => (
+              <option key={f.label} value={f.value}>
+                {f.label}
+              </option>
+            ))}
+          </select>
+          <select
+            value={currentSize}
+            onChange={(e) => {
+              const v = e.target.value;
+              const c = editor.chain().focus() as unknown as {
+                setFontSize: (s: string) => { run: () => boolean };
+                unsetFontSize: () => { run: () => boolean };
+              };
+              if (v) c.setFontSize(v).run();
+              else c.unsetFontSize().run();
+            }}
+            className="h-6 rounded border bg-background px-1 text-[10px]"
+            title="Tamanho da fonte"
+          >
+            <option value="">Tam.</option>
+            {FONT_SIZES.map((s) => (
+              <option key={s.value} value={s.value}>
+                {s.label}
+              </option>
+            ))}
+          </select>
+          <div className="mx-1 h-4 w-px bg-border" />
+        </>
+      )}
+
       <ToolbarBtn
         onClick={() => editor.chain().focus().toggleBold().run()}
         active={editor.isActive("bold")}
@@ -108,6 +223,47 @@ function Toolbar({
       >
         <UnderlineIcon className="h-3.5 w-3.5" />
       </ToolbarBtn>
+      <ToolbarBtn
+        onClick={() => editor.chain().focus().toggleStrike().run()}
+        active={editor.isActive("strike")}
+        title="Tachado"
+      >
+        <Strikethrough className="h-3.5 w-3.5" />
+      </ToolbarBtn>
+
+      {/* Cor */}
+      <div className="relative ml-1 flex items-center">
+        <input
+          type="color"
+          value={currentColor || "#000000"}
+          onChange={(e) => editor.chain().focus().setColor(e.target.value).run()}
+          className="h-5 w-5 cursor-pointer rounded border bg-transparent p-0"
+          title="Cor do texto"
+        />
+        <button
+          type="button"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => editor.chain().focus().unsetColor().run()}
+          className="ml-0.5 rounded p-0.5 text-muted-foreground hover:bg-muted"
+          title="Remover cor"
+        >
+          <Eraser className="h-3 w-3" />
+        </button>
+      </div>
+      <div className="ml-1 flex gap-0.5">
+        {TEXT_COLORS.slice(0, 6).map((c) => (
+          <button
+            key={c}
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => editor.chain().focus().setColor(c).run()}
+            className="h-3.5 w-3.5 rounded-sm border border-border/50"
+            style={{ background: c }}
+            title={c}
+          />
+        ))}
+      </div>
+
       <div className="mx-1 h-4 w-px bg-border" />
       {!minimal && (
         <>
@@ -272,6 +428,10 @@ export function RichTextEditor({
       TableRow,
       TableHeader,
       TableCell,
+      TextStyle,
+      Color,
+      FontFamily.configure({ types: ["textStyle"] }),
+      FontSize,
     ],
     content: value ?? "",
     editorProps: {

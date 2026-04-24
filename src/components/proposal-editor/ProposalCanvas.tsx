@@ -47,6 +47,8 @@ interface Props {
   assets: TemplateAsset[];
   proposalContext: ProposalDynamicContext;
   selectedBlockId: string | null;
+  proposalId: string;
+  documentFontFamily?: string;
   onSelectBlock: (id: string | null) => void;
   onPagesChange: (next: DocumentPage[]) => void;
   onSelect: (id: string) => void;
@@ -84,6 +86,8 @@ export function ProposalCanvas({
   assets,
   proposalContext,
   selectedBlockId,
+  proposalId,
+  documentFontFamily,
   onSelectBlock,
   onPagesChange,
   onSelect,
@@ -158,6 +162,7 @@ export function ProposalCanvas({
         ["--tpl-primary" as string]: template?.primary_color ?? "#0c2340",
         ["--tpl-accent" as string]: template?.accent_color ?? "#2d8a9e",
         ["--tpl-accent-2" as string]: template?.accent_color_2 ?? "#5cbdb9",
+        fontFamily: documentFontFamily || "Inter, system-ui, sans-serif",
       }}
       onClick={() => onSelectBlock(null)}
     >
@@ -234,6 +239,7 @@ export function ProposalCanvas({
                         template={template}
                         assets={assets}
                         proposalContext={proposalContext}
+                        proposalId={proposalId}
                         onChange={(next) => updateBlock(page.id, next)}
                         onDelete={() => deleteBlock(page.id, block.id)}
                         onDuplicate={() => duplicateBlock(page.id, block.id)}
