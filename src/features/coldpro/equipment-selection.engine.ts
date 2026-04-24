@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { evaluatePolynomial, fitPerformancePolynomial } from "./performance-polynomial";
 
 /**
  * Motor de Seleção por Curva Real CN ColdPro
@@ -14,8 +15,8 @@ import { supabase } from "@/integrations/supabase/client";
  * Faz:
  *  1) Filtra modelos compatíveis (linha + refrigerante)
  *  2) Para cada modelo, busca seus pontos de performance
- *  3) Encontra o ponto mais próximo das condições alvo (distância 3D normalizada)
- *  4) Quando há pontos vizinhos, interpola linearmente em Tevap e Tcond
+ *  3) Ajusta uma curva polinomial por modelo usando Tcam, Tevap e Tcond
+ *  4) Estima capacidade, potência e COP pela curva; se não houver dados, usa interpolação/ponto próximo
  *  5) Calcula quantidade necessária e sobra técnica
  *  6) Ranqueia por: sobra dentro do alvo (5–25%), depois COP, depois menor potência
  */
@@ -57,6 +58,8 @@ export type SelectionCandidate = {
   // condições alvo / encontradas
   point_used: {
     interpolated: boolean;
+    polynomial: boolean;
+    polynomial_r2: number | null;
     temperature_room_c: number | null;
     evaporation_temp_c: number | null;
     condensation_temp_c: number | null;
@@ -91,12 +94,39 @@ function selectCapacityForModel(
   capacity: number;
   power: number | null;
   cop: number | null;
-  used: { interpolated: boolean; t_room: number | null; t_evap: number | null; t_cond: number | null };
+  used: { interpolated: boolean; polynomial: boolean; polynomial_r2: number | null; t_room: number | null; t_evap: number | null; t_cond: number | null };
 } | null {
   const valid = points.filter(
     (p) => p.evaporator_capacity_kcal_h !== null && p.evaporator_capacity_kcal_h > 0,
   );
   if (valid.length === 0) return null;
+
+  const polynomial = fitPerformancePolynomial(valid);
+  if (polynomial?.capacity) {
+    const curveInput = {
+      temperature_room_c: input.internal_temp_c,
+      evaporation_temp_c: input.evaporation_temp_c,
+      condensation_temp_c: input.condensation_temp_c,
+    };
+    const capacity = evaluatePolynomial(polynomial.capacity, curveInput);
+    if (capacity !== null && capacity > 0) {
+      const power = evaluatePolynomial(polynomial.power, curveInput);
+      const cop = evaluatePolynomial(polynomial.cop, curveInput) ?? (power && power > 0 ? capacity / 860 / power : null);
+      return {
+        capacity,
+        power,
+        cop,
+        used: {
+          interpolated: false,
+          polynomial: true,
+          polynomial_r2: polynomial.capacity.r2,
+          t_room: input.internal_temp_c,
+          t_evap: input.evaporation_temp_c,
+          t_cond: input.condensation_temp_c,
+        },
+      };
+    }
+  }
 
   // 1) escolhe a temperatura de condensação mais próxima do alvo
   const condCandidates = Array.from(
@@ -157,6 +187,8 @@ function selectCapacityForModel(
         cop,
         used: {
           interpolated: true,
+          polynomial: false,
+          polynomial_r2: null,
           t_room: lower.temperature_room_c,
           t_evap: targetEvap,
           t_cond: targetCond,
@@ -185,6 +217,8 @@ function selectCapacityForModel(
     cop: best.cop,
     used: {
       interpolated: false,
+      polynomial: false,
+      polynomial_r2: null,
       t_room: best.temperature_room_c,
       t_evap: best.evaporation_temp_c,
       t_cond: best.condensation_temp_c,
@@ -282,6 +316,7 @@ export async function findEquipmentCandidates(
     const warnings: string[] = [];
     if (surplusPct < 0) warnings.push("Subdimensionado para a carga requerida");
     if (surplusPct > 50) warnings.push("Superdimensionado (>50% de folga)");
+    if (sel.used.polynomial) warnings.push("Capacidade estimada por curva polinomial do catálogo");
     if (sel.used.interpolated) warnings.push("Capacidade interpolada entre pontos do catálogo");
 
     candidates.push({
@@ -289,6 +324,8 @@ export async function findEquipmentCandidates(
       evaporator_airflow_m3_h: airflowUnit,
       point_used: {
         interpolated: sel.used.interpolated,
+        polynomial: sel.used.polynomial,
+        polynomial_r2: sel.used.polynomial_r2,
         temperature_room_c: sel.used.t_room,
         evaporation_temp_c: sel.used.t_evap,
         condensation_temp_c: sel.used.t_cond,

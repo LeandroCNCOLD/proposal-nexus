@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/table";
 import { Loader2, Snowflake, Wind, Cog, Activity, Info, Zap, ImageIcon, Upload, Droplets } from "lucide-react";
 import { toast } from "sonner";
+import { fitPerformancePolynomial } from "@/features/coldpro/performance-polynomial";
 
 type Props = {
   modelId: string | null;
@@ -469,8 +470,23 @@ export function ColdProModelDetailDialog({ modelId, open, onOpenChange }: Props)
                 (() => {
                   const byVoltage = groupBy(data.perfPoints, (p) => p.voltage ?? "Sem tensão");
                   const voltages = Array.from(byVoltage.keys()).sort();
+                  const curve = fitPerformancePolynomial(data.perfPoints);
                   return (
                     <div className="space-y-4">
+                      {curve && (
+                        <div className="rounded-md border bg-primary/5 border-primary/20 p-4">
+                          <div className="text-sm font-semibold">Equação polinomial de rendimento</div>
+                          <div className="mt-2 grid gap-2 text-xs sm:grid-cols-3">
+                            <PolynomialSummary label="Capacidade" model={curve.capacity} unit="kcal/h" />
+                            <PolynomialSummary label="Potência" model={curve.power} unit="kW" />
+                            <PolynomialSummary label="COP" model={curve.cop} unit="" />
+                          </div>
+                          <p className="mt-3 text-xs text-muted-foreground">
+                            Ajuste grau {curve.degree} por mínimos quadrados usando T. câmara, T. evaporação e T. condensação. A seleção técnica usa essa curva quando há pontos suficientes.
+                          </p>
+                        </div>
+                      )}
+
                       <div className="flex flex-wrap items-center gap-2 text-xs">
                         <span className="text-muted-foreground">Versões elétricas:</span>
                         {voltages.map((v) => (
@@ -623,6 +639,18 @@ function HighlightList({ title, items }: { title: string; items: string[] }) {
           <li key={item} className="leading-relaxed">{item}</li>
         ))}
       </ul>
+    </div>
+  );
+}
+
+function PolynomialSummary({ label, model, unit }: { label: string; model: { r2: number | null; pointsUsed: number; coefficients: number[] } | null; unit: string }) {
+  if (!model) return <div className="rounded-md border bg-background/70 p-3 text-muted-foreground">{label}: sem ajuste</div>;
+  const coefficients = model.coefficients.slice(0, 4).map((value) => fmt(value, 4)).join("; ");
+  return (
+    <div className="rounded-md border bg-background/70 p-3">
+      <div className="font-semibold">{label}{unit ? ` (${unit})` : ""}</div>
+      <div>R²: {fmt(model.r2, 3)} · {model.pointsUsed} pontos</div>
+      <div className="mt-1 font-mono text-[10px] text-muted-foreground">β: {coefficients}</div>
     </div>
   );
 }
