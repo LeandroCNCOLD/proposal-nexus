@@ -668,6 +668,8 @@ function BlockBody({
         </div>
       );
     }
+
+    case "dynamic_field": {
       const fieldKey = (block.data.fieldKey as string) ?? "";
       const label = (block.data.label as string) ?? labelize(fieldKey);
       const value = resolveDynamicField(fieldKey, proposalContext, template);
