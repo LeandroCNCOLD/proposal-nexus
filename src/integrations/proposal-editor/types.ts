@@ -49,6 +49,7 @@ export type BlockType =
   | "project_info_box"
   | "responsible_info_box"
   | "proposal_number_box"
+  | "proposal_summary_box"
   | "dynamic_field"
   | "differentials_list"
   | "cases_list"
