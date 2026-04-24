@@ -420,6 +420,15 @@ function BlockBody({
             onChange={(v) => setData({ html: v })}
             placeholder="Escreva o conteúdo…"
             proposalId={proposalId}
+            aiContextHint={[
+              pageTitle ? `página: ${pageTitle}` : null,
+              pageType ? `tipo: ${pageType}` : null,
+              proposalContext.client_name ? `cliente: ${proposalContext.client_name}` : null,
+              proposalContext.proposal_title ? `proposta: ${proposalContext.proposal_title}` : null,
+              block.title ? `bloco: ${block.title}` : null,
+            ]
+              .filter(Boolean)
+              .join(" | ")}
           />
         </div>
       );
