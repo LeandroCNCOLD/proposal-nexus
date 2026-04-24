@@ -247,6 +247,15 @@ export function ProposalCanvas({
     onSelectBlock(newBlock.id);
   };
 
+  /** Mantém um layout dentro dos limites de uma bbox (container). */
+  const clampToBounds = (l: BlockLayout, bounds: BlockLayout): BlockLayout => {
+    const w = Math.max(20, Math.min(l.w, bounds.w));
+    const h = Math.max(16, Math.min(l.h, bounds.h));
+    const x = Math.min(Math.max(l.x, bounds.x), bounds.x + bounds.w - w);
+    const y = Math.min(Math.max(l.y, bounds.y), bounds.y + bounds.h - h);
+    return { ...l, x: Math.round(x), y: Math.round(y), w: Math.round(w), h: Math.round(h) };
+  };
+
   const handleDragResize = (
     pageId: string,
     block: DocumentBlock,
@@ -281,14 +290,15 @@ export function ProposalCanvas({
         // posição relativa ao container antigo
         const relX = cl.x - prev.x;
         const relY = cl.y - prev.y;
-        const newLayout: BlockLayout = {
+        const scaled: BlockLayout = {
           ...cl,
           x: Math.round(next.x + relX * sx),
           y: Math.round(next.y + relY * sy),
           w: Math.max(20, Math.round(cl.w * sx)),
           h: Math.max(16, Math.round(cl.h * sy)),
         };
-        // Escala fontSize quando houve resize real (não só drag)
+        // Garante que o filho fique sempre dentro do container redimensionado
+        const newLayout = clampToBounds(scaled, next);
         const nextData: Record<string, unknown> = { ...child.data, layout: newLayout };
         if (widthChanged || heightChanged) {
           const baseFs = (child.data.fontSize as number | undefined) ?? 14;
@@ -300,6 +310,21 @@ export function ProposalCanvas({
 
       updateManyBlocks(pageId, [updatedContainer, ...updatedChildren]);
       return;
+    }
+
+    // Bloco comum: se ele estava dentro de algum container, mantém preso aos
+    // limites desse container (não permite "vazar" para fora).
+    if (block.type !== "container") {
+      const page = pages.find((p) => p.id === pageId);
+      const parent = page?.blocks.find(
+        (b) => b.type === "container" && b.id !== block.id && isInsideContainer(block, b),
+      );
+      if (parent) {
+        const bounds = (parent.data.layout as BlockLayout | undefined) ?? defaultLayoutFor(parent.type);
+        const clamped = clampToBounds(next, bounds);
+        updateBlock(pageId, { ...block, data: { ...block.data, layout: clamped } });
+        return;
+      }
     }
 
     updateBlock(pageId, { ...block, data: { ...block.data, layout: next } });
