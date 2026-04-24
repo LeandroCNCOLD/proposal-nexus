@@ -120,6 +120,7 @@ export function ContainerToolbar({
   children,
   onUpdateBlocks,
   onUpdateContainer,
+  onDeleteWithChildren,
 }: Props) {
   const cLayout = getLayout(container);
   const padding = (container.data.padding as number | undefined) ?? 12;
