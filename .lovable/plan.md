@@ -1,90 +1,71 @@
-Plano para implementar as regras reais de engenharia no catálogo técnico ColdPro.
+Plano para aplicar a tabela ASHRAE no CN ColdPro
 
-1. Estruturar propriedades dos refrigerantes
-- Criar uma tabela técnica de densidade por fluido e temperatura, começando por:
-  - R404A: -30°C ≈ 1,20 kg/L
-  - R404A: -10°C ≈ 1,10 kg/L
-  - R404A: 0°C ≈ 1,05 kg/L
-- Preparar a tabela para receber R134a, R410A e outros fluidos depois.
-- Criar função de busca/interpolação simples para retornar a densidade líquida mais adequada conforme refrigerante e temperatura de referência.
+1. Criar/expandir o banco de produtos térmicos
+- Usar a tabela existente `coldpro_products` como catálogo operacional do cálculo.
+- Expandir a estrutura para armazenar os campos completos do documento:
+  - composição: umidade, proteína, gordura, carboidrato, fibra, cinzas;
+  - propriedades térmicas: ponto inicial de congelamento, calor específico acima/abaixo, calor latente;
+  - dados adicionais: densidade, condutividade térmica, fonte, referência e observações;
+  - respiração para produtos frescos: taxas em 0, 5, 10, 15 e 20 °C.
+- Manter compatibilidade com os campos atuais já usados pelo sistema (`specific_heat_above_kcal_kg_c`, `specific_heat_below_kcal_kg_c`, `latent_heat_kcal_kg`, `initial_freezing_temp_c`).
 
-2. Adicionar campos calculados no condensador e evaporador
-- Em `coldpro_equipment_condensers`:
-  - `refrigerant_density_kg_l`
-  - `refrigerant_reference_temp_c`
-  - `refrigerant_occupancy_factor`
-  - `estimated_refrigerant_charge_kg`
-  - `estimated_refrigerant_charge_note`
-- Em `coldpro_equipment_evaporators`:
-  - os mesmos campos de carga estimada
-  - campos de área de troca estimada:
-    - `tube_external_area_m2`
-    - `fin_area_multiplier`
-    - `estimated_exchange_area_m2`
-    - `fin_efficiency_factor`
-    - `effective_exchange_area_m2`
+2. Importar os dados ASHRAE fornecidos
+- Inserir os produtos das categorias enviadas:
+  - Laticínios;
+  - Queijos;
+  - Embutidos e carnes processadas;
+  - Doces e sobremesas;
+  - Panificados;
+  - Bebidas e sucos;
+  - Óleos e gorduras;
+  - Condimentos e temperos;
+  - Produtos frescos com calor de respiração.
+- Converter automaticamente as unidades do documento:
+  - Cp de kJ/kg·K para kcal/kg·°C dividindo por 4,1868;
+  - Calor latente de kJ/kg para kcal/kg dividindo por 4,1868.
+- Marcar a fonte como “ASHRAE Refrigeration Handbook, Cap. 9/33” e a data de compilação.
 
-3. Aplicar fatores de ocupação padrão
-- Condensador a ar: usar padrão inicial `0,80`, dentro da faixa 0,70–0,90.
-- Evaporador DX/expansão direta: usar padrão inicial `0,30`, dentro da faixa 0,20–0,35.
-- Manter os fatores como campos editáveis para ajuste técnico futuro por regime/tipo.
+3. Melhorar a seleção de produto no cálculo térmico
+- Atualizar a aba “Produto / processo” para permitir selecionar um produto do catálogo ASHRAE.
+- Ao selecionar o produto, preencher automaticamente:
+  - calor específico acima;
+  - calor específico abaixo;
+  - calor latente;
+  - temperatura de congelamento;
+  - nome/categoria do produto.
+- Manter edição manual permitida, porque receitas reais podem variar por fabricante.
 
-4. Implementar fórmulas no banco
-- Carga aproximada:
-```text
-m = V × ρ × f
-```
-Onde:
-- `V` = volume interno corrigido em litros
-- `ρ` = densidade líquida kg/L
-- `f` = fator de ocupação
+4. Validar e aperfeiçoar as fórmulas de carga térmica
+- Manter a lógica correta já existente para produto:
+  - acima do congelamento: `Q = m × Cp_acima × (T_entrada - T_congelamento)`;
+  - mudança de fase: `Q = m × L`;
+  - abaixo do congelamento: `Q = m × Cp_abaixo × (T_congelamento - T_final)`;
+  - sem congelamento: `Q = m × Cp × ΔT`.
+- Garantir que todas as fórmulas trabalhem em kcal/h, já compatível com o restante do CN ColdPro.
+- Adicionar no memorial/resultado a decomposição do produto em:
+  - sensível acima;
+  - latente;
+  - sensível abaixo;
+  - embalagem;
+  - respiração, quando aplicável.
 
-- Área externa dos tubos:
-```text
-A_tubos = π × D_ext × L_total
-```
+5. Aplicar calor de respiração para frutas e vegetais frescos
+- Para produtos com taxa de respiração, calcular automaticamente a taxa adequada pela temperatura da câmara.
+- Usar interpolação entre 0, 5, 10, 15 e 20 °C.
+- Converter W/kg para kcal/h:
+  - `Q_respiração = massa_kg × taxa_W_kg × 0,859845`.
+- Aplicar apenas quando o produto tiver dados de respiração e a operação for armazenamento/resfriamento, não congelamento profundo.
 
-- Área total estimada do evaporador por multiplicador industrial:
-```text
-A_total ≈ A_tubos × fator_multiplicador
-```
+6. Atualizar relatórios e memorial técnico
+- Exibir no relatório que os dados térmicos vieram da base ASHRAE.
+- Mostrar as propriedades usadas no cálculo de cada produto.
+- Mostrar alertas técnicos quando:
+  - produto não tiver catálogo selecionado;
+  - propriedades forem preenchidas manualmente;
+  - composição/propriedades tiverem valores estimados.
 
-- Para espaçamento 2,10 mm, usar multiplicador inicial dentro da faixa indicada: `16x`.
-- Para outros espaçamentos, definir regra por faixa:
-  - baixa densidade de aleta: 8–12x
-  - média densidade: 12–18x
-  - alta densidade: 18–25x
-
-5. Recalcular catálogo existente
-- Atualizar todos os condensadores com volume calculado:
-  - densidade conforme refrigerante do modelo
-  - fator padrão 0,80
-  - carga estimada em kg
-- Atualizar todos os evaporadores com volume calculado:
-  - densidade conforme refrigerante do modelo
-  - fator padrão 0,30
-  - carga estimada em kg
-  - área de troca estimada/equivalente
-- Não alterar capacidade frigorífica, potência elétrica, corrente ou performance.
-
-6. Atualizar interface do catálogo técnico
-- No detalhe técnico do modelo, exibir:
-  - volume interno corrigido
-  - densidade usada
-  - temperatura de referência da densidade
-  - fator de ocupação
-  - carga estimada no condensador
-  - carga estimada no evaporador
-  - área externa dos tubos do evaporador
-  - área estimada com aletas
-  - área efetiva quando houver fator de eficiência
-- Incluir nota técnica: “Cálculo aproximado por volume interno, densidade líquida e fator de ocupação. Não substitui carga final ajustada em campo.”
-
-7. Validação
-- Validar exemplos com modelos R404A, R134a e R410A.
-- Conferir se os 70 condensadores calculam carga.
-- Conferir se os 60 evaporadores com modelo de aletado calculam carga e área; os 10 UCN permanecerão sem área/volume se a planilha não trouxer o aletado.
-
-Resultado esperado:
-- O sistema passa a estimar a quantidade aproximada de fluido refrigerante que cabe no condensador e no evaporador, respeitando densidade do fluido e diferença operacional entre condensador e evaporador.
-- O evaporador também passa a ter área de troca estimada por regra industrial, usando área de tubos e fator multiplicador por densidade de aletas.
+Detalhes técnicos
+- Banco atual: `coldpro_products` já existe, mas hoje possui poucos registros e poucos campos de composição.
+- Cálculo atual: `calculateProductLoad` já aplica a fórmula básica correta para congelamento e resfriamento; será expandido para retornar breakdown detalhado e somar respiração.
+- UI atual: `ColdProProductForm` hoje usa campos manuais; será transformado em seleção assistida pelo catálogo com preenchimento automático.
+- Não criaremos tabela paralela desnecessária se a tabela atual puder ser expandida com segurança. Isso evita duplicidade e mantém o cálculo ligado ao cadastro já usado pelo sistema.
