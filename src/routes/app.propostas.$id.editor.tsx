@@ -258,6 +258,14 @@ function ProposalEditorPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <PageSizePicker
+            value={pageSize}
+            onChange={(next) => {
+              setPageSize(next);
+              if (typeof window !== "undefined")
+                localStorage.setItem(`pageSize:${id}`, JSON.stringify(next));
+            }}
+          />
           <div className="mr-2 flex items-center gap-1.5">
             <span className="text-xs text-muted-foreground">Fonte:</span>
             <Select
@@ -395,6 +403,8 @@ function ProposalEditorPage() {
             onPagesChange={handlePagesChange}
             proposalId={id}
             documentFontFamily={docFontFamily}
+            pageWidthPx={pageWidthPx}
+            pageHeightPx={pageHeightPx}
           />
         </main>
       </div>
