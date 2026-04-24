@@ -1277,15 +1277,26 @@ export type Database = {
           air_throw_m: number | null
           capacity_total_kcal_h: number
           capacity_unit_kcal_h: number
+          cop: number | null
           created_at: string
+          curve_condensation_temp_c: number | null
+          curve_evaporation_temp_c: number | null
+          curve_interpolated: boolean
+          curve_metadata: Json
+          curve_polynomial_r2: number | null
+          curve_temperature_room_c: number | null
           environment_id: string
           equipment_id: string | null
+          equipment_model_id: string | null
           id: string
           model: string
           notes: string | null
           quantity: number
+          refrigerant: string | null
+          selection_method: string
           surplus_kcal_h: number
           surplus_percent: number
+          total_power_kw: number | null
         }
         Insert: {
           air_changes_hour?: number
@@ -1294,15 +1305,26 @@ export type Database = {
           air_throw_m?: number | null
           capacity_total_kcal_h?: number
           capacity_unit_kcal_h?: number
+          cop?: number | null
           created_at?: string
+          curve_condensation_temp_c?: number | null
+          curve_evaporation_temp_c?: number | null
+          curve_interpolated?: boolean
+          curve_metadata?: Json
+          curve_polynomial_r2?: number | null
+          curve_temperature_room_c?: number | null
           environment_id: string
           equipment_id?: string | null
+          equipment_model_id?: string | null
           id?: string
           model: string
           notes?: string | null
           quantity?: number
+          refrigerant?: string | null
+          selection_method?: string
           surplus_kcal_h?: number
           surplus_percent?: number
+          total_power_kw?: number | null
         }
         Update: {
           air_changes_hour?: number
@@ -1311,15 +1333,26 @@ export type Database = {
           air_throw_m?: number | null
           capacity_total_kcal_h?: number
           capacity_unit_kcal_h?: number
+          cop?: number | null
           created_at?: string
+          curve_condensation_temp_c?: number | null
+          curve_evaporation_temp_c?: number | null
+          curve_interpolated?: boolean
+          curve_metadata?: Json
+          curve_polynomial_r2?: number | null
+          curve_temperature_room_c?: number | null
           environment_id?: string
           equipment_id?: string | null
+          equipment_model_id?: string | null
           id?: string
           model?: string
           notes?: string | null
           quantity?: number
+          refrigerant?: string | null
+          selection_method?: string
           surplus_kcal_h?: number
           surplus_percent?: number
+          total_power_kw?: number | null
         }
         Relationships: [
           {
