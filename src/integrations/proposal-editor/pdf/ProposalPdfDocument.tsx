@@ -64,7 +64,7 @@ export function ProposalPdfDocument({ data }: { data: ProposalPdfData }) {
       author={template?.empresa_nome ?? "CN Cold"}
     >
       {visiblePages.flatMap((page, idx) => {
-        const nodes: JSX.Element[] = [];
+        const nodes: ReactElement[] = [];
         if (page.type === "cover") {
           nodes.push(
             <CoverPdfPage
