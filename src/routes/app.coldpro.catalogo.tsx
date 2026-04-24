@@ -54,7 +54,7 @@ function CatalogoPage() {
       const [modelsRes, perfRes] = await Promise.all([
         supabase
           .from("coldpro_equipment_models")
-          .select("id, modelo, linha, designacao_hp, refrigerante, gabinete, tipo_gabinete, tipo_degelo, active, created_at")
+          .select("id, modelo, linha, designacao_hp, refrigerante, gabinete, tipo_gabinete, tipo_degelo, active, created_at, smart_description, description_confidence")
           .order("linha", { ascending: true, nullsFirst: false })
           .order("modelo", { ascending: true })
           .limit(5000),
@@ -545,6 +545,8 @@ type ModelRowData = {
   tipo_gabinete: string | null;
   tipo_degelo: string | null;
   active: boolean;
+  smart_description?: string | null;
+  description_confidence?: string | null;
   point_count: number;
   voltages: string[];
 };
@@ -557,6 +559,11 @@ function ModelRow({ m, indent, onClick }: { m: ModelRowData; indent?: boolean; o
           <span>{m.modelo}</span>
           {m.designacao_hp && m.designacao_hp !== "-" && (
             <span className="text-[11px] font-normal text-muted-foreground">{m.designacao_hp}</span>
+          )}
+          {m.smart_description && (
+            <span className="mt-1 text-[11px] font-normal text-muted-foreground line-clamp-1">
+              {m.smart_description}
+            </span>
           )}
         </div>
       </TableCell>

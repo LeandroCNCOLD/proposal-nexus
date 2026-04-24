@@ -713,13 +713,17 @@ export type Database = {
       coldpro_equipment_models: {
         Row: {
           active: boolean
+          application_summary: string | null
           application_type: string | null
           biblock_image_path: string | null
           biblock_image_paths: string[]
           commercial_description: string | null
           commercial_description_source: string | null
           commercial_features: Json
+          commercial_highlights: Json
           created_at: string
+          description_confidence: string | null
+          description_source: string | null
           designacao_hp: string | null
           gabinete: string | null
           gwp_ar6: number | null
@@ -731,23 +735,30 @@ export type Database = {
           plugin_image_path: string | null
           plugin_image_paths: string[]
           raw: Json | null
+          recommended_applications: string[]
           refrigerante: string | null
+          smart_description: string | null
           source_import_id: string | null
           split_image_path: string | null
           split_image_paths: string[]
+          technical_highlights: Json
           tipo_degelo: string | null
           tipo_gabinete: string | null
           updated_at: string
         }
         Insert: {
           active?: boolean
+          application_summary?: string | null
           application_type?: string | null
           biblock_image_path?: string | null
           biblock_image_paths?: string[]
           commercial_description?: string | null
           commercial_description_source?: string | null
           commercial_features?: Json
+          commercial_highlights?: Json
           created_at?: string
+          description_confidence?: string | null
+          description_source?: string | null
           designacao_hp?: string | null
           gabinete?: string | null
           gwp_ar6?: number | null
@@ -759,23 +770,30 @@ export type Database = {
           plugin_image_path?: string | null
           plugin_image_paths?: string[]
           raw?: Json | null
+          recommended_applications?: string[]
           refrigerante?: string | null
+          smart_description?: string | null
           source_import_id?: string | null
           split_image_path?: string | null
           split_image_paths?: string[]
+          technical_highlights?: Json
           tipo_degelo?: string | null
           tipo_gabinete?: string | null
           updated_at?: string
         }
         Update: {
           active?: boolean
+          application_summary?: string | null
           application_type?: string | null
           biblock_image_path?: string | null
           biblock_image_paths?: string[]
           commercial_description?: string | null
           commercial_description_source?: string | null
           commercial_features?: Json
+          commercial_highlights?: Json
           created_at?: string
+          description_confidence?: string | null
+          description_source?: string | null
           designacao_hp?: string | null
           gabinete?: string | null
           gwp_ar6?: number | null
@@ -787,10 +805,13 @@ export type Database = {
           plugin_image_path?: string | null
           plugin_image_paths?: string[]
           raw?: Json | null
+          recommended_applications?: string[]
           refrigerante?: string | null
+          smart_description?: string | null
           source_import_id?: string | null
           split_image_path?: string | null
           split_image_paths?: string[]
+          technical_highlights?: Json
           tipo_degelo?: string | null
           tipo_gabinete?: string | null
           updated_at?: string
