@@ -12,13 +12,19 @@ interface Props {
   /** Imagem de fundo customizada da página (sobrepõe o chrome padrão). */
   backgroundImageUrl?: string;
   backgroundImageFit?: "cover" | "contain";
+  /** Esconde o cabeçalho (logo + curva) das páginas de conteúdo. */
+  hideHeader?: boolean;
+  /** Esconde o rodapé (faixa azul + paginação) das páginas de conteúdo. */
+  hideFooter?: boolean;
+  /** Sobrescreve o texto do lado esquerdo do rodapé. */
+  footerText?: string;
 }
 
 function findAsset(assets: TemplateAsset[], kind: string): TemplateAsset | undefined {
   return assets.find((a) => a.asset_kind === kind);
 }
 
-export function PageChrome({ template, assets, pageType, pageNumber, totalPages, backgroundImageUrl, backgroundImageFit = "cover" }: Props) {
+export function PageChrome({ template, assets, pageType, pageNumber, totalPages, backgroundImageUrl, backgroundImageFit = "cover", hideHeader, hideFooter, footerText }: Props) {
   const primary = template?.primary_color ?? "#0c2340";
   const accent = template?.accent_color ?? "#2d8a9e";
 
