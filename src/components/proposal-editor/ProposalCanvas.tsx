@@ -379,6 +379,9 @@ export function ProposalCanvas({
               totalPages={sorted.length}
               backgroundImageUrl={page.backgroundImageUrl}
               backgroundImageFit={page.backgroundImageFit}
+              hideHeader={page.hideHeader}
+              hideFooter={page.hideFooter}
+              footerText={page.footerText}
             />
 
             {/* Camada de blocos posicionados absolutamente */}
