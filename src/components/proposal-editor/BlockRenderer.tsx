@@ -29,6 +29,7 @@ interface Props {
   template: ProposalTemplate | null;
   assets: TemplateAsset[];
   proposalContext: ProposalDynamicContext;
+  proposalId?: string;
   onChange: (next: DocumentBlock) => void;
   onDelete: () => void;
   onDuplicate: () => void;
@@ -53,6 +54,7 @@ export function BlockRenderer({
   template,
   assets,
   proposalContext,
+  proposalId,
   onChange,
   onDelete,
   onDuplicate,
@@ -166,6 +168,7 @@ export function BlockRenderer({
           template={template}
           assets={assets}
           proposalContext={proposalContext}
+          proposalId={proposalId}
           setData={setData}
           onChange={onChange}
         />
@@ -179,6 +182,7 @@ function BlockBody({
   template,
   assets,
   proposalContext,
+  proposalId,
   setData,
   onChange,
 }: {
@@ -186,6 +190,7 @@ function BlockBody({
   template: ProposalTemplate | null;
   assets: TemplateAsset[];
   proposalContext: ProposalDynamicContext;
+  proposalId?: string;
   setData: (patch: Record<string, unknown>) => void;
   onChange: (next: DocumentBlock) => void;
 }) {
