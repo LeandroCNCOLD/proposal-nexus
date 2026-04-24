@@ -205,12 +205,15 @@ function BlockBody({
       const borderColor = (block.data.borderColor as string | undefined) ?? "#cbd5e1";
       const borderWidth = (block.data.borderWidth as number | undefined) ?? 1;
       const radius = (block.data.radius as number | undefined) ?? 8;
+      const backgroundColor =
+        (block.data.backgroundColor as string | undefined) ?? "transparent";
       return (
         <div
           className="relative h-full w-full"
           style={{
             border: `${borderWidth}px solid ${borderColor}`,
             borderRadius: radius,
+            background: backgroundColor,
           }}
         >
           {title ? (
