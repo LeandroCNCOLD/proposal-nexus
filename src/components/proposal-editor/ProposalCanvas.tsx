@@ -24,6 +24,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { PageChrome } from "./PageChrome";
+import { PALETTE_DRAG_MIME, parsePaletteItem } from "./FieldsPalette";
 import { cn } from "@/lib/utils";
 
 // Handles visíveis (8 pontos: cantos + meios) — só aparecem no bloco selecionado.
@@ -153,6 +154,41 @@ export function ProposalCanvas({
     updatePage(pageId, { blocks: [...page.blocks, newBlock] });
   };
 
+  const handlePageDrop = (
+    pageId: string,
+    e: React.DragEvent<HTMLDivElement>,
+  ) => {
+    const raw = e.dataTransfer.getData(PALETTE_DRAG_MIME);
+    if (!raw) return;
+    const item = parsePaletteItem(raw);
+    if (!item) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const page = pages.find((p) => p.id === pageId);
+    if (!page) return;
+    // Calcula posição relativa ao papel
+    const rect = e.currentTarget.getBoundingClientRect();
+    const dropX = Math.max(0, Math.round(e.clientX - rect.left));
+    const dropY = Math.max(0, Math.round(e.clientY - rect.top));
+    const baseLayout = defaultLayoutFor(item.blockType, page.blocks.length);
+    const layout: BlockLayout = {
+      ...baseLayout,
+      x: Math.min(Math.max(0, dropX - 20), pageW - baseLayout.w - 10),
+      y: Math.min(Math.max(0, dropY - 10), pageH - baseLayout.h - 10),
+    };
+    const data: Record<string, unknown> = { layout };
+    if (item.blockType === "dynamic_field" && item.fieldKey) {
+      data.fieldKey = item.fieldKey;
+      data.label = item.label;
+    }
+    const newBlock = makeBlock(item.blockType, data, {
+      order: page.blocks.length,
+    });
+    updatePage(pageId, { blocks: [...page.blocks, newBlock] });
+    onSelect(pageId);
+    onSelectBlock(newBlock.id);
+  };
+
   const handleDragResize = (
     pageId: string,
     block: DocumentBlock,
@@ -193,6 +229,13 @@ export function ProposalCanvas({
               onSelect(page.id);
               onSelectBlock(null);
             }}
+            onDragOver={(e) => {
+              if (Array.from(e.dataTransfer.types).includes(PALETTE_DRAG_MIME)) {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "copy";
+              }
+            }}
+            onDrop={(e) => handlePageDrop(page.id, e)}
           >
             {/* Chrome A4 */}
             <PageChrome
