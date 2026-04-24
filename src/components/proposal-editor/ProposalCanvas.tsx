@@ -301,8 +301,10 @@ export function ProposalCanvas({
         const newLayout = clampToBounds(scaled, next);
         const nextData: Record<string, unknown> = { ...child.data, layout: newLayout };
         if (widthChanged || heightChanged) {
-          const baseFs = (child.data.fontSize as number | undefined) ?? 14;
-          const nextFs = Math.max(8, Math.min(96, Math.round(baseFs * fontScale * 10) / 10));
+          const baseFs = (child.data.fontSize as number | undefined) ?? 16;
+          // Piso de 10px garante que o conteúdo continue legível e não desapareça
+          // dentro de paddings/line-heights quando o container encolhe muito.
+          const nextFs = Math.max(10, Math.min(96, Math.round(baseFs * fontScale * 10) / 10));
           nextData.fontSize = nextFs;
         }
         return { ...child, data: nextData };
