@@ -94,6 +94,12 @@ export interface DocumentPage {
   backgroundImageUrl?: string;
   /** Como a imagem de fundo deve preencher o A4. Default: "cover". */
   backgroundImageFit?: "cover" | "contain";
+  /** Oculta o cabeçalho padrão (logo + curva) na renderização. */
+  hideHeader?: boolean;
+  /** Oculta o rodapé padrão (faixa azul com site + paginação). */
+  hideFooter?: boolean;
+  /** Texto customizado para o rodapé (sobrescreve site/email do template). */
+  footerText?: string;
 }
 
 export interface ProposalDocument {
