@@ -291,48 +291,88 @@ export function ColdProModelDetailDialog({ modelId, open, onOpenChange }: Props)
               {data.perfPoints.length === 0 ? (
                 <EmptyBlock label="Nenhum ponto de curva cadastrado para este modelo." />
               ) : (
-                <div className="overflow-x-auto rounded-md border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="text-right">T. Câm. (°C)</TableHead>
-                        <TableHead className="text-right">UR (%)</TableHead>
-                        <TableHead className="text-right">T. Evap. (°C)</TableHead>
-                        <TableHead className="text-right">T. Cond. (°C)</TableHead>
-                        <TableHead className="text-right">T. Ext. (°C)</TableHead>
-                        <TableHead className="text-right">Cap. Evap. (kcal/h)</TableHead>
-                        <TableHead className="text-right">Cap. Comp. (kcal/h)</TableHead>
-                        <TableHead className="text-right">Pot. Comp. (kW)</TableHead>
-                        <TableHead className="text-right">Pot. Vent. (kW)</TableHead>
-                        <TableHead className="text-right">Pot. Total (kW)</TableHead>
-                        <TableHead className="text-right">COP</TableHead>
-                        <TableHead className="text-right">Carga (kg)</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {data.perfPoints.map((p) => (
-                        <TableRow key={p.id}>
-                          <TableCell className="text-right">{fmt(p.temperature_room_c)}</TableCell>
-                          <TableCell className="text-right">{fmt(p.humidity_room_percent)}</TableCell>
-                          <TableCell className="text-right">{fmt(p.evaporation_temp_c)}</TableCell>
-                          <TableCell className="text-right">{fmt(p.condensation_temp_c)}</TableCell>
-                          <TableCell className="text-right">{fmt(p.external_temp_c)}</TableCell>
-                          <TableCell className="text-right font-medium">
-                            {fmt(p.evaporator_capacity_kcal_h, 0)}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {fmt(p.compressor_capacity_kcal_h, 0)}
-                          </TableCell>
-                          <TableCell className="text-right">{fmt(p.compressor_power_kw, 2)}</TableCell>
-                          <TableCell className="text-right">{fmt(p.fan_power_kw, 2)}</TableCell>
-                          <TableCell className="text-right">{fmt(p.total_power_kw, 2)}</TableCell>
-                          <TableCell className="text-right">{fmt(p.cop, 2)}</TableCell>
-                          <TableCell className="text-right">{fmt(p.fluid_charge_kg, 2)}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
+                (() => {
+                  const byVoltage = groupBy(data.perfPoints, (p) => p.voltage ?? "Sem tensão");
+                  const voltages = Array.from(byVoltage.keys()).sort();
+                  return (
+                    <div className="space-y-4">
+                      <div className="flex flex-wrap items-center gap-2 text-xs">
+                        <span className="text-muted-foreground">Versões elétricas:</span>
+                        {voltages.map((v) => (
+                          <Badge key={v} variant="outline" className="font-mono">
+                            <Zap className="mr-1 h-3 w-3" />
+                            {v} ({byVoltage.get(v)!.length} pts)
+                          </Badge>
+                        ))}
+                      </div>
+
+                      {voltages.map((v) => {
+                        const pts = byVoltage.get(v)!;
+                        const byRoom = groupBy(pts, (p) =>
+                          p.temperature_room_c == null ? "—" : `${p.temperature_room_c}°C`
+                        );
+                        return (
+                          <div key={v} className="rounded-md border">
+                            <div className="flex items-center justify-between border-b bg-muted/40 px-3 py-2">
+                              <div className="flex items-center gap-2 text-sm font-semibold">
+                                <Zap className="h-4 w-4 text-primary" />
+                                {v}
+                              </div>
+                              <Badge variant="secondary">{pts.length} pontos</Badge>
+                            </div>
+                            <div className="overflow-x-auto">
+                              <Table>
+                                <TableHeader>
+                                  <TableRow>
+                                    <TableHead className="text-right">T. Câm. (°C)</TableHead>
+                                    <TableHead className="text-right">UR (%)</TableHead>
+                                    <TableHead className="text-right">T. Evap. (°C)</TableHead>
+                                    <TableHead className="text-right">T. Cond. (°C)</TableHead>
+                                    <TableHead className="text-right">T. Ext. (°C)</TableHead>
+                                    <TableHead className="text-right">Cap. Evap. (kcal/h)</TableHead>
+                                    <TableHead className="text-right">Cap. Comp. (kcal/h)</TableHead>
+                                    <TableHead className="text-right">Pot. Total (kW)</TableHead>
+                                    <TableHead className="text-right">COP</TableHead>
+                                    <TableHead className="text-right">Carga (kg)</TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  {Array.from(byRoom.entries()).map(([room, items]) => (
+                                    <>
+                                      <TableRow key={`${v}-${room}-h`} className="bg-muted/20 hover:bg-muted/20">
+                                        <TableCell colSpan={10} className="py-1.5 text-xs font-semibold text-muted-foreground">
+                                          Câmara a {room} • {items.length} pontos
+                                        </TableCell>
+                                      </TableRow>
+                                      {items.map((p) => (
+                                        <TableRow key={p.id}>
+                                          <TableCell className="text-right">{fmt(p.temperature_room_c)}</TableCell>
+                                          <TableCell className="text-right">{fmt(p.humidity_room_percent)}</TableCell>
+                                          <TableCell className="text-right">{fmt(p.evaporation_temp_c)}</TableCell>
+                                          <TableCell className="text-right">{fmt(p.condensation_temp_c)}</TableCell>
+                                          <TableCell className="text-right">{fmt(p.external_temp_c)}</TableCell>
+                                          <TableCell className="text-right font-medium">
+                                            {fmt(p.evaporator_capacity_kcal_h, 0)}
+                                          </TableCell>
+                                          <TableCell className="text-right">
+                                            {fmt(p.compressor_capacity_kcal_h, 0)}
+                                          </TableCell>
+                                          <TableCell className="text-right">{fmt(p.total_power_kw, 2)}</TableCell>
+                                          <TableCell className="text-right">{fmt(p.cop, 2)}</TableCell>
+                                          <TableCell className="text-right">{fmt(p.fluid_charge_kg, 2)}</TableCell>
+                                        </TableRow>
+                                      ))}
+                                    </>
+                                  ))}
+                                </TableBody>
+                              </Table>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()
               )}
             </TabsContent>
           </Tabs>
