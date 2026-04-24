@@ -226,7 +226,44 @@ function BlockBody({
             value={html}
             onChange={(v) => setData({ html: v })}
             placeholder="Escreva o conteúdo…"
+            proposalId={proposalId}
           />
+        </div>
+      );
+    }
+
+    case "image": {
+      const url = (block.data.url as string | null) ?? null;
+      return (
+        <div className="space-y-2">
+          {block.title ? (
+            <p className="text-[11px] font-medium uppercase tracking-wider opacity-70">
+              {block.title}
+            </p>
+          ) : null}
+          {url ? (
+            <img src={url} alt="" className="h-full max-h-full w-full max-w-full rounded border object-contain" />
+          ) : (
+            <div className="flex h-32 items-center justify-center rounded border-2 border-dashed text-xs opacity-60">
+              Sem imagem
+            </div>
+          )}
+          <div className="flex items-center gap-1">
+            <Input
+              value={url ?? ""}
+              onChange={(e) => setData({ url: e.target.value || null })}
+              placeholder="URL da imagem ou faça upload…"
+              disabled={locked}
+              className="h-7 text-xs"
+            />
+            {proposalId ? (
+              <ImageUploadButton
+                proposalId={proposalId}
+                onUploaded={(u) => setData({ url: u })}
+                disabled={locked}
+              />
+            ) : null}
+          </div>
         </div>
       );
     }
