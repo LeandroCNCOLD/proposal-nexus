@@ -429,7 +429,7 @@ export const processNomusProcessSyncBatch = createServerFn({ method: "POST" })
         const page = await listPage<NomusProcessRaw>(
           NOMUS_ENDPOINTS.processos,
           {},
-          { entity: "processos", pageSize: Number(job.page_size ?? 50), page: currentPage, triggeredBy: userId },
+          { entity: "processos", pageSize: Number(job.page_size ?? 20), page: currentPage, triggeredBy: userId },
         );
         if (!page.ok) throw new Error(page.error);
 
