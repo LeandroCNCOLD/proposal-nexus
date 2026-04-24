@@ -531,3 +531,59 @@ function Stat({ label, value, valid, warn }: { label: string; value: number; val
     </div>
   );
 }
+
+type ModelRowData = {
+  id: string;
+  modelo: string | null;
+  linha: string | null;
+  designacao_hp: string | null;
+  refrigerante: string | null;
+  gabinete: string | null;
+  tipo_degelo: string | null;
+  active: boolean;
+  point_count: number;
+  voltages: string[];
+};
+
+function ModelRow({ m, indent, onClick }: { m: ModelRowData; indent?: boolean; onClick: () => void }) {
+  return (
+    <TableRow className="cursor-pointer hover:bg-muted/50" onClick={onClick}>
+      <TableCell className={`font-medium text-primary ${indent ? "pl-8" : ""}`}>
+        <div className="flex flex-col">
+          <span>{m.modelo}</span>
+          {m.designacao_hp && m.designacao_hp !== "-" && (
+            <span className="text-[11px] font-normal text-muted-foreground">{m.designacao_hp}</span>
+          )}
+        </div>
+      </TableCell>
+      <TableCell className="text-xs">{m.linha ?? "—"}</TableCell>
+      <TableCell>
+        <Badge variant="outline" className="font-mono text-xs">{m.refrigerante ?? "—"}</Badge>
+      </TableCell>
+      <TableCell className="text-xs">{m.gabinete ?? "—"}</TableCell>
+      <TableCell>
+        <div className="flex flex-wrap gap-1">
+          {m.voltages.length === 0 ? (
+            <span className="text-xs text-muted-foreground">—</span>
+          ) : (
+            m.voltages.map((v) => (
+              <Badge key={v} variant="secondary" className="font-mono text-[10px] py-0 px-1.5">
+                {v}
+              </Badge>
+            ))
+          )}
+        </div>
+      </TableCell>
+      <TableCell className="text-right text-sm font-medium tabular-nums">
+        {m.point_count}
+      </TableCell>
+      <TableCell className="text-right">
+        {m.active ? (
+          <Badge variant="default" className="bg-emerald-600">Ativo</Badge>
+        ) : (
+          <Badge variant="secondary">Inativo</Badge>
+        )}
+      </TableCell>
+    </TableRow>
+  );
+}
