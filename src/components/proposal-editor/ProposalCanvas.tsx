@@ -193,18 +193,19 @@ export function ProposalCanvas({
                       position={{ x: layout.x, y: layout.y }}
                       disableDragging={block.locked}
                       enableResizing={!block.locked}
-                      minWidth={80}
-                      minHeight={40}
+                      minWidth={60}
+                      minHeight={30}
+                      resizeHandleComponent={selected ? handleComponents : undefined}
                       onDragStop={(_e, d) =>
-                        handleDragResize(page.id, block, { ...layout, x: d.x, y: d.y })
+                        handleDragResize(page.id, block, { ...layout, x: Math.round(d.x), y: Math.round(d.y) })
                       }
                       onResizeStop={(_e, _dir, ref, _delta, position) =>
                         handleDragResize(page.id, block, {
                           ...layout,
                           w: parseInt(ref.style.width, 10),
                           h: parseInt(ref.style.height, 10),
-                          x: position.x,
-                          y: position.y,
+                          x: Math.round(position.x),
+                          y: Math.round(position.y),
                         })
                       }
                       onClick={(e: React.MouseEvent) => {
