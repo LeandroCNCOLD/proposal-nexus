@@ -117,7 +117,15 @@ function ProposalsList() {
     return { cn: m2 ? m2[1].toUpperCase() : "", client: t };
   };
 
+  // Extrai número da revisão a partir do "numero" do Nomus (ex.: "CN00146 Rev. 02" → 2; "CN00146" → 0)
+  const parseRevision = (numero: string | null | undefined) => {
+    if (!numero) return 0;
+    const m = numero.match(/Rev\.?\s*(\d+)/i);
+    return m ? parseInt(m[1], 10) : 0;
+  };
+
   const filtered = useMemo(() => {
+    // 1) Aplica filtros de status e busca
     const list = proposals.filter((p) => {
       if (statusFilter !== "all" && p.status !== statusFilter) return false;
       if (!search) return true;
@@ -131,10 +139,37 @@ function ProposalsList() {
         ((p.clients as any)?.name ?? "").toLowerCase().includes(q)
       );
     });
-    // Ordena pela data real do Nomus (criada_em_nomus / data_emissao), mais recente primeiro
-    return [...list].sort((a, b) => {
-      const da = (a as any)._nomus?.criada_em_nomus ?? (a as any)._nomus?.data_emissao ?? a.created_at;
-      const db = (b as any)._nomus?.criada_em_nomus ?? (b as any)._nomus?.data_emissao ?? b.created_at;
+
+    // 2) Agrupa por base CN##### e mantém apenas a revisão mais alta
+    const groups = new Map<string, typeof list>();
+    list.forEach((p) => {
+      const cn = parseTitle(p.title).cn || p.number;
+      const arr = groups.get(cn) ?? [];
+      arr.push(p);
+      groups.set(cn, arr);
+    });
+
+    const latest = Array.from(groups.values()).map((arr) => {
+      // Ordena por revisão desc, depois por data desc
+      const sorted = [...arr].sort((a, b) => {
+        const ra = parseRevision((a as any)._nomus?.numero);
+        const rb = parseRevision((b as any)._nomus?.numero);
+        if (rb !== ra) return rb - ra;
+        const da = (a as any)._nomus?.criada_em_nomus ?? (a as any)._nomus?.data_emissao ?? a.created_at;
+        const db = (b as any)._nomus?.criada_em_nomus ?? (b as any)._nomus?.data_emissao ?? b.created_at;
+        return new Date(db).getTime() - new Date(da).getTime();
+      });
+      const head = sorted[0] as any;
+      head._revisions = sorted; // todas as revisões da família
+      head._currentRevision = parseRevision(head._nomus?.numero);
+      head._totalRevisions = sorted.length;
+      return head;
+    });
+
+    // 3) Ordena pela data real do Nomus (mais recente primeiro)
+    return latest.sort((a, b) => {
+      const da = a._nomus?.criada_em_nomus ?? a._nomus?.data_emissao ?? a.created_at;
+      const db = b._nomus?.criada_em_nomus ?? b._nomus?.data_emissao ?? b.created_at;
       return new Date(db).getTime() - new Date(da).getTime();
     });
   }, [proposals, search, statusFilter]);
