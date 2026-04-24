@@ -67,11 +67,11 @@ function ProposalsList() {
       if (error) throw error;
       const rows = data ?? [];
       const nomusIds = rows.map((r) => r.nomus_id).filter(Boolean) as string[];
-      const nomusMap = new Map<string, { criada_em_nomus: string | null; data_emissao: string | null; representante_nome: string | null; vendedor_nome: string | null; cliente_nomus_id: string | null }>();
+      const nomusMap = new Map<string, { criada_em_nomus: string | null; data_emissao: string | null; representante_nome: string | null; vendedor_nome: string | null; cliente_nomus_id: string | null; numero: string | null }>();
       if (nomusIds.length > 0) {
         const { data: np } = await supabase
           .from("nomus_proposals")
-          .select("nomus_id, criada_em_nomus, data_emissao, representante_nome, vendedor_nome, cliente_nomus_id")
+          .select("nomus_id, criada_em_nomus, data_emissao, representante_nome, vendedor_nome, cliente_nomus_id, numero")
           .in("nomus_id", nomusIds);
         (np ?? []).forEach((n) => nomusMap.set(n.nomus_id, {
           criada_em_nomus: n.criada_em_nomus,
@@ -79,6 +79,7 @@ function ProposalsList() {
           representante_nome: n.representante_nome,
           vendedor_nome: n.vendedor_nome,
           cliente_nomus_id: n.cliente_nomus_id,
+          numero: n.numero,
         }));
       }
       // Buscar CNPJ de clientes via nomus_id quando não há clients vinculado
@@ -116,7 +117,15 @@ function ProposalsList() {
     return { cn: m2 ? m2[1].toUpperCase() : "", client: t };
   };
 
+  // Extrai número da revisão a partir do "numero" do Nomus (ex.: "CN00146 Rev. 02" → 2; "CN00146" → 0)
+  const parseRevision = (numero: string | null | undefined) => {
+    if (!numero) return 0;
+    const m = numero.match(/Rev\.?\s*(\d+)/i);
+    return m ? parseInt(m[1], 10) : 0;
+  };
+
   const filtered = useMemo(() => {
+    // 1) Aplica filtros de status e busca
     const list = proposals.filter((p) => {
       if (statusFilter !== "all" && p.status !== statusFilter) return false;
       if (!search) return true;
@@ -130,10 +139,37 @@ function ProposalsList() {
         ((p.clients as any)?.name ?? "").toLowerCase().includes(q)
       );
     });
-    // Ordena pela data real do Nomus (criada_em_nomus / data_emissao), mais recente primeiro
-    return [...list].sort((a, b) => {
-      const da = (a as any)._nomus?.criada_em_nomus ?? (a as any)._nomus?.data_emissao ?? a.created_at;
-      const db = (b as any)._nomus?.criada_em_nomus ?? (b as any)._nomus?.data_emissao ?? b.created_at;
+
+    // 2) Agrupa por base CN##### e mantém apenas a revisão mais alta
+    const groups = new Map<string, typeof list>();
+    list.forEach((p) => {
+      const cn = parseTitle(p.title).cn || p.number;
+      const arr = groups.get(cn) ?? [];
+      arr.push(p);
+      groups.set(cn, arr);
+    });
+
+    const latest = Array.from(groups.values()).map((arr) => {
+      // Ordena por revisão desc, depois por data desc
+      const sorted = [...arr].sort((a, b) => {
+        const ra = parseRevision((a as any)._nomus?.numero);
+        const rb = parseRevision((b as any)._nomus?.numero);
+        if (rb !== ra) return rb - ra;
+        const da = (a as any)._nomus?.criada_em_nomus ?? (a as any)._nomus?.data_emissao ?? a.created_at;
+        const db = (b as any)._nomus?.criada_em_nomus ?? (b as any)._nomus?.data_emissao ?? b.created_at;
+        return new Date(db).getTime() - new Date(da).getTime();
+      });
+      const head = sorted[0] as any;
+      head._revisions = sorted; // todas as revisões da família
+      head._currentRevision = parseRevision(head._nomus?.numero);
+      head._totalRevisions = sorted.length;
+      return head;
+    });
+
+    // 3) Ordena pela data real do Nomus (mais recente primeiro)
+    return latest.sort((a, b) => {
+      const da = a._nomus?.criada_em_nomus ?? a._nomus?.data_emissao ?? a.created_at;
+      const db = b._nomus?.criada_em_nomus ?? b._nomus?.data_emissao ?? b.created_at;
       return new Date(db).getTime() - new Date(da).getTime();
     });
   }, [proposals, search, statusFilter]);
@@ -195,10 +231,22 @@ function ProposalsList() {
               const cnpj = formatCNPJ((p as any)._cnpj);
               const representante = (p as any)._nomus?.representante_nome ?? "—";
               const vendedor = (p as any)._nomus?.vendedor_nome ?? "—";
+              const currentRev = (p as any)._currentRevision ?? 0;
+              const totalRevs = (p as any)._totalRevisions ?? 1;
               return (
               <TableRow key={p.id} className="cursor-pointer">
                 <TableCell className="font-mono text-xs">
-                  <Link to="/app/propostas/$id" params={{ id: p.id }} className="hover:text-primary">{displayNumber}</Link>
+                  <div className="flex items-center gap-2">
+                    <Link to="/app/propostas/$id" params={{ id: p.id }} className="hover:text-primary">{displayNumber}</Link>
+                    {totalRevs > 1 && (
+                      <span
+                        title={`${totalRevs} revisões — exibindo a mais recente (Rev. ${String(currentRev).padStart(2, "0")})`}
+                        className="inline-flex items-center rounded-md bg-primary/10 text-primary px-1.5 py-0.5 text-[10px] font-semibold"
+                      >
+                        Rev. {String(currentRev).padStart(2, "0")} · {totalRevs}
+                      </span>
+                    )}
+                  </div>
                 </TableCell>
                 <TableCell className="font-medium max-w-xs truncate">
                   <Link to="/app/propostas/$id" params={{ id: p.id }}>{displayClient}</Link>
