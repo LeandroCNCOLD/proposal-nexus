@@ -15,10 +15,17 @@ interface BlockRenderContext {
   template: ProposalTemplate | null;
   tablesByPage: Map<string, ProposalTable[]>;
   pageId: string;
+  /** Dados da proposta (usado por blocos como proposal_summary_box). */
+  proposal?: {
+    number?: string | null;
+    title?: string | null;
+    client_name?: string | null;
+    created_at?: string | null;
+  };
 }
 
 export function renderBlock(block: DocumentBlock, ctx: BlockRenderContext): React.ReactNode {
-  const { styles, theme, template, tablesByPage, pageId } = ctx;
+  const { styles, theme, template, tablesByPage, pageId, proposal } = ctx;
   const key = block.id;
 
   switch (block.type) {
