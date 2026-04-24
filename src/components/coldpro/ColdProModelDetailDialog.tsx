@@ -27,6 +27,20 @@ type Props = {
   onOpenChange: (open: boolean) => void;
 };
 
+type EquipmentImageKind = "plugin" | "split" | "biblock";
+
+const IMAGE_FIELD_BY_KIND: Record<EquipmentImageKind, string> = {
+  plugin: "plugin_image_path",
+  split: "split_image_path",
+  biblock: "biblock_image_path",
+};
+
+const IMAGE_LABEL_BY_KIND: Record<EquipmentImageKind, string> = {
+  plugin: "Plug-in",
+  split: "Split",
+  biblock: "Bi-bloco",
+};
+
 export function ColdProModelDetailDialog({ modelId, open, onOpenChange }: Props) {
   const qc = useQueryClient();
   const detailQuery = useQuery({
