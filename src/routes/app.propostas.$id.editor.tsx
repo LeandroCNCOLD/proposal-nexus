@@ -22,10 +22,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { DocumentPage } from "@/integrations/proposal-editor/types";
+import type { ProposalTemplate, TemplateAsset } from "@/integrations/proposal-editor/template.types";
+import type { ProposalDynamicContext } from "@/components/proposal-editor/BlockRenderer";
 import { PageSidebar } from "@/components/proposal-editor/PageSidebar";
 import { ProposalCanvas } from "@/components/proposal-editor/ProposalCanvas";
 import { ProposalAttachmentsPanel } from "@/components/proposal-editor/ProposalAttachmentsPanel";
 import { ProposalVersionsPanel } from "@/components/proposal-editor/ProposalVersionsPanel";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/app/propostas/$id/editor")({
   component: ProposalEditorPage,
@@ -54,9 +57,58 @@ function ProposalEditorPage() {
     queryFn: () => listTpls(),
   });
 
+  const tplsList = (tplsData ?? {}) as { templates?: Array<{ id: string; name: string; is_default: boolean }> };
+
   const doc = data?.document;
+  const templateId = (doc as { template_id?: string | null } | undefined)?.template_id ?? null;
+
+  // Carrega template + assets para o canvas (chrome A4 + capa pictórica)
+  const { data: bundleData } = useQuery({
+    queryKey: ["proposal-template-bundle", templateId],
+    queryFn: async () => {
+      if (!templateId) return null;
+      const { data: tpl } = await supabase
+        .from("proposal_templates")
+        .select("*")
+        .eq("id", templateId)
+        .maybeSingle();
+      const { data: assetRows } = await supabase
+        .from("proposal_template_assets")
+        .select("*")
+        .eq("template_id", templateId);
+      const assets: TemplateAsset[] = (assetRows ?? []).map((a) => ({
+        ...(a as unknown as TemplateAsset),
+        url: supabase.storage
+          .from("proposal-template-assets")
+          .getPublicUrl(a.storage_path).data.publicUrl,
+      }));
+      return { template: tpl as unknown as ProposalTemplate | null, assets };
+    },
+    enabled: !!templateId,
+  });
+
+  // Carrega contexto dinâmico da proposta para placeholders
+  const { data: ctxData } = useQuery({
+    queryKey: ["proposal-dynamic-context", id],
+    queryFn: async () => {
+      const { data: p } = await supabase
+        .from("proposals")
+        .select("number,client_id,nomus_seller_name,clients(name)")
+        .eq("id", id)
+        .maybeSingle();
+      const clientName =
+        (p as { clients?: { name?: string } | null } | null)?.clients?.name ?? null;
+      return {
+        proposal_number: (p as { number?: string } | null)?.number ?? null,
+        client_name: clientName,
+        vendedor: (p as { nomus_seller_name?: string } | null)?.nomus_seller_name ?? null,
+      } satisfies ProposalDynamicContext;
+    },
+  });
+
   const [pages, setPages] = useState<DocumentPage[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
   const hydratedFor = useRef<string | null>(null);
 
@@ -197,7 +249,7 @@ function ProposalEditorPage() {
                 <SelectValue placeholder="Escolher template…" />
               </SelectTrigger>
               <SelectContent>
-                {(tplsData?.templates ?? []).map((t) => (
+                {(tplsList.templates ?? []).map((t) => (
                   <SelectItem key={t.id} value={t.id} className="text-xs">
                     {t.name}
                     {t.is_default ? " (padrão)" : ""}
@@ -293,6 +345,11 @@ function ProposalEditorPage() {
           <ProposalCanvas
             pages={pages}
             selectedId={selectedId}
+            template={bundleData?.template ?? null}
+            assets={bundleData?.assets ?? []}
+            proposalContext={ctxData ?? {}}
+            selectedBlockId={selectedBlockId}
+            onSelectBlock={setSelectedBlockId}
             onSelect={setSelectedId}
             onPagesChange={handlePagesChange}
           />

@@ -21,6 +21,7 @@ import {
 } from "@/integrations/proposal-editor/template.functions";
 import type {
   ProposalTemplate,
+  TemplateAsset,
   TemplateBancario,
   TemplateCaseItem,
   TemplateDiferencial,
@@ -41,7 +42,7 @@ function TemplateEditorPage() {
     queryFn: () => getTemplate({ data: { templateId: id } }),
   });
 
-  const bundle = data as { template: ProposalTemplate; assets: Array<{ id: string; asset_kind: string; url: string; label: string | null; storage_path: string }> } | null | undefined;
+  const bundle = data as { template: ProposalTemplate; assets: TemplateAsset[] } | null | undefined;
   const [form, setForm] = useState<ProposalTemplate | null>(null);
 
   useEffect(() => {
@@ -276,7 +277,7 @@ function TemplateEditorPage() {
               assetKind="header_banner"
               title="Faixa de cabeçalho"
               description="Imagem horizontal exibida no topo de cada página interna (54px de altura). Use uma faixa larga em PNG/JPG."
-              current={data?.assets?.find((a) => a.asset_kind === "header_banner")}
+              current={bundle?.assets?.find((a) => a.asset_kind === "header_banner")}
               aspect="banner"
             />
             <FullPageImageUploader
@@ -284,7 +285,7 @@ function TemplateEditorPage() {
               assetKind="footer_banner"
               title="Faixa de rodapé"
               description="Imagem horizontal exibida na base de cada página interna (48px de altura). Quando ausente, é usado o rodapé azul com telefone, site, e-mail e cidade."
-              current={data?.assets?.find((a) => a.asset_kind === "footer_banner")}
+              current={bundle?.assets?.find((a) => a.asset_kind === "footer_banner")}
               aspect="banner"
             />
           </Card>
@@ -296,7 +297,7 @@ function TemplateEditorPage() {
             assetKind="cover_full"
             title="Imagem da capa (página inteira)"
             description="Envie a arte completa da capa em A4. Quando presente, ela substitui o layout dinâmico — os campos abaixo (título, subtítulo, tagline) ficam ignorados no PDF."
-            current={data?.assets?.find((a) => a.asset_kind === "cover_full")}
+            current={bundle?.assets?.find((a) => a.asset_kind === "cover_full")}
           />
           <Card className="p-5 space-y-4">
             <h3 className="text-sm font-semibold">Layout dinâmico (usado quando não há imagem de capa)</h3>
@@ -330,7 +331,7 @@ function TemplateEditorPage() {
             assetKind="about_full"
             title="Imagem da página Sobre / Apresentação"
             description="Envie a arte completa da página Sobre em A4. Quando presente, substitui o layout dinâmico desta seção no PDF."
-            current={data?.assets?.find((a) => a.asset_kind === "about_full")}
+            current={bundle?.assets?.find((a) => a.asset_kind === "about_full")}
           />
           <Card className="p-5 space-y-4">
             <h3 className="text-sm font-semibold">Layout dinâmico (usado quando não há imagem)</h3>
@@ -384,7 +385,7 @@ function TemplateEditorPage() {
             assetKind="clients_full"
             title="Imagem da página Clientes / Cases"
             description="Envie a arte completa da página de Clientes/Cases em A4. Quando presente, substitui o layout dinâmico desta seção no PDF."
-            current={data?.assets?.find((a) => a.asset_kind === "clients_full")}
+            current={bundle?.assets?.find((a) => a.asset_kind === "clients_full")}
           />
           <Card className="p-5 space-y-4">
             <h3 className="text-sm font-semibold">Layout dinâmico (usado quando não há imagem)</h3>
@@ -493,7 +494,7 @@ function TemplateEditorPage() {
               Adicione um ou mais bancos. Aparecem na seção "Forma de pagamento" do PDF.
             </p>
             <StructuredListEditor<TemplateBancario>
-              items={form.dados_bancarios ?? []}
+              items={Array.isArray(form.dados_bancarios) ? form.dados_bancarios : form.dados_bancarios ? [form.dados_bancarios] : []}
               fields={[
                 { key: "banco", label: "Banco", placeholder: "Ex.: Itaú" },
                 { key: "agencia", label: "Agência" },
@@ -514,12 +515,12 @@ function TemplateEditorPage() {
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-semibold">Imagens do template</h3>
               <span className="text-xs text-muted-foreground">
-                {data?.assets?.length ?? 0} imagens
+                {bundle?.assets?.length ?? 0} imagens
               </span>
             </div>
-            {data?.assets && data.assets.length > 0 ? (
+            {bundle?.assets && bundle.assets.length > 0 ? (
               <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-4">
-                {data.assets.map((asset) => (
+                {bundle.assets.map((asset) => (
                   <div key={asset.id} className="rounded-lg border p-2">
                     <div className="flex h-32 items-center justify-center rounded bg-secondary/30 overflow-hidden">
                       <img

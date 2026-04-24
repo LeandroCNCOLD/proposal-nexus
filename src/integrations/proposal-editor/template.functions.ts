@@ -63,7 +63,7 @@ const getTemplateSchema = z.object({
 export const getTemplate = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => getTemplateSchema.parse(input ?? {}))
-  .handler(async ({ data, context }): Promise<TemplateBundle | null> => {
+  .handler(async ({ data, context }) => {
     const { supabase } = context;
 
     let query = supabase.from("proposal_templates").select("*");
@@ -82,10 +82,11 @@ export const getTemplate = createServerFn({ method: "POST" })
       .eq("template_id", tmpl.id)
       .order("position", { ascending: true, nullsFirst: false });
 
-    return {
+    const result: TemplateBundle = {
       template: tmpl as unknown as ProposalTemplate,
       assets: await buildAssetsWithUrls(supabase, (assets ?? []) as never),
     };
+    return result;
   });
 
 /** Atualiza textos/cores de um template. */
