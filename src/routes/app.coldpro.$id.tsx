@@ -21,6 +21,7 @@ import { ColdProExtraLoadsForm } from "@/components/coldpro/ColdProExtraLoadsFor
 import { ColdProStepper, COLDPRO_STEPS } from "@/components/coldpro/ColdProStepper";
 import { ColdProReport } from "@/components/coldpro/ColdProReport";
 import { ColdProRealSelection } from "@/components/coldpro/ColdProRealSelection";
+import { ColdProSectionLoadSummary } from "@/components/coldpro/ColdProSectionLoadSummary";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { saveCatalogEquipmentSelection } from "@/features/coldpro/catalog-selection.functions";
 
@@ -58,6 +59,9 @@ function ColdProProjectPage() {
   const tunnel = (data?.tunnels ?? []).find((t: any) => t.environment_id === selectedEnv?.id);
   const result = (data?.results ?? []).find((r: any) => r.environment_id === selectedEnv?.id);
   const selection = (data?.selections ?? []).find((s: any) => s.environment_id === selectedEnv?.id);
+  const environmentLoad = Number(result?.transmission_kcal_h ?? 0);
+  const productLoad = Number(result?.product_kcal_h ?? 0) + Number(result?.packaging_kcal_h ?? 0) + Number(result?.calculation_breakdown?.respiration_kcal_h ?? 0) + Number(result?.tunnel_internal_load_kcal_h ?? 0);
+  const extraLoad = Number(result?.infiltration_kcal_h ?? 0) + Number(result?.people_kcal_h ?? 0) + Number(result?.lighting_kcal_h ?? 0) + Number(result?.motors_kcal_h ?? 0) + Number(result?.fans_kcal_h ?? 0) + Number(result?.defrost_kcal_h ?? 0) + Number(result?.other_kcal_h ?? 0);
 
   React.useEffect(() => {
     if (!selectedEnvId && environments[0]?.id) setSelectedEnvId(environments[0].id);
@@ -68,7 +72,6 @@ function ColdProProjectPage() {
     1: products.length > 0 || !!tunnel,
     2: !!selectedEnv?.safety_factor_percent,
     3: !!result,
-    4: !!selection,
   };
 
   if (isLoading) return <div className="p-6 text-sm text-muted-foreground">Carregando CN ColdPro...</div>;
@@ -87,7 +90,7 @@ function ColdProProjectPage() {
     try {
       await calculate.mutateAsync(selectedEnv.id);
       toast.success("Carga térmica calculada");
-      setStepIndex(4);
+      setStepIndex(3);
     } catch (e: any) {
       toast.error(e?.message ?? "Erro no cálculo");
     }
