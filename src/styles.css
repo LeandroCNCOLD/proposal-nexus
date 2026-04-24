@@ -174,3 +174,13 @@
   }
   h1, h2, h3, h4 { letter-spacing: -0.02em; }
 }
+
+@layer utilities {
+  /* Editor de propostas: quando um bloco define data.fontSize, força todos os
+     descendentes textuais a herdar (sobrescreve text-xs/sm/lg do Tailwind). */
+  .pe-inherit-font,
+  .pe-inherit-font * {
+    font-size: inherit !important;
+    line-height: inherit !important;
+  }
+}
