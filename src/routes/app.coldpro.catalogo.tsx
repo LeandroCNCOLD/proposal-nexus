@@ -54,7 +54,7 @@ function CatalogoPage() {
       const [modelsRes, perfRes] = await Promise.all([
         supabase
           .from("coldpro_equipment_models")
-          .select("id, modelo, linha, designacao_hp, refrigerante, gabinete, tipo_degelo, active, created_at")
+          .select("id, modelo, linha, designacao_hp, refrigerante, gabinete, tipo_gabinete, tipo_degelo, active, created_at")
           .order("linha", { ascending: true, nullsFirst: false })
           .order("modelo", { ascending: true })
           .limit(5000),
@@ -152,7 +152,9 @@ function CatalogoPage() {
     return (
       m.modelo?.toLowerCase().includes(q) ||
       m.linha?.toLowerCase().includes(q) ||
-      m.refrigerante?.toLowerCase().includes(q)
+      m.refrigerante?.toLowerCase().includes(q) ||
+      m.tipo_gabinete?.toLowerCase().includes(q) ||
+      m.gabinete?.toLowerCase().includes(q)
     );
   });
 
@@ -367,6 +369,7 @@ function CatalogoPage() {
                     <TableRow>
                       <TableHead>Modelo</TableHead>
                       <TableHead>Linha</TableHead>
+                      <TableHead>Tipo</TableHead>
                       <TableHead>Refrig.</TableHead>
                       <TableHead>Gabinete</TableHead>
                       <TableHead>Versões elétricas</TableHead>
@@ -379,7 +382,7 @@ function CatalogoPage() {
                       ? groupedModels.map(([linha, items]) => (
                           <>
                             <TableRow key={`group-${linha}`} className="bg-muted/40 hover:bg-muted/40">
-                              <TableCell colSpan={7} className="py-2 font-semibold text-sm">
+                              <TableCell colSpan={8} className="py-2 font-semibold text-sm">
                                 <span className="inline-flex items-center gap-2">
                                   <FolderTree className="h-4 w-4 text-primary" />
                                   {linha}
