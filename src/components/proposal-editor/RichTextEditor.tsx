@@ -40,6 +40,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { uploadInlineImage } from "@/integrations/proposal-editor/inline-images.functions";
 import { toast } from "sonner";
 
+import { AIAssistButton } from "./AIAssistButton";
+
 interface Props {
   value?: string;
   onChange: (html: string) => void;
@@ -48,6 +50,8 @@ interface Props {
   className?: string;
   /** Quando definido, habilita upload de imagens inline para a proposta. */
   proposalId?: string;
+  /** Dica de contexto passada ao assistente de IA (ex.: "página: Nossa Solução"). */
+  aiContextHint?: string;
 }
 
 const FONT_SIZES = [
