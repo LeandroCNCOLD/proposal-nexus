@@ -542,6 +542,7 @@ type ModelRowData = {
   designacao_hp: string | null;
   refrigerante: string | null;
   gabinete: string | null;
+  tipo_gabinete: string | null;
   tipo_degelo: string | null;
   active: boolean;
   point_count: number;
@@ -560,6 +561,15 @@ function ModelRow({ m, indent, onClick }: { m: ModelRowData; indent?: boolean; o
         </div>
       </TableCell>
       <TableCell className="text-xs">{m.linha ?? "—"}</TableCell>
+      <TableCell>
+        <div className="flex flex-wrap gap-1">
+          {splitEquipmentTypes(m.tipo_gabinete).map((tipo) => (
+            <Badge key={tipo} variant="outline" className="text-[10px] py-0 px-1.5">
+              {tipo}
+            </Badge>
+          ))}
+        </div>
+      </TableCell>
       <TableCell>
         <Badge variant="outline" className="font-mono text-xs">{m.refrigerante ?? "—"}</Badge>
       </TableCell>
