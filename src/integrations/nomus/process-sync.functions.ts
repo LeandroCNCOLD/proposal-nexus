@@ -84,6 +84,8 @@ export const pullNomusProcesses = createServerFn({ method: "POST" })
       .object({
         tipos: z.array(z.string()).optional(),
         maxItems: z.number().int().min(1).max(50_000).optional(),
+        /** Quantas páginas baixar por chamada. Permite "sync rápido" só das mais recentes. */
+        maxPages: z.number().int().min(1).max(50).optional(),
       })
       .optional()
       .default({}),
@@ -91,7 +93,8 @@ export const pullNomusProcesses = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const userId = context.userId;
     const wantedTipos = (data?.tipos ?? []).map((t) => t.trim()).filter(Boolean);
-    const maxItems = data?.maxItems ?? 5_000;
+    // Default reduzido: 500 processos cabem com folga em ~30s.
+    const maxItems = data?.maxItems ?? 500;
 
     const result = await listAll<NomusProcessRaw>(
       NOMUS_ENDPOINTS.processos,
@@ -107,69 +110,106 @@ export const pullNomusProcesses = createServerFn({ method: "POST" })
       ? result.items.filter((p) => wantedTipos.includes((p.tipo ?? "").trim()))
       : result.items;
 
-    let upserted = 0;
-    const stagesByTipo = new Map<string, Set<string>>();
-    const errors: string[] = [];
+    if (items.length === 0) {
+      return { ok: true as const, total: 0, upserted: 0, stagesDiscovered: [] };
+    }
 
+    // 1) Resolve TODOS os clientes em UMA query (em vez de N queries sequenciais)
+    const pessoaSet = new Set<string>();
     for (const raw of items) {
-      const nomusId = raw.id != null ? String(raw.id) : "";
-      if (!nomusId) continue;
-
-      const tipo = (raw.tipo ?? "").trim() || null;
-      const etapa = (raw.etapa ?? "").trim() || null;
-
-      if (tipo && etapa) {
-        if (!stagesByTipo.has(tipo)) stagesByTipo.set(tipo, new Set());
-        stagesByTipo.get(tipo)!.add(etapa);
+      const p = (raw.pessoa ?? "").trim();
+      if (p) pessoaSet.add(p);
+    }
+    const pessoaList = Array.from(pessoaSet);
+    const clienteIdByName = new Map<string, string>();
+    if (pessoaList.length > 0) {
+      // Quebra em batches de 200 para não estourar o limite de URL do .in()
+      const BATCH = 200;
+      for (let i = 0; i < pessoaList.length; i += BATCH) {
+        const slice = pessoaList.slice(i, i + BATCH);
+        const { data: clients } = await supabaseAdmin
+          .from("clients")
+          .select("id, name")
+          .in("name", slice);
+        for (const c of clients ?? []) {
+          if (c.name) clienteIdByName.set(c.name.toLowerCase(), c.id);
+        }
       }
+    }
 
-      const clienteId = await resolveClienteIdByName(raw.pessoa ?? null);
+    const stagesByTipo = new Map<string, Set<string>>();
+    const now = new Date().toISOString();
 
-      const row = {
-        nomus_id: nomusId,
-        nome: raw.nome?.trim() ?? null,
-        pessoa: raw.pessoa?.trim() ?? null,
-        descricao: raw.descricao ?? null,
-        tipo,
-        etapa,
-        prioridade: raw.prioridade?.trim() ?? null,
-        equipe: raw.equipe?.trim() ?? null,
-        origem: raw.origem?.trim() ?? null,
-        responsavel: raw.responsavel?.trim() ?? null,
-        reportador: raw.reportador?.trim() ?? null,
-        data_criacao: parseBrDate(raw.dataCriacao),
-        data_hora_programada: parseBrDateTime(raw.dataHoraProgramada),
-        proximo_contato: parseBrDate(raw.proximoContato),
-        cliente_id: clienteId,
-        // proposal_id é resolvido fora deste loop em fase posterior
-        raw: raw as never,
-        synced_at: new Date().toISOString(),
-        local_dirty: false,
-      };
+    // 2) Monta TODAS as linhas em memória
+    const rows = items
+      .map((raw) => {
+        const nomusId = raw.id != null ? String(raw.id) : "";
+        if (!nomusId) return null;
 
+        const tipo = (raw.tipo ?? "").trim() || null;
+        const etapa = (raw.etapa ?? "").trim() || null;
+
+        if (tipo && etapa) {
+          if (!stagesByTipo.has(tipo)) stagesByTipo.set(tipo, new Set());
+          stagesByTipo.get(tipo)!.add(etapa);
+        }
+
+        const pessoa = raw.pessoa?.trim() ?? null;
+        const clienteId = pessoa ? clienteIdByName.get(pessoa.toLowerCase()) ?? null : null;
+
+        return {
+          nomus_id: nomusId,
+          nome: raw.nome?.trim() ?? null,
+          pessoa,
+          descricao: raw.descricao ?? null,
+          tipo,
+          etapa,
+          prioridade: raw.prioridade?.trim() ?? null,
+          equipe: raw.equipe?.trim() ?? null,
+          origem: raw.origem?.trim() ?? null,
+          responsavel: raw.responsavel?.trim() ?? null,
+          reportador: raw.reportador?.trim() ?? null,
+          data_criacao: parseBrDate(raw.dataCriacao),
+          data_hora_programada: parseBrDateTime(raw.dataHoraProgramada),
+          proximo_contato: parseBrDate(raw.proximoContato),
+          cliente_id: clienteId,
+          raw: raw as never,
+          synced_at: now,
+          local_dirty: false,
+        };
+      })
+      .filter((r): r is NonNullable<typeof r> => r !== null);
+
+    // 3) BULK upsert em batches (1 round-trip por batch em vez de 1 por linha)
+    const errors: string[] = [];
+    let upserted = 0;
+    const UPSERT_BATCH = 100;
+    for (let i = 0; i < rows.length; i += UPSERT_BATCH) {
+      const slice = rows.slice(i, i + UPSERT_BATCH);
       const { error } = await supabaseAdmin
         .from("nomus_processes")
-        .upsert(row, { onConflict: "nomus_id" });
-
+        .upsert(slice, { onConflict: "nomus_id" });
       if (error) {
-        errors.push(`${nomusId}: ${error.message}`);
+        errors.push(`batch ${i}-${i + slice.length}: ${error.message}`);
       } else {
-        upserted += 1;
+        upserted += slice.length;
       }
     }
 
-    // Atualiza cache de etapas descobertas por tipo
-    const now = new Date().toISOString();
+    // 4) Cache de etapas em UM upsert por tipo (lista pequena)
+    const stageRows: Array<{ tipo: string; etapa: string; last_seen_at: string }> = [];
     for (const [tipo, etapas] of stagesByTipo.entries()) {
       for (const etapa of etapas) {
-        await supabaseAdmin.from("crm_funnel_stages").upsert(
-          { tipo, etapa, last_seen_at: now },
-          { onConflict: "tipo,etapa" },
-        );
+        stageRows.push({ tipo, etapa, last_seen_at: now });
       }
     }
+    if (stageRows.length > 0) {
+      await supabaseAdmin
+        .from("crm_funnel_stages")
+        .upsert(stageRows, { onConflict: "tipo,etapa" });
+    }
 
-    // Mantém entidade `processos` em nomus_sync_state
+    // 5) Estado de sync
     await supabaseAdmin.from("nomus_sync_state").upsert(
       {
         entity: "processos",
