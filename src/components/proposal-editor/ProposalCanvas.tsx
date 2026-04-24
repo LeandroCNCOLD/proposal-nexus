@@ -125,6 +125,32 @@ export function ProposalCanvas({
     });
   };
 
+  const reorderBlocks = (
+    pageId: string,
+    blockId: string,
+    mode: "forward" | "backward" | "front" | "back",
+  ) => {
+    const page = pages.find((p) => p.id === pageId);
+    if (!page) return;
+    const ordered = [...page.blocks].sort((a, b) => a.order - b.order);
+    const index = ordered.findIndex((b) => b.id === blockId);
+    if (index < 0) return;
+
+    const next = [...ordered];
+    const [item] = next.splice(index, 1);
+
+    if (mode === "front") next.push(item);
+    else if (mode === "back") next.unshift(item);
+    else {
+      const targetIndex = mode === "forward" ? Math.min(index + 1, next.length) : Math.max(index - 1, 0);
+      next.splice(targetIndex, 0, item);
+    }
+
+    updatePage(pageId, {
+      blocks: next.map((b, i) => ({ ...b, order: i })),
+    });
+  };
+
   /** Atualiza vários blocos de uma página de uma só vez (preserva os demais). */
   const updateManyBlocks = (pageId: string, updated: DocumentBlock[]) => {
     const map = new Map(updated.map((b) => [b.id, b]));
@@ -289,14 +315,15 @@ export function ProposalCanvas({
                   const layout =
                     (block.data.layout as BlockLayout | undefined) ?? defaultLayoutFor(block.type);
                   const selected = selectedBlockId === block.id;
+                  const isLockedCoverOverlay = isCover && block.type === "cover_identity";
                   return (
                     <Rnd
                       key={block.id}
                       bounds="parent"
                       size={{ width: layout.w, height: layout.h }}
                       position={{ x: layout.x, y: layout.y }}
-                      disableDragging={block.locked}
-                      enableResizing={!block.locked}
+                       disableDragging={block.locked || isLockedCoverOverlay}
+                       enableResizing={!block.locked && !isLockedCoverOverlay}
                       minWidth={60}
                       minHeight={30}
                       resizeHandleComponent={selected ? handleComponents : undefined}
@@ -318,7 +345,9 @@ export function ProposalCanvas({
                       }}
                       style={{
                         zIndex:
-                          block.type === "container"
+                           block.type === "cover_identity"
+                             ? 0
+                             : block.type === "container"
                             ? selected
                               ? 20
                               : 1
@@ -337,6 +366,10 @@ export function ProposalCanvas({
                         onChange={(next) => updateBlock(page.id, next)}
                         onDelete={() => deleteBlock(page.id, block.id)}
                         onDuplicate={() => duplicateBlock(page.id, block.id)}
+                       onBringForward={() => reorderBlocks(page.id, block.id, "forward")}
+                       onSendBackward={() => reorderBlocks(page.id, block.id, "backward")}
+                       onBringToFront={() => reorderBlocks(page.id, block.id, "front")}
+                       onSendToBack={() => reorderBlocks(page.id, block.id, "back")}
                       />
                       {selected && block.type === "container" ? (
                         <ContainerToolbar
