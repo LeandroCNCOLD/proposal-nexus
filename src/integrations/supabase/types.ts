@@ -374,6 +374,11 @@ export type Database = {
           process_time_h: number
           product_id: string | null
           product_name: string
+          respiration_rate_0c_w_kg: number | null
+          respiration_rate_10c_w_kg: number | null
+          respiration_rate_15c_w_kg: number | null
+          respiration_rate_20c_w_kg: number | null
+          respiration_rate_5c_w_kg: number | null
           specific_heat_above_kcal_kg_c: number
           specific_heat_below_kcal_kg_c: number
         }
@@ -394,6 +399,11 @@ export type Database = {
           process_time_h?: number
           product_id?: string | null
           product_name: string
+          respiration_rate_0c_w_kg?: number | null
+          respiration_rate_10c_w_kg?: number | null
+          respiration_rate_15c_w_kg?: number | null
+          respiration_rate_20c_w_kg?: number | null
+          respiration_rate_5c_w_kg?: number | null
           specific_heat_above_kcal_kg_c?: number
           specific_heat_below_kcal_kg_c?: number
         }
@@ -414,6 +424,11 @@ export type Database = {
           process_time_h?: number
           product_id?: string | null
           product_name?: string
+          respiration_rate_0c_w_kg?: number | null
+          respiration_rate_10c_w_kg?: number | null
+          respiration_rate_15c_w_kg?: number | null
+          respiration_rate_20c_w_kg?: number | null
+          respiration_rate_5c_w_kg?: number | null
           specific_heat_above_kcal_kg_c?: number
           specific_heat_below_kcal_kg_c?: number
         }
@@ -1409,45 +1424,87 @@ export type Database = {
       }
       coldpro_products: {
         Row: {
+          ash_content_percent: number | null
+          carbohydrate_content_percent: number | null
           category: string | null
           created_at: string
+          data_confidence: string
           density_kg_m3: number | null
+          fat_content_percent: number | null
+          fiber_content_percent: number | null
           id: string
           initial_freezing_temp_c: number | null
+          is_ashrae_reference: boolean
           latent_heat_kcal_kg: number
           name: string
+          protein_content_percent: number | null
+          respiration_rate_0c_w_kg: number | null
+          respiration_rate_10c_w_kg: number | null
+          respiration_rate_15c_w_kg: number | null
+          respiration_rate_20c_w_kg: number | null
+          respiration_rate_5c_w_kg: number | null
           source: string | null
+          source_compiled_at: string | null
           source_reference: string | null
           specific_heat_above_kcal_kg_c: number
           specific_heat_below_kcal_kg_c: number
+          thermal_conductivity_w_m_k: number | null
           water_content_percent: number | null
         }
         Insert: {
+          ash_content_percent?: number | null
+          carbohydrate_content_percent?: number | null
           category?: string | null
           created_at?: string
+          data_confidence?: string
           density_kg_m3?: number | null
+          fat_content_percent?: number | null
+          fiber_content_percent?: number | null
           id?: string
           initial_freezing_temp_c?: number | null
+          is_ashrae_reference?: boolean
           latent_heat_kcal_kg?: number
           name: string
+          protein_content_percent?: number | null
+          respiration_rate_0c_w_kg?: number | null
+          respiration_rate_10c_w_kg?: number | null
+          respiration_rate_15c_w_kg?: number | null
+          respiration_rate_20c_w_kg?: number | null
+          respiration_rate_5c_w_kg?: number | null
           source?: string | null
+          source_compiled_at?: string | null
           source_reference?: string | null
           specific_heat_above_kcal_kg_c?: number
           specific_heat_below_kcal_kg_c?: number
+          thermal_conductivity_w_m_k?: number | null
           water_content_percent?: number | null
         }
         Update: {
+          ash_content_percent?: number | null
+          carbohydrate_content_percent?: number | null
           category?: string | null
           created_at?: string
+          data_confidence?: string
           density_kg_m3?: number | null
+          fat_content_percent?: number | null
+          fiber_content_percent?: number | null
           id?: string
           initial_freezing_temp_c?: number | null
+          is_ashrae_reference?: boolean
           latent_heat_kcal_kg?: number
           name?: string
+          protein_content_percent?: number | null
+          respiration_rate_0c_w_kg?: number | null
+          respiration_rate_10c_w_kg?: number | null
+          respiration_rate_15c_w_kg?: number | null
+          respiration_rate_20c_w_kg?: number | null
+          respiration_rate_5c_w_kg?: number | null
           source?: string | null
+          source_compiled_at?: string | null
           source_reference?: string | null
           specific_heat_above_kcal_kg_c?: number
           specific_heat_below_kcal_kg_c?: number
+          thermal_conductivity_w_m_k?: number | null
           water_content_percent?: number | null
         }
         Relationships: []

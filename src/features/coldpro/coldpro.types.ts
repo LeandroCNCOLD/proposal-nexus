@@ -69,6 +69,11 @@ export type ColdProEnvironmentProduct = {
   specific_heat_below_kcal_kg_c: number;
   latent_heat_kcal_kg: number;
   initial_freezing_temp_c?: number | null;
+  respiration_rate_0c_w_kg?: number | null;
+  respiration_rate_5c_w_kg?: number | null;
+  respiration_rate_10c_w_kg?: number | null;
+  respiration_rate_15c_w_kg?: number | null;
+  respiration_rate_20c_w_kg?: number | null;
 };
 
 export type ColdProTunnel = {
