@@ -25,6 +25,7 @@ import type { DocumentPage } from "@/integrations/proposal-editor/types";
 import { PageSidebar } from "@/components/proposal-editor/PageSidebar";
 import { ProposalCanvas } from "@/components/proposal-editor/ProposalCanvas";
 import { ProposalAttachmentsPanel } from "@/components/proposal-editor/ProposalAttachmentsPanel";
+import { ProposalVersionsPanel } from "@/components/proposal-editor/ProposalVersionsPanel";
 
 export const Route = createFileRoute("/app/propostas/$id/editor")({
   component: ProposalEditorPage,
