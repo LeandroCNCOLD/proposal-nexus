@@ -220,7 +220,7 @@ export async function importParsedCatalog(
       fluid_charge_kg: r.performance.fluid_charge,
       drain_water_l_h: r.performance.drain_water,
       drain_diameter: r.performance.drain_diameter,
-      drain_qty: r.performance.drain_qty,
+      drain_quantity: r.performance.drain_qty,
       raw: r.raw,
     }));
 
