@@ -49,6 +49,10 @@ interface Props {
   selectedBlockId: string | null;
   proposalId: string;
   documentFontFamily?: string;
+  /** Largura do papel em px (default = A4_W). */
+  pageWidthPx?: number;
+  /** Altura do papel em px (default = A4_H). */
+  pageHeightPx?: number;
   onSelectBlock: (id: string | null) => void;
   onPagesChange: (next: DocumentPage[]) => void;
   onSelect: (id: string) => void;
@@ -88,11 +92,15 @@ export function ProposalCanvas({
   selectedBlockId,
   proposalId,
   documentFontFamily,
+  pageWidthPx,
+  pageHeightPx,
   onSelectBlock,
   onPagesChange,
   onSelect,
 }: Props) {
   const sorted = [...pages].sort((a, b) => a.order - b.order).filter((p) => p.visible);
+  const pageW = pageWidthPx ?? A4_W;
+  const pageH = pageHeightPx ?? A4_H;
   const containerRef = useRef<HTMLDivElement>(null);
   const pageRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
