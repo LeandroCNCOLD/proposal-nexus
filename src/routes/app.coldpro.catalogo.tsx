@@ -11,7 +11,11 @@ import {
 import {
   Upload, FileSpreadsheet, CheckCircle2, AlertTriangle, Database,
   Loader2, ArrowLeft, History, Layers, Thermometer,
+  ChevronLeft, ChevronRight, FolderTree,
 } from "lucide-react";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import {
