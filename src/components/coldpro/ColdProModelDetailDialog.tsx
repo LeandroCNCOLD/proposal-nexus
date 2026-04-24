@@ -374,3 +374,43 @@ function fmt(v: number | null | undefined, digits = 1): string {
     maximumFractionDigits: digits,
   });
 }
+
+type PerfPoint = {
+  voltage: string | null;
+  compressor_power_kw: number | null;
+  fan_power_kw: number | null;
+  total_power_kw: number | null;
+  compressor_current_a: number | null;
+  fan_current_a: number | null;
+  estimated_current_a: number | null;
+  starting_current_a: number | null;
+  fluid_charge_kg: number | null;
+};
+
+function aggregateElectrical(points: PerfPoint[]) {
+  const voltages = Array.from(
+    new Set(points.map((p) => p.voltage).filter((v): v is string => !!v))
+  );
+  const range = (key: keyof PerfPoint, digits = 2) => {
+    const vals = points
+      .map((p) => p[key])
+      .filter((v): v is number => typeof v === "number" && !isNaN(v));
+    if (vals.length === 0) return "—";
+    const min = Math.min(...vals);
+    const max = Math.max(...vals);
+    if (min === max) return fmt(min, digits);
+    return `${fmt(min, digits)} – ${fmt(max, digits)}`;
+  };
+  return {
+    voltages,
+    compPowerRange: range("compressor_power_kw", 2),
+    fanPowerRange: range("fan_power_kw", 2),
+    totalPowerRange: range("total_power_kw", 2),
+    compCurrentRange: range("compressor_current_a", 2),
+    fanCurrentRange: range("fan_current_a", 2),
+    estCurrentRange: range("estimated_current_a", 2),
+    startCurrentRange: range("starting_current_a", 1),
+    fluidChargeRange: range("fluid_charge_kg", 2),
+  };
+}
+
