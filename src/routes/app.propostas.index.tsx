@@ -62,22 +62,50 @@ function ProposalsList() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("proposals")
-        .select("id, number, title, status, total_value, valid_until, created_at, nomus_id, clients(name)")
+        .select("id, number, title, status, total_value, valid_until, created_at, nomus_id, clients(name, document)")
         .order("created_at", { ascending: false });
       if (error) throw error;
       const rows = data ?? [];
       const nomusIds = rows.map((r) => r.nomus_id).filter(Boolean) as string[];
-      const nomusMap = new Map<string, { criada_em_nomus: string | null; data_emissao: string | null }>();
+      const nomusMap = new Map<string, { criada_em_nomus: string | null; data_emissao: string | null; representante_nome: string | null; vendedor_nome: string | null; cliente_nomus_id: string | null }>();
       if (nomusIds.length > 0) {
         const { data: np } = await supabase
           .from("nomus_proposals")
-          .select("nomus_id, criada_em_nomus, data_emissao")
+          .select("nomus_id, criada_em_nomus, data_emissao, representante_nome, vendedor_nome, cliente_nomus_id")
           .in("nomus_id", nomusIds);
-        (np ?? []).forEach((n) => nomusMap.set(n.nomus_id, { criada_em_nomus: n.criada_em_nomus, data_emissao: n.data_emissao }));
+        (np ?? []).forEach((n) => nomusMap.set(n.nomus_id, {
+          criada_em_nomus: n.criada_em_nomus,
+          data_emissao: n.data_emissao,
+          representante_nome: n.representante_nome,
+          vendedor_nome: n.vendedor_nome,
+          cliente_nomus_id: n.cliente_nomus_id,
+        }));
       }
-      return rows.map((r) => ({ ...r, _nomus: r.nomus_id ? nomusMap.get(r.nomus_id) ?? null : null }));
+      // Buscar CNPJ de clientes via nomus_id quando não há clients vinculado
+      const clienteNomusIds = Array.from(new Set((Array.from(nomusMap.values()).map((v) => v.cliente_nomus_id).filter(Boolean)) as string[]));
+      const cnpjMap = new Map<string, string>();
+      if (clienteNomusIds.length > 0) {
+        const { data: cs } = await supabase
+          .from("clients")
+          .select("nomus_id, document")
+          .in("nomus_id", clienteNomusIds);
+        (cs ?? []).forEach((c) => { if (c.nomus_id && c.document) cnpjMap.set(c.nomus_id, c.document); });
+      }
+      return rows.map((r) => {
+        const nm = r.nomus_id ? nomusMap.get(r.nomus_id) ?? null : null;
+        const cnpj = (r.clients as any)?.document ?? (nm?.cliente_nomus_id ? cnpjMap.get(nm.cliente_nomus_id) ?? null : null);
+        return { ...r, _nomus: nm, _cnpj: cnpj };
+      });
     },
   });
+
+  // Formata CNPJ no padrão 00.000.000/0000-00
+  const formatCNPJ = (raw: string | null | undefined) => {
+    if (!raw) return "—";
+    const d = raw.replace(/\D/g, "");
+    if (d.length !== 14) return raw;
+    return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8, 12)}-${d.slice(12, 14)}`;
+  };
 
   // Extrai "CN#####" e nome do cliente do título no formato "CN00155 — WEG SOLAR"
   const parseTitle = (title: string | null | undefined) => {
@@ -140,13 +168,15 @@ function ProposalsList() {
         </Select>
       </div>
 
-      <div className="rounded-xl border bg-card shadow-[var(--shadow-sm)]">
+      <div className="rounded-xl border bg-card shadow-[var(--shadow-sm)] overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead className="w-32">Número</TableHead>
-              <TableHead>Título</TableHead>
               <TableHead>Cliente</TableHead>
+              <TableHead>CNPJ</TableHead>
+              <TableHead>Representante</TableHead>
+              <TableHead>Vendedor</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Valor</TableHead>
               <TableHead>Validade</TableHead>
@@ -155,13 +185,16 @@ function ProposalsList() {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-12">Carregando...</TableCell></TableRow>
+              <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-12">Carregando...</TableCell></TableRow>
             ) : filtered.length === 0 ? (
-              <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-12">Nenhuma proposta encontrada.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-12">Nenhuma proposta encontrada.</TableCell></TableRow>
             ) : filtered.map((p) => {
               const parsed = parseTitle(p.title);
               const displayNumber = parsed.cn || p.number;
               const displayClient = (p.clients as any)?.name ?? parsed.client ?? "—";
+              const cnpj = formatCNPJ((p as any)._cnpj);
+              const representante = (p as any)._nomus?.representante_nome ?? "—";
+              const vendedor = (p as any)._nomus?.vendedor_nome ?? "—";
               return (
               <TableRow key={p.id} className="cursor-pointer">
                 <TableCell className="font-mono text-xs">
@@ -170,7 +203,9 @@ function ProposalsList() {
                 <TableCell className="font-medium max-w-xs truncate">
                   <Link to="/app/propostas/$id" params={{ id: p.id }}>{displayClient}</Link>
                 </TableCell>
-                <TableCell className="text-sm">{(p.clients as any)?.name ?? parsed.client ?? "—"}</TableCell>
+                <TableCell className="text-sm font-mono text-muted-foreground whitespace-nowrap">{cnpj}</TableCell>
+                <TableCell className="text-sm">{representante}</TableCell>
+                <TableCell className="text-sm">{vendedor}</TableCell>
                 <TableCell><StatusBadge status={p.status as ProposalStatus} /></TableCell>
                 <TableCell className="text-right tabular-nums font-medium">{brl(Number(p.total_value ?? 0))}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">{dateBR(p.valid_until)}</TableCell>
