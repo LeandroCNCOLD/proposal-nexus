@@ -1,5 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -17,7 +18,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Loader2, Snowflake, Wind, Cog, Activity, Info, Zap } from "lucide-react";
+import { Loader2, Snowflake, Wind, Cog, Activity, Info, Zap, ImageIcon, Upload } from "lucide-react";
+import { toast } from "sonner";
 
 type Props = {
   modelId: string | null;
@@ -25,7 +27,22 @@ type Props = {
   onOpenChange: (open: boolean) => void;
 };
 
+type EquipmentImageKind = "plugin" | "split" | "biblock";
+
+const IMAGE_FIELD_BY_KIND: Record<EquipmentImageKind, string> = {
+  plugin: "plugin_image_path",
+  split: "split_image_path",
+  biblock: "biblock_image_path",
+};
+
+const IMAGE_LABEL_BY_KIND: Record<EquipmentImageKind, string> = {
+  plugin: "Plug-in",
+  split: "Split",
+  biblock: "Bi-bloco",
+};
+
 export function ColdProModelDetailDialog({ modelId, open, onOpenChange }: Props) {
+  const qc = useQueryClient();
   const detailQuery = useQuery({
     queryKey: ["coldpro-model-detail", modelId],
     enabled: !!modelId && open,
@@ -72,6 +89,28 @@ export function ColdProModelDetailDialog({ modelId, open, onOpenChange }: Props)
     },
   });
 
+  const imageMutation = useMutation({
+    mutationFn: async ({ kind, file }: { kind: EquipmentImageKind; file: File }) => {
+      if (!modelId) throw new Error("Modelo não selecionado");
+      const ext = file.name.split(".").pop() || "jpg";
+      const path = `${modelId}/${kind}-${Date.now()}.${ext}`;
+      const { error: uploadError } = await supabase.storage
+        .from("coldpro-equipment-images")
+        .upload(path, file, { upsert: true });
+      if (uploadError) throw uploadError;
+      const { error: updateError } = await supabase
+        .from("coldpro_equipment_models")
+        .update({ [IMAGE_FIELD_BY_KIND[kind]]: path } as never)
+        .eq("id", modelId);
+      if (updateError) throw updateError;
+    },
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["coldpro-model-detail", modelId] });
+      toast.success("Foto do equipamento atualizada.");
+    },
+    onError: (err) => toast.error(`Falha ao enviar foto: ${err instanceof Error ? err.message : "desconhecido"}`),
+  });
+
   const data = detailQuery.data;
   const m = data?.model;
 
@@ -102,8 +141,8 @@ export function ColdProModelDetailDialog({ modelId, open, onOpenChange }: Props)
             Modelo não encontrado.
           </div>
         ) : (
-          <Tabs defaultValue="overview" className="mt-2">
-            <TabsList className="grid w-full grid-cols-6">
+            <Tabs defaultValue="overview" className="mt-2">
+              <TabsList className="grid w-full grid-cols-7">
               <TabsTrigger value="overview">
                 <Info className="mr-1 h-4 w-4" />
                 Geral
@@ -123,6 +162,10 @@ export function ColdProModelDetailDialog({ modelId, open, onOpenChange }: Props)
               <TabsTrigger value="electrical">
                 <Zap className="mr-1 h-4 w-4" />
                 Elétrico
+              </TabsTrigger>
+              <TabsTrigger value="images">
+                <ImageIcon className="mr-1 h-4 w-4" />
+                Fotos
               </TabsTrigger>
               <TabsTrigger value="performance">
                 <Activity className="mr-1 h-4 w-4" />
@@ -240,6 +283,20 @@ export function ColdProModelDetailDialog({ modelId, open, onOpenChange }: Props)
                   <p className="mt-1 text-sm">{m.notes}</p>
                 </div>
               )}
+            </TabsContent>
+
+            <TabsContent value="images" className="mt-4">
+              <div className="grid gap-3 md:grid-cols-3">
+                {(["plugin", "split", "biblock"] as EquipmentImageKind[]).map((kind) => (
+                  <EquipmentImageCard
+                    key={kind}
+                    kind={kind}
+                    path={m[IMAGE_FIELD_BY_KIND[kind] as keyof typeof m] as string | null}
+                    uploading={imageMutation.isPending}
+                    onSelect={(file) => imageMutation.mutate({ kind, file })}
+                  />
+                ))}
+              </div>
             </TabsContent>
 
             {/* Compressores */}
@@ -478,6 +535,56 @@ function Field({ label, value }: { label: string; value: unknown }) {
         {label}
       </div>
       <div className="mt-0.5 text-sm font-medium">{display}</div>
+    </div>
+  );
+}
+
+function EquipmentImageCard({
+  kind,
+  path,
+  uploading,
+  onSelect,
+}: {
+  kind: EquipmentImageKind;
+  path: string | null;
+  uploading: boolean;
+  onSelect: (file: File) => void;
+}) {
+  const inputId = `coldpro-image-${kind}`;
+  const publicUrl = path
+    ? supabase.storage.from("coldpro-equipment-images").getPublicUrl(path).data.publicUrl
+    : null;
+
+  return (
+    <div className="rounded-md border bg-card p-3">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <div className="text-sm font-semibold">Foto {IMAGE_LABEL_BY_KIND[kind]}</div>
+        <Button asChild size="sm" variant="outline" disabled={uploading}>
+          <label htmlFor={inputId} className="cursor-pointer">
+            {uploading ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Upload className="mr-1.5 h-3.5 w-3.5" />}
+            Enviar
+          </label>
+        </Button>
+      </div>
+      <input
+        id={inputId}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        disabled={uploading}
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          if (file) onSelect(file);
+          event.currentTarget.value = "";
+        }}
+      />
+      {publicUrl ? (
+        <img src={publicUrl} alt={`Foto ${IMAGE_LABEL_BY_KIND[kind]} do equipamento`} className="aspect-[4/3] w-full rounded-md border object-contain" />
+      ) : (
+        <div className="flex aspect-[4/3] w-full items-center justify-center rounded-md border border-dashed text-sm text-muted-foreground">
+          Sem foto cadastrada
+        </div>
+      )}
     </div>
   );
 }
