@@ -58,8 +58,9 @@ export function BoxStyleEditor({ layout, onChange }: Props) {
       <PopoverContent
         side="bottom"
         align="start"
-        className="z-[60] w-80 space-y-3 p-3"
+        className="pointer-events-auto z-[2100] w-80 space-y-3 p-3"
         onMouseDown={(e) => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
       >
         <Tabs
           defaultValue={initialMode}
