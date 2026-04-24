@@ -402,6 +402,9 @@ function ColdProProjectPage() {
                     products={allProducts}
                     onPushToProposal={handlePushToProposal}
                     isPushing={pushToProposal.isPending}
+                    onGeneratePdf={handleGeneratePdf}
+                    isGeneratingPdf={generatePdf.isPending}
+                    lastPdfUrl={lastPdfUrl}
                   />
                 </div>
               )}
