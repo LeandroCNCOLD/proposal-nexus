@@ -229,6 +229,13 @@ export function ProposalCanvas({
               onSelect(page.id);
               onSelectBlock(null);
             }}
+            onDragOver={(e) => {
+              if (Array.from(e.dataTransfer.types).includes(PALETTE_DRAG_MIME)) {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "copy";
+              }
+            }}
+            onDrop={(e) => handlePageDrop(page.id, e)}
           >
             {/* Chrome A4 */}
             <PageChrome
