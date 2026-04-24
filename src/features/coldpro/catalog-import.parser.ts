@@ -23,6 +23,14 @@ export function toNumber(v: unknown): number | null {
   if (typeof v === "number") return Number.isFinite(v) ? v : null;
   let s = String(v).trim();
   if (!s) return null;
+  const fraction = s.match(/^(\d+(?:[,.]\d+)?)\s*\/\s*(\d+(?:[,.]\d+)?)/);
+  if (fraction) {
+    const numerator = Number(fraction[1].replace(",", "."));
+    const denominator = Number(fraction[2].replace(",", "."));
+    return Number.isFinite(numerator) && Number.isFinite(denominator) && denominator !== 0
+      ? numerator / denominator
+      : null;
+  }
   // remove unidades coladas
   s = s.replace(/[^0-9,.\-eE]/g, "");
   if (!s) return null;
@@ -248,6 +256,12 @@ function get(row: unknown[], map: Map<string, number>, field: string): unknown {
   return row[idx];
 }
 
+function modelVariantKey(row: Pick<ParsedRow, "modelo" | "refrigerante" | "gabinete" | "performance">): string {
+  return [row.modelo, row.refrigerante ?? "", row.gabinete ?? "", row.performance.voltage ?? "SEM TENSAO"]
+    .map((part) => String(part ?? "").trim().toUpperCase())
+    .join("|");
+}
+
 export async function parseCatalogFile(file: File): Promise<ParseResult> {
   const buffer = await file.arrayBuffer();
   const wb = XLSX.read(buffer, { type: "array" });
@@ -401,8 +415,7 @@ export async function parseCatalogFile(file: File): Promise<ParseResult> {
     }
 
     if (parsed.isValid && parsed.modelo) {
-      const key = `${parsed.modelo}|${parsed.refrigerante ?? ""}|${parsed.gabinete ?? ""}`;
-      modelKey.add(key);
+      modelKey.add(modelVariantKey(parsed));
       if (refrigerante) refrigerantsSet.add(refrigerante);
       if (linha) linesSet.add(linha);
     }
