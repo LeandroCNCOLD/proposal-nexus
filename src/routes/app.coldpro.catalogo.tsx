@@ -398,6 +398,12 @@ function CatalogoPage() {
             </div>
           )}
         </Card>
+
+      <ColdProModelDetailDialog
+        modelId={selectedModelId}
+        open={!!selectedModelId}
+        onOpenChange={(o) => { if (!o) setSelectedModelId(null); }}
+      />
       </div>
   );
 }
