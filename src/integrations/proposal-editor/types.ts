@@ -72,7 +72,8 @@ export interface DocumentBlock {
   id: string;
   type: BlockType;
   title?: string;
-  data: Record<string, unknown> & { layout?: BlockLayout };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  data: Record<string, any> & { layout?: BlockLayout };
   source?: BlockSource;
   locked?: boolean;
   order: number;
