@@ -22,6 +22,15 @@ interface PaletteGroup {
 
 const GROUPS: PaletteGroup[] = [
   {
+    label: "Layout",
+    items: [
+      { blockType: "container", label: "📦 Caixa / Container" },
+      { blockType: "heading", label: "Título" },
+      { blockType: "rich_text", label: "Texto livre" },
+      { blockType: "image", label: "Imagem" },
+    ],
+  },
+  {
     label: "Dados da proposta",
     items: [
       { blockType: "dynamic_field", label: "Nº da proposta", fieldKey: "proposal_number" },
