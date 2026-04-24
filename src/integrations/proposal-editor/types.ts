@@ -22,6 +22,7 @@ export type PageType =
   | "nota"
   | "custom-rich"
   | "custom-block"
+  | "custom-bg"
   | "attached-pdf";
 
 export type BlockType =
