@@ -14,6 +14,8 @@ export type NomusFetchOptions = {
   method?: "GET" | "POST" | "PUT" | "DELETE";
   query?: Record<string, string | number | undefined>;
   body?: unknown;
+  timeoutMs?: number;
+  maxAttempts?: number;
   /** Logical entity name for log/audit (e.g. "clientes", "produtos") */
   entity?: string;
   /** Operation label for log (e.g. "list", "get", "create", "push") */
@@ -175,7 +177,8 @@ export async function nomusFetch<T = unknown>(
     if (opts.body) console.log("[nomus] payload:", JSON.stringify(opts.body));
   }
 
-  const maxAttempts = 3;
+  const maxAttempts = opts.maxAttempts ?? 3;
+  const timeoutMs = opts.timeoutMs ?? REQUEST_TIMEOUT_MS;
   let attempt = 0;
   let lastErr: string | null = null;
   let lastStatus = 0;
@@ -184,7 +187,7 @@ export async function nomusFetch<T = unknown>(
     attempt += 1;
     const started = Date.now();
     const ac = new AbortController();
-    const timer = setTimeout(() => ac.abort(), REQUEST_TIMEOUT_MS);
+    const timer = setTimeout(() => ac.abort(), timeoutMs);
     try {
       const res = await fetch(url, {
         method,
