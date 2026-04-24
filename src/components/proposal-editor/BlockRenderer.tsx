@@ -638,3 +638,103 @@ function blockKindLabel(t: BlockType): string {
 function labelize(key: string): string {
   return key.replace(/_/g, " ").replace(/\b\w/g, (m) => m.toUpperCase());
 }
+
+// Catálogo de campos sugeridos por tipo de caixa.
+interface SuggestedField {
+  key: string;
+  label: string;
+}
+const SUGGESTED_FIELDS: Partial<Record<BlockType, SuggestedField[]>> = {
+  client_info_box: [
+    { key: "cliente", label: "Cliente" },
+    { key: "cnpj", label: "CNPJ" },
+    { key: "ie", label: "Inscrição Estadual" },
+    { key: "endereco", label: "Endereço" },
+    { key: "cidade", label: "Cidade/UF" },
+    { key: "cep", label: "CEP" },
+    { key: "contato", label: "Contato" },
+    { key: "email", label: "E-mail" },
+    { key: "telefone", label: "Telefone" },
+  ],
+  client_info: [
+    { key: "cliente", label: "Cliente" },
+    { key: "cnpj", label: "CNPJ" },
+    { key: "endereco", label: "Endereço" },
+    { key: "contato", label: "Contato" },
+  ],
+  project_info_box: [
+    { key: "projeto", label: "Projeto" },
+    { key: "numero", label: "Nº da proposta" },
+    { key: "revisao", label: "Revisão" },
+    { key: "data", label: "Data de emissão" },
+    { key: "validade", label: "Validade" },
+    { key: "prazo_entrega", label: "Prazo de entrega" },
+    { key: "local_instalacao", label: "Local de instalação" },
+    { key: "tabela_preco", label: "Tabela de preço" },
+  ],
+  project_info: [
+    { key: "projeto", label: "Projeto" },
+    { key: "numero", label: "Nº da proposta" },
+    { key: "data", label: "Data" },
+    { key: "revisao", label: "Revisão" },
+  ],
+  responsible_info_box: [
+    { key: "responsavel", label: "Responsável" },
+    { key: "cargo", label: "Cargo" },
+    { key: "email", label: "E-mail" },
+    { key: "telefone", label: "Telefone" },
+    { key: "celular", label: "Celular" },
+    { key: "vendedor", label: "Vendedor" },
+    { key: "representante", label: "Representante" },
+  ],
+  responsible_info: [
+    { key: "responsavel", label: "Responsável" },
+    { key: "cargo", label: "Cargo" },
+    { key: "email", label: "E-mail" },
+    { key: "telefone", label: "Telefone" },
+  ],
+};
+
+function labelForField(blockType: BlockType, key: string): string {
+  const list = SUGGESTED_FIELDS[blockType];
+  const found = list?.find((f) => f.key === key);
+  return found?.label ?? labelize(key);
+}
+
+function FieldPicker({
+  options,
+  onPick,
+}: {
+  options: SuggestedField[];
+  onPick: (opt: SuggestedField) => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-6 gap-1 px-2 text-[10px]"
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <Plus className="h-3 w-3" />
+          Campo
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="max-h-[60vh] overflow-y-auto">
+        {options.map((opt) => (
+          <DropdownMenuItem
+            key={opt.key}
+            onClick={() => onPick(opt)}
+            className="text-xs"
+          >
+            {opt.label}
+            <span className="ml-auto pl-3 font-mono text-[9px] opacity-50">{opt.key}</span>
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+  return key.replace(/_/g, " ").replace(/\b\w/g, (m) => m.toUpperCase());
+}
