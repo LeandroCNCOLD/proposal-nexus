@@ -586,7 +586,8 @@ export function ProposalCanvas({
                       style={{
                          zIndex: isLockedCoverOverlay ? 0 : isPrimary ? 1000 : selected ? 999 : block.order + 10,
                          pointerEvents: isLockedCoverOverlay ? "none" : "auto",
-                      }}
+                         overflow: "visible",
+                       }}
                     >
                       <BlockRenderer
                         block={block}
