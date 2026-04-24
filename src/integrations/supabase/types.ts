@@ -186,6 +186,110 @@ export type Database = {
         }
         Relationships: []
       }
+      coldpro_catalog_import_rows: {
+        Row: {
+          created_at: string
+          equipment_model_id: string | null
+          error_message: string | null
+          id: string
+          import_id: string
+          performance_point_id: string | null
+          raw_data: Json
+          row_number: number
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          equipment_model_id?: string | null
+          error_message?: string | null
+          id?: string
+          import_id: string
+          performance_point_id?: string | null
+          raw_data: Json
+          row_number: number
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          equipment_model_id?: string | null
+          error_message?: string | null
+          id?: string
+          import_id?: string
+          performance_point_id?: string | null
+          raw_data?: Json
+          row_number?: number
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coldpro_catalog_import_rows_import_id_fkey"
+            columns: ["import_id"]
+            isOneToOne: false
+            referencedRelation: "coldpro_catalog_imports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      coldpro_catalog_imports: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          file_size_bytes: number | null
+          filename: string
+          finished_at: string | null
+          id: string
+          imported_by: string | null
+          models_created: number
+          models_updated: number
+          performance_points_created: number
+          sheet_name: string | null
+          skipped_rows: number
+          started_at: string | null
+          status: string
+          summary: Json
+          total_rows: number
+          valid_rows: number
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          file_size_bytes?: number | null
+          filename: string
+          finished_at?: string | null
+          id?: string
+          imported_by?: string | null
+          models_created?: number
+          models_updated?: number
+          performance_points_created?: number
+          sheet_name?: string | null
+          skipped_rows?: number
+          started_at?: string | null
+          status?: string
+          summary?: Json
+          total_rows?: number
+          valid_rows?: number
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          file_size_bytes?: number | null
+          filename?: string
+          finished_at?: string | null
+          id?: string
+          imported_by?: string | null
+          models_created?: number
+          models_updated?: number
+          performance_points_created?: number
+          sheet_name?: string | null
+          skipped_rows?: number
+          started_at?: string | null
+          status?: string
+          summary?: Json
+          total_rows?: number
+          valid_rows?: number
+        }
+        Relationships: []
+      }
       coldpro_environment_products: {
         Row: {
           created_at: string
@@ -449,6 +553,365 @@ export type Database = {
           voltage?: string | null
         }
         Relationships: []
+      }
+      coldpro_equipment_compressors: {
+        Row: {
+          bitzer: string | null
+          bitzer_secondary: string | null
+          copeland: string | null
+          copeland_secondary: string | null
+          created_at: string
+          danfoss_bock: string | null
+          danfoss_secondary: string | null
+          dorin: string | null
+          equipment_model_id: string
+          id: string
+        }
+        Insert: {
+          bitzer?: string | null
+          bitzer_secondary?: string | null
+          copeland?: string | null
+          copeland_secondary?: string | null
+          created_at?: string
+          danfoss_bock?: string | null
+          danfoss_secondary?: string | null
+          dorin?: string | null
+          equipment_model_id: string
+          id?: string
+        }
+        Update: {
+          bitzer?: string | null
+          bitzer_secondary?: string | null
+          copeland?: string | null
+          copeland_secondary?: string | null
+          created_at?: string
+          danfoss_bock?: string | null
+          danfoss_secondary?: string | null
+          dorin?: string | null
+          equipment_model_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coldpro_equipment_compressors_equipment_model_id_fkey"
+            columns: ["equipment_model_id"]
+            isOneToOne: true
+            referencedRelation: "coldpro_equipment_models"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      coldpro_equipment_condensers: {
+        Row: {
+          airflow_m3_h: number | null
+          condenser_model: string | null
+          created_at: string
+          equipment_model_id: string
+          fan_model: string | null
+          geometry: string | null
+          id: string
+          internal_volume_l: number | null
+          tube_diameter_in: number | null
+          tube_diameter_mm: number | null
+          tube_thickness_mm: number | null
+        }
+        Insert: {
+          airflow_m3_h?: number | null
+          condenser_model?: string | null
+          created_at?: string
+          equipment_model_id: string
+          fan_model?: string | null
+          geometry?: string | null
+          id?: string
+          internal_volume_l?: number | null
+          tube_diameter_in?: number | null
+          tube_diameter_mm?: number | null
+          tube_thickness_mm?: number | null
+        }
+        Update: {
+          airflow_m3_h?: number | null
+          condenser_model?: string | null
+          created_at?: string
+          equipment_model_id?: string
+          fan_model?: string | null
+          geometry?: string | null
+          id?: string
+          internal_volume_l?: number | null
+          tube_diameter_in?: number | null
+          tube_diameter_mm?: number | null
+          tube_thickness_mm?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coldpro_equipment_condensers_equipment_model_id_fkey"
+            columns: ["equipment_model_id"]
+            isOneToOne: true
+            referencedRelation: "coldpro_equipment_models"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      coldpro_equipment_evaporators: {
+        Row: {
+          airflow_m3_h: number | null
+          created_at: string
+          equipment_model_id: string
+          evaporator_model: string | null
+          evaporator_quantity: number | null
+          fan_model: string | null
+          geometry: string | null
+          id: string
+          internal_volume_l: number | null
+          reheating: string | null
+          surface_area_m2: number | null
+          tube_diameter_in: number | null
+          tube_diameter_mm: number | null
+          tube_thickness_mm: number | null
+        }
+        Insert: {
+          airflow_m3_h?: number | null
+          created_at?: string
+          equipment_model_id: string
+          evaporator_model?: string | null
+          evaporator_quantity?: number | null
+          fan_model?: string | null
+          geometry?: string | null
+          id?: string
+          internal_volume_l?: number | null
+          reheating?: string | null
+          surface_area_m2?: number | null
+          tube_diameter_in?: number | null
+          tube_diameter_mm?: number | null
+          tube_thickness_mm?: number | null
+        }
+        Update: {
+          airflow_m3_h?: number | null
+          created_at?: string
+          equipment_model_id?: string
+          evaporator_model?: string | null
+          evaporator_quantity?: number | null
+          fan_model?: string | null
+          geometry?: string | null
+          id?: string
+          internal_volume_l?: number | null
+          reheating?: string | null
+          surface_area_m2?: number | null
+          tube_diameter_in?: number | null
+          tube_diameter_mm?: number | null
+          tube_thickness_mm?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coldpro_equipment_evaporators_equipment_model_id_fkey"
+            columns: ["equipment_model_id"]
+            isOneToOne: true
+            referencedRelation: "coldpro_equipment_models"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      coldpro_equipment_models: {
+        Row: {
+          active: boolean
+          application_type: string | null
+          created_at: string
+          designacao_hp: string | null
+          gabinete: string | null
+          gwp_ar6: number | null
+          id: string
+          linha: string | null
+          modelo: string
+          notes: string | null
+          odp_ar6: number | null
+          raw: Json | null
+          refrigerante: string | null
+          source_import_id: string | null
+          tipo_degelo: string | null
+          tipo_gabinete: string | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          application_type?: string | null
+          created_at?: string
+          designacao_hp?: string | null
+          gabinete?: string | null
+          gwp_ar6?: number | null
+          id?: string
+          linha?: string | null
+          modelo: string
+          notes?: string | null
+          odp_ar6?: number | null
+          raw?: Json | null
+          refrigerante?: string | null
+          source_import_id?: string | null
+          tipo_degelo?: string | null
+          tipo_gabinete?: string | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          application_type?: string | null
+          created_at?: string
+          designacao_hp?: string | null
+          gabinete?: string | null
+          gwp_ar6?: number | null
+          id?: string
+          linha?: string | null
+          modelo?: string
+          notes?: string | null
+          odp_ar6?: number | null
+          raw?: Json | null
+          refrigerante?: string | null
+          source_import_id?: string | null
+          tipo_degelo?: string | null
+          tipo_gabinete?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coldpro_equipment_models_source_import_id_fkey"
+            columns: ["source_import_id"]
+            isOneToOne: false
+            referencedRelation: "coldpro_catalog_imports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      coldpro_equipment_performance_points: {
+        Row: {
+          additional_subcooling_k: number | null
+          altitude_m: number | null
+          compressor_capacity_kcal_h: number | null
+          compressor_current_a: number | null
+          compressor_power_kw: number | null
+          condensation_temp_c: number | null
+          cop: number | null
+          cop_carnot: number | null
+          created_at: string
+          drain_diameter: string | null
+          drain_quantity: number | null
+          drain_water_l_h: number | null
+          enthalpy_difference_kj_kg: number | null
+          equipment_model_id: string
+          estimated_current_a: number | null
+          evaporation_temp_c: number | null
+          evaporator_capacity_kcal_h: number | null
+          external_humidity_percent: number | null
+          external_temp_c: number | null
+          fan_current_a: number | null
+          fan_power_kw: number | null
+          fluid_charge_kg: number | null
+          global_cop: number | null
+          heat_rejection_kcal_h: number | null
+          humidity_room_percent: number | null
+          id: string
+          mass_flow_kg_h: number | null
+          mass_flow_kg_s: number | null
+          raw: Json | null
+          source_import_id: string | null
+          starting_current_a: number | null
+          subcooling_k: number | null
+          temperature_room_c: number | null
+          total_power_kw: number | null
+          total_superheat_k: number | null
+          useful_superheat_k: number | null
+          voltage: string | null
+        }
+        Insert: {
+          additional_subcooling_k?: number | null
+          altitude_m?: number | null
+          compressor_capacity_kcal_h?: number | null
+          compressor_current_a?: number | null
+          compressor_power_kw?: number | null
+          condensation_temp_c?: number | null
+          cop?: number | null
+          cop_carnot?: number | null
+          created_at?: string
+          drain_diameter?: string | null
+          drain_quantity?: number | null
+          drain_water_l_h?: number | null
+          enthalpy_difference_kj_kg?: number | null
+          equipment_model_id: string
+          estimated_current_a?: number | null
+          evaporation_temp_c?: number | null
+          evaporator_capacity_kcal_h?: number | null
+          external_humidity_percent?: number | null
+          external_temp_c?: number | null
+          fan_current_a?: number | null
+          fan_power_kw?: number | null
+          fluid_charge_kg?: number | null
+          global_cop?: number | null
+          heat_rejection_kcal_h?: number | null
+          humidity_room_percent?: number | null
+          id?: string
+          mass_flow_kg_h?: number | null
+          mass_flow_kg_s?: number | null
+          raw?: Json | null
+          source_import_id?: string | null
+          starting_current_a?: number | null
+          subcooling_k?: number | null
+          temperature_room_c?: number | null
+          total_power_kw?: number | null
+          total_superheat_k?: number | null
+          useful_superheat_k?: number | null
+          voltage?: string | null
+        }
+        Update: {
+          additional_subcooling_k?: number | null
+          altitude_m?: number | null
+          compressor_capacity_kcal_h?: number | null
+          compressor_current_a?: number | null
+          compressor_power_kw?: number | null
+          condensation_temp_c?: number | null
+          cop?: number | null
+          cop_carnot?: number | null
+          created_at?: string
+          drain_diameter?: string | null
+          drain_quantity?: number | null
+          drain_water_l_h?: number | null
+          enthalpy_difference_kj_kg?: number | null
+          equipment_model_id?: string
+          estimated_current_a?: number | null
+          evaporation_temp_c?: number | null
+          evaporator_capacity_kcal_h?: number | null
+          external_humidity_percent?: number | null
+          external_temp_c?: number | null
+          fan_current_a?: number | null
+          fan_power_kw?: number | null
+          fluid_charge_kg?: number | null
+          global_cop?: number | null
+          heat_rejection_kcal_h?: number | null
+          humidity_room_percent?: number | null
+          id?: string
+          mass_flow_kg_h?: number | null
+          mass_flow_kg_s?: number | null
+          raw?: Json | null
+          source_import_id?: string | null
+          starting_current_a?: number | null
+          subcooling_k?: number | null
+          temperature_room_c?: number | null
+          total_power_kw?: number | null
+          total_superheat_k?: number | null
+          useful_superheat_k?: number | null
+          voltage?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coldpro_equipment_performance_points_equipment_model_id_fkey"
+            columns: ["equipment_model_id"]
+            isOneToOne: false
+            referencedRelation: "coldpro_equipment_models"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coldpro_equipment_performance_points_source_import_id_fkey"
+            columns: ["source_import_id"]
+            isOneToOne: false
+            referencedRelation: "coldpro_catalog_imports"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       coldpro_equipment_selections: {
         Row: {
