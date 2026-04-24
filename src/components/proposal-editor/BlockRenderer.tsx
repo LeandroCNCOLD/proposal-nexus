@@ -338,7 +338,6 @@ function BlockBody({
     case "responsible_info":
     case "cover_identity": {
       if (block.type === "cover_identity") {
-        // Cover identity é só placeholder visual — a arte vem do PageChrome.
         return (
           <div className="flex h-full items-end p-6 text-white">
             <div>
@@ -350,29 +349,55 @@ function BlockBody({
         );
       }
       const fields = Object.entries(block.data ?? {}).filter(([k]) => k !== "layout");
+      const usedKeys = new Set(fields.map(([k]) => k));
+      const suggestions = SUGGESTED_FIELDS[block.type] ?? [];
+      const available = suggestions.filter((s) => !usedKeys.has(s.key));
       return (
         <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-3.5 w-3.5 text-primary" />
-            <p className="text-[11px] font-semibold uppercase tracking-wider opacity-70">
-              {block.title ?? blockKindLabel(block.type)}
-            </p>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-3.5 w-3.5 text-primary" />
+              <p className="text-[11px] font-semibold uppercase tracking-wider opacity-70">
+                {block.title ?? blockKindLabel(block.type)}
+              </p>
+            </div>
+            {!locked && available.length > 0 ? (
+              <FieldPicker
+                options={available}
+                onPick={(opt) => setData({ [opt.key]: "" })}
+              />
+            ) : null}
           </div>
           {fields.length === 0 ? (
             <p className="text-xs opacity-60">
-              Bloco automático — preenchido pela sincronização Nomus.
+              Sem campos. Use <strong>+ Campo</strong> para adicionar.
             </p>
           ) : (
             <div className="space-y-1.5">
               {fields.map(([key, value]) => (
-                <div key={key} className="grid grid-cols-[120px_1fr] gap-2">
-                  <span className="text-xs opacity-70">{labelize(key)}</span>
+                <div key={key} className="grid grid-cols-[120px_1fr_auto] gap-2">
+                  <span className="text-xs opacity-70">{labelForField(block.type, key)}</span>
                   <Input
                     value={String(value ?? "")}
                     disabled={locked}
                     onChange={(e) => setData({ [key]: e.target.value })}
                     className="h-7 text-xs"
                   />
+                  {!locked ? (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10"
+                      title="Remover campo"
+                      onClick={() => {
+                        const { [key]: _omit, ...rest } = block.data;
+                        void _omit;
+                        onChange({ ...block, data: rest });
+                      }}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  ) : null}
                 </div>
               ))}
             </div>
