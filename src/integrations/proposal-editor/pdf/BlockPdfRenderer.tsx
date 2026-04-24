@@ -227,20 +227,19 @@ export function renderBlock(block: DocumentBlock, ctx: BlockRenderContext): Reac
 
     case "proposal_summary_box": {
       // Renderiza Cliente / Projeto / Proposta / Data / Responsável Comercial
-      // com os valores do template/contexto. Quebra de linha automática.
+      // com os valores reais da proposta. Quebra de linha automática (Text com flex:1).
       const overrides =
         (block.data.overrides as Record<string, { label?: string; value?: string }> | undefined) ??
         {};
-      const ctxData = (block.data.context as Record<string, string | undefined> | undefined) ?? {};
       const items = [
-        { key: "cliente", label: "Cliente:", value: ctxData.client_name ?? "" },
-        { key: "projeto", label: "Projeto:", value: ctxData.proposal_title ?? "" },
-        { key: "proposta", label: "Proposta:", value: ctxData.proposal_number ?? "" },
-        { key: "data", label: "Data:", value: ctxData.data_emissao ?? "" },
+        { key: "cliente", label: "Cliente:", value: proposal?.client_name ?? "" },
+        { key: "projeto", label: "Projeto:", value: proposal?.title ?? "" },
+        { key: "proposta", label: "Proposta:", value: proposal?.number ?? "" },
+        { key: "data", label: "Data:", value: proposal?.created_at ? fmtDateBR(proposal.created_at) : "" },
         {
           key: "responsavel",
           label: "Responsável Comercial:",
-          value: (block.data.responsavel as string | undefined) ?? ctxData.vendedor ?? "",
+          value: (block.data.responsavel as string | undefined) ?? "",
         },
       ].map((f) => ({
         key: f.key,
@@ -254,7 +253,7 @@ export function renderBlock(block: DocumentBlock, ctx: BlockRenderContext): Reac
               key={it.key}
               style={{ flexDirection: "row", gap: 6, alignItems: "flex-start" }}
             >
-              <Text style={{ fontSize: 10, fontWeight: 700, color: theme.text }}>
+              <Text style={{ fontSize: 10, fontFamily: "Helvetica-Bold", color: theme.text }}>
                 {it.label}
               </Text>
               <Text style={{ fontSize: 10, color: theme.text, flex: 1 }}>
@@ -265,9 +264,15 @@ export function renderBlock(block: DocumentBlock, ctx: BlockRenderContext): Reac
         </View>
       );
     }
+
+    default:
       return (
         <View key={key} style={styles.notice}>
           <Text>Bloco "{block.type}" sem renderer dedicado.</Text>
+        </View>
+      );
+  }
+}
         </View>
       );
   }
