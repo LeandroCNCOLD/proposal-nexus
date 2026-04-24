@@ -163,12 +163,12 @@ export function MultiSelectToolbar({
 
   return (
     <div
-      className="fixed left-1/2 top-3 z-[60] flex max-w-[95vw] -translate-x-1/2 flex-wrap items-center gap-1 rounded-md border bg-background px-2 py-1.5 shadow-xl"
+      className="flex flex-wrap items-center gap-1 rounded-md border bg-background px-2 py-1 shadow-sm"
       onMouseDown={(e) => e.stopPropagation()}
       onClick={(e) => e.stopPropagation()}
     >
       <span className="px-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-        ✦ {blocks.length} selecionados
+        ✦ {blocks.length} {isMulti ? "selecionados" : "selecionado"}
       </span>
       <span className="mx-0.5 text-muted-foreground/40">|</span>
 
