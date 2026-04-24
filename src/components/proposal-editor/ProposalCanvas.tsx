@@ -26,6 +26,20 @@ import {
 import { PageChrome } from "./PageChrome";
 import { cn } from "@/lib/utils";
 
+// Handles visíveis (8 pontos: cantos + meios) — só aparecem no bloco selecionado.
+const handleBase =
+  "block bg-white border-2 border-primary shadow-md rounded-sm pointer-events-auto";
+const handleComponents = {
+  topLeft: <div className={`${handleBase} h-3 w-3`} />,
+  top: <div className={`${handleBase} h-2 w-6`} />,
+  topRight: <div className={`${handleBase} h-3 w-3`} />,
+  right: <div className={`${handleBase} h-6 w-2`} />,
+  bottomRight: <div className={`${handleBase} h-3 w-3`} />,
+  bottom: <div className={`${handleBase} h-2 w-6`} />,
+  bottomLeft: <div className={`${handleBase} h-3 w-3`} />,
+  left: <div className={`${handleBase} h-6 w-2`} />,
+};
+
 interface Props {
   pages: DocumentPage[];
   selectedId: string | null;
