@@ -284,7 +284,16 @@ export function ProposalCanvas({
                         e.stopPropagation();
                         onSelectBlock(block.id);
                       }}
-                      style={{ zIndex: selected ? 40 : 10 }}
+                      style={{
+                        zIndex:
+                          block.type === "container"
+                            ? selected
+                              ? 20
+                              : 1
+                            : selected
+                              ? 40
+                              : 10,
+                      }}
                     >
                       <BlockRenderer
                         block={block}
