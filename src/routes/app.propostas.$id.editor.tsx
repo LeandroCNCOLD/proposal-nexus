@@ -2,8 +2,19 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, Save, Loader2, Sparkles, RotateCcw, Eye, FileCheck, BookmarkPlus, Download } from "lucide-react";
+import { ArrowLeft, Save, Loader2, Sparkles, RotateCcw, Eye, FileCheck, BookmarkPlus, LayoutTemplate } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import {
   getProposalDocument,
