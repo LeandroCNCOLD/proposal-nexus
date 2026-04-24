@@ -25,6 +25,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { RichTextEditor } from "./RichTextEditor";
+import { BoxStyleEditor, layoutToBoxStyle } from "./BoxStyleEditor";
 
 interface Props {
   block: DocumentBlock;
