@@ -22,6 +22,30 @@ export function renderBlock(block: DocumentBlock, ctx: BlockRenderContext): Reac
   const key = block.id;
 
   switch (block.type) {
+    case "container": {
+      const title = (block.data.title as string | undefined) ?? block.title;
+      const borderColor = (block.data.borderColor as string | undefined) ?? "#cbd5e1";
+      const borderWidth = (block.data.borderWidth as number | undefined) ?? 1;
+      const radius = (block.data.radius as number | undefined) ?? 6;
+      return (
+        <View
+          key={key}
+          style={{
+            width: "100%",
+            height: "100%",
+            borderWidth,
+            borderColor,
+            borderStyle: "solid",
+            borderRadius: radius,
+          }}
+        >
+          {title ? (
+            <Text style={{ fontSize: 8, color: theme.muted, padding: 4 }}>{title}</Text>
+          ) : null}
+        </View>
+      );
+    }
+
     case "heading": {
       const text = (block.data.text as string) ?? "";
       const level = (block.data.level as number) ?? 1;
