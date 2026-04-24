@@ -1,5 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -17,7 +18,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Loader2, Snowflake, Wind, Cog, Activity, Info, Zap } from "lucide-react";
+import { Loader2, Snowflake, Wind, Cog, Activity, Info, Zap, ImageIcon, Upload } from "lucide-react";
+import { toast } from "sonner";
 
 type Props = {
   modelId: string | null;
