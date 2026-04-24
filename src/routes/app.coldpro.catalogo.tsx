@@ -128,6 +128,23 @@ function CatalogoPage() {
     );
   });
 
+  // Reset de página quando filtros mudam
+  const totalPages = Math.max(1, Math.ceil(filteredModels.length / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const pagedModels = filteredModels.slice((safePage - 1) * pageSize, safePage * pageSize);
+
+  // Agrupamento por linha (aplicado sobre página atual)
+  const groupedModels = (() => {
+    if (!groupByLine) return null;
+    const map = new Map<string, typeof pagedModels>();
+    for (const m of pagedModels) {
+      const key = m.linha ?? "Sem linha";
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(m);
+    }
+    return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+  })();
+
   return (
     <div className="space-y-6 p-6">
         {/* Header */}
