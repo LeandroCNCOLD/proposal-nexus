@@ -302,6 +302,7 @@ function BlockBody({
   assets,
   proposalContext,
   proposalId,
+  pageId,
   selected,
   setData,
   onChange,
@@ -311,6 +312,7 @@ function BlockBody({
   assets: TemplateAsset[];
   proposalContext: ProposalDynamicContext;
   proposalId?: string;
+  pageId?: string;
   selected: boolean;
   setData: (patch: Record<string, unknown>) => void;
   onChange: (next: DocumentBlock) => void;
