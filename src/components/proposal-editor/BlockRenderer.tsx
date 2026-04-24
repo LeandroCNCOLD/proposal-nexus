@@ -736,5 +736,4 @@ function FieldPicker({
     </DropdownMenu>
   );
 }
-  return key.replace(/_/g, " ").replace(/\b\w/g, (m) => m.toUpperCase());
-}
+
