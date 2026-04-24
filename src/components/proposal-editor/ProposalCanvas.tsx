@@ -420,10 +420,17 @@ export function ProposalCanvas({
     updateBlock(pageId, { ...block, data: { ...block.data, layout: next } });
   };
 
+  // Blocos selecionados na página visível atual (para a toolbar de grupo)
+  const selectedBlocksOnPage = useMemo(() => {
+    const page = sorted.find((p) => p.id === selectedId) ?? sorted[0];
+    if (!page) return [] as DocumentBlock[];
+    return page.blocks.filter((b) => selectedSet.has(b.id));
+  }, [sorted, selectedId, selectedSet]);
+
   return (
     <div
       ref={containerRef}
-      className="h-full overflow-y-auto bg-slate-200 p-6"
+      className="relative h-full overflow-y-auto bg-slate-200"
       style={{
         // CSS vars do template
         ["--tpl-primary" as string]: template?.primary_color ?? "#0c2340",
@@ -431,33 +438,86 @@ export function ProposalCanvas({
         ["--tpl-accent-2" as string]: template?.accent_color_2 ?? "#5cbdb9",
         fontFamily: documentFontFamily || "Inter, system-ui, sans-serif",
       }}
-      onClick={() => onSelectBlock(null)}
+      onClick={() => clearMultiSelection()}
     >
+      {/* Barra de ferramentas do canvas: réguas + grade */}
+      <div
+        className="sticky top-0 z-40 flex items-center gap-2 border-b bg-slate-100/95 px-4 py-1.5 backdrop-blur"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <Button
+          size="sm"
+          variant={showRulers ? "default" : "ghost"}
+          className="h-7 gap-1 px-2 text-[11px]"
+          onClick={() => setShowRulers((v) => !v)}
+          title="Mostrar/ocultar réguas (cm)"
+        >
+          <Ruler className="h-3.5 w-3.5" />
+          Réguas
+        </Button>
+        <Button
+          size="sm"
+          variant={showGrid ? "default" : "ghost"}
+          className="h-7 gap-1 px-2 text-[11px]"
+          onClick={() => setShowGrid((v) => !v)}
+          title="Mostrar/ocultar grade (cm)"
+        >
+          <Grid3x3 className="h-3.5 w-3.5" />
+          Grade
+        </Button>
+        <span className="ml-auto text-[10px] text-muted-foreground">
+          Dica: Shift+clique para selecionar vários blocos · arraste a seleção para movê-los juntos
+        </span>
+      </div>
+
+      {/* Toolbar flutuante de alinhamento (multi-seleção) */}
+      {selectedBlocksOnPage.length >= 2 ? (
+        <MultiSelectToolbar
+          blocks={selectedBlocksOnPage}
+          pageW={pageW}
+          pageH={pageH}
+          onUpdateBlocks={(next) => {
+            const pageId = selectedId ?? sorted[0]?.id;
+            if (pageId) updateManyBlocks(pageId, next);
+          }}
+          onDeleteBlocks={(ids) => {
+            const pageId = selectedId ?? sorted[0]?.id;
+            if (pageId) deleteBlocks(pageId, ids);
+          }}
+          onClear={clearMultiSelection}
+        />
+      ) : null}
+
+      <div className="p-6">
       {sorted.map((page, idx) => {
         const isCover = page.type === "cover";
         const isContracapa = page.type === "contracapa";
         return (
-          <div
-            key={page.id}
-            ref={(el) => {
-              pageRefs.current[page.id] = el;
-            }}
-            className={cn(
-              "relative mx-auto mb-8 overflow-hidden bg-white shadow-lg ring-1 ring-black/10 transition",
-              page.id === selectedId && "ring-2 ring-primary",
-            )}
-            style={{ width: pageW, height: pageH }}
-            onClick={(e) => {
-              e.stopPropagation();
-              onSelect(page.id);
-              onSelectBlock(null);
-            }}
-            onDragOver={(e) => {
-              if (Array.from(e.dataTransfer.types).includes(PALETTE_DRAG_MIME)) {
-                e.preventDefault();
-                e.dataTransfer.dropEffect = "copy";
-              }
-            }}
+          <div key={page.id} className="mb-8">
+            {showRulers ? <HorizontalRuler pageW={pageW} /> : null}
+            <div className="relative mx-auto" style={{ width: pageW + (showRulers ? RULER_SIZE : 0), paddingLeft: showRulers ? RULER_SIZE : 0 }}>
+              {showRulers ? <VerticalRuler pageH={pageH} /> : null}
+              <div
+                ref={(el) => {
+                  pageRefs.current[page.id] = el;
+                }}
+                className={cn(
+                  "relative overflow-hidden bg-white shadow-lg ring-1 ring-black/10 transition",
+                  page.id === selectedId && "ring-2 ring-primary",
+                )}
+                style={{ width: pageW, height: pageH }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSelect(page.id);
+                  // só limpa seleção se NÃO foi shift/ctrl
+                  if (!(e.shiftKey || e.ctrlKey || e.metaKey)) clearMultiSelection();
+                }}
+                onDragOver={(e) => {
+                  if (Array.from(e.dataTransfer.types).includes(PALETTE_DRAG_MIME)) {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = "copy";
+                  }
+                }}
             onDrop={(e) => handlePageDrop(page.id, e)}
           >
             {/* Chrome A4 */}
