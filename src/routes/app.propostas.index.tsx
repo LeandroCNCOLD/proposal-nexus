@@ -67,11 +67,11 @@ function ProposalsList() {
       if (error) throw error;
       const rows = data ?? [];
       const nomusIds = rows.map((r) => r.nomus_id).filter(Boolean) as string[];
-      const nomusMap = new Map<string, { criada_em_nomus: string | null; data_emissao: string | null; representante_nome: string | null; vendedor_nome: string | null; cliente_nomus_id: string | null }>();
+      const nomusMap = new Map<string, { criada_em_nomus: string | null; data_emissao: string | null; representante_nome: string | null; vendedor_nome: string | null; cliente_nomus_id: string | null; numero: string | null }>();
       if (nomusIds.length > 0) {
         const { data: np } = await supabase
           .from("nomus_proposals")
-          .select("nomus_id, criada_em_nomus, data_emissao, representante_nome, vendedor_nome, cliente_nomus_id")
+          .select("nomus_id, criada_em_nomus, data_emissao, representante_nome, vendedor_nome, cliente_nomus_id, numero")
           .in("nomus_id", nomusIds);
         (np ?? []).forEach((n) => nomusMap.set(n.nomus_id, {
           criada_em_nomus: n.criada_em_nomus,
@@ -79,6 +79,7 @@ function ProposalsList() {
           representante_nome: n.representante_nome,
           vendedor_nome: n.vendedor_nome,
           cliente_nomus_id: n.cliente_nomus_id,
+          numero: n.numero,
         }));
       }
       // Buscar CNPJ de clientes via nomus_id quando não há clients vinculado
