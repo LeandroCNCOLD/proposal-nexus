@@ -25,7 +25,7 @@ import type { DocumentPage } from "@/integrations/proposal-editor/types";
 import type { ProposalTemplate, TemplateAsset } from "@/integrations/proposal-editor/template.types";
 import type { ProposalDynamicContext } from "@/components/proposal-editor/BlockRenderer";
 import { PageSidebar } from "@/components/proposal-editor/PageSidebar";
-import { FieldsPalette } from "@/components/proposal-editor/FieldsPalette";
+// (Paleta global removida — agora a paleta é contextual por página, dentro de PageSidebar.)
 import { ProposalCanvas } from "@/components/proposal-editor/ProposalCanvas";
 import { ProposalAttachmentsPanel } from "@/components/proposal-editor/ProposalAttachmentsPanel";
 import { ProposalVersionsPanel } from "@/components/proposal-editor/ProposalVersionsPanel";
