@@ -16,6 +16,13 @@ export interface ProposalPdfData {
     valid_until: string | null;
     created_at: string;
     client_name?: string | null;
+    revision?: number;
+    revision_history?: Array<{
+      numero: string;
+      date: string | null;
+      total_value: number | null;
+      is_current: boolean;
+    }>;
   };
   pages: DocumentPage[];
   tables: ProposalTable[];
