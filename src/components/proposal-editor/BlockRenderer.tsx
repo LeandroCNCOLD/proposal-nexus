@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { RichTextEditor } from "./RichTextEditor";
 import { BoxStyleEditor } from "./BoxStyleEditor";
+import { InlineTablePreview } from "./InlineTablePreview";
 import { layoutToBoxStyle } from "@/integrations/proposal-editor/box-style";
 
 interface Props {
@@ -35,6 +36,7 @@ interface Props {
   assets: TemplateAsset[];
   proposalContext: ProposalDynamicContext;
   proposalId?: string;
+  pageId?: string;
   onChange: (next: DocumentBlock) => void;
   onDelete: () => void;
   onDuplicate: () => void;
@@ -64,6 +66,7 @@ export function BlockRenderer({
   assets,
   proposalContext,
   proposalId,
+  pageId,
   onChange,
   onDelete,
   onDuplicate,
@@ -284,6 +287,7 @@ export function BlockRenderer({
           assets={assets}
           proposalContext={proposalContext}
           proposalId={proposalId}
+          pageId={pageId}
           selected={selected}
           setData={setData}
           onChange={onChange}
@@ -299,6 +303,7 @@ function BlockBody({
   assets,
   proposalContext,
   proposalId,
+  pageId,
   selected,
   setData,
   onChange,
@@ -308,6 +313,7 @@ function BlockBody({
   assets: TemplateAsset[];
   proposalContext: ProposalDynamicContext;
   proposalId?: string;
+  pageId?: string;
   selected: boolean;
   setData: (patch: Record<string, unknown>) => void;
   onChange: (next: DocumentBlock) => void;
@@ -955,11 +961,21 @@ function BlockBody({
     case "characteristics_table":
     case "equipments_table":
     case "technical_table": {
+      if (proposalId && pageId) {
+        return (
+          <InlineTablePreview
+            proposalId={proposalId}
+            pageId={pageId}
+            blockType={block.type}
+            title={block.title ?? blockKindLabel(block.type)}
+          />
+        );
+      }
       return (
         <div className="rounded border border-dashed bg-muted/40 p-3 text-xs opacity-80">
           <p className="font-semibold">{block.title ?? blockKindLabel(block.type)}</p>
           <p className="mt-1">
-            Tabela estruturada — edite na aba de tabelas. O conteúdo será renderizado no PDF.
+            Tabela estruturada — abra a aba de tabelas para editar o conteúdo.
           </p>
         </div>
       );
