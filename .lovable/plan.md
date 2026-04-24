@@ -1,95 +1,90 @@
-Plano para aproveitar a planilha oficial sem alterar capacidade, potência elétrica e corrente existentes
+Plano para implementar as regras reais de engenharia no catálogo técnico ColdPro.
 
-Diagnóstico inicial
-- O banco atual tem 70 variações de modelos e 1.232 pontos de curva.
-- Desses pontos, há 280 pontos em 220V trifásico e 952 em 380V trifásico.
-- A diferença para as 288 máquinas/pontos 220V trifásico indica que faltam 8 pontos ou uma variação de modelo/linha que não foi importada corretamente.
-- Os campos novos de flecha de ar e cálculo detalhado de volume dos aletados existem na estrutura, mas ainda estão vazios no banco.
-- A planilha enviada tem abas por linha/produto. A pré-leitura confirmou pelo menos dados úteis de Booster com: modelo, diâmetro de ventilador, vazão, alcance/flecha, pé direito, tensões disponíveis, potência e corrente.
+1. Estruturar propriedades dos refrigerantes
+- Criar uma tabela técnica de densidade por fluido e temperatura, começando por:
+  - R404A: -30°C ≈ 1,20 kg/L
+  - R404A: -10°C ≈ 1,10 kg/L
+  - R404A: 0°C ≈ 1,05 kg/L
+- Preparar a tabela para receber R134a, R410A e outros fluidos depois.
+- Criar função de busca/interpolação simples para retornar a densidade líquida mais adequada conforme refrigerante e temperatura de referência.
 
-Regras de segurança técnica
-- Não sobrescrever capacidade em kcal/h do catálogo anterior.
-- Não sobrescrever potência elétrica do compressor/ventiladores/total do catálogo anterior.
-- Não sobrescrever corrente elétrica do catálogo anterior.
-- Usar a nova planilha como fonte complementar para campos físicos/comerciais/aplicação, principalmente:
-  - flecha de ar / alcance
-  - pé direito / altura de aplicação
-  - diâmetro de ventilador
-  - vazão de ar, apenas como campo comparativo quando já existir no banco
-  - dados dimensionais dos aletados: diâmetro externo, diâmetro interno, parede, volume interno/calculado quando disponível
-  - tensões disponíveis como disponibilidade comercial, sem substituir as curvas elétricas oficiais já importadas
+2. Adicionar campos calculados no condensador e evaporador
+- Em `coldpro_equipment_condensers`:
+  - `refrigerant_density_kg_l`
+  - `refrigerant_reference_temp_c`
+  - `refrigerant_occupancy_factor`
+  - `estimated_refrigerant_charge_kg`
+  - `estimated_refrigerant_charge_note`
+- Em `coldpro_equipment_evaporators`:
+  - os mesmos campos de carga estimada
+  - campos de área de troca estimada:
+    - `tube_external_area_m2`
+    - `fin_area_multiplier`
+    - `estimated_exchange_area_m2`
+    - `fin_efficiency_factor`
+    - `effective_exchange_area_m2`
 
-O que será implementado
+3. Aplicar fatores de ocupação padrão
+- Condensador a ar: usar padrão inicial `0,80`, dentro da faixa 0,70–0,90.
+- Evaporador DX/expansão direta: usar padrão inicial `0,30`, dentro da faixa 0,20–0,35.
+- Manter os fatores como campos editáveis para ajuste técnico futuro por regime/tipo.
 
-1. Criar uma rotina de análise da planilha oficial
-- Ler todas as abas da planilha enviada.
-- Identificar automaticamente cabeçalhos por aba, mesmo com formatos diferentes.
-- Gerar um inventário por aba com:
-  - quantidade de modelos encontrados
-  - modelos por linha: BF, LT, MT, HT, AGRO, COMPACTice, Booster etc.
-  - colunas técnicas disponíveis
-  - colunas que podem ser usadas no catálogo
-  - colunas que devem ser bloqueadas para não alterar dados críticos
+4. Implementar fórmulas no banco
+- Carga aproximada:
+```text
+m = V × ρ × f
+```
+Onde:
+- `V` = volume interno corrigido em litros
+- `ρ` = densidade líquida kg/L
+- `f` = fator de ocupação
 
-2. Comparar planilha oficial x banco atual
-- Cruzar modelos por nome normalizado, linha e quando possível por gabinete/refrigerante/tensão.
-- Separar os resultados em quatro grupos:
-  - match exato: modelo encontrado com segurança
-  - match provável: precisa conferência por diferença de nomenclatura
-  - modelo da planilha ausente no banco
-  - modelo do banco ausente na planilha
-- Conferir especificamente os 220V 3F para explicar a diferença entre 280 e 288.
+- Área externa dos tubos:
+```text
+A_tubos = π × D_ext × L_total
+```
 
-3. Complementar campos seguros no banco
-- Para evaporadores e condensadores:
-  - preencher flecha de ar quando vier como “alcance” ou “flecha”
-  - preencher pé direito/altura de aplicação em campo dedicado se necessário
-  - preencher diâmetro do ventilador quando disponível
-  - preencher diâmetro externo/interno/parede do tubo quando a aba trouxer esses dados
-  - calcular volume interno somente quando houver diâmetro interno + comprimento + quantidade de tubos; caso contrário, preservar o volume informado na planilha/banco
-- Para Booster:
-  - criar/ajustar estrutura para tratar Booster como item técnico/acessório do catálogo, sem misturar com curvas de equipamentos frigoríficos
-  - preservar potência e corrente como dados próprios de Booster, sem usar para substituir dados de modelos CN/UCN
+- Área total estimada do evaporador por multiplicador industrial:
+```text
+A_total ≈ A_tubos × fator_multiplicador
+```
 
-4. Atualizar a importação do catálogo
-- Ajustar o parser para reconhecer abas por linha, não apenas uma aba única.
-- Adicionar aliases para nomes encontrados na planilha oficial:
-  - “ALCANCE (m)” → flecha de ar
-  - “PÉ DIREITO (m)” → altura de aplicação
-  - “Ø VENTILADOR” → diâmetro/modelo do ventilador
-  - variações de diâmetro interno/externo/parede de tubo
-- Adicionar trava de importação: campos críticos de curva só serão lidos para comparação/relatório, não para atualização automática.
+- Para espaçamento 2,10 mm, usar multiplicador inicial dentro da faixa indicada: `16x`.
+- Para outros espaçamentos, definir regra por faixa:
+  - baixa densidade de aleta: 8–12x
+  - média densidade: 12–18x
+  - alta densidade: 18–25x
 
-5. Atualizar a interface do catálogo
-- Na página principal, mostrar resumo confiável:
-  - total de variações
-  - total 220V 3F
-  - total 380V 3F
-  - pontos de curva por tensão
-- No detalhe do modelo, mostrar:
-  - Flecha de ar / alcance
-  - Pé direito / altura recomendada de aplicação
-  - Diâmetro/modelo do ventilador
-  - Dados do aletado: diâmetros, parede, volume informado e volume calculado
-  - Aviso visual quando um dado veio da planilha complementar e não da curva original
+5. Recalcular catálogo existente
+- Atualizar todos os condensadores com volume calculado:
+  - densidade conforme refrigerante do modelo
+  - fator padrão 0,80
+  - carga estimada em kg
+- Atualizar todos os evaporadores com volume calculado:
+  - densidade conforme refrigerante do modelo
+  - fator padrão 0,30
+  - carga estimada em kg
+  - área de troca estimada/equivalente
+- Não alterar capacidade frigorífica, potência elétrica, corrente ou performance.
 
-6. Gerar um relatório de divergências
-- Antes de gravar dados complementares, gerar uma tabela de conferência com:
-  - modelos encontrados na planilha e no banco
-  - modelos sem correspondência
-  - campos que seriam preenchidos
-  - campos críticos divergentes que NÃO serão alterados
-  - explicação da diferença 280 vs 288 nos pontos 220V 3F
+6. Atualizar interface do catálogo técnico
+- No detalhe técnico do modelo, exibir:
+  - volume interno corrigido
+  - densidade usada
+  - temperatura de referência da densidade
+  - fator de ocupação
+  - carga estimada no condensador
+  - carga estimada no evaporador
+  - área externa dos tubos do evaporador
+  - área estimada com aletas
+  - área efetiva quando houver fator de eficiência
+- Incluir nota técnica: “Cálculo aproximado por volume interno, densidade líquida e fator de ocupação. Não substitui carga final ajustada em campo.”
 
-Resultado esperado
-- Catálogo mais rico para análise técnica e aplicação, com flecha de ar, altura de aplicação e dados físicos dos aletados.
-- Curvas críticas de capacidade, potência elétrica e corrente preservadas sem alteração.
-- Diagnóstico claro dos 8 pontos/modelos 220V 3F faltantes.
-- Importação mais inteligente por abas/linhas da planilha oficial.
+7. Validação
+- Validar exemplos com modelos R404A, R134a e R410A.
+- Conferir se os 70 condensadores calculam carga.
+- Conferir se os 60 evaporadores com modelo de aletado calculam carga e área; os 10 UCN permanecerão sem área/volume se a planilha não trouxer o aletado.
 
-Detalhes técnicos
-- Serão necessários ajustes no parser `catalog-import.parser.ts` para ler múltiplas abas.
-- Serão necessários ajustes na rotina de persistência `catalog-import.functions.ts` para atualizar apenas campos permitidos.
-- Se a planilha tiver campos novos que ainda não existem no banco, será criada migração apenas para estrutura, por exemplo: `air_application_height_m`, `fan_diameter_mm`, `complementary_source`, `complementary_source_sheet`.
-- Atualizações de dados serão feitas separadamente da estrutura, com relatório antes/depois.
-- A tela `app/coldpro/catalogo` e o diálogo `ColdProModelDetailDialog` serão atualizados para exibir os novos campos e o resumo de qualidade dos dados.
+Resultado esperado:
+- O sistema passa a estimar a quantidade aproximada de fluido refrigerante que cabe no condensador e no evaporador, respeitando densidade do fluido e diferença operacional entre condensador e evaporador.
+- O evaporador também passa a ter área de troca estimada por regra industrial, usando área de tubos e fator multiplicador por densidade de aletas.

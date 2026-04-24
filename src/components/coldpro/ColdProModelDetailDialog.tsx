@@ -345,23 +345,33 @@ export function ColdProModelDetailDialog({ modelId, open, onOpenChange }: Props)
               {!data.condenser ? (
                 <EmptyBlock label="Sem dados do condensador cadastrados." />
               ) : (
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                  <Field label="Modelo" value={data.condenser.condenser_model} />
-                  <Field label="Ø tubo (in)" value={data.condenser.tube_diameter_in} />
-                  <Field label="Ø tubo (mm)" value={data.condenser.tube_diameter_mm} />
-                  <Field label="Ø externo (mm)" value={data.condenser.tube_outer_diameter_mm} />
-                  <Field label="Ø interno (mm)" value={data.condenser.tube_inner_diameter_mm} />
-                  <Field label="Parede tubo (mm)" value={data.condenser.tube_wall_thickness_mm ?? data.condenser.tube_thickness_mm} />
-                  <Field label="Comprimento tubos (m)" value={data.condenser.tube_length_m} />
-                  <Field label="Qtd. tubos" value={data.condenser.tube_count} />
-                  <Field label="Geometria" value={data.condenser.geometry} />
-                  <Field label="Volume interno (L)" value={data.condenser.internal_volume_l} />
-                  <Field label="Volume calculado (L)" value={data.condenser.calculated_internal_volume_l} />
-                  <Field label="Modelo ventilador" value={data.condenser.fan_model} />
-                  <Field label="Ø ventilador (mm)" value={data.condenser.fan_diameter_mm} />
-                  <Field label="Vazão de ar (m³/h)" value={data.condenser.airflow_m3_h} />
-                  <Field label="Flecha de ar (m)" value={data.condenser.air_throw_m} />
-                  <Field label="Fonte complementar" value={data.condenser.complementary_source_sheet} />
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                    <Field label="Modelo" value={data.condenser.condenser_model} />
+                    <Field label="Ø tubo (in)" value={data.condenser.tube_diameter_in} />
+                    <Field label="Ø tubo (mm)" value={data.condenser.tube_diameter_mm} />
+                    <Field label="Ø externo (mm)" value={data.condenser.tube_outer_diameter_mm} />
+                    <Field label="Ø interno (mm)" value={data.condenser.tube_inner_diameter_mm} />
+                    <Field label="Parede tubo (mm)" value={data.condenser.tube_wall_thickness_mm ?? data.condenser.tube_thickness_mm} />
+                    <Field label="Comprimento tubo (m)" value={data.condenser.tube_length_m} />
+                    <Field label="Comprimento total (m)" value={(data.condenser as any).total_tube_length_m} />
+                    <Field label="Qtd. tubos" value={data.condenser.tube_count} />
+                    <Field label="Circuitos" value={(data.condenser as any).circuits} />
+                    <Field label="Espaçamento aletas (mm)" value={(data.condenser as any).fin_spacing_mm} />
+                    <Field label="Volume corrigido (L)" value={(data.condenser as any).corrected_internal_volume_l} />
+                    <Field label="Densidade fluido (kg/L)" value={(data.condenser as any).refrigerant_density_kg_l} />
+                    <Field label="Temp. ref. densidade (°C)" value={(data.condenser as any).refrigerant_reference_temp_c} />
+                    <Field label="Fator ocupação" value={(data.condenser as any).refrigerant_occupancy_factor} />
+                    <Field label="Carga estimada (kg)" value={(data.condenser as any).estimated_refrigerant_charge_kg} />
+                    <Field label="Modelo ventilador" value={data.condenser.fan_model} />
+                    <Field label="Ø ventilador (mm)" value={data.condenser.fan_diameter_mm} />
+                    <Field label="Vazão de ar (m³/h)" value={data.condenser.airflow_m3_h} />
+                    <Field label="Flecha de ar (m)" value={data.condenser.air_throw_m} />
+                    <Field label="Fonte complementar" value={data.condenser.complementary_source_sheet} />
+                  </div>
+                  <p className="rounded-md border bg-muted/40 p-3 text-xs text-muted-foreground">
+                    Cálculo aproximado por volume interno, densidade líquida e fator de ocupação. Não substitui carga final ajustada em campo.
+                  </p>
                 </div>
               )}
             </TabsContent>
@@ -371,6 +381,7 @@ export function ColdProModelDetailDialog({ modelId, open, onOpenChange }: Props)
               {!data.evaporator ? (
                 <EmptyBlock label="Sem dados do evaporador cadastrados." />
               ) : (
+                <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                   <Field label="Modelo" value={data.evaporator.evaporator_model} />
                   <Field label="Reaquecimento" value={data.evaporator.reheating} />
@@ -381,10 +392,22 @@ export function ColdProModelDetailDialog({ modelId, open, onOpenChange }: Props)
                   <Field label="Ø interno (mm)" value={data.evaporator.tube_inner_diameter_mm} />
                   <Field label="Parede tubo (mm)" value={data.evaporator.tube_wall_thickness_mm ?? data.evaporator.tube_thickness_mm} />
                   <Field label="Comprimento tubos (m)" value={data.evaporator.tube_length_m} />
+                  <Field label="Comprimento total (m)" value={(data.evaporator as any).total_tube_length_m} />
                   <Field label="Qtd. tubos" value={data.evaporator.tube_count} />
+                  <Field label="Circuitos" value={(data.evaporator as any).circuits} />
+                  <Field label="Espaçamento aletas (mm)" value={(data.evaporator as any).fin_spacing_mm} />
                   <Field label="Geometria" value={data.evaporator.geometry} />
                   <Field label="Volume interno (L)" value={data.evaporator.internal_volume_l} />
                   <Field label="Volume calculado (L)" value={data.evaporator.calculated_internal_volume_l} />
+                  <Field label="Volume corrigido (L)" value={(data.evaporator as any).corrected_internal_volume_l} />
+                  <Field label="Densidade fluido (kg/L)" value={(data.evaporator as any).refrigerant_density_kg_l} />
+                  <Field label="Temp. ref. densidade (°C)" value={(data.evaporator as any).refrigerant_reference_temp_c} />
+                  <Field label="Fator ocupação" value={(data.evaporator as any).refrigerant_occupancy_factor} />
+                  <Field label="Carga estimada (kg)" value={(data.evaporator as any).estimated_refrigerant_charge_kg} />
+                  <Field label="Área tubos (m²)" value={(data.evaporator as any).tube_external_area_m2} />
+                  <Field label="Multiplicador aletas" value={(data.evaporator as any).fin_area_multiplier} />
+                  <Field label="Área estimada (m²)" value={(data.evaporator as any).estimated_exchange_area_m2} />
+                  <Field label="Área efetiva (m²)" value={(data.evaporator as any).effective_exchange_area_m2} />
                   <Field label="Área superfície (m²)" value={data.evaporator.surface_area_m2} />
                   <Field label="Modelo ventilador" value={data.evaporator.fan_model} />
                   <Field label="Ø ventilador (mm)" value={data.evaporator.fan_diameter_mm} />
@@ -392,6 +415,10 @@ export function ColdProModelDetailDialog({ modelId, open, onOpenChange }: Props)
                   <Field label="Flecha de ar (m)" value={data.evaporator.air_throw_m} />
                   <Field label="Altura aplicação (m)" value={data.evaporator.air_application_height_m} />
                   <Field label="Fonte complementar" value={data.evaporator.complementary_source_sheet} />
+                </div>
+                <p className="rounded-md border bg-muted/40 p-3 text-xs text-muted-foreground">
+                  Cálculo aproximado por volume interno, densidade líquida e fator de ocupação. Não substitui carga final ajustada em campo.
+                </p>
                 </div>
               )}
             </TabsContent>
