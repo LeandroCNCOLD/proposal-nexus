@@ -344,16 +344,7 @@ export function ProposalCanvas({
                         onSelectBlock(block.id);
                       }}
                       style={{
-                        zIndex:
-                           block.type === "cover_identity"
-                             ? 0
-                             : block.type === "container"
-                            ? selected
-                              ? 20
-                              : 1
-                            : selected
-                              ? 40
-                              : 10,
+                         zIndex: isLockedCoverOverlay ? 0 : selected ? 1000 : block.order + 10,
                       }}
                     >
                       <BlockRenderer
