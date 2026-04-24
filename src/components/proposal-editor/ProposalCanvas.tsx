@@ -114,6 +114,62 @@ export function ProposalCanvas({
   const containerRef = useRef<HTMLDivElement>(null);
   const pageRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
+  // ---------- Réguas + Grade ----------
+  const [showGrid, setShowGrid] = useState(false);
+  const [showRulers, setShowRulers] = useState(true);
+
+  // ---------- Multi-seleção ----------
+  // selectedBlockId (vindo do parent) é o "principal".
+  // extraSelectedIds são os adicionados via Shift/Ctrl+click.
+  const [extraSelectedIds, setExtraSelectedIds] = useState<Set<string>>(new Set());
+
+  const selectedSet = useMemo(() => {
+    const s = new Set<string>(extraSelectedIds);
+    if (selectedBlockId) s.add(selectedBlockId);
+    return s;
+  }, [extraSelectedIds, selectedBlockId]);
+
+  // Limpa seleção extra sempre que mudamos de página principal selecionada
+  useEffect(() => {
+    setExtraSelectedIds(new Set());
+  }, [selectedId]);
+
+  /** Click num bloco: respeita Shift/Ctrl/Meta para seleção aditiva. */
+  const handleBlockClick = (blockId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const additive = e.shiftKey || e.ctrlKey || e.metaKey;
+    if (!additive) {
+      setExtraSelectedIds(new Set());
+      onSelectBlock(blockId);
+      return;
+    }
+    // Aditivo: alterna o estado deste bloco na seleção
+    if (selectedBlockId === blockId) {
+      // Está como principal — promove o primeiro extra a principal e remove este
+      const others = Array.from(extraSelectedIds);
+      const next = new Set(extraSelectedIds);
+      onSelectBlock(others[0] ?? null);
+      next.delete(others[0] ?? "");
+      setExtraSelectedIds(next);
+      return;
+    }
+    const next = new Set(extraSelectedIds);
+    if (next.has(blockId)) {
+      next.delete(blockId);
+    } else if (!selectedBlockId) {
+      onSelectBlock(blockId);
+    } else {
+      next.add(blockId);
+    }
+    setExtraSelectedIds(next);
+  };
+
+  const clearMultiSelection = () => {
+    setExtraSelectedIds(new Set());
+    onSelectBlock(null);
+  };
+
+
   useEffect(() => {
     if (!selectedId) return;
     const el = pageRefs.current[selectedId];
