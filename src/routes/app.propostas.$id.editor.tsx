@@ -280,11 +280,12 @@ function ProposalEditorPage() {
               onChange={handlePagesChange}
             />
           </div>
-          <div className="border-t p-3">
+          <div className="space-y-3 border-t p-3">
             <ProposalAttachmentsPanel
               proposalId={id}
               onChanged={() => qc.invalidateQueries({ queryKey: ["proposal-document", id] })}
             />
+            <ProposalVersionsPanel proposalId={id} />
           </div>
         </aside>
 
