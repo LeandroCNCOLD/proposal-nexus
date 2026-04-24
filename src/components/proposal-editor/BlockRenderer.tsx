@@ -161,6 +161,7 @@ export function BlockRenderer({
           assets={assets}
           proposalContext={proposalContext}
           setData={setData}
+          onChange={onChange}
         />
       </div>
     </div>
@@ -173,12 +174,14 @@ function BlockBody({
   assets,
   proposalContext,
   setData,
+  onChange,
 }: {
   block: DocumentBlock;
   template: ProposalTemplate | null;
   assets: TemplateAsset[];
   proposalContext: ProposalDynamicContext;
   setData: (patch: Record<string, unknown>) => void;
+  onChange: (next: DocumentBlock) => void;
 }) {
   const locked = block.locked;
 
