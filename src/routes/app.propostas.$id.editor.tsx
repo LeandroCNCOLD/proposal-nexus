@@ -249,7 +249,7 @@ function ProposalEditorPage() {
                 <SelectValue placeholder="Escolher template…" />
               </SelectTrigger>
               <SelectContent>
-                {(tplsData?.templates ?? []).map((t) => (
+                {(tplsList.templates ?? []).map((t) => (
                   <SelectItem key={t.id} value={t.id} className="text-xs">
                     {t.name}
                     {t.is_default ? " (padrão)" : ""}
@@ -345,6 +345,11 @@ function ProposalEditorPage() {
           <ProposalCanvas
             pages={pages}
             selectedId={selectedId}
+            template={bundleData?.template ?? null}
+            assets={bundleData?.assets ?? []}
+            proposalContext={ctxData ?? {}}
+            selectedBlockId={selectedBlockId}
+            onSelectBlock={setSelectedBlockId}
             onSelect={setSelectedId}
             onPagesChange={handlePagesChange}
           />
