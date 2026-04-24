@@ -345,6 +345,12 @@ function CatalogoPage() {
               <Layers className="h-5 w-5 text-primary" />
               <h2 className="text-lg font-semibold">Modelos no catálogo</h2>
               <Badge variant="secondary">{catalogRows.length}</Badge>
+              {modelsQuery.data?.voltageSummary && (
+                <>
+                  <Badge variant="outline" className="font-mono">220V 3F: {modelsQuery.data.voltageSummary.v220_3f}</Badge>
+                  <Badge variant="outline" className="font-mono">380V 3F: {modelsQuery.data.voltageSummary.v380_3f}</Badge>
+                </>
+              )}
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <Button
