@@ -114,6 +114,7 @@ export function parsePaletteItem(raw: string): PaletteItem | null {
 export function FieldsPalette() {
   const [open, setOpen] = useState(true);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
+    Layout: true,
     "Dados da proposta": true,
     Cliente: true,
   });
