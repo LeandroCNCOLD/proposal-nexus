@@ -392,6 +392,40 @@ function Toolbar({
         </>
       )}
       <div className="ml-auto flex items-center gap-0.5">
+        <AIAssistButton
+          contextHint={aiContextHint}
+          getText={() => {
+            const { from, to, empty } = editor.state.selection;
+            if (!empty) {
+              const slice = editor.state.doc.cut(from, to);
+              const tmp = document.createElement("div");
+              const fragHtml = (editor as unknown as { getHTML: () => string }).getHTML();
+              // Para seleção, usamos o texto puro do trecho selecionado, mas devolvemos
+              // o HTML do bloco inteiro como referência visual (mais útil no preview).
+              const selText = slice.textContent || "";
+              tmp.innerHTML = `<p>${selText.replace(/&/g, "&amp;").replace(/</g, "&lt;")}</p>`;
+              return { text: selText, html: fragHtml, hasSelection: true };
+            }
+            return {
+              text: editor.getText(),
+              html: editor.getHTML(),
+              hasSelection: false,
+            };
+          }}
+          onApply={(html) => {
+            const { from, to, empty } = editor.state.selection;
+            if (!empty) {
+              editor.chain().focus().insertContentAt({ from, to }, html).run();
+            } else {
+              editor.commands.setContent(html, true);
+            }
+          }}
+          onInsertAfter={(html) => {
+            const { to } = editor.state.selection;
+            editor.chain().focus().insertContentAt(to, html).run();
+          }}
+        />
+        <div className="mx-1 h-4 w-px bg-border" />
         <ToolbarBtn
           onClick={() => editor.chain().focus().undo().run()}
           disabled={!editor.can().undo()}
