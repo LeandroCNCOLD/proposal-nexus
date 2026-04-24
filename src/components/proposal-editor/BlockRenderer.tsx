@@ -268,32 +268,6 @@ function BlockBody({
       );
     }
 
-    case "image": {
-      const url = (block.data.url as string | null) ?? null;
-      return (
-        <div className="space-y-2">
-          {block.title ? (
-            <p className="text-[11px] font-medium uppercase tracking-wider opacity-70">
-              {block.title}
-            </p>
-          ) : null}
-          {url ? (
-            <img src={url} alt="" className="max-h-full max-w-full rounded border" />
-          ) : (
-            <div className="flex h-32 items-center justify-center rounded border-2 border-dashed text-xs opacity-60">
-              Sem imagem
-            </div>
-          )}
-          <Input
-            value={url ?? ""}
-            onChange={(e) => setData({ url: e.target.value || null })}
-            placeholder="URL da imagem…"
-            disabled={locked}
-            className="h-7 text-xs"
-          />
-        </div>
-      );
-    }
 
     case "key_value_list": {
       const items = (block.data.items as Array<{ label: string; value: string }> | undefined) ?? [];
