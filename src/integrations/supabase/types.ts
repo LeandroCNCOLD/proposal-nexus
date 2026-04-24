@@ -715,6 +715,7 @@ export type Database = {
           active: boolean
           application_type: string | null
           biblock_image_path: string | null
+          biblock_image_paths: string[]
           created_at: string
           designacao_hp: string | null
           gabinete: string | null
@@ -725,10 +726,12 @@ export type Database = {
           notes: string | null
           odp_ar6: number | null
           plugin_image_path: string | null
+          plugin_image_paths: string[]
           raw: Json | null
           refrigerante: string | null
           source_import_id: string | null
           split_image_path: string | null
+          split_image_paths: string[]
           tipo_degelo: string | null
           tipo_gabinete: string | null
           updated_at: string
@@ -737,6 +740,7 @@ export type Database = {
           active?: boolean
           application_type?: string | null
           biblock_image_path?: string | null
+          biblock_image_paths?: string[]
           created_at?: string
           designacao_hp?: string | null
           gabinete?: string | null
@@ -747,10 +751,12 @@ export type Database = {
           notes?: string | null
           odp_ar6?: number | null
           plugin_image_path?: string | null
+          plugin_image_paths?: string[]
           raw?: Json | null
           refrigerante?: string | null
           source_import_id?: string | null
           split_image_path?: string | null
+          split_image_paths?: string[]
           tipo_degelo?: string | null
           tipo_gabinete?: string | null
           updated_at?: string
@@ -759,6 +765,7 @@ export type Database = {
           active?: boolean
           application_type?: string | null
           biblock_image_path?: string | null
+          biblock_image_paths?: string[]
           created_at?: string
           designacao_hp?: string | null
           gabinete?: string | null
@@ -769,10 +776,12 @@ export type Database = {
           notes?: string | null
           odp_ar6?: number | null
           plugin_image_path?: string | null
+          plugin_image_paths?: string[]
           raw?: Json | null
           refrigerante?: string | null
           source_import_id?: string | null
           split_image_path?: string | null
+          split_image_paths?: string[]
           tipo_degelo?: string | null
           tipo_gabinete?: string | null
           updated_at?: string
