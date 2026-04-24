@@ -45,6 +45,13 @@ export type PerformancePoint = {
   cop: number | null;
 };
 
+type EquipmentModelRow = SelectionCandidate["model"];
+type EvaporatorSelectionRow = {
+  equipment_model_id: string;
+  airflow_m3_h: number | null;
+  evaporator_quantity: number | null;
+};
+
 export type SelectionCandidate = {
   model: {
     id: string;
@@ -250,7 +257,8 @@ export async function findEquipmentCandidates(
   if (mErr) throw new Error(`Erro ao buscar modelos: ${mErr.message}`);
   if (!models || models.length === 0) return [];
 
-  const modelIds = models.map((m) => m.id);
+  const modelRows = (models ?? []) as EquipmentModelRow[];
+  const modelIds = modelRows.map((m) => m.id);
 
   // 2) busca pontos de performance (em batch)
   const { data: points, error: pErr } = await db
@@ -268,13 +276,13 @@ export async function findEquipmentCandidates(
     .in("equipment_model_id", modelIds);
 
   const pointsByModel = new Map<string, PerformancePoint[]>();
-  (points ?? []).forEach((p) => {
+  ((points ?? []) as PerformancePoint[]).forEach((p) => {
     const list = pointsByModel.get(p.equipment_model_id) ?? [];
     list.push(p as PerformancePoint);
     pointsByModel.set(p.equipment_model_id, list);
   });
   const evapByModel = new Map<string, { airflow: number | null; qty: number | null }>();
-  (evaporators ?? []).forEach((e) => {
+  ((evaporators ?? []) as EvaporatorSelectionRow[]).forEach((e) => {
     evapByModel.set(e.equipment_model_id, {
       airflow: e.airflow_m3_h,
       qty: e.evaporator_quantity,
@@ -283,7 +291,7 @@ export async function findEquipmentCandidates(
 
   const candidates: SelectionCandidate[] = [];
 
-  for (const m of models) {
+  for (const m of modelRows) {
     const pts = pointsByModel.get(m.id) ?? [];
     if (pts.length === 0) continue;
 
