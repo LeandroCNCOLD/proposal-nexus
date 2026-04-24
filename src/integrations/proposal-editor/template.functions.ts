@@ -52,7 +52,7 @@ export const listTemplates = createServerFn({ method: "GET" })
     return {
       templates: (templates ?? []) as unknown as ProposalTemplate[],
       assets: enrichedAssets,
-    } as unknown as { templates: ProposalTemplate[]; assets: TemplateAsset[] };
+    };
   });
 
 /** Carrega template padrão (ou um template específico) com seus assets. */
@@ -86,7 +86,7 @@ export const getTemplate = createServerFn({ method: "POST" })
       template: tmpl as unknown as ProposalTemplate,
       assets: await buildAssetsWithUrls(supabase, (assets ?? []) as never),
     };
-    return result as unknown as TemplateBundle | null;
+    return result;
   });
 
 /** Atualiza textos/cores de um template. */
