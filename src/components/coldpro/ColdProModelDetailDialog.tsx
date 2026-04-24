@@ -151,6 +151,89 @@ export function ColdProModelDetailDialog({ modelId, open, onOpenChange }: Props)
                   value={new Date(m.created_at).toLocaleDateString("pt-BR")}
                 />
               </div>
+
+              {/* Resumo de versões/condições deste modelo */}
+              {data.perfPoints.length > 0 && (() => {
+                const voltages = Array.from(
+                  new Set(data.perfPoints.map((p) => p.voltage).filter(Boolean))
+                ) as string[];
+                const rooms = Array.from(
+                  new Set(
+                    data.perfPoints
+                      .map((p) => p.temperature_room_c)
+                      .filter((v) => v != null)
+                  )
+                ).sort((a, b) => Number(b) - Number(a));
+                const evapTemps = data.perfPoints
+                  .map((p) => p.evaporation_temp_c)
+                  .filter((v): v is number => typeof v === "number");
+                const capacities = data.perfPoints
+                  .map((p) => p.evaporator_capacity_kcal_h)
+                  .filter((v): v is number => typeof v === "number");
+                return (
+                  <div className="rounded-md border bg-primary/5 border-primary/20 p-4 space-y-3">
+                    <div className="text-sm font-semibold flex items-center gap-2">
+                      <Activity className="h-4 w-4 text-primary" />
+                      Versões e faixa de operação cadastradas
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div>
+                        <div className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium mb-1">
+                          Tensões disponíveis ({voltages.length})
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {voltages.map((v) => (
+                            <Badge key={v} variant="outline" className="font-mono text-xs">
+                              <Zap className="mr-1 h-3 w-3" />
+                              {v}
+                            </Badge>
+                          ))}
+                          {voltages.length === 0 && <span className="text-xs text-muted-foreground">—</span>}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium mb-1">
+                          Temperaturas de câmara ({rooms.length})
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {rooms.map((r) => (
+                            <Badge key={String(r)} variant="secondary" className="text-xs">
+                              {Number(r)}°C
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium mb-1">
+                          Faixa T. evaporação
+                        </div>
+                        <div className="text-sm font-medium">
+                          {evapTemps.length > 0
+                            ? `${fmt(Math.min(...evapTemps))} a ${fmt(Math.max(...evapTemps))} °C`
+                            : "—"}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium mb-1">
+                          Faixa de capacidade evaporador
+                        </div>
+                        <div className="text-sm font-medium">
+                          {capacities.length > 0
+                            ? `${fmt(Math.min(...capacities), 0)} a ${fmt(Math.max(...capacities), 0)} kcal/h`
+                            : "—"}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-xs text-muted-foreground pt-1 border-t">
+                      Total: <strong className="text-foreground">{data.perfPoints.length}</strong> pontos de operação ={" "}
+                      <strong className="text-foreground">{voltages.length}</strong> tensão(ões) ×{" "}
+                      <strong className="text-foreground">{rooms.length}</strong> temperatura(s) de câmara ×{" "}
+                      <strong className="text-foreground">{Math.round(data.perfPoints.length / Math.max(1, voltages.length * rooms.length))}</strong> condição(ões) de condensação
+                    </div>
+                  </div>
+                );
+              })()}
+
               {m.notes && (
                 <div className="rounded-md border bg-muted/30 p-3">
                   <div className="text-xs font-medium text-muted-foreground">Notas</div>
@@ -291,48 +374,88 @@ export function ColdProModelDetailDialog({ modelId, open, onOpenChange }: Props)
               {data.perfPoints.length === 0 ? (
                 <EmptyBlock label="Nenhum ponto de curva cadastrado para este modelo." />
               ) : (
-                <div className="overflow-x-auto rounded-md border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="text-right">T. Câm. (°C)</TableHead>
-                        <TableHead className="text-right">UR (%)</TableHead>
-                        <TableHead className="text-right">T. Evap. (°C)</TableHead>
-                        <TableHead className="text-right">T. Cond. (°C)</TableHead>
-                        <TableHead className="text-right">T. Ext. (°C)</TableHead>
-                        <TableHead className="text-right">Cap. Evap. (kcal/h)</TableHead>
-                        <TableHead className="text-right">Cap. Comp. (kcal/h)</TableHead>
-                        <TableHead className="text-right">Pot. Comp. (kW)</TableHead>
-                        <TableHead className="text-right">Pot. Vent. (kW)</TableHead>
-                        <TableHead className="text-right">Pot. Total (kW)</TableHead>
-                        <TableHead className="text-right">COP</TableHead>
-                        <TableHead className="text-right">Carga (kg)</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {data.perfPoints.map((p) => (
-                        <TableRow key={p.id}>
-                          <TableCell className="text-right">{fmt(p.temperature_room_c)}</TableCell>
-                          <TableCell className="text-right">{fmt(p.humidity_room_percent)}</TableCell>
-                          <TableCell className="text-right">{fmt(p.evaporation_temp_c)}</TableCell>
-                          <TableCell className="text-right">{fmt(p.condensation_temp_c)}</TableCell>
-                          <TableCell className="text-right">{fmt(p.external_temp_c)}</TableCell>
-                          <TableCell className="text-right font-medium">
-                            {fmt(p.evaporator_capacity_kcal_h, 0)}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {fmt(p.compressor_capacity_kcal_h, 0)}
-                          </TableCell>
-                          <TableCell className="text-right">{fmt(p.compressor_power_kw, 2)}</TableCell>
-                          <TableCell className="text-right">{fmt(p.fan_power_kw, 2)}</TableCell>
-                          <TableCell className="text-right">{fmt(p.total_power_kw, 2)}</TableCell>
-                          <TableCell className="text-right">{fmt(p.cop, 2)}</TableCell>
-                          <TableCell className="text-right">{fmt(p.fluid_charge_kg, 2)}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
+                (() => {
+                  const byVoltage = groupBy(data.perfPoints, (p) => p.voltage ?? "Sem tensão");
+                  const voltages = Array.from(byVoltage.keys()).sort();
+                  return (
+                    <div className="space-y-4">
+                      <div className="flex flex-wrap items-center gap-2 text-xs">
+                        <span className="text-muted-foreground">Versões elétricas:</span>
+                        {voltages.map((v) => (
+                          <Badge key={v} variant="outline" className="font-mono">
+                            <Zap className="mr-1 h-3 w-3" />
+                            {v} ({byVoltage.get(v)!.length} pts)
+                          </Badge>
+                        ))}
+                      </div>
+
+                      {voltages.map((v) => {
+                        const pts = byVoltage.get(v)!;
+                        const byRoom = groupBy(pts, (p) =>
+                          p.temperature_room_c == null ? "—" : `${p.temperature_room_c}°C`
+                        );
+                        return (
+                          <div key={v} className="rounded-md border">
+                            <div className="flex items-center justify-between border-b bg-muted/40 px-3 py-2">
+                              <div className="flex items-center gap-2 text-sm font-semibold">
+                                <Zap className="h-4 w-4 text-primary" />
+                                {v}
+                              </div>
+                              <Badge variant="secondary">{pts.length} pontos</Badge>
+                            </div>
+                            <div className="overflow-x-auto">
+                              <Table>
+                                <TableHeader>
+                                  <TableRow>
+                                    <TableHead className="text-right">T. Câm. (°C)</TableHead>
+                                    <TableHead className="text-right">UR (%)</TableHead>
+                                    <TableHead className="text-right">T. Evap. (°C)</TableHead>
+                                    <TableHead className="text-right">T. Cond. (°C)</TableHead>
+                                    <TableHead className="text-right">T. Ext. (°C)</TableHead>
+                                    <TableHead className="text-right">Cap. Evap. (kcal/h)</TableHead>
+                                    <TableHead className="text-right">Cap. Comp. (kcal/h)</TableHead>
+                                    <TableHead className="text-right">Pot. Total (kW)</TableHead>
+                                    <TableHead className="text-right">COP</TableHead>
+                                    <TableHead className="text-right">Carga (kg)</TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  {Array.from(byRoom.entries()).map(([room, items]) => (
+                                    <>
+                                      <TableRow key={`${v}-${room}-h`} className="bg-muted/20 hover:bg-muted/20">
+                                        <TableCell colSpan={10} className="py-1.5 text-xs font-semibold text-muted-foreground">
+                                          Câmara a {room} • {items.length} pontos
+                                        </TableCell>
+                                      </TableRow>
+                                      {items.map((p) => (
+                                        <TableRow key={p.id}>
+                                          <TableCell className="text-right">{fmt(p.temperature_room_c)}</TableCell>
+                                          <TableCell className="text-right">{fmt(p.humidity_room_percent)}</TableCell>
+                                          <TableCell className="text-right">{fmt(p.evaporation_temp_c)}</TableCell>
+                                          <TableCell className="text-right">{fmt(p.condensation_temp_c)}</TableCell>
+                                          <TableCell className="text-right">{fmt(p.external_temp_c)}</TableCell>
+                                          <TableCell className="text-right font-medium">
+                                            {fmt(p.evaporator_capacity_kcal_h, 0)}
+                                          </TableCell>
+                                          <TableCell className="text-right">
+                                            {fmt(p.compressor_capacity_kcal_h, 0)}
+                                          </TableCell>
+                                          <TableCell className="text-right">{fmt(p.total_power_kw, 2)}</TableCell>
+                                          <TableCell className="text-right">{fmt(p.cop, 2)}</TableCell>
+                                          <TableCell className="text-right">{fmt(p.fluid_charge_kg, 2)}</TableCell>
+                                        </TableRow>
+                                      ))}
+                                    </>
+                                  ))}
+                                </TableBody>
+                              </Table>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()
               )}
             </TabsContent>
           </Tabs>
@@ -412,5 +535,15 @@ function aggregateElectrical(points: PerfPoint[]) {
     startCurrentRange: range("starting_current_a", 1),
     fluidChargeRange: range("fluid_charge_kg", 2),
   };
+}
+
+function groupBy<T, K extends string>(items: T[], keyFn: (item: T) => K): Map<K, T[]> {
+  const map = new Map<K, T[]>();
+  for (const item of items) {
+    const k = keyFn(item);
+    if (!map.has(k)) map.set(k, []);
+    map.get(k)!.push(item);
+  }
+  return map;
 }
 

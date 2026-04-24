@@ -47,18 +47,42 @@ function CatalogoPage() {
   const [page, setPage] = useState<number>(1);
   const [groupByLine, setGroupByLine] = useState<boolean>(false);
 
-  // Lista de modelos do catálogo
+  // Lista de modelos do catálogo + agregado de tensões/pontos por modelo
   const modelsQuery = useQuery({
     queryKey: ["coldpro-models"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("coldpro_equipment_models")
-        .select("id, modelo, linha, designacao_hp, refrigerante, gabinete, tipo_degelo, active, created_at")
-        .order("linha", { ascending: true, nullsFirst: false })
-        .order("modelo", { ascending: true })
-        .limit(5000);
-      if (error) throw error;
-      return data;
+      const [modelsRes, perfRes] = await Promise.all([
+        supabase
+          .from("coldpro_equipment_models")
+          .select("id, modelo, linha, designacao_hp, refrigerante, gabinete, tipo_degelo, active, created_at")
+          .order("linha", { ascending: true, nullsFirst: false })
+          .order("modelo", { ascending: true })
+          .limit(5000),
+        supabase
+          .from("coldpro_equipment_performance_points")
+          .select("equipment_model_id, voltage")
+          .limit(10000),
+      ]);
+      if (modelsRes.error) throw modelsRes.error;
+      if (perfRes.error) throw perfRes.error;
+
+      const stats = new Map<string, { points: number; voltages: Set<string> }>();
+      for (const p of perfRes.data ?? []) {
+        const key = p.equipment_model_id;
+        if (!key) continue;
+        if (!stats.has(key)) stats.set(key, { points: 0, voltages: new Set() });
+        const s = stats.get(key)!;
+        s.points++;
+        if (p.voltage) s.voltages.add(p.voltage);
+      }
+      return (modelsRes.data ?? []).map((m) => {
+        const s = stats.get(m.id);
+        return {
+          ...m,
+          point_count: s?.points ?? 0,
+          voltages: s ? Array.from(s.voltages).sort() : [],
+        };
+      });
     },
   });
 
@@ -343,10 +367,10 @@ function CatalogoPage() {
                     <TableRow>
                       <TableHead>Modelo</TableHead>
                       <TableHead>Linha</TableHead>
-                      <TableHead>HP</TableHead>
-                      <TableHead>Refrigerante</TableHead>
+                      <TableHead>Refrig.</TableHead>
                       <TableHead>Gabinete</TableHead>
-                      <TableHead>Degelo</TableHead>
+                      <TableHead>Versões elétricas</TableHead>
+                      <TableHead className="text-right">Pontos</TableHead>
                       <TableHead className="text-right">Status</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -359,53 +383,17 @@ function CatalogoPage() {
                                 <span className="inline-flex items-center gap-2">
                                   <FolderTree className="h-4 w-4 text-primary" />
                                   {linha}
-                                  <Badge variant="secondary">{items.length}</Badge>
+                                  <Badge variant="secondary">{items.length} modelos</Badge>
                                 </span>
                               </TableCell>
                             </TableRow>
                             {items.map((m) => (
-                              <TableRow
-                                key={m.id}
-                                className="cursor-pointer hover:bg-muted/50"
-                                onClick={() => setSelectedModelId(m.id)}
-                              >
-                                <TableCell className="font-medium text-primary pl-8">{m.modelo}</TableCell>
-                                <TableCell>{m.linha ?? "—"}</TableCell>
-                                <TableCell>{m.designacao_hp ?? "—"}</TableCell>
-                                <TableCell>{m.refrigerante ?? "—"}</TableCell>
-                                <TableCell>{m.gabinete ?? "—"}</TableCell>
-                                <TableCell>{m.tipo_degelo ?? "—"}</TableCell>
-                                <TableCell className="text-right">
-                                  {m.active ? (
-                                    <Badge variant="default" className="bg-emerald-600">Ativo</Badge>
-                                  ) : (
-                                    <Badge variant="secondary">Inativo</Badge>
-                                  )}
-                                </TableCell>
-                              </TableRow>
+                              <ModelRow key={m.id} m={m} indent onClick={() => setSelectedModelId(m.id)} />
                             ))}
                           </>
                         ))
                       : pagedModels.map((m) => (
-                          <TableRow
-                            key={m.id}
-                            className="cursor-pointer hover:bg-muted/50"
-                            onClick={() => setSelectedModelId(m.id)}
-                          >
-                            <TableCell className="font-medium text-primary">{m.modelo}</TableCell>
-                            <TableCell>{m.linha ?? "—"}</TableCell>
-                            <TableCell>{m.designacao_hp ?? "—"}</TableCell>
-                            <TableCell>{m.refrigerante ?? "—"}</TableCell>
-                            <TableCell>{m.gabinete ?? "—"}</TableCell>
-                            <TableCell>{m.tipo_degelo ?? "—"}</TableCell>
-                            <TableCell className="text-right">
-                              {m.active ? (
-                                <Badge variant="default" className="bg-emerald-600">Ativo</Badge>
-                              ) : (
-                                <Badge variant="secondary">Inativo</Badge>
-                              )}
-                            </TableCell>
-                          </TableRow>
+                          <ModelRow key={m.id} m={m} onClick={() => setSelectedModelId(m.id)} />
                         ))}
                   </TableBody>
                 </Table>
@@ -541,5 +529,61 @@ function Stat({ label, value, valid, warn }: { label: string; value: number; val
         {value.toLocaleString("pt-BR")}
       </div>
     </div>
+  );
+}
+
+type ModelRowData = {
+  id: string;
+  modelo: string | null;
+  linha: string | null;
+  designacao_hp: string | null;
+  refrigerante: string | null;
+  gabinete: string | null;
+  tipo_degelo: string | null;
+  active: boolean;
+  point_count: number;
+  voltages: string[];
+};
+
+function ModelRow({ m, indent, onClick }: { m: ModelRowData; indent?: boolean; onClick: () => void }) {
+  return (
+    <TableRow className="cursor-pointer hover:bg-muted/50" onClick={onClick}>
+      <TableCell className={`font-medium text-primary ${indent ? "pl-8" : ""}`}>
+        <div className="flex flex-col">
+          <span>{m.modelo}</span>
+          {m.designacao_hp && m.designacao_hp !== "-" && (
+            <span className="text-[11px] font-normal text-muted-foreground">{m.designacao_hp}</span>
+          )}
+        </div>
+      </TableCell>
+      <TableCell className="text-xs">{m.linha ?? "—"}</TableCell>
+      <TableCell>
+        <Badge variant="outline" className="font-mono text-xs">{m.refrigerante ?? "—"}</Badge>
+      </TableCell>
+      <TableCell className="text-xs">{m.gabinete ?? "—"}</TableCell>
+      <TableCell>
+        <div className="flex flex-wrap gap-1">
+          {m.voltages.length === 0 ? (
+            <span className="text-xs text-muted-foreground">—</span>
+          ) : (
+            m.voltages.map((v) => (
+              <Badge key={v} variant="secondary" className="font-mono text-[10px] py-0 px-1.5">
+                {v}
+              </Badge>
+            ))
+          )}
+        </div>
+      </TableCell>
+      <TableCell className="text-right text-sm font-medium tabular-nums">
+        {m.point_count}
+      </TableCell>
+      <TableCell className="text-right">
+        {m.active ? (
+          <Badge variant="default" className="bg-emerald-600">Ativo</Badge>
+        ) : (
+          <Badge variant="secondary">Inativo</Badge>
+        )}
+      </TableCell>
+    </TableRow>
   );
 }
