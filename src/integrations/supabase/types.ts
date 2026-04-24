@@ -1159,7 +1159,9 @@ export type Database = {
           mass_flow_kg_h: number | null
           mass_flow_kg_s: number | null
           raw: Json | null
+          refrigerant: string | null
           source_import_id: string | null
+          source_sheet: string | null
           starting_current_a: number | null
           subcooling_k: number | null
           temperature_room_c: number | null
@@ -1198,7 +1200,9 @@ export type Database = {
           mass_flow_kg_h?: number | null
           mass_flow_kg_s?: number | null
           raw?: Json | null
+          refrigerant?: string | null
           source_import_id?: string | null
+          source_sheet?: string | null
           starting_current_a?: number | null
           subcooling_k?: number | null
           temperature_room_c?: number | null
@@ -1237,7 +1241,9 @@ export type Database = {
           mass_flow_kg_h?: number | null
           mass_flow_kg_s?: number | null
           raw?: Json | null
+          refrigerant?: string | null
           source_import_id?: string | null
+          source_sheet?: string | null
           starting_current_a?: number | null
           subcooling_k?: number | null
           temperature_room_c?: number | null
