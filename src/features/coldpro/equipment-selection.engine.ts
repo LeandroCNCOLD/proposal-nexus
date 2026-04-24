@@ -94,12 +94,39 @@ function selectCapacityForModel(
   capacity: number;
   power: number | null;
   cop: number | null;
-  used: { interpolated: boolean; t_room: number | null; t_evap: number | null; t_cond: number | null };
+  used: { interpolated: boolean; polynomial: boolean; polynomial_r2: number | null; t_room: number | null; t_evap: number | null; t_cond: number | null };
 } | null {
   const valid = points.filter(
     (p) => p.evaporator_capacity_kcal_h !== null && p.evaporator_capacity_kcal_h > 0,
   );
   if (valid.length === 0) return null;
+
+  const polynomial = fitPerformancePolynomial(valid);
+  if (polynomial?.capacity) {
+    const curveInput = {
+      temperature_room_c: input.internal_temp_c,
+      evaporation_temp_c: input.evaporation_temp_c,
+      condensation_temp_c: input.condensation_temp_c,
+    };
+    const capacity = evaluatePolynomial(polynomial.capacity, curveInput);
+    if (capacity !== null && capacity > 0) {
+      const power = evaluatePolynomial(polynomial.power, curveInput);
+      const cop = evaluatePolynomial(polynomial.cop, curveInput) ?? (power && power > 0 ? capacity / 860 / power : null);
+      return {
+        capacity,
+        power,
+        cop,
+        used: {
+          interpolated: false,
+          polynomial: true,
+          polynomial_r2: polynomial.capacity.r2,
+          t_room: input.internal_temp_c,
+          t_evap: input.evaporation_temp_c,
+          t_cond: input.condensation_temp_c,
+        },
+      };
+    }
+  }
 
   // 1) escolhe a temperatura de condensação mais próxima do alvo
   const condCandidates = Array.from(
@@ -160,6 +187,8 @@ function selectCapacityForModel(
         cop,
         used: {
           interpolated: true,
+          polynomial: false,
+          polynomial_r2: null,
           t_room: lower.temperature_room_c,
           t_evap: targetEvap,
           t_cond: targetCond,
@@ -188,6 +217,8 @@ function selectCapacityForModel(
     cop: best.cop,
     used: {
       interpolated: false,
+      polynomial: false,
+      polynomial_r2: null,
       t_room: best.temperature_room_c,
       t_evap: best.evaporation_temp_c,
       t_cond: best.condensation_temp_c,
