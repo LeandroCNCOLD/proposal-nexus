@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/table";
 import { Loader2, Snowflake, Wind, Cog, Activity, Info, Zap, ImageIcon, Upload, Droplets } from "lucide-react";
 import { toast } from "sonner";
+import { fitPerformancePolynomial } from "@/features/coldpro/performance-polynomial";
 
 type Props = {
   modelId: string | null;
@@ -469,8 +470,23 @@ export function ColdProModelDetailDialog({ modelId, open, onOpenChange }: Props)
                 (() => {
                   const byVoltage = groupBy(data.perfPoints, (p) => p.voltage ?? "Sem tensão");
                   const voltages = Array.from(byVoltage.keys()).sort();
+                  const curve = fitPerformancePolynomial(data.perfPoints);
                   return (
                     <div className="space-y-4">
+                      {curve && (
+                        <div className="rounded-md border bg-primary/5 border-primary/20 p-4">
+                          <div className="text-sm font-semibold">Equação polinomial de rendimento</div>
+                          <div className="mt-2 grid gap-2 text-xs sm:grid-cols-3">
+                            <PolynomialSummary label="Capacidade" model={curve.capacity} unit="kcal/h" />
+                            <PolynomialSummary label="Potência" model={curve.power} unit="kW" />
+                            <PolynomialSummary label="COP" model={curve.cop} unit="" />
+                          </div>
+                          <p className="mt-3 text-xs text-muted-foreground">
+                            Ajuste grau {curve.degree} por mínimos quadrados usando T. câmara, T. evaporação e T. condensação. A seleção técnica usa essa curva quando há pontos suficientes.
+                          </p>
+                        </div>
+                      )}
+
                       <div className="flex flex-wrap items-center gap-2 text-xs">
                         <span className="text-muted-foreground">Versões elétricas:</span>
                         {voltages.map((v) => (
