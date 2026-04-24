@@ -231,8 +231,15 @@ export function BlockRenderer({
         </div>
       ) : null}
 
-      {/* Conteúdo do bloco */}
-      <div className="h-full w-full overflow-hidden p-3">
+      {/* Conteúdo do bloco — padding adapta ao tamanho da fonte para não cortar conteúdo */}
+      <div
+        className="h-full w-full overflow-hidden"
+        style={{
+          padding: hasCustomFontSize
+            ? `${Math.max(2, Math.min(8, ((block.data.fontSize as number) ?? 12) / 3))}px`
+            : "12px",
+        }}
+      >
         <BlockBody
           block={block}
           template={template}
@@ -561,14 +568,28 @@ function BlockBody({
     }
 
     case "proposal_number_box": {
+      const hasCustomFs = typeof block.data.fontSize === "number";
       return (
-        <div className="flex h-full flex-col justify-center text-right">
-          <p className="text-[10px] uppercase tracking-widest opacity-60">Proposta Nº</p>
-          <p className="text-2xl font-bold leading-tight" style={{ color: "inherit" }}>
+        <div className="flex h-full flex-col justify-center text-right leading-tight">
+          <p
+            className="uppercase tracking-widest opacity-60"
+            style={{ fontSize: hasCustomFs ? "0.6em" : "10px" }}
+          >
+            Proposta Nº
+          </p>
+          <p
+            className={hasCustomFs ? "font-bold leading-tight" : "text-2xl font-bold leading-tight"}
+            style={{ color: "inherit", fontSize: hasCustomFs ? "1.4em" : undefined }}
+          >
             {proposalContext.proposal_number ?? "—"}
           </p>
           {proposalContext.data_emissao ? (
-            <p className="text-[10px] opacity-70">{proposalContext.data_emissao}</p>
+            <p
+              className="opacity-70"
+              style={{ fontSize: hasCustomFs ? "0.65em" : "10px" }}
+            >
+              {proposalContext.data_emissao}
+            </p>
           ) : null}
         </div>
       );
@@ -578,18 +599,29 @@ function BlockBody({
       const fieldKey = (block.data.fieldKey as string) ?? "";
       const label = (block.data.label as string) ?? labelize(fieldKey);
       const value = resolveDynamicField(fieldKey, proposalContext, template);
+      const hasCustomFs = typeof block.data.fontSize === "number";
       return (
-        <div className="flex h-full flex-col justify-center">
-          <p className="text-[9px] uppercase tracking-widest opacity-60">{label}</p>
-          <p className="text-lg font-semibold leading-tight" style={{ color: "inherit" }}>
+        <div className="group/df flex h-full flex-col justify-center leading-tight">
+          <p
+            className="uppercase tracking-widest opacity-60"
+            style={{ fontSize: hasCustomFs ? "0.55em" : "9px" }}
+          >
+            {label}
+          </p>
+          <p
+            className={hasCustomFs ? "font-semibold leading-tight" : "text-lg font-semibold leading-tight"}
+            style={{ color: "inherit", fontSize: hasCustomFs ? "1.1em" : undefined }}
+          >
             {value || "—"}
           </p>
+          {/* Editor de chave — só aparece em hover/seleção pra não roubar espaço do conteúdo */}
           <Input
             value={fieldKey}
             disabled={locked}
             onChange={(e) => setData({ fieldKey: e.target.value })}
             placeholder="ex: client_name"
-            className="mt-1 h-6 text-[10px] opacity-50 hover:opacity-100"
+            className="absolute bottom-1 left-1 right-1 mt-1 h-5 w-auto text-[9px] opacity-0 transition group-hover/df:opacity-80 focus:opacity-100"
+            onMouseDown={(e) => e.stopPropagation()}
           />
         </div>
       );
