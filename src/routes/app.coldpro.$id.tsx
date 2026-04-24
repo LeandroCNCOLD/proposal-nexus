@@ -19,6 +19,9 @@ import { ColdProResultCard } from "@/components/coldpro/ColdProResultCard";
 import { ColdProExtraLoadsForm } from "@/components/coldpro/ColdProExtraLoadsForm";
 import { ColdProStepper, COLDPRO_STEPS } from "@/components/coldpro/ColdProStepper";
 import { ColdProReport } from "@/components/coldpro/ColdProReport";
+import { ColdProRealSelection } from "@/components/coldpro/ColdProRealSelection";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { saveCatalogEquipmentSelection } from "@/features/coldpro/catalog-selection.functions";
 
 export const Route = createFileRoute("/app/coldpro/$id")({ component: ColdProProjectPage });
 
@@ -36,6 +39,11 @@ function ColdProProjectPage() {
   const calculate = useCalculateColdProEnvironment(id);
   const autoSelect = useAutoSelectColdProEquipment(id);
   const pushToProposal = usePushColdProToProposal(id);
+  const qc = useQueryClient();
+  const saveCatalogSel = useMutation({
+    mutationFn: (payload: any) => saveCatalogEquipmentSelection({ data: payload }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["coldpro-project", id] }),
+  });
 
   const [selectedEnvId, setSelectedEnvId] = React.useState<string | null>(null);
   const [stepIndex, setStepIndex] = React.useState(0);
