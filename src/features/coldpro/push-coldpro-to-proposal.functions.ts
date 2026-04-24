@@ -54,6 +54,7 @@ export const pushColdProToProposal = createServerFn({ method: "POST" })
     if (!project.proposal_id) {
       throw new Error("Projeto ColdPro não está vinculado a uma proposta.");
     }
+    const proposalId: string = project.proposal_id;
 
     const { data: envs, error: envError } = await supabase
       .from("coldpro_environments")
