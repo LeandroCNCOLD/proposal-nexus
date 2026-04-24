@@ -3,7 +3,7 @@ import {
   LayoutDashboard, FileText, Users, Building2, Wrench, Swords,
   Sparkles, FileBarChart, FileCheck2, FolderUp, Settings, LogOut,
   Search, Bell, Snowflake, ChevronDown, CheckSquare, PlugZap, Database,
-  LayoutTemplate,
+  LayoutTemplate, Kanban,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { ROLE_LABELS } from "@/lib/proposal";
@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils";
 const NAV = [
   { group: "Operação", items: [
     { to: "/app", label: "Dashboard", icon: LayoutDashboard, exact: true },
+    { to: "/app/crm", label: "Funil / CRM", icon: Kanban },
     { to: "/app/propostas", label: "Propostas", icon: FileText },
     { to: "/app/propostas/pedidos-nf", label: "Pedidos & NF", icon: FileCheck2 },
     { to: "/app/tarefas", label: "Tarefas & Follow-up", icon: CheckSquare },
