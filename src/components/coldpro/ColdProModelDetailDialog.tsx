@@ -735,7 +735,10 @@ function fmt(v: number | null | undefined, digits = 1): string {
 }
 
 type PerfPoint = {
+  id: string;
   voltage: string | null;
+  evaporation_temp_c: number | null;
+  condensation_temp_c: number | null;
   compressor_power_kw: number | null;
   fan_power_kw: number | null;
   total_power_kw: number | null;
@@ -745,6 +748,98 @@ type PerfPoint = {
   starting_current_a: number | null;
   fluid_charge_kg: number | null;
 };
+
+type ElectricalTable = {
+  key: "220-3f" | "380-3f" | "220-1f";
+  label: string;
+  rows: PerfPoint[];
+};
+
+function buildElectricalTables(points: PerfPoint[]): ElectricalTable[] {
+  const matches = (voltage: string | null, volts: number, phases: 1 | 3) => {
+    const value = normalizeVoltage(voltage);
+    const hasVoltage = value.includes(String(volts));
+    const hasPhase = phases === 1
+      ? /(1F|MONO|MONOF|MONOFAS)/i.test(value)
+      : /(3F|TRI|TRIF|TRIFAS)/i.test(value);
+    return hasVoltage && hasPhase;
+  };
+
+  return [
+    { key: "220-3f", label: "220V trifásico", rows: points.filter((p) => matches(p.voltage, 220, 3)) },
+    { key: "380-3f", label: "380V trifásico", rows: points.filter((p) => matches(p.voltage, 380, 3)) },
+    { key: "220-1f", label: "220V monofásico", rows: points.filter((p) => matches(p.voltage, 220, 1)) },
+  ];
+}
+
+function normalizeVoltage(value: string | null): string {
+  return (value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase();
+}
+
+function ElectricalVersionTable({ label, rows }: { label: string; rows: PerfPoint[] }) {
+  const summary = aggregateElectrical(rows);
+
+  return (
+    <div className="rounded-md border">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-muted/30 px-3 py-2">
+        <div className="flex items-center gap-2 text-sm font-semibold">
+          <Zap className="h-4 w-4 text-primary" />
+          Tabela elétrica — {label}
+        </div>
+        <Badge variant={rows.length > 0 ? "secondary" : "outline"}>{rows.length} pontos</Badge>
+      </div>
+      {rows.length === 0 ? (
+        <div className="px-3 py-8 text-center text-sm text-muted-foreground">
+          Sem dados cadastrados para esta versão elétrica.
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 gap-2 border-b bg-muted/10 p-3 text-xs sm:grid-cols-4">
+            <Field label="Pot. total (kW)" value={summary.totalPowerRange} />
+            <Field label="I. compressor (A)" value={summary.compCurrentRange} />
+            <Field label="I. nominal (A)" value={summary.estCurrentRange} />
+            <Field label="I. partida (A)" value={summary.startCurrentRange} />
+          </div>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="text-right">T. Evap (°C)</TableHead>
+                  <TableHead className="text-right">T. Cond (°C)</TableHead>
+                  <TableHead className="text-right">I. Comp (A)</TableHead>
+                  <TableHead className="text-right">I. Vent (A)</TableHead>
+                  <TableHead className="text-right">I. Nom. (A)</TableHead>
+                  <TableHead className="text-right">I. Partida (A)</TableHead>
+                  <TableHead className="text-right">P. Comp (kW)</TableHead>
+                  <TableHead className="text-right">P. Vent (kW)</TableHead>
+                  <TableHead className="text-right">P. Total (kW)</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {rows.map((p) => (
+                  <TableRow key={p.id}>
+                    <TableCell className="text-right">{fmt(p.evaporation_temp_c)}</TableCell>
+                    <TableCell className="text-right">{fmt(p.condensation_temp_c)}</TableCell>
+                    <TableCell className="text-right">{fmt(p.compressor_current_a, 2)}</TableCell>
+                    <TableCell className="text-right">{fmt(p.fan_current_a, 2)}</TableCell>
+                    <TableCell className="text-right">{fmt(p.estimated_current_a, 2)}</TableCell>
+                    <TableCell className="text-right">{fmt(p.starting_current_a, 1)}</TableCell>
+                    <TableCell className="text-right">{fmt(p.compressor_power_kw, 2)}</TableCell>
+                    <TableCell className="text-right">{fmt(p.fan_power_kw, 2)}</TableCell>
+                    <TableCell className="text-right font-medium">{fmt(p.total_power_kw, 2)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 function aggregateElectrical(points: PerfPoint[]) {
   const voltages = Array.from(
