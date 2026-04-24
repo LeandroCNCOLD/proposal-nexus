@@ -273,10 +273,7 @@ export function renderBlock(block: DocumentBlock, ctx: BlockRenderContext): Reac
       );
   }
 }
-        </View>
-      );
-  }
-}
+
 
 function renderTable(
   key: string,
