@@ -203,7 +203,7 @@ function paletteKey(item: PaletteItem): string {
 }
 
 /** Item arrastável (handle de drag + label). */
-function DraggableItem({ item }: { item: PaletteItem }) {
+function DraggableItem({ item, onRemove }: { item: PaletteItem; onRemove?: () => void }) {
   return (
     <div
       key={paletteKey(item)}
@@ -214,12 +214,25 @@ function DraggableItem({ item }: { item: PaletteItem }) {
         e.dataTransfer.setData("text/plain", item.label);
       }}
       className={cn(
-        "flex cursor-grab items-center gap-1.5 rounded px-2 py-1 text-[11px] hover:bg-muted active:cursor-grabbing",
+        "group/di flex cursor-grab items-center gap-1.5 rounded px-2 py-1 text-[11px] hover:bg-muted active:cursor-grabbing",
       )}
       title="Arraste para o canvas"
     >
       <GripVertical className="h-3 w-3 shrink-0 text-muted-foreground" />
-      <span className="truncate">{item.label}</span>
+      <span className="flex-1 truncate">{item.label}</span>
+      {onRemove ? (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onRemove();
+          }}
+          className="opacity-0 transition group-hover/di:opacity-100 hover:text-destructive"
+          title="Remover da lista"
+        >
+          <X className="h-3 w-3" />
+        </button>
+      ) : null}
     </div>
   );
 }
