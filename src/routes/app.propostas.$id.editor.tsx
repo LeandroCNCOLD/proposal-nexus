@@ -231,7 +231,47 @@ function ProposalEditorPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  // auto-save
+  // Estado dos diálogos de templates
+  const [saveTplOpen, setSaveTplOpen] = useState(false);
+  const [tplName, setTplName] = useState("");
+  const [tplDesc, setTplDesc] = useState("");
+  const [applyTplOpen, setApplyTplOpen] = useState(false);
+  const [pickedTplId, setPickedTplId] = useState<string>("");
+
+  const saveAsTplMut = useMutation({
+    mutationFn: async () => {
+      if (dirty) await saveMut.mutateAsync();
+      return saveAsTpl({
+        data: {
+          proposalId: id,
+          name: tplName.trim(),
+          description: tplDesc.trim() || undefined,
+        },
+      });
+    },
+    onSuccess: (res) => {
+      setSaveTplOpen(false);
+      setTplName("");
+      setTplDesc("");
+      qc.invalidateQueries({ queryKey: ["proposal-templates-list"] });
+      toast.success(`Modelo salvo · ${res.pageCount} página(s)`);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const applyLayoutMut = useMutation({
+    mutationFn: () =>
+      applyTplLayout({ data: { proposalId: id, templateId: pickedTplId } }),
+    onSuccess: () => {
+      setApplyTplOpen(false);
+      setPickedTplId("");
+      hydratedFor.current = null;
+      qc.invalidateQueries({ queryKey: ["proposal-document", id] });
+      toast.success("Layout do modelo aplicado");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   useEffect(() => {
     if (!dirty) return;
     const t = setTimeout(() => saveMut.mutate(), 1500);
