@@ -717,6 +717,7 @@ export type Database = {
           application_type: string | null
           biblock_image_path: string | null
           biblock_image_paths: string[]
+          catalog_variant_key: string | null
           commercial_description: string | null
           commercial_description_source: string | null
           commercial_features: Json
@@ -725,6 +726,8 @@ export type Database = {
           description_confidence: string | null
           description_source: string | null
           designacao_hp: string | null
+          electrical_configuration: string | null
+          frequency_hz: number | null
           gabinete: string | null
           gwp_ar6: number | null
           id: string
@@ -732,6 +735,7 @@ export type Database = {
           modelo: string
           notes: string | null
           odp_ar6: number | null
+          phase_count: number | null
           plugin_image_path: string | null
           plugin_image_paths: string[]
           raw: Json | null
@@ -745,6 +749,7 @@ export type Database = {
           tipo_degelo: string | null
           tipo_gabinete: string | null
           updated_at: string
+          voltage_value_v: number | null
         }
         Insert: {
           active?: boolean
@@ -752,6 +757,7 @@ export type Database = {
           application_type?: string | null
           biblock_image_path?: string | null
           biblock_image_paths?: string[]
+          catalog_variant_key?: string | null
           commercial_description?: string | null
           commercial_description_source?: string | null
           commercial_features?: Json
@@ -760,6 +766,8 @@ export type Database = {
           description_confidence?: string | null
           description_source?: string | null
           designacao_hp?: string | null
+          electrical_configuration?: string | null
+          frequency_hz?: number | null
           gabinete?: string | null
           gwp_ar6?: number | null
           id?: string
@@ -767,6 +775,7 @@ export type Database = {
           modelo: string
           notes?: string | null
           odp_ar6?: number | null
+          phase_count?: number | null
           plugin_image_path?: string | null
           plugin_image_paths?: string[]
           raw?: Json | null
@@ -780,6 +789,7 @@ export type Database = {
           tipo_degelo?: string | null
           tipo_gabinete?: string | null
           updated_at?: string
+          voltage_value_v?: number | null
         }
         Update: {
           active?: boolean
@@ -787,6 +797,7 @@ export type Database = {
           application_type?: string | null
           biblock_image_path?: string | null
           biblock_image_paths?: string[]
+          catalog_variant_key?: string | null
           commercial_description?: string | null
           commercial_description_source?: string | null
           commercial_features?: Json
@@ -795,6 +806,8 @@ export type Database = {
           description_confidence?: string | null
           description_source?: string | null
           designacao_hp?: string | null
+          electrical_configuration?: string | null
+          frequency_hz?: number | null
           gabinete?: string | null
           gwp_ar6?: number | null
           id?: string
@@ -802,6 +815,7 @@ export type Database = {
           modelo?: string
           notes?: string | null
           odp_ar6?: number | null
+          phase_count?: number | null
           plugin_image_path?: string | null
           plugin_image_paths?: string[]
           raw?: Json | null
@@ -815,6 +829,7 @@ export type Database = {
           tipo_degelo?: string | null
           tipo_gabinete?: string | null
           updated_at?: string
+          voltage_value_v?: number | null
         }
         Relationships: [
           {
