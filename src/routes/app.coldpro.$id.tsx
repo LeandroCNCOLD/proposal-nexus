@@ -252,6 +252,11 @@ function ColdProProjectPage() {
                     );
                   }}
                 />
+                <ColdProSectionLoadSummary
+                  title="Prévia da carga do ambiente"
+                  rows={[{ label: "Transmissão por paredes, teto e piso", value: result?.transmission_kcal_h }]}
+                  total={environmentLoad}
+                />
               )}
 
               {/* STEP 1 - PRODUTOS / TÚNEL */}
@@ -280,6 +285,17 @@ function ColdProProjectPage() {
                       }
                     />
                   )}
+
+                  <ColdProSectionLoadSummary
+                    title="Prévia da carga de produto"
+                    rows={[
+                      { label: "Produto", value: result?.product_kcal_h },
+                      { label: "Embalagem", value: result?.packaging_kcal_h },
+                      { label: "Respiração", value: result?.calculation_breakdown?.respiration_kcal_h },
+                      { label: "Túnel / processo", value: result?.tunnel_internal_load_kcal_h },
+                    ]}
+                    total={productLoad}
+                  />
 
                   <div className="rounded-2xl border bg-background p-4">
                     <h3 className="mb-3 text-base font-semibold">Produtos cadastrados</h3>
@@ -314,6 +330,19 @@ function ColdProProjectPage() {
                       },
                     )
                   }
+                />
+                <ColdProSectionLoadSummary
+                  title="Prévia das cargas extras"
+                  rows={[
+                    { label: "Infiltração", value: result?.infiltration_kcal_h },
+                    { label: "Pessoas", value: result?.people_kcal_h },
+                    { label: "Iluminação", value: result?.lighting_kcal_h },
+                    { label: "Motores", value: result?.motors_kcal_h },
+                    { label: "Ventiladores", value: result?.fans_kcal_h },
+                    { label: "Degelo", value: result?.defrost_kcal_h },
+                    { label: "Outras cargas", value: result?.other_kcal_h },
+                  ]}
+                  total={extraLoad}
                 />
               )}
 
