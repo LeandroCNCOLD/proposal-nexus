@@ -24,6 +24,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { PageChrome } from "./PageChrome";
+import { PALETTE_DRAG_MIME, parsePaletteItem } from "./FieldsPalette";
 import { cn } from "@/lib/utils";
 
 // Handles visíveis (8 pontos: cantos + meios) — só aparecem no bloco selecionado.
