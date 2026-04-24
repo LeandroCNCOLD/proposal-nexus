@@ -452,6 +452,7 @@ export function RichTextEditor({
   minimal,
   className,
   proposalId,
+  aiContextHint,
 }: Props) {
   const uploadFn = useServerFn(uploadInlineImage);
   const fileInputRef = useRef<HTMLInputElement>(null);
