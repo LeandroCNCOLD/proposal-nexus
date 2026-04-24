@@ -387,7 +387,7 @@ function ProposalDetail() {
             </div>
           )}
 
-
+          {p.clients && (
             <div className="rounded-xl border bg-card p-6 shadow-[var(--shadow-sm)]">
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="text-sm font-semibold">Cliente</h2>
