@@ -80,6 +80,8 @@ interface Props {
   children: DocumentBlock[];
   onUpdateBlocks: (next: DocumentBlock[]) => void;
   onUpdateContainer: (next: DocumentBlock) => void;
+  /** Apaga o container e todos os blocos filhos. */
+  onDeleteWithChildren: () => void;
 }
 
 /** Lê layout (com defaults) a partir do bloco. */
