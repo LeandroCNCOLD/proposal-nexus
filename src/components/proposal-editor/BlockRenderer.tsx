@@ -269,20 +269,34 @@ function BlockBody({
   switch (block.type) {
     case "container": {
       const title = (block.data.title as string | undefined) ?? block.title ?? "";
+      const printVisible = (block.data.printVisible as boolean | undefined) ?? true;
       const borderColor = (block.data.borderColor as string | undefined) ?? "#cbd5e1";
       const borderWidth = (block.data.borderWidth as number | undefined) ?? 1;
       const radius = (block.data.radius as number | undefined) ?? 8;
       const backgroundColor =
         (block.data.backgroundColor as string | undefined) ?? "transparent";
+      // Quando "não imprimível", mostra apenas guia visual no editor (dashed),
+      // sem borda/fundo reais — esta caixa não aparecerá no PDF final.
+      const editorBorder = printVisible
+        ? `${borderWidth}px solid ${borderColor}`
+        : `1px dashed ${selected ? "#3b82f6" : "#cbd5e1"}`;
+      const editorBg = printVisible ? backgroundColor : "transparent";
       return (
         <div
           className="relative h-full w-full"
           style={{
-            border: `${borderWidth}px solid ${borderColor}`,
+            border: editorBorder,
             borderRadius: radius,
-            background: backgroundColor,
+            background: editorBg,
           }}
         >
+          {!printVisible ? (
+            <div
+              className="pointer-events-none absolute right-1 top-1 rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-amber-800"
+            >
+              Não imprime
+            </div>
+          ) : null}
           {title ? (
             <div
               className="absolute -top-2 left-3 rounded bg-white px-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground"
