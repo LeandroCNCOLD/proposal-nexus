@@ -29,6 +29,7 @@ const NAV = [
     { to: "/app/clientes", label: "Clientes", icon: Users },
     { to: "/app/concorrentes", label: "Concorrentes", icon: Building2 },
     { to: "/app/equipamentos", label: "Equipamentos", icon: Wrench },
+    { to: "/app/coldpro", label: "ColdPro", icon: Thermometer },
   ]},
   { group: "Inteligência", items: [
     { to: "/app/seletor", label: "Seletor Técnico", icon: Sparkles },
