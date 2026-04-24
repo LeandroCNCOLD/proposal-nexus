@@ -74,6 +74,7 @@ const ADDABLE_BLOCKS: { type: BlockType; label: string }[] = [
   { type: "image", label: "Imagem" },
   { type: "dynamic_field", label: "Campo dinâmico" },
   { type: "proposal_number_box", label: "Caixa Nº da proposta" },
+  { type: "proposal_summary_box", label: "Caixa Resumo da proposta" },
   { type: "client_info_box", label: "Caixa do cliente" },
   { type: "project_info_box", label: "Caixa do projeto" },
   { type: "responsible_info_box", label: "Caixa do responsável" },

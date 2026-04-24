@@ -609,6 +609,66 @@ function BlockBody({
       );
     }
 
+    case "proposal_summary_box": {
+      // Caixa-resumo padrão: Cliente / Projeto / Proposta / Data / Responsável Comercial.
+      // Os valores vêm do contexto da proposta; rótulos e ordem são editáveis via data.fields.
+      // Quebra de linha automática quando o valor é maior que a largura disponível.
+      const hasCustomFs = typeof block.data.fontSize === "number";
+      const labelColor = (block.data.labelColor as string | undefined) ?? undefined;
+      const defaultFields: Array<{ key: string; label: string; value: string }> = [
+        { key: "cliente", label: "Cliente:", value: proposalContext.client_name ?? "" },
+        { key: "projeto", label: "Projeto:", value: proposalContext.proposal_title ?? "" },
+        { key: "proposta", label: "Proposta:", value: proposalContext.proposal_number ?? "" },
+        { key: "data", label: "Data:", value: proposalContext.data_emissao ?? "" },
+        {
+          key: "responsavel",
+          label: "Responsável Comercial:",
+          value: (block.data.responsavel as string | undefined) ?? proposalContext.vendedor ?? "",
+        },
+      ];
+      const overrides = (block.data.overrides as Record<string, { label?: string; value?: string }> | undefined) ?? {};
+      const items = defaultFields.map((f) => ({
+        key: f.key,
+        label: overrides[f.key]?.label ?? f.label,
+        value: overrides[f.key]?.value ?? f.value,
+      }));
+      return (
+        <div className="flex h-full w-full flex-col justify-center gap-1.5 leading-snug">
+          {items.map((it) => (
+            <div
+              key={it.key}
+              className="grid items-baseline gap-x-3"
+              style={{ gridTemplateColumns: "max-content minmax(0, 1fr)" }}
+            >
+              <span
+                className="font-bold"
+                style={{
+                  color: labelColor,
+                  fontSize: hasCustomFs ? "1em" : undefined,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {it.label}
+              </span>
+              <span
+                className="font-semibold"
+                style={{
+                  // Quebra a palavra/linha quando o valor é maior que a coluna,
+                  // permitindo o texto ocupar várias linhas sem cortar nada.
+                  overflowWrap: "anywhere",
+                  wordBreak: "break-word",
+                  whiteSpace: "normal",
+                  fontSize: hasCustomFs ? "1em" : undefined,
+                }}
+              >
+                {it.value || <span className="opacity-40">—</span>}
+              </span>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
     case "dynamic_field": {
       const fieldKey = (block.data.fieldKey as string) ?? "";
       const label = (block.data.label as string) ?? labelize(fieldKey);
@@ -813,6 +873,7 @@ function blockKindLabel(t: BlockType): string {
     responsible_info: "Responsável",
     responsible_info_box: "Responsável",
     proposal_number_box: "Nº da proposta",
+    proposal_summary_box: "Resumo da proposta",
     dynamic_field: "Campo dinâmico",
     differentials_list: "Diferenciais",
     cases_list: "Cases",

@@ -65,6 +65,7 @@ export const ALL_PALETTE_GROUPS: PaletteGroup[] = [
       { blockType: "dynamic_field", label: "Validade", fieldKey: "validade", category: "Proposta" },
       { blockType: "dynamic_field", label: "Vendedor responsável", fieldKey: "vendedor", category: "Proposta" },
       { blockType: "proposal_number_box", label: "Caixa Nº da proposta", category: "Proposta" },
+      { blockType: "proposal_summary_box", label: "Caixa Resumo da proposta", category: "Proposta" },
     ],
   },
   {

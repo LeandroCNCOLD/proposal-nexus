@@ -167,6 +167,7 @@ function StandardPdfPage({
           template,
           tablesByPage,
           pageId: page.id,
+          proposal,
         }),
       )}
 

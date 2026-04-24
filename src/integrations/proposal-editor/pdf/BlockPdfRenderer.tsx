@@ -15,10 +15,17 @@ interface BlockRenderContext {
   template: ProposalTemplate | null;
   tablesByPage: Map<string, ProposalTable[]>;
   pageId: string;
+  /** Dados da proposta (usado por blocos como proposal_summary_box). */
+  proposal?: {
+    number?: string | null;
+    title?: string | null;
+    client_name?: string | null;
+    created_at?: string | null;
+  };
 }
 
 export function renderBlock(block: DocumentBlock, ctx: BlockRenderContext): React.ReactNode {
-  const { styles, theme, template, tablesByPage, pageId } = ctx;
+  const { styles, theme, template, tablesByPage, pageId, proposal } = ctx;
   const key = block.id;
 
   switch (block.type) {
@@ -218,6 +225,46 @@ export function renderBlock(block: DocumentBlock, ctx: BlockRenderContext): Reac
       );
     }
 
+    case "proposal_summary_box": {
+      // Renderiza Cliente / Projeto / Proposta / Data / Responsável Comercial
+      // com os valores reais da proposta. Quebra de linha automática (Text com flex:1).
+      const overrides =
+        (block.data.overrides as Record<string, { label?: string; value?: string }> | undefined) ??
+        {};
+      const items = [
+        { key: "cliente", label: "Cliente:", value: proposal?.client_name ?? "" },
+        { key: "projeto", label: "Projeto:", value: proposal?.title ?? "" },
+        { key: "proposta", label: "Proposta:", value: proposal?.number ?? "" },
+        { key: "data", label: "Data:", value: proposal?.created_at ? fmtDateBR(proposal.created_at) : "" },
+        {
+          key: "responsavel",
+          label: "Responsável Comercial:",
+          value: (block.data.responsavel as string | undefined) ?? "",
+        },
+      ].map((f) => ({
+        key: f.key,
+        label: overrides[f.key]?.label ?? f.label,
+        value: overrides[f.key]?.value ?? f.value,
+      }));
+      return (
+        <View key={key} style={{ width: "100%", padding: 6, gap: 4 }}>
+          {items.map((it) => (
+            <View
+              key={it.key}
+              style={{ flexDirection: "row", gap: 6, alignItems: "flex-start" }}
+            >
+              <Text style={{ fontSize: 10, fontFamily: "Helvetica-Bold", color: theme.text }}>
+                {it.label}
+              </Text>
+              <Text style={{ fontSize: 10, color: theme.text, flex: 1 }}>
+                {it.value || "—"}
+              </Text>
+            </View>
+          ))}
+        </View>
+      );
+    }
+
     default:
       return (
         <View key={key} style={styles.notice}>
@@ -226,6 +273,7 @@ export function renderBlock(block: DocumentBlock, ctx: BlockRenderContext): Reac
       );
   }
 }
+
 
 function renderTable(
   key: string,
