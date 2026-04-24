@@ -116,7 +116,9 @@ const updateTemplateSchema = z.object({
     escopo_apresentacao_itens: z.array(z.string()).optional(),
     garantia_texto: z.string().nullable().optional(),
     garantia_itens: z.array(z.any()).optional(),
-    dados_bancarios: z.array(z.any()).optional(),
+    // Aceita array OU objeto único (compat com dados antigos no banco).
+    dados_bancarios: z.union([z.array(z.any()), z.record(z.any())]).optional(),
+    pages_template: z.array(z.any()).optional(),
     prazo_entrega_padrao: z.string().nullable().optional(),
     validade_padrao_dias: z.number().int().nullable().optional(),
     pages_config: z.array(z.any()).optional(),
