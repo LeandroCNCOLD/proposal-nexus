@@ -295,6 +295,11 @@ export function ColdProModelDetailDialog({ modelId, open, onOpenChange }: Props)
                   <p className="mt-1 text-sm">{m.notes}</p>
                 </div>
               )}
+
+              <CommercialFeaturesBlock
+                features={normalizeCommercialFeatures(m.commercial_features)}
+                source={m.commercial_description_source as string | null}
+              />
             </TabsContent>
 
             <TabsContent value="images" className="mt-4">
@@ -550,6 +555,37 @@ function Field({ label, value }: { label: string; value: unknown }) {
       <div className="mt-0.5 text-sm font-medium">{display}</div>
     </div>
   );
+}
+
+function CommercialFeaturesBlock({ features, source }: { features: string[]; source: string | null }) {
+  if (features.length === 0) {
+    return <EmptyBlock label="Sem características comerciais cadastradas para este modelo." />;
+  }
+
+  return (
+    <div className="rounded-md border bg-card p-4">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <div className="text-sm font-semibold">Características comerciais e técnicas</div>
+          {source && <div className="text-xs text-muted-foreground">Origem: {source}</div>}
+        </div>
+        <Badge variant="secondary">{features.length} itens</Badge>
+      </div>
+      <ul className="grid gap-2 text-sm md:grid-cols-2">
+        {features.map((feature) => (
+          <li key={feature} className="rounded-md border bg-muted/20 px-3 py-2 leading-relaxed">
+            {feature}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function normalizeCommercialFeatures(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+    : [];
 }
 
 function EquipmentImageCard({
