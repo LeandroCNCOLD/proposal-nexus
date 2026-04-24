@@ -346,16 +346,27 @@ function ColdProProjectPage() {
                       try {
                         await saveCatalogSel.mutateAsync({
                           environmentId: selectedEnv.id,
+                          equipmentModelId: cand.model.id,
                           modelName: cand.model.modelo,
+                          refrigerant: cand.refrigerant,
                           quantity: cand.quantity,
                           capacityUnitKcalH: cand.capacity_unit_kcal_h,
                           capacityTotalKcalH: cand.capacity_total_kcal_h,
                           airFlowUnitM3H: cand.evaporator_airflow_m3_h,
                           airFlowTotalM3H: cand.air_flow_total_m3_h,
+                          totalPowerKw: cand.total_power_kw,
+                          cop: cand.cop,
                           surplusKcalH: cand.surplus_kcal_h,
                           surplusPercent: cand.surplus_percent,
                           airChangesHour: cand.air_changes_hour,
-                          notes: `Catálogo · Tevap ${cand.point_used.evaporation_temp_c}°C / Tcond ${cand.point_used.condensation_temp_c}°C${cand.point_used.interpolated ? " (interpolado)" : ""}`,
+                          selectionMethod: cand.point_used.polynomial ? "polynomial" : cand.point_used.interpolated ? "interpolated" : "catalog_point",
+                          curveTemperatureRoomC: cand.point_used.temperature_room_c,
+                          curveEvaporationTempC: cand.point_used.evaporation_temp_c,
+                          curveCondensationTempC: cand.point_used.condensation_temp_c,
+                          curvePolynomialR2: cand.point_used.polynomial_r2,
+                          curveInterpolated: cand.point_used.interpolated,
+                          curveMetadata: { score: cand.score, warnings: cand.warnings },
+                          notes: `Curva de rendimento · Tevap ${cand.point_used.evaporation_temp_c}°C / Tcond ${cand.point_used.condensation_temp_c}°C${cand.point_used.polynomial ? " · polinomial" : cand.point_used.interpolated ? " · interpolado" : ""}`,
                         });
                         toast.success(`${cand.model.modelo} selecionado`);
                       } catch (e: any) {
@@ -364,11 +375,11 @@ function ColdProProjectPage() {
                     }}
                   />
 
-                  {/* Auto-select clássico (fallback) */}
+                  {/* Auto-select pela curva */}
                   <div className="rounded-2xl border bg-background p-4">
-                    <h3 className="mb-2 text-base font-semibold">Seleção automática rápida (legado)</h3>
+                    <h3 className="mb-2 text-base font-semibold">Seleção automática pela curva</h3>
                     <p className="mb-3 text-sm text-muted-foreground">
-                      Use a seleção legada por capacidade fixa caso o catálogo ainda não esteja completo.
+                      Seleciona automaticamente o melhor modelo usando a curva de rendimento, COP, potência e sobra técnica.
                     </p>
                     <button
                       type="button"
@@ -376,7 +387,7 @@ function ColdProProjectPage() {
                       onClick={handleAutoSelect}
                       disabled={autoSelect.isPending}
                     >
-                      {autoSelect.isPending ? "Selecionando..." : "Selecionar pelo modo legado"}
+                      {autoSelect.isPending ? "Selecionando..." : "Selecionar melhor modelo"}
                     </button>
                   </div>
 
@@ -390,6 +401,9 @@ function ColdProProjectPage() {
                         <div>Sobra: <b>{fmt(selection.surplus_percent)}%</b></div>
                         <div>Vazão total: <b>{fmt(selection.air_flow_total_m3_h)} m³/h</b></div>
                         <div>Trocas/h: <b>{fmt(selection.air_changes_hour)}</b></div>
+                        <div>Potência: <b>{selection.total_power_kw ? `${fmt(selection.total_power_kw)} kW` : "—"}</b></div>
+                        <div>COP: <b>{selection.cop ? fmt(selection.cop) : "—"}</b></div>
+                        <div>Método: <b>{selection.selection_method === "polynomial" ? "Curva polinomial" : selection.selection_method === "interpolated" ? "Interpolado" : "Ponto de curva"}</b></div>
                       </div>
                     </div>
                   ) : null}
