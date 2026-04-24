@@ -756,3 +756,74 @@ function FieldPicker({
   );
 }
 
+function ImageUploadButton({
+  proposalId,
+  onUploaded,
+  disabled,
+}: {
+  proposalId: string;
+  onUploaded: (url: string) => void;
+  disabled?: boolean;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const upload = useServerFn(uploadInlineImage);
+  const [busy, setBusy] = useState(false);
+
+  const onChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Selecione uma imagem.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Máx 5MB.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const buf = await file.arrayBuffer();
+      const bytes = new Uint8Array(buf);
+      let bin = "";
+      for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+      const res = await upload({
+        data: {
+          proposalId,
+          filename: file.name,
+          contentBase64: btoa(bin),
+          mimeType: file.type,
+        },
+      });
+      onUploaded(res.url);
+      toast.success("Imagem enviada.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Falha ao enviar.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <>
+      <Button
+        size="sm"
+        variant="outline"
+        className="h-7 px-2 text-[10px]"
+        disabled={disabled || busy}
+        onClick={() => inputRef.current?.click()}
+        title="Fazer upload de imagem"
+      >
+        {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Upload className="h-3 w-3" />}
+      </Button>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={onChange}
+      />
+    </>
+  );
+}
+
