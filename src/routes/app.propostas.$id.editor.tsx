@@ -57,6 +57,8 @@ function ProposalEditorPage() {
   const genPdf = useServerFn(generateProposalPdf);
   const createVersion = useServerFn(createProposalSendVersion);
   const listTpls = useServerFn(listTemplates);
+  const saveAsTpl = useServerFn(saveProposalAsTemplate);
+  const applyTplLayout = useServerFn(applyTemplateLayoutToProposal);
 
   const { data, isLoading } = useQuery({
     queryKey: ["proposal-document", id],
