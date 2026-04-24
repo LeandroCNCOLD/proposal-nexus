@@ -30,6 +30,7 @@ import { Route as AppConfiguracoesIndexRouteImport } from './routes/app.configur
 import { Route as AppPropostasPedidosNfRouteImport } from './routes/app.propostas.pedidos-nf'
 import { Route as AppPropostasNovaRouteImport } from './routes/app.propostas.nova'
 import { Route as AppPropostasIdRouteImport } from './routes/app.propostas.$id'
+import { Route as AppCrmIdRouteImport } from './routes/app.crm.$id'
 import { Route as AppConfiguracoesNomusRouteImport } from './routes/app.configuracoes.nomus'
 import { Route as AppConfiguracoesApiNomusRouteImport } from './routes/app.configuracoes.api-nomus'
 import { Route as ApiNomusTestRouteImport } from './routes/api.nomus.test'
@@ -148,6 +149,11 @@ const AppPropostasIdRoute = AppPropostasIdRouteImport.update({
   path: '/propostas/$id',
   getParentRoute: () => AppRoute,
 } as any)
+const AppCrmIdRoute = AppCrmIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => AppCrmRoute,
+} as any)
 const AppConfiguracoesNomusRoute = AppConfiguracoesNomusRouteImport.update({
   id: '/nomus',
   path: '/nomus',
@@ -226,7 +232,7 @@ export interface FileRoutesByFullPath {
   '/app/competitiva': typeof AppCompetitivaRoute
   '/app/concorrentes': typeof AppConcorrentesRoute
   '/app/configuracoes': typeof AppConfiguracoesRouteWithChildren
-  '/app/crm': typeof AppCrmRoute
+  '/app/crm': typeof AppCrmRouteWithChildren
   '/app/documentos': typeof AppDocumentosRoute
   '/app/equipamentos': typeof AppEquipamentosRoute
   '/app/relatorios': typeof AppRelatoriosRoute
@@ -237,6 +243,7 @@ export interface FileRoutesByFullPath {
   '/api/nomus/test': typeof ApiNomusTestRoute
   '/app/configuracoes/api-nomus': typeof AppConfiguracoesApiNomusRoute
   '/app/configuracoes/nomus': typeof AppConfiguracoesNomusRouteWithChildren
+  '/app/crm/$id': typeof AppCrmIdRoute
   '/app/propostas/$id': typeof AppPropostasIdRouteWithChildren
   '/app/propostas/nova': typeof AppPropostasNovaRoute
   '/app/propostas/pedidos-nf': typeof AppPropostasPedidosNfRoute
@@ -259,7 +266,7 @@ export interface FileRoutesByTo {
   '/app/clientes': typeof AppClientesRoute
   '/app/competitiva': typeof AppCompetitivaRoute
   '/app/concorrentes': typeof AppConcorrentesRoute
-  '/app/crm': typeof AppCrmRoute
+  '/app/crm': typeof AppCrmRouteWithChildren
   '/app/documentos': typeof AppDocumentosRoute
   '/app/equipamentos': typeof AppEquipamentosRoute
   '/app/relatorios': typeof AppRelatoriosRoute
@@ -270,6 +277,7 @@ export interface FileRoutesByTo {
   '/api/nomus/test': typeof ApiNomusTestRoute
   '/app/configuracoes/api-nomus': typeof AppConfiguracoesApiNomusRoute
   '/app/configuracoes/nomus': typeof AppConfiguracoesNomusRouteWithChildren
+  '/app/crm/$id': typeof AppCrmIdRoute
   '/app/propostas/nova': typeof AppPropostasNovaRoute
   '/app/propostas/pedidos-nf': typeof AppPropostasPedidosNfRoute
   '/app/configuracoes': typeof AppConfiguracoesIndexRoute
@@ -294,7 +302,7 @@ export interface FileRoutesById {
   '/app/competitiva': typeof AppCompetitivaRoute
   '/app/concorrentes': typeof AppConcorrentesRoute
   '/app/configuracoes': typeof AppConfiguracoesRouteWithChildren
-  '/app/crm': typeof AppCrmRoute
+  '/app/crm': typeof AppCrmRouteWithChildren
   '/app/documentos': typeof AppDocumentosRoute
   '/app/equipamentos': typeof AppEquipamentosRoute
   '/app/relatorios': typeof AppRelatoriosRoute
@@ -305,6 +313,7 @@ export interface FileRoutesById {
   '/api/nomus/test': typeof ApiNomusTestRoute
   '/app/configuracoes/api-nomus': typeof AppConfiguracoesApiNomusRoute
   '/app/configuracoes/nomus': typeof AppConfiguracoesNomusRouteWithChildren
+  '/app/crm/$id': typeof AppCrmIdRoute
   '/app/propostas/$id': typeof AppPropostasIdRouteWithChildren
   '/app/propostas/nova': typeof AppPropostasNovaRoute
   '/app/propostas/pedidos-nf': typeof AppPropostasPedidosNfRoute
@@ -342,6 +351,7 @@ export interface FileRouteTypes {
     | '/api/nomus/test'
     | '/app/configuracoes/api-nomus'
     | '/app/configuracoes/nomus'
+    | '/app/crm/$id'
     | '/app/propostas/$id'
     | '/app/propostas/nova'
     | '/app/propostas/pedidos-nf'
@@ -375,6 +385,7 @@ export interface FileRouteTypes {
     | '/api/nomus/test'
     | '/app/configuracoes/api-nomus'
     | '/app/configuracoes/nomus'
+    | '/app/crm/$id'
     | '/app/propostas/nova'
     | '/app/propostas/pedidos-nf'
     | '/app/configuracoes'
@@ -409,6 +420,7 @@ export interface FileRouteTypes {
     | '/api/nomus/test'
     | '/app/configuracoes/api-nomus'
     | '/app/configuracoes/nomus'
+    | '/app/crm/$id'
     | '/app/propostas/$id'
     | '/app/propostas/nova'
     | '/app/propostas/pedidos-nf'
@@ -586,6 +598,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPropostasIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/crm/$id': {
+      id: '/app/crm/$id'
+      path: '/$id'
+      fullPath: '/app/crm/$id'
+      preLoaderRoute: typeof AppCrmIdRouteImport
+      parentRoute: typeof AppCrmRoute
+    }
     '/app/configuracoes/nomus': {
       id: '/app/configuracoes/nomus'
       path: '/nomus'
@@ -706,6 +725,17 @@ const AppConfiguracoesRouteChildren: AppConfiguracoesRouteChildren = {
 const AppConfiguracoesRouteWithChildren =
   AppConfiguracoesRoute._addFileChildren(AppConfiguracoesRouteChildren)
 
+interface AppCrmRouteChildren {
+  AppCrmIdRoute: typeof AppCrmIdRoute
+}
+
+const AppCrmRouteChildren: AppCrmRouteChildren = {
+  AppCrmIdRoute: AppCrmIdRoute,
+}
+
+const AppCrmRouteWithChildren =
+  AppCrmRoute._addFileChildren(AppCrmRouteChildren)
+
 interface AppPropostasIdRouteChildren {
   AppPropostasIdEditorRoute: typeof AppPropostasIdEditorRoute
   AppPropostasIdIndexRoute: typeof AppPropostasIdIndexRoute
@@ -726,7 +756,7 @@ interface AppRouteChildren {
   AppCompetitivaRoute: typeof AppCompetitivaRoute
   AppConcorrentesRoute: typeof AppConcorrentesRoute
   AppConfiguracoesRoute: typeof AppConfiguracoesRouteWithChildren
-  AppCrmRoute: typeof AppCrmRoute
+  AppCrmRoute: typeof AppCrmRouteWithChildren
   AppDocumentosRoute: typeof AppDocumentosRoute
   AppEquipamentosRoute: typeof AppEquipamentosRoute
   AppRelatoriosRoute: typeof AppRelatoriosRoute
@@ -745,7 +775,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppCompetitivaRoute: AppCompetitivaRoute,
   AppConcorrentesRoute: AppConcorrentesRoute,
   AppConfiguracoesRoute: AppConfiguracoesRouteWithChildren,
-  AppCrmRoute: AppCrmRoute,
+  AppCrmRoute: AppCrmRouteWithChildren,
   AppDocumentosRoute: AppDocumentosRoute,
   AppEquipamentosRoute: AppEquipamentosRoute,
   AppRelatoriosRoute: AppRelatoriosRoute,
