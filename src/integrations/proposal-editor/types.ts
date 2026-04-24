@@ -257,6 +257,8 @@ export function defaultLayoutFor(type: BlockType, index = 0): BlockLayout {
       return { x: 60, y: baseY, w: 696, h: 160, background: "white" };
     case "proposal_number_box":
       return { x: 540, y: 960, w: 220, h: 56, background: "white", align: "right" };
+    case "proposal_summary_box":
+      return { x: 60, y: baseY, w: 696, h: 220, background: "white" };
     case "dynamic_field":
       return { x: 60, y: baseY, w: 320, h: 40, background: "transparent" };
     case "bank_data":
