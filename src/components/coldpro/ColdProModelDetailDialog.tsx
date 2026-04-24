@@ -35,6 +35,12 @@ const IMAGE_FIELD_BY_KIND: Record<EquipmentImageKind, string> = {
   biblock: "biblock_image_path",
 };
 
+const IMAGE_GALLERY_FIELD_BY_KIND: Record<EquipmentImageKind, string> = {
+  plugin: "plugin_image_paths",
+  split: "split_image_paths",
+  biblock: "biblock_image_paths",
+};
+
 const IMAGE_LABEL_BY_KIND: Record<EquipmentImageKind, string> = {
   plugin: "Plug-in",
   split: "Split",
@@ -98,9 +104,15 @@ export function ColdProModelDetailDialog({ modelId, open, onOpenChange }: Props)
         .from("coldpro-equipment-images")
         .upload(path, file, { upsert: true });
       if (uploadError) throw uploadError;
+      const currentGallery = ((detailQuery.data?.model?.[
+        IMAGE_GALLERY_FIELD_BY_KIND[kind] as keyof typeof detailQuery.data.model
+      ] as string[] | null) ?? []).filter(Boolean);
       const { error: updateError } = await supabase
         .from("coldpro_equipment_models")
-        .update({ [IMAGE_FIELD_BY_KIND[kind]]: path } as never)
+        .update({
+          [IMAGE_FIELD_BY_KIND[kind]]: path,
+          [IMAGE_GALLERY_FIELD_BY_KIND[kind]]: [path, ...currentGallery],
+        } as never)
         .eq("id", modelId);
       if (updateError) throw updateError;
     },
