@@ -112,46 +112,51 @@ export function PageChrome({ template, assets, pageType, pageNumber, totalPages,
   const logoAsset = findAsset(assets, "logo");
   return (
     <div className="pointer-events-none absolute inset-0 bg-white">
-      {/* Curva azul decorativa no topo direito */}
-      <svg
-        className="pointer-events-none absolute right-0 top-0"
-        width={320}
-        height={120}
-        viewBox="0 0 320 120"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <path
-          d="M0,0 Q160,140 320,0 L320,0 L0,0 Z"
-          fill={primary}
-          opacity="0.08"
-        />
-        <path
-          d="M120,0 Q220,90 320,30 L320,0 L120,0 Z"
-          fill={primary}
-        />
-      </svg>
+      {!hideHeader ? (
+        <>
+          {/* Curva azul decorativa no topo direito */}
+          <svg
+            className="pointer-events-none absolute right-0 top-0"
+            width={320}
+            height={120}
+            viewBox="0 0 320 120"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M0,0 Q160,140 320,0 L320,0 L0,0 Z"
+              fill={primary}
+              opacity="0.08"
+            />
+            <path
+              d="M120,0 Q220,90 320,30 L320,0 L120,0 Z"
+              fill={primary}
+            />
+          </svg>
 
-      {/* Logo topo-esquerdo */}
-      <div className="absolute left-12 top-6 flex items-center gap-2">
-        {logoAsset ? (
-          <img src={logoAsset.url} alt="" className="h-10 object-contain" draggable={false} />
-        ) : (
-          <span className="text-base font-bold" style={{ color: primary }}>
-            {template?.empresa_nome ?? "CN Cold"}
+          {/* Logo topo-esquerdo */}
+          <div className="absolute left-12 top-6 flex items-center gap-2">
+            {logoAsset ? (
+              <img src={logoAsset.url} alt="" className="h-10 object-contain" draggable={false} />
+            ) : (
+              <span className="text-base font-bold" style={{ color: primary }}>
+                {template?.empresa_nome ?? "CN Cold"}
+              </span>
+            )}
+          </div>
+        </>
+      ) : null}
+
+      {!hideFooter ? (
+        <div
+          className="absolute bottom-0 left-0 right-0 flex items-center justify-between px-12 py-2.5 text-[10px] font-medium text-white"
+          style={{ background: primary }}
+        >
+          <span>{footerText ?? template?.empresa_site ?? template?.empresa_email ?? ""}</span>
+          <span>
+            {pageNumber} / {totalPages}
           </span>
-        )}
-      </div>
-
-      {/* Rodapé azul */}
-      <div
-        className="absolute bottom-0 left-0 right-0 flex items-center justify-between px-12 py-2.5 text-[10px] font-medium text-white"
-        style={{ background: primary }}
-      >
-        <span>{template?.empresa_site ?? template?.empresa_email ?? ""}</span>
-        <span>
-          {pageNumber} / {totalPages}
-        </span>
-      </div>
+        </div>
+      ) : null}
     </div>
   );
 }
