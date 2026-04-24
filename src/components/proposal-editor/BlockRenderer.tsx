@@ -217,17 +217,21 @@ export function BlockRenderer({
           >
             <ChevronsUp className="h-3.5 w-3.5" />
           </Button>
-          {!block.locked ? (
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-6 w-6 p-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
-              onClick={onDelete}
-              title="Remover bloco"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
-          ) : null}
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-6 w-6 p-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (block.locked) {
+                if (!window.confirm("Este bloco está bloqueado. Deseja excluí-lo mesmo assim?")) return;
+              }
+              onDelete?.();
+            }}
+            title={block.locked ? "Excluir bloco bloqueado" : "Excluir bloco"}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
         </div>
       ) : null}
 
