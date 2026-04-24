@@ -454,3 +454,13 @@ function aggregateElectrical(points: PerfPoint[]) {
   };
 }
 
+function groupBy<T, K extends string>(items: T[], keyFn: (item: T) => K): Map<K, T[]> {
+  const map = new Map<K, T[]>();
+  for (const item of items) {
+    const k = keyFn(item);
+    if (!map.has(k)) map.set(k, []);
+    map.get(k)!.push(item);
+  }
+  return map;
+}
+
