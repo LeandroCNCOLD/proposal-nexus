@@ -539,6 +539,56 @@ function Field({ label, value }: { label: string; value: unknown }) {
   );
 }
 
+function EquipmentImageCard({
+  kind,
+  path,
+  uploading,
+  onSelect,
+}: {
+  kind: EquipmentImageKind;
+  path: string | null;
+  uploading: boolean;
+  onSelect: (file: File) => void;
+}) {
+  const inputId = `coldpro-image-${kind}`;
+  const publicUrl = path
+    ? supabase.storage.from("coldpro-equipment-images").getPublicUrl(path).data.publicUrl
+    : null;
+
+  return (
+    <div className="rounded-md border bg-card p-3">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <div className="text-sm font-semibold">Foto {IMAGE_LABEL_BY_KIND[kind]}</div>
+        <Button asChild size="sm" variant="outline" disabled={uploading}>
+          <label htmlFor={inputId} className="cursor-pointer">
+            {uploading ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Upload className="mr-1.5 h-3.5 w-3.5" />}
+            Enviar
+          </label>
+        </Button>
+      </div>
+      <input
+        id={inputId}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        disabled={uploading}
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          if (file) onSelect(file);
+          event.currentTarget.value = "";
+        }}
+      />
+      {publicUrl ? (
+        <img src={publicUrl} alt={`Foto ${IMAGE_LABEL_BY_KIND[kind]} do equipamento`} className="aspect-[4/3] w-full rounded-md border object-contain" />
+      ) : (
+        <div className="flex aspect-[4/3] w-full items-center justify-center rounded-md border border-dashed text-sm text-muted-foreground">
+          Sem foto cadastrada
+        </div>
+      )}
+    </div>
+  );
+}
+
 function EmptyBlock({ label }: { label: string }) {
   return (
     <div className="rounded-md border border-dashed py-10 text-center text-sm text-muted-foreground">
