@@ -144,6 +144,26 @@ export function ProposalCanvas({
     if (selectedBlockId === blockId) onSelectBlock(null);
   };
 
+  /** Apaga um container e TODOS os blocos cuja bbox está dentro dele. */
+  const deleteContainerWithChildren = (pageId: string, containerId: string) => {
+    const page = pages.find((p) => p.id === pageId);
+    if (!page) return;
+    const container = page.blocks.find((b) => b.id === containerId);
+    if (!container) return;
+    const childIds = new Set(
+      page.blocks
+        .filter((b) => isInsideContainer(b, container))
+        .map((b) => b.id),
+    );
+    childIds.add(containerId);
+    updatePage(pageId, {
+      blocks: page.blocks
+        .filter((b) => !childIds.has(b.id))
+        .map((b, i) => ({ ...b, order: i })),
+    });
+    if (selectedBlockId && childIds.has(selectedBlockId)) onSelectBlock(null);
+  };
+
   const duplicateBlock = (pageId: string, blockId: string) => {
     const page = pages.find((p) => p.id === pageId);
     if (!page) return;
