@@ -151,10 +151,12 @@ function Toolbar({
   editor,
   minimal,
   onPickImage,
+  aiContextHint,
 }: {
   editor: Editor;
   minimal?: boolean;
   onPickImage?: () => void;
+  aiContextHint?: string;
 }) {
   const inTable = editor.isActive("table");
   const currentColor = (editor.getAttributes("textStyle").color as string) ?? "";
