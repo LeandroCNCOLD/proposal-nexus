@@ -215,6 +215,90 @@ export function PageSidebar({ pages, selectedId, proposalId, onSelect, onChange 
           </div>
         ) : null}
       </div>
+
+      {/* Painel de imagem de fundo da página selecionada */}
+      {selectedPage ? (
+        <div className="border-t bg-muted/30 px-3 py-2.5">
+          <div className="mb-1.5 flex items-center justify-between">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Imagem de fundo
+            </span>
+            {selectedPage.backgroundImageUrl ? (
+              <button
+                type="button"
+                onClick={() =>
+                  setPageBg(selectedPage.id, {
+                    backgroundImageUrl: undefined,
+                    backgroundImagePath: undefined,
+                  })
+                }
+                className="text-[10px] text-destructive hover:underline"
+              >
+                Remover
+              </button>
+            ) : null}
+          </div>
+          {selectedPage.backgroundImageUrl ? (
+            <div className="mb-2 aspect-[1/1.414] w-full overflow-hidden rounded border bg-white">
+              <img
+                src={selectedPage.backgroundImageUrl}
+                alt=""
+                className={`h-full w-full ${selectedPage.backgroundImageFit === "contain" ? "object-contain" : "object-cover"}`}
+              />
+            </div>
+          ) : null}
+          <div className="flex items-center gap-1">
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 flex-1 text-[11px]"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploadingPageId === selectedPage.id}
+            >
+              {uploadingPageId === selectedPage.id ? (
+                <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+              ) : selectedPage.backgroundImageUrl ? (
+                <Upload className="mr-1 h-3 w-3" />
+              ) : (
+                <ImageIcon className="mr-1 h-3 w-3" />
+              )}
+              {selectedPage.backgroundImageUrl ? "Substituir" : "Enviar imagem"}
+            </Button>
+            {selectedPage.backgroundImageUrl ? (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 px-2 text-[11px]"
+                onClick={() =>
+                  setPageBg(selectedPage.id, {
+                    backgroundImageFit:
+                      selectedPage.backgroundImageFit === "contain" ? "cover" : "contain",
+                  })
+                }
+                title="Alternar entre preencher (cover) e caber (contain)"
+              >
+                {selectedPage.backgroundImageFit === "contain" ? "Caber" : "Preencher"}
+              </Button>
+            ) : null}
+          </div>
+          <p className="mt-1.5 text-[9px] leading-tight text-muted-foreground">
+            A imagem cobre toda a página A4 e fica atrás dos blocos. Ideal para capas, contracapas
+            ou layouts pictóricos. Para reaproveitar em todas as propostas, configure em{" "}
+            <strong>Templates de Proposta</strong>.
+          </p>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f && selectedPage) handleBgFile(selectedPage.id, f);
+              e.target.value = "";
+            }}
+          />
+        </div>
+      ) : null}
     </div>
   );
 }
