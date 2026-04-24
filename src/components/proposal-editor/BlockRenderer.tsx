@@ -292,6 +292,8 @@ export function BlockRenderer({
           proposalContext={proposalContext}
           proposalId={proposalId}
           pageId={pageId}
+          pageTitle={pageTitle}
+          pageType={pageType}
           selected={selected}
           setData={setData}
           onChange={onChange}
