@@ -37,6 +37,8 @@ interface Props {
   proposalContext: ProposalDynamicContext;
   proposalId?: string;
   pageId?: string;
+  pageTitle?: string;
+  pageType?: string;
   onChange: (next: DocumentBlock) => void;
   onDelete: () => void;
   onDuplicate: () => void;
