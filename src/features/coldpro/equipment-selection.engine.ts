@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { evaluatePolynomial, fitPerformancePolynomial } from "./performance-polynomial";
 
 /**
  * Motor de Seleção por Curva Real CN ColdPro
@@ -14,8 +15,8 @@ import { supabase } from "@/integrations/supabase/client";
  * Faz:
  *  1) Filtra modelos compatíveis (linha + refrigerante)
  *  2) Para cada modelo, busca seus pontos de performance
- *  3) Encontra o ponto mais próximo das condições alvo (distância 3D normalizada)
- *  4) Quando há pontos vizinhos, interpola linearmente em Tevap e Tcond
+ *  3) Ajusta uma curva polinomial por modelo usando Tcam, Tevap e Tcond
+ *  4) Estima capacidade, potência e COP pela curva; se não houver dados, usa interpolação/ponto próximo
  *  5) Calcula quantidade necessária e sobra técnica
  *  6) Ranqueia por: sobra dentro do alvo (5–25%), depois COP, depois menor potência
  */
@@ -57,6 +58,8 @@ export type SelectionCandidate = {
   // condições alvo / encontradas
   point_used: {
     interpolated: boolean;
+    polynomial: boolean;
+    polynomial_r2: number | null;
     temperature_room_c: number | null;
     evaporation_temp_c: number | null;
     condensation_temp_c: number | null;
