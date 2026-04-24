@@ -271,6 +271,7 @@ export function BlockRenderer({
           assets={assets}
           proposalContext={proposalContext}
           proposalId={proposalId}
+          selected={selected}
           setData={setData}
           onChange={onChange}
         />
