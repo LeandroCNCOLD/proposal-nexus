@@ -412,6 +412,20 @@ export function ContainerToolbar({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
+          <DropdownMenuLabel className="text-[10px]">Visibilidade no PDF</DropdownMenuLabel>
+          <div className="flex items-center justify-between gap-2 px-2 pb-2">
+            <span className="text-[11px]">Imprimir esta caixa</span>
+            <input
+              type="checkbox"
+              checked={(container.data.printVisible as boolean | undefined) ?? true}
+              onChange={(e) => setContainerData({ printVisible: e.target.checked })}
+              className="h-4 w-4"
+            />
+          </div>
+          <p className="px-2 pb-2 text-[9px] leading-tight text-muted-foreground">
+            Quando desligado, a caixa some no PDF — só o conteúdo dentro dela é impresso.
+          </p>
+          <DropdownMenuSeparator />
           <DropdownMenuLabel className="text-[10px]">Cor de fundo</DropdownMenuLabel>
           <div className="grid grid-cols-5 gap-1 p-2">
             {BG_COLORS.map((c) => (

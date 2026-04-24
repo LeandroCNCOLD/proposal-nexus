@@ -151,12 +151,14 @@ function StandardPdfPage({
 
   return (
     <Page size="A4" style={styles.page}>
-      <View style={styles.pageHeader} fixed>
-        <Text style={styles.pageHeaderTitle}>{page.title}</Text>
-        <Text style={styles.pageHeaderMeta}>
-          Proposta Nº {proposal.number}
-        </Text>
-      </View>
+      {!page.hideHeader ? (
+        <View style={styles.pageHeader} fixed>
+          <Text style={styles.pageHeaderTitle}>{page.title}</Text>
+          <Text style={styles.pageHeaderMeta}>
+            Proposta Nº {proposal.number}
+          </Text>
+        </View>
+      ) : null}
 
       {sortedBlocks.map((block) =>
         renderBlock(block, {
@@ -168,14 +170,17 @@ function StandardPdfPage({
         }),
       )}
 
-      <View style={styles.pageFooter} fixed>
-        <Text>
-          {template?.empresa_nome ?? "CN Cold"} · {template?.empresa_cidade ?? ""}
-        </Text>
-        <Text
-          render={({ pageNumber: pn, totalPages: tp }) => `Página ${pn} de ${tp}`}
-        />
-      </View>
+      {!page.hideFooter ? (
+        <View style={styles.pageFooter} fixed>
+          <Text>
+            {page.footerText ??
+              `${template?.empresa_nome ?? "CN Cold"} · ${template?.empresa_cidade ?? ""}`}
+          </Text>
+          <Text
+            render={({ pageNumber: pn, totalPages: tp }) => `Página ${pn} de ${tp}`}
+          />
+        </View>
+      ) : null}
       <Text style={{ display: "none" }}>{pageNumber}/{totalPages}</Text>
     </Page>
   );

@@ -20,6 +20,8 @@ import {
   type PageType,
 } from "@/integrations/proposal-editor/types";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -74,7 +76,17 @@ export function PageSidebar({ pages, selectedId, proposalId, onSelect, onChange 
 
   const setPageBg = (
     pageId: string,
-    patch: Partial<Pick<DocumentPage, "backgroundImageUrl" | "backgroundImagePath" | "backgroundImageFit">>,
+    patch: Partial<
+      Pick<
+        DocumentPage,
+        | "backgroundImageUrl"
+        | "backgroundImagePath"
+        | "backgroundImageFit"
+        | "hideHeader"
+        | "hideFooter"
+        | "footerText"
+      >
+    >,
   ) => {
     onChange(pages.map((p) => (p.id === pageId ? { ...p, ...patch } : p)));
   };
@@ -248,12 +260,28 @@ function SelectedPagePanel({
   uploadingPageId: string | null;
   onSetBg: (
     pageId: string,
-    patch: Partial<Pick<DocumentPage, "backgroundImageUrl" | "backgroundImagePath" | "backgroundImageFit">>,
+    patch: Partial<
+      Pick<
+        DocumentPage,
+        | "backgroundImageUrl"
+        | "backgroundImagePath"
+        | "backgroundImageFit"
+        | "hideHeader"
+        | "hideFooter"
+        | "footerText"
+      >
+    >,
   ) => void;
   onUpload: (pageId: string, file: File) => void;
   fileInputRef: React.RefObject<HTMLInputElement | null>;
 }) {
   const [openBg, setOpenBg] = useState(false);
+  const [openHF, setOpenHF] = useState(false);
+  const showsChrome =
+    page.type !== "cover" &&
+    page.type !== "contracapa" &&
+    page.type !== "custom-bg" &&
+    !page.backgroundImageUrl;
 
   return (
     <div className="border-t bg-muted/20">
@@ -351,6 +379,63 @@ function SelectedPagePanel({
             }}
           />
         </div>
+      ) : null}
+
+      {/* ----- Cabeçalho & rodapé (somente em páginas de conteúdo) ----- */}
+      {showsChrome ? (
+        <>
+          <button
+            type="button"
+            onClick={() => setOpenHF((v) => !v)}
+            className="flex w-full items-center justify-between border-t px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground hover:bg-muted/40"
+          >
+            <span className="flex items-center gap-1.5">
+              {openHF ? (
+                <ChevronDown className="h-3.5 w-3.5" />
+              ) : (
+                <ChevronRight className="h-3.5 w-3.5" />
+              )}
+              Cabeçalho & rodapé
+            </span>
+            {page.hideHeader || page.hideFooter ? (
+              <span className="text-[9px] font-normal text-amber-600">● editado</span>
+            ) : null}
+          </button>
+          {openHF ? (
+            <div className="space-y-3 px-3 pb-3">
+              <label className="flex items-center justify-between gap-2 text-[11px]">
+                <span>Mostrar cabeçalho</span>
+                <Switch
+                  checked={!page.hideHeader}
+                  onCheckedChange={(v) => onSetBg(page.id, { hideHeader: !v })}
+                />
+              </label>
+              <label className="flex items-center justify-between gap-2 text-[11px]">
+                <span>Mostrar rodapé</span>
+                <Switch
+                  checked={!page.hideFooter}
+                  onCheckedChange={(v) => onSetBg(page.id, { hideFooter: !v })}
+                />
+              </label>
+              {!page.hideFooter ? (
+                <label className="flex flex-col gap-1 text-[10px] text-muted-foreground">
+                  Texto do rodapé (opcional)
+                  <Input
+                    value={page.footerText ?? ""}
+                    onChange={(e) =>
+                      onSetBg(page.id, { footerText: e.target.value || undefined })
+                    }
+                    placeholder="Padrão: site/email da empresa"
+                    className="h-7 text-xs"
+                  />
+                </label>
+              ) : null}
+              <p className="text-[9px] leading-tight text-muted-foreground">
+                Aplicado somente nesta página, tanto na visualização quanto no PDF.
+              </p>
+            </div>
+          ) : null}
+        </>
       ) : null}
 
       {/* ----- Paleta de campos contextual ----- */}
