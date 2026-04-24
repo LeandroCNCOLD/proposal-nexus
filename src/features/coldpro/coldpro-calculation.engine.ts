@@ -15,6 +15,8 @@ import {
   round2,
 } from "./coldpro.constants";
 
+const W_TO_KCAL_H = 0.859845;
+
 function n(value: unknown, fallback = 0): number {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
@@ -71,6 +73,34 @@ export function calculateTransmissionLoad(params: {
 }
 
 export function calculateProductLoad(product: ColdProEnvironmentProduct): number {
+  return calculateProductLoadBreakdown(product).total_kcal_h;
+}
+
+export function calculateProductRespirationLoad(product: ColdProEnvironmentProduct, storageTempC: number): number {
+  const points = [
+    [0, product.respiration_rate_0c_w_kg],
+    [5, product.respiration_rate_5c_w_kg],
+    [10, product.respiration_rate_10c_w_kg],
+    [15, product.respiration_rate_15c_w_kg],
+    [20, product.respiration_rate_20c_w_kg],
+  ].filter((row): row is [number, number] => row[1] !== null && row[1] !== undefined && Number.isFinite(Number(row[1])));
+
+  if (points.length === 0) return 0;
+  const mass = n(product.mass_kg_day) > 0 ? n(product.mass_kg_day) : n(product.mass_kg_hour) * 24;
+  const temp = Math.max(points[0][0], Math.min(points[points.length - 1][0], storageTempC));
+  let rate = points[0][1];
+  for (let i = 0; i < points.length - 1; i++) {
+    const [t1, r1] = points[i];
+    const [t2, r2] = points[i + 1];
+    if (temp >= t1 && temp <= t2) {
+      rate = r1 + ((r2 - r1) * (temp - t1)) / (t2 - t1);
+      break;
+    }
+  }
+  return mass * rate * W_TO_KCAL_H;
+}
+
+export function calculateProductLoadBreakdown(product: ColdProEnvironmentProduct) {
   const massDay =
     n(product.mass_kg_day) > 0
       ? n(product.mass_kg_day)
@@ -85,18 +115,36 @@ export function calculateProductLoad(product: ColdProEnvironmentProduct): number
   const cpBelow = n(product.specific_heat_below_kcal_kg_c);
   const latent = n(product.latent_heat_kcal_kg);
 
-  let kcal = 0;
+  let sensibleAbove = 0;
+  let latentLoad = 0;
+  let sensibleBelow = 0;
 
   if (tfreeze !== null && tfreeze !== undefined && tin > tfreeze && tout < tfreeze) {
-    kcal += massDay * cpAbove * positive(tin - tfreeze);
-    kcal += massDay * latent;
-    kcal += massDay * cpBelow * positive(tfreeze - tout);
+    sensibleAbove = massDay * cpAbove * positive(tin - tfreeze);
+    latentLoad = massDay * latent;
+    sensibleBelow = massDay * cpBelow * positive(tfreeze - tout);
   } else {
     const cp = tin >= 0 && tout >= 0 ? cpAbove : cpBelow || cpAbove;
-    kcal += massDay * cp * Math.abs(tin - tout);
+    sensibleAbove = massDay * cp * Math.abs(tin - tout);
   }
 
-  return kcal / hours;
+  const total = (sensibleAbove + latentLoad + sensibleBelow) / hours;
+  return {
+    product_name: product.product_name,
+    mass_kg_day: round2(massDay),
+    hours,
+    inlet_temp_c: tin,
+    outlet_temp_c: tout,
+    freezing_temp_c: tfreeze ?? null,
+    cp_above_kcal_kg_c: cpAbove,
+    cp_below_kcal_kg_c: cpBelow,
+    latent_heat_kcal_kg: latent,
+    sensible_above_kcal_h: round2(sensibleAbove / hours),
+    latent_kcal_h: round2(latentLoad / hours),
+    sensible_below_kcal_h: round2(sensibleBelow / hours),
+    total_kcal_h: round2(total),
+    source: product.product_id ? "Catálogo ASHRAE/CN ColdPro" : "Manual",
+  };
 }
 
 export function calculatePackagingLoad(product: ColdProEnvironmentProduct): number {
@@ -191,8 +239,10 @@ export function calculateColdProLoad(params: {
   tunnel?: ColdProTunnel | null;
 }): ColdProResult {
   const transmission = calculateTransmissionLoad(params);
-  const product = params.products.reduce((acc, item) => acc + calculateProductLoad(item), 0);
+  const productBreakdown = params.products.map(calculateProductLoadBreakdown);
+  const product = productBreakdown.reduce((acc, item) => acc + item.total_kcal_h, 0);
   const packaging = params.products.reduce((acc, item) => acc + calculatePackagingLoad(item), 0);
+  const respiration = params.products.reduce((acc, item) => acc + calculateProductRespirationLoad(item, n(params.env.internal_temp_c)), 0);
   const tunnelResult = params.tunnel ? calculateTunnelLoad(params.tunnel) : null;
   const tunnelInternalLoad = tunnelResult?.total_kcal_h ?? 0;
   const infiltration = calculateInfiltrationLoad(params.env);
@@ -203,7 +253,7 @@ export function calculateColdProLoad(params: {
   const defrost = n(params.env.defrost_kcal_h);
   const other = n(params.env.other_kcal_h);
 
-  const subtotal = transmission + product + packaging + tunnelInternalLoad + infiltration + people + lighting + motors + fans + defrost + other;
+  const subtotal = transmission + product + packaging + respiration + tunnelInternalLoad + infiltration + people + lighting + motors + fans + defrost + other;
   const safetyFactor = n(params.env.safety_factor_percent);
   const safety = subtotal * (safetyFactor / 100);
   const total = subtotal + safety;
@@ -228,9 +278,12 @@ export function calculateColdProLoad(params: {
     total_required_tr: round2(kcalhToTr(total)),
     calculation_breakdown: {
       tunnel: tunnelResult,
+      products: productBreakdown,
+      respiration_kcal_h: round2(respiration),
       formulas: {
         transmission: "Q = U × A × ΔT",
         product: "Q = m × cp × ΔT / h; congelamento inclui calor latente",
+        respiration: "Q_respiração = massa_kg × taxa_W_kg × 0,859845, com interpolação por temperatura",
         tunnel: "Q túnel = sensível acima + latente + sensível abaixo + embalagem + cargas internas",
         infiltration: "Q = V_ar × densidade_ar × cp_ar × ΔT / h",
         lighting: "Q = kW × 860 × horas / horas_compressor",
