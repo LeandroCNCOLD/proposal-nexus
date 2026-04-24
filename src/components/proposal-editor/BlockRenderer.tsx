@@ -897,6 +897,7 @@ function BlockBody({
         (block.data.items as TemplateDiferencial[] | undefined) ??
         template?.sobre_diferenciais ??
         [];
+      const emptyText = (block.data.emptyText as string | undefined) ?? "Defina os diferenciais do template.";
       return (
         <div className="h-full space-y-2 overflow-auto">
           {block.title ? (
@@ -906,7 +907,7 @@ function BlockBody({
           ) : null}
           <ul className="space-y-2 text-sm">
             {items.length === 0 ? (
-              <li className="opacity-60">Defina os diferenciais no template.</li>
+              <li className="opacity-60">{emptyText}</li>
             ) : (
               items.map((d, i) => (
                 <li key={i} className="rounded border bg-white/60 p-2">
@@ -923,6 +924,7 @@ function BlockBody({
     case "cases_list": {
       const items =
         (block.data.items as TemplateCaseItem[] | undefined) ?? template?.cases_itens ?? [];
+      const emptyText = (block.data.emptyText as string | undefined) ?? "Defina os cases no template.";
       return (
         <div className="h-full space-y-2 overflow-auto">
           {block.title ? (
@@ -932,7 +934,7 @@ function BlockBody({
           ) : null}
           <div className="grid grid-cols-2 gap-2">
             {items.length === 0 ? (
-              <p className="col-span-2 text-xs opacity-60">Defina os cases no template.</p>
+              <p className="col-span-2 text-xs opacity-60">{emptyText}</p>
             ) : (
               items.map((c, i) => (
                 <div key={i} className="rounded border bg-white/60 p-2 text-xs">
