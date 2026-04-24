@@ -54,35 +54,55 @@ export function ProposalPdfDocument({ data }: { data: ProposalPdfData }) {
     .filter((p) => p.visible)
     .sort((a, b) => a.order - b.order);
 
+  const showRevisionCover = (proposal.revision ?? 0) > 0 && (proposal.revision_history?.length ?? 0) > 1;
+  let coverInserted = false;
+
   return (
     <Document
       title={`Proposta ${proposal.number} — ${proposal.title}`}
       author={template?.empresa_nome ?? "CN Cold"}
     >
-      {visiblePages.map((page, idx) =>
-        page.type === "cover" ? (
-          <CoverPdfPage
-            key={page.id}
-            page={page}
-            proposal={proposal}
-            template={template}
-            theme={theme}
-            styles={styles}
-          />
-        ) : (
-          <StandardPdfPage
-            key={page.id}
-            page={page}
-            pageNumber={idx + 1}
-            totalPages={visiblePages.length}
-            proposal={proposal}
-            template={template}
-            theme={theme}
-            styles={styles}
-            tablesByPage={tablesByPage}
-          />
-        ),
-      )}
+      {visiblePages.flatMap((page, idx) => {
+        const nodes: JSX.Element[] = [];
+        if (page.type === "cover") {
+          nodes.push(
+            <CoverPdfPage
+              key={page.id}
+              page={page}
+              proposal={proposal}
+              template={template}
+              theme={theme}
+              styles={styles}
+            />,
+          );
+          if (showRevisionCover && !coverInserted) {
+            coverInserted = true;
+            nodes.push(
+              <RevisionCoverPage
+                key={`${page.id}-rev`}
+                proposal={proposal}
+                template={template}
+                styles={styles}
+              />,
+            );
+          }
+        } else {
+          nodes.push(
+            <StandardPdfPage
+              key={page.id}
+              page={page}
+              pageNumber={idx + 1}
+              totalPages={visiblePages.length}
+              proposal={proposal}
+              template={template}
+              theme={theme}
+              styles={styles}
+              tablesByPage={tablesByPage}
+            />,
+          );
+        }
+        return nodes;
+      })}
     </Document>
   );
 }
