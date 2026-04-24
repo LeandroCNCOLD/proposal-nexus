@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils";
 const NAV = [
   { group: "Operação", items: [
     { to: "/app", label: "Dashboard", icon: LayoutDashboard, exact: true },
+    { to: "/app/crm", label: "Funil / CRM", icon: Kanban },
     { to: "/app/propostas", label: "Propostas", icon: FileText },
     { to: "/app/propostas/pedidos-nf", label: "Pedidos & NF", icon: FileCheck2 },
     { to: "/app/tarefas", label: "Tarefas & Follow-up", icon: CheckSquare },
