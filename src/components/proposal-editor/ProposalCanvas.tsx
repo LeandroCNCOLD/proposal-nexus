@@ -1,8 +1,8 @@
 // Canvas A4 do Page Builder. Renderiza cada página como um "papel" com chrome
 // fiel ao template (capa pictórica, header com curva azul, rodapé azul) e
 // blocos editáveis posicionados absolutamente via react-rnd.
-import { useEffect, useRef } from "react";
-import { Plus } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Plus, Ruler, Grid3x3 } from "lucide-react";
 import { Rnd } from "react-rnd";
 import {
   makeBlock,
@@ -26,6 +26,13 @@ import {
 import { PageChrome } from "./PageChrome";
 import { PALETTE_DRAG_MIME, parsePaletteItem } from "./FieldsPalette";
 import { ContainerToolbar, isInsideContainer } from "./ContainerToolbar";
+import {
+  HorizontalRuler,
+  VerticalRuler,
+  GridOverlay,
+  RULER_SIZE,
+} from "./CanvasRulers";
+import { MultiSelectToolbar } from "./MultiSelectToolbar";
 import { cn } from "@/lib/utils";
 
 // Handles visíveis (8 pontos: cantos + meios) — só aparecem no bloco selecionado.
