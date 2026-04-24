@@ -2026,6 +2026,7 @@ export type Database = {
           is_default: boolean
           name: string
           pages_config: Json
+          pages_template: Json
           prazo_entrega_padrao: string | null
           primary_color: string
           sobre_diferenciais: Json
@@ -2062,6 +2063,7 @@ export type Database = {
           is_default?: boolean
           name: string
           pages_config?: Json
+          pages_template?: Json
           prazo_entrega_padrao?: string | null
           primary_color?: string
           sobre_diferenciais?: Json
@@ -2098,6 +2100,7 @@ export type Database = {
           is_default?: boolean
           name?: string
           pages_config?: Json
+          pages_template?: Json
           prazo_entrega_padrao?: string | null
           primary_color?: string
           sobre_diferenciais?: Json
