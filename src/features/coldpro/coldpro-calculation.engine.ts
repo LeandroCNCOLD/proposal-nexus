@@ -242,6 +242,18 @@ export function calculateTunnelLoad(tunnel: ColdProTunnel) {
   const cpAbove = n(tunnel.specific_heat_above_kcal_kg_c);
   const cpBelow = n(tunnel.specific_heat_below_kcal_kg_c);
   const latent = n(tunnel.latent_heat_kcal_kg);
+  const thicknessM = n(tunnel.product_thickness_mm) / 1000;
+  const convectiveCoefficient = calculateConvectionCoefficient(tunnel.air_velocity_m_s, tunnel.convective_coefficient_w_m2_k);
+  const estimatedFreezingTimeMin = estimateFreezingTimePlankMin({
+    thicknessM,
+    densityKgM3: tunnel.density_kg_m3,
+    thermalConductivityFrozenWMK: tunnel.thermal_conductivity_frozen_w_m_k,
+    freezingTempC: tunnel.freezing_temp_c,
+    latentHeatKcalKg: tunnel.latent_heat_kcal_kg,
+    airTempC: tunnel.air_temp_c,
+    airVelocityMS: tunnel.air_velocity_m_s,
+    convectiveCoefficientWM2K: convectiveCoefficient,
+  });
 
   let sensibleAbove = 0;
   let latentLoad = 0;
@@ -259,6 +271,9 @@ export function calculateTunnelLoad(tunnel: ColdProTunnel) {
   const packaging = n(tunnel.packaging_mass_kg_hour) * n(tunnel.packaging_specific_heat_kcal_kg_c) * Math.abs(tin - tout);
   const internalLoads = kwToKcalh(n(tunnel.belt_motor_kw) + n(tunnel.internal_fans_kw) + n(tunnel.other_internal_kw));
   const total = sensibleAbove + latentLoad + sensibleBelow + packaging + internalLoads;
+  const processTimeMin = n(tunnel.process_time_min);
+  const retentionMargin = estimatedFreezingTimeMin && processTimeMin > 0 ? processTimeMin / estimatedFreezingTimeMin : null;
+  const retentionStatus = !retentionMargin ? "Sem dados suficientes" : retentionMargin < 1 ? "Insuficiente" : retentionMargin < 1.1 ? "Adequado com baixa margem" : retentionMargin > 1.8 ? "Tempo elevado / validar produtividade" : "Adequado";
 
   return {
     mass_kg_hour: round2(massHour),
@@ -271,7 +286,12 @@ export function calculateTunnelLoad(tunnel: ColdProTunnel) {
     total_kw: round2(kcalhToKw(total)),
     total_tr: round2(kcalhToTr(total)),
     air_velocity_m_s: n(tunnel.air_velocity_m_s),
-    process_time_min: n(tunnel.process_time_min),
+    process_time_min: processTimeMin,
+    convective_coefficient_w_m2_k: convectiveCoefficient,
+    estimated_freezing_time_min: estimatedFreezingTimeMin,
+    retention_margin: retentionMargin ? round2(retentionMargin) : null,
+    retention_status: retentionStatus,
+    recommended_airflow_m3_h: calculateRecommendedAirFlowM3H(kcalhToKw(total)),
   };
 }
 
