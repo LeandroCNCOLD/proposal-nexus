@@ -7,7 +7,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { listAll, nomusFetch } from "./client";
+import { listAll, listPage, nomusFetch } from "./client";
 import { NOMUS_ENDPOINTS } from "./endpoints";
 
 // ---------------- helpers ----------------
@@ -62,6 +62,108 @@ type NomusProcessRaw = {
   proximoContato?: string;
   [k: string]: unknown;
 };
+
+async function persistNomusProcessBatch(items: NomusProcessRaw[], userId: string) {
+  if (items.length === 0) {
+    return { total: 0, upserted: 0, stagesDiscovered: [] as Array<{ tipo: string; etapas: string[] }>, errors: [] as string[] };
+  }
+
+  const pessoaSet = new Set<string>();
+  for (const raw of items) {
+    const p = (raw.pessoa ?? "").trim();
+    if (p) pessoaSet.add(p);
+  }
+
+  const clienteIdByName = new Map<string, string>();
+  const pessoaList = Array.from(pessoaSet);
+  for (let i = 0; i < pessoaList.length; i += 200) {
+    const slice = pessoaList.slice(i, i + 200);
+    const { data: clients } = await supabaseAdmin.from("clients").select("id, name").in("name", slice);
+    for (const c of clients ?? []) if (c.name) clienteIdByName.set(c.name.toLowerCase(), c.id);
+  }
+
+  const stagesByTipo = new Map<string, Set<string>>();
+  const now = new Date().toISOString();
+  const rows = items
+    .map((raw) => {
+      const nomusId = raw.id != null ? String(raw.id) : "";
+      if (!nomusId) return null;
+      const tipo = (raw.tipo ?? "").trim() || null;
+      const etapa = (raw.etapa ?? "").trim() || null;
+      if (tipo && etapa) {
+        if (!stagesByTipo.has(tipo)) stagesByTipo.set(tipo, new Set());
+        stagesByTipo.get(tipo)!.add(etapa);
+      }
+      const pessoa = raw.pessoa?.trim() ?? null;
+      return {
+        nomus_id: nomusId,
+        nome: raw.nome?.trim() ?? null,
+        pessoa,
+        descricao: raw.descricao ?? null,
+        tipo,
+        etapa,
+        prioridade: raw.prioridade?.trim() ?? null,
+        equipe: raw.equipe?.trim() ?? null,
+        origem: raw.origem?.trim() ?? null,
+        responsavel: raw.responsavel?.trim() ?? null,
+        reportador: raw.reportador?.trim() ?? null,
+        data_criacao: parseBrDate(raw.dataCriacao),
+        data_hora_programada: parseBrDateTime(raw.dataHoraProgramada),
+        proximo_contato: parseBrDate(raw.proximoContato),
+        cliente_id: pessoa ? clienteIdByName.get(pessoa.toLowerCase()) ?? null : null,
+        raw: raw as never,
+        synced_at: now,
+        local_dirty: false,
+      };
+    })
+    .filter((r): r is NonNullable<typeof r> => r !== null);
+
+  const errors: string[] = [];
+  let upserted = 0;
+  for (let i = 0; i < rows.length; i += 100) {
+    const slice = rows.slice(i, i + 100);
+    const { error } = await supabaseAdmin.from("nomus_processes").upsert(slice, { onConflict: "nomus_id" });
+    if (error) errors.push(`batch ${i}-${i + slice.length}: ${error.message}`);
+    else upserted += slice.length;
+  }
+
+  if (stagesByTipo.size > 0) {
+    const tipos = Array.from(stagesByTipo.keys());
+    const { data: existing } = await supabaseAdmin
+      .from("crm_funnel_stages")
+      .select("tipo, etapa, display_order")
+      .in("tipo", tipos);
+    const known = new Set<string>();
+    const maxOrderByTipo = new Map<string, number>();
+    for (const e of existing ?? []) {
+      known.add(`${e.tipo}|${e.etapa}`);
+      const cur = maxOrderByTipo.get(e.tipo) ?? 0;
+      if ((e.display_order ?? 0) > cur) maxOrderByTipo.set(e.tipo, e.display_order ?? 0);
+    }
+
+    const stageRows: Array<{ tipo: string; etapa: string; last_seen_at: string; display_order?: number }> = [];
+    for (const [tipo, etapas] of stagesByTipo.entries()) {
+      let nextOrder = (maxOrderByTipo.get(tipo) ?? 0) + 10;
+      for (const etapa of etapas) {
+        const key = `${tipo}|${etapa}`;
+        if (known.has(key)) stageRows.push({ tipo, etapa, last_seen_at: now });
+        else {
+          stageRows.push({ tipo, etapa, last_seen_at: now, display_order: nextOrder });
+          nextOrder += 10;
+          known.add(key);
+        }
+      }
+    }
+    await supabaseAdmin.from("crm_funnel_stages").upsert(stageRows, { onConflict: "tipo,etapa" });
+  }
+
+  return {
+    total: items.length,
+    upserted,
+    stagesDiscovered: Array.from(stagesByTipo.entries()).map(([tipo, set]) => ({ tipo, etapas: Array.from(set) })),
+    errors,
+  };
+}
 
 // ---------------- pull ----------------
 
