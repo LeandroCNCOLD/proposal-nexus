@@ -251,7 +251,7 @@ function SelectedPagePanel({
     patch: Partial<Pick<DocumentPage, "backgroundImageUrl" | "backgroundImagePath" | "backgroundImageFit">>,
   ) => void;
   onUpload: (pageId: string, file: File) => void;
-  fileInputRef: React.RefObject<HTMLInputElement>;
+  fileInputRef: React.RefObject<HTMLInputElement | null>;
 }) {
   const [openBg, setOpenBg] = useState(false);
 
