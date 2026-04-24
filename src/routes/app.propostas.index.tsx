@@ -79,12 +79,28 @@ function ProposalsList() {
     },
   });
 
+  // Extrai "CN#####" e nome do cliente do título no formato "CN00155 — WEG SOLAR"
+  const parseTitle = (title: string | null | undefined) => {
+    const t = (title ?? "").trim();
+    const m = t.match(/^(CN\d{3,})\s*[—\-–]\s*(.+)$/i);
+    if (m) return { cn: m[1].toUpperCase(), client: m[2].trim() };
+    const m2 = t.match(/(CN\d{3,})/i);
+    return { cn: m2 ? m2[1].toUpperCase() : "", client: t };
+  };
+
   const filtered = useMemo(() => {
     const list = proposals.filter((p) => {
       if (statusFilter !== "all" && p.status !== statusFilter) return false;
       if (!search) return true;
       const q = search.toLowerCase();
-      return p.number.toLowerCase().includes(q) || p.title.toLowerCase().includes(q) || ((p.clients as any)?.name ?? "").toLowerCase().includes(q);
+      const parsed = parseTitle(p.title);
+      return (
+        p.number.toLowerCase().includes(q) ||
+        p.title.toLowerCase().includes(q) ||
+        parsed.cn.toLowerCase().includes(q) ||
+        parsed.client.toLowerCase().includes(q) ||
+        ((p.clients as any)?.name ?? "").toLowerCase().includes(q)
+      );
     });
     // Ordena pela data real do Nomus (criada_em_nomus / data_emissao), mais recente primeiro
     return [...list].sort((a, b) => {
