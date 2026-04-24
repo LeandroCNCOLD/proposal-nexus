@@ -3,7 +3,7 @@ import {
   LayoutDashboard, FileText, Users, Building2, Wrench, Swords,
   Sparkles, FileBarChart, FileCheck2, FolderUp, Settings, LogOut,
   Search, Bell, Snowflake, ChevronDown, CheckSquare, PlugZap, Database,
-  LayoutTemplate, Kanban,
+  LayoutTemplate, Kanban, Thermometer,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { ROLE_LABELS } from "@/lib/proposal";
@@ -29,6 +29,7 @@ const NAV = [
     { to: "/app/clientes", label: "Clientes", icon: Users },
     { to: "/app/concorrentes", label: "Concorrentes", icon: Building2 },
     { to: "/app/equipamentos", label: "Equipamentos", icon: Wrench },
+    { to: "/app/coldpro", label: "ColdPro", icon: Thermometer },
   ]},
   { group: "Inteligência", items: [
     { to: "/app/seletor", label: "Seletor Técnico", icon: Sparkles },

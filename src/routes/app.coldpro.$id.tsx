@@ -1,0 +1,30 @@
+import * as React from "react";
+import { createFileRoute } from "@tanstack/react-router";
+import { useColdProProjectBundle, useCreateColdProEnvironment, useUpdateColdProEnvironment, useUpsertColdProProduct, useUpsertColdProTunnel, useCalculateColdProEnvironment, useAutoSelectColdProEquipment } from "@/features/coldpro/use-coldpro";
+import { ColdProEnvironmentForm } from "@/components/coldpro/ColdProEnvironmentForm";
+import { ColdProProductForm } from "@/components/coldpro/ColdProProductForm";
+import { ColdProTunnelForm } from "@/components/coldpro/ColdProTunnelForm";
+import { ColdProResultCard } from "@/components/coldpro/ColdProResultCard";
+export const Route = createFileRoute("/app/coldpro/$id")({ component: ColdProProjectPage });
+function fmt(value: unknown) { return new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 2 }).format(Number(value ?? 0)); }
+function ColdProProjectPage() {
+  const { id } = Route.useParams();
+  const { data, isLoading } = useColdProProjectBundle(id);
+  const createEnv = useCreateColdProEnvironment(id);
+  const updateEnv = useUpdateColdProEnvironment(id);
+  const upsertProduct = useUpsertColdProProduct(id);
+  const upsertTunnel = useUpsertColdProTunnel(id);
+  const calculate = useCalculateColdProEnvironment(id);
+  const autoSelect = useAutoSelectColdProEquipment(id);
+  const [selectedEnvId, setSelectedEnvId] = React.useState<string | null>(null);
+  const environments = data?.environments ?? [];
+  const selectedEnv = environments.find((env: any) => env.id === selectedEnvId) ?? environments[0];
+  const products = (data?.products ?? []).filter((p: any) => p.environment_id === selectedEnv?.id);
+  const tunnel = (data?.tunnels ?? []).find((t: any) => t.environment_id === selectedEnv?.id);
+  const result = (data?.results ?? []).find((r: any) => r.environment_id === selectedEnv?.id);
+  const selection = (data?.selections ?? []).find((s: any) => s.environment_id === selectedEnv?.id);
+  React.useEffect(() => { if (!selectedEnvId && environments[0]?.id) setSelectedEnvId(environments[0].id); }, [selectedEnvId, environments]);
+  if (isLoading) return <div className="p-6 text-sm text-muted-foreground">Carregando CN ColdPro...</div>;
+  async function handleCreateEnv(type = "cold_room") { const env = await createEnv.mutateAsync({ name: `Ambiente ${environments.length + 1}`, environment_type: type }); setSelectedEnvId(env.id); }
+  return <div className="space-y-6 p-6"><div><h1 className="text-2xl font-bold">CN ColdPro</h1><p className="text-sm text-muted-foreground">{data?.project?.name}</p></div><div className="grid grid-cols-[280px_1fr] gap-6"><div className="space-y-3 rounded-2xl border bg-background p-4"><div className="flex items-center justify-between"><h2 className="font-semibold">Ambientes</h2><button className="rounded-md border px-2 py-1 text-xs hover:bg-muted" onClick={() => handleCreateEnv("cold_room")}>Novo</button></div><button className="w-full rounded-md border px-3 py-2 text-left text-xs hover:bg-muted" onClick={() => handleCreateEnv("blast_freezer")}>+ Túnel congelamento</button><button className="w-full rounded-md border px-3 py-2 text-left text-xs hover:bg-muted" onClick={() => handleCreateEnv("cooling_tunnel")}>+ Túnel resfriamento</button>{environments.length === 0 ? <div className="text-sm text-muted-foreground">Nenhum ambiente.</div> : <div className="space-y-2">{environments.map((env: any) => <button key={env.id} className={`w-full rounded-md border px-3 py-2 text-left text-sm ${env.id === selectedEnv?.id ? "bg-muted" : ""}`} onClick={() => setSelectedEnvId(env.id)}><div className="font-medium">{env.name}</div><div className="text-xs text-muted-foreground">{env.environment_type} · {fmt(env.volume_m3)} m³ · {env.internal_temp_c}°C</div></button>)}</div>}</div><div className="space-y-6">{!selectedEnv ? <div className="rounded-2xl border border-dashed p-6 text-sm text-muted-foreground">Crie um ambiente para iniciar o cálculo.</div> : <><ColdProEnvironmentForm environment={selectedEnv} insulationMaterials={data?.insulationMaterials ?? []} onSave={(patch) => updateEnv.mutate({ id: selectedEnv.id, patch })} />{["blast_freezer", "cooling_tunnel"].includes(selectedEnv.environment_type) ? <ColdProTunnelForm environmentId={selectedEnv.id} tunnel={tunnel} onSave={(payload) => upsertTunnel.mutate(payload)} /> : <ColdProProductForm environmentId={selectedEnv.id} onSave={(payload) => upsertProduct.mutate(payload)} />}<div className="rounded-2xl border bg-background p-4"><h3 className="mb-3 text-base font-semibold">Produtos cadastrados</h3>{products.length === 0 ? <div className="text-sm text-muted-foreground">Nenhum produto/processo cadastrado.</div> : <div className="space-y-2">{products.map((p: any) => <div key={p.id} className="rounded-md border px-3 py-2 text-sm"><b>{p.product_name}</b> · {fmt(p.mass_kg_day)} kg/dia · entrada {p.inlet_temp_c}°C → final {p.outlet_temp_c}°C</div>)}</div>}</div><div className="flex gap-2"><button className="rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground" onClick={() => calculate.mutate(selectedEnv.id)} disabled={calculate.isPending}>{calculate.isPending ? "Calculando..." : "Calcular carga térmica"}</button><button className="rounded-md border px-4 py-2 text-sm hover:bg-muted" onClick={() => autoSelect.mutate(selectedEnv.id)} disabled={autoSelect.isPending}>{autoSelect.isPending ? "Selecionando..." : "Selecionar equipamento"}</button></div><ColdProResultCard result={result} />{selection ? <div className="rounded-2xl border bg-background p-4"><h3 className="mb-3 text-base font-semibold">Equipamento selecionado</h3><div className="grid grid-cols-3 gap-3 text-sm"><div>Modelo: <b>{selection.model}</b></div><div>Qtd.: <b>{fmt(selection.quantity)}</b></div><div>Capacidade total: <b>{fmt(selection.capacity_total_kcal_h)} kcal/h</b></div><div>Sobra: <b>{fmt(selection.surplus_percent)}%</b></div><div>Vazão total: <b>{fmt(selection.air_flow_total_m3_h)} m³/h</b></div><div>Trocas/h: <b>{fmt(selection.air_changes_hour)}</b></div></div></div> : null}</>}</div></div></div>;
+}

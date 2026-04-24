@@ -186,6 +186,648 @@ export type Database = {
         }
         Relationships: []
       }
+      coldpro_environment_products: {
+        Row: {
+          created_at: string
+          environment_id: string
+          id: string
+          initial_freezing_temp_c: number | null
+          inlet_temp_c: number
+          latent_heat_kcal_kg: number
+          mass_kg_day: number
+          mass_kg_hour: number
+          outlet_temp_c: number
+          packaging_inlet_temp_c: number | null
+          packaging_mass_kg_day: number
+          packaging_outlet_temp_c: number | null
+          packaging_specific_heat_kcal_kg_c: number
+          process_time_h: number
+          product_id: string | null
+          product_name: string
+          specific_heat_above_kcal_kg_c: number
+          specific_heat_below_kcal_kg_c: number
+        }
+        Insert: {
+          created_at?: string
+          environment_id: string
+          id?: string
+          initial_freezing_temp_c?: number | null
+          inlet_temp_c?: number
+          latent_heat_kcal_kg?: number
+          mass_kg_day?: number
+          mass_kg_hour?: number
+          outlet_temp_c?: number
+          packaging_inlet_temp_c?: number | null
+          packaging_mass_kg_day?: number
+          packaging_outlet_temp_c?: number | null
+          packaging_specific_heat_kcal_kg_c?: number
+          process_time_h?: number
+          product_id?: string | null
+          product_name: string
+          specific_heat_above_kcal_kg_c?: number
+          specific_heat_below_kcal_kg_c?: number
+        }
+        Update: {
+          created_at?: string
+          environment_id?: string
+          id?: string
+          initial_freezing_temp_c?: number | null
+          inlet_temp_c?: number
+          latent_heat_kcal_kg?: number
+          mass_kg_day?: number
+          mass_kg_hour?: number
+          outlet_temp_c?: number
+          packaging_inlet_temp_c?: number | null
+          packaging_mass_kg_day?: number
+          packaging_outlet_temp_c?: number | null
+          packaging_specific_heat_kcal_kg_c?: number
+          process_time_h?: number
+          product_id?: string | null
+          product_name?: string
+          specific_heat_above_kcal_kg_c?: number
+          specific_heat_below_kcal_kg_c?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coldpro_environment_products_environment_id_fkey"
+            columns: ["environment_id"]
+            isOneToOne: false
+            referencedRelation: "coldpro_environments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coldpro_environment_products_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "coldpro_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      coldpro_environments: {
+        Row: {
+          ceiling_thickness_mm: number
+          coldpro_project_id: string
+          compressor_runtime_hours_day: number
+          created_at: string
+          defrost_kcal_h: number
+          door_height_m: number
+          door_openings_per_day: number
+          door_width_m: number
+          environment_type: string
+          external_temp_c: number
+          fans_kcal_h: number
+          floor_temp_c: number | null
+          floor_thickness_mm: number
+          has_floor_insulation: boolean
+          height_m: number
+          id: string
+          infiltration_factor: number
+          insulation_material_id: string | null
+          internal_temp_c: number
+          length_m: number
+          lighting_hours_day: number
+          lighting_power_w: number
+          motors_hours_day: number
+          motors_power_kw: number
+          name: string
+          operation_hours_day: number
+          other_kcal_h: number
+          people_count: number
+          people_hours_day: number
+          relative_humidity_percent: number | null
+          safety_factor_percent: number
+          sort_order: number
+          updated_at: string
+          volume_m3: number
+          wall_thickness_mm: number
+          width_m: number
+        }
+        Insert: {
+          ceiling_thickness_mm?: number
+          coldpro_project_id: string
+          compressor_runtime_hours_day?: number
+          created_at?: string
+          defrost_kcal_h?: number
+          door_height_m?: number
+          door_openings_per_day?: number
+          door_width_m?: number
+          environment_type?: string
+          external_temp_c?: number
+          fans_kcal_h?: number
+          floor_temp_c?: number | null
+          floor_thickness_mm?: number
+          has_floor_insulation?: boolean
+          height_m?: number
+          id?: string
+          infiltration_factor?: number
+          insulation_material_id?: string | null
+          internal_temp_c?: number
+          length_m?: number
+          lighting_hours_day?: number
+          lighting_power_w?: number
+          motors_hours_day?: number
+          motors_power_kw?: number
+          name: string
+          operation_hours_day?: number
+          other_kcal_h?: number
+          people_count?: number
+          people_hours_day?: number
+          relative_humidity_percent?: number | null
+          safety_factor_percent?: number
+          sort_order?: number
+          updated_at?: string
+          volume_m3?: number
+          wall_thickness_mm?: number
+          width_m?: number
+        }
+        Update: {
+          ceiling_thickness_mm?: number
+          coldpro_project_id?: string
+          compressor_runtime_hours_day?: number
+          created_at?: string
+          defrost_kcal_h?: number
+          door_height_m?: number
+          door_openings_per_day?: number
+          door_width_m?: number
+          environment_type?: string
+          external_temp_c?: number
+          fans_kcal_h?: number
+          floor_temp_c?: number | null
+          floor_thickness_mm?: number
+          has_floor_insulation?: boolean
+          height_m?: number
+          id?: string
+          infiltration_factor?: number
+          insulation_material_id?: string | null
+          internal_temp_c?: number
+          length_m?: number
+          lighting_hours_day?: number
+          lighting_power_w?: number
+          motors_hours_day?: number
+          motors_power_kw?: number
+          name?: string
+          operation_hours_day?: number
+          other_kcal_h?: number
+          people_count?: number
+          people_hours_day?: number
+          relative_humidity_percent?: number | null
+          safety_factor_percent?: number
+          sort_order?: number
+          updated_at?: string
+          volume_m3?: number
+          wall_thickness_mm?: number
+          width_m?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coldpro_environments_coldpro_project_id_fkey"
+            columns: ["coldpro_project_id"]
+            isOneToOne: false
+            referencedRelation: "coldpro_projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coldpro_environments_insulation_material_id_fkey"
+            columns: ["insulation_material_id"]
+            isOneToOne: false
+            referencedRelation: "coldpro_insulation_materials"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      coldpro_equipment_catalog: {
+        Row: {
+          active: boolean
+          air_flow_m3_h: number
+          air_throw_m: number | null
+          ambient_temp_c: number | null
+          application_type: string
+          capacity_kcal_h: number
+          capacity_kw: number
+          compressor_type: string | null
+          created_at: string
+          defrost_type: string | null
+          evaporation_temp_c: number | null
+          id: string
+          model: string
+          refrigerant: string | null
+          voltage: string | null
+        }
+        Insert: {
+          active?: boolean
+          air_flow_m3_h?: number
+          air_throw_m?: number | null
+          ambient_temp_c?: number | null
+          application_type: string
+          capacity_kcal_h: number
+          capacity_kw: number
+          compressor_type?: string | null
+          created_at?: string
+          defrost_type?: string | null
+          evaporation_temp_c?: number | null
+          id?: string
+          model: string
+          refrigerant?: string | null
+          voltage?: string | null
+        }
+        Update: {
+          active?: boolean
+          air_flow_m3_h?: number
+          air_throw_m?: number | null
+          ambient_temp_c?: number | null
+          application_type?: string
+          capacity_kcal_h?: number
+          capacity_kw?: number
+          compressor_type?: string | null
+          created_at?: string
+          defrost_type?: string | null
+          evaporation_temp_c?: number | null
+          id?: string
+          model?: string
+          refrigerant?: string | null
+          voltage?: string | null
+        }
+        Relationships: []
+      }
+      coldpro_equipment_selections: {
+        Row: {
+          air_changes_hour: number
+          air_flow_total_m3_h: number
+          air_flow_unit_m3_h: number
+          air_throw_m: number | null
+          capacity_total_kcal_h: number
+          capacity_unit_kcal_h: number
+          created_at: string
+          environment_id: string
+          equipment_id: string | null
+          id: string
+          model: string
+          notes: string | null
+          quantity: number
+          surplus_kcal_h: number
+          surplus_percent: number
+        }
+        Insert: {
+          air_changes_hour?: number
+          air_flow_total_m3_h?: number
+          air_flow_unit_m3_h?: number
+          air_throw_m?: number | null
+          capacity_total_kcal_h?: number
+          capacity_unit_kcal_h?: number
+          created_at?: string
+          environment_id: string
+          equipment_id?: string | null
+          id?: string
+          model: string
+          notes?: string | null
+          quantity?: number
+          surplus_kcal_h?: number
+          surplus_percent?: number
+        }
+        Update: {
+          air_changes_hour?: number
+          air_flow_total_m3_h?: number
+          air_flow_unit_m3_h?: number
+          air_throw_m?: number | null
+          capacity_total_kcal_h?: number
+          capacity_unit_kcal_h?: number
+          created_at?: string
+          environment_id?: string
+          equipment_id?: string | null
+          id?: string
+          model?: string
+          notes?: string | null
+          quantity?: number
+          surplus_kcal_h?: number
+          surplus_percent?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coldpro_equipment_selections_environment_id_fkey"
+            columns: ["environment_id"]
+            isOneToOne: false
+            referencedRelation: "coldpro_environments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coldpro_equipment_selections_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "coldpro_equipment_catalog"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      coldpro_insulation_materials: {
+        Row: {
+          conductivity_kcal_h_m_c: number
+          conductivity_w_m_k: number
+          created_at: string
+          default_thickness_mm: number | null
+          id: string
+          material_type: string
+          name: string
+          source: string | null
+          source_reference: string | null
+        }
+        Insert: {
+          conductivity_kcal_h_m_c: number
+          conductivity_w_m_k: number
+          created_at?: string
+          default_thickness_mm?: number | null
+          id?: string
+          material_type: string
+          name: string
+          source?: string | null
+          source_reference?: string | null
+        }
+        Update: {
+          conductivity_kcal_h_m_c?: number
+          conductivity_w_m_k?: number
+          created_at?: string
+          default_thickness_mm?: number | null
+          id?: string
+          material_type?: string
+          name?: string
+          source?: string | null
+          source_reference?: string | null
+        }
+        Relationships: []
+      }
+      coldpro_products: {
+        Row: {
+          category: string | null
+          created_at: string
+          density_kg_m3: number | null
+          id: string
+          initial_freezing_temp_c: number | null
+          latent_heat_kcal_kg: number
+          name: string
+          source: string | null
+          source_reference: string | null
+          specific_heat_above_kcal_kg_c: number
+          specific_heat_below_kcal_kg_c: number
+          water_content_percent: number | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          density_kg_m3?: number | null
+          id?: string
+          initial_freezing_temp_c?: number | null
+          latent_heat_kcal_kg?: number
+          name: string
+          source?: string | null
+          source_reference?: string | null
+          specific_heat_above_kcal_kg_c?: number
+          specific_heat_below_kcal_kg_c?: number
+          water_content_percent?: number | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          density_kg_m3?: number | null
+          id?: string
+          initial_freezing_temp_c?: number | null
+          latent_heat_kcal_kg?: number
+          name?: string
+          source?: string | null
+          source_reference?: string | null
+          specific_heat_above_kcal_kg_c?: number
+          specific_heat_below_kcal_kg_c?: number
+          water_content_percent?: number | null
+        }
+        Relationships: []
+      }
+      coldpro_projects: {
+        Row: {
+          application_type: string
+          calculated_at: string | null
+          created_at: string
+          customer_id: string | null
+          id: string
+          name: string
+          notes: string | null
+          proposal_id: string | null
+          revision: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          application_type?: string
+          calculated_at?: string | null
+          created_at?: string
+          customer_id?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          proposal_id?: string | null
+          revision?: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          application_type?: string
+          calculated_at?: string | null
+          created_at?: string
+          customer_id?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          proposal_id?: string | null
+          revision?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coldpro_projects_proposal_id_fkey"
+            columns: ["proposal_id"]
+            isOneToOne: false
+            referencedRelation: "proposals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      coldpro_results: {
+        Row: {
+          calculation_breakdown: Json
+          calculation_input: Json
+          created_at: string
+          defrost_kcal_h: number
+          environment_id: string
+          fans_kcal_h: number
+          id: string
+          infiltration_kcal_h: number
+          lighting_kcal_h: number
+          motors_kcal_h: number
+          other_kcal_h: number
+          packaging_kcal_h: number
+          people_kcal_h: number
+          product_kcal_h: number
+          safety_factor_percent: number
+          safety_kcal_h: number
+          subtotal_kcal_h: number
+          total_required_kcal_h: number
+          total_required_kw: number
+          total_required_tr: number
+          transmission_kcal_h: number
+          tunnel_internal_load_kcal_h: number
+        }
+        Insert: {
+          calculation_breakdown?: Json
+          calculation_input?: Json
+          created_at?: string
+          defrost_kcal_h?: number
+          environment_id: string
+          fans_kcal_h?: number
+          id?: string
+          infiltration_kcal_h?: number
+          lighting_kcal_h?: number
+          motors_kcal_h?: number
+          other_kcal_h?: number
+          packaging_kcal_h?: number
+          people_kcal_h?: number
+          product_kcal_h?: number
+          safety_factor_percent?: number
+          safety_kcal_h?: number
+          subtotal_kcal_h?: number
+          total_required_kcal_h?: number
+          total_required_kw?: number
+          total_required_tr?: number
+          transmission_kcal_h?: number
+          tunnel_internal_load_kcal_h?: number
+        }
+        Update: {
+          calculation_breakdown?: Json
+          calculation_input?: Json
+          created_at?: string
+          defrost_kcal_h?: number
+          environment_id?: string
+          fans_kcal_h?: number
+          id?: string
+          infiltration_kcal_h?: number
+          lighting_kcal_h?: number
+          motors_kcal_h?: number
+          other_kcal_h?: number
+          packaging_kcal_h?: number
+          people_kcal_h?: number
+          product_kcal_h?: number
+          safety_factor_percent?: number
+          safety_kcal_h?: number
+          subtotal_kcal_h?: number
+          total_required_kcal_h?: number
+          total_required_kw?: number
+          total_required_tr?: number
+          transmission_kcal_h?: number
+          tunnel_internal_load_kcal_h?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coldpro_results_environment_id_fkey"
+            columns: ["environment_id"]
+            isOneToOne: false
+            referencedRelation: "coldpro_environments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      coldpro_tunnels: {
+        Row: {
+          air_temp_c: number
+          air_velocity_m_s: number
+          belt_motor_kw: number
+          created_at: string
+          cycles_per_hour: number
+          environment_id: string
+          freezing_temp_c: number | null
+          id: string
+          inlet_temp_c: number
+          internal_fans_kw: number
+          latent_heat_kcal_kg: number
+          mass_kg_hour: number
+          operation_mode: string
+          other_internal_kw: number
+          outlet_temp_c: number
+          packaging_mass_kg_hour: number
+          packaging_specific_heat_kcal_kg_c: number
+          process_time_min: number
+          product_name: string
+          product_thickness_mm: number
+          product_unit_weight_kg: number
+          specific_heat_above_kcal_kg_c: number
+          specific_heat_below_kcal_kg_c: number
+          tunnel_type: string
+          units_per_cycle: number
+          updated_at: string
+        }
+        Insert: {
+          air_temp_c?: number
+          air_velocity_m_s?: number
+          belt_motor_kw?: number
+          created_at?: string
+          cycles_per_hour?: number
+          environment_id: string
+          freezing_temp_c?: number | null
+          id?: string
+          inlet_temp_c?: number
+          internal_fans_kw?: number
+          latent_heat_kcal_kg?: number
+          mass_kg_hour?: number
+          operation_mode?: string
+          other_internal_kw?: number
+          outlet_temp_c?: number
+          packaging_mass_kg_hour?: number
+          packaging_specific_heat_kcal_kg_c?: number
+          process_time_min?: number
+          product_name?: string
+          product_thickness_mm?: number
+          product_unit_weight_kg?: number
+          specific_heat_above_kcal_kg_c?: number
+          specific_heat_below_kcal_kg_c?: number
+          tunnel_type?: string
+          units_per_cycle?: number
+          updated_at?: string
+        }
+        Update: {
+          air_temp_c?: number
+          air_velocity_m_s?: number
+          belt_motor_kw?: number
+          created_at?: string
+          cycles_per_hour?: number
+          environment_id?: string
+          freezing_temp_c?: number | null
+          id?: string
+          inlet_temp_c?: number
+          internal_fans_kw?: number
+          latent_heat_kcal_kg?: number
+          mass_kg_hour?: number
+          operation_mode?: string
+          other_internal_kw?: number
+          outlet_temp_c?: number
+          packaging_mass_kg_hour?: number
+          packaging_specific_heat_kcal_kg_c?: number
+          process_time_min?: number
+          product_name?: string
+          product_thickness_mm?: number
+          product_unit_weight_kg?: number
+          specific_heat_above_kcal_kg_c?: number
+          specific_heat_below_kcal_kg_c?: number
+          tunnel_type?: string
+          units_per_cycle?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coldpro_tunnels_environment_id_fkey"
+            columns: ["environment_id"]
+            isOneToOne: false
+            referencedRelation: "coldpro_environments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       competitors: {
         Row: {
           competitive_lines: string[] | null
