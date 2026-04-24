@@ -51,7 +51,8 @@ export function MultiSelectToolbar({
   onDeleteBlocks,
   onClear,
 }: Props) {
-  if (blocks.length < 2) return null;
+  if (blocks.length < 1) return null;
+  const isMulti = blocks.length >= 2;
 
   // Bounding-box do grupo selecionado (define os "limites" de alinhamento)
   const layouts = blocks.map(getLayout);
