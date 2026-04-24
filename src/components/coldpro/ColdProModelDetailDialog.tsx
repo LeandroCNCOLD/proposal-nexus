@@ -643,6 +643,18 @@ function HighlightList({ title, items }: { title: string; items: string[] }) {
   );
 }
 
+function PolynomialSummary({ label, model, unit }: { label: string; model: { r2: number | null; pointsUsed: number; coefficients: number[] } | null; unit: string }) {
+  if (!model) return <div className="rounded-md border bg-background/70 p-3 text-muted-foreground">{label}: sem ajuste</div>;
+  const coefficients = model.coefficients.slice(0, 4).map((value) => fmt(value, 4)).join("; ");
+  return (
+    <div className="rounded-md border bg-background/70 p-3">
+      <div className="font-semibold">{label}{unit ? ` (${unit})` : ""}</div>
+      <div>R²: {fmt(model.r2, 3)} · {model.pointsUsed} pontos</div>
+      <div className="mt-1 font-mono text-[10px] text-muted-foreground">β: {coefficients}</div>
+    </div>
+  );
+}
+
 function CommercialFeaturesBlock({ features, source }: { features: string[]; source: string | null }) {
   if (features.length === 0) {
     return <EmptyBlock label="Sem características comerciais cadastradas para este modelo." />;
