@@ -233,25 +233,86 @@ interface InlinePagePaletteProps {
   pageTitle: string;
 }
 
+/** localStorage key para campos "pinados" (adicionados manualmente) por tipo de página. */
+const pinnedStorageKey = (pageType: PageType) => `proposal-editor:pinned-fields:${pageType}`;
+
+/** Lê os campos pinados do localStorage para um tipo de página. */
+function loadPinnedKeys(pageType: PageType): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(pinnedStorageKey(pageType));
+    if (!raw) return [];
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr.filter((x) => typeof x === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+function savePinnedKeys(pageType: PageType, keys: string[]) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(pinnedStorageKey(pageType), JSON.stringify(keys));
+  } catch {
+    // ignora cota cheia / modo privado
+  }
+}
+
 export function InlinePagePalette({ pageType, pageTitle }: InlinePagePaletteProps) {
   const [open, setOpen] = useState(true);
+  const [pinnedKeys, setPinnedKeys] = useState<string[]>(() => loadPinnedKeys(pageType));
+
+  // Recarrega quando o tipo de página muda
+  useEffect(() => {
+    setPinnedKeys(loadPinnedKeys(pageType));
+  }, [pageType]);
+
+  const persistPinned = (next: string[]) => {
+    setPinnedKeys(next);
+    savePinnedKeys(pageType, next);
+  };
+
+  const addPinned = (item: PaletteItem) => {
+    const k = paletteKey(item);
+    if (pinnedKeys.includes(k)) return;
+    persistPinned([...pinnedKeys, k]);
+  };
+
+  const removePinned = (k: string) => {
+    persistPinned(pinnedKeys.filter((x) => x !== k));
+  };
 
   const suggestedTypes = PAGE_SUGGESTED_BLOCKS[pageType] ?? [];
   const suggestedItems = useMemo<PaletteItem[]>(() => {
-    // Inclui qualquer item cujo blockType está sugerido para esta página.
     return ALL_PALETTE_ITEMS.filter((it) => suggestedTypes.includes(it.blockType));
   }, [suggestedTypes]);
 
-  // Agrupa por categoria preservando ordem do catálogo
-  const grouped = useMemo(() => {
+  const pinnedItems = useMemo<PaletteItem[]>(() => {
+    // Mantém a ordem de pinagem (não a ordem do catálogo) para refletir
+    // exatamente o que o usuário adicionou e quando.
+    const map = new Map(ALL_PALETTE_ITEMS.map((it) => [paletteKey(it), it] as const));
+    return pinnedKeys
+      .map((k) => map.get(k))
+      .filter((x): x is PaletteItem => Boolean(x));
+  }, [pinnedKeys]);
+
+  // Suprime do "sugeridos" os que já estão pinados, para evitar duplicidade visual
+  const suggestedNotPinned = useMemo(
+    () => suggestedItems.filter((it) => !pinnedKeys.includes(paletteKey(it))),
+    [suggestedItems, pinnedKeys],
+  );
+
+  const groupedSuggested = useMemo(() => {
     const map = new Map<string, PaletteItem[]>();
-    suggestedItems.forEach((it) => {
+    suggestedNotPinned.forEach((it) => {
       const k = it.category ?? "Outros";
       if (!map.has(k)) map.set(k, []);
       map.get(k)!.push(it);
     });
     return Array.from(map.entries());
-  }, [suggestedItems]);
+  }, [suggestedNotPinned]);
+
+  const totalCount = pinnedItems.length + suggestedNotPinned.length;
 
   return (
     <div className="border-t bg-background">
@@ -269,16 +330,36 @@ export function InlinePagePalette({ pageType, pageTitle }: InlinePagePaletteProp
           Campos · {pageTitle}
         </span>
         <span className="text-[9px] font-normal opacity-60">
-          {suggestedItems.length} sugeridos
+          {totalCount} disponíveis
         </span>
       </button>
       {open ? (
-        <div className="max-h-[35vh] overflow-y-auto pb-2">
+        <div className="max-h-[40vh] overflow-y-auto pb-2">
           <p className="px-3 py-1 text-[10px] leading-tight text-muted-foreground">
-            Arraste para o canvas. Campos abaixo são os mais usados nesta página.
+            Arraste para o canvas. Use <strong>Adicionar campos</strong> para incluir mais opções.
           </p>
+
+          {/* Pinados — campos adicionados manualmente pelo usuário */}
+          {pinnedItems.length > 0 ? (
+            <div className="px-1">
+              <div className="px-2 py-1 text-[9px] font-semibold uppercase tracking-wider text-primary/80">
+                ⭐ Adicionados
+              </div>
+              <div className="space-y-px">
+                {pinnedItems.map((it) => (
+                  <DraggableItem
+                    key={paletteKey(it)}
+                    item={it}
+                    onRemove={() => removePinned(paletteKey(it))}
+                  />
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          {/* Sugeridos por tipo de página */}
           <div className="space-y-1">
-            {grouped.map(([cat, items]) => (
+            {groupedSuggested.map(([cat, items]) => (
               <div key={cat} className="px-1">
                 <div className="px-2 py-1 text-[9px] font-semibold uppercase tracking-wider text-muted-foreground/70">
                   {cat}
@@ -290,14 +371,18 @@ export function InlinePagePalette({ pageType, pageTitle }: InlinePagePaletteProp
                 </div>
               </div>
             ))}
-            {suggestedItems.length === 0 ? (
+            {totalCount === 0 ? (
               <p className="px-3 py-2 text-[10px] text-muted-foreground">
-                Nenhum campo sugerido. Clique em <strong>Adicionar campos</strong>.
+                Nenhum campo. Clique em <strong>Adicionar campos</strong>.
               </p>
             ) : null}
           </div>
           <div className="mt-2 px-3">
-            <AddMoreFieldsButton />
+            <AddMoreFieldsButton
+              pinnedKeys={pinnedKeys}
+              onPin={addPinned}
+              onUnpin={(k) => removePinned(k)}
+            />
           </div>
         </div>
       ) : null}
@@ -309,7 +394,13 @@ export function InlinePagePalette({ pageType, pageTitle }: InlinePagePaletteProp
 /*  Diálogo "Adicionar campos" — busca no catálogo completo      */
 /* ============================================================ */
 
-function AddMoreFieldsButton() {
+interface AddMoreFieldsButtonProps {
+  pinnedKeys: string[];
+  onPin: (item: PaletteItem) => void;
+  onUnpin: (key: string) => void;
+}
+
+function AddMoreFieldsButton({ pinnedKeys, onPin, onUnpin }: AddMoreFieldsButtonProps) {
   const [openDlg, setOpenDlg] = useState(false);
   const [q, setQ] = useState("");
 
@@ -377,8 +468,9 @@ function AddMoreFieldsButton() {
             ) : null}
           </div>
           <p className="text-[10px] text-muted-foreground">
-            Arraste qualquer item para o canvas (a janela permanece aberta para você adicionar
-            vários).
+            Clique em <strong>+ Adicionar</strong> para fixar o campo na lista da página.
+            Depois arraste o item da lista para o canvas. Você também pode arrastar
+            direto daqui.
           </p>
           <div className="max-h-[55vh] space-y-2 overflow-y-auto pr-1">
             {grouped.map(([cat, items]) => (
@@ -386,10 +478,44 @@ function AddMoreFieldsButton() {
                 <div className="px-1 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/80">
                   {cat}
                 </div>
-                <div className="grid grid-cols-2 gap-1">
-                  {items.map((it) => (
-                    <DraggableItem key={paletteKey(it)} item={it} />
-                  ))}
+                <div className="grid grid-cols-1 gap-1">
+                  {items.map((it) => {
+                    const k = paletteKey(it);
+                    const isPinned = pinnedKeys.includes(k);
+                    return (
+                      <div
+                        key={k}
+                        className="flex items-center gap-1 rounded border border-transparent hover:border-border hover:bg-muted/40"
+                      >
+                        <div className="flex-1">
+                          <DraggableItem item={it} />
+                        </div>
+                        {isPinned ? (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 gap-1 px-2 text-[10px] text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700"
+                            onClick={() => onUnpin(k)}
+                            title="Remover da lista da página"
+                          >
+                            <Check className="h-3 w-3" />
+                            Adicionado
+                          </Button>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 gap-1 px-2 text-[10px]"
+                            onClick={() => onPin(it)}
+                            title="Adicionar à lista de campos da página"
+                          >
+                            <Plus className="h-3 w-3" />
+                            Adicionar
+                          </Button>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             ))}
