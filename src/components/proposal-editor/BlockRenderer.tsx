@@ -634,61 +634,212 @@ function BlockBody({
     }
 
     case "proposal_summary_box": {
-      // Caixa-resumo padrão: Cliente / Projeto / Proposta / Data / Responsável Comercial.
-      // Os valores vêm do contexto da proposta; rótulos e ordem são editáveis via data.fields.
-      // Quebra de linha automática quando o valor é maior que a largura disponível.
+      // Caixa-resumo padrão: lista personalizável de campos com gestão visual
+      // (editar rótulo/valor, excluir, adicionar do catálogo, reordenar).
       const hasCustomFs = typeof block.data.fontSize === "number";
       const labelColor = (block.data.labelColor as string | undefined) ?? undefined;
-      const defaultFields: Array<{ key: string; label: string; value: string }> = [
-        { key: "cliente", label: "Cliente:", value: proposalContext.client_name ?? "" },
-        { key: "projeto", label: "Projeto:", value: proposalContext.proposal_title ?? "" },
-        { key: "proposta", label: "Proposta:", value: proposalContext.proposal_number ?? "" },
-        { key: "data", label: "Data:", value: proposalContext.data_emissao ?? "" },
-        {
-          key: "responsavel",
-          label: "Responsável Comercial:",
-          value: (block.data.responsavel as string | undefined) ?? proposalContext.vendedor ?? "",
-        },
+
+      type SummaryField = { key: string; label: string; valueKey?: string; value?: string };
+      const defaultFields: SummaryField[] = [
+        { key: "cliente", label: "Cliente:", valueKey: "client_name" },
+        { key: "projeto", label: "Projeto:", valueKey: "proposal_title" },
+        { key: "proposta", label: "Proposta:", valueKey: "proposal_number" },
+        { key: "data", label: "Data:", valueKey: "data_emissao" },
+        { key: "responsavel", label: "Responsável Comercial:", valueKey: "vendedor" },
       ];
-      const overrides = (block.data.overrides as Record<string, { label?: string; value?: string }> | undefined) ?? {};
-      const items = defaultFields.map((f) => ({
-        key: f.key,
-        label: overrides[f.key]?.label ?? f.label,
-        value: overrides[f.key]?.value ?? f.value,
-      }));
+      const fields: SummaryField[] =
+        (block.data.fields as SummaryField[] | undefined) ?? defaultFields;
+
+      const catalog: Array<{ key: string; label: string; valueKey: keyof ProposalDynamicContext }> = [
+        { key: "cliente", label: "Cliente:", valueKey: "client_name" },
+        { key: "projeto", label: "Projeto:", valueKey: "proposal_title" },
+        { key: "proposta", label: "Proposta:", valueKey: "proposal_number" },
+        { key: "data_emissao", label: "Data:", valueKey: "data_emissao" },
+        { key: "validade", label: "Validade:", valueKey: "validade" },
+        { key: "responsavel", label: "Responsável Comercial:", valueKey: "vendedor" },
+        { key: "telefone", label: "Telefone:", valueKey: "empresa_telefone" },
+        { key: "email", label: "E-mail:", valueKey: "empresa_email" },
+        { key: "site", label: "Site:", valueKey: "empresa_site" },
+      ];
+
+      const resolveValue = (f: SummaryField): string => {
+        if (f.value !== undefined) return f.value;
+        if (f.valueKey) {
+          const v = (proposalContext as Record<string, string | null | undefined>)[f.valueKey];
+          return v ?? "";
+        }
+        return "";
+      };
+
+      const updateFields = (next: SummaryField[]) => setData({ fields: next });
+      const updateField = (idx: number, patch: Partial<SummaryField>) => {
+        const next = [...fields];
+        next[idx] = { ...next[idx], ...patch };
+        updateFields(next);
+      };
+      const removeField = (idx: number) => updateFields(fields.filter((_, i) => i !== idx));
+      const moveField = (idx: number, dir: -1 | 1) => {
+        const j = idx + dir;
+        if (j < 0 || j >= fields.length) return;
+        const next = [...fields];
+        [next[idx], next[j]] = [next[j], next[idx]];
+        updateFields(next);
+      };
+      const addCustomField = () => {
+        const k = `custom_${Date.now()}`;
+        updateFields([...fields, { key: k, label: "Novo campo:", value: "" }]);
+      };
+      const addCatalogField = (c: (typeof catalog)[number]) => {
+        if (fields.some((f) => f.key === c.key)) return;
+        updateFields([...fields, { key: c.key, label: c.label, valueKey: c.valueKey }]);
+      };
+
       return (
         <div className="flex h-full w-full flex-col justify-center gap-1.5 leading-snug">
-          {items.map((it) => (
+          {fields.map((f, idx) => {
+            const value = resolveValue(f);
+            return (
+              <div
+                key={`${f.key}-${idx}`}
+                className="group/field grid items-baseline gap-x-3"
+                style={{ gridTemplateColumns: "max-content minmax(0, 1fr) auto" }}
+              >
+                {selected && !locked ? (
+                  <input
+                    value={f.label}
+                    onChange={(e) => updateField(idx, { label: e.target.value })}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    className="rounded border border-dashed border-transparent bg-transparent px-0.5 font-bold outline-none hover:border-primary/40 focus:border-primary"
+                    style={{
+                      color: labelColor,
+                      fontSize: hasCustomFs ? "1em" : undefined,
+                      whiteSpace: "nowrap",
+                      width: `${Math.max(f.label.length, 4)}ch`,
+                    }}
+                  />
+                ) : (
+                  <span
+                    className="font-bold"
+                    style={{
+                      color: labelColor,
+                      fontSize: hasCustomFs ? "1em" : undefined,
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {f.label}
+                  </span>
+                )}
+
+                {selected && !locked && !f.valueKey ? (
+                  <input
+                    value={f.value ?? ""}
+                    onChange={(e) => updateField(idx, { value: e.target.value })}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    placeholder="Valor…"
+                    className="min-w-0 rounded border border-dashed border-transparent bg-transparent px-0.5 font-semibold outline-none hover:border-primary/40 focus:border-primary"
+                    style={{ fontSize: hasCustomFs ? "1em" : undefined }}
+                  />
+                ) : (
+                  <span
+                    className="font-semibold"
+                    style={{
+                      overflowWrap: "anywhere",
+                      wordBreak: "break-word",
+                      whiteSpace: "normal",
+                      fontSize: hasCustomFs ? "1em" : undefined,
+                    }}
+                  >
+                    {value || <span className="opacity-40">—</span>}
+                  </span>
+                )}
+
+                {selected && !locked ? (
+                  <div
+                    className="flex items-center gap-0.5 opacity-0 transition group-hover/field:opacity-100"
+                    onMouseDown={(e) => e.stopPropagation()}
+                  >
+                    <button
+                      type="button"
+                      title="Mover para cima"
+                      className="rounded px-1 text-[10px] hover:bg-muted disabled:opacity-30"
+                      onClick={() => moveField(idx, -1)}
+                      disabled={idx === 0}
+                    >
+                      ▲
+                    </button>
+                    <button
+                      type="button"
+                      title="Mover para baixo"
+                      className="rounded px-1 text-[10px] hover:bg-muted disabled:opacity-30"
+                      onClick={() => moveField(idx, 1)}
+                      disabled={idx === fields.length - 1}
+                    >
+                      ▼
+                    </button>
+                    <button
+                      type="button"
+                      title="Remover este campo"
+                      className="rounded px-1 text-[10px] text-destructive hover:bg-destructive/10"
+                      onClick={() => removeField(idx)}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            );
+          })}
+
+          {selected && !locked ? (
             <div
-              key={it.key}
-              className="grid items-baseline gap-x-3"
-              style={{ gridTemplateColumns: "max-content minmax(0, 1fr)" }}
+              className="mt-1 flex flex-wrap items-center gap-1 border-t border-dashed pt-1"
+              onMouseDown={(e) => e.stopPropagation()}
             >
-              <span
-                className="font-bold"
-                style={{
-                  color: labelColor,
-                  fontSize: hasCustomFs ? "1em" : undefined,
-                  whiteSpace: "nowrap",
-                }}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button size="sm" variant="outline" className="h-6 px-2 text-[10px]">
+                    <Plus className="mr-1 h-3 w-3" />
+                    Adicionar campo
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="start"
+                  className="z-[60] max-h-72 overflow-auto"
+                  onMouseDown={(e) => e.stopPropagation()}
+                >
+                  {catalog.map((c) => {
+                    const already = fields.some((f) => f.key === c.key);
+                    return (
+                      <DropdownMenuItem
+                        key={c.key}
+                        disabled={already}
+                        onSelect={() => addCatalogField(c)}
+                        className="text-xs"
+                      >
+                        {c.label.replace(":", "")}
+                        {already ? <span className="ml-2 opacity-50">(já incluído)</span> : null}
+                      </DropdownMenuItem>
+                    );
+                  })}
+                  <DropdownMenuItem onSelect={addCustomField} className="text-xs font-medium">
+                    + Campo personalizado
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-6 px-2 text-[10px] text-muted-foreground"
+                onClick={() => updateFields(defaultFields)}
+                title="Restaurar campos padrão"
               >
-                {it.label}
-              </span>
-              <span
-                className="font-semibold"
-                style={{
-                  // Quebra a palavra/linha quando o valor é maior que a coluna,
-                  // permitindo o texto ocupar várias linhas sem cortar nada.
-                  overflowWrap: "anywhere",
-                  wordBreak: "break-word",
-                  whiteSpace: "normal",
-                  fontSize: hasCustomFs ? "1em" : undefined,
-                }}
-              >
-                {it.value || <span className="opacity-40">—</span>}
+                Restaurar padrão
+              </Button>
+              <span className="ml-auto text-[10px] text-muted-foreground">
+                {fields.length} campo{fields.length === 1 ? "" : "s"}
               </span>
             </div>
-          ))}
+          ) : null}
         </div>
       );
     }
