@@ -54,7 +54,7 @@ function CatalogoPage() {
       const [modelsRes, perfRes] = await Promise.all([
         supabase
           .from("coldpro_equipment_models")
-          .select("id, modelo, linha, designacao_hp, refrigerante, gabinete, tipo_gabinete, tipo_degelo, active, created_at, smart_description, description_confidence")
+          .select("*")
           .order("linha", { ascending: true, nullsFirst: false })
           .order("modelo", { ascending: true })
           .limit(5000),
@@ -76,11 +76,12 @@ function CatalogoPage() {
         if (p.voltage) s.voltages.add(p.voltage);
       }
       return (modelsRes.data ?? []).map((m) => {
+        const model = m as typeof m & { electrical_configuration?: string | null };
         const s = stats.get(m.id);
         return {
-          ...m,
+          ...model,
           point_count: s?.points ?? 0,
-          voltages: s ? Array.from(s.voltages).sort() : [],
+          voltages: s ? Array.from(s.voltages).sort() : model.electrical_configuration ? [model.electrical_configuration] : [],
         };
       });
     },
@@ -251,7 +252,7 @@ function CatalogoPage() {
                     <Stat label="Linhas totais" value={parsed.totalRows} />
                     <Stat label="Linhas válidas" value={parsed.validRows} valid />
                     <Stat label="Linhas ignoradas" value={parsed.skippedRows} warn />
-                    <Stat label="Modelos únicos" value={parsed.uniqueModels} />
+                  <Stat label="Variações oficiais" value={parsed.uniqueModels} />
                   </div>
                   <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
                     <div>
@@ -544,6 +545,11 @@ type ModelRowData = {
   gabinete: string | null;
   tipo_gabinete: string | null;
   tipo_degelo: string | null;
+  electrical_configuration?: string | null;
+  voltage_value_v?: number | null;
+  phase_count?: number | null;
+  frequency_hz?: number | null;
+  catalog_variant_key?: string | null;
   active: boolean;
   smart_description?: string | null;
   description_confidence?: string | null;
@@ -583,10 +589,15 @@ function ModelRow({ m, indent, onClick }: { m: ModelRowData; indent?: boolean; o
       <TableCell className="text-xs">{m.gabinete ?? "—"}</TableCell>
       <TableCell>
         <div className="flex flex-wrap gap-1">
-          {m.voltages.length === 0 ? (
+          {m.electrical_configuration && (
+            <Badge variant="outline" className="font-mono text-[10px] py-0 px-1.5">
+              {m.electrical_configuration}
+            </Badge>
+          )}
+          {m.voltages.length === 0 && !m.electrical_configuration ? (
             <span className="text-xs text-muted-foreground">—</span>
           ) : (
-            m.voltages.map((v) => (
+            m.voltages.filter((v) => v !== m.electrical_configuration).map((v) => (
               <Badge key={v} variant="secondary" className="font-mono text-[10px] py-0 px-1.5">
                 {v}
               </Badge>

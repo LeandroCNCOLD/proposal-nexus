@@ -195,6 +195,10 @@ export function ColdProModelDetailDialog({ modelId, open, onOpenChange }: Props)
                 <Field label="Gabinete" value={m.gabinete} />
                 <Field label="Tipo gabinete" value={m.tipo_gabinete} />
                 <Field label="Tipo degelo" value={m.tipo_degelo} />
+                <Field label="Configuração elétrica" value={m.electrical_configuration} />
+                <Field label="Tensão nominal (V)" value={m.voltage_value_v} />
+                <Field label="Fases" value={m.phase_count} />
+                <Field label="Frequência (Hz)" value={m.frequency_hz} />
                 <Field label="GWP (AR6)" value={m.gwp_ar6} />
                 <Field label="ODP (AR6)" value={m.odp_ar6} />
                 <Field
@@ -385,7 +389,10 @@ export function ColdProModelDetailDialog({ modelId, open, onOpenChange }: Props)
                   return (
                     <div className="space-y-4">
                       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                        <Field label="Tensão" value={elec.voltages.join(" / ") || "—"} />
+                        <Field label="Configuração elétrica oficial" value={m.electrical_configuration ?? elec.voltages.join(" / ") ?? "—"} />
+                        <Field label="Tensão nominal (V)" value={m.voltage_value_v} />
+                        <Field label="Fases" value={m.phase_count} />
+                        <Field label="Frequência (Hz)" value={m.frequency_hz} />
                         <Field label="Pot. compressor (kW)" value={elec.compPowerRange} />
                         <Field label="Pot. ventiladores (kW)" value={elec.fanPowerRange} />
                         <Field label="Pot. total (kW)" value={elec.totalPowerRange} />
