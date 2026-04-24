@@ -253,7 +253,31 @@ export function ProposalCanvas({
     if (selectedBlockId && childIds.has(selectedBlockId)) onSelectBlock(null);
   };
 
-  const duplicateBlock = (pageId: string, blockId: string) => {
+  /** Move em lote todos os blocos selecionados (multi-seleção) por (dx,dy). */
+  const moveManySelected = (pageId: string, dx: number, dy: number) => {
+    const page = pages.find((p) => p.id === pageId);
+    if (!page) return;
+    const next = page.blocks.map((b) => {
+      if (!selectedSet.has(b.id)) return b;
+      const l = (b.data.layout as BlockLayout | undefined) ?? defaultLayoutFor(b.type);
+      const nx = Math.max(0, Math.min(pageW - l.w, l.x + dx));
+      const ny = Math.max(0, Math.min(pageH - l.h, l.y + dy));
+      return { ...b, data: { ...b.data, layout: { ...l, x: Math.round(nx), y: Math.round(ny) } } };
+    });
+    updatePage(pageId, { blocks: next });
+  };
+
+  /** Exclui múltiplos blocos por id. */
+  const deleteBlocks = (pageId: string, ids: string[]) => {
+    const set = new Set(ids);
+    updatePage(pageId, {
+      blocks: (pages.find((p) => p.id === pageId)?.blocks ?? [])
+        .filter((b) => !set.has(b.id))
+        .map((b, i) => ({ ...b, order: i })),
+    });
+    clearMultiSelection();
+  };
+
     const page = pages.find((p) => p.id === pageId);
     if (!page) return;
     const src = page.blocks.find((b) => b.id === blockId);
