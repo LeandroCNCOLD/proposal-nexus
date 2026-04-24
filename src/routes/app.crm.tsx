@@ -129,7 +129,15 @@ function CrmPage() {
 
   const pullMutation = useMutation({
     mutationFn: async () => {
-      const started = await startSync({ data: { maxItems: 5000 } });
+      // Sincroniza APENAS o funil ativo (aba selecionada) para evitar sobrecarga/timeout.
+      // Os demais funis só são sincronizados quando o usuário troca de aba e dispara
+      // manualmente "Sincronizar Nomus" novamente.
+      const tipoAtivo = activeTab?.trim();
+      if (!tipoAtivo) throw new Error("Selecione um funil antes de sincronizar.");
+
+      const started = await startSync({
+        data: { tipos: [tipoAtivo], maxItems: 5000 },
+      });
       if (!started.ok) throw new Error(started.error);
 
       let last = started.job;
@@ -145,7 +153,9 @@ function CrmPage() {
       return last;
     },
     onSuccess: (r) => {
-      toast.success(`Sincronização concluída: ${r.upserted_items ?? 0} processos atualizados.`);
+      toast.success(
+        `Funil "${activeTab}" sincronizado: ${r.upserted_items ?? 0} processos atualizados.`,
+      );
       queryClient.invalidateQueries({ queryKey: ["crm"] });
     },
     onError: (e) => toast.error(`Falha na sincronização: ${e instanceof Error ? e.message : String(e)}`),
