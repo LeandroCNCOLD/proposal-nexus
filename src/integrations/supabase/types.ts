@@ -1580,62 +1580,41 @@ export type Database = {
         Row: {
           attached_pdf_paths: string[]
           auto_filled_at: string | null
-          context_data: Json
-          cover_data: Json
           created_at: string
-          custom_blocks: Json
           id: string
           last_edited_at: string
           last_edited_by: string | null
-          manually_edited_fields: string[]
           pages: Json
           proposal_id: string
-          scope_items: Json
-          solution_data: Json
           template_id: string | null
           template_version: string
           updated_at: string
-          warranty_text: Json
         }
         Insert: {
           attached_pdf_paths?: string[]
           auto_filled_at?: string | null
-          context_data?: Json
-          cover_data?: Json
           created_at?: string
-          custom_blocks?: Json
           id?: string
           last_edited_at?: string
           last_edited_by?: string | null
-          manually_edited_fields?: string[]
           pages?: Json
           proposal_id: string
-          scope_items?: Json
-          solution_data?: Json
           template_id?: string | null
           template_version?: string
           updated_at?: string
-          warranty_text?: Json
         }
         Update: {
           attached_pdf_paths?: string[]
           auto_filled_at?: string | null
-          context_data?: Json
-          cover_data?: Json
           created_at?: string
-          custom_blocks?: Json
           id?: string
           last_edited_at?: string
           last_edited_by?: string | null
-          manually_edited_fields?: string[]
           pages?: Json
           proposal_id?: string
-          scope_items?: Json
-          solution_data?: Json
           template_id?: string | null
           template_version?: string
           updated_at?: string
-          warranty_text?: Json
         }
         Relationships: [
           {
