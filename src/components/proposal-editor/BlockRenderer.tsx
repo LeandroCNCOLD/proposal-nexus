@@ -95,10 +95,18 @@ export function BlockRenderer({
   return (
     <div
       className={`group relative h-full w-full rounded-md transition ${cardBg} ${
-        selected ? "outline outline-2 outline-primary" : "outline outline-1 outline-transparent hover:outline-border"
+        selected
+          ? "outline outline-2 outline-primary ring-2 ring-primary/30"
+          : "outline-dashed outline-1 outline-transparent hover:outline-2 hover:outline-primary/70 hover:bg-primary/5 hover:shadow-[0_0_0_4px_rgba(59,130,246,0.15)]"
       }`}
       style={cardStyle}
     >
+      {/* Etiqueta de hover — aparece quando o mouse passa sobre o bloco e ele não está selecionado */}
+      {!selected ? (
+        <div className="pointer-events-none absolute -top-6 left-0 z-40 hidden rounded bg-primary px-1.5 py-0.5 text-[10px] font-medium text-primary-foreground shadow-md group-hover:block">
+          Clique para editar · {block.type}
+        </div>
+      ) : null}
       {/* Toolbar do bloco selecionado */}
       {selected ? (
         <div
