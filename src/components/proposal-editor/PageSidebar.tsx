@@ -10,6 +10,7 @@ import {
   Trash2,
   ChevronUp,
   ChevronDown,
+  ChevronRight,
   Upload,
 } from "lucide-react";
 import {
