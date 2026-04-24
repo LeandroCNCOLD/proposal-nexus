@@ -208,7 +208,10 @@ export function ColdProReport({
                     <div>Vazão de ar: <b>{fmt(selection.air_flow_total_m3_h)} m³/h</b></div>
                     <div>Trocas/h: <b>{fmt(selection.air_changes_hour)}</b></div>
                     <div>Sobra técnica: <b>{fmt(selection.surplus_percent)}%</b></div>
+                    <div>Potência estimada: <b>{selection.total_power_kw ? `${fmt(selection.total_power_kw)} kW` : "—"}</b></div>
+                    <div>COP: <b>{selection.cop ? fmt(selection.cop) : "—"}</b></div>
                   </div>
+                  {selection.notes ? <div className="mt-2 text-xs text-muted-foreground">{selection.notes}</div> : null}
                 </div>
               ) : null}
             </section>
