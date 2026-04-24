@@ -26,6 +26,20 @@ import {
 import { PageChrome } from "./PageChrome";
 import { cn } from "@/lib/utils";
 
+// Handles visíveis (8 pontos: cantos + meios) — só aparecem no bloco selecionado.
+const handleBase =
+  "block bg-white border-2 border-primary shadow-md rounded-sm pointer-events-auto";
+const handleComponents = {
+  topLeft: <div className={`${handleBase} h-3 w-3`} />,
+  top: <div className={`${handleBase} h-2 w-6`} />,
+  topRight: <div className={`${handleBase} h-3 w-3`} />,
+  right: <div className={`${handleBase} h-6 w-2`} />,
+  bottomRight: <div className={`${handleBase} h-3 w-3`} />,
+  bottom: <div className={`${handleBase} h-2 w-6`} />,
+  bottomLeft: <div className={`${handleBase} h-3 w-3`} />,
+  left: <div className={`${handleBase} h-6 w-2`} />,
+};
+
 interface Props {
   pages: DocumentPage[];
   selectedId: string | null;
@@ -193,18 +207,19 @@ export function ProposalCanvas({
                       position={{ x: layout.x, y: layout.y }}
                       disableDragging={block.locked}
                       enableResizing={!block.locked}
-                      minWidth={80}
-                      minHeight={40}
+                      minWidth={60}
+                      minHeight={30}
+                      resizeHandleComponent={selected ? handleComponents : undefined}
                       onDragStop={(_e, d) =>
-                        handleDragResize(page.id, block, { ...layout, x: d.x, y: d.y })
+                        handleDragResize(page.id, block, { ...layout, x: Math.round(d.x), y: Math.round(d.y) })
                       }
                       onResizeStop={(_e, _dir, ref, _delta, position) =>
                         handleDragResize(page.id, block, {
                           ...layout,
                           w: parseInt(ref.style.width, 10),
                           h: parseInt(ref.style.height, 10),
-                          x: position.x,
-                          y: position.y,
+                          x: Math.round(position.x),
+                          y: Math.round(position.y),
                         })
                       }
                       onClick={(e: React.MouseEvent) => {

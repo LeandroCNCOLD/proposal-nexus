@@ -15,6 +15,12 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { RichTextEditor } from "./RichTextEditor";
 
 interface Props {
@@ -161,6 +167,7 @@ export function BlockRenderer({
           assets={assets}
           proposalContext={proposalContext}
           setData={setData}
+          onChange={onChange}
         />
       </div>
     </div>
@@ -173,12 +180,14 @@ function BlockBody({
   assets,
   proposalContext,
   setData,
+  onChange,
 }: {
   block: DocumentBlock;
   template: ProposalTemplate | null;
   assets: TemplateAsset[];
   proposalContext: ProposalDynamicContext;
   setData: (patch: Record<string, unknown>) => void;
+  onChange: (next: DocumentBlock) => void;
 }) {
   const locked = block.locked;
 
@@ -338,7 +347,6 @@ function BlockBody({
     case "responsible_info":
     case "cover_identity": {
       if (block.type === "cover_identity") {
-        // Cover identity é só placeholder visual — a arte vem do PageChrome.
         return (
           <div className="flex h-full items-end p-6 text-white">
             <div>
@@ -350,29 +358,55 @@ function BlockBody({
         );
       }
       const fields = Object.entries(block.data ?? {}).filter(([k]) => k !== "layout");
+      const usedKeys = new Set(fields.map(([k]) => k));
+      const suggestions = SUGGESTED_FIELDS[block.type] ?? [];
+      const available = suggestions.filter((s) => !usedKeys.has(s.key));
       return (
         <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-3.5 w-3.5 text-primary" />
-            <p className="text-[11px] font-semibold uppercase tracking-wider opacity-70">
-              {block.title ?? blockKindLabel(block.type)}
-            </p>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-3.5 w-3.5 text-primary" />
+              <p className="text-[11px] font-semibold uppercase tracking-wider opacity-70">
+                {block.title ?? blockKindLabel(block.type)}
+              </p>
+            </div>
+            {!locked && available.length > 0 ? (
+              <FieldPicker
+                options={available}
+                onPick={(opt) => setData({ [opt.key]: "" })}
+              />
+            ) : null}
           </div>
           {fields.length === 0 ? (
             <p className="text-xs opacity-60">
-              Bloco automático — preenchido pela sincronização Nomus.
+              Sem campos. Use <strong>+ Campo</strong> para adicionar.
             </p>
           ) : (
             <div className="space-y-1.5">
               {fields.map(([key, value]) => (
-                <div key={key} className="grid grid-cols-[120px_1fr] gap-2">
-                  <span className="text-xs opacity-70">{labelize(key)}</span>
+                <div key={key} className="grid grid-cols-[120px_1fr_auto] gap-2">
+                  <span className="text-xs opacity-70">{labelForField(block.type, key)}</span>
                   <Input
                     value={String(value ?? "")}
                     disabled={locked}
                     onChange={(e) => setData({ [key]: e.target.value })}
                     className="h-7 text-xs"
                   />
+                  {!locked ? (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10"
+                      title="Remover campo"
+                      onClick={() => {
+                        const { [key]: _omit, ...rest } = block.data;
+                        void _omit;
+                        onChange({ ...block, data: rest });
+                      }}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  ) : null}
                 </div>
               ))}
             </div>
@@ -604,3 +638,102 @@ function blockKindLabel(t: BlockType): string {
 function labelize(key: string): string {
   return key.replace(/_/g, " ").replace(/\b\w/g, (m) => m.toUpperCase());
 }
+
+// Catálogo de campos sugeridos por tipo de caixa.
+interface SuggestedField {
+  key: string;
+  label: string;
+}
+const SUGGESTED_FIELDS: Partial<Record<BlockType, SuggestedField[]>> = {
+  client_info_box: [
+    { key: "cliente", label: "Cliente" },
+    { key: "cnpj", label: "CNPJ" },
+    { key: "ie", label: "Inscrição Estadual" },
+    { key: "endereco", label: "Endereço" },
+    { key: "cidade", label: "Cidade/UF" },
+    { key: "cep", label: "CEP" },
+    { key: "contato", label: "Contato" },
+    { key: "email", label: "E-mail" },
+    { key: "telefone", label: "Telefone" },
+  ],
+  client_info: [
+    { key: "cliente", label: "Cliente" },
+    { key: "cnpj", label: "CNPJ" },
+    { key: "endereco", label: "Endereço" },
+    { key: "contato", label: "Contato" },
+  ],
+  project_info_box: [
+    { key: "projeto", label: "Projeto" },
+    { key: "numero", label: "Nº da proposta" },
+    { key: "revisao", label: "Revisão" },
+    { key: "data", label: "Data de emissão" },
+    { key: "validade", label: "Validade" },
+    { key: "prazo_entrega", label: "Prazo de entrega" },
+    { key: "local_instalacao", label: "Local de instalação" },
+    { key: "tabela_preco", label: "Tabela de preço" },
+  ],
+  project_info: [
+    { key: "projeto", label: "Projeto" },
+    { key: "numero", label: "Nº da proposta" },
+    { key: "data", label: "Data" },
+    { key: "revisao", label: "Revisão" },
+  ],
+  responsible_info_box: [
+    { key: "responsavel", label: "Responsável" },
+    { key: "cargo", label: "Cargo" },
+    { key: "email", label: "E-mail" },
+    { key: "telefone", label: "Telefone" },
+    { key: "celular", label: "Celular" },
+    { key: "vendedor", label: "Vendedor" },
+    { key: "representante", label: "Representante" },
+  ],
+  responsible_info: [
+    { key: "responsavel", label: "Responsável" },
+    { key: "cargo", label: "Cargo" },
+    { key: "email", label: "E-mail" },
+    { key: "telefone", label: "Telefone" },
+  ],
+};
+
+function labelForField(blockType: BlockType, key: string): string {
+  const list = SUGGESTED_FIELDS[blockType];
+  const found = list?.find((f) => f.key === key);
+  return found?.label ?? labelize(key);
+}
+
+function FieldPicker({
+  options,
+  onPick,
+}: {
+  options: SuggestedField[];
+  onPick: (opt: SuggestedField) => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-6 gap-1 px-2 text-[10px]"
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <Plus className="h-3 w-3" />
+          Campo
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="max-h-[60vh] overflow-y-auto">
+        {options.map((opt) => (
+          <DropdownMenuItem
+            key={opt.key}
+            onClick={() => onPick(opt)}
+            className="text-xs"
+          >
+            {opt.label}
+            <span className="ml-auto pl-3 font-mono text-[9px] opacity-50">{opt.key}</span>
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
