@@ -51,7 +51,8 @@ export type BlockType =
   | "proposal_number_box"
   | "dynamic_field"
   | "differentials_list"
-  | "cases_list";
+  | "cases_list"
+  | "container";
 
 export type BlockSource = "manual" | "nomus" | "template";
 
@@ -274,6 +275,8 @@ export function defaultLayoutFor(type: BlockType, index = 0): BlockLayout {
       return { x: 60, y: baseY, w: 696, h: 180 };
     case "cover_identity":
       return { x: 0, y: 0, w: A4_W, h: A4_H };
+    case "container":
+      return { x: 60, y: baseY, w: 696, h: 240, background: "white" };
     default:
       return { x: 60, y: baseY, w: 696, h: 160 };
   }

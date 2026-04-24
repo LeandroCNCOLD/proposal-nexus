@@ -22,6 +22,15 @@ interface PaletteGroup {
 
 const GROUPS: PaletteGroup[] = [
   {
+    label: "Layout",
+    items: [
+      { blockType: "container", label: "📦 Caixa / Container" },
+      { blockType: "heading", label: "Título" },
+      { blockType: "rich_text", label: "Texto livre" },
+      { blockType: "image", label: "Imagem" },
+    ],
+  },
+  {
     label: "Dados da proposta",
     items: [
       { blockType: "dynamic_field", label: "Nº da proposta", fieldKey: "proposal_number" },
@@ -105,6 +114,7 @@ export function parsePaletteItem(raw: string): PaletteItem | null {
 export function FieldsPalette() {
   const [open, setOpen] = useState(true);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
+    Layout: true,
     "Dados da proposta": true,
     Cliente: true,
   });

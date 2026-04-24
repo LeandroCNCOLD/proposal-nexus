@@ -200,6 +200,41 @@ function BlockBody({
   const locked = block.locked;
 
   switch (block.type) {
+    case "container": {
+      const title = (block.data.title as string | undefined) ?? block.title ?? "";
+      const borderColor = (block.data.borderColor as string | undefined) ?? "#cbd5e1";
+      const borderWidth = (block.data.borderWidth as number | undefined) ?? 1;
+      const radius = (block.data.radius as number | undefined) ?? 8;
+      return (
+        <div
+          className="relative h-full w-full"
+          style={{
+            border: `${borderWidth}px solid ${borderColor}`,
+            borderRadius: radius,
+          }}
+        >
+          {title ? (
+            <div
+              className="absolute -top-2 left-3 rounded bg-white px-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground"
+              style={{ pointerEvents: "none" }}
+            >
+              {title}
+            </div>
+          ) : null}
+          <div className="absolute inset-1 flex items-center justify-center">
+            <Input
+              value={title}
+              disabled={locked}
+              onChange={(e) => setData({ title: e.target.value })}
+              placeholder="Rótulo da caixa (opcional)"
+              className="h-7 max-w-[60%] border-dashed bg-white/70 text-center text-[10px] opacity-0 transition group-hover:opacity-100"
+              onMouseDown={(e) => e.stopPropagation()}
+            />
+          </div>
+        </div>
+      );
+    }
+
     case "heading": {
       const text = (block.data.text as string) ?? "";
       const level = (block.data.level as number) ?? 1;
