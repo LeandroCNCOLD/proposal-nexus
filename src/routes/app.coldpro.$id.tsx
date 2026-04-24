@@ -11,6 +11,7 @@ import {
   useCalculateColdProEnvironment,
   useAutoSelectColdProEquipment,
   usePushColdProToProposal,
+  useGenerateColdProMemorialPdf,
 } from "@/features/coldpro/use-coldpro";
 import { ColdProEnvironmentForm } from "@/components/coldpro/ColdProEnvironmentForm";
 import { ColdProProductForm } from "@/components/coldpro/ColdProProductForm";
@@ -39,6 +40,8 @@ function ColdProProjectPage() {
   const calculate = useCalculateColdProEnvironment(id);
   const autoSelect = useAutoSelectColdProEquipment(id);
   const pushToProposal = usePushColdProToProposal(id);
+  const generatePdf = useGenerateColdProMemorialPdf(id);
+  const [lastPdfUrl, setLastPdfUrl] = React.useState<string | null>(null);
   const qc = useQueryClient();
   const saveCatalogSel = useMutation({
     mutationFn: (payload: any) => saveCatalogEquipmentSelection({ data: payload }),
@@ -106,6 +109,21 @@ function ColdProProjectPage() {
       toast.success(`${res.inserted_items} item(ns) enviados para a proposta.`);
     } catch (e: any) {
       toast.error(e?.message ?? "Erro ao enviar para proposta");
+    }
+  }
+
+  async function handleGeneratePdf() {
+    try {
+      const res = await generatePdf.mutateAsync(true);
+      setLastPdfUrl(res.signedUrl ?? null);
+      toast.success(
+        res.attachedToProposalId
+          ? "Memorial PDF gerado e anexado à proposta."
+          : "Memorial PDF gerado.",
+      );
+      if (res.signedUrl) window.open(res.signedUrl, "_blank");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Erro ao gerar PDF");
     }
   }
 
