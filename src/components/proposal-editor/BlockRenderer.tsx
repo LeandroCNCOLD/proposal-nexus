@@ -1251,3 +1251,29 @@ function ImageUploadButton({
   );
 }
 
+
+// Pequeno agrupador visual para a toolbar superior do bloco.
+// Renderiza um rótulo discreto acima dos controles para deixar claro
+// o que cada conjunto de botões controla (Texto, Caixa, Camada, Ações).
+function ToolbarGroup({
+  label,
+  highlight,
+  children,
+}: {
+  label: string;
+  highlight?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      className={`flex flex-col items-center gap-0.5 rounded px-1.5 py-0.5 ${
+        highlight ? "bg-primary/10 ring-1 ring-primary/30" : ""
+      }`}
+    >
+      <span className="text-[8px] font-semibold uppercase tracking-wider text-muted-foreground">
+        {label}
+      </span>
+      <div className="flex items-center gap-0.5">{children}</div>
+    </div>
+  );
+}
