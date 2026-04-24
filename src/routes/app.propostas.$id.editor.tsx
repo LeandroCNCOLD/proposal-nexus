@@ -373,14 +373,17 @@ function ProposalEditorPage() {
       {/* Layout: sidebar fina + canvas A4 ocupando o resto */}
       <div className="flex flex-1 overflow-hidden">
         <aside className="flex w-[260px] shrink-0 flex-col border-r bg-background">
-          <div className="flex-1 overflow-hidden">
-            <PageSidebar
-              pages={pages}
-              selectedId={selectedId}
-              proposalId={id}
-              onSelect={setSelectedId}
-              onChange={handlePagesChange}
-            />
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <div className="min-h-0 flex-1 overflow-hidden">
+              <PageSidebar
+                pages={pages}
+                selectedId={selectedId}
+                proposalId={id}
+                onSelect={setSelectedId}
+                onChange={handlePagesChange}
+              />
+            </div>
+            <FieldsPalette />
           </div>
           <div className="space-y-3 border-t p-3">
             <ProposalAttachmentsPanel
