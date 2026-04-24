@@ -1226,6 +1226,63 @@ export type Database = {
         }
         Relationships: []
       }
+      nomus_process_sync_jobs: {
+        Row: {
+          created_at: string
+          current_page: number
+          entity: string
+          finished_at: string | null
+          id: string
+          last_error: string | null
+          max_items: number
+          page_size: number
+          processed_items: number
+          requested_by: string
+          stages_discovered: number
+          started_at: string | null
+          status: string
+          tipos: string[]
+          updated_at: string
+          upserted_items: number
+        }
+        Insert: {
+          created_at?: string
+          current_page?: number
+          entity?: string
+          finished_at?: string | null
+          id?: string
+          last_error?: string | null
+          max_items?: number
+          page_size?: number
+          processed_items?: number
+          requested_by: string
+          stages_discovered?: number
+          started_at?: string | null
+          status?: string
+          tipos?: string[]
+          updated_at?: string
+          upserted_items?: number
+        }
+        Update: {
+          created_at?: string
+          current_page?: number
+          entity?: string
+          finished_at?: string | null
+          id?: string
+          last_error?: string | null
+          max_items?: number
+          page_size?: number
+          processed_items?: number
+          requested_by?: string
+          stages_discovered?: number
+          started_at?: string | null
+          status?: string
+          tipos?: string[]
+          updated_at?: string
+          upserted_items?: number
+        }
+        Relationships: []
+      }
       nomus_processes: {
         Row: {
           cliente_id: string | null

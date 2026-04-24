@@ -5,7 +5,8 @@ import { useEffect, useMemo, useState } from "react";
 import { RefreshCw, Settings2, Search, Filter as FilterIcon } from "lucide-react";
 import { toast } from "sonner";
 import {
-  pullNomusProcesses,
+  startNomusProcessSyncJob,
+  processNomusProcessSyncBatch,
   listAvailableProcessTypes,
   getUserFunnels,
   setUserFunnels,
@@ -42,7 +43,8 @@ const EMPTY_FILTERS: Filters = { responsavel: "", equipe: "", pessoa: "", proces
 
 function CrmPage() {
   const queryClient = useQueryClient();
-  const pull = useServerFn(pullNomusProcesses);
+  const startSync = useServerFn(startNomusProcessSyncJob);
+  const processSyncBatch = useServerFn(processNomusProcessSyncBatch);
   const listTypes = useServerFn(listAvailableProcessTypes);
   const getFunnels = useServerFn(getUserFunnels);
   const saveFunnels = useServerFn(setUserFunnels);
@@ -127,14 +129,23 @@ function CrmPage() {
 
   const pullMutation = useMutation({
     mutationFn: async () => {
-      // Puxa volume amplo do Nomus (todos os tipos) e filtramos client-side por aba.
-      // Não passamos `tipos` porque ele atua como filtro PÓS-paginação e descartaria muitos.
-      const r = await pull({ data: { maxItems: 5000 } });
-      if (!r.ok) throw new Error(r.error);
-      return r;
+      const started = await startSync({ data: { maxItems: 5000 } });
+      if (!started.ok) throw new Error(started.error);
+
+      let last = started.job;
+      for (let guard = 0; guard < 120; guard += 1) {
+        const batch = await processSyncBatch({ data: { jobId: started.job.id, maxPages: 1 } });
+        if (!batch.ok) throw new Error(batch.error);
+        last = batch.job;
+        if (batch.done) break;
+      }
+      if (last?.status !== "completed") {
+        throw new Error("A sincronização foi pausada antes de concluir. Tente novamente para continuar.");
+      }
+      return last;
     },
     onSuccess: (r) => {
-      toast.success(`Sincronização concluída: ${r.upserted} processos atualizados.`);
+      toast.success(`Sincronização concluída: ${r.upserted_items ?? 0} processos atualizados.`);
       queryClient.invalidateQueries({ queryKey: ["crm"] });
     },
     onError: (e) => toast.error(`Falha na sincronização: ${e instanceof Error ? e.message : String(e)}`),

@@ -7,7 +7,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { listAll, nomusFetch } from "./client";
+import { listAll, listPage, nomusFetch } from "./client";
 import { NOMUS_ENDPOINTS } from "./endpoints";
 
 // ---------------- helpers ----------------
@@ -62,6 +62,108 @@ type NomusProcessRaw = {
   proximoContato?: string;
   [k: string]: unknown;
 };
+
+async function persistNomusProcessBatch(items: NomusProcessRaw[], userId: string) {
+  if (items.length === 0) {
+    return { total: 0, upserted: 0, stagesDiscovered: [] as Array<{ tipo: string; etapas: string[] }>, errors: [] as string[] };
+  }
+
+  const pessoaSet = new Set<string>();
+  for (const raw of items) {
+    const p = (raw.pessoa ?? "").trim();
+    if (p) pessoaSet.add(p);
+  }
+
+  const clienteIdByName = new Map<string, string>();
+  const pessoaList = Array.from(pessoaSet);
+  for (let i = 0; i < pessoaList.length; i += 200) {
+    const slice = pessoaList.slice(i, i + 200);
+    const { data: clients } = await supabaseAdmin.from("clients").select("id, name").in("name", slice);
+    for (const c of clients ?? []) if (c.name) clienteIdByName.set(c.name.toLowerCase(), c.id);
+  }
+
+  const stagesByTipo = new Map<string, Set<string>>();
+  const now = new Date().toISOString();
+  const rows = items
+    .map((raw) => {
+      const nomusId = raw.id != null ? String(raw.id) : "";
+      if (!nomusId) return null;
+      const tipo = (raw.tipo ?? "").trim() || null;
+      const etapa = (raw.etapa ?? "").trim() || null;
+      if (tipo && etapa) {
+        if (!stagesByTipo.has(tipo)) stagesByTipo.set(tipo, new Set());
+        stagesByTipo.get(tipo)!.add(etapa);
+      }
+      const pessoa = raw.pessoa?.trim() ?? null;
+      return {
+        nomus_id: nomusId,
+        nome: raw.nome?.trim() ?? null,
+        pessoa,
+        descricao: raw.descricao ?? null,
+        tipo,
+        etapa,
+        prioridade: raw.prioridade?.trim() ?? null,
+        equipe: raw.equipe?.trim() ?? null,
+        origem: raw.origem?.trim() ?? null,
+        responsavel: raw.responsavel?.trim() ?? null,
+        reportador: raw.reportador?.trim() ?? null,
+        data_criacao: parseBrDate(raw.dataCriacao),
+        data_hora_programada: parseBrDateTime(raw.dataHoraProgramada),
+        proximo_contato: parseBrDate(raw.proximoContato),
+        cliente_id: pessoa ? clienteIdByName.get(pessoa.toLowerCase()) ?? null : null,
+        raw: raw as never,
+        synced_at: now,
+        local_dirty: false,
+      };
+    })
+    .filter((r): r is NonNullable<typeof r> => r !== null);
+
+  const errors: string[] = [];
+  let upserted = 0;
+  for (let i = 0; i < rows.length; i += 100) {
+    const slice = rows.slice(i, i + 100);
+    const { error } = await supabaseAdmin.from("nomus_processes").upsert(slice, { onConflict: "nomus_id" });
+    if (error) errors.push(`batch ${i}-${i + slice.length}: ${error.message}`);
+    else upserted += slice.length;
+  }
+
+  if (stagesByTipo.size > 0) {
+    const tipos = Array.from(stagesByTipo.keys());
+    const { data: existing } = await supabaseAdmin
+      .from("crm_funnel_stages")
+      .select("tipo, etapa, display_order")
+      .in("tipo", tipos);
+    const known = new Set<string>();
+    const maxOrderByTipo = new Map<string, number>();
+    for (const e of existing ?? []) {
+      known.add(`${e.tipo}|${e.etapa}`);
+      const cur = maxOrderByTipo.get(e.tipo) ?? 0;
+      if ((e.display_order ?? 0) > cur) maxOrderByTipo.set(e.tipo, e.display_order ?? 0);
+    }
+
+    const stageRows: Array<{ tipo: string; etapa: string; last_seen_at: string; display_order?: number }> = [];
+    for (const [tipo, etapas] of stagesByTipo.entries()) {
+      let nextOrder = (maxOrderByTipo.get(tipo) ?? 0) + 10;
+      for (const etapa of etapas) {
+        const key = `${tipo}|${etapa}`;
+        if (known.has(key)) stageRows.push({ tipo, etapa, last_seen_at: now });
+        else {
+          stageRows.push({ tipo, etapa, last_seen_at: now, display_order: nextOrder });
+          nextOrder += 10;
+          known.add(key);
+        }
+      }
+    }
+    await supabaseAdmin.from("crm_funnel_stages").upsert(stageRows, { onConflict: "tipo,etapa" });
+  }
+
+  return {
+    total: items.length,
+    upserted,
+    stagesDiscovered: Array.from(stagesByTipo.entries()).map(([tipo, set]) => ({ tipo, etapas: Array.from(set) })),
+    errors,
+  };
+}
 
 // ---------------- pull ----------------
 
@@ -249,6 +351,137 @@ export const pullNomusProcesses = createServerFn({ method: "POST" })
       })),
       errors: errors.length ? errors.slice(0, 10) : undefined,
     };
+  });
+
+export const startNomusProcessSyncJob = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    z
+      .object({
+        tipos: z.array(z.string()).optional(),
+        maxItems: z.number().int().min(1).max(50_000).optional(),
+      })
+      .optional()
+      .default({}),
+  )
+  .handler(async ({ data, context }) => {
+    const userId = context.userId;
+    const { data: job, error } = await (supabaseAdmin as any)
+      .from("nomus_process_sync_jobs")
+      .insert({
+        requested_by: userId,
+        status: "queued",
+        tipos: (data?.tipos ?? []).map((t) => t.trim()).filter(Boolean),
+        max_items: data?.maxItems ?? 5000,
+        page_size: 50,
+        current_page: 1,
+      })
+      .select("*")
+      .single();
+    if (error) return { ok: false as const, error: error.message };
+    return { ok: true as const, job };
+  });
+
+export const getNomusProcessSyncJob = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(z.object({ jobId: z.string().uuid() }))
+  .handler(async ({ data, context }) => {
+    const { data: job, error } = await context.supabase
+      .from("nomus_process_sync_jobs" as any)
+      .select("*")
+      .eq("id", data.jobId)
+      .maybeSingle();
+    if (error) return { ok: false as const, error: error.message };
+    if (!job) return { ok: false as const, error: "Job de sincronização não encontrado" };
+    return { ok: true as const, job };
+  });
+
+export const processNomusProcessSyncBatch = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(z.object({ jobId: z.string().uuid(), maxPages: z.number().int().min(1).max(3).optional() }))
+  .handler(async ({ data, context }) => {
+    const userId = context.userId;
+    const { data: job, error: jobErr } = await (supabaseAdmin as any)
+      .from("nomus_process_sync_jobs")
+      .select("*")
+      .eq("id", data.jobId)
+      .maybeSingle();
+    if (jobErr) return { ok: false as const, error: jobErr.message };
+    if (!job) return { ok: false as const, error: "Job de sincronização não encontrado" };
+    if (job.requested_by !== userId) return { ok: false as const, error: "Sem permissão para processar esta sincronização" };
+    if (!["queued", "running"].includes(job.status)) return { ok: true as const, job, done: true as const };
+
+    const now = new Date().toISOString();
+    await (supabaseAdmin as any)
+      .from("nomus_process_sync_jobs")
+      .update({ status: "running", started_at: job.started_at ?? now, last_error: null })
+      .eq("id", job.id);
+
+    let currentPage = Number(job.current_page ?? 1);
+    let processed = Number(job.processed_items ?? 0);
+    let upserted = Number(job.upserted_items ?? 0);
+    let stagesCount = Number(job.stages_discovered ?? 0);
+    const maxPages = data.maxPages ?? 1;
+    const tipos: string[] = Array.isArray(job.tipos) ? job.tipos : [];
+
+    try {
+      for (let i = 0; i < maxPages && processed < Number(job.max_items); i += 1) {
+        const page = await listPage<NomusProcessRaw>(
+          NOMUS_ENDPOINTS.processos,
+          {},
+          { entity: "processos", pageSize: Number(job.page_size ?? 50), page: currentPage, triggeredBy: userId },
+        );
+        if (!page.ok) throw new Error(page.error);
+
+        const wantedItems = tipos.length
+          ? page.items.filter((p) => tipos.includes((p.tipo ?? "").trim()))
+          : page.items;
+        const persisted = await persistNomusProcessBatch(wantedItems, userId);
+        processed += page.items.length;
+        upserted += persisted.upserted;
+        stagesCount += persisted.stagesDiscovered.reduce((sum, s) => sum + s.etapas.length, 0);
+        currentPage += 1;
+
+        if (!page.hasMore || page.items.length === 0 || processed >= Number(job.max_items)) {
+          const finishedAt = new Date().toISOString();
+          const { data: updated } = await (supabaseAdmin as any)
+            .from("nomus_process_sync_jobs")
+            .update({
+              status: "completed",
+              current_page: currentPage,
+              processed_items: processed,
+              upserted_items: upserted,
+              stages_discovered: stagesCount,
+              finished_at: finishedAt,
+            })
+            .eq("id", job.id)
+            .select("*")
+            .single();
+          await supabaseAdmin.from("nomus_sync_state").upsert(
+            { entity: "processos", last_synced_at: finishedAt, total_synced: upserted, running: false, last_error: null, updated_at: finishedAt },
+            { onConflict: "entity" },
+          );
+          return { ok: true as const, job: updated, done: true as const };
+        }
+      }
+
+      const { data: updated } = await (supabaseAdmin as any)
+        .from("nomus_process_sync_jobs")
+        .update({ status: "running", current_page: currentPage, processed_items: processed, upserted_items: upserted, stages_discovered: stagesCount })
+        .eq("id", job.id)
+        .select("*")
+        .single();
+      return { ok: true as const, job: updated, done: false as const };
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      const { data: updated } = await (supabaseAdmin as any)
+        .from("nomus_process_sync_jobs")
+        .update({ status: "failed", last_error: msg, finished_at: new Date().toISOString() })
+        .eq("id", job.id)
+        .select("*")
+        .single();
+      return { ok: false as const, error: msg, job: updated };
+    }
   });
 
 // ---------------- listar tipos disponíveis (para o seletor de funis) ----------------
