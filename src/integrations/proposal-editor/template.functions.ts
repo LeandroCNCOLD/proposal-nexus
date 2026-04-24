@@ -52,7 +52,7 @@ export const listTemplates = createServerFn({ method: "GET" })
     return {
       templates: (templates ?? []) as unknown as ProposalTemplate[],
       assets: enrichedAssets,
-    };
+    } as unknown as { templates: ProposalTemplate[]; assets: TemplateAsset[] };
   });
 
 /** Carrega template padrão (ou um template específico) com seus assets. */
@@ -63,7 +63,7 @@ const getTemplateSchema = z.object({
 export const getTemplate = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => getTemplateSchema.parse(input ?? {}))
-  .handler(async ({ data, context }): Promise<TemplateBundle | null> => {
+  .handler(async ({ data, context }) => {
     const { supabase } = context;
 
     let query = supabase.from("proposal_templates").select("*");
@@ -82,10 +82,11 @@ export const getTemplate = createServerFn({ method: "POST" })
       .eq("template_id", tmpl.id)
       .order("position", { ascending: true, nullsFirst: false });
 
-    return {
+    const result: TemplateBundle = {
       template: tmpl as unknown as ProposalTemplate,
       assets: await buildAssetsWithUrls(supabase, (assets ?? []) as never),
     };
+    return result as unknown as TemplateBundle | null;
   });
 
 /** Atualiza textos/cores de um template. */
