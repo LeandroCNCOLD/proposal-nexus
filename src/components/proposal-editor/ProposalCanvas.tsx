@@ -252,6 +252,56 @@ export function ProposalCanvas({
     block: DocumentBlock,
     next: BlockLayout,
   ) => {
+    const prev = (block.data.layout as BlockLayout | undefined) ?? defaultLayoutFor(block.type);
+    const widthChanged = prev.w !== next.w;
+    const heightChanged = prev.h !== next.h;
+    const positionChanged = prev.x !== next.x || prev.y !== next.y;
+
+    // Caso especial: container redimensionado → escala filhos proporcionalmente
+    // (posição relativa, tamanho e fontSize). Movimento puro (sem resize) também
+    // arrasta os filhos junto, para a caixa funcionar como um grupo.
+    if (block.type === "container" && (widthChanged || heightChanged || positionChanged)) {
+      const page = pages.find((p) => p.id === pageId);
+      if (!page) {
+        updateBlock(pageId, { ...block, data: { ...block.data, layout: next } });
+        return;
+      }
+      const children = page.blocks.filter((b) => isInsideContainer(b, block));
+      const sx = prev.w > 0 ? next.w / prev.w : 1;
+      const sy = prev.h > 0 ? next.h / prev.h : 1;
+      const fontScale = Math.min(sx, sy); // mantém legibilidade
+
+      const updatedContainer: DocumentBlock = {
+        ...block,
+        data: { ...block.data, layout: next },
+      };
+
+      const updatedChildren: DocumentBlock[] = children.map((child) => {
+        const cl = (child.data.layout as BlockLayout | undefined) ?? defaultLayoutFor(child.type);
+        // posição relativa ao container antigo
+        const relX = cl.x - prev.x;
+        const relY = cl.y - prev.y;
+        const newLayout: BlockLayout = {
+          ...cl,
+          x: Math.round(next.x + relX * sx),
+          y: Math.round(next.y + relY * sy),
+          w: Math.max(20, Math.round(cl.w * sx)),
+          h: Math.max(16, Math.round(cl.h * sy)),
+        };
+        // Escala fontSize quando houve resize real (não só drag)
+        const nextData: Record<string, unknown> = { ...child.data, layout: newLayout };
+        if (widthChanged || heightChanged) {
+          const baseFs = (child.data.fontSize as number | undefined) ?? 14;
+          const nextFs = Math.max(8, Math.min(96, Math.round(baseFs * fontScale * 10) / 10));
+          nextData.fontSize = nextFs;
+        }
+        return { ...child, data: nextData };
+      });
+
+      updateManyBlocks(pageId, [updatedContainer, ...updatedChildren]);
+      return;
+    }
+
     updateBlock(pageId, { ...block, data: { ...block.data, layout: next } });
   };
 
