@@ -282,6 +282,7 @@ function ProposalsList() {
               const vendedor = (p as any)._nomus?.vendedor_nome ?? "—";
               const currentRev = (p as any)._currentRevision ?? 0;
               const totalRevs = (p as any)._totalRevisions ?? 1;
+              const sla = computeSLA(p);
               return (
               <TableRow key={p.id} className="cursor-pointer">
                 <TableCell className="font-mono text-xs">
