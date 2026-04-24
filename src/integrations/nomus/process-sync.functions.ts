@@ -408,6 +408,7 @@ export const processNomusProcessSyncBatch = createServerFn({ method: "POST" })
       .maybeSingle();
     if (jobErr) return { ok: false as const, error: jobErr.message };
     if (!job) return { ok: false as const, error: "Job de sincronização não encontrado" };
+    if (job.requested_by !== userId) return { ok: false as const, error: "Sem permissão para processar esta sincronização" };
     if (!["queued", "running"].includes(job.status)) return { ok: true as const, job, done: true as const };
 
     const now = new Date().toISOString();
