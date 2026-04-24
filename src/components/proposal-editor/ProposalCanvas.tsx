@@ -1,8 +1,8 @@
 // Canvas A4 do Page Builder. Renderiza cada página como um "papel" com chrome
 // fiel ao template (capa pictórica, header com curva azul, rodapé azul) e
 // blocos editáveis posicionados absolutamente via react-rnd.
-import { useEffect, useRef } from "react";
-import { Plus } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Plus, Ruler, Grid3x3 } from "lucide-react";
 import { Rnd } from "react-rnd";
 import {
   makeBlock,
@@ -26,6 +26,13 @@ import {
 import { PageChrome } from "./PageChrome";
 import { PALETTE_DRAG_MIME, parsePaletteItem } from "./FieldsPalette";
 import { ContainerToolbar, isInsideContainer } from "./ContainerToolbar";
+import {
+  HorizontalRuler,
+  VerticalRuler,
+  GridOverlay,
+  RULER_SIZE,
+} from "./CanvasRulers";
+import { MultiSelectToolbar } from "./MultiSelectToolbar";
 import { cn } from "@/lib/utils";
 
 // Handles visíveis (8 pontos: cantos + meios) — só aparecem no bloco selecionado.
@@ -106,6 +113,62 @@ export function ProposalCanvas({
   const pageH = pageHeightPx ?? A4_H;
   const containerRef = useRef<HTMLDivElement>(null);
   const pageRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  // ---------- Réguas + Grade ----------
+  const [showGrid, setShowGrid] = useState(false);
+  const [showRulers, setShowRulers] = useState(true);
+
+  // ---------- Multi-seleção ----------
+  // selectedBlockId (vindo do parent) é o "principal".
+  // extraSelectedIds são os adicionados via Shift/Ctrl+click.
+  const [extraSelectedIds, setExtraSelectedIds] = useState<Set<string>>(new Set());
+
+  const selectedSet = useMemo(() => {
+    const s = new Set<string>(extraSelectedIds);
+    if (selectedBlockId) s.add(selectedBlockId);
+    return s;
+  }, [extraSelectedIds, selectedBlockId]);
+
+  // Limpa seleção extra sempre que mudamos de página principal selecionada
+  useEffect(() => {
+    setExtraSelectedIds(new Set());
+  }, [selectedId]);
+
+  /** Click num bloco: respeita Shift/Ctrl/Meta para seleção aditiva. */
+  const handleBlockClick = (blockId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const additive = e.shiftKey || e.ctrlKey || e.metaKey;
+    if (!additive) {
+      setExtraSelectedIds(new Set());
+      onSelectBlock(blockId);
+      return;
+    }
+    // Aditivo: alterna o estado deste bloco na seleção
+    if (selectedBlockId === blockId) {
+      // Está como principal — promove o primeiro extra a principal e remove este
+      const others = Array.from(extraSelectedIds);
+      const next = new Set(extraSelectedIds);
+      onSelectBlock(others[0] ?? null);
+      next.delete(others[0] ?? "");
+      setExtraSelectedIds(next);
+      return;
+    }
+    const next = new Set(extraSelectedIds);
+    if (next.has(blockId)) {
+      next.delete(blockId);
+    } else if (!selectedBlockId) {
+      onSelectBlock(blockId);
+    } else {
+      next.add(blockId);
+    }
+    setExtraSelectedIds(next);
+  };
+
+  const clearMultiSelection = () => {
+    setExtraSelectedIds(new Set());
+    onSelectBlock(null);
+  };
+
 
   useEffect(() => {
     if (!selectedId) return;
@@ -188,6 +251,31 @@ export function ProposalCanvas({
         .map((b, i) => ({ ...b, order: i })),
     });
     if (selectedBlockId && childIds.has(selectedBlockId)) onSelectBlock(null);
+  };
+
+  /** Move em lote todos os blocos selecionados (multi-seleção) por (dx,dy). */
+  const moveManySelected = (pageId: string, dx: number, dy: number) => {
+    const page = pages.find((p) => p.id === pageId);
+    if (!page) return;
+    const next = page.blocks.map((b) => {
+      if (!selectedSet.has(b.id)) return b;
+      const l = (b.data.layout as BlockLayout | undefined) ?? defaultLayoutFor(b.type);
+      const nx = Math.max(0, Math.min(pageW - l.w, l.x + dx));
+      const ny = Math.max(0, Math.min(pageH - l.h, l.y + dy));
+      return { ...b, data: { ...b.data, layout: { ...l, x: Math.round(nx), y: Math.round(ny) } } };
+    });
+    updatePage(pageId, { blocks: next });
+  };
+
+  /** Exclui múltiplos blocos por id. */
+  const deleteBlocks = (pageId: string, ids: string[]) => {
+    const set = new Set(ids);
+    updatePage(pageId, {
+      blocks: (pages.find((p) => p.id === pageId)?.blocks ?? [])
+        .filter((b) => !set.has(b.id))
+        .map((b, i) => ({ ...b, order: i })),
+    });
+    clearMultiSelection();
   };
 
   const duplicateBlock = (pageId: string, blockId: string) => {
@@ -332,10 +420,17 @@ export function ProposalCanvas({
     updateBlock(pageId, { ...block, data: { ...block.data, layout: next } });
   };
 
+  // Blocos selecionados na página visível atual (para a toolbar de grupo)
+  const selectedBlocksOnPage = useMemo(() => {
+    const page = sorted.find((p) => p.id === selectedId) ?? sorted[0];
+    if (!page) return [] as DocumentBlock[];
+    return page.blocks.filter((b) => selectedSet.has(b.id));
+  }, [sorted, selectedId, selectedSet]);
+
   return (
     <div
       ref={containerRef}
-      className="h-full overflow-y-auto bg-slate-200 p-6"
+      className="relative h-full overflow-y-auto bg-slate-200"
       style={{
         // CSS vars do template
         ["--tpl-primary" as string]: template?.primary_color ?? "#0c2340",
@@ -343,33 +438,85 @@ export function ProposalCanvas({
         ["--tpl-accent-2" as string]: template?.accent_color_2 ?? "#5cbdb9",
         fontFamily: documentFontFamily || "Inter, system-ui, sans-serif",
       }}
-      onClick={() => onSelectBlock(null)}
+      onClick={() => clearMultiSelection()}
     >
+      {/* Barra de ferramentas do canvas: réguas + grade */}
+      <div
+        className="sticky top-0 z-40 flex items-center gap-2 border-b bg-slate-100/95 px-4 py-1.5 backdrop-blur"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <Button
+          size="sm"
+          variant={showRulers ? "default" : "ghost"}
+          className="h-7 gap-1 px-2 text-[11px]"
+          onClick={() => setShowRulers((v) => !v)}
+          title="Mostrar/ocultar réguas (cm)"
+        >
+          <Ruler className="h-3.5 w-3.5" />
+          Réguas
+        </Button>
+        <Button
+          size="sm"
+          variant={showGrid ? "default" : "ghost"}
+          className="h-7 gap-1 px-2 text-[11px]"
+          onClick={() => setShowGrid((v) => !v)}
+          title="Mostrar/ocultar grade (cm)"
+        >
+          <Grid3x3 className="h-3.5 w-3.5" />
+          Grade
+        </Button>
+        <span className="ml-auto text-[10px] text-muted-foreground">
+          Dica: Shift+clique para selecionar vários blocos · arraste a seleção para movê-los juntos
+        </span>
+      </div>
+
+      {/* Toolbar flutuante de alinhamento (multi-seleção) */}
+      {selectedBlocksOnPage.length >= 2 ? (
+        <MultiSelectToolbar
+          blocks={selectedBlocksOnPage}
+          pageW={pageW}
+          pageH={pageH}
+          onUpdateBlocks={(next) => {
+            const pageId = selectedId ?? sorted[0]?.id;
+            if (pageId) updateManyBlocks(pageId, next);
+          }}
+          onDeleteBlocks={(ids) => {
+            const pageId = selectedId ?? sorted[0]?.id;
+            if (pageId) deleteBlocks(pageId, ids);
+          }}
+          onClear={clearMultiSelection}
+        />
+      ) : null}
+
+      <div className="p-6">
       {sorted.map((page, idx) => {
         const isCover = page.type === "cover";
         const isContracapa = page.type === "contracapa";
         return (
-          <div
-            key={page.id}
-            ref={(el) => {
-              pageRefs.current[page.id] = el;
-            }}
-            className={cn(
-              "relative mx-auto mb-8 overflow-hidden bg-white shadow-lg ring-1 ring-black/10 transition",
-              page.id === selectedId && "ring-2 ring-primary",
-            )}
-            style={{ width: pageW, height: pageH }}
-            onClick={(e) => {
-              e.stopPropagation();
-              onSelect(page.id);
-              onSelectBlock(null);
-            }}
-            onDragOver={(e) => {
-              if (Array.from(e.dataTransfer.types).includes(PALETTE_DRAG_MIME)) {
-                e.preventDefault();
-                e.dataTransfer.dropEffect = "copy";
-              }
-            }}
+          <div key={page.id} className="mb-8">
+            {showRulers ? <HorizontalRuler pageW={pageW} /> : null}
+            <div className="relative mx-auto" style={{ width: pageW + (showRulers ? RULER_SIZE : 0), paddingLeft: showRulers ? RULER_SIZE : 0 }}>
+              {showRulers ? <VerticalRuler pageH={pageH} /> : null}
+              <div
+                ref={(el) => {
+                  pageRefs.current[page.id] = el;
+                }}
+                className={cn(
+                  "relative overflow-hidden bg-white shadow-lg ring-1 ring-black/10 transition",
+                  page.id === selectedId && "ring-2 ring-primary",
+                )}
+                style={{ width: pageW, height: pageH }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSelect(page.id);
+                  if (!(e.shiftKey || e.ctrlKey || e.metaKey)) clearMultiSelection();
+                }}
+                onDragOver={(e) => {
+                  if (Array.from(e.dataTransfer.types).includes(PALETTE_DRAG_MIME)) {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = "copy";
+                  }
+                }}
             onDrop={(e) => handlePageDrop(page.id, e)}
           >
             {/* Chrome A4 */}
@@ -394,7 +541,8 @@ export function ProposalCanvas({
                 .map((block) => {
                   const layout =
                     (block.data.layout as BlockLayout | undefined) ?? defaultLayoutFor(block.type);
-                  const selected = selectedBlockId === block.id;
+                  const selected = selectedSet.has(block.id);
+                  const isPrimary = selectedBlockId === block.id;
                   const isLockedCoverOverlay = isCover && block.type === "cover_identity";
                   return (
                     <Rnd
@@ -403,13 +551,20 @@ export function ProposalCanvas({
                       size={{ width: layout.w, height: layout.h }}
                       position={{ x: layout.x, y: layout.y }}
                        disableDragging={block.locked || isLockedCoverOverlay}
-                       enableResizing={!block.locked && !isLockedCoverOverlay}
+                       enableResizing={!block.locked && !isLockedCoverOverlay && isPrimary}
                       minWidth={60}
                       minHeight={30}
-                      resizeHandleComponent={selected ? handleComponents : undefined}
-                      onDragStop={(_e, d) =>
-                        handleDragResize(page.id, block, { ...layout, x: Math.round(d.x), y: Math.round(d.y) })
-                      }
+                      resizeHandleComponent={isPrimary ? handleComponents : undefined}
+                      onDragStop={(_e, d) => {
+                        const dx = Math.round(d.x) - layout.x;
+                        const dy = Math.round(d.y) - layout.y;
+                        // Se há multi-seleção, move todos os outros selecionados juntos
+                        if (selectedSet.size > 1 && (dx !== 0 || dy !== 0)) {
+                          moveManySelected(page.id, dx, dy);
+                          return;
+                        }
+                        handleDragResize(page.id, block, { ...layout, x: Math.round(d.x), y: Math.round(d.y) });
+                      }}
                       onResizeStop={(_e, _dir, ref, _delta, position) =>
                         handleDragResize(page.id, block, {
                           ...layout,
@@ -421,11 +576,10 @@ export function ProposalCanvas({
                       }
                       onClick={(e: React.MouseEvent) => {
                          if (isLockedCoverOverlay) return;
-                        e.stopPropagation();
-                        onSelectBlock(block.id);
+                         handleBlockClick(block.id, e);
                       }}
                       style={{
-                         zIndex: isLockedCoverOverlay ? 0 : selected ? 1000 : block.order + 10,
+                         zIndex: isLockedCoverOverlay ? 0 : isPrimary ? 1000 : selected ? 999 : block.order + 10,
                          pointerEvents: isLockedCoverOverlay ? "none" : "auto",
                       }}
                     >
@@ -484,6 +638,8 @@ export function ProposalCanvas({
                 </DropdownMenu>
               </div>
             ) : null}
+              </div>
+            </div>
           </div>
         );
       })}
@@ -495,6 +651,7 @@ export function ProposalCanvas({
           Nenhuma página visível. Adicione uma página na barra lateral.
         </div>
       ) : null}
+      </div>
     </div>
   );
 }
