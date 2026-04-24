@@ -72,24 +72,34 @@ const FIELD_ALIASES: Record<string, string[]> = {
   condenser_model: ["modelo condensador", "modelo do condensador"],
   cond_tube_in: ["o tubo_cond [in]", "diametro tubo cond [in]", "o tubo cond in"],
   cond_tube_mm: ["o tubo_cond [mm]", "diametro tubo cond [mm]", "o tubo cond mm"],
+  cond_tube_outer_mm: ["diametro externo tubo cond", "diametro externo cond", "de tubo_cond", "de tubo cond"],
+  cond_tube_inner_mm: ["diametro interno tubo cond", "diametro interno cond", "di tubo_cond", "di tubo cond"],
   cond_tube_thickness: ["esp. tubo_cond [mm]", "espessura tubo cond"],
+  cond_tube_length_m: ["comprimento tubo cond", "comprimento total tubo cond", "comprimento serpentina cond"],
+  cond_tube_count: ["quantidade tubos cond", "qtd tubos cond", "numero tubos cond"],
   cond_geometry: ["geometria condensador"],
   cond_volume: ["volume interno condensador"],
   cond_fan: ["ventilador condensador"],
   cond_airflow: ["vazao ventilador condensador", "vazao condensador"],
+  cond_air_throw: ["flecha de ar condensador", "flecha ar condensador", "alcance de ar condensador"],
 
   // Evaporador
   evap_model: ["modelo evaporador", "modelo do evaporador"],
   evap_reheat: ["reaquecimento"],
   evap_tube_in: ["o tubo_evap [in]", "o tubo evap in"],
   evap_tube_mm: ["o tubo_evap [mm]", "o tubo evap mm"],
+  evap_tube_outer_mm: ["diametro externo tubo evap", "diametro externo evaporador", "de tubo_evap", "de tubo evap"],
+  evap_tube_inner_mm: ["diametro interno tubo evap", "diametro interno evaporador", "di tubo_evap", "di tubo evap"],
   evap_tube_thickness: ["esp. tubo_evap [mm]", "espessura tubo evap"],
+  evap_tube_length_m: ["comprimento tubo evap", "comprimento total tubo evap", "comprimento serpentina evap"],
+  evap_tube_count: ["quantidade tubos evap", "qtd tubos evap", "numero tubos evap"],
   evap_geometry: ["geometria evaporador"],
   evap_volume: ["volume interno evaporador"],
   evap_area: ["area da superficie de troca evaporador", "area de troca evaporador"],
   evap_qty: ["quantidade de evaporadores", "qtd evaporadores"],
   evap_fan: ["ventilador evaporador"],
   evap_airflow: ["vazao ventilador evaporador", "vazao evaporador"],
+  evap_air_throw: ["flecha de ar evaporador", "flecha ar evaporador", "alcance de ar evaporador"],
 
   // Performance
   evap_capacity: ["capacidade evaporador", "capacidade do evaporador"],
@@ -153,11 +163,16 @@ export type ParsedRow = {
     model: string | null;
     tube_in: number | null;
     tube_mm: number | null;
+    tube_outer_mm: number | null;
+    tube_inner_mm: number | null;
     tube_thickness: number | null;
+    tube_length_m: number | null;
+    tube_count: number | null;
     geometry: string | null;
     volume: number | null;
     fan: string | null;
     airflow: number | null;
+    air_throw: number | null;
   };
   // Evaporador
   evaporator: {
@@ -165,13 +180,18 @@ export type ParsedRow = {
     reheat: string | null;
     tube_in: number | null;
     tube_mm: number | null;
+    tube_outer_mm: number | null;
+    tube_inner_mm: number | null;
     tube_thickness: number | null;
+    tube_length_m: number | null;
+    tube_count: number | null;
     geometry: string | null;
     volume: number | null;
     area: number | null;
     qty: number | null;
     fan: string | null;
     airflow: number | null;
+    air_throw: number | null;
   };
   // Performance
   performance: {
@@ -340,24 +360,34 @@ export async function parseCatalogFile(file: File): Promise<ParseResult> {
         model: toText(get(r, fieldToCol, "condenser_model")),
         tube_in: toNumber(get(r, fieldToCol, "cond_tube_in")),
         tube_mm: toNumber(get(r, fieldToCol, "cond_tube_mm")),
+        tube_outer_mm: toNumber(get(r, fieldToCol, "cond_tube_outer_mm")),
+        tube_inner_mm: toNumber(get(r, fieldToCol, "cond_tube_inner_mm")),
         tube_thickness: toNumber(get(r, fieldToCol, "cond_tube_thickness")),
+        tube_length_m: toNumber(get(r, fieldToCol, "cond_tube_length_m")),
+        tube_count: toNumber(get(r, fieldToCol, "cond_tube_count")),
         geometry: toText(get(r, fieldToCol, "cond_geometry")),
         volume: toNumber(get(r, fieldToCol, "cond_volume")),
         fan: toText(get(r, fieldToCol, "cond_fan")),
         airflow: toNumber(get(r, fieldToCol, "cond_airflow")),
+        air_throw: toNumber(get(r, fieldToCol, "cond_air_throw")),
       },
       evaporator: {
         model: toText(get(r, fieldToCol, "evap_model")),
         reheat: toText(get(r, fieldToCol, "evap_reheat")),
         tube_in: toNumber(get(r, fieldToCol, "evap_tube_in")),
         tube_mm: toNumber(get(r, fieldToCol, "evap_tube_mm")),
+        tube_outer_mm: toNumber(get(r, fieldToCol, "evap_tube_outer_mm")),
+        tube_inner_mm: toNumber(get(r, fieldToCol, "evap_tube_inner_mm")),
         tube_thickness: toNumber(get(r, fieldToCol, "evap_tube_thickness")),
+        tube_length_m: toNumber(get(r, fieldToCol, "evap_tube_length_m")),
+        tube_count: toNumber(get(r, fieldToCol, "evap_tube_count")),
         geometry: toText(get(r, fieldToCol, "evap_geometry")),
         volume: toNumber(get(r, fieldToCol, "evap_volume")),
         area: toNumber(get(r, fieldToCol, "evap_area")),
         qty: toNumber(get(r, fieldToCol, "evap_qty")),
         fan: toText(get(r, fieldToCol, "evap_fan")),
         airflow: toNumber(get(r, fieldToCol, "evap_airflow")),
+        air_throw: toNumber(get(r, fieldToCol, "evap_air_throw")),
       },
       performance: {
         temp_room: toNumber(get(r, fieldToCol, "temp_room")),

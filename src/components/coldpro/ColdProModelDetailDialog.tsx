@@ -349,11 +349,17 @@ export function ColdProModelDetailDialog({ modelId, open, onOpenChange }: Props)
                   <Field label="Modelo" value={data.condenser.condenser_model} />
                   <Field label="Ø tubo (in)" value={data.condenser.tube_diameter_in} />
                   <Field label="Ø tubo (mm)" value={data.condenser.tube_diameter_mm} />
-                  <Field label="Espessura tubo (mm)" value={data.condenser.tube_thickness_mm} />
+                  <Field label="Ø externo (mm)" value={data.condenser.tube_outer_diameter_mm} />
+                  <Field label="Ø interno (mm)" value={data.condenser.tube_inner_diameter_mm} />
+                  <Field label="Parede tubo (mm)" value={data.condenser.tube_wall_thickness_mm ?? data.condenser.tube_thickness_mm} />
+                  <Field label="Comprimento tubos (m)" value={data.condenser.tube_length_m} />
+                  <Field label="Qtd. tubos" value={data.condenser.tube_count} />
                   <Field label="Geometria" value={data.condenser.geometry} />
                   <Field label="Volume interno (L)" value={data.condenser.internal_volume_l} />
+                  <Field label="Volume calculado (L)" value={data.condenser.calculated_internal_volume_l} />
                   <Field label="Modelo ventilador" value={data.condenser.fan_model} />
                   <Field label="Vazão de ar (m³/h)" value={data.condenser.airflow_m3_h} />
+                  <Field label="Flecha de ar (m)" value={data.condenser.air_throw_m} />
                 </div>
               )}
             </TabsContent>
@@ -369,12 +375,18 @@ export function ColdProModelDetailDialog({ modelId, open, onOpenChange }: Props)
                   <Field label="Quantidade" value={data.evaporator.evaporator_quantity} />
                   <Field label="Ø tubo (in)" value={data.evaporator.tube_diameter_in} />
                   <Field label="Ø tubo (mm)" value={data.evaporator.tube_diameter_mm} />
-                  <Field label="Espessura tubo (mm)" value={data.evaporator.tube_thickness_mm} />
+                  <Field label="Ø externo (mm)" value={data.evaporator.tube_outer_diameter_mm} />
+                  <Field label="Ø interno (mm)" value={data.evaporator.tube_inner_diameter_mm} />
+                  <Field label="Parede tubo (mm)" value={data.evaporator.tube_wall_thickness_mm ?? data.evaporator.tube_thickness_mm} />
+                  <Field label="Comprimento tubos (m)" value={data.evaporator.tube_length_m} />
+                  <Field label="Qtd. tubos" value={data.evaporator.tube_count} />
                   <Field label="Geometria" value={data.evaporator.geometry} />
                   <Field label="Volume interno (L)" value={data.evaporator.internal_volume_l} />
+                  <Field label="Volume calculado (L)" value={data.evaporator.calculated_internal_volume_l} />
                   <Field label="Área superfície (m²)" value={data.evaporator.surface_area_m2} />
                   <Field label="Modelo ventilador" value={data.evaporator.fan_model} />
                   <Field label="Vazão de ar (m³/h)" value={data.evaporator.airflow_m3_h} />
+                  <Field label="Flecha de ar (m)" value={data.evaporator.air_throw_m} />
                 </div>
               )}
             </TabsContent>

@@ -51,7 +51,7 @@ function CatalogoPage() {
   const modelsQuery = useQuery({
     queryKey: ["coldpro-models"],
     queryFn: async () => {
-      const [modelsRes, perfRes] = await Promise.all([
+      const [modelsRes, perfRes, voltageRes] = await Promise.all([
         supabase
           .from("coldpro_equipment_models")
           .select("*")
@@ -62,9 +62,13 @@ function CatalogoPage() {
           .from("coldpro_equipment_performance_points")
           .select("equipment_model_id, voltage")
           .limit(10000),
+        supabase
+          .from("coldpro_equipment_models")
+          .select("voltage_value_v, phase_count"),
       ]);
       if (modelsRes.error) throw modelsRes.error;
       if (perfRes.error) throw perfRes.error;
+      if (voltageRes.error) throw voltageRes.error;
 
       const stats = new Map<string, { points: number; voltages: Set<string> }>();
       for (const p of perfRes.data ?? []) {
@@ -75,7 +79,13 @@ function CatalogoPage() {
         s.points++;
         if (p.voltage) s.voltages.add(p.voltage);
       }
-      return (modelsRes.data ?? []).map((m) => {
+      const voltageSummary = {
+        total: voltageRes.data?.length ?? 0,
+        v220_3f: voltageRes.data?.filter((m) => m.voltage_value_v === 220 && m.phase_count === 3).length ?? 0,
+        v380_3f: voltageRes.data?.filter((m) => m.voltage_value_v === 380 && m.phase_count === 3).length ?? 0,
+      };
+
+      const rows = (modelsRes.data ?? []).map((m) => {
         const model = m as typeof m & { electrical_configuration?: string | null };
         const s = stats.get(m.id);
         return {
@@ -84,6 +94,7 @@ function CatalogoPage() {
           voltages: s ? Array.from(s.voltages).sort() : model.electrical_configuration ? [model.electrical_configuration] : [],
         };
       });
+      return { rows, voltageSummary };
     },
   });
 
@@ -147,7 +158,8 @@ function CatalogoPage() {
     }
   }
 
-  const filteredModels = (modelsQuery.data ?? []).filter((m) => {
+  const catalogRows = modelsQuery.data?.rows ?? [];
+  const filteredModels = catalogRows.filter((m) => {
     const q = search.toLowerCase().trim();
     if (!q) return true;
     return (
@@ -332,7 +344,13 @@ function CatalogoPage() {
             <div className="flex items-center gap-2">
               <Layers className="h-5 w-5 text-primary" />
               <h2 className="text-lg font-semibold">Modelos no catálogo</h2>
-              <Badge variant="secondary">{modelsQuery.data?.length ?? 0}</Badge>
+              <Badge variant="secondary">{catalogRows.length}</Badge>
+              {modelsQuery.data?.voltageSummary && (
+                <>
+                  <Badge variant="outline" className="font-mono">220V 3F: {modelsQuery.data.voltageSummary.v220_3f}</Badge>
+                  <Badge variant="outline" className="font-mono">380V 3F: {modelsQuery.data.voltageSummary.v380_3f}</Badge>
+                </>
+              )}
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <Button
