@@ -680,6 +680,8 @@ export type Database = {
           corrected_internal_volume_l: number | null
           created_at: string
           equipment_model_id: string
+          estimated_refrigerant_charge_kg: number | null
+          estimated_refrigerant_charge_note: string | null
           fan_diameter_mm: number | null
           fan_model: string | null
           fin_spacing_mm: number | null
@@ -688,6 +690,9 @@ export type Database = {
           internal_volume_l: number | null
           occupancy_factor: number | null
           occupied_internal_volume_l: number | null
+          refrigerant_density_kg_l: number | null
+          refrigerant_occupancy_factor: number | null
+          refrigerant_reference_temp_c: number | null
           rows: number | null
           total_tube_length_m: number | null
           total_tubes: number | null
@@ -716,6 +721,8 @@ export type Database = {
           corrected_internal_volume_l?: number | null
           created_at?: string
           equipment_model_id: string
+          estimated_refrigerant_charge_kg?: number | null
+          estimated_refrigerant_charge_note?: string | null
           fan_diameter_mm?: number | null
           fan_model?: string | null
           fin_spacing_mm?: number | null
@@ -724,6 +731,9 @@ export type Database = {
           internal_volume_l?: number | null
           occupancy_factor?: number | null
           occupied_internal_volume_l?: number | null
+          refrigerant_density_kg_l?: number | null
+          refrigerant_occupancy_factor?: number | null
+          refrigerant_reference_temp_c?: number | null
           rows?: number | null
           total_tube_length_m?: number | null
           total_tubes?: number | null
@@ -752,6 +762,8 @@ export type Database = {
           corrected_internal_volume_l?: number | null
           created_at?: string
           equipment_model_id?: string
+          estimated_refrigerant_charge_kg?: number | null
+          estimated_refrigerant_charge_note?: string | null
           fan_diameter_mm?: number | null
           fan_model?: string | null
           fin_spacing_mm?: number | null
@@ -760,6 +772,9 @@ export type Database = {
           internal_volume_l?: number | null
           occupancy_factor?: number | null
           occupied_internal_volume_l?: number | null
+          refrigerant_density_kg_l?: number | null
+          refrigerant_occupancy_factor?: number | null
+          refrigerant_reference_temp_c?: number | null
           rows?: number | null
           total_tube_length_m?: number | null
           total_tubes?: number | null
@@ -797,17 +812,26 @@ export type Database = {
           complementary_source_sheet: string | null
           corrected_internal_volume_l: number | null
           created_at: string
+          effective_exchange_area_m2: number | null
           equipment_model_id: string
+          estimated_exchange_area_m2: number | null
+          estimated_refrigerant_charge_kg: number | null
+          estimated_refrigerant_charge_note: string | null
           evaporator_model: string | null
           evaporator_quantity: number | null
           fan_diameter_mm: number | null
           fan_model: string | null
+          fin_area_multiplier: number | null
+          fin_efficiency_factor: number | null
           fin_spacing_mm: number | null
           geometry: string | null
           id: string
           internal_volume_l: number | null
           occupancy_factor: number | null
           occupied_internal_volume_l: number | null
+          refrigerant_density_kg_l: number | null
+          refrigerant_occupancy_factor: number | null
+          refrigerant_reference_temp_c: number | null
           reheating: string | null
           rows: number | null
           surface_area_m2: number | null
@@ -816,6 +840,7 @@ export type Database = {
           tube_count: number | null
           tube_diameter_in: number | null
           tube_diameter_mm: number | null
+          tube_external_area_m2: number | null
           tube_inner_diameter_mm: number | null
           tube_length_m: number | null
           tube_length_mm: number | null
@@ -836,17 +861,26 @@ export type Database = {
           complementary_source_sheet?: string | null
           corrected_internal_volume_l?: number | null
           created_at?: string
+          effective_exchange_area_m2?: number | null
           equipment_model_id: string
+          estimated_exchange_area_m2?: number | null
+          estimated_refrigerant_charge_kg?: number | null
+          estimated_refrigerant_charge_note?: string | null
           evaporator_model?: string | null
           evaporator_quantity?: number | null
           fan_diameter_mm?: number | null
           fan_model?: string | null
+          fin_area_multiplier?: number | null
+          fin_efficiency_factor?: number | null
           fin_spacing_mm?: number | null
           geometry?: string | null
           id?: string
           internal_volume_l?: number | null
           occupancy_factor?: number | null
           occupied_internal_volume_l?: number | null
+          refrigerant_density_kg_l?: number | null
+          refrigerant_occupancy_factor?: number | null
+          refrigerant_reference_temp_c?: number | null
           reheating?: string | null
           rows?: number | null
           surface_area_m2?: number | null
@@ -855,6 +889,7 @@ export type Database = {
           tube_count?: number | null
           tube_diameter_in?: number | null
           tube_diameter_mm?: number | null
+          tube_external_area_m2?: number | null
           tube_inner_diameter_mm?: number | null
           tube_length_m?: number | null
           tube_length_mm?: number | null
@@ -875,17 +910,26 @@ export type Database = {
           complementary_source_sheet?: string | null
           corrected_internal_volume_l?: number | null
           created_at?: string
+          effective_exchange_area_m2?: number | null
           equipment_model_id?: string
+          estimated_exchange_area_m2?: number | null
+          estimated_refrigerant_charge_kg?: number | null
+          estimated_refrigerant_charge_note?: string | null
           evaporator_model?: string | null
           evaporator_quantity?: number | null
           fan_diameter_mm?: number | null
           fan_model?: string | null
+          fin_area_multiplier?: number | null
+          fin_efficiency_factor?: number | null
           fin_spacing_mm?: number | null
           geometry?: string | null
           id?: string
           internal_volume_l?: number | null
           occupancy_factor?: number | null
           occupied_internal_volume_l?: number | null
+          refrigerant_density_kg_l?: number | null
+          refrigerant_occupancy_factor?: number | null
+          refrigerant_reference_temp_c?: number | null
           reheating?: string | null
           rows?: number | null
           surface_area_m2?: number | null
@@ -894,6 +938,7 @@ export type Database = {
           tube_count?: number | null
           tube_diameter_in?: number | null
           tube_diameter_mm?: number | null
+          tube_external_area_m2?: number | null
           tube_inner_diameter_mm?: number | null
           tube_length_m?: number | null
           tube_length_mm?: number | null
@@ -1379,6 +1424,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      coldpro_refrigerant_properties: {
+        Row: {
+          created_at: string
+          id: string
+          liquid_density_kg_l: number
+          notes: string | null
+          reference_temperature_c: number
+          refrigerant: string
+          source: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          liquid_density_kg_l: number
+          notes?: string | null
+          reference_temperature_c: number
+          refrigerant: string
+          source?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          liquid_density_kg_l?: number
+          notes?: string | null
+          reference_temperature_c?: number
+          refrigerant?: string
+          source?: string | null
+        }
+        Relationships: []
       }
       coldpro_results: {
         Row: {
@@ -4236,7 +4311,18 @@ export type Database = {
         }
         Returns: number
       }
+      coldpro_default_fin_multiplier: {
+        Args: { p_fin_spacing_mm: number }
+        Returns: number
+      }
       coldpro_parse_coil_model: { Args: { p_model: string }; Returns: Json }
+      coldpro_refrigerant_density_nearest: {
+        Args: { p_refrigerant: string; p_temperature_c: number }
+        Returns: {
+          liquid_density_kg_l: number
+          reference_temperature_c: number
+        }[]
+      }
       has_any_role: {
         Args: {
           _roles: Database["public"]["Enums"]["app_role"][]
