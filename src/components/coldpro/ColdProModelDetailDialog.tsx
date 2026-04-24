@@ -151,6 +151,89 @@ export function ColdProModelDetailDialog({ modelId, open, onOpenChange }: Props)
                   value={new Date(m.created_at).toLocaleDateString("pt-BR")}
                 />
               </div>
+
+              {/* Resumo de versões/condições deste modelo */}
+              {data.perfPoints.length > 0 && (() => {
+                const voltages = Array.from(
+                  new Set(data.perfPoints.map((p) => p.voltage).filter(Boolean))
+                ) as string[];
+                const rooms = Array.from(
+                  new Set(
+                    data.perfPoints
+                      .map((p) => p.temperature_room_c)
+                      .filter((v) => v != null)
+                  )
+                ).sort((a, b) => Number(b) - Number(a));
+                const evapTemps = data.perfPoints
+                  .map((p) => p.evaporation_temp_c)
+                  .filter((v): v is number => typeof v === "number");
+                const capacities = data.perfPoints
+                  .map((p) => p.evaporator_capacity_kcal_h)
+                  .filter((v): v is number => typeof v === "number");
+                return (
+                  <div className="rounded-md border bg-primary/5 border-primary/20 p-4 space-y-3">
+                    <div className="text-sm font-semibold flex items-center gap-2">
+                      <Activity className="h-4 w-4 text-primary" />
+                      Versões e faixa de operação cadastradas
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div>
+                        <div className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium mb-1">
+                          Tensões disponíveis ({voltages.length})
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {voltages.map((v) => (
+                            <Badge key={v} variant="outline" className="font-mono text-xs">
+                              <Zap className="mr-1 h-3 w-3" />
+                              {v}
+                            </Badge>
+                          ))}
+                          {voltages.length === 0 && <span className="text-xs text-muted-foreground">—</span>}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium mb-1">
+                          Temperaturas de câmara ({rooms.length})
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {rooms.map((r) => (
+                            <Badge key={String(r)} variant="secondary" className="text-xs">
+                              {Number(r)}°C
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium mb-1">
+                          Faixa T. evaporação
+                        </div>
+                        <div className="text-sm font-medium">
+                          {evapTemps.length > 0
+                            ? `${fmt(Math.min(...evapTemps))} a ${fmt(Math.max(...evapTemps))} °C`
+                            : "—"}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium mb-1">
+                          Faixa de capacidade evaporador
+                        </div>
+                        <div className="text-sm font-medium">
+                          {capacities.length > 0
+                            ? `${fmt(Math.min(...capacities), 0)} a ${fmt(Math.max(...capacities), 0)} kcal/h`
+                            : "—"}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-xs text-muted-foreground pt-1 border-t">
+                      Total: <strong className="text-foreground">{data.perfPoints.length}</strong> pontos de operação ={" "}
+                      <strong className="text-foreground">{voltages.length}</strong> tensão(ões) ×{" "}
+                      <strong className="text-foreground">{rooms.length}</strong> temperatura(s) de câmara ×{" "}
+                      <strong className="text-foreground">{Math.round(data.perfPoints.length / Math.max(1, voltages.length * rooms.length))}</strong> condição(ões) de condensação
+                    </div>
+                  </div>
+                );
+              })()}
+
               {m.notes && (
                 <div className="rounded-md border bg-muted/30 p-3">
                   <div className="text-xs font-medium text-muted-foreground">Notas</div>
