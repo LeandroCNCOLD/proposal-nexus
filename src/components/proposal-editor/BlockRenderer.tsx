@@ -97,8 +97,15 @@ export function BlockRenderer({
     if (layout?.align) s.textAlign = layout.align;
     const ff = block.data.fontFamily as string | undefined;
     if (ff) s.fontFamily = ff;
+    // fontSize em px (definido pelo escalonamento do container ou pelo usuário).
+    // Aplicado no wrapper para cascatear aos filhos textuais via herança CSS.
+    const fs = block.data.fontSize as number | undefined;
+    if (typeof fs === "number" && fs > 0) {
+      s.fontSize = `${fs}px`;
+      s.lineHeight = 1.25;
+    }
     return s;
-  }, [layout, template?.primary_color, block.data.fontFamily]);
+  }, [layout, template?.primary_color, block.data.fontFamily, block.data.fontSize]);
 
   return (
     <div
@@ -296,7 +303,14 @@ function BlockBody({
     case "heading": {
       const text = (block.data.text as string) ?? "";
       const level = (block.data.level as number) ?? 1;
-      const sizeClass = level === 1 ? "text-3xl" : level === 2 ? "text-2xl" : "text-xl";
+      const hasCustomFs = typeof block.data.fontSize === "number";
+      const sizeClass = hasCustomFs
+        ? "h-auto"
+        : level === 1
+          ? "text-3xl"
+          : level === 2
+            ? "text-2xl"
+            : "text-xl";
       return (
         <Input
           value={text}
@@ -304,7 +318,7 @@ function BlockBody({
           disabled={locked}
           placeholder="Título da seção…"
           className={`${sizeClass} h-auto border-none bg-transparent px-0 font-bold shadow-none focus-visible:ring-0`}
-          style={{ color: "inherit" }}
+          style={{ color: "inherit", fontSize: hasCustomFs ? "inherit" : undefined }}
         />
       );
     }
