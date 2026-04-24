@@ -79,12 +79,28 @@ function ProposalsList() {
     },
   });
 
+  // Extrai "CN#####" e nome do cliente do título no formato "CN00155 — WEG SOLAR"
+  const parseTitle = (title: string | null | undefined) => {
+    const t = (title ?? "").trim();
+    const m = t.match(/^(CN\d{3,})\s*[—\-–]\s*(.+)$/i);
+    if (m) return { cn: m[1].toUpperCase(), client: m[2].trim() };
+    const m2 = t.match(/(CN\d{3,})/i);
+    return { cn: m2 ? m2[1].toUpperCase() : "", client: t };
+  };
+
   const filtered = useMemo(() => {
     const list = proposals.filter((p) => {
       if (statusFilter !== "all" && p.status !== statusFilter) return false;
       if (!search) return true;
       const q = search.toLowerCase();
-      return p.number.toLowerCase().includes(q) || p.title.toLowerCase().includes(q) || ((p.clients as any)?.name ?? "").toLowerCase().includes(q);
+      const parsed = parseTitle(p.title);
+      return (
+        p.number.toLowerCase().includes(q) ||
+        p.title.toLowerCase().includes(q) ||
+        parsed.cn.toLowerCase().includes(q) ||
+        parsed.client.toLowerCase().includes(q) ||
+        ((p.clients as any)?.name ?? "").toLowerCase().includes(q)
+      );
     });
     // Ordena pela data real do Nomus (criada_em_nomus / data_emissao), mais recente primeiro
     return [...list].sort((a, b) => {
@@ -142,21 +158,26 @@ function ProposalsList() {
               <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-12">Carregando...</TableCell></TableRow>
             ) : filtered.length === 0 ? (
               <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-12">Nenhuma proposta encontrada.</TableCell></TableRow>
-            ) : filtered.map((p) => (
+            ) : filtered.map((p) => {
+              const parsed = parseTitle(p.title);
+              const displayNumber = parsed.cn || p.number;
+              const displayClient = (p.clients as any)?.name ?? parsed.client ?? "—";
+              return (
               <TableRow key={p.id} className="cursor-pointer">
                 <TableCell className="font-mono text-xs">
-                  <Link to="/app/propostas/$id" params={{ id: p.id }} className="hover:text-primary">{p.number}</Link>
+                  <Link to="/app/propostas/$id" params={{ id: p.id }} className="hover:text-primary">{displayNumber}</Link>
                 </TableCell>
                 <TableCell className="font-medium max-w-xs truncate">
-                  <Link to="/app/propostas/$id" params={{ id: p.id }}>{p.title}</Link>
+                  <Link to="/app/propostas/$id" params={{ id: p.id }}>{displayClient}</Link>
                 </TableCell>
-                <TableCell className="text-sm">{(p.clients as any)?.name ?? "—"}</TableCell>
+                <TableCell className="text-sm">{(p.clients as any)?.name ?? parsed.client ?? "—"}</TableCell>
                 <TableCell><StatusBadge status={p.status as ProposalStatus} /></TableCell>
                 <TableCell className="text-right tabular-nums font-medium">{brl(Number(p.total_value ?? 0))}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">{dateBR(p.valid_until)}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">{dateBR((p as any)._nomus?.criada_em_nomus ?? (p as any)._nomus?.data_emissao ?? p.created_at)}</TableCell>
               </TableRow>
-            ))}
+              );
+            })}
           </TableBody>
         </Table>
       </div>
