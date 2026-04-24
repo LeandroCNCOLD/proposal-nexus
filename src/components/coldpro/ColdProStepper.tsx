@@ -1,5 +1,6 @@
 import * as React from "react";
 import { Check } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export type ColdProStep = {
   id: string;
@@ -21,48 +22,52 @@ type Props = {
   completed: Record<number, boolean>;
 };
 
+/**
+ * Tabs horizontais inspiradas no layout do Intarcon: rótulo simples com
+ * underline azul na aba ativa. Adicionamos um indicador de check para
+ * etapas concluídas e um contador numérico discreto.
+ */
 export function ColdProStepper({ currentStep, onStepClick, completed }: Props) {
   return (
-    <nav aria-label="Etapas do cálculo" className="rounded-2xl border bg-background p-4">
-      <ol className="flex items-center gap-2">
+    <nav aria-label="Etapas do cálculo" className="border-b border-border bg-background">
+      <ol className="flex items-center gap-1 overflow-x-auto px-2">
         {COLDPRO_STEPS.map((step, idx) => {
           const isActive = idx === currentStep;
           const isDone = completed[idx];
           return (
-            <React.Fragment key={step.id}>
-              <li className="flex-1">
-                <button
-                  type="button"
-                  onClick={() => onStepClick(idx)}
-                  className={`flex w-full items-center gap-3 rounded-xl border px-3 py-2 text-left transition ${
+            <li key={step.id} className="shrink-0">
+              <button
+                type="button"
+                onClick={() => onStepClick(idx)}
+                className={cn(
+                  "group relative flex items-center gap-2 px-4 py-3 text-sm transition",
+                  isActive
+                    ? "text-foreground"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <span
+                  className={cn(
+                    "flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-semibold transition",
                     isActive
-                      ? "border-primary bg-primary/5"
+                      ? "bg-primary text-primary-foreground"
                       : isDone
-                      ? "border-primary/30 bg-background hover:bg-muted/50"
-                      : "border-border bg-background hover:bg-muted/50"
-                  }`}
-                >
-                  <span
-                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${
-                      isActive
-                        ? "bg-primary text-primary-foreground"
-                        : isDone
                         ? "bg-primary/15 text-primary"
-                        : "bg-muted text-muted-foreground"
-                    }`}
-                  >
-                    {isDone ? <Check className="h-4 w-4" /> : idx + 1}
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block text-sm font-medium leading-tight">{step.title}</span>
-                    <span className="block truncate text-xs text-muted-foreground">{step.description}</span>
-                  </span>
-                </button>
-              </li>
-              {idx < COLDPRO_STEPS.length - 1 ? (
-                <li aria-hidden className="hidden h-px w-4 bg-border md:block" />
-              ) : null}
-            </React.Fragment>
+                        : "bg-muted text-muted-foreground group-hover:bg-muted/80",
+                  )}
+                >
+                  {isDone ? <Check className="h-3 w-3" /> : idx + 1}
+                </span>
+                <span className="font-medium">{step.title}</span>
+                <span
+                  aria-hidden
+                  className={cn(
+                    "absolute inset-x-2 -bottom-px h-0.5 rounded-full transition",
+                    isActive ? "bg-primary" : "bg-transparent",
+                  )}
+                />
+              </button>
+            </li>
           );
         })}
       </ol>
