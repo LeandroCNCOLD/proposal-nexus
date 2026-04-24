@@ -85,6 +85,44 @@ function ProposalDetail() {
     },
   });
 
+  // Carrega todas as revisões da família CN##### (mesmo cliente, mesmo CN base)
+  const { data: revisions = [] } = useQuery({
+    queryKey: ["proposal-revisions", id, p?.title, p?.client_id],
+    enabled: !!p?.title,
+    queryFn: async () => {
+      const m = (p?.title ?? "").match(/(CN\d{3,})/i);
+      const cn = m ? m[1].toUpperCase() : null;
+      if (!cn) return [];
+      const { data: rows } = await supabase
+        .from("proposals")
+        .select("id, title, number, total_value, created_at, status, nomus_id")
+        .ilike("title", `%${cn}%`);
+      const list = rows ?? [];
+      const nomusIds = list.map((r) => r.nomus_id).filter(Boolean) as string[];
+      const numMap = new Map<string, { numero: string | null; criada_em_nomus: string | null; data_emissao: string | null }>();
+      if (nomusIds.length > 0) {
+        const { data: np } = await supabase
+          .from("nomus_proposals")
+          .select("nomus_id, numero, criada_em_nomus, data_emissao")
+          .in("nomus_id", nomusIds);
+        (np ?? []).forEach((n) => numMap.set(n.nomus_id, n));
+      }
+      return list.map((r) => {
+        const nm = r.nomus_id ? numMap.get(r.nomus_id) ?? null : null;
+        const numero = nm?.numero ?? r.number;
+        const revMatch = numero?.match(/Rev\.?\s*(\d+)/i);
+        const rev = revMatch ? parseInt(revMatch[1], 10) : 0;
+        return {
+          ...r,
+          _rev: rev,
+          _numero: numero,
+          _date: nm?.criada_em_nomus ?? nm?.data_emissao ?? r.created_at,
+          _isCurrent: r.id === id,
+        };
+      }).sort((a, b) => b._rev - a._rev);
+    },
+  });
+
   const latestResumo = insights.find((i: any) => i.insight_type === "resumo");
   const latestProx = insights.find((i: any) => i.insight_type === "proximo_passo");
 
