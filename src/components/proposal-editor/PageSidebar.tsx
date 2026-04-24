@@ -1,12 +1,16 @@
 // Sidebar fina de páginas — lista, seleciona, reordena, oculta e adiciona páginas.
+import { useRef, useState } from "react";
 import {
   Eye,
   EyeOff,
   GripVertical,
+  Image as ImageIcon,
+  Loader2,
   Plus,
   Trash2,
   ChevronUp,
   ChevronDown,
+  Upload,
 } from "lucide-react";
 import {
   ADDABLE_PAGE_TYPES,
@@ -21,11 +25,15 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useServerFn } from "@tanstack/react-start";
+import { uploadInlineImage } from "@/integrations/proposal-editor/inline-images.functions";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 interface Props {
   pages: DocumentPage[];
   selectedId: string | null;
+  proposalId: string;
   onSelect: (id: string) => void;
   onChange: (next: DocumentPage[]) => void;
 }
