@@ -9,6 +9,7 @@ import {
   AIR_DENSITY_KG_M3,
   AIR_SPECIFIC_HEAT_KCAL_KG_C,
   DEFAULT_PEOPLE_LOAD_KCAL_H,
+  KCAL_TO_KJ,
   kcalhToKw,
   kcalhToTr,
   kwToKcalh,
@@ -16,6 +17,45 @@ import {
 } from "./coldpro.constants";
 
 const W_TO_KCAL_H = 0.859845;
+
+export function calculateConvectionCoefficient(airVelocityMS?: number | null, fallback?: number | null): number | null {
+  const velocity = n(airVelocityMS);
+  if (velocity <= 0) return fallback ?? null;
+  return round2(10 + 10 * Math.pow(velocity, 0.8));
+}
+
+export function calculateRecommendedAirFlowM3H(powerKw: number, deltaTAirK = 6): number {
+  const delta = deltaTAirK > 0 ? deltaTAirK : 6;
+  const airCpKjKgK = AIR_SPECIFIC_HEAT_KCAL_KG_C * KCAL_TO_KJ;
+  const m3s = n(powerKw) / (AIR_DENSITY_KG_M3 * airCpKjKgK * delta);
+  return round2(m3s * 3600);
+}
+
+export function estimateFreezingTimePlankMin(params: {
+  thicknessM?: number | null;
+  densityKgM3?: number | null;
+  thermalConductivityFrozenWMK?: number | null;
+  freezingTempC?: number | null;
+  latentHeatKcalKg?: number | null;
+  frozenWaterFraction?: number | null;
+  airTempC?: number | null;
+  airVelocityMS?: number | null;
+  convectiveCoefficientWM2K?: number | null;
+}): number | null {
+  const thickness = n(params.thicknessM);
+  const density = n(params.densityKgM3);
+  const conductivity = n(params.thermalConductivityFrozenWMK);
+  const tfreeze = n(params.freezingTempC, NaN);
+  const latent = n(params.latentHeatKcalKg) * KCAL_TO_KJ;
+  const frozenFraction = n(params.frozenWaterFraction, 0.9) || 0.9;
+  const h = n(params.convectiveCoefficientWM2K) || n(calculateConvectionCoefficient(params.airVelocityMS));
+  const deltaT = tfreeze - n(params.airTempC);
+  if (thickness <= 0 || density <= 0 || conductivity <= 0 || !Number.isFinite(tfreeze) || latent <= 0 || h <= 0 || deltaT <= 0) return null;
+  const halfThickness = thickness / 2;
+  const latentJkg = latent * frozenFraction * 1000;
+  const seconds = (density * latentJkg / deltaT) * (halfThickness / h + (halfThickness * halfThickness) / (2 * conductivity));
+  return round2(seconds / 60);
+}
 
 function n(value: unknown, fallback = 0): number {
   const parsed = Number(value);
