@@ -545,6 +545,11 @@ type ModelRowData = {
   gabinete: string | null;
   tipo_gabinete: string | null;
   tipo_degelo: string | null;
+  electrical_configuration?: string | null;
+  voltage_value_v?: number | null;
+  phase_count?: number | null;
+  frequency_hz?: number | null;
+  catalog_variant_key?: string | null;
   active: boolean;
   smart_description?: string | null;
   description_confidence?: string | null;
@@ -584,10 +589,15 @@ function ModelRow({ m, indent, onClick }: { m: ModelRowData; indent?: boolean; o
       <TableCell className="text-xs">{m.gabinete ?? "—"}</TableCell>
       <TableCell>
         <div className="flex flex-wrap gap-1">
-          {m.voltages.length === 0 ? (
+          {m.electrical_configuration && (
+            <Badge variant="outline" className="font-mono text-[10px] py-0 px-1.5">
+              {m.electrical_configuration}
+            </Badge>
+          )}
+          {m.voltages.length === 0 && !m.electrical_configuration ? (
             <span className="text-xs text-muted-foreground">—</span>
           ) : (
-            m.voltages.map((v) => (
+            m.voltages.filter((v) => v !== m.electrical_configuration).map((v) => (
               <Badge key={v} variant="secondary" className="font-mono text-[10px] py-0 px-1.5">
                 {v}
               </Badge>
