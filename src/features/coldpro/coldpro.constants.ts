@@ -1,7 +1,9 @@
-export const KW_TO_KCAL_H = 860;
+export const KW_TO_KCAL_H = 859.845;
 export const KCAL_H_TO_KW = 1 / 860;
 export const TR_TO_KCAL_H = 3024;
 export const KCAL_H_TO_TR = 1 / 3024;
+export const KJ_TO_KCAL = 0.2388458966;
+export const KCAL_TO_KJ = 4.1868;
 
 export const AIR_DENSITY_KG_M3 = 1.2;
 export const AIR_SPECIFIC_HEAT_KCAL_KG_C = 0.24;
