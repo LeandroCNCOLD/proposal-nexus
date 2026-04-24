@@ -714,6 +714,7 @@ export type Database = {
         Row: {
           active: boolean
           application_type: string | null
+          biblock_image_path: string | null
           created_at: string
           designacao_hp: string | null
           gabinete: string | null
@@ -723,9 +724,11 @@ export type Database = {
           modelo: string
           notes: string | null
           odp_ar6: number | null
+          plugin_image_path: string | null
           raw: Json | null
           refrigerante: string | null
           source_import_id: string | null
+          split_image_path: string | null
           tipo_degelo: string | null
           tipo_gabinete: string | null
           updated_at: string
@@ -733,6 +736,7 @@ export type Database = {
         Insert: {
           active?: boolean
           application_type?: string | null
+          biblock_image_path?: string | null
           created_at?: string
           designacao_hp?: string | null
           gabinete?: string | null
@@ -742,9 +746,11 @@ export type Database = {
           modelo: string
           notes?: string | null
           odp_ar6?: number | null
+          plugin_image_path?: string | null
           raw?: Json | null
           refrigerante?: string | null
           source_import_id?: string | null
+          split_image_path?: string | null
           tipo_degelo?: string | null
           tipo_gabinete?: string | null
           updated_at?: string
@@ -752,6 +758,7 @@ export type Database = {
         Update: {
           active?: boolean
           application_type?: string | null
+          biblock_image_path?: string | null
           created_at?: string
           designacao_hp?: string | null
           gabinete?: string | null
@@ -761,9 +768,11 @@ export type Database = {
           modelo?: string
           notes?: string | null
           odp_ar6?: number | null
+          plugin_image_path?: string | null
           raw?: Json | null
           refrigerante?: string | null
           source_import_id?: string | null
+          split_image_path?: string | null
           tipo_degelo?: string | null
           tipo_gabinete?: string | null
           updated_at?: string
