@@ -242,6 +242,26 @@ function ProposalEditorPage() {
         </div>
         <div className="flex items-center gap-2">
           <div className="mr-2 flex items-center gap-1.5">
+            <span className="text-xs text-muted-foreground">Fonte:</span>
+            <Select
+              value={docFontFamily}
+              onValueChange={(v) => {
+                setDocFontFamily(v);
+                if (typeof window !== "undefined") localStorage.setItem(`docFont:${id}`, v);
+              }}
+            >
+              <SelectTrigger className="h-8 w-[150px] text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Inter, system-ui, sans-serif" className="text-xs">Inter (sans)</SelectItem>
+                <SelectItem value="Helvetica, Arial, sans-serif" className="text-xs">Helvetica</SelectItem>
+                <SelectItem value="Georgia, 'Times New Roman', serif" className="text-xs">Georgia (serif)</SelectItem>
+                <SelectItem value="ui-monospace, SFMono-Regular, monospace" className="text-xs">Monospace</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="mr-2 flex items-center gap-1.5">
             <span className="text-xs text-muted-foreground">Template:</span>
             <Select
               value={doc?.template_id ?? ""}
