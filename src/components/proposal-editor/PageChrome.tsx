@@ -105,7 +105,7 @@ export function PageChrome({ template, assets, pageType, pageNumber, totalPages,
   // Páginas de conteúdo: header branco com curva + logo, rodapé azul
   const logoAsset = findAsset(assets, "logo");
   return (
-    <div className="absolute inset-0 bg-white">
+    <div className="pointer-events-none absolute inset-0 bg-white">
       {/* Curva azul decorativa no topo direito */}
       <svg
         className="pointer-events-none absolute right-0 top-0"
