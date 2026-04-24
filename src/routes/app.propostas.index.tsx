@@ -231,10 +231,22 @@ function ProposalsList() {
               const cnpj = formatCNPJ((p as any)._cnpj);
               const representante = (p as any)._nomus?.representante_nome ?? "—";
               const vendedor = (p as any)._nomus?.vendedor_nome ?? "—";
+              const currentRev = (p as any)._currentRevision ?? 0;
+              const totalRevs = (p as any)._totalRevisions ?? 1;
               return (
               <TableRow key={p.id} className="cursor-pointer">
                 <TableCell className="font-mono text-xs">
-                  <Link to="/app/propostas/$id" params={{ id: p.id }} className="hover:text-primary">{displayNumber}</Link>
+                  <div className="flex items-center gap-2">
+                    <Link to="/app/propostas/$id" params={{ id: p.id }} className="hover:text-primary">{displayNumber}</Link>
+                    {totalRevs > 1 && (
+                      <span
+                        title={`${totalRevs} revisões — exibindo a mais recente (Rev. ${String(currentRev).padStart(2, "0")})`}
+                        className="inline-flex items-center rounded-md bg-primary/10 text-primary px-1.5 py-0.5 text-[10px] font-semibold"
+                      >
+                        Rev. {String(currentRev).padStart(2, "0")} · {totalRevs}
+                      </span>
+                    )}
+                  </div>
                 </TableCell>
                 <TableCell className="font-medium max-w-xs truncate">
                   <Link to="/app/propostas/$id" params={{ id: p.id }}>{displayClient}</Link>
