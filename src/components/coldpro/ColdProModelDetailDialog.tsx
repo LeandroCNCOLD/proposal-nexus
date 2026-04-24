@@ -358,8 +358,10 @@ export function ColdProModelDetailDialog({ modelId, open, onOpenChange }: Props)
                   <Field label="Volume interno (L)" value={data.condenser.internal_volume_l} />
                   <Field label="Volume calculado (L)" value={data.condenser.calculated_internal_volume_l} />
                   <Field label="Modelo ventilador" value={data.condenser.fan_model} />
+                  <Field label="Ø ventilador (mm)" value={data.condenser.fan_diameter_mm} />
                   <Field label="Vazão de ar (m³/h)" value={data.condenser.airflow_m3_h} />
                   <Field label="Flecha de ar (m)" value={data.condenser.air_throw_m} />
+                  <Field label="Fonte complementar" value={data.condenser.complementary_source_sheet} />
                 </div>
               )}
             </TabsContent>
@@ -385,8 +387,11 @@ export function ColdProModelDetailDialog({ modelId, open, onOpenChange }: Props)
                   <Field label="Volume calculado (L)" value={data.evaporator.calculated_internal_volume_l} />
                   <Field label="Área superfície (m²)" value={data.evaporator.surface_area_m2} />
                   <Field label="Modelo ventilador" value={data.evaporator.fan_model} />
+                  <Field label="Ø ventilador (mm)" value={data.evaporator.fan_diameter_mm} />
                   <Field label="Vazão de ar (m³/h)" value={data.evaporator.airflow_m3_h} />
                   <Field label="Flecha de ar (m)" value={data.evaporator.air_throw_m} />
+                  <Field label="Altura aplicação (m)" value={data.evaporator.air_application_height_m} />
+                  <Field label="Fonte complementar" value={data.evaporator.complementary_source_sheet} />
                 </div>
               )}
             </TabsContent>
