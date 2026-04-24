@@ -1,20 +1,17 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, RefreshCw, Save, Loader2, Sparkles, Send, RotateCcw, Wand2 } from "lucide-react";
+import { ArrowLeft, Save, Loader2, Sparkles, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import {
   getProposalDocument,
   upsertProposalDocument,
-  generateProposalPdf,
   setProposalDocumentTemplate,
-  materializeDocumentPlaceholders,
+  autoFillFromNomus,
 } from "@/integrations/proposal-editor/server.functions";
-import { useAutoFillDocumentFromNomus } from "@/features/proposal-editor/use-auto-fill-document-from-nomus";
-import { createProposalSendVersion } from "@/features/proposal-editor/create-proposal-send-version.functions";
-import { listTemplates, getTemplate } from "@/integrations/proposal-editor/template.functions";
+import { listTemplates } from "@/integrations/proposal-editor/template.functions";
 import {
   Select,
   SelectContent,
@@ -22,22 +19,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type {
-  DocumentPage,
-  CoverData,
-  ContextData,
-  SolutionData,
-  ScopeItem,
-} from "@/integrations/proposal-editor/types";
-import { EditorPagePanel } from "@/components/proposal-editor/EditorPagePanel";
-import { ProposalPreviewLive } from "@/components/proposal-editor/ProposalPreviewLive";
-import { EditorProposalPreview } from "@/components/proposal-editor/preview/EditorProposalPreview";
-import { useEditorPreviewData } from "@/components/proposal-editor/preview/use-editor-preview-data";
+import type { DocumentPage } from "@/integrations/proposal-editor/types";
+import { PageSidebar } from "@/components/proposal-editor/PageSidebar";
+import { ProposalCanvas } from "@/components/proposal-editor/ProposalCanvas";
 import { ProposalAttachmentsPanel } from "@/components/proposal-editor/ProposalAttachmentsPanel";
-import {
-  BlockEditorPanel,
-  type DocumentEditState,
-} from "@/components/proposal-editor/BlockEditorPanel";
 
 export const Route = createFileRoute("/app/propostas/$id/editor")({
   component: ProposalEditorPage,
@@ -50,12 +35,9 @@ function ProposalEditorPage() {
 
   const getDoc = useServerFn(getProposalDocument);
   const saveDoc = useServerFn(upsertProposalDocument);
-  const genPdf = useServerFn(generateProposalPdf);
   const setTpl = useServerFn(setProposalDocumentTemplate);
-  const sendVersion = useServerFn(createProposalSendVersion);
+  const autoFill = useServerFn(autoFillFromNomus);
   const listTpls = useServerFn(listTemplates);
-  const getTpl = useServerFn(getTemplate);
-  const materializeFn = useServerFn(materializeDocumentPlaceholders);
 
   const { data, isLoading } = useQuery({
     queryKey: ["proposal-document", id],
@@ -67,50 +49,18 @@ function ProposalEditorPage() {
     queryFn: () => listTpls(),
   });
 
-  const currentTemplateId = data?.document?.template_id ?? null;
-  const { data: tplBundle } = useQuery({
-    queryKey: ["proposal-template-bundle", currentTemplateId],
-    queryFn: () =>
-      getTpl({ data: currentTemplateId ? { templateId: currentTemplateId } : {} }),
-    enabled: !!data?.document,
-  });
-
   const doc = data?.document;
   const [pages, setPages] = useState<DocumentPage[]>([]);
-  const [state, setState] = useState<DocumentEditState>({
-    cover_data: {},
-    solution_data: {},
-    context_data: {},
-    scope_items: [],
-    warranty_text: {},
-    manually_edited_fields: [],
-  });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
-  const [previewMode, setPreviewMode] = useState<"dom" | "pdf">("dom");
   const hydratedFor = useRef<string | null>(null);
 
-  // Tabelas estruturadas + contexto de placeholders (para o preview DOM em tempo real)
-  const { tables: proposalTables, isLoadingTables, placeholderContext } = useEditorPreviewData(
-    id,
-    tplBundle ?? null,
-  );
-
-  // Hidrata estado quando o doc chega (ou quando troca de proposta)
   useEffect(() => {
     if (!doc) return;
     if (hydratedFor.current === doc.id) return;
     hydratedFor.current = doc.id;
     const ps = (doc.pages as unknown as DocumentPage[]) ?? [];
     setPages(ps);
-    setState({
-      cover_data: (doc.cover_data ?? {}) as CoverData,
-      solution_data: (doc.solution_data ?? {}) as SolutionData,
-      context_data: (doc.context_data ?? {}) as ContextData,
-      scope_items: (doc.scope_items ?? []) as unknown as ScopeItem[],
-      warranty_text: (doc.warranty_text ?? {}) as { html?: string; text?: string },
-      manually_edited_fields: doc.manually_edited_fields ?? [],
-    });
     if (!selectedId && ps.length > 0) setSelectedId(ps[0].id);
     setDirty(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -121,15 +71,7 @@ function ProposalEditorPage() {
       saveDoc({
         data: {
           proposalId: id,
-          patch: {
-            pages: pages as unknown as never[],
-            cover_data: state.cover_data as Record<string, unknown>,
-            solution_data: state.solution_data as Record<string, unknown>,
-            context_data: state.context_data as Record<string, unknown>,
-            scope_items: state.scope_items as unknown as Array<Record<string, unknown>>,
-            warranty_text: state.warranty_text as Record<string, unknown>,
-            manually_edited_fields: state.manually_edited_fields,
-          },
+          patch: { pages: pages as unknown as never[] },
         },
       }),
     onSuccess: () => {
@@ -139,33 +81,17 @@ function ProposalEditorPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const fillMut = useAutoFillDocumentFromNomus(id);
-  const handleFill = (overwrite: boolean) => {
-    if (overwrite && !window.confirm(
-      "Reprocessar tudo do Nomus vai sobrescrever também os campos editados manualmente. Continuar?"
-    )) return;
-    fillMut.mutate(
-      { overwriteManualFields: overwrite },
-      {
-        onSuccess: (res) => {
-          hydratedFor.current = null;
-          const tablesMsg = res.tablesUpdated.length > 0
-            ? ` · ${res.tablesUpdated.length} tabela(s) atualizada(s)`
-            : "";
-          toast.success(`Sincronizado · ${res.filledFromNomus} itens do Nomus${tablesMsg}`);
-        },
-        onError: (e: Error) => toast.error(e.message),
-      },
-    );
-  };
-
-  const pdfMut = useMutation({
-    mutationFn: async () => {
-      if (dirty) await saveMut.mutateAsync();
-      return genPdf({ data: { proposalId: id, mode: "preview" } });
-    },
+  const fillMut = useMutation({
+    mutationFn: (overwrite: boolean) =>
+      autoFill({ data: { proposalId: id, overwriteManualFields: overwrite } }),
     onSuccess: (res) => {
-      if (res.url) window.open(res.url, "_blank", "noopener,noreferrer");
+      hydratedFor.current = null;
+      qc.invalidateQueries({ queryKey: ["proposal-document", id] });
+      const tablesMsg =
+        res.tablesUpdated.length > 0
+          ? ` · ${res.tablesUpdated.length} tabela(s) atualizada(s)`
+          : "";
+      toast.success(`Sincronizado · ${res.filledFromNomus} itens do Nomus${tablesMsg}`);
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -176,89 +102,23 @@ function ProposalEditorPage() {
     onSuccess: () => {
       hydratedFor.current = null;
       qc.invalidateQueries({ queryKey: ["proposal-document", id] });
-      qc.invalidateQueries({ queryKey: ["proposal-template-bundle"] });
       toast.success("Template aplicado");
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const sendMut = useMutation({
-    mutationFn: async () => {
-      if (dirty) await saveMut.mutateAsync();
-      const pdfRes = await genPdf({ data: { proposalId: id, mode: "final" } });
-      if (!pdfRes.path) throw new Error("Falha ao gerar PDF: caminho indisponível");
-      return sendVersion({
-        data: {
-          proposalId: id,
-          pdfStoragePath: pdfRes.path,
-          channel: "system",
-          recipient: null,
-          subject: null,
-          message: null,
-        },
-      });
-    },
-    onSuccess: (version) => {
-      qc.invalidateQueries({ queryKey: ["proposal-document", id] });
-      qc.invalidateQueries({ queryKey: ["proposal-versions", id] });
-      toast.success(`Versão ${version.version_number} gerada e congelada`);
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  const materializeMut = useMutation({
-    mutationFn: () => materializeFn({ data: { proposalId: id } }),
-    onSuccess: (res) => {
-      hydratedFor.current = null;
-      qc.invalidateQueries({ queryKey: ["proposal-document", id] });
-      qc.invalidateQueries({ queryKey: ["proposal-tables", id] });
-      toast.success(`Variáveis materializadas · ${res.tablesUpdated} tabela(s) atualizada(s)`);
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
+  // auto-save
   useEffect(() => {
     if (!dirty) return;
-    const t = setTimeout(() => saveMut.mutate(), 2000);
+    const t = setTimeout(() => saveMut.mutate(), 1500);
     return () => clearTimeout(t);
-  }, [pages, state, dirty]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pages, dirty]);
 
   const handlePagesChange = (next: DocumentPage[]) => {
     setPages(next);
     setDirty(true);
   };
-
-  const handleStateChange = (
-    patch: Partial<DocumentEditState>,
-    editedKeys?: string[],
-  ) => {
-    setState((prev) => {
-      const merged = { ...prev, ...patch };
-      if (editedKeys && editedKeys.length > 0) {
-        const set = new Set(prev.manually_edited_fields);
-        editedKeys.forEach((k) => set.add(k));
-        merged.manually_edited_fields = Array.from(set);
-      }
-      return merged;
-    });
-    setDirty(true);
-  };
-
-  const handlePageContentChange = (pageId: string, patch: Partial<DocumentPage>) => {
-    setPages((prev) => prev.map((p) => (p.id === pageId ? { ...p, ...patch } : p)));
-    setDirty(true);
-  };
-
-  const documentData = useMemo(
-    () => ({
-      cover_data: state.cover_data as Record<string, unknown>,
-      context_data: state.context_data as Record<string, unknown>,
-      scope_items: state.scope_items as unknown as Array<Record<string, unknown>>,
-    }),
-    [state.cover_data, state.context_data, state.scope_items],
-  );
-
-  const selectedPage = pages.find((p) => p.id === selectedId) ?? null;
 
   if (isLoading) {
     return (
@@ -292,7 +152,7 @@ function ProposalEditorPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 mr-2">
+          <div className="mr-2 flex items-center gap-1.5">
             <span className="text-xs text-muted-foreground">Template:</span>
             <Select
               value={doc?.template_id ?? ""}
@@ -315,7 +175,7 @@ function ProposalEditorPage() {
           <Button
             size="sm"
             variant="outline"
-            onClick={() => handleFill(false)}
+            onClick={() => fillMut.mutate(false)}
             disabled={fillMut.isPending}
           >
             {fillMut.isPending ? (
@@ -329,16 +189,14 @@ function ProposalEditorPage() {
             size="sm"
             variant="ghost"
             className="text-destructive hover:text-destructive"
-            onClick={() => handleFill(true)}
+            onClick={() => fillMut.mutate(true)}
             disabled={fillMut.isPending}
-            title="Reprocessa todos os campos do Nomus, incluindo os editados manualmente"
           >
             <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
-            Reprocessar tudo
+            Reprocessar
           </Button>
           <Button
             size="sm"
-            variant="outline"
             onClick={() => saveMut.mutate()}
             disabled={!dirty || saveMut.isPending}
           >
@@ -349,159 +207,35 @@ function ProposalEditorPage() {
             )}
             Salvar
           </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => {
-              if (window.confirm("Materializar substitui todas as variáveis {{...}} pelos valores atuais. Esta ação não é reversível. Continuar?")) {
-                materializeMut.mutate();
-              }
-            }}
-            disabled={materializeMut.isPending}
-            title="Substitui {{variáveis}} pelos valores reais no documento"
-          >
-            {materializeMut.isPending ? (
-              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Wand2 className="mr-1.5 h-3.5 w-3.5" />
-            )}
-            Materializar
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => pdfMut.mutate()}
-            disabled={pdfMut.isPending}
-          >
-            {pdfMut.isPending ? (
-              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
-            )}
-            Visualizar PDF
-          </Button>
-          <Button
-            size="sm"
-            onClick={() => {
-              if (confirm("Gerar versão final imutável e congelar este documento como envio?")) {
-                sendMut.mutate();
-              }
-            }}
-            disabled={sendMut.isPending}
-          >
-            {sendMut.isPending ? (
-              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Send className="mr-1.5 h-3.5 w-3.5" />
-            )}
-            Enviar proposta
-          </Button>
         </div>
       </div>
 
-      {/* Split layout */}
+      {/* Layout: sidebar fina + canvas A4 ocupando o resto */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar esquerda */}
-        <aside className="flex w-[40%] min-w-[360px] max-w-[520px] flex-col border-r bg-background">
-          <div className="h-[35%] min-h-[200px] border-b">
-            <EditorPagePanel
+        <aside className="flex w-[260px] shrink-0 flex-col border-r bg-background">
+          <div className="flex-1 overflow-hidden">
+            <PageSidebar
               pages={pages}
               selectedId={selectedId}
               onSelect={setSelectedId}
               onChange={handlePagesChange}
             />
           </div>
-          <div className="flex-1 overflow-y-auto p-4">
-            {selectedPage ? (
-              <>
-                <div className="mb-3 flex items-center justify-between">
-                  <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    {selectedPage.title}
-                  </h3>
-                  <span className="font-mono text-[10px] text-muted-foreground">
-                    {selectedPage.type}
-                  </span>
-                </div>
-                <BlockEditorPanel
-                  proposalId={id}
-                  page={selectedPage}
-                  state={state}
-                  onChange={handleStateChange}
-                  onPageContentChange={handlePageContentChange}
-                />
-              </>
-            ) : (
-              <div className="text-sm text-muted-foreground">
-                Selecione uma página para editar.
-              </div>
-            )}
-            <div className="mt-6 border-t pt-4">
-              <ProposalAttachmentsPanel
-                proposalId={id}
-                onChanged={() => qc.invalidateQueries({ queryKey: ["proposal-document", id] })}
-              />
-            </div>
+          <div className="border-t p-3">
+            <ProposalAttachmentsPanel
+              proposalId={id}
+              onChanged={() => qc.invalidateQueries({ queryKey: ["proposal-document", id] })}
+            />
           </div>
         </aside>
 
-        {/* Preview direita */}
-        <main className="flex flex-1 flex-col overflow-hidden">
-          <div className="flex items-center justify-end gap-1 border-b bg-background px-3 py-1.5">
-            <span className="mr-1 text-[11px] text-muted-foreground">Preview:</span>
-            <Button
-              size="sm"
-              variant={previewMode === "dom" ? "default" : "ghost"}
-              className="h-7 px-2 text-xs"
-              onClick={() => setPreviewMode("dom")}
-            >
-              Estrutural (ao vivo)
-            </Button>
-            <Button
-              size="sm"
-              variant={previewMode === "pdf" ? "default" : "ghost"}
-              className="h-7 px-2 text-xs"
-              onClick={() => setPreviewMode("pdf")}
-            >
-              PDF real
-            </Button>
-          </div>
-          <div className="flex-1 overflow-hidden">
-            {previewMode === "dom" ? (
-              <div className="h-full overflow-y-auto bg-slate-100 p-6">
-                {isLoadingTables ? (
-                  <div className="rounded-xl border bg-background p-6 text-sm text-muted-foreground">
-                    Carregando preview...
-                  </div>
-                ) : (
-                  <EditorProposalPreview
-                    proposal={{
-                      ...(doc ?? {}),
-                      custom_blocks: doc?.custom_blocks,
-                      attached_pdf_paths: doc?.attached_pdf_paths,
-                    }}
-                    document={{
-                      pages,
-                      cover_data: state.cover_data,
-                      context_data: state.context_data,
-                      solution_data: state.solution_data,
-                      scope_items: state.scope_items,
-                      warranty_text: state.warranty_text,
-                      custom_blocks: doc?.custom_blocks ?? {},
-                      attached_pdf_paths: doc?.attached_pdf_paths ?? [],
-                    }}
-                    template={tplBundle?.template ?? null}
-                    tables={proposalTables}
-                    selectedPageId={selectedId}
-                  />
-                )}
-              </div>
-            ) : (
-              <ProposalPreviewLive
-                proposalId={id}
-                version={pages.length + JSON.stringify(state).length}
-              />
-            )}
-          </div>
+        <main className="flex-1 overflow-hidden">
+          <ProposalCanvas
+            pages={pages}
+            selectedId={selectedId}
+            onSelect={setSelectedId}
+            onPagesChange={handlePagesChange}
+          />
         </main>
       </div>
     </div>

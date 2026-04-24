@@ -1,20 +1,21 @@
-// Tipos compartilhados do editor de propostas (CN Cold)
+// Tipos do Page Builder com Blocos Inteligentes (CN Cold v2)
+// Schema: ProposalDocument { pages: DocumentPage[] }, cada DocumentPage { blocks: DocumentBlock[] }
 
 export type PageType =
   | "cover"
   | "about"
   | "cases"
   | "clientes"
-  | "solution"
   | "context"
+  | "solution"
   | "scope"
   | "caracteristicas"
   | "equipamento"
   | "investimento"
   | "impostos"
   | "pagamento"
-  | "prazo-garantia"
   | "warranty"
+  | "prazo-garantia"
   | "contracapa"
   | "differentials"
   | "impact"
@@ -23,69 +24,63 @@ export type PageType =
   | "custom-block"
   | "attached-pdf";
 
+export type BlockType =
+  | "heading"
+  | "rich_text"
+  | "image"
+  | "key_value_list"
+  | "included_items"
+  | "excluded_items"
+  | "technical_table"
+  | "investment_table"
+  | "tax_table"
+  | "payment_table"
+  | "characteristics_table"
+  | "equipments_table"
+  | "bank_data"
+  | "signature"
+  | "attached_pdf"
+  | "cover_identity"
+  | "client_info"
+  | "project_info"
+  | "responsible_info";
+
+export type BlockSource = "manual" | "nomus" | "template";
+
+export interface DocumentBlock {
+  id: string;
+  type: BlockType;
+  title?: string;
+  data: Record<string, unknown>;
+  source?: BlockSource;
+  locked?: boolean;
+  order: number;
+}
+
 export interface DocumentPage {
   id: string;
   type: PageType;
   title: string;
   visible: boolean;
   order: number;
-  // conteúdo específico do tipo (para custom-rich, custom-block, attached-pdf)
-  content?: Record<string, unknown>;
+  blocks: DocumentBlock[];
 }
 
-export interface CoverData {
-  cliente?: string;
-  projeto?: string;
-  numero?: string;
-  data?: string;
-  responsavel?: string;
-  foto_capa_url?: string;
-}
-
-export interface SolutionData {
-  intro?: string;
-  contempla?: string[];
-  diferenciais?: string[];
-  impacto?: string[];
-  conclusao?: string;
-}
-
-export interface ContextContact {
-  nome?: string;
-  cargo?: string;
-  email?: string;
-  telefone?: string;
-}
-
-export interface ContextData {
-  cliente_razao?: string;
-  fantasia?: string;
-  cnpj?: string;
-  endereco?: string;
-  caracteristicas?: string[];
-  contatos?: ContextContact[];
-  texto_apresentacao?: string;
-  prazo_validade?: string;
-}
-
-export interface ScopeItem {
+export interface ProposalDocument {
   id: string;
-  titulo: string;
-  descricao?: string;
-  quantidade?: number;
-  unidade?: string;
-  valor_unitario?: number;
-  valor_total?: number;
+  proposal_id: string;
+  template_id: string | null;
+  template_version: string;
+  pages: DocumentPage[];
+  attached_pdf_paths: string[];
+  auto_filled_at: string | null;
+  last_edited_by: string | null;
+  last_edited_at: string;
+  created_at: string;
+  updated_at: string;
 }
 
-export interface CustomBlock {
-  id: string;
-  kind: "datasheet" | "gallery" | "schedule" | "tech-table" | "memorial" | "rich-text";
-  title?: string;
-  data: Record<string, unknown>;
-}
-
-// ============= Tabelas estruturadas =============
+// ============= Tabelas estruturadas (mantidas para compat) =============
 
 export type ProposalTableType =
   | "caracteristicas"
@@ -99,9 +94,9 @@ export interface TableColumn {
   key: string;
   label: string;
   type?: "text" | "number" | "currency" | "date";
-  width?: number; // peso relativo (flex)
+  width?: number;
   align?: "left" | "right" | "center";
-  computed?: boolean; // valor calculado, não editável
+  computed?: boolean;
 }
 
 export interface ProposalTableRow {
@@ -144,7 +139,6 @@ export interface ProposalTable {
   updated_by?: string | null;
 }
 
-/** Schemas de colunas padrão por tipo de tabela. */
 export const DEFAULT_TABLE_COLUMNS: Record<string, TableColumn[]> = {
   caracteristicas: [
     { key: "descricao", label: "Característica", type: "text", width: 3 },
@@ -184,32 +178,229 @@ export const DEFAULT_TABLE_COLUMNS: Record<string, TableColumn[]> = {
   ],
 };
 
-export interface ProposalDocument {
-  id: string;
-  proposal_id: string;
-  template_version: string;
-  pages: DocumentPage[];
-  cover_data: CoverData;
-  solution_data: SolutionData;
-  context_data: ContextData;
-  scope_items: ScopeItem[];
-  warranty_text: { html?: string; text?: string };
-  custom_blocks: CustomBlock[];
-  attached_pdf_paths: string[];
-  manually_edited_fields: string[];
-  auto_filled_at: string | null;
-  last_edited_by: string | null;
-  last_edited_at: string;
-  created_at: string;
-  updated_at: string;
+// ============= Defaults de páginas e blocos =============
+
+let _uid = 0;
+const uid = (prefix: string) => `${prefix}-${Date.now().toString(36)}-${(_uid++).toString(36)}`;
+
+export function makeBlock(
+  type: BlockType,
+  data: Record<string, unknown> = {},
+  opts: { title?: string; source?: BlockSource; locked?: boolean; order?: number } = {},
+): DocumentBlock {
+  return {
+    id: uid("blk"),
+    type,
+    title: opts.title,
+    data,
+    source: opts.source ?? "manual",
+    locked: opts.locked ?? false,
+    order: opts.order ?? 0,
+  };
 }
 
+export function makeDefaultBlocksForPage(type: PageType): DocumentBlock[] {
+  const orderedFromList = (list: DocumentBlock[]): DocumentBlock[] =>
+    list.map((b, i) => ({ ...b, order: i }));
+
+  switch (type) {
+    case "cover":
+      return orderedFromList([
+        makeBlock("cover_identity", {}, { source: "template", locked: true }),
+        makeBlock("client_info", { cliente: "" }, { source: "nomus" }),
+        makeBlock("project_info", { projeto: "", numero: "", data: "", revisao: "" }, { source: "nomus" }),
+        makeBlock("responsible_info", { responsavel: "", cargo: "", email: "", telefone: "" }, { source: "nomus" }),
+        makeBlock("image", { kind: "cover", url: null }, { title: "Imagem de capa" }),
+      ]);
+
+    case "about":
+      return orderedFromList([
+        makeBlock("heading", { text: "Sobre a CN Cold", level: 1 }, { source: "template" }),
+        makeBlock("rich_text", { html: "" }, { source: "template" }),
+      ]);
+
+    case "cases":
+    case "clientes":
+      return orderedFromList([
+        makeBlock("heading", { text: "Cases / Clientes", level: 1 }, { source: "template" }),
+        makeBlock("rich_text", { html: "Conteúdo definido no template." }, { source: "template", locked: true }),
+      ]);
+
+    case "context":
+      return orderedFromList([
+        makeBlock("heading", { text: "Contextualização", level: 1 }),
+        makeBlock("key_value_list", {
+          items: [
+            { label: "Cliente", value: "" },
+            { label: "CNPJ", value: "" },
+            { label: "Endereço", value: "" },
+            { label: "Contato", value: "" },
+          ],
+        }, { source: "nomus" }),
+        makeBlock("rich_text", { html: "" }, { title: "Texto de apresentação" }),
+      ]);
+
+    case "solution":
+      return orderedFromList([
+        makeBlock("heading", { text: "Nossa solução", level: 1 }),
+        makeBlock("rich_text", { html: "" }, { title: "Introdução" }),
+        makeBlock("included_items", { items: [] as string[] }, { title: "O que está incluído" }),
+        makeBlock("excluded_items", { items: [] as string[] }, { title: "O que NÃO está incluído" }),
+      ]);
+
+    case "scope":
+      return orderedFromList([
+        makeBlock("heading", { text: "Escopo de fornecimento", level: 1 }),
+        makeBlock("included_items", { items: [] as string[] }, { source: "nomus", title: "Itens" }),
+      ]);
+
+    case "caracteristicas":
+      return orderedFromList([
+        makeBlock("heading", { text: "Características técnicas", level: 1 }),
+        makeBlock("characteristics_table", { rows: [] }),
+        makeBlock("rich_text", { html: "" }, { title: "Observações" }),
+      ]);
+
+    case "equipamento":
+      return orderedFromList([
+        makeBlock("heading", { text: "Equipamentos", level: 1 }),
+        makeBlock("equipments_table", { rows: [] }, { source: "nomus" }),
+      ]);
+
+    case "investimento":
+      return orderedFromList([
+        makeBlock("heading", { text: "Investimento", level: 1 }),
+        makeBlock("investment_table", { rows: [] }, { source: "nomus" }),
+      ]);
+
+    case "impostos":
+      return orderedFromList([
+        makeBlock("heading", { text: "Base de cálculo dos impostos", level: 1 }),
+        makeBlock("tax_table", { rows: [] }, { source: "nomus" }),
+        makeBlock("rich_text", { html: "" }, { title: "Observação fiscal" }),
+      ]);
+
+    case "pagamento":
+      return orderedFromList([
+        makeBlock("heading", { text: "Condições de pagamento", level: 1 }),
+        makeBlock("payment_table", { rows: [] }, { source: "nomus" }),
+        makeBlock("bank_data", {}, { source: "template", title: "Dados bancários" }),
+        makeBlock("rich_text", { html: "" }, { title: "Observação financeira" }),
+      ]);
+
+    case "warranty":
+    case "prazo-garantia":
+      return orderedFromList([
+        makeBlock("heading", { text: "Garantia", level: 1 }),
+        makeBlock("rich_text", { html: "" }, { source: "template" }),
+      ]);
+
+    case "contracapa":
+      return orderedFromList([
+        makeBlock("heading", { text: "Informações finais", level: 1 }, { source: "template" }),
+        makeBlock("rich_text", { html: "" }, { title: "Prazo de entrega" }),
+        makeBlock("rich_text", { html: "" }, { title: "Garantia" }),
+        makeBlock("signature", {}, { source: "template" }),
+      ]);
+
+    case "differentials":
+      return orderedFromList([
+        makeBlock("heading", { text: "Nossos diferenciais", level: 1 }, { source: "template" }),
+        makeBlock("rich_text", { html: "" }, { source: "template", locked: true }),
+      ]);
+
+    case "impact":
+      return orderedFromList([
+        makeBlock("heading", { text: "Impacto esperado", level: 1 }),
+        makeBlock("rich_text", { html: "" }),
+      ]);
+
+    case "nota":
+      return orderedFromList([
+        makeBlock("heading", { text: "Nota", level: 1 }),
+        makeBlock("rich_text", { html: "" }),
+      ]);
+
+    case "attached-pdf":
+      return orderedFromList([
+        makeBlock("heading", { text: "Anexos da proposta", level: 1 }),
+        makeBlock("attached_pdf", { paths: [] as string[] }),
+      ]);
+
+    case "custom-rich":
+    case "custom-block":
+    default:
+      return orderedFromList([
+        makeBlock("heading", { text: "Página livre", level: 1 }),
+        makeBlock("rich_text", { html: "" }),
+      ]);
+  }
+}
+
+export function makeDefaultPage(type: PageType, title: string, order: number): DocumentPage {
+  return {
+    id: uid("page"),
+    type,
+    title,
+    visible: true,
+    order,
+    blocks: makeDefaultBlocksForPage(type),
+  };
+}
+
+export const PAGE_TYPE_LABELS: Record<PageType, string> = {
+  cover: "Capa",
+  about: "Sobre",
+  cases: "Cases de sucesso",
+  clientes: "Clientes",
+  context: "Contextualização",
+  solution: "Nossa solução",
+  scope: "Escopo de fornecimento",
+  caracteristicas: "Características técnicas",
+  equipamento: "Equipamentos",
+  investimento: "Investimento",
+  impostos: "Impostos",
+  pagamento: "Pagamento",
+  warranty: "Garantia",
+  "prazo-garantia": "Prazo & garantia",
+  contracapa: "Contracapa",
+  differentials: "Diferenciais",
+  impact: "Impacto esperado",
+  nota: "Nota",
+  "custom-rich": "Página livre",
+  "custom-block": "Bloco do catálogo",
+  "attached-pdf": "PDF anexado",
+};
+
 export const DEFAULT_PAGES: DocumentPage[] = [
-  { id: "cover", type: "cover", title: "Capa", visible: true, order: 0 },
-  { id: "about", type: "about", title: "Sobre a CN Cold", visible: true, order: 1 },
-  { id: "cases", type: "cases", title: "Cases de sucesso", visible: true, order: 2 },
-  { id: "solution", type: "solution", title: "Nossa solução", visible: true, order: 3 },
-  { id: "context", type: "context", title: "Contextualização", visible: true, order: 4 },
-  { id: "scope", type: "scope", title: "Escopo de fornecimento", visible: true, order: 5 },
-  { id: "warranty", type: "warranty", title: "Garantia", visible: true, order: 6 },
+  makeDefaultPage("cover", "Capa", 0),
+  makeDefaultPage("about", "Sobre a CN Cold", 1),
+  makeDefaultPage("context", "Contextualização", 2),
+  makeDefaultPage("solution", "Nossa solução", 3),
+  makeDefaultPage("scope", "Escopo de fornecimento", 4),
+  makeDefaultPage("investimento", "Investimento", 5),
+  makeDefaultPage("impostos", "Impostos", 6),
+  makeDefaultPage("pagamento", "Condições de pagamento", 7),
+  makeDefaultPage("warranty", "Garantia", 8),
+  makeDefaultPage("contracapa", "Contracapa", 9),
+];
+
+export const ADDABLE_PAGE_TYPES: { type: PageType; label: string }[] = [
+  { type: "cover", label: "Capa" },
+  { type: "about", label: "Sobre a CN Cold" },
+  { type: "context", label: "Contextualização" },
+  { type: "solution", label: "Nossa solução" },
+  { type: "scope", label: "Escopo de fornecimento" },
+  { type: "caracteristicas", label: "Características técnicas" },
+  { type: "equipamento", label: "Equipamentos" },
+  { type: "investimento", label: "Investimento" },
+  { type: "impostos", label: "Impostos" },
+  { type: "pagamento", label: "Condições de pagamento" },
+  { type: "warranty", label: "Garantia" },
+  { type: "contracapa", label: "Contracapa" },
+  { type: "differentials", label: "Diferenciais" },
+  { type: "impact", label: "Impacto esperado" },
+  { type: "nota", label: "Nota" },
+  { type: "custom-rich", label: "Página livre" },
+  { type: "attached-pdf", label: "PDF anexado" },
 ];
