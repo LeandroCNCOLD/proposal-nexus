@@ -315,8 +315,12 @@ function CatalogoPage() {
                 </TableHeader>
                 <TableBody>
                   {filteredModels.map((m) => (
-                    <TableRow key={m.id}>
-                      <TableCell className="font-medium">{m.modelo}</TableCell>
+                    <TableRow
+                      key={m.id}
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => setSelectedModelId(m.id)}
+                    >
+                      <TableCell className="font-medium text-primary">{m.modelo}</TableCell>
                       <TableCell>{m.linha ?? "—"}</TableCell>
                       <TableCell>{m.designacao_hp ?? "—"}</TableCell>
                       <TableCell>{m.refrigerante ?? "—"}</TableCell>
