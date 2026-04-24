@@ -51,7 +51,8 @@ export function MultiSelectToolbar({
   onDeleteBlocks,
   onClear,
 }: Props) {
-  if (blocks.length < 2) return null;
+  if (blocks.length < 1) return null;
+  const isMulti = blocks.length >= 2;
 
   // Bounding-box do grupo selecionado (define os "limites" de alinhamento)
   const layouts = blocks.map(getLayout);
@@ -162,36 +163,36 @@ export function MultiSelectToolbar({
 
   return (
     <div
-      className="fixed left-1/2 top-3 z-[60] flex max-w-[95vw] -translate-x-1/2 flex-wrap items-center gap-1 rounded-md border bg-background px-2 py-1.5 shadow-xl"
+      className="flex flex-wrap items-center gap-1 rounded-md border bg-background px-2 py-1 shadow-sm"
       onMouseDown={(e) => e.stopPropagation()}
       onClick={(e) => e.stopPropagation()}
     >
       <span className="px-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-        ✦ {blocks.length} selecionados
+        ✦ {blocks.length} {isMulti ? "selecionados" : "selecionado"}
       </span>
       <span className="mx-0.5 text-muted-foreground/40">|</span>
 
       {/* Alinhar horizontal — sobre a seleção */}
-      <ToolBtn title="Alinhar à esquerda" onClick={() => align("x", "start")}>
+      <ToolBtn title="Alinhar à esquerda" onClick={() => align("x", "start")} disabled={!isMulti}>
         <AlignStartVertical className="h-3.5 w-3.5" />
       </ToolBtn>
-      <ToolBtn title="Centralizar horizontal" onClick={() => align("x", "center")}>
+      <ToolBtn title="Centralizar horizontal" onClick={() => align("x", "center")} disabled={!isMulti}>
         <AlignCenterVertical className="h-3.5 w-3.5" />
       </ToolBtn>
-      <ToolBtn title="Alinhar à direita" onClick={() => align("x", "end")}>
+      <ToolBtn title="Alinhar à direita" onClick={() => align("x", "end")} disabled={!isMulti}>
         <AlignEndVertical className="h-3.5 w-3.5" />
       </ToolBtn>
 
       <span className="mx-0.5 text-muted-foreground/40">|</span>
 
       {/* Alinhar vertical */}
-      <ToolBtn title="Alinhar ao topo" onClick={() => align("y", "start")}>
+      <ToolBtn title="Alinhar ao topo" onClick={() => align("y", "start")} disabled={!isMulti}>
         <AlignStartHorizontal className="h-3.5 w-3.5" />
       </ToolBtn>
-      <ToolBtn title="Centralizar vertical" onClick={() => align("y", "center")}>
+      <ToolBtn title="Centralizar vertical" onClick={() => align("y", "center")} disabled={!isMulti}>
         <AlignCenterHorizontal className="h-3.5 w-3.5" />
       </ToolBtn>
-      <ToolBtn title="Alinhar à base" onClick={() => align("y", "end")}>
+      <ToolBtn title="Alinhar à base" onClick={() => align("y", "end")} disabled={!isMulti}>
         <AlignEndHorizontal className="h-3.5 w-3.5" />
       </ToolBtn>
 
@@ -238,23 +239,23 @@ export function MultiSelectToolbar({
       <span className="mx-0.5 text-muted-foreground/40">|</span>
 
       {/* Igualar tamanho */}
-      <ToolBtn title="Igualar largura" onClick={() => equalize("w")}>
+      <ToolBtn title="Igualar largura" onClick={() => equalize("w")} disabled={!isMulti}>
         <StretchHorizontal className="h-3.5 w-3.5" />
       </ToolBtn>
-      <ToolBtn title="Igualar altura" onClick={() => equalize("h")}>
+      <ToolBtn title="Igualar altura" onClick={() => equalize("h")} disabled={!isMulti}>
         <StretchVertical className="h-3.5 w-3.5" />
       </ToolBtn>
-      <ToolBtn title="Igualar tamanho (ambos)" onClick={() => equalize("both")}>
+      <ToolBtn title="Igualar tamanho (ambos)" onClick={() => equalize("both")} disabled={!isMulti}>
         <Maximize2 className="h-3.5 w-3.5" />
       </ToolBtn>
 
       <span className="mx-0.5 text-muted-foreground/40">|</span>
 
       {/* Empilhar */}
-      <ToolBtn title="Empilhar verticalmente" onClick={() => stack("vertical")}>
+      <ToolBtn title="Empilhar verticalmente" onClick={() => stack("vertical")} disabled={!isMulti}>
         <Rows3 className="h-3.5 w-3.5" />
       </ToolBtn>
-      <ToolBtn title="Empilhar horizontalmente" onClick={() => stack("horizontal")}>
+      <ToolBtn title="Empilhar horizontalmente" onClick={() => stack("horizontal")} disabled={!isMulti}>
         <Columns3 className="h-3.5 w-3.5" />
       </ToolBtn>
 
