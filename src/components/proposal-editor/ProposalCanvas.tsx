@@ -457,7 +457,8 @@ export function ProposalCanvas({
                 .map((block) => {
                   const layout =
                     (block.data.layout as BlockLayout | undefined) ?? defaultLayoutFor(block.type);
-                  const selected = selectedBlockId === block.id;
+                  const selected = selectedSet.has(block.id);
+                  const isPrimary = selectedBlockId === block.id;
                   const isLockedCoverOverlay = isCover && block.type === "cover_identity";
                   return (
                     <Rnd
@@ -466,13 +467,20 @@ export function ProposalCanvas({
                       size={{ width: layout.w, height: layout.h }}
                       position={{ x: layout.x, y: layout.y }}
                        disableDragging={block.locked || isLockedCoverOverlay}
-                       enableResizing={!block.locked && !isLockedCoverOverlay}
+                       enableResizing={!block.locked && !isLockedCoverOverlay && isPrimary}
                       minWidth={60}
                       minHeight={30}
-                      resizeHandleComponent={selected ? handleComponents : undefined}
-                      onDragStop={(_e, d) =>
-                        handleDragResize(page.id, block, { ...layout, x: Math.round(d.x), y: Math.round(d.y) })
-                      }
+                      resizeHandleComponent={isPrimary ? handleComponents : undefined}
+                      onDragStop={(_e, d) => {
+                        const dx = Math.round(d.x) - layout.x;
+                        const dy = Math.round(d.y) - layout.y;
+                        // Se há multi-seleção, move todos os outros selecionados juntos
+                        if (selectedSet.size > 1 && (dx !== 0 || dy !== 0)) {
+                          moveManySelected(page.id, dx, dy);
+                          return;
+                        }
+                        handleDragResize(page.id, block, { ...layout, x: Math.round(d.x), y: Math.round(d.y) });
+                      }}
                       onResizeStop={(_e, _dir, ref, _delta, position) =>
                         handleDragResize(page.id, block, {
                           ...layout,
@@ -484,11 +492,10 @@ export function ProposalCanvas({
                       }
                       onClick={(e: React.MouseEvent) => {
                          if (isLockedCoverOverlay) return;
-                        e.stopPropagation();
-                        onSelectBlock(block.id);
+                         handleBlockClick(block.id, e);
                       }}
                       style={{
-                         zIndex: isLockedCoverOverlay ? 0 : selected ? 1000 : block.order + 10,
+                         zIndex: isLockedCoverOverlay ? 0 : isPrimary ? 1000 : selected ? 999 : block.order + 10,
                          pointerEvents: isLockedCoverOverlay ? "none" : "auto",
                       }}
                     >
