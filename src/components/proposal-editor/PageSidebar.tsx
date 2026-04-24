@@ -28,6 +28,7 @@ import {
 import { useServerFn } from "@tanstack/react-start";
 import { uploadInlineImage } from "@/integrations/proposal-editor/inline-images.functions";
 import { toast } from "sonner";
+import { InlinePagePalette } from "./FieldsPalette";
 import { cn } from "@/lib/utils";
 
 interface Props {
