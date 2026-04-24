@@ -46,7 +46,20 @@ export function PageSidebar({ pages, selectedId, proposalId, onSelect, onChange 
   const sorted = [...pages].sort((a, b) => a.order - b.order);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadingPageId, setUploadingPageId] = useState<string | null>(null);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
   const uploadFn = useServerFn(uploadInlineImage);
+
+  const reorder = (sourceId: string, targetId: string) => {
+    if (sourceId === targetId) return;
+    const next = [...sorted];
+    const from = next.findIndex((p) => p.id === sourceId);
+    const to = next.findIndex((p) => p.id === targetId);
+    if (from < 0 || to < 0) return;
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    onChange(next.map((p, i) => ({ ...p, order: i })));
+  };
 
   const move = (id: string, dir: -1 | 1) => {
     const idx = sorted.findIndex((p) => p.id === id);
@@ -159,13 +172,43 @@ export function PageSidebar({ pages, selectedId, proposalId, onSelect, onChange 
       <div className="flex-1 overflow-y-auto py-1">
         {sorted.map((page, i) => {
           const isSelected = page.id === selectedId;
+          const isDragging = draggingId === page.id;
+          const isDragOver = dragOverId === page.id && draggingId && draggingId !== page.id;
           return (
             <div
               key={page.id}
+              draggable
+              onDragStart={(e) => {
+                setDraggingId(page.id);
+                e.dataTransfer.effectAllowed = "move";
+                e.dataTransfer.setData("text/plain", page.id);
+              }}
+              onDragEnd={() => {
+                setDraggingId(null);
+                setDragOverId(null);
+              }}
+              onDragOver={(e) => {
+                if (!draggingId || draggingId === page.id) return;
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "move";
+                setDragOverId(page.id);
+              }}
+              onDragLeave={() => {
+                setDragOverId((cur) => (cur === page.id ? null : cur));
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                const sourceId = e.dataTransfer.getData("text/plain") || draggingId;
+                if (sourceId) reorder(sourceId, page.id);
+                setDraggingId(null);
+                setDragOverId(null);
+              }}
               className={cn(
-                "group flex items-center gap-1 px-2 py-1.5 text-xs transition",
+                "group flex items-center gap-1 px-2 py-1.5 text-xs transition cursor-grab active:cursor-grabbing",
                 isSelected ? "bg-accent text-accent-foreground" : "hover:bg-muted/60",
                 !page.visible && "opacity-50",
+                isDragging && "opacity-40",
+                isDragOver && "border-t-2 border-primary",
               )}
             >
               <GripVertical className="h-3 w-3 shrink-0 text-muted-foreground" />
