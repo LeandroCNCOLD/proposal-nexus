@@ -55,6 +55,7 @@ export type SelectionCandidate = {
     gabinete: string | null;
   };
   evaporator_airflow_m3_h: number | null;
+  refrigerant: string | null;
   // condições alvo / encontradas
   point_used: {
     interpolated: boolean;
@@ -231,12 +232,13 @@ function selectCapacityForModel(
  */
 export async function findEquipmentCandidates(
   input: SelectionInput,
+  db: typeof supabase = supabase,
 ): Promise<SelectionCandidate[]> {
   const surplusMin = input.surplus_target_min ?? 5;
   const surplusMax = input.surplus_target_max ?? 25;
 
   // 1) filtra modelos elegíveis
-  let modelsQuery = supabase
+  let modelsQuery = db
     .from("coldpro_equipment_models")
     .select("id, modelo, linha, refrigerante, designacao_hp, gabinete")
     .eq("active", true);
@@ -251,7 +253,7 @@ export async function findEquipmentCandidates(
   const modelIds = models.map((m) => m.id);
 
   // 2) busca pontos de performance (em batch)
-  const { data: points, error: pErr } = await supabase
+  const { data: points, error: pErr } = await db
     .from("coldpro_equipment_performance_points")
     .select(
       "id, equipment_model_id, temperature_room_c, evaporation_temp_c, condensation_temp_c, evaporator_capacity_kcal_h, compressor_capacity_kcal_h, total_power_kw, cop",
@@ -260,7 +262,7 @@ export async function findEquipmentCandidates(
   if (pErr) throw new Error(`Erro ao buscar pontos: ${pErr.message}`);
 
   // 3) busca evaporadores (vazão)
-  const { data: evaporators } = await supabase
+  const { data: evaporators } = await db
     .from("coldpro_equipment_evaporators")
     .select("equipment_model_id, airflow_m3_h, evaporator_quantity")
     .in("equipment_model_id", modelIds);
@@ -322,6 +324,7 @@ export async function findEquipmentCandidates(
     candidates.push({
       model: m,
       evaporator_airflow_m3_h: airflowUnit,
+      refrigerant: m.refrigerante,
       point_used: {
         interpolated: sel.used.interpolated,
         polynomial: sel.used.polynomial,
