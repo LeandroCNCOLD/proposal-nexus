@@ -1,0 +1,196 @@
+import * as React from "react";
+import { Download, Send } from "lucide-react";
+
+function fmt(value: unknown, digits = 2) {
+  return new Intl.NumberFormat("pt-BR", { maximumFractionDigits: digits }).format(Number(value ?? 0));
+}
+
+type Props = {
+  project: any;
+  environments: any[];
+  results: any[];
+  selections: any[];
+  products: any[];
+  onPushToProposal?: () => void;
+  isPushing?: boolean;
+};
+
+export function ColdProReport({
+  project,
+  environments,
+  results,
+  selections,
+  products,
+  onPushToProposal,
+  isPushing,
+}: Props) {
+  const handlePrint = () => window.print();
+
+  const totals = environments.reduce(
+    (acc, env) => {
+      const r = results.find((x: any) => x.environment_id === env.id);
+      acc.kcal += Number(r?.total_required_kcal_h ?? 0);
+      acc.kw += Number(r?.total_required_kw ?? 0);
+      acc.tr += Number(r?.total_required_tr ?? 0);
+      return acc;
+    },
+    { kcal: 0, kw: 0, tr: 0 },
+  );
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
+        <div>
+          <h2 className="text-lg font-semibold">Relatório técnico</h2>
+          <p className="text-sm text-muted-foreground">
+            Memorial de cálculo consolidado dos ambientes do projeto.
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={handlePrint}
+            className="inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm hover:bg-muted"
+          >
+            <Download className="h-4 w-4" /> Baixar PDF
+          </button>
+          {onPushToProposal ? (
+            <button
+              type="button"
+              onClick={onPushToProposal}
+              disabled={isPushing || !project?.proposal_id}
+              title={!project?.proposal_id ? "Vincule este projeto a uma proposta primeiro" : undefined}
+              className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground disabled:opacity-50"
+            >
+              <Send className="h-4 w-4" />
+              {isPushing ? "Enviando..." : "Enviar para proposta"}
+            </button>
+          ) : null}
+        </div>
+      </div>
+
+      <div id="coldpro-report-print" className="space-y-6 rounded-2xl border bg-background p-6 print:border-0 print:p-0">
+        <header className="border-b pb-4">
+          <div className="text-xs uppercase tracking-wide text-muted-foreground">CN ColdPro · Memorial de cálculo</div>
+          <h1 className="mt-1 text-2xl font-bold">{project?.name ?? "Projeto"}</h1>
+          <div className="mt-1 text-sm text-muted-foreground">
+            Aplicação: {project?.application_type} · Revisão {project?.revision} · Status {project?.status}
+          </div>
+        </header>
+
+        <section>
+          <h2 className="mb-3 text-base font-semibold">Resumo do projeto</h2>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="rounded-xl border p-3">
+              <div className="text-xs text-muted-foreground">Carga total</div>
+              <div className="text-xl font-bold">{fmt(totals.kcal)} kcal/h</div>
+            </div>
+            <div className="rounded-xl border p-3">
+              <div className="text-xs text-muted-foreground">Potência total</div>
+              <div className="text-xl font-bold">{fmt(totals.kw)} kW</div>
+            </div>
+            <div className="rounded-xl border p-3">
+              <div className="text-xs text-muted-foreground">Toneladas refrigeração</div>
+              <div className="text-xl font-bold">{fmt(totals.tr)} TR</div>
+            </div>
+          </div>
+        </section>
+
+        {environments.map((env: any, idx: number) => {
+          const result = results.find((r: any) => r.environment_id === env.id);
+          const selection = selections.find((s: any) => s.environment_id === env.id);
+          const envProducts = products.filter((p: any) => p.environment_id === env.id);
+          return (
+            <section key={env.id} className="space-y-3 border-t pt-4">
+              <h2 className="text-base font-semibold">
+                {idx + 1}. {env.name}
+                <span className="ml-2 text-sm font-normal text-muted-foreground">({env.environment_type})</span>
+              </h2>
+
+              <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm md:grid-cols-3">
+                <div>Dimensões: <b>{fmt(env.length_m)} × {fmt(env.width_m)} × {fmt(env.height_m)} m</b></div>
+                <div>Volume: <b>{fmt(env.volume_m3)} m³</b></div>
+                <div>Temp. interna: <b>{fmt(env.internal_temp_c)} °C</b></div>
+                <div>Temp. externa: <b>{fmt(env.external_temp_c)} °C</b></div>
+                <div>Painel parede: <b>{fmt(env.wall_thickness_mm)} mm</b></div>
+                <div>Compressor: <b>{fmt(env.compressor_runtime_hours_day)} h/dia</b></div>
+              </div>
+
+              {envProducts.length > 0 ? (
+                <div>
+                  <div className="mb-1 text-sm font-semibold">Produtos</div>
+                  <table className="w-full border-collapse text-sm">
+                    <thead className="bg-muted/40">
+                      <tr>
+                        <th className="border px-2 py-1 text-left">Produto</th>
+                        <th className="border px-2 py-1 text-right">kg/dia</th>
+                        <th className="border px-2 py-1 text-right">Entrada °C</th>
+                        <th className="border px-2 py-1 text-right">Final °C</th>
+                        <th className="border px-2 py-1 text-right">Tempo (h)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {envProducts.map((p: any) => (
+                        <tr key={p.id}>
+                          <td className="border px-2 py-1">{p.product_name}</td>
+                          <td className="border px-2 py-1 text-right">{fmt(p.mass_kg_day)}</td>
+                          <td className="border px-2 py-1 text-right">{fmt(p.inlet_temp_c)}</td>
+                          <td className="border px-2 py-1 text-right">{fmt(p.outlet_temp_c)}</td>
+                          <td className="border px-2 py-1 text-right">{fmt(p.process_time_h)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : null}
+
+              {result ? (
+                <div>
+                  <div className="mb-1 text-sm font-semibold">Decomposição da carga térmica</div>
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm md:grid-cols-3">
+                    <div>Transmissão: <b>{fmt(result.transmission_kcal_h)} kcal/h</b></div>
+                    <div>Produto: <b>{fmt(result.product_kcal_h)} kcal/h</b></div>
+                    <div>Embalagem: <b>{fmt(result.packaging_kcal_h)} kcal/h</b></div>
+                    <div>Infiltração: <b>{fmt(result.infiltration_kcal_h)} kcal/h</b></div>
+                    <div>Pessoas: <b>{fmt(result.people_kcal_h)} kcal/h</b></div>
+                    <div>Iluminação: <b>{fmt(result.lighting_kcal_h)} kcal/h</b></div>
+                    <div>Motores: <b>{fmt(result.motors_kcal_h)} kcal/h</b></div>
+                    <div>Ventiladores: <b>{fmt(result.fans_kcal_h)} kcal/h</b></div>
+                    <div>Degelo: <b>{fmt(result.defrost_kcal_h)} kcal/h</b></div>
+                    <div>Outros: <b>{fmt(result.other_kcal_h)} kcal/h</b></div>
+                    <div>Subtotal: <b>{fmt(result.subtotal_kcal_h)} kcal/h</b></div>
+                    <div>Segurança ({fmt(result.safety_factor_percent)}%): <b>{fmt(result.safety_kcal_h)} kcal/h</b></div>
+                  </div>
+                  <div className="mt-2 rounded-md bg-primary/5 p-3 text-sm">
+                    <b>Total requerido:</b> {fmt(result.total_required_kcal_h)} kcal/h ·{" "}
+                    {fmt(result.total_required_kw)} kW · {fmt(result.total_required_tr)} TR
+                  </div>
+                </div>
+              ) : (
+                <div className="text-sm text-muted-foreground">Cálculo não realizado.</div>
+              )}
+
+              {selection ? (
+                <div>
+                  <div className="mb-1 text-sm font-semibold">Equipamento selecionado</div>
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm md:grid-cols-3">
+                    <div>Modelo: <b>{selection.model}</b></div>
+                    <div>Quantidade: <b>{fmt(selection.quantity)}</b></div>
+                    <div>Capacidade total: <b>{fmt(selection.capacity_total_kcal_h)} kcal/h</b></div>
+                    <div>Vazão de ar: <b>{fmt(selection.air_flow_total_m3_h)} m³/h</b></div>
+                    <div>Trocas/h: <b>{fmt(selection.air_changes_hour)}</b></div>
+                    <div>Sobra técnica: <b>{fmt(selection.surplus_percent)}%</b></div>
+                  </div>
+                </div>
+              ) : null}
+            </section>
+          );
+        })}
+
+        <footer className="border-t pt-3 text-xs text-muted-foreground">
+          Documento gerado por CN ColdPro em {new Date().toLocaleString("pt-BR")}.
+        </footer>
+      </div>
+    </div>
+  );
+}
