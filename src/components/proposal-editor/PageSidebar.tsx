@@ -1,6 +1,7 @@
 // Sidebar fina de páginas — lista, seleciona, reordena, oculta e adiciona páginas.
 import { useRef, useState } from "react";
 import {
+  Copy,
   Eye,
   EyeOff,
   GripVertical,
@@ -77,6 +78,33 @@ export function PageSidebar({ pages, selectedId, proposalId, onSelect, onChange 
     onChange(pages.map((p) => (p.id === id ? { ...p, visible: !p.visible } : p)));
 
   const remove = (id: string) => onChange(pages.filter((p) => p.id !== id));
+
+  const duplicate = (id: string) => {
+    const src = pages.find((p) => p.id === id);
+    if (!src) return;
+    const newId =
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `page-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const copy: DocumentPage = {
+      ...src,
+      id: newId,
+      title: `${src.title} (cópia)`,
+      order: src.order + 0.5,
+      blocks: src.blocks.map((b) => ({
+        ...b,
+        id:
+          typeof crypto !== "undefined" && "randomUUID" in crypto
+            ? crypto.randomUUID()
+            : `block-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        data: { ...b.data },
+      })),
+    };
+    const next = [...pages, copy]
+      .sort((a, b) => a.order - b.order)
+      .map((p, i) => ({ ...p, order: i }));
+    onChange(next);
+  };
 
   const addPage = (type: PageType) => {
     const labelEntry = ADDABLE_PAGE_TYPES.find((t) => t.type === type);
@@ -241,6 +269,14 @@ export function PageSidebar({ pages, selectedId, proposalId, onSelect, onChange 
                   title="Mover para baixo"
                 >
                   <ChevronDown className="h-3 w-3" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => duplicate(page.id)}
+                  className="p-0.5 hover:text-foreground"
+                  title="Duplicar página"
+                >
+                  <Copy className="h-3 w-3" />
                 </button>
                 <button
                   type="button"

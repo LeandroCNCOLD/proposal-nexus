@@ -40,6 +40,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { uploadInlineImage } from "@/integrations/proposal-editor/inline-images.functions";
 import { toast } from "sonner";
 
+import { AIAssistButton } from "./AIAssistButton";
+
 interface Props {
   value?: string;
   onChange: (html: string) => void;
@@ -48,6 +50,8 @@ interface Props {
   className?: string;
   /** Quando definido, habilita upload de imagens inline para a proposta. */
   proposalId?: string;
+  /** Dica de contexto passada ao assistente de IA (ex.: "página: Nossa Solução"). */
+  aiContextHint?: string;
 }
 
 const FONT_SIZES = [
@@ -147,10 +151,12 @@ function Toolbar({
   editor,
   minimal,
   onPickImage,
+  aiContextHint,
 }: {
   editor: Editor;
   minimal?: boolean;
   onPickImage?: () => void;
+  aiContextHint?: string;
 }) {
   const inTable = editor.isActive("table");
   const currentColor = (editor.getAttributes("textStyle").color as string) ?? "";
@@ -386,6 +392,40 @@ function Toolbar({
         </>
       )}
       <div className="ml-auto flex items-center gap-0.5">
+        <AIAssistButton
+          contextHint={aiContextHint}
+          getText={() => {
+            const { from, to, empty } = editor.state.selection;
+            if (!empty) {
+              const slice = editor.state.doc.cut(from, to);
+              const tmp = document.createElement("div");
+              const fragHtml = (editor as unknown as { getHTML: () => string }).getHTML();
+              // Para seleção, usamos o texto puro do trecho selecionado, mas devolvemos
+              // o HTML do bloco inteiro como referência visual (mais útil no preview).
+              const selText = slice.textContent || "";
+              tmp.innerHTML = `<p>${selText.replace(/&/g, "&amp;").replace(/</g, "&lt;")}</p>`;
+              return { text: selText, html: fragHtml, hasSelection: true };
+            }
+            return {
+              text: editor.getText(),
+              html: editor.getHTML(),
+              hasSelection: false,
+            };
+          }}
+          onApply={(html) => {
+            const { from, to, empty } = editor.state.selection;
+            if (!empty) {
+              editor.chain().focus().insertContentAt({ from, to }, html).run();
+            } else {
+              editor.commands.setContent(html, true);
+            }
+          }}
+          onInsertAfter={(html) => {
+            const { to } = editor.state.selection;
+            editor.chain().focus().insertContentAt(to, html).run();
+          }}
+        />
+        <div className="mx-1 h-4 w-px bg-border" />
         <ToolbarBtn
           onClick={() => editor.chain().focus().undo().run()}
           disabled={!editor.can().undo()}
@@ -412,6 +452,7 @@ export function RichTextEditor({
   minimal,
   className,
   proposalId,
+  aiContextHint,
 }: Props) {
   const uploadFn = useServerFn(uploadInlineImage);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -495,7 +536,12 @@ export function RichTextEditor({
 
   return (
     <div className={cn("rounded-md border bg-background", className)}>
-      <Toolbar editor={editor} minimal={minimal} onPickImage={handlePickImage} />
+      <Toolbar
+        editor={editor}
+        minimal={minimal}
+        onPickImage={handlePickImage}
+        aiContextHint={aiContextHint}
+      />
       <EditorContent editor={editor} />
       {proposalId && (
         <input

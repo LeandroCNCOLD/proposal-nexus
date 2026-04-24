@@ -597,6 +597,8 @@ export function ProposalCanvas({
                         proposalContext={proposalContext}
                         proposalId={proposalId}
                         pageId={page.id}
+                        pageTitle={page.title}
+                        pageType={page.type}
                         onChange={(next) => updateBlock(page.id, next)}
                         onDelete={() => deleteBlock(page.id, block.id)}
                         onDuplicate={() => duplicateBlock(page.id, block.id)}

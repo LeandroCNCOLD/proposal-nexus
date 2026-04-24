@@ -37,6 +37,8 @@ interface Props {
   proposalContext: ProposalDynamicContext;
   proposalId?: string;
   pageId?: string;
+  pageTitle?: string;
+  pageType?: string;
   onChange: (next: DocumentBlock) => void;
   onDelete: () => void;
   onDuplicate: () => void;
@@ -67,6 +69,8 @@ export function BlockRenderer({
   proposalContext,
   proposalId,
   pageId,
+  pageTitle,
+  pageType,
   onChange,
   onDelete,
   onDuplicate,
@@ -288,6 +292,8 @@ export function BlockRenderer({
           proposalContext={proposalContext}
           proposalId={proposalId}
           pageId={pageId}
+          pageTitle={pageTitle}
+          pageType={pageType}
           selected={selected}
           setData={setData}
           onChange={onChange}
@@ -304,6 +310,8 @@ function BlockBody({
   proposalContext,
   proposalId,
   pageId,
+  pageTitle,
+  pageType,
   selected,
   setData,
   onChange,
@@ -314,6 +322,8 @@ function BlockBody({
   proposalContext: ProposalDynamicContext;
   proposalId?: string;
   pageId?: string;
+  pageTitle?: string;
+  pageType?: string;
   selected: boolean;
   setData: (patch: Record<string, unknown>) => void;
   onChange: (next: DocumentBlock) => void;
@@ -410,6 +420,15 @@ function BlockBody({
             onChange={(v) => setData({ html: v })}
             placeholder="Escreva o conteúdo…"
             proposalId={proposalId}
+            aiContextHint={[
+              pageTitle ? `página: ${pageTitle}` : null,
+              pageType ? `tipo: ${pageType}` : null,
+              proposalContext.client_name ? `cliente: ${proposalContext.client_name}` : null,
+              proposalContext.proposal_title ? `proposta: ${proposalContext.proposal_title}` : null,
+              block.title ? `bloco: ${block.title}` : null,
+            ]
+              .filter(Boolean)
+              .join(" | ")}
           />
         </div>
       );

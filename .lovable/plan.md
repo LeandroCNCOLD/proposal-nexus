@@ -1,88 +1,69 @@
+## Onde colocar o memorial técnico
 
+O texto que você enviou cabe nas páginas que o editor já tem — basta distribuir:
 
-## Migração `proposal_tables` — análise e plano de adoção
+| Trecho | Página (já existe) |
+|---|---|
+| "Objetivo do Projeto" + critérios técnicos | **Contextualização** |
+| "Solução Proposta para a Operação" (3 câmaras) | **Nossa solução** |
+| "Diferenciais Técnicos da Solução" | **Diferenciais** |
+| "Impacto Direto na Operação" + fechamento | **Impacto esperado** |
 
-Você colou uma migração SQL que **redesenha** a tabela `proposal_tables`. Hoje a tabela já existe no banco com um schema diferente do que a sua migração propõe. Antes de aplicar é preciso decidir como conciliar.
+Vou adicionar também um botão **Duplicar página** na sidebar lateral, pra você criar várias páginas de Solução/Diferenciais com mesmo layout/fundo quando o conteúdo for grande.
 
-### Comparação: schema atual × schema proposto
+## Assistente de IA com foco em vendas (PNL + escrita técnico-comercial)
 
-| Coluna | Hoje | Proposto | Observação |
-|---|---|---|---|
-| `id` | uuid pk | uuid pk | igual |
-| `proposal_id` | uuid (sem FK) | uuid + **FK ON DELETE CASCADE** | proposto é melhor |
-| `page_id` | text **NOT NULL** | text **NULL** | muda nulabilidade |
-| `type` | text NOT NULL | renomeada para `table_type` | **breaking** |
-| `title` | text | text | igual |
-| — | — | `subtitle` text | nova |
-| `rows` | jsonb | jsonb | igual |
-| `columns` | jsonb | **removida** (vai para `settings.columns`) | **breaking** |
-| — | — | `settings` jsonb | nova |
-| — | — | `sort_order` int | nova |
-| — | — | `created_by`, `updated_by` | novas |
-| `created_at`/`updated_at` | sim | sim | igual |
-| Unique | `(proposal_id, page_id)` | `(proposal_id, coalesce(page_id,''), table_type, sort_order)` | permite múltiplas tabelas por página |
-| Trigger updated_at | não tem | tem | proposto é melhor |
-| RLS | select=true / modify autenticado | select/insert/update/delete autenticado | equivalente |
+Vou plugar a IA (Lovable AI Gateway, modelo `google/gemini-3-flash-preview`) em **todo campo de texto rico** do editor (`RichTextEditor`) — usado em Contextualização, Solução, Diferenciais, Impacto, Garantia, Página livre, Nota, Escopo, "Sobre", caixas de texto livres, etc.
 
-### Impacto no código atual
+### Como vai aparecer
 
-A migração quebra os seguintes pontos do código que já está em produção:
+Botão **✨ IA Vendas** na barra de ferramentas. Ao clicar, abre um popover com ações organizadas em 3 grupos:
 
-1. **`src/integrations/proposal-editor/tables.functions.ts`** — usa `type`, `columns`, e o conflict target `proposal_id,page_id`. Tudo precisa ser atualizado para `table_type`, `settings`, e novo conflict target.
-2. **`src/integrations/proposal-editor/types.ts`** — o type `ProposalTable` reflete colunas antigas.
-3. **`src/components/proposal-editor/blocks/StructuredTableEditor.tsx`** e **`TableBlockEditor.tsx`** — leem/escrevem `columns` direto.
-4. **Renderer PDF** (`ContentPages.tsx`/`StandardPage.tsx`) — consome `columns` direto.
-5. **`src/integrations/supabase/types.ts`** — regenerado automaticamente após a migração.
+**📝 Escrita técnica**
+1. **Melhorar escrita** — corrige gramática, fluidez, clareza técnica.
+2. **Resumir** — versão curta do trecho.
+3. **Expandir** — desenvolve com profundidade técnica.
+4. **Sugerir continuação** — completa a partir do cursor.
+5. **Reescrever em bullets** — transforma parágrafo em lista.
 
-### Decisão necessária
+**💼 Vendas e persuasão (PNL)**
+6. **Tom consultivo** — reescreve como consultor especialista, gera autoridade.
+7. **Foco em benefícios (não features)** — converte características técnicas em ganhos para o cliente (ROI, redução de perdas, eficiência energética, previsibilidade).
+8. **Gatilhos PNL** — aplica âncoras de prova social, escassez, autoridade, reciprocidade e urgência calibradas para B2B industrial.
+9. **Storytelling de problema → solução** — reestrutura em narrativa "dor do cliente → consequência → nossa solução → resultado".
+10. **Quebra de objeções** — antecipa objeções comuns (preço, prazo, manutenção, garantia) e responde no próprio texto.
+11. **Call-to-action de fechamento** — adiciona CTA suave/forte ao final.
 
-Existem 3 caminhos possíveis. Escolha um:
+**🎯 Análise**
+12. **Analisar texto** — devolve um diagnóstico (não substitui o texto): clareza, tom, gatilhos presentes/ausentes, objeções não tratadas, score de persuasão 0–10, e 3 sugestões pontuais.
+13. **Comparar variações** — gera 2 versões alternativas (uma mais técnica, uma mais comercial) lado a lado.
 
-**Opção A — Adotar a migração nova como veio (recomendado se a tabela ainda não tem dados em produção)**
-- Aplica a migração exata que você colou + um `ALTER TABLE` prévio que **dropa** a tabela antiga (ou renomeia colunas) para evitar conflito.
-- Atualiza todo o código (server functions, types, editores, PDF) para o novo schema (`table_type`, `settings.columns`, `sort_order`).
-- Ganhos: FK com cascade, múltiplas tabelas por página (sort_order), trigger de updated_at, settings flexível, helper `proposal_table_default_settings`.
-- Custo: ~5 arquivos editados + perda dos dados atuais em `proposal_tables` (se houver).
+**Prompt livre** — caixa de texto pra você descrever ("Reescreva como se fosse pro diretor industrial", "Adapte tom para licitação pública", etc.).
 
-**Opção B — Migração não-destrutiva (preserva dados existentes)**
-- Em vez de recriar a tabela, gera um `ALTER TABLE`:
-  - `ADD COLUMN settings jsonb`, `subtitle`, `sort_order`, `created_by`, `updated_by`
-  - `RENAME COLUMN type TO table_type`
-  - Move `columns` existente para `settings->'columns'` via `UPDATE`, depois `DROP COLUMN columns`
-  - `ALTER COLUMN page_id DROP NOT NULL`
-  - Adiciona FK `proposal_id` com cascade
-  - Substitui o unique por `(proposal_id, coalesce(page_id,''), table_type, sort_order)`
-  - Cria trigger `set_proposal_tables_updated_at` e função `proposal_table_default_settings`
-- Atualiza o mesmo código da Opção A.
-- Ganhos: preserva linhas já criadas.
-- Custo: migração mais cuidadosa + mesmos ~5 arquivos.
+O resultado aparece num **preview com diff** (antes / depois). Botões: **Aplicar**, **Inserir abaixo** ou **Descartar**. Se nada estiver selecionado, opera no bloco inteiro.
 
-**Opção C — Não aplicar agora**
-- Mantém o schema atual; descarta a migração.
+### Por trás (parte técnica)
 
-### Detalhes técnicos (se Opção A ou B aprovada)
+- **Nova server function** `aiAssistText` em `src/integrations/proposal-editor/ai.functions.ts` (`createServerFn`, POST). Validação Zod: `{ action: enum, text: string, instruction?: string, contextHint?: string }`. Chama `https://ai.gateway.lovable.dev/v1/chat/completions` com `LOVABLE_API_KEY` (já está nos secrets).
+- **Prompt de sistema especializado**: persona de "copywriter sênior B2B industrial + engenheiro de vendas em refrigeração". Inclui princípios PNL aplicados a vendas técnicas (rapport, calibragem, ancoragem, reframing, future pacing), framework de copy (PAS — Problem/Agitate/Solve, AIDA, FAB — Feature/Advantage/Benefit), tom consultivo Sandler/SPIN. Cada ação tem seu sub-prompt instruindo qual técnica aplicar.
+- **Trata erros**: 429 → "Limite de uso atingido, aguarde um instante", 402 → "Créditos da IA esgotados, recarregue na configuração". Toast amigável.
+- **Novo componente** `src/components/proposal-editor/AIAssistButton.tsx`: botão na toolbar + Popover com as 3 abas de ações + textarea de prompt livre + Dialog de preview do resultado com Aplicar/Inserir/Descartar.
+- **Integração no `RichTextEditor`**: lê `editor.state.selection` (ou texto inteiro se vazio); aplica via `editor.chain().focus().insertContentAt(range, html).run()`.
+- **Hint contextual**: o `BlockRenderer` passa `contextHint` (ex.: `"página: Nossa Solução, cliente: <nome>, valor proposta: R$ X"`) puxando dados da proposta atual (cliente, valor) para a IA gerar texto coerente e personalizado.
 
-Arquivos a editar após a migração:
+## Arquivos afetados
 
-```text
-supabase/migrations/<timestamp>_proposal_tables_redesign.sql   (novo)
-src/integrations/proposal-editor/types.ts                       (renomear campos)
-src/integrations/proposal-editor/tables.functions.ts            (table_type + settings + sort_order; novo onConflict)
-src/components/proposal-editor/blocks/StructuredTableEditor.tsx (ler colunas de settings.columns)
-src/components/proposal-editor/blocks/TableBlockEditor.tsx      (idem)
-src/integrations/proposal-editor/pdf/ContentPages.tsx           (idem; usar settings.show_header etc.)
-src/integrations/proposal-editor/pdf/StandardPage.tsx           (se relevante)
-```
+- novo `src/integrations/proposal-editor/ai.functions.ts`
+- novo `src/components/proposal-editor/AIAssistButton.tsx`
+- editado `src/components/proposal-editor/RichTextEditor.tsx` (botão IA + props de contexto)
+- editado `src/components/proposal-editor/BlockRenderer.tsx` (passa contextHint)
+- editado `src/components/proposal-editor/PageSidebar.tsx` (botão Duplicar página)
 
-Após a migração rodar, `src/integrations/supabase/types.ts` é regenerado automaticamente — não editar à mão.
+## Fora do escopo (faço depois se quiser)
 
-### Pergunta antes de avançar
+- IA dentro de células de tabela (Equipamentos/Investimento).
+- Análise da proposta inteira de uma vez (score global de persuasão).
+- Histórico de gerações da IA / "desfazer IA" com versões salvas.
+- Pré-popular automaticamente as 4 páginas com seu memorial — posso fazer num passo seguinte se confirmar.
 
-Qual opção seguimos?
-
-1. **A** — recriar a tabela conforme você colou (perde dados de `proposal_tables` se houver)
-2. **B** — migração não-destrutiva preservando os dados existentes
-3. **C** — não aplicar agora
-
-Se A ou B, eu também já aplico no mesmo turno a atualização do código que consome essa tabela (server functions, types, editores e PDF).
-
+Confirma que sigo?
