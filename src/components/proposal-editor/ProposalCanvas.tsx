@@ -509,7 +509,6 @@ export function ProposalCanvas({
                 onClick={(e) => {
                   e.stopPropagation();
                   onSelect(page.id);
-                  // só limpa seleção se NÃO foi shift/ctrl
                   if (!(e.shiftKey || e.ctrlKey || e.metaKey)) clearMultiSelection();
                 }}
                 onDragOver={(e) => {
