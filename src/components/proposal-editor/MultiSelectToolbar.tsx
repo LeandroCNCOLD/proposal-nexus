@@ -173,26 +173,26 @@ export function MultiSelectToolbar({
       <span className="mx-0.5 text-muted-foreground/40">|</span>
 
       {/* Alinhar horizontal — sobre a seleção */}
-      <ToolBtn title="Alinhar à esquerda" onClick={() => align("x", "start")}>
+      <ToolBtn title="Alinhar à esquerda" onClick={() => align("x", "start")} disabled={!isMulti}>
         <AlignStartVertical className="h-3.5 w-3.5" />
       </ToolBtn>
-      <ToolBtn title="Centralizar horizontal" onClick={() => align("x", "center")}>
+      <ToolBtn title="Centralizar horizontal" onClick={() => align("x", "center")} disabled={!isMulti}>
         <AlignCenterVertical className="h-3.5 w-3.5" />
       </ToolBtn>
-      <ToolBtn title="Alinhar à direita" onClick={() => align("x", "end")}>
+      <ToolBtn title="Alinhar à direita" onClick={() => align("x", "end")} disabled={!isMulti}>
         <AlignEndVertical className="h-3.5 w-3.5" />
       </ToolBtn>
 
       <span className="mx-0.5 text-muted-foreground/40">|</span>
 
       {/* Alinhar vertical */}
-      <ToolBtn title="Alinhar ao topo" onClick={() => align("y", "start")}>
+      <ToolBtn title="Alinhar ao topo" onClick={() => align("y", "start")} disabled={!isMulti}>
         <AlignStartHorizontal className="h-3.5 w-3.5" />
       </ToolBtn>
-      <ToolBtn title="Centralizar vertical" onClick={() => align("y", "center")}>
+      <ToolBtn title="Centralizar vertical" onClick={() => align("y", "center")} disabled={!isMulti}>
         <AlignCenterHorizontal className="h-3.5 w-3.5" />
       </ToolBtn>
-      <ToolBtn title="Alinhar à base" onClick={() => align("y", "end")}>
+      <ToolBtn title="Alinhar à base" onClick={() => align("y", "end")} disabled={!isMulti}>
         <AlignEndHorizontal className="h-3.5 w-3.5" />
       </ToolBtn>
 
