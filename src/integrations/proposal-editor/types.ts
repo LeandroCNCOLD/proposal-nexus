@@ -87,6 +87,12 @@ export interface DocumentPage {
   visible: boolean;
   order: number;
   blocks: DocumentBlock[];
+  /** Caminho no Storage (proposal-files) da imagem de fundo da página. */
+  backgroundImagePath?: string;
+  /** URL assinada/pública para renderizar a imagem de fundo no canvas. */
+  backgroundImageUrl?: string;
+  /** Como a imagem de fundo deve preencher o A4. Default: "cover". */
+  backgroundImageFit?: "cover" | "contain";
 }
 
 export interface ProposalDocument {
@@ -470,6 +476,7 @@ export const PAGE_TYPE_LABELS: Record<PageType, string> = {
   nota: "Nota",
   "custom-rich": "Página livre",
   "custom-block": "Bloco do catálogo",
+  "custom-bg": "Página com imagem de fundo",
   "attached-pdf": "PDF anexado",
 };
 
@@ -503,5 +510,6 @@ export const ADDABLE_PAGE_TYPES: { type: PageType; label: string }[] = [
   { type: "impact", label: "Impacto esperado" },
   { type: "nota", label: "Nota" },
   { type: "custom-rich", label: "Página livre" },
+  { type: "custom-bg", label: "Página com imagem de fundo" },
   { type: "attached-pdf", label: "PDF anexado" },
 ];
