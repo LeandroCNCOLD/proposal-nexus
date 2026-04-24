@@ -34,6 +34,7 @@ import { Route as AppPropostasIdRouteImport } from './routes/app.propostas.$id'
 import { Route as AppCrmIdRouteImport } from './routes/app.crm.$id'
 import { Route as AppConfiguracoesNomusRouteImport } from './routes/app.configuracoes.nomus'
 import { Route as AppConfiguracoesApiNomusRouteImport } from './routes/app.configuracoes.api-nomus'
+import { Route as AppColdproCatalogoRouteImport } from './routes/app.coldpro.catalogo'
 import { Route as AppColdproIdRouteImport } from './routes/app.coldpro.$id'
 import { Route as ApiNomusTestRouteImport } from './routes/api.nomus.test'
 import { Route as AppPropostasIdIndexRouteImport } from './routes/app.propostas.$id.index'
@@ -172,6 +173,11 @@ const AppConfiguracoesApiNomusRoute =
     path: '/api-nomus',
     getParentRoute: () => AppConfiguracoesRoute,
   } as any)
+const AppColdproCatalogoRoute = AppColdproCatalogoRouteImport.update({
+  id: '/coldpro/catalogo',
+  path: '/coldpro/catalogo',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppColdproIdRoute = AppColdproIdRouteImport.update({
   id: '/coldpro/$id',
   path: '/coldpro/$id',
@@ -254,6 +260,7 @@ export interface FileRoutesByFullPath {
   '/app/': typeof AppIndexRoute
   '/api/nomus/test': typeof ApiNomusTestRoute
   '/app/coldpro/$id': typeof AppColdproIdRoute
+  '/app/coldpro/catalogo': typeof AppColdproCatalogoRoute
   '/app/configuracoes/api-nomus': typeof AppConfiguracoesApiNomusRoute
   '/app/configuracoes/nomus': typeof AppConfiguracoesNomusRouteWithChildren
   '/app/crm/$id': typeof AppCrmIdRoute
@@ -290,6 +297,7 @@ export interface FileRoutesByTo {
   '/app': typeof AppIndexRoute
   '/api/nomus/test': typeof ApiNomusTestRoute
   '/app/coldpro/$id': typeof AppColdproIdRoute
+  '/app/coldpro/catalogo': typeof AppColdproCatalogoRoute
   '/app/configuracoes/api-nomus': typeof AppConfiguracoesApiNomusRoute
   '/app/configuracoes/nomus': typeof AppConfiguracoesNomusRouteWithChildren
   '/app/crm/$id': typeof AppCrmIdRoute
@@ -328,6 +336,7 @@ export interface FileRoutesById {
   '/app/': typeof AppIndexRoute
   '/api/nomus/test': typeof ApiNomusTestRoute
   '/app/coldpro/$id': typeof AppColdproIdRoute
+  '/app/coldpro/catalogo': typeof AppColdproCatalogoRoute
   '/app/configuracoes/api-nomus': typeof AppConfiguracoesApiNomusRoute
   '/app/configuracoes/nomus': typeof AppConfiguracoesNomusRouteWithChildren
   '/app/crm/$id': typeof AppCrmIdRoute
@@ -368,6 +377,7 @@ export interface FileRouteTypes {
     | '/app/'
     | '/api/nomus/test'
     | '/app/coldpro/$id'
+    | '/app/coldpro/catalogo'
     | '/app/configuracoes/api-nomus'
     | '/app/configuracoes/nomus'
     | '/app/crm/$id'
@@ -404,6 +414,7 @@ export interface FileRouteTypes {
     | '/app'
     | '/api/nomus/test'
     | '/app/coldpro/$id'
+    | '/app/coldpro/catalogo'
     | '/app/configuracoes/api-nomus'
     | '/app/configuracoes/nomus'
     | '/app/crm/$id'
@@ -441,6 +452,7 @@ export interface FileRouteTypes {
     | '/app/'
     | '/api/nomus/test'
     | '/app/coldpro/$id'
+    | '/app/coldpro/catalogo'
     | '/app/configuracoes/api-nomus'
     | '/app/configuracoes/nomus'
     | '/app/crm/$id'
@@ -650,6 +662,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppConfiguracoesApiNomusRouteImport
       parentRoute: typeof AppConfiguracoesRoute
     }
+    '/app/coldpro/catalogo': {
+      id: '/app/coldpro/catalogo'
+      path: '/coldpro/catalogo'
+      fullPath: '/app/coldpro/catalogo'
+      preLoaderRoute: typeof AppColdproCatalogoRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/coldpro/$id': {
       id: '/app/coldpro/$id'
       path: '/coldpro/$id'
@@ -802,6 +821,7 @@ interface AppRouteChildren {
   AppTarefasRoute: typeof AppTarefasRoute
   AppIndexRoute: typeof AppIndexRoute
   AppColdproIdRoute: typeof AppColdproIdRoute
+  AppColdproCatalogoRoute: typeof AppColdproCatalogoRoute
   AppPropostasIdRoute: typeof AppPropostasIdRouteWithChildren
   AppPropostasNovaRoute: typeof AppPropostasNovaRoute
   AppPropostasPedidosNfRoute: typeof AppPropostasPedidosNfRoute
@@ -823,6 +843,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppTarefasRoute: AppTarefasRoute,
   AppIndexRoute: AppIndexRoute,
   AppColdproIdRoute: AppColdproIdRoute,
+  AppColdproCatalogoRoute: AppColdproCatalogoRoute,
   AppPropostasIdRoute: AppPropostasIdRouteWithChildren,
   AppPropostasNovaRoute: AppPropostasNovaRoute,
   AppPropostasPedidosNfRoute: AppPropostasPedidosNfRoute,
@@ -847,3 +868,12 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}
