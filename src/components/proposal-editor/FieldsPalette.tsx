@@ -6,7 +6,7 @@
 //   - <FieldsPalette/>            paleta global recolhível (compat. legacy)
 //   - <InlinePagePalette/>        paleta contextual por tipo de página, com
 //                                 botão "Adicionar campos" (busca no catálogo).
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ChevronDown,
   ChevronRight,
@@ -14,6 +14,7 @@ import {
   Plus,
   Search,
   X,
+  Check,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { BlockType, PageType } from "@/integrations/proposal-editor/types";
