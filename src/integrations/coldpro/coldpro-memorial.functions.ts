@@ -28,6 +28,57 @@ function imageMimeType(path: string): string {
   return "image/jpeg";
 }
 
+function fmt(value: unknown, digits = 1): string {
+  const n = Number(value ?? 0);
+  return new Intl.NumberFormat("pt-BR", { maximumFractionDigits: digits }).format(Number.isFinite(n) ? n : 0);
+}
+
+function buildAiPrompt({ project, environments, results, selections, products }: any) {
+  const lines = [
+    `Projeto: ${project?.name ?? "Projeto"}. Aplicação: ${project?.application_type ?? "não informada"}.`,
+    `Gere um laudo técnico e comercial final, em português do Brasil, para encerrar um memorial de cálculo frigorífico. Seja objetivo, auditável e profissional.`,
+    `Estruture em: Conclusão executiva, Validação das premissas, Análise de produto/mudança de estado, Comparação carga requerida x ofertada, Riscos/observações e Recomendação final.`,
+    `Não invente dados ausentes; quando faltar dado, indique que deve ser validado.`,
+  ];
+  for (const env of environments ?? []) {
+    const r = (results ?? []).find((item: any) => item.environment_id === env.id);
+    const s = (selections ?? []).find((item: any) => item.environment_id === env.id);
+    const envProducts = (products ?? []).filter((item: any) => item.environment_id === env.id);
+    lines.push(`Ambiente ${env.name}: ${fmt(env.length_m)} x ${fmt(env.width_m)} x ${fmt(env.height_m)} m, volume ${fmt(env.volume_m3)} m³, Tint ${fmt(env.internal_temp_c)} °C, Text ${fmt(env.external_temp_c)} °C.`);
+    lines.push(`Carga requerida: ${fmt(r?.total_required_kcal_h, 0)} kcal/h (${fmt(r?.total_required_kw)} kW). Parcelas: transmissão ${fmt(r?.transmission_kcal_h, 0)}, produto ${fmt(r?.product_kcal_h, 0)}, infiltração ${fmt(r?.infiltration_kcal_h, 0)}, internas ${fmt(Number(r?.people_kcal_h ?? 0) + Number(r?.lighting_kcal_h ?? 0) + Number(r?.motors_kcal_h ?? 0) + Number(r?.fans_kcal_h ?? 0), 0)} kcal/h.`);
+    if (s) lines.push(`Equipamento ofertado: ${s.quantity} x ${s.model}, capacidade total ${fmt(s.capacity_total_kcal_h, 0)} kcal/h, sobra ${fmt(s.surplus_percent)}%, COP ${s.cop ? fmt(s.cop, 2) : "não informado"}.`);
+    for (const p of envProducts) lines.push(`Produto ${p.product_name}: massa ${fmt(p.mass_kg_day, 0)} kg/dia, entrada ${fmt(p.inlet_temp_c)} °C, final ${fmt(p.outlet_temp_c)} °C, congelamento ${p.initial_freezing_temp_c ?? "não informado"} °C, Cp acima ${fmt(p.specific_heat_above_kcal_kg_c, 3)}, Cp abaixo ${fmt(p.specific_heat_below_kcal_kg_c, 3)}, latente ${fmt(p.latent_heat_kcal_kg, 2)} kcal/kg, água ${p.water_content_percent ?? "não informado"}%, fração congelada ${p.frozen_water_fraction ?? p.freezable_water_content_percent ?? "não informada"}.`);
+  }
+  return lines.join("\n").slice(0, 12000);
+}
+
+async function generateAiAnalysis(input: any): Promise<string | null> {
+  const key = process.env.LOVABLE_API_KEY;
+  if (!key) return null;
+  try {
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "google/gemini-3-flash-preview",
+        messages: [
+          { role: "system", content: "Você é um engenheiro frigorista sênior. Gere laudos claros, técnicos, comerciais e auditáveis, sem exageros e sem inventar dados." },
+          { role: "user", content: buildAiPrompt(input) },
+        ],
+      }),
+    });
+    if (!response.ok) {
+      const statusText = response.status === 429 ? "limite de uso da IA atingido" : response.status === 402 ? "créditos de IA insuficientes" : `erro ${response.status}`;
+      return `Laudo por IA não gerado automaticamente: ${statusText}. O memorial técnico permanece válido com as premissas e cálculos apresentados; recomenda-se revisão técnica final pelo responsável.`;
+    }
+    const json = await response.json();
+    return String(json?.choices?.[0]?.message?.content ?? "").trim() || null;
+  } catch (error) {
+    console.error("Erro ao gerar laudo IA do memorial ColdPro", error);
+    return "Laudo por IA não gerado automaticamente por indisponibilidade momentânea. O memorial técnico permanece válido com as premissas e cálculos apresentados; recomenda-se revisão técnica final pelo responsável.";
+  }
+}
+
 /**
  * Gera PDF do memorial técnico do ColdPro, salva no bucket `proposal-files`
  * e cria registro em `documents` (vinculado à proposta se houver).
@@ -96,6 +147,7 @@ export const generateColdProMemorialPdf = createServerFn({ method: "POST" })
     }));
 
     const generatedAt = new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
+    const aiAnalysis = await generateAiAnalysis({ project, environments: environments ?? [], results: results ?? [], selections: enrichedSelections, products: products ?? [] });
 
     // Render PDF para buffer sem WebAssembly, compatível com o ambiente publicado.
     const buffer = await buildColdProMemorialPdfBuffer({
@@ -105,6 +157,7 @@ export const generateColdProMemorialPdf = createServerFn({ method: "POST" })
       selections: enrichedSelections,
       products: products ?? [],
       generatedAt,
+      aiAnalysis,
     });
 
     // Upload no storage
