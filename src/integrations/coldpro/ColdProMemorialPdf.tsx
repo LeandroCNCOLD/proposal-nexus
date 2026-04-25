@@ -414,7 +414,7 @@ export function ColdProMemorialPdf({
         const envProducts = products.filter((p: any) => p.environment_id === env.id);
 
         return (
-          <View key={env.id} style={styles.compactSection} wrap={false}>
+          <View key={env.id} style={styles.compactSection}>
             <View style={styles.envHeader}>
               <Text style={styles.envHeaderText}>{idx + 1}. {env.name}</Text>
               <Text style={styles.envHeaderMeta}>{env.environment_type}</Text>
@@ -547,7 +547,7 @@ export function ColdProMemorialPdf({
                 </View>
                   </View>
                   <View style={styles.imageWrap}>
-                    {selection.equipment_image_url ? <Image src={selection.equipment_image_url} style={styles.equipmentImage} /> : <Text style={[styles.p, { color: COLORS.muted, textAlign: "center" }]}>Foto do equipamento não cadastrada</Text>}
+                    {selection.equipment_image_data_url || selection.equipment_image_url ? <Image src={selection.equipment_image_data_url ?? selection.equipment_image_url} style={styles.equipmentImage} /> : <Text style={[styles.p, { color: COLORS.muted, textAlign: "center" }]}>Foto do equipamento não cadastrada</Text>}
                   </View>
                 </View>
                 <View style={[styles.pillRow, { marginTop: 6 }]}>
@@ -561,12 +561,13 @@ export function ColdProMemorialPdf({
               </>
             )}
 
-            <Text style={styles.footer} fixed render={({ pageNumber, totalPages }) =>
-              `CN ColdPro  ·  Memorial gerado em ${generatedAt}  ·  Página ${pageNumber} de ${totalPages}`
-            } />
-          </Page>
+          </View>
         );
       })}
+        <Text style={styles.footer} fixed render={({ pageNumber, totalPages }) =>
+          `CN ColdPro  ·  Memorial gerado em ${generatedAt}  ·  Página ${pageNumber} de ${totalPages}`
+        } />
+      </Page>
     </Document>
   );
 }
