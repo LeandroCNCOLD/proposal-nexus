@@ -334,6 +334,30 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
     set("construction_faces", [...next, geometry]);
   };
 
+  const applyInsulationToFaces = (materialId = form?.insulation_material_id, wallThickness = form?.wall_thickness_mm, ceilingThickness = form?.ceiling_thickness_mm, floorThickness = form?.floor_thickness_mm, floorMaterialId = floorInsulationMaterialId) => {
+    const wallMaterial = insulationMaterials.find((item) => item.id === materialId) ?? selectedInsulation;
+    const floorMaterial = insulationMaterials.find((item) => item.id === floorMaterialId) ?? wallMaterial;
+    const next = normalizeFaces(form?.construction_faces, layout, wallCount, length, width, height, geometry).map((face) => {
+      if (face.local === "PISO" && !form?.has_floor_insulation) return { ...face, layers: [], u_value_w_m2k: null };
+      if (face.local === "PISO") return applyLayerToFace(face, makeInsulationLayer(floorMaterial, floorThickness));
+      if (face.local === "TETO") return applyLayerToFace(face, makeInsulationLayer(wallMaterial, ceilingThickness));
+      return applyLayerToFace(face, makeInsulationLayer(wallMaterial, wallThickness));
+    });
+    set("construction_faces", [...next, geometry]);
+  };
+
+  const setInsulationMaterial = (materialId: string) => {
+    set("insulation_material_id", materialId);
+    if (!floorInsulationMaterialId) setFloorInsulationMaterialId(materialId);
+    applyInsulationToFaces(materialId, form?.wall_thickness_mm, form?.ceiling_thickness_mm, form?.floor_thickness_mm, floorInsulationMaterialId || materialId);
+  };
+
+  const setInsulationThickness = (key: string, value: unknown) => {
+    const thickness = numberOrNull(value);
+    set(key, thickness);
+    applyInsulationToFaces(form?.insulation_material_id, key === "wall_thickness_mm" ? thickness : form?.wall_thickness_mm, key === "ceiling_thickness_mm" ? thickness : form?.ceiling_thickness_mm, key === "floor_thickness_mm" ? thickness : form?.floor_thickness_mm, floorInsulationMaterialId);
+  };
+
   return (
     <div className="rounded-xl border bg-background p-5 shadow-sm">
       <div className="mb-5 flex flex-col gap-3 border-b pb-4 md:flex-row md:items-start md:justify-between">
