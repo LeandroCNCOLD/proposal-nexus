@@ -189,6 +189,7 @@ async function persistChangedNomusProcessBatch(items: NomusProcessRaw[], userId:
   return persistNomusProcessBatch(changed, userId);
 }
 
+const PROCESS_RECENT_LIST_PAGES = 4;
 const PROCESS_FORWARD_LOOKAHEAD = 6;
 const PROCESS_RECENT_RECHECK = 4;
 const PROCESS_MAX_CONSECUTIVE_MISSES = 3;
@@ -270,27 +271,27 @@ export async function syncNomusProcessesNewestFirst(options: { tipos?: string[];
   const wants = (raw: NomusProcessRaw) => wantedTipos.length === 0 || wantedTipos.includes((raw.tipo ?? "").trim());
 
   try {
-    const firstPage = await listPage<NomusProcessRaw>(NOMUS_ENDPOINTS.processos, {}, {
-      entity: "processos",
-      page: 1,
-      pageSize: 50,
-      triggeredBy: options.triggeredBy ?? null,
-    });
-    if (firstPage.ok) {
-      for (const summary of firstPage.items.slice(0, PROCESS_RECENT_PAGE_SCAN)) {
-        if (count >= PROCESS_RECENT_BATCH_SIZE) break;
-        if (!wants(summary)) continue;
-        const result = await syncNomusProcessRecord(summary, { requireDetail: false, triggeredBy: options.triggeredBy });
-        newestSeenId = Math.max(newestSeenId, result.id);
-        if (result.changed) count += 1;
+    for (let page = 1; page <= PROCESS_RECENT_LIST_PAGES; page += 1) {
+      const recentPage = await listPage<NomusProcessRaw>(NOMUS_ENDPOINTS.processos, {}, {
+        entity: "processos",
+        page,
+        pageSize: 50,
+        triggeredBy: options.triggeredBy ?? null,
+      });
+      if (!recentPage.ok) {
+        console.error("[nomus-process-sync] erro listando página recente:", recentPage.error);
+        break;
       }
-    } else {
-      console.error("[nomus-process-sync] erro listando página recente:", firstPage.error);
+      const wantedRecent = recentPage.items.filter(wants);
+      for (const summary of wantedRecent) newestSeenId = Math.max(newestSeenId, processIdOf(summary));
+      const persisted = await persistChangedNomusProcessBatch(wantedRecent, options.triggeredBy ?? null);
+      count += persisted.upserted;
+      if (!recentPage.hasMore || recentPage.items.length === 0) break;
     }
 
     let misses = 0;
     for (let id = maxKnownId + 1; id <= maxKnownId + PROCESS_FORWARD_LOOKAHEAD; id += 1) {
-      if (count >= PROCESS_RECENT_BATCH_SIZE || misses >= PROCESS_MAX_CONSECUTIVE_MISSES) break;
+      if (misses >= PROCESS_MAX_CONSECUTIVE_MISSES) break;
       const result = await syncNomusProcessRecord({ id }, { requireDetail: true, triggeredBy: options.triggeredBy });
       if (result.changed) {
         newestSeenId = Math.max(newestSeenId, id);
@@ -303,7 +304,6 @@ export async function syncNomusProcessesNewestFirst(options: { tipos?: string[];
 
     const recheckStart = Math.max(1, newestSeenId - PROCESS_RECENT_RECHECK + 1);
     for (let id = newestSeenId; id >= recheckStart; id -= 1) {
-      if (count >= PROCESS_RECENT_BATCH_SIZE) break;
       const result = await syncNomusProcessRecord({ id }, { requireDetail: true, triggeredBy: options.triggeredBy });
       if (result.changed) count += 1;
     }
