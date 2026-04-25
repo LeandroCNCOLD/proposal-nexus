@@ -223,7 +223,7 @@ export const generateColdProMemorialPdf = createServerFn({ method: "POST" })
     }));
 
     const generatedAt = new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
-    const aiAnalysis = data.aiAnalysis?.trim() || await generateAiAnalysis({ project, environments: environments ?? [], results: results ?? [], selections: enrichedSelections, products: products ?? [] });
+    const aiAnalysis = data.aiAnalysis?.trim() || buildTechnicalFallbackAnalysis({ project, environments: environments ?? [], results: results ?? [], selections: enrichedSelections, products: products ?? [] });
 
     // Render PDF para buffer sem WebAssembly, compatível com o ambiente publicado.
     const buffer = await buildColdProMemorialPdfBuffer({
