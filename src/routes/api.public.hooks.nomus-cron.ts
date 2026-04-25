@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { listAll, listPage, getOne } from "@/integrations/nomus/client";
 import { NOMUS_ENDPOINTS } from "@/integrations/nomus/endpoints";
+import { syncNomusProcessesNewestFirst } from "@/integrations/nomus/process-sync.functions";
 import {
   mapNomusProposal,
   extractProposalItems,
@@ -14,7 +15,7 @@ import {
 // de propostas, pedidos e NF do Nomus. Token Bearer simples só
 // para autorizar a chamada.
 
-type EntityKey = "propostas" | "pedidos" | "notas_fiscais";
+type EntityKey = "propostas" | "pedidos" | "notas_fiscais" | "processos";
 
 type Mapper = (raw: Record<string, unknown>) => Promise<unknown>;
 
@@ -257,6 +258,10 @@ const mappers: Record<EntityKey, { endpoint: string; map: Mapper }> = {
       }, { onConflict: "nomus_id" });
     },
   },
+  processos: {
+    endpoint: NOMUS_ENDPOINTS.processos,
+    map: async () => undefined,
+  },
 };
 
 /** Máximo de propostas novas/alteradas processadas por invocação (evita timeout). */
@@ -412,6 +417,7 @@ async function pullProposalsNewestFirst(): Promise<{ ok: boolean; count?: number
 
 async function pullEntity(name: EntityKey): Promise<{ ok: boolean; count?: number; error?: string }> {
   if (name === "propostas") return pullProposalsNewestFirst();
+  if (name === "processos") return syncNomusProcessesNewestFirst();
   const { endpoint, map } = mappers[name];
   const res = await listAll<Record<string, unknown>>(endpoint, {}, { entity: name });
   if (!res.ok) return { ok: false, error: res.error };
@@ -457,7 +463,7 @@ export const Route = createFileRoute("/api/public/hooks/nomus-cron")({
         const requested = body.entity ?? "all";
 
         const targets: EntityKey[] = requested === "all"
-          ? ["propostas", "pedidos", "notas_fiscais"]
+          ? ["propostas", "processos", "pedidos", "notas_fiscais"]
           : (Object.keys(mappers).includes(requested) ? [requested as EntityKey] : []);
 
         if (targets.length === 0) {
