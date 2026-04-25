@@ -131,6 +131,28 @@ export function ColdProResultCard({ result }: { result: any }) {
         </div>
       ) : null}
 
+      {advancedProcesses.length ? (
+        <div className="mt-5 rounded-xl border p-4">
+          <div className="mb-3 flex items-center gap-2 border-b pb-3"><Droplets className="h-4 w-4 text-primary" /><h4 className="text-sm font-semibold">Processos Especiais — Atmosfera, maturação e pós-colheita</h4></div>
+          {advancedProcesses.map((item: any, index: number) => (
+            <div key={`${item.advanced_process_type}-${index}`} className="mb-3 rounded-lg bg-muted/30 p-3 text-sm last:mb-0">
+              <div className="mb-2 font-semibold">{item.advanced_process_type} · {item.status}</div>
+              <div className="grid grid-cols-2 gap-x-6 gap-y-2 md:grid-cols-4">
+                <div>Água do ar: <b>{fmtColdPro(item.humidity?.water_removed_air_kg_h)} kg/h</b></div>
+                <div>Água produto: <b>{fmtColdPro(item.humidity?.water_removed_product_kg_h)} kg/h</b></div>
+                <div>Latente: <b>{fmtColdPro(item.humidity?.total_kw)} kW</b></div>
+                <div>Etileno: <b>{fmtColdPro(item.ethylene?.ethylene_volume_l, 3)} L</b></div>
+                <div>CO₂ gerado: <b>{fmtColdPro(item.co2?.co2_generated_m3_h ?? item.controlled_atmosphere?.co2_control?.co2_generated_m3_h, 5)} m³/h</b></div>
+                <div>Purga mínima: <b>{fmtColdPro(item.co2?.purge_airflow_m3_h ?? item.controlled_atmosphere?.co2_control?.purge_airflow_m3_h)} m³/h</b></div>
+                <div>Carga purga: <b>{fmtColdPro(item.co2?.purge_thermal_load_kw ?? item.controlled_atmosphere?.co2_control?.purge_thermal_load_kw)} kW</b></div>
+                <div>Respiração: <b>{fmtColdPro(item.controlled_atmosphere?.respiration_load_kw)} kW</b></div>
+              </div>
+              {Array.isArray(item.warnings) && item.warnings.length ? <div className="mt-2 text-xs text-muted-foreground">{item.warnings.join(" ")}</div> : null}
+            </div>
+          ))}
+        </div>
+      ) : null}
+
       {transmissionFaces.length ? (
         <div className="mt-5 rounded-xl border p-4">
           <div className="mb-3 flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
