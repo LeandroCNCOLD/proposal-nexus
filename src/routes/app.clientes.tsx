@@ -273,6 +273,15 @@ function ClientDetails({ client }: { client: any }) {
   );
 }
 
+function FormInput({ label, value, onChange, required, type = "text", maxLength }: { label: string; value: string; onChange: (value: string) => void; required?: boolean; type?: string; maxLength?: number }) {
+  return (
+    <div className="space-y-1.5">
+      <Label>{label}</Label>
+      <Input required={required} type={type} maxLength={maxLength} value={value} onChange={(e) => onChange(e.target.value)} />
+    </div>
+  );
+}
+
 function DetailField({ label, value, wide }: { label: string; value: unknown; wide?: boolean }) {
   const text = value === null || value === undefined || value === "" ? "—" : String(value);
   return (
