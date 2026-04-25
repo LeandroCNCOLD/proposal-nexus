@@ -163,10 +163,35 @@ async function persistNomusProcessBatch(items: NomusProcessRaw[], userId: string
   };
 }
 
-const PROCESS_RECENT_BATCH_SIZE = 6;
-const PROCESS_FORWARD_LOOKAHEAD = 12;
-const PROCESS_RECENT_RECHECK = 6;
-const PROCESS_RECENT_PAGE_SCAN = 6;
+async function persistChangedNomusProcessBatch(items: NomusProcessRaw[], userId: string | null) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const byId = new Map<string, NomusProcessRaw>();
+  for (const item of items) {
+    const id = processIdOf(item);
+    if (id) byId.set(String(id), item);
+  }
+  if (byId.size === 0) return persistNomusProcessBatch([], userId);
+
+  const ids = Array.from(byId.keys());
+  const { data: existing } = await supabaseAdmin
+    .from("nomus_processes")
+    .select("nomus_id, raw")
+    .in("nomus_id", ids);
+  const rawById = new Map<string, unknown>();
+  for (const row of (existing as Array<{ nomus_id?: string | null; raw?: unknown }> | null) ?? []) {
+    if (row.nomus_id) rawById.set(row.nomus_id, row.raw ?? null);
+  }
+
+  const changed = ids
+    .map((id) => byId.get(id)!)
+    .filter((raw) => JSON.stringify(rawById.get(String(processIdOf(raw))) ?? null) !== JSON.stringify(raw ?? null));
+
+  return persistNomusProcessBatch(changed, userId);
+}
+
+const PROCESS_RECENT_LIST_PAGES = 4;
+const PROCESS_FORWARD_LOOKAHEAD = 6;
+const PROCESS_RECENT_RECHECK = 4;
 const PROCESS_MAX_CONSECUTIVE_MISSES = 3;
 
 function processIdOf(raw: NomusProcessRaw): number {
@@ -183,15 +208,17 @@ async function syncNomusProcessRecord(
   const id = processIdOf(rawSummary);
   if (!id) return { changed: false, id: 0 };
 
-  const detailRes = await getOne<NomusProcessRaw>(NOMUS_ENDPOINTS.processos, id, {
-    entity: "processos",
-    timeoutMs: options.requireDetail ? 4_000 : undefined,
-    maxAttempts: options.requireDetail ? 1 : undefined,
-    triggeredBy: options.triggeredBy ?? null,
-  });
-  if (!detailRes.ok && options.requireDetail) return { changed: false, id };
-
-  const raw = detailRes.ok ? detailRes.data : rawSummary;
+  let raw = rawSummary;
+  if (options.requireDetail) {
+    const detailRes = await getOne<NomusProcessRaw>(NOMUS_ENDPOINTS.processos, id, {
+      entity: "processos",
+      timeoutMs: 4_000,
+      maxAttempts: 1,
+      triggeredBy: options.triggeredBy ?? null,
+    });
+    if (!detailRes.ok) return { changed: false, id };
+    raw = detailRes.data;
+  }
   const { data: current } = await supabaseAdmin
     .from("nomus_processes")
     .select("raw")
@@ -206,7 +233,7 @@ async function syncNomusProcessRecord(
   return { changed: persisted.upserted > 0, id };
 }
 
-export async function syncNomusProcessesNewestFirst(options: { tipos?: string[]; triggeredBy?: string | null } = {}) {
+export async function syncNomusProcessesNewestFirst(options: { tipos?: string[]; triggeredBy?: string | null; maxPages?: number } = {}) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { listPage } = await import("./client");
   const { NOMUS_ENDPOINTS } = await import("./endpoints");
@@ -246,27 +273,28 @@ export async function syncNomusProcessesNewestFirst(options: { tipos?: string[];
   const wants = (raw: NomusProcessRaw) => wantedTipos.length === 0 || wantedTipos.includes((raw.tipo ?? "").trim());
 
   try {
-    const firstPage = await listPage<NomusProcessRaw>(NOMUS_ENDPOINTS.processos, {}, {
-      entity: "processos",
-      page: 1,
-      pageSize: 50,
-      triggeredBy: options.triggeredBy ?? null,
-    });
-    if (firstPage.ok) {
-      for (const summary of firstPage.items.slice(0, PROCESS_RECENT_PAGE_SCAN)) {
-        if (count >= PROCESS_RECENT_BATCH_SIZE) break;
-        if (!wants(summary)) continue;
-        const result = await syncNomusProcessRecord(summary, { requireDetail: false, triggeredBy: options.triggeredBy });
-        newestSeenId = Math.max(newestSeenId, result.id);
-        if (result.changed) count += 1;
+    const recentListPages = options.maxPages ?? PROCESS_RECENT_LIST_PAGES;
+    for (let page = 1; page <= recentListPages; page += 1) {
+      const recentPage = await listPage<NomusProcessRaw>(NOMUS_ENDPOINTS.processos, {}, {
+        entity: "processos",
+        page,
+        pageSize: 50,
+        triggeredBy: options.triggeredBy ?? null,
+      });
+      if (!recentPage.ok) {
+        console.error("[nomus-process-sync] erro listando página recente:", recentPage.error);
+        break;
       }
-    } else {
-      console.error("[nomus-process-sync] erro listando página recente:", firstPage.error);
+      const wantedRecent = recentPage.items.filter(wants);
+      for (const summary of wantedRecent) newestSeenId = Math.max(newestSeenId, processIdOf(summary));
+      const persisted = await persistChangedNomusProcessBatch(wantedRecent, options.triggeredBy ?? null);
+      count += persisted.upserted;
+      if (!recentPage.hasMore || recentPage.items.length === 0) break;
     }
 
     let misses = 0;
     for (let id = maxKnownId + 1; id <= maxKnownId + PROCESS_FORWARD_LOOKAHEAD; id += 1) {
-      if (count >= PROCESS_RECENT_BATCH_SIZE || misses >= PROCESS_MAX_CONSECUTIVE_MISSES) break;
+      if (misses >= PROCESS_MAX_CONSECUTIVE_MISSES) break;
       const result = await syncNomusProcessRecord({ id }, { requireDetail: true, triggeredBy: options.triggeredBy });
       if (result.changed) {
         newestSeenId = Math.max(newestSeenId, id);
@@ -279,7 +307,6 @@ export async function syncNomusProcessesNewestFirst(options: { tipos?: string[];
 
     const recheckStart = Math.max(1, newestSeenId - PROCESS_RECENT_RECHECK + 1);
     for (let id = newestSeenId; id >= recheckStart; id -= 1) {
-      if (count >= PROCESS_RECENT_BATCH_SIZE) break;
       const result = await syncNomusProcessRecord({ id }, { requireDetail: true, triggeredBy: options.triggeredBy });
       if (result.changed) count += 1;
     }
@@ -318,7 +345,7 @@ export const pullNomusProcesses = createServerFn({ method: "POST" })
       .default({}),
   )
   .handler(async ({ data, context }) => {
-    const r = await syncNomusProcessesNewestFirst({ tipos: data?.tipos, triggeredBy: context.userId });
+    const r = await syncNomusProcessesNewestFirst({ tipos: data?.tipos, triggeredBy: context.userId, maxPages: data?.maxPages ?? 12 });
     return r.ok
       ? { ok: true as const, total: r.count ?? 0, upserted: r.count ?? 0, stagesDiscovered: [] }
       : { ok: false as const, error: r.error ?? "Falha ao sincronizar processos" };
