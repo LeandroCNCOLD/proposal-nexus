@@ -101,6 +101,32 @@ function ColdProProjectPage() {
     setStepIndex(0);
   }
 
+  async function handleSaveProjectName() {
+    const name = projectNameDraft.trim();
+    if (!name) return toast.error("Informe o nome do projeto");
+    try {
+      await updateProject.mutateAsync({ id, name });
+      setEditingProjectName(false);
+      toast.success("Nome do projeto atualizado");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Erro ao atualizar projeto");
+    }
+  }
+
+  async function handleDeleteEnvironment() {
+    if (!selectedEnv) return;
+    if (!window.confirm(`Excluir o ambiente "${selectedEnv.name}" e todos os dados vinculados?`)) return;
+    try {
+      await deleteEnv.mutateAsync(selectedEnv.id);
+      const nextEnv = environments.find((env: any) => env.id !== selectedEnv.id);
+      setSelectedEnvId(nextEnv?.id ?? null);
+      setStepIndex(0);
+      toast.success("Ambiente excluído");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Erro ao excluir ambiente");
+    }
+  }
+
   async function handleCalculate() {
     if (!selectedEnv) return;
     try {
