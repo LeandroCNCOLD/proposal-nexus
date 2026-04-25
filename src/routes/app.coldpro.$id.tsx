@@ -260,6 +260,7 @@ function ColdProProjectPage() {
                   <ColdProSectionLoadSummary
                     title="Prévia da carga do ambiente"
                     rows={[{ label: "Transmissão por paredes, teto e piso", value: result?.transmission_kcal_h }]}
+                    totalLabel="Total calculado da aba Ambiente"
                     total={environmentLoad}
                   />
                 </div>
@@ -300,6 +301,7 @@ function ColdProProjectPage() {
                       { label: "Respiração", value: result?.calculation_breakdown?.respiration_kcal_h },
                       { label: "Túnel / processo", value: result?.tunnel_internal_load_kcal_h },
                     ]}
+                    totalLabel="Total calculado da aba Produtos"
                     total={productLoad}
                   />
 
@@ -349,6 +351,7 @@ function ColdProProjectPage() {
                       { label: "Degelo", value: result?.defrost_kcal_h },
                       { label: "Outras cargas", value: result?.other_kcal_h },
                     ]}
+                    totalLabel="Total calculado da aba Cargas extras"
                     total={extraLoad}
                   />
                 </div>
