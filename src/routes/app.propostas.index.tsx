@@ -174,13 +174,18 @@ function ProposalsList() {
     return m ? parseInt(m[1], 10) : 0;
   };
 
+  const proposalNomusIdNumber = (p: any) => Number(p.nomus_id ?? p._nomus?.nomus_id ?? 0) || 0;
+
   const proposalSortTime = (p: any) => {
     const raw = p._nomus?.criada_em_nomus ?? p._nomus?.data_emissao ?? p._nomus?.synced_at ?? p.nomus_synced_at ?? p.created_at;
     const ts = raw ? new Date(raw).getTime() : 0;
     return Number.isFinite(ts) ? ts : 0;
   };
 
-  const proposalNomusIdNumber = (p: any) => Number(p.nomus_id ?? p._nomus?.nomus_id ?? 0) || 0;
+  const compareNomusNewestFirst = (a: any, b: any) => {
+    const idDiff = proposalNomusIdNumber(b) - proposalNomusIdNumber(a);
+    return idDiff !== 0 ? idDiff : proposalSortTime(b) - proposalSortTime(a);
+  };
 
   const filtered = useMemo(() => {
     // 1) Aplica filtros de status e busca
@@ -213,8 +218,7 @@ function ProposalsList() {
         const ra = parseRevision((a as any)._nomus?.numero);
         const rb = parseRevision((b as any)._nomus?.numero);
         if (rb !== ra) return rb - ra;
-        const dateDiff = proposalSortTime(b) - proposalSortTime(a);
-        return dateDiff !== 0 ? dateDiff : proposalNomusIdNumber(b) - proposalNomusIdNumber(a);
+        return compareNomusNewestFirst(a, b);
       });
       const head = sorted[0] as any;
       head._revisions = sorted; // todas as revisões da família
@@ -224,10 +228,7 @@ function ProposalsList() {
     });
 
     // 3) Ordena pela data real do Nomus (mais recente primeiro)
-    return latest.sort((a, b) => {
-      const dateDiff = proposalSortTime(b) - proposalSortTime(a);
-      return dateDiff !== 0 ? dateDiff : proposalNomusIdNumber(b) - proposalNomusIdNumber(a);
-    });
+    return latest.sort(compareNomusNewestFirst);
   }, [proposals, search, statusFilter]);
 
   return (
