@@ -30,10 +30,18 @@ export function ColdProExtraLoadsForm({ environment, catalogFanLoadKcalH = 0, on
     setForm((prev: any) => ({ ...prev, motors_power_kw: Number(prev?.motors_power_kw ?? 0) + preset.powerKw, motors_dissipation_factor: preset.dissipationFactor, motors_hours_day: prev?.motors_hours_day ?? 8 }));
   };
   const selectedLighting = LIGHTING_EQUIPMENT_PRESETS[Number(selectedLightingPreset)] ?? LIGHTING_EQUIPMENT_PRESETS[0];
-  const lightingAreaM2 = Math.max(0, Number(form?.length_m ?? 0) * Number(form?.width_m ?? 0));
+  const lengthM = Number(form?.length_m ?? 0);
+  const widthM = Number(form?.width_m ?? 0);
+  const heightM = Number(form?.height_m ?? 0);
+  const volumeM3 = Number(form?.volume_m3 ?? 0);
+  const lightingAreaM2 = Math.max(0, lengthM * widthM || (heightM > 0 ? volumeM3 / heightM : 0));
   const utilizationFactor = 0.72;
   const maintenanceFactor = 0.85;
   const recommendedLightingQty = selectedLighting?.lumens ? Math.max(0, Math.ceil((lightingAreaM2 * targetLux) / (selectedLighting.lumens * utilizationFactor * maintenanceFactor))) : 0;
+  const addOneLightingFixture = () => {
+    if (!selectedLighting) return;
+    setForm((prev: any) => ({ ...prev, lighting_power_w: Number(prev?.lighting_power_w ?? 0) + selectedLighting.powerW, lighting_hours_day: prev?.lighting_hours_day ?? 8 }));
+  };
   const addLightingRecommendation = () => {
     if (!selectedLighting) return;
     setForm((prev: any) => ({ ...prev, lighting_power_w: Number(prev?.lighting_power_w ?? 0) + recommendedLightingQty * selectedLighting.powerW, lighting_hours_day: prev?.lighting_hours_day ?? 8 }));
@@ -119,17 +127,22 @@ export function ColdProExtraLoadsForm({ environment, catalogFanLoadKcalH = 0, on
                   <ColdProField label="Horas de pessoas" unit="h/dia"><ColdProInput {...num("people_hours_day")} /></ColdProField>
                 </div>
                 <div>
-                  <ColdProField label="Iluminação" unit="W"><ColdProInput {...num("lighting_power_w")} /></ColdProField>
-                  <ColdProField label="Horas de iluminação" unit="h/dia"><ColdProInput {...num("lighting_hours_day")} /></ColdProField>
+                  <div className="mb-4 rounded-lg border bg-muted/20 p-3">
+                    <div className="text-sm font-semibold">Dimensionamento por luminância</div>
+                    <div className="mt-1 text-xs text-muted-foreground">Área considerada: {fmtColdPro(lightingAreaM2)} m² · superfície branca · fator útil {fmtColdPro(utilizationFactor)} · manutenção {fmtColdPro(maintenanceFactor)}</div>
+                  </div>
                   <ColdProField label="Tipo de luminária">
                     <select value={selectedLightingPreset} onChange={(e) => setSelectedLightingPreset(e.target.value)} className="h-10 w-full rounded-md border bg-background px-3 text-sm">
                       {LIGHTING_EQUIPMENT_PRESETS.map((preset, index) => <option key={preset.label} value={index}>{preset.label} · {fmtColdPro(preset.powerW)} W · {fmtColdPro(preset.lumens, 0)} lm</option>)}
                     </select>
                   </ColdProField>
                   <ColdProField label="Iluminância alvo" unit="lux"><ColdProInput type="number" value={targetLux} onChange={(e) => setTargetLux(Number(e.target.value || 0))} /></ColdProField>
+                  <ColdProField label="Potência de iluminação" unit="W"><ColdProInput {...num("lighting_power_w")} /></ColdProField>
+                  <ColdProField label="Horas de iluminação" unit="h/dia"><ColdProInput {...num("lighting_hours_day")} /></ColdProField>
                   <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    <ColdProCalculatedInfo label="Luminárias sugeridas" value={`${fmtColdPro(recommendedLightingQty, 0)} un`} description={`${fmtColdPro(lightingAreaM2)} m² · fator branco ${fmtColdPro(utilizationFactor * maintenanceFactor)}`} />
-                    <button type="button" onClick={addLightingRecommendation} className="rounded-md border bg-background px-3 py-2 text-left text-xs font-medium hover:bg-muted">Adicionar sugestão · {fmtColdPro(recommendedLightingQty * selectedLighting.powerW)} W</button>
+                    <ColdProCalculatedInfo label="Luminárias sugeridas" value={`${fmtColdPro(recommendedLightingQty, 0)} un`} description={lightingAreaM2 > 0 ? `${fmtColdPro(recommendedLightingQty * selectedLighting.powerW)} W totais sugeridos` : "Informe dimensões/volume do ambiente para calcular por lux"} tone={lightingAreaM2 > 0 ? "success" : "warning"} />
+                    <button type="button" onClick={addLightingRecommendation} disabled={recommendedLightingQty <= 0} className="rounded-md border bg-background px-3 py-2 text-left text-xs font-medium hover:bg-muted disabled:opacity-50">Adicionar sugestão · {fmtColdPro(recommendedLightingQty * selectedLighting.powerW)} W</button>
+                    <button type="button" onClick={addOneLightingFixture} className="rounded-md border bg-background px-3 py-2 text-left text-xs font-medium hover:bg-muted">Adicionar 1 luminária · {fmtColdPro(selectedLighting.powerW)} W</button>
                   </div>
                   <button type="button" onClick={() => set("lighting_power_w", 0)} className="mb-4 rounded-md border bg-background px-3 py-2 text-xs font-medium hover:bg-muted">Limpar iluminação</button>
                   <ColdProCalculatedInfo label="Carga ocupação + iluminação" value={`${fmtColdPro(preview.people_kcal_h + preview.lighting_kcal_h)} kcal/h`} description={`Pessoas ${fmtColdPro(preview.people_kcal_h)} · iluminação ${fmtColdPro(preview.lighting_kcal_h)}`} />
