@@ -244,6 +244,17 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
     onChange: (e: React.ChangeEvent<HTMLInputElement>) => set(key, numberOrNull(e.target.value)),
   });
 
+  const setDimension = (key: string, value: unknown) => {
+    const nextValue = numberOrNull(value);
+    setForm((prev: any) => {
+      const next = { ...prev, [key]: nextValue };
+      if (key === "dimension_a_m") next.length_m = nextValue;
+      if (key === "dimension_b_m") next.width_m = nextValue;
+      if (key === "height_m") next.height_m = nextValue;
+      return next;
+    });
+  };
+
   const layout = normalizeLayout(form?.chamber_layout_type);
   const wallCount = wallCountForLayout(layout, form?.wall_count);
   const length = toNumber(form?.length_m);
