@@ -397,10 +397,20 @@ export function calculateMotorsLoad(env: ColdProEnvironment): number {
 }
 
 export function calculateTunnelLoad(tunnel: ColdProTunnel) {
-  const massHour = n(tunnel.mass_kg_hour) > 0
-    ? n(tunnel.mass_kg_hour)
-    : n(tunnel.product_unit_weight_kg) * n(tunnel.units_per_cycle) * n(tunnel.cycles_per_hour);
-
+  const processType = String(tunnel.process_type ?? (tunnel.operation_mode === "batch" ? "static_pallet_freezing" : "continuous_individual_freezing"));
+  const isStatic = processType === "static_cart_freezing" || processType === "static_pallet_freezing" || tunnel.operation_mode === "batch";
+  const arrangementType = String(tunnel.arrangement_type ?? (isStatic ? "pallet_block" : "individual_exposed"));
+  const arrangementDefaults = tunnelArrangementDefaults(arrangementType);
+  const airExposureFactor = n(tunnel.air_exposure_factor, arrangementDefaults.airExposure) || arrangementDefaults.airExposure;
+  const penetrationFactor = n(tunnel.thermal_penetration_factor, arrangementDefaults.penetration) || arrangementDefaults.penetration;
+  const unitWeight = n(tunnel.unit_weight_kg) || n(tunnel.product_unit_weight_kg);
+  const massHour = isStatic
+    ? 0
+    : n(tunnel.mass_kg_hour) > 0
+      ? n(tunnel.mass_kg_hour)
+      : unitWeight * n(tunnel.units_per_cycle) * n(tunnel.cycles_per_hour);
+  const staticMass = n(tunnel.pallet_mass_kg) * Math.max(1, n(tunnel.number_of_pallets, 1));
+  const batchTimeH = n(tunnel.batch_time_h) || n(tunnel.process_time_min) / 60;
   const tin = n(tunnel.inlet_temp_c);
   const tout = n(tunnel.outlet_temp_c);
   const tfreeze = tunnel.freezing_temp_c;
@@ -408,12 +418,20 @@ export function calculateTunnelLoad(tunnel: ColdProTunnel) {
   const cpBelow = thermalValueKcal(tunnel.specific_heat_below_kcal_kg_c, tunnel.specific_heat_below_kj_kg_k);
   const latent = thermalValueKcal(tunnel.latent_heat_kcal_kg, tunnel.latent_heat_kj_kg);
   const frozenFraction = waterFreezeFraction(tunnel);
-  const thicknessM = n(tunnel.product_thickness_mm) / 1000;
-  const convectiveCoefficient = calculateConvectionCoefficient(tunnel.air_velocity_m_s, tunnel.convective_coefficient_w_m2_k);
+  const productThicknessM = n(tunnel.product_thickness_m) || n(tunnel.product_thickness_mm) / 1000;
+  const blockDimensions = [n(tunnel.pallet_length_m), n(tunnel.pallet_width_m), n(tunnel.pallet_height_m)].filter((value) => value > 0);
+  const blockCharacteristicM = blockDimensions.length ? Math.min(...blockDimensions) : 0;
+  const characteristicDimensionM = isStatic ? blockCharacteristicM : productThicknessM;
+  const distanceToCoreM = characteristicDimensionM > 0 ? characteristicDimensionM / 2 : 0;
+  const baseConvectiveCoefficient = calculateConvectionCoefficient(tunnel.air_velocity_m_s, tunnel.convective_coefficient_manual_w_m2_k ?? tunnel.convective_coefficient_w_m2_k);
+  const convectiveCoefficient = baseConvectiveCoefficient ? round2(baseConvectiveCoefficient * airExposureFactor) : null;
+  const effectiveConductivity = n(tunnel.thermal_conductivity_frozen_w_m_k) > 0 ? n(tunnel.thermal_conductivity_frozen_w_m_k) * penetrationFactor : 0;
   const estimatedFreezingTimeMin = estimateFreezingTimePlankMin({
-    thicknessM,
+    thicknessM: characteristicDimensionM,
+    distanceToCoreM,
     densityKgM3: tunnel.density_kg_m3,
     thermalConductivityFrozenWMK: tunnel.thermal_conductivity_frozen_w_m_k,
+    effectiveConductivityWMK: effectiveConductivity,
     freezingTempC: tunnel.freezing_temp_c,
     latentHeatKcalKg: tunnel.latent_heat_kcal_kg,
     airTempC: tunnel.air_temp_c,
@@ -424,28 +442,39 @@ export function calculateTunnelLoad(tunnel: ColdProTunnel) {
   let sensibleAbove = 0;
   let latentLoad = 0;
   let sensibleBelow = 0;
+  const calculationMass = isStatic ? staticMass : massHour;
 
   if (tunnel.tunnel_type === "blast_freezer" && tfreeze !== null && tfreeze !== undefined && tin > tfreeze && tout < tfreeze) {
-    sensibleAbove = massHour * cpAbove * positive(tin - tfreeze);
-    latentLoad = massHour * latent * frozenFraction;
-    sensibleBelow = massHour * cpBelow * positive(tfreeze - tout);
+    sensibleAbove = calculationMass * cpAbove * positive(tin - tfreeze);
+    latentLoad = calculationMass * latent * frozenFraction;
+    sensibleBelow = calculationMass * cpBelow * positive(tfreeze - tout);
   } else {
     const cp = tin >= 0 && tout >= 0 ? cpAbove : cpBelow || cpAbove;
-    sensibleAbove = massHour * cp * Math.abs(tin - tout);
+    sensibleAbove = calculationMass * cp * Math.abs(tin - tout);
   }
 
+  const timeDivisor = isStatic && batchTimeH > 0 ? batchTimeH : 1;
+  const productHourly = (sensibleAbove + latentLoad + sensibleBelow) / timeDivisor;
   const packaging = n(tunnel.packaging_mass_kg_hour) * n(tunnel.packaging_specific_heat_kcal_kg_c) * Math.abs(tin - tout);
   const internalLoads = kwToKcalh(n(tunnel.belt_motor_kw) + n(tunnel.internal_fans_kw) + n(tunnel.other_internal_kw));
-  const total = sensibleAbove + latentLoad + sensibleBelow + packaging + internalLoads;
-  const processTimeMin = n(tunnel.process_time_min);
-  const retentionMargin = estimatedFreezingTimeMin && processTimeMin > 0 ? processTimeMin / estimatedFreezingTimeMin : null;
-  const retentionStatus = !retentionMargin ? "Sem dados suficientes" : retentionMargin < 1 ? "Insuficiente" : retentionMargin < 1.1 ? "Adequado com baixa margem" : retentionMargin > 1.8 ? "Tempo elevado / validar produtividade" : "Adequado";
+  const total = productHourly + packaging + internalLoads;
+  const availableTimeMin = isStatic ? batchTimeH * 60 : n(tunnel.process_time_min);
+  const retentionMargin = estimatedFreezingTimeMin && availableTimeMin > 0 ? availableTimeMin / estimatedFreezingTimeMin : null;
+  const retentionStatus = !retentionMargin ? "Sem dados suficientes" : retentionMargin < 1 ? "Insuficiente" : retentionMargin < 1.1 ? "Adequado com baixa margem" : "Adequado";
+  const warnings = [arrangementDefaults.warning, !estimatedFreezingTimeMin ? "Tempo até núcleo não estimado por falta de densidade, condutividade congelada, calor latente, temperatura de congelamento ou dimensão térmica." : null].filter(Boolean);
 
   return {
+    process_type: processType,
+    arrangement_type: arrangementType,
+    arrangement_label: arrangementDefaults.label,
+    calculation_model: isStatic ? "static_equivalent_block" : "continuous_individual_unit",
     mass_kg_hour: round2(massHour),
-    sensible_above_kcal_h: round2(sensibleAbove),
-    latent_kcal_h: round2(latentLoad),
-    sensible_below_kcal_h: round2(sensibleBelow),
+    static_mass_kg: round2(staticMass),
+    batch_time_h: round2(batchTimeH),
+    total_energy_kcal: round2(sensibleAbove + latentLoad + sensibleBelow),
+    sensible_above_kcal_h: round2(sensibleAbove / timeDivisor),
+    latent_kcal_h: round2(latentLoad / timeDivisor),
+    sensible_below_kcal_h: round2(sensibleBelow / timeDivisor),
     cp_above_kcal_kg_c: round2(cpAbove),
     cp_below_kcal_kg_c: round2(cpBelow),
     latent_heat_kcal_kg: round2(latent),
@@ -464,11 +493,21 @@ export function calculateTunnelLoad(tunnel: ColdProTunnel) {
     total_kw: round2(kcalhToKw(total)),
     total_tr: round2(kcalhToTr(total)),
     air_velocity_m_s: n(tunnel.air_velocity_m_s),
-    process_time_min: processTimeMin,
+    airflow_m3_h: n(tunnel.airflow_m3_h),
+    process_time_min: availableTimeMin,
+    base_convective_coefficient_w_m2_k: baseConvectiveCoefficient,
+    air_exposure_factor: round2(airExposureFactor),
+    thermal_penetration_factor: round2(penetrationFactor),
+    effective_thermal_conductivity_w_m_k: round2(effectiveConductivity),
     convective_coefficient_w_m2_k: convectiveCoefficient,
+    convective_coefficient_effective_w_m2_k: convectiveCoefficient,
+    thermal_characteristic_dimension_m: round2(characteristicDimensionM),
+    distance_to_core_m: round2(distanceToCoreM),
     estimated_freezing_time_min: estimatedFreezingTimeMin,
     retention_margin: retentionMargin ? round2(retentionMargin) : null,
     retention_status: retentionStatus,
+    technical_status: retentionStatus,
+    warnings,
     recommended_airflow_m3_h: calculateRecommendedAirFlowM3H(kcalhToKw(total)),
   };
 }
