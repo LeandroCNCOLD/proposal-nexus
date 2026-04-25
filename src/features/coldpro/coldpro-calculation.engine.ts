@@ -22,13 +22,22 @@ const W_TO_KCAL_H = 0.859845;
 const R_INTERNAL_M2K_W = 0.12;
 const R_EXTERNAL_M2K_W = 0.08;
 const GLASS_U_VALUES_W_M2K: Record<string, number> = {
-  simple: 5.7,
+  none: 0,
+  simple: 5.8,
   double: 2.8,
+  triple: 1.8,
+  low_e_double: 1.6,
+  heated_refrigerated: 2.5,
   insulated: 1.8,
 };
-const SOLAR_EQUIVALENT_TEMP_RISE_C: Record<string, number> = {
-  TETO: 8,
-  PAREDE: 5,
+const GLASS_SOLAR_FACTORS: Record<string, number> = {
+  none: 0,
+  simple: 0.85,
+  double: 0.75,
+  triple: 0.65,
+  low_e_double: 0.4,
+  heated_refrigerated: 0.55,
+  insulated: 0.55,
 };
 
 export function calculateConvectionCoefficient(airVelocityMS?: number | null, fallback?: number | null): number | null {
@@ -117,17 +126,17 @@ function faceDeltaT(face: ColdProConstructionFace, env: ColdProEnvironment) {
   const targetTemp = face.local === "PISO" && env.floor_temp_c !== null && env.floor_temp_c !== undefined
     ? env.floor_temp_c
     : face.external_temp_c ?? env.external_temp_c;
-  return positive(n(targetTemp) + solarEquivalentTempRise(face) - n(env.internal_temp_c));
-}
-
-function solarEquivalentTempRise(face: ColdProConstructionFace) {
-  if (String(face.solar_orientation ?? "").trim().toLowerCase() !== "sol direto") return 0;
-  return face.local === "TETO" ? SOLAR_EQUIVALENT_TEMP_RISE_C.TETO : SOLAR_EQUIVALENT_TEMP_RISE_C.PAREDE;
+  return positive(n(targetTemp) - n(env.internal_temp_c));
 }
 
 function glassUValue(face: ColdProConstructionFace) {
-  const key = String(face.glass_type ?? "simple").trim().toLowerCase();
-  return GLASS_U_VALUES_W_M2K[key] ?? GLASS_U_VALUES_W_M2K.simple;
+  const key = String(face.glass_type ?? "none").trim().toLowerCase();
+  return GLASS_U_VALUES_W_M2K[key] ?? GLASS_U_VALUES_W_M2K.none;
+}
+
+function glassSolarFactor(face: ColdProConstructionFace) {
+  const key = String(face.glass_type ?? "none").trim().toLowerCase();
+  return GLASS_SOLAR_FACTORS[key] ?? GLASS_SOLAR_FACTORS.none;
 }
 
 export function calculateFaceTransmission(face: ColdProConstructionFace, env: ColdProEnvironment) {
@@ -140,7 +149,10 @@ export function calculateFaceTransmission(face: ColdProConstructionFace, env: Co
   const panelWatts = uValue * insulatedArea * deltaT;
   const glassU = glassArea > 0 ? glassUValue(face) : 0;
   const glassWatts = glassU * glassArea * deltaT;
-  const watts = panelWatts + glassWatts;
+  const solarRadiation = glassArea > 0 ? positive(n(face.solar_radiation_w_m2)) : 0;
+  const solarFactor = glassArea > 0 ? glassSolarFactor(face) : 0;
+  const glassSolarWatts = glassArea * solarRadiation * solarFactor;
+  const watts = panelWatts + glassWatts + glassSolarWatts;
   const kcalH = watts * W_TO_KCAL_H;
   return {
     local: face.local,
@@ -148,13 +160,20 @@ export function calculateFaceTransmission(face: ColdProConstructionFace, env: Co
     insulated_area_m2: round2(insulatedArea),
     glass_area_m2: round2(glassArea),
     delta_t_c: round2(deltaT),
-    solar_equivalent_temp_rise_c: round2(solarEquivalentTempRise(face)),
+    solar_radiation_w_m2: round2(solarRadiation),
+    glass_solar_factor: round2(solarFactor),
     u_value_w_m2k: round2(uValue),
     glass_u_value_w_m2k: round2(glassU),
+    panel_transmission_w: round2(panelWatts),
+    glass_transmission_w: round2(glassWatts),
+    glass_solar_w: round2(glassSolarWatts),
     panel_transmission_kcal_h: round2(panelWatts * W_TO_KCAL_H),
     glass_transmission_kcal_h: round2(glassWatts * W_TO_KCAL_H),
+    glass_solar_kcal_h: round2(glassSolarWatts * W_TO_KCAL_H),
     transmission_w: round2(watts),
+    transmission_kw: round2(watts / 1000),
     transmission_kcal_h: round2(kcalH),
+    transmission_tr: round2(kcalhToTr(kcalH)),
     layers: layers.map((layer) => ({
       material_name: layer.material_name,
       thickness_m: n(layer.thickness_m),
@@ -167,8 +186,16 @@ export function calculateFaceTransmission(face: ColdProConstructionFace, env: Co
 export function calculateConstructionTransmission(env: ColdProEnvironment) {
   const faces = constructionFaces(env).filter((face) => faceArea(face) > 0 && (Array.isArray(face.layers) || n(face.u_value_w_m2k) > 0));
   const faceResults = faces.map((face) => calculateFaceTransmission(face, env));
+  const totalW = faceResults.reduce((sum, face) => sum + face.transmission_w, 0);
+  const totalKcalH = totalW * W_TO_KCAL_H;
+  const totalGlassW = faceResults.reduce((sum, face) => sum + face.glass_transmission_w + face.glass_solar_w, 0);
   return {
-    total_kcal_h: faceResults.reduce((sum, face) => sum + face.transmission_kcal_h, 0),
+    total_w: round2(totalW),
+    total_kw: round2(totalW / 1000),
+    total_kcal_h: round2(totalKcalH),
+    total_tr: round2(kcalhToTr(totalKcalH)),
+    glass_total_w: round2(totalGlassW),
+    glass_total_kcal_h: round2(totalGlassW * W_TO_KCAL_H),
     faces: faceResults,
   };
 }
@@ -439,7 +466,7 @@ export function calculateColdProLoad(params: {
       products: productBreakdown,
       respiration_kcal_h: round2(respiration),
       formulas: {
-        transmission: "Q = U × A × ΔT",
+        transmission: "Q_linha = (Área opaca × U painel × ΔT) + (Área vidro × U vidro × ΔT) + (Área vidro × radiação solar × fator solar)",
         product: "Q = m × cp × ΔT / h; congelamento inclui calor latente",
         respiration: "Q_respiração = massa_kg × taxa_W_kg × 0,859845, com interpolação por temperatura",
         tunnel: "Q túnel = sensível acima + latente + sensível abaixo + embalagem + cargas internas",
