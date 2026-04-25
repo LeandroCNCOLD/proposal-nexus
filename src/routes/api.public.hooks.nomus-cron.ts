@@ -2,7 +2,6 @@ import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { listAll, listPage, getOne } from "@/integrations/nomus/client";
 import { NOMUS_ENDPOINTS } from "@/integrations/nomus/endpoints";
-import { syncNomusProcessesNewestFirst } from "@/integrations/nomus/process-sync.functions";
 import {
   mapNomusProposal,
   extractProposalItems,
@@ -417,7 +416,10 @@ async function pullProposalsNewestFirst(): Promise<{ ok: boolean; count?: number
 
 async function pullEntity(name: EntityKey): Promise<{ ok: boolean; count?: number; error?: string }> {
   if (name === "propostas") return pullProposalsNewestFirst();
-  if (name === "processos") return syncNomusProcessesNewestFirst();
+  if (name === "processos") {
+    const { syncNomusProcessesNewestFirst } = await import("@/integrations/nomus/process-sync.functions");
+    return syncNomusProcessesNewestFirst();
+  }
   const { endpoint, map } = mappers[name];
   const res = await listAll<Record<string, unknown>>(endpoint, {}, { entity: name });
   if (!res.ok) return { ok: false, error: res.error };
