@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { createServerFn } from "@tanstack/react-start";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const inputSchema = z.object({
   projectId: z.string().uuid(),
@@ -43,6 +44,7 @@ function buildColdProItemDescription(params: {
 }
 
 export const pushColdProToProposal = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator(inputSchema)
   .handler(async ({ data }) => {
     const supabase = supabaseAdmin;
