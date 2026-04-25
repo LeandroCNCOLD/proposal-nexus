@@ -1,4 +1,5 @@
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage, type RGB } from "pdf-lib";
+import { calculateProductLoadBreakdown, estimateFreezingTimePlankMin } from "@/features/coldpro/coldpro-calculation.engine";
 
 const A4: [number, number] = [595.28, 841.89];
 const M = 36;
@@ -171,6 +172,82 @@ function barChart(ctx: Ctx, result: any) {
     ctx.y -= 14;
   });
   ctx.y -= 4;
+}
+
+function loadOfferChart(ctx: Ctx, requiredKcalH: number, offeredKcalH: number) {
+  if (requiredKcalH <= 0 && offeredKcalH <= 0) return;
+  const max = Math.max(1, requiredKcalH, offeredKcalH);
+  ensure(ctx, 44);
+  [["Carga requerida", requiredKcalH, COLORS.primary], ["Carga ofertada", offeredKcalH, COLORS.accent]].forEach(([label, value, color], index) => {
+    const y = ctx.y - index * 17;
+    ctx.page.drawText(clean(label), { x: M, y, size: 8, font: ctx.fonts.bold, color: COLORS.muted });
+    ctx.page.drawRectangle({ x: M + 96, y: y - 1, width: 250, height: 8, color: COLORS.soft });
+    ctx.page.drawRectangle({ x: M + 96, y: y - 1, width: Math.max(4, (Number(value) / max) * 250), height: 8, color: color as RGB });
+    ctx.page.drawText(`${fmt(value, 0)} kcal/h`, { x: M + 360, y, size: 8, font: ctx.fonts.bold, color: COLORS.text });
+  });
+  ctx.y -= 44;
+}
+
+function freezingCurve(ctx: Ctx, breakdown: any) {
+  const hours = Math.max(0.1, Number(breakdown?.hours ?? 0));
+  const above = Math.max(0, Number(breakdown?.sensible_above_kcal_h ?? 0));
+  const latent = Math.max(0, Number(breakdown?.latent_kcal_h ?? 0));
+  const below = Math.max(0, Number(breakdown?.sensible_below_kcal_h ?? 0));
+  const total = above + latent + below;
+  if (total <= 0) return;
+  const tAbove = (above / total) * hours;
+  const tLatent = (latent / total) * hours;
+  const tBelow = (below / total) * hours;
+  ensure(ctx, 58);
+  ctx.page.drawText("Curva simplificada do processo térmico no tempo", { x: M, y: ctx.y, size: 8, font: ctx.fonts.bold, color: COLORS.primary });
+  ctx.y -= 14;
+  const totalW = A4[0] - M * 2;
+  const segments: Array<[string, number, RGB]> = [["Resfriamento sensível", tAbove, rgb(0.18, 0.48, 0.64)], ["Mudança de estado", tLatent, rgb(0.84, 0.55, 0.18)], ["Sub-resfriamento", tBelow, rgb(0.12, 0.43, 0.65)]];
+  let x = M;
+  segments.forEach(([label, value, color]) => {
+    const w = Math.max(4, (value / hours) * totalW);
+    ctx.page.drawRectangle({ x, y: ctx.y - 6, width: w, height: 12, color });
+    ctx.page.drawText(`${clean(label)} ${fmt(value, 1)} h`, { x: x + 3, y: ctx.y - 22, size: 6.8, font: ctx.fonts.regular, color: COLORS.text });
+    x += w;
+  });
+  ctx.y -= 42;
+}
+
+function drawProductThermalDetails(ctx: Ctx, products: any[], env: any) {
+  if (!products.length) return;
+  heading(ctx, "Propriedades térmicas e mudança de estado dos produtos", 3);
+  for (const product of products) {
+    const b = calculateProductLoadBreakdown(product);
+    const phaseTimeMin = estimateFreezingTimePlankMin({
+      thicknessM: product.characteristic_thickness_m,
+      densityKgM3: product.density_kg_m3,
+      thermalConductivityFrozenWMK: product.thermal_conductivity_frozen_w_m_k,
+      freezingTempC: product.initial_freezing_temp_c,
+      latentHeatKcalKg: product.latent_heat_kcal_kg,
+      frozenWaterFraction: b.frozen_water_fraction,
+      airTempC: env.internal_temp_c,
+      convectiveCoefficientWM2K: product.default_convective_coefficient_w_m2_k,
+    });
+    paragraph(ctx, `${product.product_name} - base ${fmt(b.mass_kg_day, 0)} kg em ${fmt(b.hours, 1)} h (${fmt(b.hourly_movement_kg, 1)} kg/h). Fonte: ${b.source}.`, { size: 8.2, bold: true, gap: 2 });
+    drawKeyGrid(ctx, [
+      ["Cp antes congel.", `${fmt(b.cp_above_kcal_kg_c, 3)} kcal/kg°C | ${fmt(b.cp_above_kj_kg_k, 2)} kJ/kgK`],
+      ["Cp após congel.", `${fmt(b.cp_below_kcal_kg_c, 3)} kcal/kg°C | ${fmt(b.cp_below_kj_kg_k, 2)} kJ/kgK`],
+      ["Calor latente", `${fmt(b.latent_heat_kcal_kg, 2)} kcal/kg | ${fmt(b.latent_heat_kj_kg, 1)} kJ/kg`],
+      ["Água total", product.water_content_percent != null ? `${fmt(product.water_content_percent, 1)}%` : "—"],
+      ["Água congelável", product.freezable_water_content_percent != null ? `${fmt(product.freezable_water_content_percent, 1)}%` : "—"],
+      ["Fração congelada", `${fmt(Number(b.frozen_water_fraction) * 100, 1)}%`],
+      ["T entrada", `${fmt(product.inlet_temp_c)} °C`],
+      ["T congelamento", product.initial_freezing_temp_c != null ? `${fmt(product.initial_freezing_temp_c)} °C` : "—"],
+      ["T final", `${fmt(product.outlet_temp_c)} °C`],
+      ["Tempo mudança estado", phaseTimeMin ? `${fmt(phaseTimeMin / 60, 1)} h estimadas` : `${fmt((Number(b.latent_kcal_h) / Math.max(1, Number(b.total_kcal_h))) * Number(b.hours), 1)} h proporcionais`],
+    ], 2);
+    table(ctx, ["Etapa", "Carga produzida", "Energia"], [
+      ["Antes do congelamento", `${fmt(b.sensible_above_kcal_h, 0)} kcal/h`, `${fmt(Number(b.sensible_above_kcal_h) * Number(b.hours), 0)} kcal`],
+      ["Mudança de estado / latente", `${fmt(b.latent_kcal_h, 0)} kcal/h`, `${fmt(Number(b.latent_kcal_h) * Number(b.hours), 0)} kcal`],
+      ["Após congelamento", `${fmt(b.sensible_below_kcal_h, 0)} kcal/h`, `${fmt(Number(b.sensible_below_kcal_h) * Number(b.hours), 0)} kcal`],
+    ], [0.46, 0.27, 0.27]);
+    freezingCurve(ctx, b);
+  }
 }
 
 function pieChart(ctx: Ctx, result: any) {
