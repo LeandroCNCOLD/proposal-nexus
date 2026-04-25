@@ -82,7 +82,7 @@ export function calculateExtraLoadPreview(env: ExtraLoadEnvironment) {
   const defrost = manualDefrost > 0 ? manualDefrost : defrostSuggestion.defrostKcalH;
   const other = n(env.other_kcal_h);
   const evaporatorFrost = calculateEvaporatorFrostRisk(env, infiltration.totalInfiltrationKcalH);
-  const subtotal = infiltration + people + lighting + motors + fans + defrost + other + evaporatorFrost.additional_load_kcal_h;
+  const subtotal = infiltration.totalInfiltrationKcalH + people + lighting + motors + fans + defrost + other + evaporatorFrost.additional_load_kcal_h;
   const safety = subtotal * (n(env.safety_factor_percent) / 100);
 
   return {
