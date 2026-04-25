@@ -51,10 +51,13 @@ function CrmPage() {
   const getFunnels = useServerFn(getUserFunnels);
   const saveFunnels = useServerFn(setUserFunnels);
   const fetchFunnel = useServerFn(getFunnelData);
+  const updateProcess = useServerFn(updateNomusProcess);
+  const createProcess = useServerFn(createNomusProcess);
 
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState<string>(DEFAULT_FUNNEL);
   const [funnelDrawerOpen, setFunnelDrawerOpen] = useState(false);
+  const [newProcessOpen, setNewProcessOpen] = useState(false);
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
 
   const { data: typesData } = useQuery({
@@ -144,6 +147,33 @@ function CrmPage() {
       queryClient.invalidateQueries({ queryKey: ["crm"] });
     },
     onError: (e) => toast.error(`Falha na sincronização: ${e instanceof Error ? e.message : String(e)}`),
+  });
+
+  const moveMutation = useMutation({
+    mutationFn: async ({ processId, etapa }: { processId: string; etapa: string }) => {
+      const result = await updateProcess({ data: { process_id: processId, etapa } });
+      if (!result.ok) throw new Error(result.error);
+      return result;
+    },
+    onSuccess: () => {
+      toast.success("Etapa atualizada no Nomus.");
+      queryClient.invalidateQueries({ queryKey: ["crm"] });
+    },
+    onError: (e) => toast.error(`Não foi possível mover o processo: ${e instanceof Error ? e.message : String(e)}`),
+  });
+
+  const createMutation = useMutation({
+    mutationFn: async (payload: Parameters<typeof createProcess>[0]["data"]) => {
+      const result = await createProcess({ data: payload });
+      if (!result.ok) throw new Error(result.error);
+      return result;
+    },
+    onSuccess: () => {
+      toast.success("Processo criado no Nomus.");
+      setNewProcessOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["crm"] });
+    },
+    onError: (e) => toast.error(`Falha ao criar processo: ${e instanceof Error ? e.message : String(e)}`),
   });
 
   const activeFilterCount = Object.values(filtersForServer).filter(Boolean).length;
