@@ -4,6 +4,8 @@ import { getRequest } from "@tanstack/react-start/server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { nomusFetch, listAll, listPage, getOne, testNomusConnection } from "./client";
+import { normalizeDocument, normalizeEmail, normalizeModel, normalizeProposalNumber } from "@/services/sync/normalization";
+import { finishSyncRun, logSyncRow, startSyncRun, type SyncAction } from "@/services/sync/syncAuditService";
 import {
   NOMUS_ENDPOINTS,
   pessoaContatosPath,
@@ -73,6 +75,16 @@ const toOptionalNumber = (value: unknown): number | null => {
   const n = Number(value);
   return Number.isFinite(n) ? n : null;
 };
+
+function asSyncAction(exists: boolean): SyncAction {
+  return exists ? "updated" : "inserted";
+}
+
+function stableNaturalItemId(position: number, productCode: string | null, description: string | null): string {
+  const code = normalizeModel(productCode) ?? "SEM-CODIGO";
+  const desc = normalizeProposalNumber(description)?.slice(0, 80) ?? "SEM-DESCRICAO";
+  return `natural:${position}:${code}:${desc}`;
+}
 
 async function syncPersonContacts(args: { clientId: string; pessoaId: string; triggeredBy: string | null }) {
   const res = await nomusFetch<unknown>(pessoaContatosPath(args.pessoaId), {
@@ -167,7 +179,7 @@ async function runEntitySync(args: {
   entity: string;
   endpoint: string;
   triggeredBy: string | null;
-  processItem: (raw: Json) => Promise<"ok" | "skip" | "unmatched">;
+  processItem: (raw: Json, syncRunId: string | null) => Promise<"ok" | "skip" | "unmatched">;
   /** Query extra para o listAll (ex.: dataModificacaoInicial p/ incremental). */
   query?: Record<string, string | number | undefined>;
   /** Página máxima de itens — passado adiante para listAll. */
@@ -175,6 +187,11 @@ async function runEntitySync(args: {
 }): Promise<SyncResult> {
   const { entity, endpoint, triggeredBy, processItem, query, pageSize } = args;
   await setState(entity, { running: true, last_error: null });
+  let syncRunId: string | null = null;
+  let count = 0;
+  let skipped = 0;
+  let unmatched = 0;
+  let errors = 0;
   try {
     const res = await listAll<Json>(endpoint, query ?? {}, { entity, triggeredBy, pageSize });
     if (!res.ok) {
@@ -182,19 +199,19 @@ async function runEntitySync(args: {
       await setState(entity, { running: false, last_error: error });
       return { ok: false, error };
     }
-    let count = 0;
-    let skipped = 0;
-    let unmatched = 0;
+    syncRunId = await startSyncRun(entity, triggeredBy, res.items.length);
     const itemErrors: string[] = [];
     for (const raw of res.items) {
       try {
-        const r = await processItem(raw);
+        const r = await processItem(raw, syncRunId);
         if (r === "ok") count += 1;
         else if (r === "unmatched") { unmatched += 1; skipped += 1; }
         else skipped += 1;
       } catch (e) {
         skipped += 1;
+        errors += 1;
         const msg = e instanceof Error ? e.message : String(e);
+        await logSyncRow({ syncRunId, entityType: entity, action: "error", status: "error", errorMessage: msg, rawPayload: raw });
         if (itemErrors.length < 3) itemErrors.push(msg);
       }
     }
@@ -207,10 +224,19 @@ async function runEntitySync(args: {
       total_synced: count,
       last_error: noteParts.length > 0 ? noteParts.join(" • ") : null,
     });
+    await finishSyncRun({
+      syncRunId,
+      totalReceived: res.items.length,
+      totalInserted: count,
+      totalSkipped: skipped,
+      totalErrors: errors,
+      errorMessage: noteParts.length > 0 ? noteParts.join(" • ") : null,
+    });
     return { ok: true, count, skipped, unmatched };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     await setState(entity, { running: false, last_error: msg });
+    await finishSyncRun({ syncRunId, status: "error", totalInserted: count, totalSkipped: skipped, totalErrors: errors + 1, errorMessage: msg });
     return { ok: false, error: msg };
   }
 }
@@ -451,31 +477,49 @@ export const nomusSyncProducts = createServerFn({ method: "POST" })
       entity: "produtos",
       endpoint: NOMUS_ENDPOINTS.produtos,
       triggeredBy: userId,
-      processItem: async (raw) => {
+      processItem: async (raw, syncRunId) => {
         const nomus_id = pickStr(raw, "id", "codigo", "idProduto");
         const model = pickStr(raw, "codigo", "modelo", "descricao");
-        if (!nomus_id || !model) return "skip";
+        if (!nomus_id || !model) {
+          await logSyncRow({ syncRunId, entityType: "produtos", externalId: nomus_id, action: "skipped", status: "skipped", errorMessage: "Produto sem ID ou modelo", rawPayload: raw });
+          return "skip";
+        }
+        const normalizedModel = normalizeModel(model);
         // 1) match por nomus_id já vinculado
         let { data: existing } = await supabaseAdmin
           .from("equipments").select("id").eq("nomus_id", nomus_id).maybeSingle();
+        let matchType: "exact_model" | "normalized_model" | "manual" | "unmatched" = "exact_model";
         // 2) match por model exato
         if (!existing) {
           const r = await supabaseAdmin
             .from("equipments").select("id").eq("model", model).maybeSingle();
           existing = r.data;
         }
-        // 3) match case-insensitive
-        if (!existing) {
+        // 3) match por modelo normalizado, sem criar equipamento duplicado
+        if (!existing && normalizedModel) {
           const r = await supabaseAdmin
-            .from("equipments").select("id").ilike("model", model).maybeSingle();
+            .from("equipments").select("id").eq("normalized_model", normalizedModel).maybeSingle();
           existing = r.data;
+          matchType = "normalized_model";
         }
-        if (!existing) return "unmatched";
+        if (!existing) {
+          await supabaseAdmin.from("nomus_product_equipment_links").upsert(
+            { nomus_product_id: nomus_id, equipment_id: null, match_type: "unmatched", confidence_score: 0 },
+            { onConflict: "nomus_product_id" },
+          );
+          await logSyncRow({ syncRunId, entityType: "produtos", externalId: nomus_id, action: "skipped", status: "skipped", errorMessage: "Produto sem equipamento correspondente", rawPayload: raw });
+          return "unmatched";
+        }
         const { error } = await supabaseAdmin
           .from("equipments")
           .update({ nomus_id, nomus_synced_at: new Date().toISOString() })
           .eq("id", existing.id);
         if (error) throw new Error(error.message);
+        await supabaseAdmin.from("nomus_product_equipment_links").upsert(
+          { nomus_product_id: nomus_id, equipment_id: existing.id, match_type: matchType, confidence_score: matchType === "exact_model" ? 1 : 0.92 },
+          { onConflict: "nomus_product_id" },
+        );
+        await logSyncRow({ syncRunId, entityType: "produtos", externalId: nomus_id, localId: existing.id, action: "updated", status: "success", rawPayload: raw });
         return "ok";
       },
     });
@@ -788,11 +832,13 @@ export const nomusSyncProposalsFull = createServerFn({ method: "POST" })
         // Itens da proposta (itensProposta)
         const items = extractProposalItems(raw);
         if (items.length > 0) {
-          await supabaseAdmin.from("nomus_proposal_items").delete().eq("nomus_proposal_id", mirrorId);
-          await supabaseAdmin.from("nomus_proposal_items").insert(
-            items.map((it, idx) => ({
+          for (let idx = 0; idx < items.length; idx += 1) {
+            const it = items[idx];
+            const naturalItemId = it.nomus_item_id
+              ?? stableNaturalItemId(idx, it.product_code, it.description);
+            const itemPayload = {
               nomus_proposal_id: mirrorId,
-              nomus_item_id: it.nomus_item_id,
+              nomus_item_id: naturalItemId,
               nomus_product_id: it.nomus_product_id,
               product_code: it.product_code,
               description: it.description,
@@ -802,8 +848,13 @@ export const nomusSyncProposalsFull = createServerFn({ method: "POST" })
               total: it.total,
               position: idx,
               raw: it as never,
-            }))
-          );
+              synced_at: new Date().toISOString(),
+            };
+            const { error: itemErr } = await supabaseAdmin
+              .from("nomus_proposal_items")
+              .upsert(itemPayload, { onConflict: "nomus_proposal_id,nomus_item_id" });
+            if (itemErr) throw new Error(itemErr.message);
+          }
         }
 
         // Espelha em proposals (cria ou atualiza)
@@ -827,7 +878,25 @@ export const nomusSyncProposalsFull = createServerFn({ method: "POST" })
           const { data: existing } = await supabaseAdmin
             .from("proposals").select("id, client_id").eq("nomus_id", nomus_id).maybeSingle();
           if (!existing) {
-            const { error } = await supabaseAdmin.from("proposals").insert({
+            const { data: byNumber } = mapped.numero
+              ? await supabaseAdmin.from("proposals").select("id, client_id").eq("number", mapped.numero).maybeSingle()
+              : { data: null };
+            if (byNumber) {
+              const ex = byNumber as { id: string; client_id: string | null };
+              const { error } = await supabaseAdmin.from("proposals")
+                .update({
+                  nomus_id,
+                  nomus_proposal_id: mirrorId,
+                  title: baseTitle,
+                  total_value: mapped.valor_total ?? 0,
+                  valid_until: mapped.validade,
+                  ...(ex.client_id || !clientId ? {} : { client_id: clientId }),
+                  nomus_synced_at: new Date().toISOString(),
+                })
+                .eq("id", ex.id);
+              if (error) throw new Error(error.message);
+            } else {
+              const { error } = await supabaseAdmin.from("proposals").upsert({
               nomus_id,
               nomus_proposal_id: mirrorId,
               nomus_synced_at: new Date().toISOString(),
@@ -837,8 +906,9 @@ export const nomusSyncProposalsFull = createServerFn({ method: "POST" })
               total_value: mapped.valor_total ?? 0,
               valid_until: mapped.validade,
               status: "em_elaboracao",
-            });
+            }, { onConflict: "nomus_id" });
             if (error) throw new Error(error.message);
+            }
           } else {
             const ex = existing as { id: string; client_id: string | null };
             const { error } = await supabaseAdmin.from("proposals")
