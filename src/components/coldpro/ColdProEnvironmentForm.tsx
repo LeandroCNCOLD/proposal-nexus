@@ -231,6 +231,7 @@ function FaceLayersDialog({ face, faceIndex, thermalMaterials, onChange }: { fac
 
 export function ColdProEnvironmentForm({ environment, insulationMaterials, thermalMaterials = [], onSave }: Props) {
   const [form, setForm] = React.useState<any>(environment);
+  const [activeFaceIndex, setActiveFaceIndex] = React.useState(0);
   React.useEffect(() => setForm(environment), [environment]);
 
   const isClimatized = form?.environment_type === "climatized_room";
@@ -262,6 +263,7 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
   const height = toNumber(form?.height_m);
   const geometry = React.useMemo(() => getGeometry(form?.construction_faces), [form?.construction_faces]);
   const constructionFaces = React.useMemo(() => normalizeFaces(form?.construction_faces, layout, wallCount, length, width, height, geometry), [form?.construction_faces, layout, wallCount, length, width, height, geometry]);
+  const activeFace = constructionFaces[Math.min(activeFaceIndex, Math.max(0, constructionFaces.length - 1))];
 
   const geometricFloorArea = getFloorArea(layout, length, width, geometry, constructionFaces);
   const floorFace = constructionFaces.find((face) => face.local === "PISO");
