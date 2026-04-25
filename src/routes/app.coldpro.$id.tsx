@@ -1,12 +1,15 @@
 import * as React from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, ArrowRight, Plus, Snowflake, Thermometer, Wind, Warehouse } from "lucide-react";
+import { ArrowLeft, ArrowRight, Pencil, Plus, Snowflake, Thermometer, Trash2, Wind, Warehouse } from "lucide-react";
 import { toast } from "sonner";
 import {
   useColdProProjectBundle,
   useCreateColdProEnvironment,
+  useUpdateColdProProject,
   useUpdateColdProEnvironment,
+  useDeleteColdProEnvironment,
   useUpsertColdProProduct,
+  useDeleteColdProProduct,
   useUpsertColdProTunnel,
   useUpsertColdProAdvancedProcess,
   useCalculateColdProEnvironment,
@@ -37,8 +40,11 @@ function ColdProProjectPage() {
   const { id } = Route.useParams();
   const { data, isLoading } = useColdProProjectBundle(id);
   const createEnv = useCreateColdProEnvironment(id);
+  const updateProject = useUpdateColdProProject(id);
   const updateEnv = useUpdateColdProEnvironment(id);
+  const deleteEnv = useDeleteColdProEnvironment(id);
   const upsertProduct = useUpsertColdProProduct(id);
+  const deleteProduct = useDeleteColdProProduct(id);
   const upsertTunnel = useUpsertColdProTunnel(id);
   const upsertAdvancedProcess = useUpsertColdProAdvancedProcess(id);
   const calculate = useCalculateColdProEnvironment(id);
@@ -54,6 +60,9 @@ function ColdProProjectPage() {
 
   const [selectedEnvId, setSelectedEnvId] = React.useState<string | null>(null);
   const [stepIndex, setStepIndex] = React.useState(0);
+  const [editingProjectName, setEditingProjectName] = React.useState(false);
+  const [projectNameDraft, setProjectNameDraft] = React.useState("");
+  const [editingProductId, setEditingProductId] = React.useState<string | null>(null);
 
   const environments = data?.environments ?? [];
   const selectedEnv = environments.find((env: any) => env.id === selectedEnvId) ?? environments[0];
@@ -70,6 +79,8 @@ function ColdProProjectPage() {
   React.useEffect(() => {
     if (!selectedEnvId && environments[0]?.id) setSelectedEnvId(environments[0].id);
   }, [selectedEnvId, environments]);
+
+  React.useEffect(() => setProjectNameDraft(data?.project?.name ?? ""), [data?.project?.name]);
 
   const completed: Record<number, boolean> = {
     0: !!selectedEnv?.length_m,
