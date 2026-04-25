@@ -354,7 +354,7 @@ export async function listPage<T = unknown>(
     return { ok: false, error: res.error };
   }
   const items = extractBatch<T>(res.data);
-  return { ok: true, items, hasMore: items.length >= pageSize };
+  return { ok: true, items, hasMore: items.length > 0 };
 }
 
 /**
