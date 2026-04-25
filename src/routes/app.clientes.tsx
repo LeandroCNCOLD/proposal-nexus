@@ -3,11 +3,12 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Plus, Loader2, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { nomusSyncClients } from "@/integrations/nomus/server.functions";
+import { nomusCreateClient, nomusSyncClients } from "@/integrations/nomus/server.functions";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useAuth } from "@/hooks/useAuth";
@@ -16,15 +17,23 @@ import { toast } from "sonner";
 
 export const Route = createFileRoute("/app/clientes")({ component: ClientsPage });
 
+const emptyClientForm = {
+  name: "", trade_name: "", document: "", cpf: "", state_registration: "", state_registration_status: "",
+  municipal_registration: "", tipoPessoa: "1", tipoContribuinteICMS: "1", crt: "", email: "", phone: "", website: "",
+  zip_code: "", address: "", address_number: "", address_complement: "", district: "", city: "", state: "", country: "BRASIL",
+  codigoIBGEMunicipio: "", segment: "", classification: "", region: "", notes: "",
+};
+
 function ClientsPage() {
   const { user } = useAuth();
   const qc = useQueryClient();
   const syncClients = useServerFn(nomusSyncClients);
+  const createClient = useServerFn(nomusCreateClient);
   const [open, setOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
-  const [form, setForm] = useState({ name: "", segment: "", region: "", city: "", state: "" });
+  const [form, setForm] = useState(emptyClientForm);
 
   const { data = [] } = useQuery({
     queryKey: ["clients"],
@@ -33,11 +42,11 @@ function ClientsPage() {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault(); setLoading(true);
-    const { error } = await supabase.from("clients").insert({ ...form, created_by: user?.id });
+    const res = await createClient({ data: form });
     setLoading(false);
-    if (error) return toast.error(error.message);
-    toast.success("Cliente criado");
-    setOpen(false); setForm({ name: "", segment: "", region: "", city: "", state: "" });
+    if (!res.ok) return toast.error(res.error ?? "Erro ao cadastrar cliente no Nomus");
+    toast.success("Cliente criado no Nomus");
+    setOpen(false); setForm(emptyClientForm);
     qc.invalidateQueries({ queryKey: ["clients"] });
   };
 
@@ -78,16 +87,39 @@ function ClientsPage() {
           </Button>
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild><Button className="bg-[image:var(--gradient-primary)]"><Plus className="mr-1.5 h-4 w-4" /> Novo cliente</Button></DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-5xl">
               <DialogHeader><DialogTitle>Novo cliente</DialogTitle></DialogHeader>
               <form onSubmit={submit} className="space-y-4">
-                <div className="space-y-1.5"><Label>Nome *</Label><Input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <div className="space-y-1.5"><Label>Segmento</Label><Input value={form.segment} onChange={(e) => setForm({ ...form, segment: e.target.value })} /></div>
-                  <div className="space-y-1.5"><Label>Região</Label><Input value={form.region} onChange={(e) => setForm({ ...form, region: e.target.value })} /></div>
-                  <div className="space-y-1.5"><Label>Cidade</Label><Input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} /></div>
-                  <div className="space-y-1.5"><Label>UF</Label><Input maxLength={2} value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value.toUpperCase() })} /></div>
+                  <FormInput label="Razão social / Nome *" required value={form.name} onChange={(name) => setForm({ ...form, name })} />
+                  <FormInput label="Nome fantasia" value={form.trade_name} onChange={(trade_name) => setForm({ ...form, trade_name })} />
+                  <FormInput label="CNPJ" value={form.document} onChange={(document) => setForm({ ...form, document })} />
+                  <FormInput label="CPF" value={form.cpf} onChange={(cpf) => setForm({ ...form, cpf })} />
+                  <FormInput label="Inscrição estadual" value={form.state_registration} onChange={(state_registration) => setForm({ ...form, state_registration })} />
+                  <FormInput label="Situação estadual" value={form.state_registration_status} onChange={(state_registration_status) => setForm({ ...form, state_registration_status })} />
+                  <FormInput label="Inscrição municipal" value={form.municipal_registration} onChange={(municipal_registration) => setForm({ ...form, municipal_registration })} />
+                  <FormInput label="Tipo pessoa" value={form.tipoPessoa} onChange={(tipoPessoa) => setForm({ ...form, tipoPessoa })} />
+                  <FormInput label="Contribuinte ICMS" value={form.tipoContribuinteICMS} onChange={(tipoContribuinteICMS) => setForm({ ...form, tipoContribuinteICMS })} />
+                  <FormInput label="CRT" value={form.crt} onChange={(crt) => setForm({ ...form, crt })} />
+                  <FormInput label="E-mail" type="email" value={form.email} onChange={(email) => setForm({ ...form, email })} />
+                  <FormInput label="Telefone" value={form.phone} onChange={(phone) => setForm({ ...form, phone })} />
+                  <FormInput label="Site" value={form.website} onChange={(website) => setForm({ ...form, website })} />
                 </div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <FormInput label="CEP" value={form.zip_code} onChange={(zip_code) => setForm({ ...form, zip_code })} />
+                  <FormInput label="Endereço" value={form.address} onChange={(address) => setForm({ ...form, address })} />
+                  <FormInput label="Número" value={form.address_number} onChange={(address_number) => setForm({ ...form, address_number })} />
+                  <FormInput label="Complemento" value={form.address_complement} onChange={(address_complement) => setForm({ ...form, address_complement })} />
+                  <FormInput label="Bairro" value={form.district} onChange={(district) => setForm({ ...form, district })} />
+                  <FormInput label="Cidade" value={form.city} onChange={(city) => setForm({ ...form, city })} />
+                  <FormInput label="UF" maxLength={2} value={form.state} onChange={(state) => setForm({ ...form, state: state.toUpperCase() })} />
+                  <FormInput label="País" value={form.country} onChange={(country) => setForm({ ...form, country })} />
+                  <FormInput label="Código IBGE" value={form.codigoIBGEMunicipio} onChange={(codigoIBGEMunicipio) => setForm({ ...form, codigoIBGEMunicipio })} />
+                  <div className="space-y-1.5"><Label>Segmento</Label><Input value={form.segment} onChange={(e) => setForm({ ...form, segment: e.target.value })} /></div>
+                  <FormInput label="Classificação" value={form.classification} onChange={(classification) => setForm({ ...form, classification })} />
+                  <div className="space-y-1.5"><Label>Região</Label><Input value={form.region} onChange={(e) => setForm({ ...form, region: e.target.value })} /></div>
+                </div>
+                <div className="space-y-1.5"><Label>Observações</Label><Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
                 <DialogFooter><Button type="submit" disabled={loading} className="bg-[image:var(--gradient-primary)]">{loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Salvar</Button></DialogFooter>
               </form>
             </DialogContent>
@@ -237,6 +269,15 @@ function ClientDetails({ client }: { client: any }) {
           </div>
         ) : <p className="text-sm text-muted-foreground">Este cliente ainda não possui dados completos do Nomus sincronizados.</p>}
       </section>
+    </div>
+  );
+}
+
+function FormInput({ label, value, onChange, required, type = "text", maxLength }: { label: string; value: string; onChange: (value: string) => void; required?: boolean; type?: string; maxLength?: number }) {
+  return (
+    <div className="space-y-1.5">
+      <Label>{label}</Label>
+      <Input required={required} type={type} maxLength={maxLength} value={value} onChange={(e) => onChange(e.target.value)} />
     </div>
   );
 }
