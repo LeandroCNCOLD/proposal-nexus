@@ -4,6 +4,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { ColdProField, ColdProInput } from "./ColdProField";
 import { ColdProCalculatedInfo, ColdProFormSection, ColdProValidationMessage, fmtColdPro, numberOrNull } from "./ColdProFormPrimitives";
 import { calculateExtraLoadPreview, suggestedInfiltrationFactor } from "@/features/coldpro/extra-loads-preview";
+import { MOTOR_EQUIPMENT_PRESETS } from "@/features/coldpro/thermal-calculations";
 
 type Props = { environment: any; catalogFanLoadKcalH?: number; onSave: (patch: Record<string, unknown>) => void };
 
@@ -12,6 +13,7 @@ export function ColdProExtraLoadsForm({ environment, catalogFanLoadKcalH = 0, on
   React.useEffect(() => setForm(environment), [environment]);
   const set = (key: string, value: unknown) => setForm((prev: any) => ({ ...prev, [key]: value }));
   const num = (key: string) => ({ type: "number" as const, value: form?.[key] ?? "", onChange: (e: React.ChangeEvent<HTMLInputElement>) => set(key, numberOrNull(e.target.value)) });
+  const select = (key: string) => ({ value: form?.[key] ?? "", onChange: (e: React.ChangeEvent<HTMLSelectElement>) => set(key, e.target.value), className: "h-10 w-full rounded-md border bg-background px-3 text-sm" });
 
   const hoursInvalid = [form.people_hours_day, form.lighting_hours_day, form.motors_hours_day].some((v) => Number(v ?? 0) < 0 || Number(v ?? 0) > 24);
   const negativeInvalid = [form.door_openings_per_day, form.door_width_m, form.door_height_m, form.infiltration_factor, form.air_changes_per_hour, form.fresh_air_m3_h, form.door_infiltration_m3_h, form.people_count, form.lighting_power_w, form.motors_power_kw, form.fans_kcal_h, form.defrost_kcal_h, form.other_kcal_h, form.safety_factor_percent].some((v) => Number(v ?? 0) < 0);
@@ -19,7 +21,10 @@ export function ColdProExtraLoadsForm({ environment, catalogFanLoadKcalH = 0, on
   const preview = calculateExtraLoadPreview(form ?? {});
   const suggestedFactor = suggestedInfiltrationFactor(form ?? {});
   const internalPower = Number(form.lighting_power_w ?? 0) / 1000 + Number(form.motors_power_kw ?? 0);
-  const save = () => onSave({ ...form, infiltration_factor: Number(form?.infiltration_factor ?? 0) > 0 ? form.infiltration_factor : suggestedFactor });
+  const applyMotorPreset = (preset: (typeof MOTOR_EQUIPMENT_PRESETS)[number]) => {
+    setForm((prev: any) => ({ ...prev, motors_power_kw: preset.powerKw, motors_dissipation_factor: preset.dissipationFactor, motors_hours_day: prev?.motors_hours_day ?? 8 }));
+  };
+  const save = () => onSave({ ...form, infiltration_factor: Number(form?.infiltration_factor ?? 0) > 0 ? form.infiltration_factor : suggestedFactor, defrost_kcal_h: Number(form?.defrost_kcal_h ?? 0) > 0 ? form.defrost_kcal_h : preview.defrost_suggestion.defrostKcalH });
 
   return (
     <div className="min-w-0 rounded-xl border bg-background p-3 shadow-sm sm:p-5">
@@ -41,16 +46,26 @@ export function ColdProExtraLoadsForm({ environment, catalogFanLoadKcalH = 0, on
             <ColdProFormSection title="Ventilação através de portas" description="Dados usados para estimar a carga de infiltração por abertura de portas.">
               <div className="grid grid-cols-1 gap-x-10 md:grid-cols-2">
                 <div>
+                  <ColdProField label="Região climática">
+                    <select {...select("climate_region")}><option value="sp_capital_abcd">Grande SP / ABCD</option><option value="interior_sp">Interior SP</option><option value="centro_oeste">Centro-Oeste</option><option value="norte_nordeste_umido">Norte/Nordeste úmido</option><option value="sul">Sul</option><option value="custom">Manual</option></select>
+                  </ColdProField>
                   <ColdProField label="Aberturas por dia" unit="/dia"><ColdProInput {...num("door_openings_per_day")} /></ColdProField>
+                  <ColdProField label="Tempo aberta" unit="s/abertura"><ColdProInput {...num("door_open_seconds_per_opening")} /></ColdProField>
                   <ColdProField label="Largura da porta" unit="m"><ColdProInput {...num("door_width_m")} /></ColdProField>
                   <ColdProField label="Altura da porta" unit="m"><ColdProInput {...num("door_height_m")} /></ColdProField>
                 </div>
                 <div>
-                  <ColdProField label="Fator infiltração"><ColdProInput {...num("infiltration_factor")} /></ColdProField>
+                  <ColdProField label="Perfil de operação">
+                    <select {...select("door_operation_profile")}><option value="light">Leve · 0,25 m/s</option><option value="normal">Normal · 0,50 m/s</option><option value="intense">Intenso · 0,80 m/s</option><option value="critical">Crítico · 1,20 m/s</option></select>
+                  </ColdProField>
+                  <ColdProField label="Proteção da porta">
+                    <select {...select("door_protection_type")}><option value="none">Sem proteção · 1,00</option><option value="pvc_curtain">Cortina PVC · 0,70</option><option value="air_curtain">Cortina de ar · 0,55</option><option value="antechamber">Antecâmara · 0,45</option><option value="fast_door">Porta rápida · 0,35</option><option value="antechamber_fast_door">Antecâmara + porta rápida · 0,25</option></select>
+                  </ColdProField>
+                  <ColdProField label="Fator legado"><ColdProInput {...num("infiltration_factor")} /></ColdProField>
                   <ColdProField label="Trocas de ar" unit="vol/h"><ColdProInput {...num("air_changes_per_hour")} /></ColdProField>
                   <ColdProField label="Ar externo contínuo" unit="m³/h"><ColdProInput {...num("fresh_air_m3_h")} /></ColdProField>
                   <ColdProField label="Infiltração porta" unit="m³/h"><ColdProInput {...num("door_infiltration_m3_h")} /></ColdProField>
-                  <ColdProCalculatedInfo label="Carga de infiltração" value={`${fmtColdPro(preview.infiltration_kcal_h)} kcal/h`} description={`Área ${fmtColdPro(preview.doorArea)} m² · fator ${fmtColdPro(preview.infiltrationFactor)} · ar ${fmtColdPro(preview.continuousAirM3H)} m³/h`} tone={preview.infiltration_kcal_h > 0 ? "success" : "warning"} />
+                  <ColdProCalculatedInfo label="Carga de infiltração" value={`${fmtColdPro(preview.infiltration_kcal_h)} kcal/h`} description={`Sensível ${fmtColdPro(preview.infiltration_breakdown.sensibleKcalH)} · latente ${fmtColdPro(preview.infiltration_breakdown.latentKcalH)} · ar ${fmtColdPro(preview.infiltration_breakdown.totalInfiltrationM3Day)} m³/dia`} tone={preview.infiltration_kcal_h > 0 ? "success" : "warning"} />
                 </div>
               </div>
             </ColdProFormSection>
@@ -64,7 +79,7 @@ export function ColdProExtraLoadsForm({ environment, catalogFanLoadKcalH = 0, on
               <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                 <ColdProCalculatedInfo label="Gelo estimado" value={`${fmtColdPro(preview.evaporator_frost.frost_kg_day)} kg/dia`} description={`${fmtColdPro(preview.evaporator_frost.moisture_delta_g_m3)} g/m³ de umidade excedente`} tone={preview.evaporator_frost.frost_kg_day > 0 ? "warning" : "success"} />
                 <ColdProCalculatedInfo label="Perda de rendimento" value={`${fmtColdPro(preview.evaporator_frost.efficiency_loss_percent)}%`} description={`Carga adicional ${fmtColdPro(preview.evaporator_frost.additional_load_kcal_h)} kcal/h`} tone={preview.evaporator_frost.efficiency_loss_percent > 10 ? "warning" : "success"} />
-                <ColdProCalculatedInfo label="Degelo recomendado" value={preview.evaporator_frost.recommended_defrost_interval_h ? `${fmtColdPro(preview.evaporator_frost.recommended_defrost_interval_h)} h` : "Sem risco"} description="Intervalo preventivo estimado" />
+                <ColdProCalculatedInfo label="Degelo calculado" value={`${fmtColdPro(preview.defrost_suggestion.defrostKcalH)} kcal/h`} description={`${fmtColdPro(preview.defrost_suggestion.energyKcalDay)} kcal/dia · perdas ${fmtColdPro(preview.defrost_suggestion.lossFactor)}x`} />
               </div>
               <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
                 <ColdProCalculatedInfo label="Operação normal" value={preview.evaporator_frost.normal_block_hours ? `${fmtColdPro(preview.evaporator_frost.normal_block_hours)} h` : "Sem bloqueio"} description="Tempo estimado até bloqueio" />
