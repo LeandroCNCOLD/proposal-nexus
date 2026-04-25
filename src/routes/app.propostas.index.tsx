@@ -176,6 +176,16 @@ function ProposalsList() {
 
   const proposalNomusIdNumber = (p: any) => Number(p.nomus_id ?? p._nomus?.nomus_id ?? 0) || 0;
 
+  const proposalNumberRank = (p: any) => {
+    const numero = String(p._nomus?.numero ?? p.title ?? p.number ?? "");
+    const cn = numero.match(/CN\s*0*(\d+)/i);
+    const rev = numero.match(/Rev\.?\s*0*(\d+)/i);
+    return {
+      cn: cn ? Number(cn[1]) || 0 : 0,
+      rev: rev ? Number(rev[1]) || 0 : 0,
+    };
+  };
+
   const proposalSortTime = (p: any) => {
     const raw = p._nomus?.criada_em_nomus ?? p._nomus?.data_emissao ?? p._nomus?.synced_at ?? p.nomus_synced_at ?? p.created_at;
     const ts = raw ? new Date(raw).getTime() : 0;
@@ -183,6 +193,10 @@ function ProposalsList() {
   };
 
   const compareNomusNewestFirst = (a: any, b: any) => {
+    const ar = proposalNumberRank(a);
+    const br = proposalNumberRank(b);
+    if (br.cn !== ar.cn) return br.cn - ar.cn;
+    if (br.rev !== ar.rev) return br.rev - ar.rev;
     const idDiff = proposalNomusIdNumber(b) - proposalNomusIdNumber(a);
     return idDiff !== 0 ? idDiff : proposalSortTime(b) - proposalSortTime(a);
   };
