@@ -196,13 +196,16 @@ export function ColdProReport({
                   {Array.isArray(result.calculation_breakdown?.transmission_faces) && result.calculation_breakdown.transmission_faces.length ? (
                     <div className="mt-3">
                       <div className="mb-1 text-sm font-semibold">Transmissão por face</div>
+                      <div className="mb-2 text-xs text-muted-foreground">
+                        Total transmissão: <b>{fmt(result.calculation_breakdown?.transmission_summary?.total_w)} W</b> · <b>{fmt(result.calculation_breakdown?.transmission_summary?.total_kw)} kW</b> · <b>{fmt(result.calculation_breakdown?.transmission_summary?.total_kcal_h)} kcal/h</b> · <b>{fmt(result.calculation_breakdown?.transmission_summary?.total_tr)} TR</b>
+                      </div>
                       <table className="w-full border-collapse text-xs">
                         <thead className="bg-muted/40">
-                          <tr><th className="border px-2 py-1 text-left">Face</th><th className="border px-2 py-1 text-right">Área isolada m²</th><th className="border px-2 py-1 text-right">Vidro m²</th><th className="border px-2 py-1 text-right">U painel</th><th className="border px-2 py-1 text-right">Vidro kcal/h</th><th className="border px-2 py-1 text-right">kcal/h</th></tr>
+                          <tr><th className="border px-2 py-1 text-left">Face</th><th className="border px-2 py-1 text-right">Área opaca m²</th><th className="border px-2 py-1 text-right">Vidro m²</th><th className="border px-2 py-1 text-right">ΔT</th><th className="border px-2 py-1 text-right">Painel W</th><th className="border px-2 py-1 text-right">Vidro W</th><th className="border px-2 py-1 text-right">Solar W</th><th className="border px-2 py-1 text-right">Total W</th><th className="border px-2 py-1 text-right">kcal/h</th></tr>
                         </thead>
                         <tbody>
                           {result.calculation_breakdown.transmission_faces.map((face: any) => (
-                            <tr key={face.local}><td className="border px-2 py-1">{face.local}</td><td className="border px-2 py-1 text-right">{fmt(face.insulated_area_m2 ?? face.area_m2)}</td><td className="border px-2 py-1 text-right">{fmt(face.glass_area_m2)}</td><td className="border px-2 py-1 text-right">{fmt(face.u_value_w_m2k)}</td><td className="border px-2 py-1 text-right">{fmt(face.glass_transmission_kcal_h)}</td><td className="border px-2 py-1 text-right">{fmt(face.transmission_kcal_h)}</td></tr>
+                            <tr key={face.local}><td className="border px-2 py-1">{face.local}</td><td className="border px-2 py-1 text-right">{fmt(face.insulated_area_m2 ?? face.area_m2)}</td><td className="border px-2 py-1 text-right">{fmt(face.glass_area_m2)}</td><td className="border px-2 py-1 text-right">{fmt(face.delta_t_c)}</td><td className="border px-2 py-1 text-right">{fmt(face.panel_transmission_w)}</td><td className="border px-2 py-1 text-right">{fmt(face.glass_transmission_w)}</td><td className="border px-2 py-1 text-right">{fmt(face.glass_solar_w)}</td><td className="border px-2 py-1 text-right">{fmt(face.transmission_w)}</td><td className="border px-2 py-1 text-right">{fmt(face.transmission_kcal_h)}</td></tr>
                           ))}
                         </tbody>
                       </table>
