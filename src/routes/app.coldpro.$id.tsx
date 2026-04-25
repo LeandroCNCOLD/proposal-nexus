@@ -331,8 +331,33 @@ function ColdProProjectPage() {
                 </div>
               )}
 
-              {/* STEP 2 - CARGAS EXTRAS */}
+              {/* STEP 2 - PROCESSOS ESPECIAIS */}
               {stepIndex === 2 && (
+                <div className="space-y-4">
+                  <ColdProAdvancedProcessForm
+                    projectId={id}
+                    environment={selectedEnv}
+                    process={advancedProcess}
+                    onSave={(payload) =>
+                      upsertAdvancedProcess.mutate(payload, {
+                        onSuccess: () => toast.success("Processo especial salvo"),
+                        onError: (e: any) => toast.error(e?.message ?? "Erro ao salvar processo especial"),
+                      })
+                    }
+                  />
+                  <ColdProSectionLoadSummary
+                    title="Prévia dos processos especiais"
+                    rows={[
+                      { label: "Umidade, respiração e purga", value: result?.calculation_breakdown?.advanced_processes_kcal_h },
+                    ]}
+                    totalLabel="Total calculado da aba Processos Especiais"
+                    total={Number(result?.calculation_breakdown?.advanced_processes_kcal_h ?? 0)}
+                  />
+                </div>
+              )}
+
+              {/* STEP 3 - CARGAS EXTRAS */}
+              {stepIndex === 3 && (
                 <div className="space-y-4">
                   <ColdProExtraLoadsForm
                     environment={selectedEnv}
@@ -363,8 +388,8 @@ function ColdProProjectPage() {
                 </div>
               )}
 
-              {/* STEP 3 - RESULTADO */}
-              {stepIndex === 3 && (
+              {/* STEP 4 - RESULTADO */}
+              {stepIndex === 4 && (
                 <div className="space-y-6">
                   <div className="rounded-2xl border bg-background p-4">
                     <h3 className="mb-2 text-base font-semibold">Calcular carga térmica</h3>
@@ -459,6 +484,7 @@ function ColdProProjectPage() {
                     results={data?.results ?? []}
                     selections={data?.selections ?? []}
                     products={allProducts}
+                    advancedProcesses={data?.advancedProcesses ?? []}
                     onPushToProposal={handlePushToProposal}
                     isPushing={pushToProposal.isPending}
                     onGeneratePdf={handleGeneratePdf}
