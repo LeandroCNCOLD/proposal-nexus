@@ -163,10 +163,34 @@ async function persistNomusProcessBatch(items: NomusProcessRaw[], userId: string
   };
 }
 
-const PROCESS_RECENT_BATCH_SIZE = 6;
-const PROCESS_FORWARD_LOOKAHEAD = 12;
-const PROCESS_RECENT_RECHECK = 6;
-const PROCESS_RECENT_PAGE_SCAN = 6;
+async function persistChangedNomusProcessBatch(items: NomusProcessRaw[], userId: string | null) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const byId = new Map<string, NomusProcessRaw>();
+  for (const item of items) {
+    const id = processIdOf(item);
+    if (id) byId.set(String(id), item);
+  }
+  if (byId.size === 0) return persistNomusProcessBatch([], userId);
+
+  const ids = Array.from(byId.keys());
+  const { data: existing } = await supabaseAdmin
+    .from("nomus_processes")
+    .select("nomus_id, raw")
+    .in("nomus_id", ids);
+  const rawById = new Map<string, unknown>();
+  for (const row of (existing as Array<{ nomus_id?: string | null; raw?: unknown }> | null) ?? []) {
+    if (row.nomus_id) rawById.set(row.nomus_id, row.raw ?? null);
+  }
+
+  const changed = ids
+    .map((id) => byId.get(id)!)
+    .filter((raw) => JSON.stringify(rawById.get(String(processIdOf(raw))) ?? null) !== JSON.stringify(raw ?? null));
+
+  return persistNomusProcessBatch(changed, userId);
+}
+
+const PROCESS_FORWARD_LOOKAHEAD = 6;
+const PROCESS_RECENT_RECHECK = 4;
 const PROCESS_MAX_CONSECUTIVE_MISSES = 3;
 
 function processIdOf(raw: NomusProcessRaw): number {
