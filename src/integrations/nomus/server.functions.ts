@@ -248,13 +248,14 @@ export const nomusSyncClients = createServerFn({ method: "POST" })
         .maybeSingle();
       const page = Math.max(1, Number((state as { last_cursor?: string | null } | null)?.last_cursor ?? "1") || 1);
       const previousTotal = page === 1 ? 0 : Number((state as { total_synced?: number | null } | null)?.total_synced ?? 0) || 0;
-      const res = await listPage<Json>(NOMUS_ENDPOINTS.clientes, {}, { entity: "clientes", page, pageSize: 50, triggeredBy: userId });
+      const res = await listPage<Json>(NOMUS_ENDPOINTS.clientes, {}, { entity: "clientes", page, pageSize: 20, triggeredBy: userId });
       if (!res.ok) {
         await setState("clientes", { running: false, last_error: res.error });
         return { ok: false as const, error: res.error };
       }
 
       let count = 0;
+      let contactsCount = 0;
       let skipped = 0;
       for (const raw of res.items) {
         const summaryId = pickStr(raw, "id", "codigo", "idCliente", "idPessoa");
@@ -268,7 +269,12 @@ export const nomusSyncClients = createServerFn({ method: "POST" })
           skipped += 1;
           continue;
         }
-        const { error } = await supabaseAdmin
+        const seller = firstArrayObj(full, "vendedores");
+        const representative = firstArrayObj(full, "representantes");
+        const cnae = pickStr(full, "cnaePrincipal", "classificacao", "classificação");
+        const notes = [pickStr(full, "observacoes", "observações"), cnae ? `CNAE/Classificação: ${cnae}` : null].filter(Boolean).join("\n") || null;
+
+        const { data: upserted, error } = await supabaseAdmin
           .from("clients")
           .upsert(
             {
@@ -287,21 +293,27 @@ export const nomusSyncClients = createServerFn({ method: "POST" })
               city: pickStr(full, "cidade", "municipio", "nomeCidade"),
               state: pickStr(full, "uf", "estado", "siglaEstado"),
               country: pickStr(full, "pais", "nomePais"),
-              segment: pickStr(full, "segmento", "ramo", "ramoAtividade", "segmentoMercado"),
-              region: pickStr(full, "regiao", "regiaoComercial", "territorio"),
+              segment: pickStr(full, "segmento", "ramo", "ramoAtividade", "segmentoMercado", "cnaePrincipal", "classificacao"),
+              region: pickStr(full, "regiao", "regiaoComercial", "territorio", "uf", "estado", "siglaEstado"),
               state_registration: pickStr(full, "inscricaoEstadual", "ie"),
               municipal_registration: pickStr(full, "inscricaoMunicipal", "im"),
-              nomus_seller_id: pickStr(full, "idVendedor", "vendedorId") ?? pickNestedStr(full, "vendedor", "id", "codigo"),
-              nomus_seller_name: pickStr(full, "nomeVendedor", "vendedorNome") ?? pickNestedStr(full, "vendedor", "nome", "razaoSocial"),
-              nomus_representative_id: pickStr(full, "idRepresentante", "representanteId") ?? pickNestedStr(full, "representante", "id", "codigo"),
-              nomus_representative_name: pickStr(full, "nomeRepresentante", "representanteNome") ?? pickNestedStr(full, "representante", "nome", "razaoSocial"),
+              nomus_seller_id: pickStr(full, "idVendedor", "vendedorId") ?? pickNestedStr(full, "vendedor", "id", "codigo") ?? (seller ? pickStr(seller, "id", "codigo") : null),
+              nomus_seller_name: pickStr(full, "nomeVendedor", "vendedorNome") ?? pickNestedStr(full, "vendedor", "nome", "razaoSocial") ?? (seller ? pickStr(seller, "nome", "razaoSocial") : null),
+              nomus_representative_id: pickStr(full, "idRepresentante", "representanteId") ?? pickNestedStr(full, "representante", "id", "codigo") ?? (representative ? pickStr(representative, "id", "codigo") : null),
+              nomus_representative_name: pickStr(full, "nomeRepresentante", "representanteNome") ?? pickNestedStr(full, "representante", "nome", "razaoSocial") ?? (representative ? pickStr(representative, "nome", "razaoSocial") : null),
+              notes,
+              is_active: pickBool(full, "ativo", "isActive", "ativoCliente") ?? true,
               nomus_raw: full as never,
               origin: "nomus",
               nomus_synced_at: new Date().toISOString(),
             },
             { onConflict: "nomus_id" }
-          );
+          )
+          .select("id")
+          .single();
         if (error) throw new Error(error.message);
+        const clientId = (upserted as { id?: string } | null)?.id;
+        if (clientId && nomus_id) contactsCount += await syncPersonContacts({ clientId, pessoaId: nomus_id, triggeredBy: userId });
         count += 1;
       }
 
@@ -314,7 +326,7 @@ export const nomusSyncClients = createServerFn({ method: "POST" })
         last_cursor: nextPage,
         last_error: null,
       });
-      return { ok: true as const, count, skipped, unmatched: 0, done, nextPage };
+      return { ok: true as const, count, contactsCount, skipped, unmatched: 0, done, nextPage };
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       await setState("clientes", { running: false, last_error: msg });
