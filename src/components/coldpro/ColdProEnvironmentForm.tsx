@@ -66,13 +66,32 @@ const SOLAR_FACE_OPTIONS = [
 ];
 
 const GLASS_TYPE_OPTIONS = [
-  { value: "simple", label: "Vidro simples" },
-  { value: "double", label: "Vidro duplo" },
-  { value: "insulated", label: "Vidro insulado" },
+  { value: "none", label: "Sem vidro", u: 0, solarFactor: 0 },
+  { value: "simple", label: "Vidro simples", u: 5.8, solarFactor: 0.85 },
+  { value: "double", label: "Vidro duplo", u: 2.8, solarFactor: 0.75 },
+  { value: "triple", label: "Vidro triplo", u: 1.8, solarFactor: 0.65 },
+  { value: "low_e_double", label: "Vidro low-e duplo", u: 1.6, solarFactor: 0.4 },
+  { value: "heated_refrigerated", label: "Vidro frigorífico aquecido", u: 2.5, solarFactor: 0.55 },
+];
+
+const SOLAR_RADIATION_OPTIONS = [
+  { value: 0, label: "Sem sol" },
+  { value: 150, label: "Sol moderado" },
+  { value: 300, label: "Sol forte" },
+  { value: 500, label: "Sol crítico" },
+];
+
+const FLOOR_CONDITION_OPTIONS = [
+  { value: "insulated", label: "Piso isolado" },
+  { value: "soil", label: "Sem isolamento / contato com solo" },
+  { value: "lower_room", label: "Sobre ambiente inferior" },
 ];
 
 const UNINSULATED_FLOOR_U_VALUE_W_M2K = 1.75;
 const DEFAULT_SOLAR_FACE = "TETO";
+const DEFAULT_SOIL_TEMP_C = 20;
+const W_TO_KCAL_H = 0.859845;
+const KCAL_H_PER_TR = 3024;
 
 const LEGACY_LAYOUTS = new Set(["industrial", "modular", "climatized_storage", "blast_freezer", "cooling_tunnel", "climatized_room"]);
 
@@ -182,7 +201,13 @@ function applyUninsulatedFloorToFace(face: any) {
 
 function prepareFaceForCalculation(face: any, hasFloorInsulation: boolean) {
   const prepared = face.local === "PISO" && !hasFloorInsulation ? applyUninsulatedFloorToFace(face) : face;
-  return { ...prepared, glass_area_m2: prepared.has_glass ? prepared.glass_area_m2 : 0 };
+  const hasGlass = Boolean(prepared.has_glass) && toNumber(prepared.glass_area_m2) > 0;
+  return {
+    ...prepared,
+    glass_area_m2: hasGlass ? prepared.glass_area_m2 : 0,
+    glass_type: hasGlass ? (prepared.glass_type ?? "simple") : "none",
+    solar_radiation_w_m2: hasGlass ? toNumber(prepared.solar_radiation_w_m2) : 0,
+  };
 }
 
 function describeLayer(layer: any) {
@@ -245,7 +270,9 @@ function normalizeFaces(value: unknown, layout: ChamberLayout, wallCount: number
       color: existing.color ?? "",
       glass_area_m2: existing.glass_area_m2 ?? 0,
       has_glass: existing.has_glass ?? toNumber(existing.glass_area_m2) > 0,
-      glass_type: existing.glass_type ?? "simple",
+      glass_type: (existing.has_glass ?? toNumber(existing.glass_area_m2) > 0) ? (existing.glass_type ?? "simple") : "none",
+      solar_radiation_w_m2: existing.solar_radiation_w_m2 ?? (!hasSelectedSolarFace && local === DEFAULT_SOLAR_FACE ? 150 : 0),
+      floor_condition: existing.floor_condition ?? (local === "PISO" ? "soil" : null),
       door_area_m2: 0,
     };
   });
@@ -347,6 +374,7 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
   const geometricFloorArea = getFloorArea(layout, length, width, geometry, constructionFaces);
   const floorFace = finalizedConstructionFaces.find((face) => face.local === "PISO");
   const ceilingFace = finalizedConstructionFaces.find((face) => face.local === "TETO");
+  const floorCondition = String(floorFace?.floor_condition ?? (form?.has_floor_insulation ? "insulated" : "soil"));
   const floorArea = toNumber(floorFace?.panel_area_m2) || geometricFloorArea;
   const ceilingArea = toNumber(ceilingFace?.panel_area_m2) || geometricFloorArea;
   const volume = floorArea * height;
@@ -426,20 +454,38 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
   };
 
   const setFloorInsulated = (enabled: boolean) => {
-    setForm((prev: any) => ({ ...prev, has_floor_insulation: enabled }));
+    setFloorCondition(enabled ? "insulated" : "soil");
+  };
+
+  const setFloorCondition = (condition: string) => {
+    const enabled = condition === "insulated";
     const floorIndex = constructionFaces.findIndex((face) => face.local === "PISO");
+    const next = [...constructionFaces];
     if (floorIndex >= 0) {
       const layer = makeInsulationLayer(selectedFloorInsulation, form?.floor_thickness_mm);
-      const next = [...constructionFaces];
-      next[floorIndex] = enabled ? applyLayerToFace(next[floorIndex], layer) : applyUninsulatedFloorToFace(next[floorIndex]);
-      set("construction_faces", [...next, geometry]);
+      const baseFace = {
+        ...next[floorIndex],
+        floor_condition: condition,
+        external_temp_c: condition === "soil" ? toNumber(form?.floor_temp_c) || DEFAULT_SOIL_TEMP_C : (condition === "lower_room" ? form?.floor_temp_c : form?.external_temp_c),
+      };
+      next[floorIndex] = enabled ? applyLayerToFace(baseFace, layer) : applyUninsulatedFloorToFace(baseFace);
     }
+    setForm((prev: any) => ({
+      ...prev,
+      has_floor_insulation: enabled,
+      floor_temp_c: condition === "soil" ? (toNumber(prev?.floor_temp_c) || DEFAULT_SOIL_TEMP_C) : prev?.floor_temp_c,
+      construction_faces: [...next, geometry],
+    }));
   };
 
   const setSoilTemperatureRegion = (regionValue: string) => {
     setSoilRegion(regionValue);
     const region = SOIL_TEMPERATURE_REGIONS.find((item) => item.value === regionValue);
-    if (region) set("floor_temp_c", region.temp);
+    if (region) {
+      set("floor_temp_c", region.temp);
+      const floorIndex = constructionFaces.findIndex((face) => face.local === "PISO");
+      if (floorIndex >= 0) setFace(floorIndex, "external_temp_c", region.temp);
+    }
   };
 
   const setSolarFace = (faceName: string) => {
@@ -447,21 +493,61 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
     const next = constructionFaces.map((face) => ({
       ...face,
       solar_orientation: faceName === face.local ? "Sol direto" : "",
+      solar_radiation_w_m2: faceName === face.local ? (toNumber(face.solar_radiation_w_m2) || 150) : 0,
     }));
+    set("construction_faces", [...next, geometry]);
+  };
+
+  const setGlassEnabled = (index: number, enabled: boolean) => {
+    const next = normalizeFaces(form?.construction_faces, layout, wallCount, length, width, height, geometry);
+    const face = next[index];
+    next[index] = {
+      ...face,
+      has_glass: enabled,
+      glass_area_m2: enabled ? face.glass_area_m2 : 0,
+      glass_type: enabled ? (face.glass_type && face.glass_type !== "none" ? face.glass_type : "simple") : "none",
+      solar_radiation_w_m2: enabled ? toNumber(face.solar_radiation_w_m2) : 0,
+    };
     set("construction_faces", [...next, geometry]);
   };
 
   const displayedExternalTemp = (face: any) => {
     if (face.external_temp_c !== null && face.external_temp_c !== undefined) return face.external_temp_c;
-    return face.local === "PISO" ? form?.floor_temp_c : form?.external_temp_c;
+    if (face.local !== "PISO") return form?.external_temp_c;
+    if (String(face.floor_condition ?? floorCondition) === "soil") return form?.floor_temp_c ?? DEFAULT_SOIL_TEMP_C;
+    if (String(face.floor_condition ?? floorCondition) === "lower_room") return form?.floor_temp_c;
+    return form?.external_temp_c;
   };
 
-  const currentSolarFace = constructionFaces.find((face) => face.solar_orientation === "Sol direto")?.local ?? DEFAULT_SOLAR_FACE;
+  const currentSolarFace = constructionFaces.find((face) => face.solar_orientation === "Sol direto" || toNumber(face.solar_radiation_w_m2) > 0)?.local ?? "";
   const solarAdjustedConstructionFaces = React.useMemo(() => finalizedConstructionFaces.map((face) => ({
     ...face,
-    solar_orientation: face.local === currentSolarFace ? "Sol direto" : "",
+    solar_orientation: face.local === currentSolarFace && toNumber(face.solar_radiation_w_m2) > 0 ? "Sol direto" : "",
   })), [finalizedConstructionFaces, currentSolarFace]);
   const faceCalculationEnv = { ...form, construction_faces: solarAdjustedConstructionFaces, chamber_layout_type: layout, wall_count: wallCount };
+  const transmissionPreviewRows = constructionFaces.map((face, index) => {
+    const hasGlass = Boolean(face.has_glass) && toNumber(face.glass_area_m2) > 0;
+    const preparedFace = {
+      ...prepareFaceForCalculation(face, Boolean(form?.has_floor_insulation)),
+      solar_orientation: face.local === currentSolarFace && toNumber(face.solar_radiation_w_m2) > 0 ? "Sol direto" : "",
+    };
+    const load = calculateFaceTransmission({
+      ...preparedFace,
+      external_temp_c: displayedExternalTemp(preparedFace),
+      glass_area_m2: hasGlass ? preparedFace.glass_area_m2 : 0,
+      glass_type: hasGlass ? preparedFace.glass_type : "none",
+      solar_radiation_w_m2: hasGlass ? preparedFace.solar_radiation_w_m2 : 0,
+    }, faceCalculationEnv as any);
+    return { face, index, isWall: face.local.startsWith("PAREDE"), hasGlass, preparedFace, load };
+  });
+  const transmissionTotals = transmissionPreviewRows.reduce((acc, row) => {
+    acc.w += toNumber((row.load as any).transmission_w);
+    acc.glassW += toNumber((row.load as any).glass_transmission_w) + toNumber((row.load as any).glass_solar_w);
+    return acc;
+  }, { w: 0, glassW: 0 });
+  const transmissionTotalKcalH = transmissionTotals.w * W_TO_KCAL_H;
+  const transmissionTotalKw = transmissionTotals.w / 1000;
+  const transmissionTotalTr = transmissionTotalKcalH / KCAL_H_PER_TR;
 
   return (
     <div className="rounded-xl border bg-background p-5 shadow-sm">
@@ -595,10 +681,9 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
                   </div>
                 </div>
                 <div>
-                  <ColdProField label="Piso isolado">
-                    <ColdProSelect value={form?.has_floor_insulation ? "sim" : "nao"} onChange={(e) => setFloorInsulated(e.target.value === "sim")}>
-                      <option value="nao">Não</option>
-                      <option value="sim">Sim</option>
+                  <ColdProField label="Condição do piso">
+                    <ColdProSelect value={floorCondition} onChange={(e) => setFloorCondition(e.target.value)}>
+                      {FLOOR_CONDITION_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                     </ColdProSelect>
                   </ColdProField>
                   <ColdProField label="Material piso">
@@ -608,7 +693,8 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
                     </ColdProSelect>
                   </ColdProField>
                   <ColdProField label="Esp. piso" unit="mm"><ColdProSelect disabled={!form?.has_floor_insulation} value={form?.floor_thickness_mm ?? ""} onChange={(e) => setInsulationThickness("floor_thickness_mm", e.target.value)}>{!INSULATION_THICKNESS_OPTIONS_MM.includes(toNumber(form?.floor_thickness_mm)) && form?.floor_thickness_mm ? <option value={form.floor_thickness_mm}>{form.floor_thickness_mm}</option> : null}{INSULATION_THICKNESS_OPTIONS_MM.map((value) => <option key={value} value={value}>{value}</option>)}</ColdProSelect></ColdProField>
-                  <ColdProCalculatedInfo label="U piso" value={form?.has_floor_insulation ? `${fmtColdPro(floorLayerInfo.uValue, 3)} W/m²K` : "Sem isolamento"} description={form?.has_floor_insulation ? `k ${fmtColdPro(floorLayerInfo.conductivity, 3)} W/mK` : "Piso não entra como painel isolado."} tone={form?.has_floor_insulation && floorLayerInfo.uValue > 0 ? "success" : "warning"} />
+                  {floorCondition === "lower_room" ? <ColdProField label="Temp. ambiente inferior" unit="°C"><ColdProInput {...num("floor_temp_c")} /></ColdProField> : null}
+                  <ColdProCalculatedInfo label="U piso" value={form?.has_floor_insulation ? `${fmtColdPro(floorLayerInfo.uValue, 3)} W/m²K` : `${fmtColdPro(UNINSULATED_FLOOR_U_VALUE_W_M2K, 3)} W/m²K`} description={form?.has_floor_insulation ? `k ${fmtColdPro(floorLayerInfo.conductivity, 3)} W/mK` : floorCondition === "lower_room" ? "Piso sobre ambiente inferior." : `Solo ${fmtColdPro(form?.floor_temp_c ?? DEFAULT_SOIL_TEMP_C)} °C.`} tone={form?.has_floor_insulation && floorLayerInfo.uValue > 0 ? "success" : "warning"} />
                 </div>
               </div>
             </ColdProFormSection>
@@ -619,10 +705,11 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
                 <ColdProCalculatedInfo label="Piso / teto" value={`${fmtColdPro(floorArea)} / ${fmtColdPro(ceilingArea)} m²`} />
                 <ColdProCalculatedInfo label="Área de paredes" value={`${fmtColdPro(wallPanelArea)} m²`} />
                 <ColdProCalculatedInfo label="Área de vidro" value={`${fmtColdPro(totalGlassArea)} m²`} />
+                <ColdProCalculatedInfo label="Total transmissão" value={`${fmtColdPro(transmissionTotalKw, 2)} kW`} description={`${fmtColdPro(transmissionTotalKcalH)} kcal/h · ${fmtColdPro(transmissionTotalTr, 2)} TR`} tone="success" />
               </div>
               <div className="mb-4 grid gap-x-10 md:grid-cols-2">
                 <div>
-                  <ColdProField label="Insolação">
+                  <ColdProField label="Face com sol">
                     <ColdProSelect value={currentSolarFace ?? ""} onChange={(e) => setSolarFace(e.target.value)}>
                       {SOLAR_FACE_OPTIONS.filter((option) => option.value === "" || constructionFaces.some((face) => face.local === option.value)).map((option) => <option key={option.value || "none"} value={option.value}>{option.label}</option>)}
                     </ColdProSelect>
@@ -634,7 +721,7 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
               </div>
 
               <div className="overflow-x-auto rounded-xl border">
-                <table className="w-full min-w-[1240px] text-sm">
+                <table className="w-full min-w-[1680px] text-sm">
                   <thead className="bg-muted/50 text-sm text-muted-foreground">
                     <tr>
                       <th className="px-3 py-3 text-left font-medium">Local</th>
@@ -642,44 +729,48 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
                       <th className="px-3 py-3 text-left font-medium">Altura m</th>
                       <th className="px-3 py-3 text-left font-medium">Área total m²</th>
                       <th className="px-3 py-3 text-left font-medium">Temp. ext °C</th>
-                      <th className="px-3 py-3 text-left font-medium">Sol</th>
                       <th className="px-3 py-3 text-left font-medium">Material aplicado</th>
                       <th className="px-3 py-3 text-left font-medium">U painel</th>
                       <th className="px-3 py-3 text-left font-medium">Vidro</th>
                       <th className="px-3 py-3 text-left font-medium">Área vidro m²</th>
                       <th className="px-3 py-3 text-left font-medium">Tipo de vidro</th>
-                      <th className="px-3 py-3 text-left font-medium">Área isolada m²</th>
-                      <th className="px-3 py-3 text-left font-medium">Carga kcal/h</th>
+                      <th className="px-3 py-3 text-left font-medium">Incidência solar</th>
+                      <th className="px-3 py-3 text-left font-medium">Área opaca m²</th>
+                      <th className="px-3 py-3 text-left font-medium">ΔT °C</th>
+                      <th className="px-3 py-3 text-left font-medium">Painel W</th>
+                      <th className="px-3 py-3 text-left font-medium">Vidro W</th>
+                      <th className="px-3 py-3 text-left font-medium">Solar vidro W</th>
+                      <th className="px-3 py-3 text-left font-medium">Total W</th>
+                      <th className="px-3 py-3 text-left font-medium">kW</th>
+                      <th className="px-3 py-3 text-left font-medium">kcal/h</th>
+                      <th className="px-3 py-3 text-left font-medium">TR</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {constructionFaces.map((face, index) => {
-                      const isWall = face.local.startsWith("PAREDE");
-                      const hasGlass = Boolean(face.has_glass);
-                      const preparedFace = {
-                        ...prepareFaceForCalculation(face, Boolean(form?.has_floor_insulation)),
-                        solar_orientation: face.local === currentSolarFace ? "Sol direto" : "",
-                      };
-                      const faceLoad = calculateFaceTransmission({ ...preparedFace, external_temp_c: displayedExternalTemp(preparedFace), glass_area_m2: hasGlass ? preparedFace.glass_area_m2 : 0 }, faceCalculationEnv as any);
-                      const solarRise = toNumber((faceLoad as any).solar_equivalent_temp_rise_c);
-                      return (
+                    {transmissionPreviewRows.map(({ face, index, isWall, hasGlass, preparedFace, load }) => (
                         <tr key={face.local} className="border-t align-middle">
                           <td className="px-3 py-3 font-medium text-foreground">{face.local}</td>
                           <td className="px-3 py-3"><ColdProInput type="number" disabled={!isWall} value={isWall ? face.wall_length_m ?? "" : ""} onChange={(e) => setFace(index, "wall_length_m", numberOrNull(e.target.value) ?? 0)} /></td>
                           <td className="px-3 py-3"><ColdProInput type="number" disabled={!isWall} value={isWall ? face.wall_height_m ?? "" : ""} onChange={(e) => setFace(index, "wall_height_m", numberOrNull(e.target.value) ?? 0)} /></td>
                           <td className="px-3 py-3"><ColdProInput type="number" readOnlyValue={face.local === "TETO" || face.local === "PISO"} value={face.panel_area_m2 ?? ""} onChange={(e) => setFace(index, "panel_area_m2", numberOrNull(e.target.value) ?? 0)} /></td>
                           <td className="px-3 py-3"><ColdProInput type="number" value={displayedExternalTemp(preparedFace) ?? ""} onChange={(e) => setFace(index, "external_temp_c", numberOrNull(e.target.value))} /></td>
-                          <td className="px-3 py-3 text-sm font-medium text-muted-foreground">{solarRise > 0 ? `Sol direto +${fmtColdPro(solarRise)}°C` : "—"}</td>
                           <td className="max-w-48 px-3 py-3 text-sm text-muted-foreground">{preparedFace.material_thickness || "—"}</td>
                           <td className="px-3 py-3 tabular-nums">{fmtColdPro(preparedFace.u_value_w_m2k, 3)}</td>
-                          <td className="px-3 py-3"><Checkbox checked={hasGlass} onCheckedChange={(checked) => setFace(index, "has_glass", Boolean(checked))} /></td>
+                          <td className="px-3 py-3"><Checkbox checked={hasGlass} onCheckedChange={(checked) => setGlassEnabled(index, Boolean(checked))} /></td>
                           <td className="px-3 py-3"><ColdProInput type="number" disabled={!hasGlass} value={hasGlass ? face.glass_area_m2 ?? "" : ""} onChange={(e) => setFace(index, "glass_area_m2", numberOrNull(e.target.value) ?? 0)} /></td>
-                          <td className="px-3 py-3"><ColdProSelect disabled={!hasGlass} value={face.glass_type ?? "simple"} onChange={(e) => setFace(index, "glass_type", e.target.value)}>{GLASS_TYPE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</ColdProSelect></td>
-                          <td className="px-3 py-3 tabular-nums">{fmtColdPro(faceLoad.insulated_area_m2)}</td>
-                          <td className="px-3 py-3 tabular-nums font-medium">{fmtColdPro(faceLoad.transmission_kcal_h)}</td>
+                          <td className="px-3 py-3"><ColdProSelect disabled={!hasGlass} value={hasGlass ? face.glass_type ?? "simple" : "none"} onChange={(e) => setFace(index, "glass_type", e.target.value)}>{GLASS_TYPE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label} · U {fmtColdPro(option.u, 1)}</option>)}</ColdProSelect></td>
+                          <td className="px-3 py-3"><ColdProSelect disabled={!hasGlass} value={toNumber(face.solar_radiation_w_m2)} onChange={(e) => setFace(index, "solar_radiation_w_m2", numberOrNull(e.target.value) ?? 0)}>{SOLAR_RADIATION_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label} · {option.value} W/m²</option>)}</ColdProSelect></td>
+                          <td className="px-3 py-3 tabular-nums">{fmtColdPro(load.insulated_area_m2)}</td>
+                          <td className="px-3 py-3 tabular-nums">{fmtColdPro(load.delta_t_c)}</td>
+                          <td className="px-3 py-3 tabular-nums">{fmtColdPro((load as any).panel_transmission_w)}</td>
+                          <td className="px-3 py-3 tabular-nums">{fmtColdPro((load as any).glass_transmission_w)}</td>
+                          <td className="px-3 py-3 tabular-nums">{fmtColdPro((load as any).glass_solar_w)}</td>
+                          <td className="px-3 py-3 tabular-nums font-medium">{fmtColdPro((load as any).transmission_w)}</td>
+                          <td className="px-3 py-3 tabular-nums">{fmtColdPro((load as any).transmission_kw, 2)}</td>
+                          <td className="px-3 py-3 tabular-nums font-medium">{fmtColdPro(load.transmission_kcal_h)}</td>
+                          <td className="px-3 py-3 tabular-nums">{fmtColdPro((load as any).transmission_tr, 3)}</td>
                         </tr>
-                      );
-                    })}
+                    ))}
                   </tbody>
                 </table>
               </div>

@@ -61,6 +61,7 @@ export function ColdProResultCard({ result }: { result: any }) {
   const productTotal = n(result.product_kcal_h) + n(result.packaging_kcal_h) + n(result.calculation_breakdown?.respiration_kcal_h) + n(result.tunnel_internal_load_kcal_h);
   const extraTotal = n(result.infiltration_kcal_h) + n(result.people_kcal_h) + n(result.lighting_kcal_h) + n(result.motors_kcal_h) + n(result.fans_kcal_h) + n(result.defrost_kcal_h) + n(result.other_kcal_h);
   const transmissionFaces = Array.isArray(result.calculation_breakdown?.transmission_faces) ? result.calculation_breakdown.transmission_faces : [];
+  const transmissionSummary = result.calculation_breakdown?.transmission_summary ?? {};
   const bars = [
     { label: "Ambiente", value: result.transmission_kcal_h },
     { label: "Produtos", value: productTotal },
@@ -105,9 +106,14 @@ export function ColdProResultCard({ result }: { result: any }) {
 
       {transmissionFaces.length ? (
         <div className="mt-5 rounded-xl border p-4">
-          <h4 className="mb-3 text-sm font-semibold">Transmissão por face</h4>
+          <div className="mb-3 flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+            <h4 className="text-sm font-semibold">Transmissão por face</h4>
+            <div className="text-xs text-muted-foreground">
+              Total: <b className="text-foreground">{fmtColdPro(transmissionSummary.total_w)} W</b> · <b className="text-foreground">{fmtColdPro(transmissionSummary.total_kw, 2)} kW</b> · <b className="text-foreground">{fmtColdPro(transmissionSummary.total_kcal_h)} kcal/h</b> · <b className="text-foreground">{fmtColdPro(transmissionSummary.total_tr, 2)} TR</b>
+            </div>
+          </div>
           <div className="overflow-x-auto">
-              <table className="w-full min-w-[900px] text-sm">
+              <table className="w-full min-w-[1180px] text-sm">
               <thead className="text-xs text-muted-foreground">
                 <tr className="border-b">
                   <th className="py-2 text-left font-medium">Face</th>
@@ -115,9 +121,13 @@ export function ColdProResultCard({ result }: { result: any }) {
                     <th className="py-2 text-right font-medium">Vidro m²</th>
                     <th className="py-2 text-right font-medium">U painel</th>
                   <th className="py-2 text-right font-medium">ΔT °C</th>
-                    <th className="py-2 text-right font-medium">Painel kcal/h</th>
-                    <th className="py-2 text-right font-medium">Vidro kcal/h</th>
-                  <th className="py-2 text-right font-medium">Carga kcal/h</th>
+                    <th className="py-2 text-right font-medium">Painel W</th>
+                    <th className="py-2 text-right font-medium">Vidro W</th>
+                    <th className="py-2 text-right font-medium">Solar W</th>
+                    <th className="py-2 text-right font-medium">Total W</th>
+                    <th className="py-2 text-right font-medium">kW</th>
+                  <th className="py-2 text-right font-medium">kcal/h</th>
+                  <th className="py-2 text-right font-medium">TR</th>
                 </tr>
               </thead>
               <tbody>
@@ -128,9 +138,13 @@ export function ColdProResultCard({ result }: { result: any }) {
                     <td className="py-2 text-right tabular-nums">{fmtColdPro(face.glass_area_m2)}</td>
                     <td className="py-2 text-right tabular-nums">{fmtColdPro(face.u_value_w_m2k, 3)}</td>
                     <td className="py-2 text-right tabular-nums">{fmtColdPro(face.delta_t_c)}</td>
-                    <td className="py-2 text-right tabular-nums">{fmtColdPro(face.panel_transmission_kcal_h ?? face.transmission_kcal_h)}</td>
-                    <td className="py-2 text-right tabular-nums">{fmtColdPro(face.glass_transmission_kcal_h)}</td>
+                    <td className="py-2 text-right tabular-nums">{fmtColdPro(face.panel_transmission_w)}</td>
+                    <td className="py-2 text-right tabular-nums">{fmtColdPro(face.glass_transmission_w)}</td>
+                    <td className="py-2 text-right tabular-nums">{fmtColdPro(face.glass_solar_w)}</td>
+                    <td className="py-2 text-right font-semibold tabular-nums">{fmtColdPro(face.transmission_w)}</td>
+                    <td className="py-2 text-right tabular-nums">{fmtColdPro(face.transmission_kw, 2)}</td>
                     <td className="py-2 text-right font-semibold tabular-nums">{fmtColdPro(face.transmission_kcal_h)}</td>
+                    <td className="py-2 text-right tabular-nums">{fmtColdPro(face.transmission_tr, 3)}</td>
                   </tr>
                 ))}
               </tbody>

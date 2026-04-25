@@ -36,6 +36,8 @@ const constructionFaceSchema = z.object({
   color: z.string().trim().max(60).nullable().optional(),
   glass_area_m2: nonNegativeNumber.nullable().optional(),
   glass_type: z.string().trim().max(80).nullable().optional(),
+  solar_radiation_w_m2: nonNegativeNumber.nullable().optional(),
+  floor_condition: z.string().trim().max(80).nullable().optional(),
   door_area_m2: nonNegativeNumber.nullable().optional(),
 });
 
