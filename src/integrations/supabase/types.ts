@@ -2554,9 +2554,12 @@ export type Database = {
       }
       coldpro_tunnels: {
         Row: {
+          air_delta_t_k: number
           air_exposure_factor: number | null
           air_temp_c: number
+          air_temp_step_c: number
           air_velocity_m_s: number
+          air_velocity_step_m_s: number
           airflow_m3_h: number
           arrangement_type: string
           ash_content_percent: number | null
@@ -2585,9 +2588,17 @@ export type Database = {
           latent_heat_kj_kg: number | null
           layers_count: number
           mass_kg_hour: number
+          max_air_temp_c: number
+          max_air_velocity_m_s: number
+          min_air_temp_c: number
+          min_air_velocity_m_s: number
           notes: string | null
           number_of_pallets: number
           operation_mode: string
+          optimization_attempts_count: number | null
+          optimization_margin_percent: number | null
+          optimization_memory: Json
+          optimization_status: string | null
           other_internal_kw: number
           outlet_temp_c: number
           package_type: string | null
@@ -2607,6 +2618,8 @@ export type Database = {
           product_unit_weight_kg: number
           product_width_m: number
           protein_content_percent: number | null
+          recommended_air_temp_c: number | null
+          recommended_air_velocity_m_s: number | null
           recommended_airflow_m3_h: number | null
           respiration_rate_0c_mw_kg: number | null
           respiration_rate_10c_mw_kg: number | null
@@ -2630,9 +2643,12 @@ export type Database = {
           water_content_percent: number | null
         }
         Insert: {
+          air_delta_t_k?: number
           air_exposure_factor?: number | null
           air_temp_c?: number
+          air_temp_step_c?: number
           air_velocity_m_s?: number
+          air_velocity_step_m_s?: number
           airflow_m3_h?: number
           arrangement_type?: string
           ash_content_percent?: number | null
@@ -2661,9 +2677,17 @@ export type Database = {
           latent_heat_kj_kg?: number | null
           layers_count?: number
           mass_kg_hour?: number
+          max_air_temp_c?: number
+          max_air_velocity_m_s?: number
+          min_air_temp_c?: number
+          min_air_velocity_m_s?: number
           notes?: string | null
           number_of_pallets?: number
           operation_mode?: string
+          optimization_attempts_count?: number | null
+          optimization_margin_percent?: number | null
+          optimization_memory?: Json
+          optimization_status?: string | null
           other_internal_kw?: number
           outlet_temp_c?: number
           package_type?: string | null
@@ -2683,6 +2707,8 @@ export type Database = {
           product_unit_weight_kg?: number
           product_width_m?: number
           protein_content_percent?: number | null
+          recommended_air_temp_c?: number | null
+          recommended_air_velocity_m_s?: number | null
           recommended_airflow_m3_h?: number | null
           respiration_rate_0c_mw_kg?: number | null
           respiration_rate_10c_mw_kg?: number | null
@@ -2706,9 +2732,12 @@ export type Database = {
           water_content_percent?: number | null
         }
         Update: {
+          air_delta_t_k?: number
           air_exposure_factor?: number | null
           air_temp_c?: number
+          air_temp_step_c?: number
           air_velocity_m_s?: number
+          air_velocity_step_m_s?: number
           airflow_m3_h?: number
           arrangement_type?: string
           ash_content_percent?: number | null
@@ -2737,9 +2766,17 @@ export type Database = {
           latent_heat_kj_kg?: number | null
           layers_count?: number
           mass_kg_hour?: number
+          max_air_temp_c?: number
+          max_air_velocity_m_s?: number
+          min_air_temp_c?: number
+          min_air_velocity_m_s?: number
           notes?: string | null
           number_of_pallets?: number
           operation_mode?: string
+          optimization_attempts_count?: number | null
+          optimization_margin_percent?: number | null
+          optimization_memory?: Json
+          optimization_status?: string | null
           other_internal_kw?: number
           outlet_temp_c?: number
           package_type?: string | null
@@ -2759,6 +2796,8 @@ export type Database = {
           product_unit_weight_kg?: number
           product_width_m?: number
           protein_content_percent?: number | null
+          recommended_air_temp_c?: number | null
+          recommended_air_velocity_m_s?: number | null
           recommended_airflow_m3_h?: number | null
           respiration_rate_0c_mw_kg?: number | null
           respiration_rate_10c_mw_kg?: number | null

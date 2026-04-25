@@ -59,10 +59,11 @@ export function calculateConvectionCoefficient(airVelocityMS?: number | null, fa
   return round2(10 + 10 * Math.pow(velocity, 0.8));
 }
 
-export function calculateRecommendedAirFlowM3H(powerKw: number, deltaTAirK = 6): number {
+export function calculateRecommendedAirFlowM3H(powerKw: number, deltaTAirK = 6, airDensityKgM3 = AIR_DENSITY_KG_M3): number {
   const delta = deltaTAirK > 0 ? deltaTAirK : 6;
   const airCpKjKgK = AIR_SPECIFIC_HEAT_KCAL_KG_C * KCAL_TO_KJ;
-  const m3s = n(powerKw) / (AIR_DENSITY_KG_M3 * airCpKjKgK * delta);
+  const density = airDensityKgM3 > 0 ? airDensityKgM3 : AIR_DENSITY_KG_M3;
+  const m3s = n(powerKw) / (density * airCpKjKgK * delta);
   return round2(m3s * 3600);
 }
 
@@ -92,6 +93,134 @@ export function estimateFreezingTimePlankMin(params: {
   const latentJkg = latent * frozenFraction * 1000;
   const seconds = (density * latentJkg / deltaT) * (distanceToCore / h + (distanceToCore * distanceToCore) / (2 * conductivity));
   return round2(seconds / 60);
+}
+
+function rangeDown(start: number, min: number, step: number) {
+  const values: number[] = [];
+  const safeStep = Math.max(0.1, Math.abs(step || 5));
+  for (let value = start; value >= min - 0.0001; value -= safeStep) values.push(round2(value));
+  if (!values.includes(round2(min))) values.push(round2(min));
+  return Array.from(new Set(values));
+}
+
+function rangeUp(start: number, max: number, step: number) {
+  const values: number[] = [];
+  const safeStep = Math.max(0.1, Math.abs(step || 1));
+  for (let value = start; value <= max + 0.0001; value += safeStep) values.push(round2(value));
+  if (!values.includes(round2(max))) values.push(round2(max));
+  return Array.from(new Set(values));
+}
+
+export function optimizeProcessAirCondition(params: {
+  processType: string;
+  arrangementType: string;
+  operationMode: "continuous" | "batch";
+  qSpecificKjKg: number;
+  massKgHour: number;
+  batchMassKg: number;
+  batchTimeH: number;
+  desiredTimeMin: number;
+  initialAirTempC: number;
+  initialAirVelocityMS: number;
+  minAirTempC: number;
+  maxAirTempC: number;
+  minAirVelocityMS: number;
+  maxAirVelocityMS: number;
+  airTempStepC: number;
+  airVelocityStepMS: number;
+  airDeltaTK: number;
+  airDensityKgM3?: number | null;
+  airExposureFactor: number;
+  thermalPenetrationFactor: number;
+  distanceToCoreM: number;
+  densityKgM3?: number | null;
+  thermalConductivityFrozenWMK?: number | null;
+  freezingTempC?: number | null;
+  latentHeatKcalKg?: number | null;
+  frozenWaterFraction: number;
+}) {
+  const warnings: string[] = [];
+  const required = [params.desiredTimeMin, params.distanceToCoreM, n(params.densityKgM3), n(params.thermalConductivityFrozenWMK), n(params.latentHeatKcalKg), n(params.freezingTempC, NaN), params.qSpecificKjKg];
+  if (required.some((value) => !Number.isFinite(value) || value <= 0)) {
+    return { status: "revisar aplicação", recommendation: null, attempts: [], attempts_count: 0, warnings: ["Não foi possível recomendar condição de ar: faltam dados de produto, geometria, tempo desejado, condutividade, densidade, calor latente ou temperatura de congelamento."], memory: { formula: "Recomendação bloqueada por falta de dados; preset não foi usado como resultado." } };
+  }
+
+  const minTemp = Math.min(params.minAirTempC, params.maxAirTempC);
+  const maxTemp = Math.max(params.minAirTempC, params.maxAirTempC);
+  const minVelocity = Math.min(params.minAirVelocityMS, params.maxAirVelocityMS);
+  const maxVelocity = Math.max(params.minAirVelocityMS, params.maxAirVelocityMS);
+  const initialTemp = Math.max(minTemp, Math.min(maxTemp, params.initialAirTempC));
+  const initialVelocity = Math.max(minVelocity, Math.min(maxVelocity, params.initialAirVelocityMS));
+  const coldestTemps = rangeDown(initialTemp, minTemp, params.airTempStepC);
+  const velocities = rangeUp(initialVelocity, maxVelocity, params.airVelocityStepMS);
+  const powerKw = params.operationMode === "batch"
+    ? (params.batchMassKg * params.qSpecificKjKg) / (Math.max(0.1, params.batchTimeH) * 3600)
+    : (params.massKgHour * params.qSpecificKjKg) / 3600;
+  const effectiveConductivity = n(params.thermalConductivityFrozenWMK) * Math.max(0.01, params.thermalPenetrationFactor);
+  const airFlowM3H = calculateRecommendedAirFlowM3H(powerKw, params.airDeltaTK, n(params.airDensityKgM3, AIR_DENSITY_KG_M3));
+
+  const evaluate = (airTempC: number, airVelocityMS: number, phase: string) => {
+    const hBase = calculateConvectionCoefficient(airVelocityMS) ?? 0;
+    const hEffective = hBase * Math.max(0.01, params.airExposureFactor);
+    const estimatedTimeMin = estimateFreezingTimePlankMin({
+      distanceToCoreM: params.distanceToCoreM,
+      densityKgM3: params.densityKgM3,
+      effectiveConductivityWMK: effectiveConductivity,
+      freezingTempC: params.freezingTempC,
+      latentHeatKcalKg: params.latentHeatKcalKg,
+      airTempC,
+      convectiveCoefficientWM2K: hEffective,
+    });
+    const marginPercent = estimatedTimeMin && estimatedTimeMin > 0 ? ((params.desiredTimeMin - estimatedTimeMin) / params.desiredTimeMin) * 100 : null;
+    return {
+      phase,
+      air_temp_c: round2(airTempC),
+      air_velocity_m_s: round2(airVelocityMS),
+      estimated_time_min: estimatedTimeMin,
+      desired_time_min: round2(params.desiredTimeMin),
+      margin_percent: marginPercent === null ? null : round2(marginPercent),
+      q_specific_kj_kg: round2(params.qSpecificKjKg),
+      power_kw: round2(powerKw),
+      airflow_m3_h: airFlowM3H,
+      h_base_w_m2_k: round2(hBase),
+      h_effective_w_m2_k: round2(hEffective),
+      k_effective_w_m_k: round2(effectiveConductivity),
+      air_exposure_factor: round2(params.airExposureFactor),
+      thermal_penetration_factor: round2(params.thermalPenetrationFactor),
+      meets: estimatedTimeMin !== null && estimatedTimeMin <= params.desiredTimeMin,
+    };
+  };
+
+  const attempts: ReturnType<typeof evaluate>[] = [];
+  for (const temp of coldestTemps) attempts.push(evaluate(temp, initialVelocity, temp === initialTemp ? "condição inicial" : "redução de temperatura"));
+  if (!attempts.some((attempt) => attempt.meets)) {
+    for (const velocity of velocities.filter((value) => value > initialVelocity)) attempts.push(evaluate(minTemp, velocity, "aumento de velocidade"));
+  }
+  if (!attempts.some((attempt) => attempt.meets)) {
+    for (const velocity of velocities.filter((value) => value > initialVelocity)) {
+      for (const temp of coldestTemps.filter((value) => value > minTemp)) attempts.push(evaluate(temp, velocity, "combinação complementar"));
+    }
+  }
+
+  const recommendation = attempts.find((attempt) => attempt.meets) ?? null;
+  if (!recommendation) warnings.push("Nenhuma combinação dentro dos limites técnicos atingiu o tempo desejado; revisar arranjo, embalagem, dimensão térmica, temperatura limite ou tempo de processo.");
+  if (params.arrangementType === "boxed_product" || params.arrangementType === "pallet_block" || params.arrangementType === "bulk_static") warnings.push("Arranjo com baixa exposição ao ar: a recomendação depende da passagem real de ar pela embalagem e do empilhamento físico.");
+
+  return {
+    status: recommendation ? "adequado" : "inviável",
+    recommendation,
+    attempts: attempts.slice(0, 40),
+    attempts_count: attempts.length,
+    warnings,
+    memory: {
+      formula_energy: "q = Cp_acima × (Ti - Tcong) + L × fração_congelável + Cp_abaixo × (Tcong - Tf)",
+      formula_power: params.operationMode === "batch" ? "P_kW = massa_lote × q_kJ_kg / (tempo_h × 3600)" : "P_kW = kg_h × q_kJ_kg / 3600",
+      formula_airflow: "Vazao_m3_s = P_kW / (ρ_ar × Cp_ar × ΔT_ar)",
+      formula_h: "h_base = 10 + 10 × velocidade_ar^0.8; h_efetivo = h_base × fator_exposicao_ar",
+      formula_time: "t = (ρ_produto × L_eff / (Tcong - Tar)) × [(a / h_efetivo) + (a² / (2 × k_efetivo))]",
+      strategy: "A condição inicial foi testada primeiro; depois a temperatura do ar foi reduzida até o limite; se necessário, a velocidade foi elevada até encontrar a menor condição que atende.",
+    },
+  };
 }
 
 function n(value: unknown, fallback = 0): number {
@@ -476,13 +605,41 @@ export function calculateTunnelLoad(tunnel: ColdProTunnel) {
 
   const timeDivisor = isStatic && batchTimeH > 0 ? batchTimeH : 1;
   const productHourly = (sensibleAbove + latentLoad + sensibleBelow) / timeDivisor;
+  const qSpecificKjKg = calculationMass > 0 ? ((sensibleAbove + latentLoad + sensibleBelow) / calculationMass) * KCAL_TO_KJ : 0;
   const packaging = n(tunnel.packaging_mass_kg_hour) * n(tunnel.packaging_specific_heat_kcal_kg_c) * Math.abs(tin - tout);
   const internalLoads = kwToKcalh(n(tunnel.belt_motor_kw) + n(tunnel.internal_fans_kw) + n(tunnel.other_internal_kw));
   const total = productHourly + packaging + internalLoads;
   const availableTimeMin = isStatic ? batchTimeH * 60 : n(tunnel.process_time_min);
+  const optimization = optimizeProcessAirCondition({
+    processType,
+    arrangementType,
+    operationMode: isStatic ? "batch" : "continuous",
+    qSpecificKjKg,
+    massKgHour: massHour,
+    batchMassKg: staticMass,
+    batchTimeH,
+    desiredTimeMin: availableTimeMin,
+    initialAirTempC: n(tunnel.air_temp_c),
+    initialAirVelocityMS: n(tunnel.air_velocity_m_s),
+    minAirTempC: n((tunnel as any).min_air_temp_c, -40),
+    maxAirTempC: n((tunnel as any).max_air_temp_c, -25),
+    minAirVelocityMS: n((tunnel as any).min_air_velocity_m_s, 1),
+    maxAirVelocityMS: n((tunnel as any).max_air_velocity_m_s, 6),
+    airTempStepC: n((tunnel as any).air_temp_step_c, 5),
+    airVelocityStepMS: n((tunnel as any).air_velocity_step_m_s, 1),
+    airDeltaTK: n((tunnel as any).air_delta_t_k, 6),
+    airExposureFactor,
+    thermalPenetrationFactor: penetrationFactor,
+    distanceToCoreM,
+    densityKgM3: tunnel.density_kg_m3,
+    thermalConductivityFrozenWMK: tunnel.thermal_conductivity_frozen_w_m_k,
+    freezingTempC: tunnel.freezing_temp_c,
+    latentHeatKcalKg: tunnel.latent_heat_kcal_kg,
+    frozenWaterFraction: frozenFraction,
+  });
   const retentionMargin = estimatedFreezingTimeMin && availableTimeMin > 0 ? availableTimeMin / estimatedFreezingTimeMin : null;
-  const retentionStatus = !retentionMargin ? "Sem dados suficientes" : retentionMargin < 1 ? "Insuficiente" : retentionMargin < 1.1 ? "Adequado com baixa margem" : "Adequado";
-  const warnings = [arrangementDefaults.warning, !estimatedFreezingTimeMin ? "Tempo até núcleo não estimado por falta de densidade, condutividade congelada, calor latente, temperatura de congelamento ou dimensão térmica." : null].filter(Boolean);
+  const retentionStatus = optimization.status === "adequado" ? "Adequado por otimização" : !retentionMargin ? "Sem dados suficientes" : retentionMargin < 1 ? "Insuficiente" : retentionMargin < 1.1 ? "Adequado com baixa margem" : "Adequado";
+  const warnings = [arrangementDefaults.warning, !estimatedFreezingTimeMin ? "Tempo até núcleo não estimado por falta de densidade, condutividade congelada, calor latente, temperatura de congelamento ou dimensão térmica." : null, ...optimization.warnings].filter(Boolean);
 
   return {
     process_type: processType,
@@ -493,6 +650,7 @@ export function calculateTunnelLoad(tunnel: ColdProTunnel) {
     static_mass_kg: round2(staticMass),
     batch_time_h: round2(batchTimeH),
     total_energy_kcal: round2(sensibleAbove + latentLoad + sensibleBelow),
+    q_specific_kj_kg: round2(qSpecificKjKg),
     sensible_above_kcal_h: round2(sensibleAbove / timeDivisor),
     latent_kcal_h: round2(latentLoad / timeDivisor),
     sensible_below_kcal_h: round2(sensibleBelow / timeDivisor),
@@ -529,7 +687,14 @@ export function calculateTunnelLoad(tunnel: ColdProTunnel) {
     retention_status: retentionStatus,
     technical_status: retentionStatus,
     warnings,
-    recommended_airflow_m3_h: calculateRecommendedAirFlowM3H(kcalhToKw(total)),
+    recommended_air_temp_c: optimization.recommendation?.air_temp_c ?? null,
+    recommended_air_velocity_m_s: optimization.recommendation?.air_velocity_m_s ?? null,
+    recommended_airflow_m3_h: optimization.recommendation?.airflow_m3_h ?? calculateRecommendedAirFlowM3H(kcalhToKw(total), n((tunnel as any).air_delta_t_k, 6)),
+    optimization_status: optimization.status,
+    optimization_margin_percent: optimization.recommendation?.margin_percent ?? null,
+    optimization_attempts_count: optimization.attempts_count,
+    optimization_attempts: optimization.attempts,
+    optimization_memory: optimization.memory,
   };
 }
 

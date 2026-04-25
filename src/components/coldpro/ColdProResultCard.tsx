@@ -187,16 +187,24 @@ export function ColdProResultCard({ result }: { result: any }) {
           </div>
           <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm md:grid-cols-4">
             <div>Energia total: <b>{fmtColdPro(tunnel.total_energy_kcal)} kcal</b></div>
+            <div>Energia específica: <b>{fmtColdPro(tunnel.q_specific_kj_kg)} kJ/kg</b></div>
             <div>Potência: <b>{fmtColdPro(tunnel.total_kw)} kW</b></div>
             <div>Tempo disponível: <b>{fmtColdPro(tunnel.process_time_min)} min</b></div>
             <div>Tempo até núcleo: <b>{tunnel.estimated_freezing_time_min ? `${fmtColdPro(tunnel.estimated_freezing_time_min)} min` : "—"}</b></div>
+            <div>Temp. recomendada: <b>{tunnel.recommended_air_temp_c == null ? "—" : `${fmtColdPro(tunnel.recommended_air_temp_c)} °C`}</b></div>
+            <div>Vel. recomendada: <b>{tunnel.recommended_air_velocity_m_s == null ? "—" : `${fmtColdPro(tunnel.recommended_air_velocity_m_s)} m/s`}</b></div>
+            <div>Vazão calculada: <b>{fmtColdPro(tunnel.recommended_airflow_m3_h)} m³/h</b></div>
+            <div>Margem: <b>{tunnel.optimization_margin_percent == null ? "—" : `${fmtColdPro(tunnel.optimization_margin_percent)}%`}</b></div>
             <div>Dimensão térmica: <b>{fmtColdPro(tunnel.thermal_characteristic_dimension_m, 3)} m</b></div>
             <div>Distância ao núcleo: <b>{fmtColdPro(tunnel.distance_to_core_m, 3)} m</b></div>
             <div>Fator exposição: <b>{fmtColdPro(tunnel.air_exposure_factor, 2)}</b></div>
             <div>Fator penetração: <b>{fmtColdPro(tunnel.thermal_penetration_factor, 2)}</b></div>
+            <div>h base: <b>{fmtColdPro(tunnel.optimization_attempts?.find?.((a: any) => a.meets)?.h_base_w_m2_k ?? tunnel.base_convective_coefficient_w_m2_k)} W/m²K</b></div>
             <div>h efetivo: <b>{fmtColdPro(tunnel.convective_coefficient_effective_w_m2_k)} W/m²K</b></div>
-            <div>Status: <b>{tunnel.technical_status}</b></div>
+            <div>Status: <b>{tunnel.optimization_status ?? tunnel.technical_status}</b></div>
+            <div>Tentativas: <b>{fmtColdPro(tunnel.optimization_attempts_count)}</b></div>
           </div>
+          {Array.isArray(tunnel.optimization_attempts) && tunnel.optimization_attempts.length ? <div className="mt-4 overflow-x-auto rounded-lg border"><table className="w-full min-w-[720px] text-xs"><thead className="bg-muted/40 text-muted-foreground"><tr><th className="px-3 py-2 text-left font-medium">Etapa</th><th className="px-3 py-2 text-right font-medium">Tar</th><th className="px-3 py-2 text-right font-medium">Vel.</th><th className="px-3 py-2 text-right font-medium">Tempo</th><th className="px-3 py-2 text-right font-medium">Potência</th><th className="px-3 py-2 text-right font-medium">Vazão</th><th className="px-3 py-2 text-right font-medium">Status</th></tr></thead><tbody>{tunnel.optimization_attempts.slice(0, 10).map((attempt: any, index: number) => <tr key={`${attempt.air_temp_c}-${attempt.air_velocity_m_s}-${index}`} className="border-t"><td className="px-3 py-2">{attempt.phase}</td><td className="px-3 py-2 text-right tabular-nums">{fmtColdPro(attempt.air_temp_c)} °C</td><td className="px-3 py-2 text-right tabular-nums">{fmtColdPro(attempt.air_velocity_m_s)} m/s</td><td className="px-3 py-2 text-right tabular-nums">{attempt.estimated_time_min == null ? "—" : `${fmtColdPro(attempt.estimated_time_min)} min`}</td><td className="px-3 py-2 text-right tabular-nums">{fmtColdPro(attempt.power_kw)} kW</td><td className="px-3 py-2 text-right tabular-nums">{fmtColdPro(attempt.airflow_m3_h)} m³/h</td><td className="px-3 py-2 text-right font-medium">{attempt.meets ? "atende" : "não atende"}</td></tr>)}</tbody></table></div> : null}
           {Array.isArray(tunnel.warnings) && tunnel.warnings.length ? <div className="mt-3 rounded-md bg-muted p-3 text-xs text-muted-foreground">{tunnel.warnings.join(" ")}</div> : null}
         </div>
       ) : null}
