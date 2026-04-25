@@ -189,12 +189,22 @@ function ColdProProjectPage() {
               ← Projetos
             </Link>
             <div className="h-6 w-px bg-sidebar-border" />
-            <div className="min-w-0">
-              <div className="text-[11px] uppercase tracking-widest text-sidebar-foreground/60">
-                CN ColdPro · Cálculo térmico
+              <div className="min-w-0">
+                <div className="text-[11px] uppercase tracking-widest text-sidebar-foreground/60">
+                  CN ColdPro · Cálculo térmico
+                </div>
+                {editingProjectName ? (
+                  <div className="mt-1 flex max-w-xl gap-2">
+                    <input value={projectNameDraft} onChange={(event) => setProjectNameDraft(event.target.value)} className="h-8 min-w-0 flex-1 rounded-md border border-sidebar-border bg-background px-2 text-sm text-foreground" />
+                    <button type="button" onClick={handleSaveProjectName} disabled={updateProject.isPending} className="rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground disabled:opacity-50">Salvar</button>
+                    <button type="button" onClick={() => { setEditingProjectName(false); setProjectNameDraft(data?.project?.name ?? ""); }} className="rounded-md px-2 text-xs text-sidebar-foreground/70 hover:bg-sidebar-accent">Cancelar</button>
+                  </div>
+                ) : (
+                  <button type="button" onClick={() => setEditingProjectName(true)} className="group mt-0.5 flex max-w-xl items-center gap-2 text-left text-sm font-semibold">
+                    <span className="truncate">{data?.project?.name ?? "Novo projeto"}</span><Pencil className="h-3.5 w-3.5 opacity-60 group-hover:opacity-100" />
+                  </button>
+                )}
               </div>
-              <div className="truncate text-sm font-semibold">{data?.project?.name ?? "Novo projeto"}</div>
-            </div>
           </div>
           <div className="text-[11px] text-sidebar-foreground/70">
             Etapa {stepIndex + 1} / {COLDPRO_STEPS.length} — {COLDPRO_STEPS[stepIndex].title}
