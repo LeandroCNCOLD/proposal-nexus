@@ -17,6 +17,7 @@ import {
   kwToKcalh,
   round2,
 } from "./coldpro.constants";
+import { calculateAdvancedProcess } from "@/modules/coldpro/services/advancedProcesses/advancedProcessEngine";
 
 const W_TO_KCAL_H = 0.859845;
 const R_INTERNAL_M2K_W = 0.12;
@@ -775,6 +776,7 @@ export function calculateColdProLoad(params: {
   products: ColdProEnvironmentProduct[];
   insulation: ColdProInsulationMaterial;
   tunnel?: ColdProTunnel | null;
+  advancedProcesses?: any[];
 }): ColdProResult {
   const transmission = calculateTransmissionLoad(params);
   const transmissionBreakdown = calculateConstructionTransmission(params.env);
@@ -786,6 +788,8 @@ export function calculateColdProLoad(params: {
   const tunnelInternalLoad = tunnelResult?.total_kcal_h ?? 0;
   const dehumidification = calculateSeedDehumidificationLoad(params.env);
   const dehumidificationLoad = dehumidification.total_kcal_h;
+  const advancedProcesses = (params.advancedProcesses ?? []).map(calculateAdvancedProcess);
+  const advancedProcessLoad = advancedProcesses.reduce((sum, item) => sum + n(item.total_additional_kcal_h), 0);
   const infiltration = calculateInfiltrationLoad(params.env);
   const people = calculatePeopleLoad(params.env);
   const lighting = calculateLightingLoad(params.env);
@@ -794,7 +798,7 @@ export function calculateColdProLoad(params: {
   const defrost = n(params.env.defrost_kcal_h);
   const other = n(params.env.other_kcal_h);
 
-  const subtotal = transmission + product + packaging + respiration + tunnelInternalLoad + dehumidificationLoad + infiltration + people + lighting + motors + fans + defrost + other;
+  const subtotal = transmission + product + packaging + respiration + tunnelInternalLoad + dehumidificationLoad + advancedProcessLoad + infiltration + people + lighting + motors + fans + defrost + other;
   const safetyFactor = n(params.env.safety_factor_percent);
   const safety = subtotal * (safetyFactor / 100);
   const total = subtotal + safety;
@@ -829,6 +833,8 @@ export function calculateColdProLoad(params: {
       transmission_faces: transmissionBreakdown.faces,
       tunnel: tunnelResult,
       seed_dehumidification: dehumidification,
+      advanced_processes: advancedProcesses,
+      advanced_processes_kcal_h: round2(advancedProcessLoad),
       products: productBreakdown,
       respiration_kcal_h: round2(respiration),
       formulas: {
