@@ -80,6 +80,29 @@ function getGeometry(value: unknown): Geometry {
 }
 
 function getFloorArea(layout: ChamberLayout, length: number, width: number, geometry: Geometry, constructionFaces?: any[]) {
+  const wallLengths = (constructionFaces ?? []).filter((face: any) => String(face?.local ?? "").startsWith("PAREDE")).map((face: any) => toNumber(face.wall_length_m));
+  const polygonDirections: Record<ChamberLayout, Array<[number, number]>> = {
+    rectangular: [[1, 0], [0, 1], [-1, 0], [0, -1]],
+    l_shape: [[1, 0], [0, 1], [-1, 0], [0, 1], [-1, 0], [0, -1]],
+    irregular_l: [[1, 0], [0, 1], [-1, 0], [0, 1], [-1, 0], [0, 1], [-1, 0], [0, -1]],
+    custom_polygon: [],
+  };
+  const directions = polygonDirections[layout];
+  if (directions.length && wallLengths.length === directions.length && wallLengths.every((item) => item > 0)) {
+    let x = 0;
+    let y = 0;
+    const points = [[x, y]];
+    directions.forEach(([dx, dy], index) => {
+      x += dx * wallLengths[index];
+      y += dy * wallLengths[index];
+      points.push([x, y]);
+    });
+    const area = Math.abs(points.reduce((sum, point, index) => {
+      const next = points[(index + 1) % points.length];
+      return sum + point[0] * next[1] - next[0] * point[1];
+    }, 0)) / 2;
+    if (area > 0) return area;
+  }
   if (layout === "irregular_l") {
     const cutoutLength = Math.min(length, Math.max(0, toNumber(geometry.cutout_length_m)));
     const cutoutWidth = Math.min(width, Math.max(0, toNumber(geometry.cutout_width_m)));
@@ -325,7 +348,12 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
       updated.panel_area_m2 = toNumber(updated.wall_length_m) * toNumber(updated.wall_height_m);
     }
     next[index] = updated;
-    set("construction_faces", [...next, geometry]);
+    setForm((prev: any) => ({
+      ...prev,
+      ...(updated.local === "PAREDE 1" && key === "wall_length_m" ? { length_m: numberOrNull(value), dimension_a_m: numberOrNull(value) } : {}),
+      ...(updated.local === "PAREDE 2" && key === "wall_length_m" ? { width_m: numberOrNull(value), dimension_b_m: numberOrNull(value) } : {}),
+      construction_faces: [...next, geometry],
+    }));
   };
 
   const setFaceLayers = (index: number, layers: any[], uValue: number) => {
