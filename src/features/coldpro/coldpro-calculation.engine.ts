@@ -920,7 +920,7 @@ export function calculateColdProLoad(params: {
   const other = n(params.env.other_kcal_h);
 
   const validationAlerts = buildColdProValidationAlerts(params.env, productBreakdown, infiltrationBreakdown, defrost, fanLoad);
-  const subtotal = transmission + product + packaging + respiration + tunnelInternalLoad + dehumidificationLoad + advancedProcessLoad + infiltration + evaporatorFrost.additional_load_kcal_h + people + lighting + motors + fans + defrost + other;
+  const subtotal = consolidateColdProSubtotal({ transmission, product, packaging, respiration, tunnel_internal_load: tunnelInternalLoad, seed_dehumidification: dehumidificationLoad, advanced_processes: advancedProcessLoad, infiltration, evaporator_frost: evaporatorFrost.additional_load_kcal_h, people, lighting, motors, fans, defrost, other });
   const safetyFactor = n(params.env.safety_factor_percent);
   const safety = subtotal * (safetyFactor / 100);
   const total = subtotal + safety;
@@ -970,6 +970,8 @@ export function calculateColdProLoad(params: {
       evaporator_frost: evaporatorFrost,
       products: productBreakdown,
       validation_alerts: validationAlerts,
+      mathematical_audit: null,
+      thermalCalculationResult: null,
       final_sum_formula: "Carga total = transmissão + produto + embalagem + respiração + infiltração sensível/latente + gelo/degelo + motores + iluminação + pessoas + ventiladores + outros + segurança",
       respiration_kcal_h: round2(respiration),
       formulas: {
@@ -984,4 +986,8 @@ export function calculateColdProLoad(params: {
       },
     },
   };
+  const thermalCalculationResult = buildThermalCalculationResult(calculatedResult, params.selection);
+  calculatedResult.calculation_breakdown.mathematical_audit = thermalCalculationResult;
+  calculatedResult.calculation_breakdown.thermalCalculationResult = thermalCalculationResult;
+  return calculatedResult;
 }
