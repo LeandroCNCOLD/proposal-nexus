@@ -59,7 +59,39 @@ function buildAiPrompt({ project, environments, results, selections, products, q
     if (s) lines.push(`Equipamento ofertado: ${s.quantity} x ${s.model}, capacidade total ${fmt(s.capacity_total_kcal_h, 0)} kcal/h, sobra ${fmt(s.surplus_percent)}%, COP ${s.cop ? fmt(s.cop, 2) : "não informado"}.`);
     for (const p of envProducts) lines.push(`Produto ${p.product_name}: massa ${fmt(p.mass_kg_day, 0)} kg/dia, entrada ${fmt(p.inlet_temp_c)} °C, final ${fmt(p.outlet_temp_c)} °C, congelamento ${p.initial_freezing_temp_c ?? "não informado"} °C, Cp acima ${fmt(p.specific_heat_above_kcal_kg_c, 3)}, Cp abaixo ${fmt(p.specific_heat_below_kcal_kg_c, 3)}, latente ${fmt(p.latent_heat_kcal_kg, 2)} kcal/kg, água ${p.water_content_percent ?? "não informado"}%, fração congelada ${p.frozen_water_fraction ?? p.freezable_water_content_percent ?? "não informada"}.`);
   }
-  return lines.join("\n").slice(0, 12000);
+  return lines.join("\n").slice(0, 6000);
+}
+
+function buildTechnicalFallbackAnalysis({ project, environments, results, selections, products, question }: any): string {
+  const totalKcal = (results ?? []).reduce((sum: number, item: any) => sum + Number(item?.total_required_kcal_h ?? 0), 0);
+  const totalKw = (results ?? []).reduce((sum: number, item: any) => sum + Number(item?.total_required_kw ?? 0), 0);
+  const lines = [
+    `## Conclusão executiva`,
+    `O memorial do projeto ${project?.name ?? "ColdPro"} apresenta carga térmica consolidada de ${fmt(totalKcal, 0)} kcal/h (${fmt(totalKw, 1)} kW), considerando transmissão, produto, infiltração, cargas internas, degelo e fator de segurança configurado.`,
+    question ? `Solicitação analisada: ${question}` : `Análise gerada automaticamente com base nas premissas e resultados calculados no memorial.`,
+    `## Validação das premissas`,
+  ];
+  for (const env of environments ?? []) {
+    const r = (results ?? []).find((item: any) => item.environment_id === env.id);
+    const s = (selections ?? []).find((item: any) => item.environment_id === env.id);
+    const envProducts = (products ?? []).filter((item: any) => item.environment_id === env.id);
+    const required = Number(r?.total_required_kcal_h ?? 0);
+    const offered = Number(s?.capacity_total_kcal_h ?? 0);
+    const margin = required > 0 && offered > 0 ? ((offered - required) / required) * 100 : null;
+    lines.push(
+      `### ${env.name}`,
+      `Dimensões: ${fmt(env.length_m)} x ${fmt(env.width_m)} x ${fmt(env.height_m)} m; volume ${fmt(env.volume_m3)} m³; regime ${fmt(env.internal_temp_c)} °C interno e ${fmt(env.external_temp_c)} °C externo.`,
+      `Carga requerida calculada: ${fmt(required, 0)} kcal/h. Principais parcelas: transmissão ${fmt(r?.transmission_kcal_h, 0)} kcal/h, produto ${fmt(r?.product_kcal_h, 0)} kcal/h, infiltração ${fmt(r?.infiltration_kcal_h, 0)} kcal/h e cargas internas ${fmt(Number(r?.people_kcal_h ?? 0) + Number(r?.lighting_kcal_h ?? 0) + Number(r?.motors_kcal_h ?? 0) + Number(r?.fans_kcal_h ?? 0), 0)} kcal/h.`,
+    );
+    if (envProducts.length) lines.push(`Produtos/processo informados: ${envProducts.map((p: any) => `${p.product_name} (${fmt(p.mass_kg_day, 0)} kg/dia)`).join(", ")}. Validar temperaturas de entrada, tempo de processo e dados de mudança de estado antes da emissão final.`);
+    if (r?.calculation_breakdown?.infiltration_technical) {
+      const inf = r.calculation_breakdown.infiltration_technical;
+      lines.push(`Infiltração/umidade: ar por porta ${fmt(inf.doorInfiltrationM3Day, 0)} m³/dia, carga sensível ${fmt(inf.sensibleKcalH, 0)} kcal/h, carga latente ${fmt(inf.latentKcalH, 0)} kcal/h e formação estimada de gelo ${fmt(inf.iceKgDay)} kg/dia.`);
+    }
+    if (s) lines.push(`Seleção ofertada: ${s.quantity} x ${s.model}, capacidade total ${fmt(offered, 0)} kcal/h${margin === null ? "" : `, margem ${fmt(margin, 1)}%`}. ${margin !== null && margin < 5 ? "A margem está apertada e recomenda revisão técnica." : "A margem deve ser validada frente ao regime real de operação."}`);
+  }
+  lines.push(`## Recomendação final`, `Revisar dados críticos de porta, umidade externa, produto, degelo e horas de operação. O PDF pode ser emitido com este laudo técnico automático; se necessário, uma análise por IA mais extensa deve ser rodada em uma etapa assíncrona para não travar a tela.`);
+  return lines.join("\n\n");
 }
 
 async function loadColdProAnalysisBundle(projectId: string) {
@@ -80,15 +112,15 @@ async function generateAiAnalysis(input: any): Promise<string | null> {
   const key = process.env.LOVABLE_API_KEY;
   if (!key) return null;
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 22000);
+  const timeout = setTimeout(() => controller.abort(), 8000);
   try {
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       signal: controller.signal,
       headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "openai/gpt-5-mini",
-        max_tokens: 1800,
+        model: "google/gemini-2.5-flash-lite",
+        max_tokens: 900,
         temperature: 0.2,
         messages: [
           { role: "system", content: "Você é um agente técnico sênior de engenharia frigorífica. Responda como consultor especialista, com análise crítica, base técnica, recomendações práticas e sem inventar dados. Seja direto, auditável e conciso para evitar respostas longas demais." },
@@ -115,8 +147,12 @@ export const analyzeColdProMemorial = createServerFn({ method: "POST" })
   .inputValidator(analysisInputSchema)
   .handler(async ({ data }) => {
     const bundle = await loadColdProAnalysisBundle(data.projectId);
-    const analysis = await generateAiAnalysis({ ...bundle, question: data.question, previousAnalysis: data.previousAnalysis });
-    return { analysis: analysis ?? "Não foi possível gerar a análise técnica por IA neste momento." };
+    const fallback = buildTechnicalFallbackAnalysis({ ...bundle, question: data.question });
+    const analysis = await Promise.race([
+      generateAiAnalysis({ ...bundle, question: data.question, previousAnalysis: data.previousAnalysis }),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 9500)),
+    ]);
+    return { analysis: analysis ?? fallback };
   });
 
 /**
