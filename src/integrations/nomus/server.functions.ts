@@ -4,8 +4,8 @@ import { getRequest } from "@tanstack/react-start/server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { nomusFetch, listAll, listPage, getOne, testNomusConnection } from "./client";
-import { normalizeDocument, normalizeEmail, normalizeModel, normalizeProposalNumber } from "@/services/sync/normalization";
-import { finishSyncRun, logSyncRow, startSyncRun, type SyncAction } from "@/services/sync/syncAuditService";
+import { hashNormalizedPayload, isValidCnpj, normalizeCnColdModelCode, normalizeDocument, normalizeEmail, normalizeModel, normalizeProposalNumber } from "@/services/sync/normalization";
+import { acquireSyncLock, finishSyncRun, logFieldChanges, logSyncRow, quarantineSyncRow, releaseSyncLock, startSyncRun, type SyncAction } from "@/services/sync/syncAuditService";
 import {
   NOMUS_ENDPOINTS,
   pessoaContatosPath,
@@ -15,6 +15,7 @@ import {
 } from "./endpoints";
 
 type Json = Record<string, unknown>;
+type ProcessResult = "ok" | "skip" | "unmatched" | "no_change" | "quarantined";
 
 const pickStr = (o: Json, ...keys: string[]): string | null => {
   for (const k of keys) {
@@ -84,6 +85,15 @@ function stableNaturalItemId(position: number, productCode: string | null, descr
   const code = normalizeModel(productCode) ?? "SEM-CODIGO";
   const desc = normalizeProposalNumber(description)?.slice(0, 80) ?? "SEM-DESCRICAO";
   return `natural:${position}:${code}:${desc}`;
+}
+
+function pickExternalUpdatedAt(raw: Json): string | null {
+  return pickStr(raw, "updatedAt", "updated_at", "dataAlteracao", "dataModificacao", "dataHoraAlteracao", "alteradoEm");
+}
+
+async function readCurrentHash(table: string, externalId: string): Promise<{ id?: string | null; sync_hash?: string | null } | null> {
+  const { data } = await supabaseAdmin.from(table as never).select("id, sync_hash").eq("nomus_id", externalId).maybeSingle();
+  return data as { id?: string | null; sync_hash?: string | null } | null;
 }
 
 async function syncPersonContacts(args: { clientId: string; pessoaId: string; triggeredBy: string | null }) {
@@ -179,18 +189,22 @@ async function runEntitySync(args: {
   entity: string;
   endpoint: string;
   triggeredBy: string | null;
-  processItem: (raw: Json, syncRunId: string | null) => Promise<"ok" | "skip" | "unmatched">;
+  processItem: (raw: Json, syncRunId: string | null, options: { dryRun: boolean }) => Promise<ProcessResult>;
   /** Query extra para o listAll (ex.: dataModificacaoInicial p/ incremental). */
   query?: Record<string, string | number | undefined>;
   /** Página máxima de itens — passado adiante para listAll. */
   pageSize?: number;
+  dryRun?: boolean;
 }): Promise<SyncResult> {
-  const { entity, endpoint, triggeredBy, processItem, query, pageSize } = args;
+  const { entity, endpoint, triggeredBy, processItem, query, pageSize, dryRun = false } = args;
   await setState(entity, { running: true, last_error: null });
   let syncRunId: string | null = null;
+  let lockKey: string | null = null;
   let count = 0;
   let skipped = 0;
   let unmatched = 0;
+  let noChange = 0;
+  let quarantined = 0;
   let errors = 0;
   try {
     const res = await listAll<Json>(endpoint, query ?? {}, { entity, triggeredBy, pageSize });
@@ -199,13 +213,23 @@ async function runEntitySync(args: {
       await setState(entity, { running: false, last_error: error });
       return { ok: false, error };
     }
-    syncRunId = await startSyncRun(entity, triggeredBy, res.items.length);
+    syncRunId = await startSyncRun(entity, triggeredBy, res.items.length, { dryRun, lockKey: `nomus:${entity}` });
+    const lock = await acquireSyncLock({ entityType: entity, syncRunId, userId: triggeredBy });
+    if (!lock.ok) {
+      await logSyncRow({ syncRunId, entityType: entity, action: "skipped", status: "skipped", errorCode: "LOCK_ALREADY_RUNNING", errorMessage: lock.error });
+      await finishSyncRun({ syncRunId, status: "partial_success", totalReceived: res.items.length, totalSkipped: res.items.length, totalErrors: 1, errorMessage: lock.error });
+      await setState(entity, { running: false, last_error: lock.error });
+      return { ok: false, error: lock.error };
+    }
+    lockKey = lock.lockKey;
     const itemErrors: string[] = [];
     for (const raw of res.items) {
       try {
-        const r = await processItem(raw, syncRunId);
+        const r = await processItem(raw, syncRunId, { dryRun });
         if (r === "ok") count += 1;
         else if (r === "unmatched") { unmatched += 1; skipped += 1; }
+        else if (r === "no_change") { noChange += 1; skipped += 1; }
+        else if (r === "quarantined") { quarantined += 1; skipped += 1; }
         else skipped += 1;
       } catch (e) {
         skipped += 1;
@@ -230,13 +254,17 @@ async function runEntitySync(args: {
       totalInserted: count,
       totalSkipped: skipped,
       totalErrors: errors,
+      totalQuarantined: quarantined,
+      totalNoChange: noChange,
       errorMessage: noteParts.length > 0 ? noteParts.join(" • ") : null,
     });
+    await releaseSyncLock(lockKey);
     return { ok: true, count, skipped, unmatched };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     await setState(entity, { running: false, last_error: msg });
     await finishSyncRun({ syncRunId, status: "error", totalInserted: count, totalSkipped: skipped, totalErrors: errors + 1, errorMessage: msg });
+    await releaseSyncLock(lockKey);
     return { ok: false, error: msg };
   }
 }
@@ -284,6 +312,8 @@ export const nomusSyncClients = createServerFn({ method: "POST" })
     const userId = (context as { userId?: string }).userId ?? null;
     const now = new Date().toISOString();
     await setState("clientes", { running: true, last_error: null });
+    let syncRunId: string | null = null;
+    let lockKey: string | null = null;
     try {
       const { data: state } = await supabaseAdmin
         .from("nomus_sync_state")
@@ -305,7 +335,16 @@ export const nomusSyncClients = createServerFn({ method: "POST" })
       let count = 0;
       let contactsCount = 0;
       let skipped = 0;
+      let noChange = 0;
+      let quarantined = 0;
       const batch = res.items.slice(offset, offset + perClick);
+      syncRunId = await startSyncRun("clientes", userId, batch.length, { lockKey: "nomus:clientes" });
+      const lock = await acquireSyncLock({ entityType: "clientes", syncRunId, userId, ttlMinutes: 5 });
+      if (!lock.ok) {
+        await setState("clientes", { running: false, last_error: lock.error });
+        return { ok: false as const, error: lock.error };
+      }
+      lockKey = lock.lockKey;
       for (const raw of batch) {
         const summaryId = pickStr(raw, "id", "codigo", "idCliente", "idPessoa");
         const detailRes = summaryId
@@ -315,7 +354,17 @@ export const nomusSyncClients = createServerFn({ method: "POST" })
         const nomus_id = pickStr(full, "id", "codigo", "idCliente", "idPessoa") ?? summaryId;
         const name = pickStr(full, "nome", "razaoSocial", "nomeFantasia");
         if (!nomus_id || !name) {
+          await quarantineSyncRow({ syncRunId, entityType: "clientes", externalId: nomus_id, errorCode: !nomus_id ? "MISSING_EXTERNAL_ID" : "MISSING_REQUIRED_FIELD", reason: !nomus_id ? "Cliente sem ID Nomus" : "Cliente sem nome/razão social", rawPayload: full });
           skipped += 1;
+          quarantined += 1;
+          continue;
+        }
+        const document = pickStr(full, "cnpj", "cpf", "documento", "cpfCnpj");
+        const documentDigits = normalizeDocument(document);
+        if (documentDigits?.length === 14 && !isValidCnpj(documentDigits)) {
+          await quarantineSyncRow({ syncRunId, entityType: "clientes", externalId: nomus_id, errorCode: "INVALID_CNPJ", reason: "Cliente com CNPJ inválido", rawPayload: full });
+          skipped += 1;
+          quarantined += 1;
           continue;
         }
         const seller = firstArrayObj(full, "vendedores");
@@ -324,38 +373,53 @@ export const nomusSyncClients = createServerFn({ method: "POST" })
         const situacaoEstadual = pickStr(full, "situacaoEstadual", "situaçãoEstadual", "situacaoIE", "statusInscricaoEstadual");
         const notes = [pickStr(full, "observacoes", "observações"), cnae ? `CNAE/Classificação: ${cnae}` : null].filter(Boolean).join("\n") || null;
 
+        const syncPayload = {
+          nomus_id,
+          name,
+          document,
+          trade_name: pickStr(full, "nomeFantasia", "fantasia", "apelido"),
+          email: pickStr(full, "email", "emailPrincipal"),
+          phone: pickStr(full, "telefone", "fone", "telefonePrincipal", "celular"),
+          website: pickStr(full, "site", "website"),
+          zip_code: pickStr(full, "cep", "codigoPostal"),
+          address: pickStr(full, "logradouro", "endereco", "rua"),
+          address_number: pickStr(full, "numero", "numeroEndereco"),
+          address_complement: pickStr(full, "complemento"),
+          district: pickStr(full, "bairro"),
+          city: pickStr(full, "cidade", "municipio", "nomeCidade"),
+          state: pickStr(full, "uf", "estado", "siglaEstado"),
+          country: pickStr(full, "pais", "nomePais"),
+          segment: pickStr(full, "segmento", "ramo", "ramoAtividade", "segmentoMercado", "cnaePrincipal", "classificacao"),
+          region: pickStr(full, "regiao", "regiaoComercial", "territorio", "uf", "estado", "siglaEstado"),
+          state_registration: pickStr(full, "inscricaoEstadual", "ie", "situacaoEstadual", "situaçãoEstadual"),
+          municipal_registration: pickStr(full, "inscricaoMunicipal", "im"),
+          nomus_seller_id: pickStr(full, "idVendedor", "vendedorId") ?? pickNestedStr(full, "vendedor", "id", "codigo") ?? (seller ? pickStr(seller, "id", "codigo") : null),
+          nomus_seller_name: pickStr(full, "nomeVendedor", "vendedorNome") ?? pickNestedStr(full, "vendedor", "nome", "razaoSocial") ?? (seller ? pickStr(seller, "nome", "razaoSocial") : null),
+          nomus_representative_id: pickStr(full, "idRepresentante", "representanteId") ?? pickNestedStr(full, "representante", "id", "codigo") ?? (representative ? pickStr(representative, "id", "codigo") : null),
+          nomus_representative_name: pickStr(full, "nomeRepresentante", "representanteNome") ?? pickNestedStr(full, "representante", "nome", "razaoSocial") ?? (representative ? pickStr(representative, "nome", "razaoSocial") : null),
+          notes,
+          is_active: pickBool(full, "ativo", "isActive", "ativoCliente") ?? true,
+        };
+        const syncHash = await hashNormalizedPayload(syncPayload);
+        const current = await readCurrentHash("clients", nomus_id);
+        if (current?.sync_hash === syncHash) {
+          await logSyncRow({ syncRunId, entityType: "clientes", externalId: nomus_id, localId: current.id, action: "skipped_no_change", status: "skipped", errorCode: "SKIPPED_NO_CHANGE", previousHash: syncHash, newHash: syncHash, rawPayload: full });
+          skipped += 1;
+          noChange += 1;
+          continue;
+        }
+        const { data: previous } = current?.id ? await supabaseAdmin.from("clients").select("*").eq("id", current.id).maybeSingle() : { data: null };
         const { data: upserted, error } = await supabaseAdmin
           .from("clients")
           .upsert(
             {
-              nomus_id,
-              name,
-              document: pickStr(full, "cnpj", "cpf", "documento", "cpfCnpj"),
-              trade_name: pickStr(full, "nomeFantasia", "fantasia", "apelido"),
-              email: pickStr(full, "email", "emailPrincipal"),
-              phone: pickStr(full, "telefone", "fone", "telefonePrincipal", "celular"),
-              website: pickStr(full, "site", "website"),
-              zip_code: pickStr(full, "cep", "codigoPostal"),
-              address: pickStr(full, "logradouro", "endereco", "rua"),
-              address_number: pickStr(full, "numero", "numeroEndereco"),
-              address_complement: pickStr(full, "complemento"),
-              district: pickStr(full, "bairro"),
-              city: pickStr(full, "cidade", "municipio", "nomeCidade"),
-              state: pickStr(full, "uf", "estado", "siglaEstado"),
-              country: pickStr(full, "pais", "nomePais"),
-              segment: pickStr(full, "segmento", "ramo", "ramoAtividade", "segmentoMercado", "cnaePrincipal", "classificacao"),
-              region: pickStr(full, "regiao", "regiaoComercial", "territorio", "uf", "estado", "siglaEstado"),
-              state_registration: pickStr(full, "inscricaoEstadual", "ie", "situacaoEstadual", "situaçãoEstadual"),
-              municipal_registration: pickStr(full, "inscricaoMunicipal", "im"),
-              nomus_seller_id: pickStr(full, "idVendedor", "vendedorId") ?? pickNestedStr(full, "vendedor", "id", "codigo") ?? (seller ? pickStr(seller, "id", "codigo") : null),
-              nomus_seller_name: pickStr(full, "nomeVendedor", "vendedorNome") ?? pickNestedStr(full, "vendedor", "nome", "razaoSocial") ?? (seller ? pickStr(seller, "nome", "razaoSocial") : null),
-              nomus_representative_id: pickStr(full, "idRepresentante", "representanteId") ?? pickNestedStr(full, "representante", "id", "codigo") ?? (representative ? pickStr(representative, "id", "codigo") : null),
-              nomus_representative_name: pickStr(full, "nomeRepresentante", "representanteNome") ?? pickNestedStr(full, "representante", "nome", "razaoSocial") ?? (representative ? pickStr(representative, "nome", "razaoSocial") : null),
-              notes,
-              is_active: pickBool(full, "ativo", "isActive", "ativoCliente") ?? true,
+              ...syncPayload,
               nomus_raw: { ...full, situacaoEstadual } as never,
               origin: "nomus",
               nomus_synced_at: new Date().toISOString(),
+              last_synced_at: new Date().toISOString(),
+              external_updated_at: pickExternalUpdatedAt(full),
+              sync_hash: syncHash,
             },
             { onConflict: "nomus_id" }
           )
@@ -363,6 +427,8 @@ export const nomusSyncClients = createServerFn({ method: "POST" })
           .single();
         if (error) throw new Error(error.message);
         const clientId = (upserted as { id?: string } | null)?.id;
+        await logFieldChanges({ syncRunId, entityType: "clientes", localId: clientId, externalId: nomus_id, previous: previous as Record<string, unknown> | null, next: syncPayload });
+        await logSyncRow({ syncRunId, entityType: "clientes", externalId: nomus_id, localId: clientId, action: current ? "updated" : "inserted", status: "success", previousHash: current?.sync_hash, newHash: syncHash, rawPayload: full });
         if (clientId && nomus_id) contactsCount += await syncPersonContacts({ clientId, pessoaId: nomus_id, triggeredBy: userId });
         count += 1;
       }
@@ -377,10 +443,14 @@ export const nomusSyncClients = createServerFn({ method: "POST" })
         last_cursor: nextPage,
         last_error: null,
       });
+      await finishSyncRun({ syncRunId, totalReceived: batch.length, totalInserted: count, totalSkipped: skipped, totalQuarantined: quarantined, totalNoChange: noChange });
+      await releaseSyncLock(lockKey);
       return { ok: true as const, count, contactsCount, skipped, unmatched: 0, done, nextPage };
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       await setState("clientes", { running: false, last_error: msg });
+      await finishSyncRun({ syncRunId, status: "error", totalErrors: 1, errorMessage: msg });
+      await releaseSyncLock(lockKey);
       return { ok: false as const, error: msg };
     }
   });
@@ -481,45 +551,57 @@ export const nomusSyncProducts = createServerFn({ method: "POST" })
         const nomus_id = pickStr(raw, "id", "codigo", "idProduto");
         const model = pickStr(raw, "codigo", "modelo", "descricao");
         if (!nomus_id || !model) {
-          await logSyncRow({ syncRunId, entityType: "produtos", externalId: nomus_id, action: "skipped", status: "skipped", errorMessage: "Produto sem ID ou modelo", rawPayload: raw });
-          return "skip";
+          await quarantineSyncRow({ syncRunId, entityType: "produtos", externalId: nomus_id, errorCode: !nomus_id ? "MISSING_EXTERNAL_ID" : "MISSING_REQUIRED_FIELD", reason: "Produto sem ID ou modelo", rawPayload: raw });
+          return "quarantined";
         }
         const normalizedModel = normalizeModel(model);
+        const normalizedModelCode = normalizeCnColdModelCode(model);
+        const syncHash = await hashNormalizedPayload({ nomus_id, model, normalizedModel, normalizedModelCode });
         // 1) match por nomus_id já vinculado
         let { data: existing } = await supabaseAdmin
-          .from("equipments").select("id").eq("nomus_id", nomus_id).maybeSingle();
-        let matchType: "exact_model" | "normalized_model" | "manual" | "unmatched" = "exact_model";
+          .from("equipments").select("id, sync_hash").eq("nomus_id", nomus_id).maybeSingle();
+        let matchType: "exact_model" | "normalized_model" | "normalized_model_code" | "manual" | "unmatched" = "exact_model";
         // 2) match por model exato
         if (!existing) {
           const r = await supabaseAdmin
-            .from("equipments").select("id").eq("model", model).maybeSingle();
+            .from("equipments").select("id, sync_hash").eq("model", model).maybeSingle();
           existing = r.data;
         }
         // 3) match por modelo normalizado, sem criar equipamento duplicado
         if (!existing && normalizedModel) {
           const r = await supabaseAdmin
-            .from("equipments").select("id").eq("normalized_model", normalizedModel).maybeSingle();
+            .from("equipments").select("id, sync_hash").eq("normalized_model", normalizedModel).maybeSingle();
           existing = r.data;
           matchType = "normalized_model";
+        }
+        if (!existing && normalizedModelCode) {
+          const r = await supabaseAdmin
+            .from("equipments").select("id, sync_hash").eq("normalized_model_code", normalizedModelCode).maybeSingle();
+          existing = r.data;
+          matchType = "normalized_model_code";
         }
         if (!existing) {
           await supabaseAdmin.from("nomus_product_equipment_links").upsert(
             { nomus_product_id: nomus_id, equipment_id: null, match_type: "unmatched", confidence_score: 0 },
             { onConflict: "nomus_product_id" },
           );
-          await logSyncRow({ syncRunId, entityType: "produtos", externalId: nomus_id, action: "skipped", status: "skipped", errorMessage: "Produto sem equipamento correspondente", rawPayload: raw });
+          await quarantineSyncRow({ syncRunId, entityType: "produtos", externalId: nomus_id, errorCode: "UNMATCHED_EQUIPMENT", reason: "Produto sem equipamento correspondente", rawPayload: raw, normalizedPayload: { model, normalizedModel, normalizedModelCode } });
           return "unmatched";
+        }
+        if ((existing as { sync_hash?: string | null }).sync_hash === syncHash) {
+          await logSyncRow({ syncRunId, entityType: "produtos", externalId: nomus_id, localId: existing.id, action: "skipped_no_change", status: "skipped", errorCode: "SKIPPED_NO_CHANGE", previousHash: syncHash, newHash: syncHash, rawPayload: raw });
+          return "no_change";
         }
         const { error } = await supabaseAdmin
           .from("equipments")
-          .update({ nomus_id, nomus_synced_at: new Date().toISOString() })
+          .update({ nomus_id, nomus_synced_at: new Date().toISOString(), last_synced_at: new Date().toISOString(), external_updated_at: pickExternalUpdatedAt(raw), sync_hash: syncHash, normalized_model_code: normalizedModelCode })
           .eq("id", existing.id);
         if (error) throw new Error(error.message);
         await supabaseAdmin.from("nomus_product_equipment_links").upsert(
           { nomus_product_id: nomus_id, equipment_id: existing.id, match_type: matchType, confidence_score: matchType === "exact_model" ? 1 : 0.92 },
           { onConflict: "nomus_product_id" },
         );
-        await logSyncRow({ syncRunId, entityType: "produtos", externalId: nomus_id, localId: existing.id, action: "updated", status: "success", rawPayload: raw });
+        await logSyncRow({ syncRunId, entityType: "produtos", externalId: nomus_id, localId: existing.id, action: "updated", status: "success", previousHash: (existing as { sync_hash?: string | null }).sync_hash, newHash: syncHash, rawPayload: raw });
         return "ok";
       },
     });
@@ -801,11 +883,22 @@ export const nomusSyncProposalsFull = createServerFn({ method: "POST" })
       entity: "propostas",
       endpoint: NOMUS_ENDPOINTS.propostas,
       triggeredBy: userId,
-      processItem: async (raw) => {
+      processItem: async (raw, syncRunId) => {
         const { mapNomusProposal, extractProposalItems } = await import("./parse");
         const mapped = mapNomusProposal(raw);
-        if (!mapped) return "skip";
+        if (!mapped) {
+          await quarantineSyncRow({ syncRunId, entityType: "propostas", errorCode: "MISSING_REQUIRED_FIELD", reason: "Proposta sem campos mínimos para mapeamento", rawPayload: raw });
+          return "quarantined";
+        }
         const nomus_id = mapped.nomus_id;
+        if (!nomus_id || !mapped.numero) {
+          await quarantineSyncRow({ syncRunId, entityType: "propostas", externalId: nomus_id, errorCode: !nomus_id ? "MISSING_EXTERNAL_ID" : "MISSING_REQUIRED_FIELD", reason: !nomus_id ? "Proposta sem ID Nomus" : "Proposta sem número", rawPayload: raw });
+          return "quarantined";
+        }
+        if (mapped.valor_total !== null && mapped.valor_total < 0) {
+          await quarantineSyncRow({ syncRunId, entityType: "propostas", externalId: nomus_id, errorCode: "INVALID_PROPOSAL_TOTAL", reason: "Proposta com valor total inválido", rawPayload: raw });
+          return "quarantined";
+        }
 
         const upsertPayload = {
           nomus_id,
@@ -820,7 +913,26 @@ export const nomusSyncProposalsFull = createServerFn({ method: "POST" })
           observacoes: mapped.observacoes,
           raw: raw as never,
           synced_at: new Date().toISOString(),
+          last_synced_at: new Date().toISOString(),
+          external_updated_at: pickExternalUpdatedAt(raw),
+          sync_hash: await hashNormalizedPayload({
+            nomus_id,
+            numero: mapped.numero,
+            cliente_nomus_id: mapped.cliente_nomus_id,
+            vendedor_nomus_id: mapped.vendedor_nomus_id,
+            representante_nomus_id: mapped.representante_nomus_id,
+            valor_total: mapped.valor_total,
+            status_nomus: mapped.status_nomus,
+            validade: mapped.validade,
+            data_emissao: mapped.data_emissao,
+            observacoes: mapped.observacoes,
+          }),
         };
+        const currentMirror = await readCurrentHash("nomus_proposals", nomus_id);
+        if (currentMirror?.sync_hash === upsertPayload.sync_hash) {
+          await logSyncRow({ syncRunId, entityType: "propostas", externalId: nomus_id, localId: currentMirror.id, action: "skipped_no_change", status: "skipped", errorCode: "SKIPPED_NO_CHANGE", previousHash: currentMirror.sync_hash, newHash: upsertPayload.sync_hash, rawPayload: raw });
+          return "no_change";
+        }
         const { data: mirror, error: mErr } = await supabaseAdmin
           .from("nomus_proposals")
           .upsert(upsertPayload, { onConflict: "nomus_id" })
@@ -849,6 +961,20 @@ export const nomusSyncProposalsFull = createServerFn({ method: "POST" })
               position: idx,
               raw: it as never,
               synced_at: new Date().toISOString(),
+              last_synced_at: new Date().toISOString(),
+              normalized_model_code: normalizeCnColdModelCode(it.product_code ?? it.description),
+              sync_hash: await hashNormalizedPayload({
+                nomus_proposal_id: mirrorId,
+                nomus_item_id: naturalItemId,
+                nomus_product_id: it.nomus_product_id,
+                product_code: it.product_code,
+                description: it.description,
+                quantity: it.quantity,
+                unit_price: it.unit_price,
+                discount: it.discount,
+                total: it.total,
+                position: idx,
+              }),
             };
             const { error: itemErr } = await supabaseAdmin
               .from("nomus_proposal_items")
@@ -892,6 +1018,9 @@ export const nomusSyncProposalsFull = createServerFn({ method: "POST" })
                   valid_until: mapped.validade,
                   ...(ex.client_id || !clientId ? {} : { client_id: clientId }),
                   nomus_synced_at: new Date().toISOString(),
+                  last_synced_at: new Date().toISOString(),
+                  external_updated_at: pickExternalUpdatedAt(raw),
+                  sync_hash: upsertPayload.sync_hash,
                 })
                 .eq("id", ex.id);
               if (error) throw new Error(error.message);
@@ -900,6 +1029,9 @@ export const nomusSyncProposalsFull = createServerFn({ method: "POST" })
               nomus_id,
               nomus_proposal_id: mirrorId,
               nomus_synced_at: new Date().toISOString(),
+              last_synced_at: new Date().toISOString(),
+              external_updated_at: pickExternalUpdatedAt(raw),
+              sync_hash: upsertPayload.sync_hash,
               source: "nomus",
               title: baseTitle,
               client_id: clientId,
@@ -919,6 +1051,9 @@ export const nomusSyncProposalsFull = createServerFn({ method: "POST" })
                 valid_until: mapped.validade,
                 ...(ex.client_id || !clientId ? {} : { client_id: clientId }),
                 nomus_synced_at: new Date().toISOString(),
+                last_synced_at: new Date().toISOString(),
+                external_updated_at: pickExternalUpdatedAt(raw),
+                sync_hash: upsertPayload.sync_hash,
               })
               .eq("id", ex.id);
             if (error) throw new Error(error.message);
