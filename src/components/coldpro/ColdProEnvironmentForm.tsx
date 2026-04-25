@@ -372,6 +372,7 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
   const geometricFloorArea = getFloorArea(layout, length, width, geometry, constructionFaces);
   const floorFace = finalizedConstructionFaces.find((face) => face.local === "PISO");
   const ceilingFace = finalizedConstructionFaces.find((face) => face.local === "TETO");
+  const floorCondition = String(floorFace?.floor_condition ?? (form?.has_floor_insulation ? "insulated" : "soil"));
   const floorArea = toNumber(floorFace?.panel_area_m2) || geometricFloorArea;
   const ceilingArea = toNumber(ceilingFace?.panel_area_m2) || geometricFloorArea;
   const volume = floorArea * height;
@@ -451,20 +452,38 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
   };
 
   const setFloorInsulated = (enabled: boolean) => {
-    setForm((prev: any) => ({ ...prev, has_floor_insulation: enabled }));
+    setFloorCondition(enabled ? "insulated" : "soil");
+  };
+
+  const setFloorCondition = (condition: string) => {
+    const enabled = condition === "insulated";
     const floorIndex = constructionFaces.findIndex((face) => face.local === "PISO");
+    const next = [...constructionFaces];
     if (floorIndex >= 0) {
       const layer = makeInsulationLayer(selectedFloorInsulation, form?.floor_thickness_mm);
-      const next = [...constructionFaces];
-      next[floorIndex] = enabled ? applyLayerToFace(next[floorIndex], layer) : applyUninsulatedFloorToFace(next[floorIndex]);
-      set("construction_faces", [...next, geometry]);
+      const baseFace = {
+        ...next[floorIndex],
+        floor_condition: condition,
+        external_temp_c: condition === "soil" ? toNumber(form?.floor_temp_c) || DEFAULT_SOIL_TEMP_C : (condition === "lower_room" ? form?.floor_temp_c : form?.external_temp_c),
+      };
+      next[floorIndex] = enabled ? applyLayerToFace(baseFace, layer) : applyUninsulatedFloorToFace(baseFace);
     }
+    setForm((prev: any) => ({
+      ...prev,
+      has_floor_insulation: enabled,
+      floor_temp_c: condition === "soil" ? (toNumber(prev?.floor_temp_c) || DEFAULT_SOIL_TEMP_C) : prev?.floor_temp_c,
+      construction_faces: [...next, geometry],
+    }));
   };
 
   const setSoilTemperatureRegion = (regionValue: string) => {
     setSoilRegion(regionValue);
     const region = SOIL_TEMPERATURE_REGIONS.find((item) => item.value === regionValue);
-    if (region) set("floor_temp_c", region.temp);
+    if (region) {
+      set("floor_temp_c", region.temp);
+      const floorIndex = constructionFaces.findIndex((face) => face.local === "PISO");
+      if (floorIndex >= 0) setFace(floorIndex, "external_temp_c", region.temp);
+    }
   };
 
   const setSolarFace = (faceName: string) => {
@@ -472,19 +491,36 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
     const next = constructionFaces.map((face) => ({
       ...face,
       solar_orientation: faceName === face.local ? "Sol direto" : "",
+      solar_radiation_w_m2: faceName === face.local ? (toNumber(face.solar_radiation_w_m2) || 150) : 0,
     }));
+    set("construction_faces", [...next, geometry]);
+  };
+
+  const setGlassEnabled = (index: number, enabled: boolean) => {
+    const next = normalizeFaces(form?.construction_faces, layout, wallCount, length, width, height, geometry);
+    const face = next[index];
+    next[index] = {
+      ...face,
+      has_glass: enabled,
+      glass_area_m2: enabled ? face.glass_area_m2 : 0,
+      glass_type: enabled ? (face.glass_type && face.glass_type !== "none" ? face.glass_type : "simple") : "none",
+      solar_radiation_w_m2: enabled ? toNumber(face.solar_radiation_w_m2) : 0,
+    };
     set("construction_faces", [...next, geometry]);
   };
 
   const displayedExternalTemp = (face: any) => {
     if (face.external_temp_c !== null && face.external_temp_c !== undefined) return face.external_temp_c;
-    return face.local === "PISO" ? form?.floor_temp_c : form?.external_temp_c;
+    if (face.local !== "PISO") return form?.external_temp_c;
+    if (String(face.floor_condition ?? floorCondition) === "soil") return form?.floor_temp_c ?? DEFAULT_SOIL_TEMP_C;
+    if (String(face.floor_condition ?? floorCondition) === "lower_room") return form?.floor_temp_c;
+    return form?.external_temp_c;
   };
 
-  const currentSolarFace = constructionFaces.find((face) => face.solar_orientation === "Sol direto")?.local ?? DEFAULT_SOLAR_FACE;
+  const currentSolarFace = constructionFaces.find((face) => face.solar_orientation === "Sol direto" || toNumber(face.solar_radiation_w_m2) > 0)?.local ?? DEFAULT_SOLAR_FACE;
   const solarAdjustedConstructionFaces = React.useMemo(() => finalizedConstructionFaces.map((face) => ({
     ...face,
-    solar_orientation: face.local === currentSolarFace ? "Sol direto" : "",
+    solar_orientation: face.local === currentSolarFace && toNumber(face.solar_radiation_w_m2) > 0 ? "Sol direto" : "",
   })), [finalizedConstructionFaces, currentSolarFace]);
   const faceCalculationEnv = { ...form, construction_faces: solarAdjustedConstructionFaces, chamber_layout_type: layout, wall_count: wallCount };
 
