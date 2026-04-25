@@ -15,15 +15,15 @@ type FieldProps = {
 
 export function ColdProField({ label, unit, htmlFor, children, className }: FieldProps) {
   return (
-    <div className={cn("flex items-center gap-3 py-2", className)}>
+    <div className={cn("flex flex-col gap-1.5 py-2 sm:flex-row sm:items-center sm:gap-3", className)}>
       <label
         htmlFor={htmlFor}
-        className="w-[42%] shrink-0 text-right text-sm font-medium text-muted-foreground"
+        className="shrink-0 text-sm font-medium text-muted-foreground sm:w-[42%] sm:text-right"
       >
         {label} :
       </label>
-      <div className="flex flex-1 items-center gap-2">
-        <div className="flex-1">{children}</div>
+      <div className="flex w-full min-w-0 flex-1 items-center gap-2">
+        <div className="min-w-0 flex-1">{children}</div>
         {unit ? (
           <span className="w-10 shrink-0 text-[12px] font-medium text-muted-foreground">{unit}</span>
         ) : null}
@@ -41,7 +41,7 @@ export function ColdProInput(
     <input
       {...rest}
       className={cn(
-        "h-10 w-full rounded-md border border-transparent px-3 text-right text-base tabular-nums",
+        "h-11 w-full min-w-0 rounded-md border border-transparent px-3 text-right text-base tabular-nums sm:h-10",
         "transition focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/15",
         readOnlyValue
           ? "bg-primary/5 text-foreground"
@@ -60,7 +60,7 @@ export function ColdProSelect(
     <select
       {...rest}
       className={cn(
-        "h-10 w-full rounded-md border border-transparent bg-muted/40 px-3 text-sm",
+        "h-11 w-full min-w-0 rounded-md border border-transparent bg-muted/40 px-3 text-sm sm:h-10",
         "transition hover:bg-muted/60 focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/15",
         className,
       )}

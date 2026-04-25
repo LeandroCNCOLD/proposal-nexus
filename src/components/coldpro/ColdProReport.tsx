@@ -97,7 +97,7 @@ export function ColdProReport({
         </div>
       </div>
 
-      <div id="coldpro-report-print" className="space-y-6 rounded-2xl border bg-background p-6 print:border-0 print:p-0">
+      <div id="coldpro-report-print" className="min-w-0 space-y-6 rounded-2xl border bg-background p-3 sm:p-6 print:border-0 print:p-0">
         <header className="border-b pb-4">
           <div className="text-xs uppercase tracking-wide text-muted-foreground">CN ColdPro · Memorial de cálculo</div>
           <h1 className="mt-1 text-2xl font-bold">{project?.name ?? "Projeto"}</h1>
@@ -108,7 +108,7 @@ export function ColdProReport({
 
         <section>
           <h2 className="mb-3 text-base font-semibold">Resumo do projeto</h2>
-          <div className="grid grid-cols-3 gap-3">
+           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div className="rounded-xl border p-3">
               <div className="text-xs text-muted-foreground">Carga total</div>
               <div className="text-xl font-bold">{fmt(totals.kcal)} kcal/h</div>
@@ -147,7 +147,8 @@ export function ColdProReport({
               {envProducts.length > 0 ? (
                 <div>
                   <div className="mb-1 text-sm font-semibold">Produtos</div>
-                  <table className="w-full border-collapse text-sm">
+                  <div className="max-w-full overflow-x-auto">
+                  <table className="w-full min-w-[620px] border-collapse text-sm">
                     <thead className="bg-muted/40">
                       <tr>
                         <th className="border px-2 py-1 text-left">Produto</th>
@@ -169,6 +170,7 @@ export function ColdProReport({
                       ))}
                     </tbody>
                   </table>
+                  </div>
                 </div>
               ) : null}
 
@@ -199,7 +201,8 @@ export function ColdProReport({
                       <div className="mb-2 text-xs text-muted-foreground">
                         Total transmissão: <b>{fmt(result.calculation_breakdown?.transmission_summary?.total_w)} W</b> · <b>{fmt(result.calculation_breakdown?.transmission_summary?.total_kw)} kW</b> · <b>{fmt(result.calculation_breakdown?.transmission_summary?.total_kcal_h)} kcal/h</b> · <b>{fmt(result.calculation_breakdown?.transmission_summary?.total_tr)} TR</b>
                       </div>
-                      <table className="w-full border-collapse text-xs">
+                      <div className="max-w-full overflow-x-auto">
+                      <table className="w-full min-w-[760px] border-collapse text-xs">
                         <thead className="bg-muted/40">
                           <tr><th className="border px-2 py-1 text-left">Face</th><th className="border px-2 py-1 text-right">Área opaca m²</th><th className="border px-2 py-1 text-right">Vidro m²</th><th className="border px-2 py-1 text-right">ΔT</th><th className="border px-2 py-1 text-right">Painel W</th><th className="border px-2 py-1 text-right">Vidro W</th><th className="border px-2 py-1 text-right">Solar W</th><th className="border px-2 py-1 text-right">Total W</th><th className="border px-2 py-1 text-right">kcal/h</th></tr>
                         </thead>
@@ -209,6 +212,7 @@ export function ColdProReport({
                           ))}
                         </tbody>
                       </table>
+                      </div>
                     </div>
                   ) : null}
                 </div>

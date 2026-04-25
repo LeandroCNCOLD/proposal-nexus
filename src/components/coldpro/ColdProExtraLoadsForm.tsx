@@ -19,13 +19,13 @@ export function ColdProExtraLoadsForm({ environment, onSave }: Props) {
   const internalPower = Number(form.lighting_power_w ?? 0) / 1000 + Number(form.motors_power_kw ?? 0);
 
   return (
-    <div className="rounded-xl border bg-background p-5 shadow-sm">
+    <div className="min-w-0 rounded-xl border bg-background p-3 shadow-sm sm:p-5">
       <div className="mb-5 flex flex-col gap-3 border-b pb-4 md:flex-row md:items-start md:justify-between">
         <div>
           <h2 className="text-lg font-semibold">Cargas extras</h2>
           <p className="mt-1 text-sm text-muted-foreground">Renovação de ar, pessoas, iluminação, motores, ventiladores, degelo e fator de segurança.</p>
         </div>
-        <div className="grid grid-cols-2 gap-2 md:min-w-80">
+        <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 md:w-auto md:min-w-80">
           <ColdProCalculatedInfo label="Área da porta" value={`${fmtColdPro(doorArea)} m²`} description="Largura × altura" />
           <ColdProCalculatedInfo label="Potência interna base" value={`${fmtColdPro(internalPower)} kW`} description="Iluminação + motores" />
         </div>

@@ -23,12 +23,12 @@ function LoadBar({ label, value, total }: { label: string; value: unknown; total
 
 function Kpi({ label, value, unit, icon }: { label: string; value: unknown; unit: string; icon: React.ReactNode }) {
   return (
-    <div className="rounded-xl border bg-muted/20 p-4">
+    <div className="min-w-0 rounded-xl border bg-muted/20 p-4">
       <div className="mb-3 flex items-center justify-between gap-3">
         <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</div>
         <div className="rounded-lg bg-primary/10 p-2 text-primary">{icon}</div>
       </div>
-      <div className="text-2xl font-semibold tabular-nums text-foreground">{fmtColdPro(value)}</div>
+      <div className="break-words text-xl font-semibold tabular-nums text-foreground sm:text-2xl">{fmtColdPro(value)}</div>
       <div className="mt-1 text-xs text-muted-foreground">{unit}</div>
     </div>
   );
@@ -70,7 +70,7 @@ export function ColdProResultCard({ result }: { result: any }) {
   ];
 
   return (
-    <div className="rounded-xl border bg-background p-5 shadow-sm">
+    <div className="min-w-0 rounded-xl border bg-background p-3 shadow-sm sm:p-5">
       <div className="mb-5 flex flex-col gap-2 border-b pb-4 md:flex-row md:items-start md:justify-between">
         <div>
           <h3 className="text-lg font-semibold">Resultado do cálculo</h3>
@@ -79,7 +79,7 @@ export function ColdProResultCard({ result }: { result: any }) {
         <div className="rounded-lg bg-primary/10 px-3 py-2 text-sm font-semibold text-primary">Fator segurança: {fmtColdPro(result.safety_factor_percent)}%</div>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
         <Kpi label="Carga requerida" value={result.total_required_kcal_h} unit="kcal/h" icon={<Calculator className="h-4 w-4" />} />
         <Kpi label="Potência" value={result.total_required_kw} unit="kW" icon={<Gauge className="h-4 w-4" />} />
         <Kpi label="Capacidade" value={result.total_required_tr} unit="TR" icon={<Snowflake className="h-4 w-4" />} />
@@ -112,8 +112,8 @@ export function ColdProResultCard({ result }: { result: any }) {
               Total: <b className="text-foreground">{fmtColdPro(transmissionSummary.total_w)} W</b> · <b className="text-foreground">{fmtColdPro(transmissionSummary.total_kw, 2)} kW</b> · <b className="text-foreground">{fmtColdPro(transmissionSummary.total_kcal_h)} kcal/h</b> · <b className="text-foreground">{fmtColdPro(transmissionSummary.total_tr, 2)} TR</b>
             </div>
           </div>
-          <div className="overflow-x-auto">
-              <table className="w-full min-w-[1180px] text-sm">
+          <div className="max-w-full overflow-x-auto">
+              <table className="w-full min-w-[1020px] text-sm">
               <thead className="text-xs text-muted-foreground">
                 <tr className="border-b">
                   <th className="py-2 text-left font-medium">Face</th>

@@ -550,7 +550,7 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
   const transmissionTotalTr = transmissionTotalKcalH / KCAL_H_PER_TR;
 
   return (
-    <div className="rounded-xl border bg-background p-5 shadow-sm">
+    <div className="min-w-0 rounded-xl border bg-background p-3 shadow-sm sm:p-5">
       <div className="mb-5 flex flex-col gap-3 border-b pb-4 md:flex-row md:items-start md:justify-between">
         <div>
           <h2 className="text-lg font-semibold">Ambiente</h2>
@@ -559,7 +559,7 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
       </div>
 
       <Tabs defaultValue="gerais" className="w-full">
-        <TabsList className="mb-4 flex h-auto w-full flex-wrap justify-start gap-1 p-1">
+        <TabsList className="mb-4 flex h-auto w-full justify-start gap-1 overflow-x-auto p-1">
           <TabsTrigger value="gerais">Dados gerais</TabsTrigger>
           <TabsTrigger value="dimensoes">Dimensões, condições e isolamento</TabsTrigger>
         </TabsList>
@@ -617,9 +617,9 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
             </ColdProFormSection>
 
             <ColdProFormSection title="Formato, dimensões e paredes" description="Selecione o desenho da câmara para calcular volume, teto, piso e paredes com medidas diferentes." icon={<DraftingCompass className="h-4 w-4" />}>
-              <div className="grid gap-5 xl:grid-cols-[1fr_180px]">
+              <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_180px]">
                 <div className="space-y-5">
-                  <div className="grid gap-2 md:grid-cols-4">
+                  <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
                     {CHAMBER_LAYOUTS.map((item) => (
                       <button
                         key={item.value}
@@ -634,9 +634,9 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
                     ))}
                   </div>
 
-                      <div className="grid grid-cols-1 gap-x-10 md:grid-cols-[1.5fr_0.9fr]">
+                      <div className="grid grid-cols-1 gap-x-10 lg:grid-cols-[minmax(0,1.5fr)_minmax(220px,0.9fr)]">
                     <div>
-                          <div className="grid gap-x-8 md:grid-cols-2">
+                           <div className="grid gap-x-8 lg:grid-cols-2">
                             {constructionFaces.filter((face) => face.local.startsWith("PAREDE")).map((face, faceListIndex) => {
                               const index = constructionFaces.findIndex((item) => item.local === face.local);
                               return <ColdProField key={face.local} label={`Dim. ${String.fromCharCode(65 + faceListIndex)}`} unit="m"><ColdProInput type="number" value={face.wall_length_m ?? ""} onChange={(e) => setFace(index, "wall_length_m", numberOrNull(e.target.value) ?? 0)} /></ColdProField>;
@@ -700,7 +700,7 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
             </ColdProFormSection>
 
             <ColdProFormSection title="Paredes, painéis e aberturas" description="Revise áreas das faces, escolha a face com sol direto e informe áreas de vidro quando houver." icon={<Grid3X3 className="h-4 w-4" />}>
-              <div className="mb-4 grid gap-3 md:grid-cols-4">
+              <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
                 <ColdProCalculatedInfo label="Volume final" value={`${fmtColdPro(volume)} m³`} description="Área do piso × altura" tone={dimensionError || customDimensionError ? "warning" : "success"} />
                 <ColdProCalculatedInfo label="Piso / teto" value={`${fmtColdPro(floorArea)} / ${fmtColdPro(ceilingArea)} m²`} />
                 <ColdProCalculatedInfo label="Área de paredes" value={`${fmtColdPro(wallPanelArea)} m²`} />
@@ -720,8 +720,8 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
                 </div>
               </div>
 
-              <div className="overflow-x-auto rounded-xl border">
-                <table className="w-full min-w-[1680px] text-sm">
+              <div className="max-w-full overflow-x-auto rounded-xl border">
+                <table className="w-full min-w-[1320px] text-sm">
                   <thead className="bg-muted/50 text-sm text-muted-foreground">
                     <tr>
                       <th className="px-3 py-3 text-left font-medium">Local</th>
