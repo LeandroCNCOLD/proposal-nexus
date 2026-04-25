@@ -210,7 +210,7 @@ export function optimizeProcessAirCondition(params: {
   if (!recommendation) warnings.push("Nenhuma combinação dentro dos limites técnicos atingiu o tempo desejado; revisar arranjo, embalagem, dimensão térmica, temperatura limite ou tempo de processo.");
   if (params.arrangementType === "boxed_product" || params.arrangementType === "pallet_block" || params.arrangementType === "bulk_static") warnings.push("Arranjo com baixa exposição ao ar: a recomendação depende da passagem real de ar pela embalagem e do empilhamento físico.");
 
-  const calculatedResult: ColdProResult = {
+  return {
     status: recommendation ? "adequado" : "inviável",
     recommendation,
     attempts: attempts.slice(0, 40),
@@ -298,7 +298,7 @@ export function buildThermalCalculationResult(result: any, selection?: any | nul
   }
   if (!selection) warnings.push({ code: "equipment_selection_missing", message: "Seleção de equipamento ainda não vinculada ao resultado validado." });
   const status = dimensioningStatus(requiredCalculated, correctedTotalCalculated);
-  return {
+  const calculatedResult: ColdProResult = {
     subtotal_validado: subtotalCalculated,
     subtotal_exibido: subtotalDisplayed,
     subtotal_diferenca_kcal_h: round2(subtotalCalculated - subtotalDisplayed),
