@@ -368,11 +368,19 @@ async function pullProposalsNewestFirst(): Promise<{ ok: boolean; count?: number
 
         const id = pickStr(summary, "id", "idProposta", "codigo");
         if (!id) continue;
-        newestSeenId = Math.max(newestSeenId, Number(id) || 0);
+
+        const { data: existing } = await supabaseAdmin
+          .from("nomus_proposals")
+          .select("nomus_id")
+          .eq("nomus_id", id)
+          .maybeSingle();
 
         try {
-          await syncProposalDetail(summary);
-          count += 1;
+          const changed = await syncProposalDetail(summary, { requireDetail: !existing });
+          if (changed) {
+            newestSeenId = Math.max(newestSeenId, Number(id) || 0);
+            count += 1;
+          }
         } catch (e) {
           console.error("[nomus-cron] erro mapeando proposta:", e);
         }
