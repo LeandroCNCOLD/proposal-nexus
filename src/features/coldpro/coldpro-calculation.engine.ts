@@ -298,7 +298,7 @@ export function buildThermalCalculationResult(result: any, selection?: any | nul
   }
   if (!selection) warnings.push({ code: "equipment_selection_missing", message: "Seleção de equipamento ainda não vinculada ao resultado validado." });
   const status = dimensioningStatus(requiredCalculated, correctedTotalCalculated);
-  const calculatedResult: ColdProResult = {
+  return {
     subtotal_validado: subtotalCalculated,
     subtotal_exibido: subtotalDisplayed,
     subtotal_diferenca_kcal_h: round2(subtotalCalculated - subtotalDisplayed),
@@ -378,7 +378,7 @@ export function calculateSeedDehumidificationLoad(env: ColdProEnvironment) {
   const latentSeedKw = waterFromSeedKgH * WATER_LATENT_HEAT_KJ_KG / 3600;
   const totalKw = latentAirKw + latentSeedKw;
 
-  return {
+  const calculatedResult: ColdProResult = {
     applies: true,
     total_kcal_h: round2(kwToKcalh(totalKw)),
     total_kw: round2(totalKw),
