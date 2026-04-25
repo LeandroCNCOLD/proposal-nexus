@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Box, DraftingCompass, Grid3X3, Ruler, Save, ShieldCheck, Thermometer } from "lucide-react";
+import { Box, DraftingCompass, Grid3X3, Save, ShieldCheck, Thermometer } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   ColdProField,
@@ -175,7 +175,11 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, onSav
   const geometry = React.useMemo(() => getGeometry(form?.construction_faces), [form?.construction_faces]);
   const constructionFaces = React.useMemo(() => normalizeFaces(form?.construction_faces, layout, wallCount, length, width, height, geometry), [form?.construction_faces, layout, wallCount, length, width, height, geometry]);
 
-  const floorArea = getFloorArea(layout, length, width, geometry, constructionFaces);
+  const geometricFloorArea = getFloorArea(layout, length, width, geometry, constructionFaces);
+  const floorFace = constructionFaces.find((face) => face.local === "PISO");
+  const ceilingFace = constructionFaces.find((face) => face.local === "TETO");
+  const floorArea = toNumber(floorFace?.panel_area_m2) || geometricFloorArea;
+  const ceilingArea = toNumber(ceilingFace?.panel_area_m2) || geometricFloorArea;
   const volume = floorArea * height;
   const deltaT = toNumber(form?.external_temp_c) - toNumber(form?.internal_temp_c);
   const totalPanelArea = constructionFaces.reduce((sum, face) => sum + toNumber(face.panel_area_m2), 0);
@@ -220,10 +224,6 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, onSav
         <div>
           <h2 className="text-lg font-semibold">Ambiente</h2>
           <p className="mt-1 text-sm text-muted-foreground">Dimensões, geometria da câmara, temperatura, umidade e isolamento do espaço refrigerado.</p>
-        </div>
-        <div className="grid grid-cols-2 gap-2 md:min-w-80">
-          <ColdProCalculatedInfo label="Volume" value={`${fmtColdPro(volume)} m³`} description="Área de piso × altura" />
-          <ColdProCalculatedInfo label="Área de piso" value={`${fmtColdPro(floorArea)} m²`} description="Conforme o formato escolhido" />
         </div>
       </div>
 
@@ -300,9 +300,8 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, onSav
                       <ColdProValidationMessage tone="error">{dimensionError || customDimensionError ? "Informe medidas válidas para volume, piso e paredes." : ""}</ColdProValidationMessage>
                     </div>
                     <div className="space-y-3">
-                      <ColdProCalculatedInfo label="Volume interno" value={`${fmtColdPro(volume)} m³`} description="Calculado pela geometria da câmara." tone={dimensionError || customDimensionError ? "warning" : "success"} />
-                      <ColdProCalculatedInfo label="Área de piso/teto" value={`${fmtColdPro(floorArea)} m²`} description="Usada também como base para teto e piso." />
-                      <ColdProCalculatedInfo label="Área de paredes" value={`${fmtColdPro(wallPanelArea)} m²`} description={`${wallCount} paredes informadas`} />
+                      <ColdProCalculatedInfo label="Formato" value={`${wallCount} paredes`} description="As áreas finais saem da tabela de faces." />
+                      <ColdProCalculatedInfo label="Base geométrica" value={`${fmtColdPro(geometricFloorArea)} m²`} description="Referência inicial para teto e piso." tone={dimensionError || customDimensionError ? "warning" : "info"} />
                     </div>
                   </div>
                 </div>
