@@ -461,6 +461,14 @@ export function calculateColdProLoad(params: {
     total_required_kw: round2(kcalhToKw(total)),
     total_required_tr: round2(kcalhToTr(total)),
     calculation_breakdown: {
+      transmission_summary: {
+        total_w: transmissionBreakdown.total_w,
+        total_kw: transmissionBreakdown.total_kw,
+        total_kcal_h: transmissionBreakdown.total_kcal_h,
+        total_tr: transmissionBreakdown.total_tr,
+        glass_total_w: transmissionBreakdown.glass_total_w,
+        glass_total_kcal_h: transmissionBreakdown.glass_total_kcal_h,
+      },
       transmission_faces: transmissionBreakdown.faces,
       tunnel: tunnelResult,
       products: productBreakdown,
