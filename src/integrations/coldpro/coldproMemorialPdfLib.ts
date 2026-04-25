@@ -397,6 +397,8 @@ export async function buildColdProMemorialPdfBuffer({ project, environments, res
   paragraph(ctx, "Tecnicamente, a carga térmica foi consolidada pelas parcelas de transmissão, produto/processo, infiltração, ocupação, iluminação, motores, ventiladores, degelo e demais cargas internas, acrescidas do fator de segurança configurado. Comercialmente, este resultado orienta a seleção de equipamentos com capacidade suficiente para atender a operação diária com margem de sobra auditável.");
   const aggregateResult = results.reduce((acc: any, result: any) => { for (const [key, value] of Object.entries(result ?? {})) if (key.endsWith("_kcal_h")) acc[key] = Number(acc[key] ?? 0) + Number(value ?? 0); return acc; }, {});
   pieChart(ctx, aggregateResult);
+  stackedLoadChart(ctx, aggregateResult);
+  projectLineChart(ctx, environments, results);
 
   heading(ctx, "Memória de cálculo por ambiente", 1);
   for (const [idx, env] of environments.entries()) {
@@ -416,7 +418,9 @@ export async function buildColdProMemorialPdfBuffer({ project, environments, res
     if (result) {
       heading(ctx, "2. Cálculo executado", 3);
       paragraph(ctx, "O cálculo considera as trocas térmicas pela envoltória, a retirada de calor do produto e embalagem, a entrada de ar por infiltração e as cargas internas informadas para o ambiente.", { size: 8.5, gap: 4 });
+      temperatureCurveChart(ctx, env);
       barChart(ctx, result);
+      stackedLoadChart(ctx, result);
       table(ctx, ["Componente", "Carga"], [["Transmissão", result.transmission_kcal_h], ["Produto", result.product_kcal_h], ["Embalagem", result.packaging_kcal_h], ["Infiltração", result.infiltration_kcal_h], ["Pessoas", result.people_kcal_h], ["Iluminação", result.lighting_kcal_h], ["Motores", result.motors_kcal_h], ["Ventiladores", result.fans_kcal_h], ["Degelo", result.defrost_kcal_h], ["Outros", result.other_kcal_h]].map(([l, v]) => [String(l), `${fmt(v, 0)} kcal/h`]), [0.68, 0.32]);
       heading(ctx, "3. Resultado do dimensionamento", 3);
       drawKpis(ctx, [["Subtotal", `${fmt(result.subtotal_kcal_h, 0)} kcal/h`], ["Segurança", `${fmt(result.safety_kcal_h, 0)} kcal/h`], ["Carga requerida", `${fmt(result.total_required_kcal_h, 0)} kcal/h`]]);
