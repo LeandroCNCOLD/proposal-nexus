@@ -449,7 +449,7 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
   };
 
   const currentSolarFace = constructionFaces.find((face) => face.solar_orientation === "Sol direto")?.local;
-  const faceCalculationEnv = { ...form, construction_faces: constructionFaces, chamber_layout_type: layout, wall_count: wallCount };
+  const faceCalculationEnv = { ...form, construction_faces: finalizedConstructionFaces, chamber_layout_type: layout, wall_count: wallCount };
 
   return (
     <div className="rounded-xl border bg-background p-5 shadow-sm">
@@ -719,7 +719,7 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
       </Tabs>
 
       <div className="mt-5 flex justify-end border-t pt-4">
-        <button type="button" disabled={!canSave} onClick={() => onSave({ ...form, name: String(form?.name ?? "").trim(), chamber_layout_type: layout, wall_count: wallCount, volume_m3: volume, construction_faces: [...constructionFaces, geometry], total_panel_area_m2: totalPanelArea, total_glass_area_m2: totalGlassArea, total_door_area_m2: 0 })} className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-2 text-sm font-medium text-primary-foreground shadow-sm transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50">
+        <button type="button" disabled={!canSave} onClick={() => onSave({ ...form, name: String(form?.name ?? "").trim(), chamber_layout_type: layout, wall_count: wallCount, volume_m3: volume, construction_faces: [...finalizedConstructionFaces, geometry], total_panel_area_m2: totalPanelArea, total_glass_area_m2: totalGlassArea, total_door_area_m2: 0 })} className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-2 text-sm font-medium text-primary-foreground shadow-sm transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50">
           <Save className="h-4 w-4" /> Salvar ambiente
         </button>
       </div>
