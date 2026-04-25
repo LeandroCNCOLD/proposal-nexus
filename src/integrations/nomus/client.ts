@@ -288,7 +288,7 @@ export async function nomusFetch<T = unknown>(
 export async function getOne<T = unknown>(
   endpoint: string,
   id: string | number,
-  opts: { entity: string; triggeredBy?: string | null } = { entity: "unknown" },
+  opts: { entity: string; triggeredBy?: string | null; timeoutMs?: number; maxAttempts?: number } = { entity: "unknown" },
 ): Promise<{ ok: true; data: T } | { ok: false; error: string }> {
   const path = `${endpoint}/${encodeURIComponent(String(id))}`;
   const res = await nomusFetch<T>(path, {
@@ -297,6 +297,8 @@ export async function getOne<T = unknown>(
     operation: "get",
     direction: "pull",
     triggeredBy: opts.triggeredBy ?? null,
+    timeoutMs: opts.timeoutMs,
+    maxAttempts: opts.maxAttempts,
   });
   if (!res.ok) return { ok: false, error: res.error };
   return { ok: true, data: res.data };
