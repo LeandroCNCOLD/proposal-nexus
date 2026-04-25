@@ -430,10 +430,62 @@ function drawFinalLaudo(ctx: Ctx, project: any, environments: any[], results: an
   paragraph(ctx, "Rodapé técnico: Engenheiro responsável: Engenharia CN ColdPro | Data: " + ctx.generatedAt + " | Status: emissão preliminar auditável.", { size: 7.5, color: COLORS.muted });
 }
 
-export async function buildColdProMemorialPdfBuffer({ project, environments, results, selections, products, generatedAt, generatedBy, aiAnalysis }: any): Promise<Uint8Array> {
+async function drawProposalSummary(ctx: Ctx, project: any, environments: any[], results: any[], selections: any[], products: any[]) {
+  heading(ctx, "Resumo técnico para proposta", 1);
+  paragraph(ctx, "Página executiva para anexar à proposta comercial, usando exclusivamente o cálculo atual por ambiente e a seleção técnica vigente.");
+  table(ctx, ["Ambiente", "Volume", "Carga requerida", "kW", "TR"], environments.map((env: any) => {
+    const r = results.find((item: any) => item.environment_id === env.id);
+    return [env.name, `${fmt(env.volume_m3)} m3`, `${fmt(r?.total_required_kcal_h, 0)} kcal/h`, fmt(r?.total_required_kw), fmt(r?.total_required_tr)];
+  }), [0.3, 0.16, 0.24, 0.14, 0.16]);
+  const aggregateResult = results.reduce((acc: any, result: any) => { for (const [key, value] of Object.entries(result ?? {})) if (key.endsWith("_kcal_h")) acc[key] = Number(acc[key] ?? 0) + Number(value ?? 0); return acc; }, {});
+  heading(ctx, "Distribuição da carga térmica", 2);
+  pieChart(ctx, aggregateResult);
+  stackedLoadChart(ctx, aggregateResult);
+  environments.forEach((env: any) => {
+    const r = results.find((item: any) => item.environment_id === env.id);
+    const envProducts = products.filter((p: any) => p.environment_id === env.id);
+    if (!r) return;
+    heading(ctx, env.name, 3);
+    temperatureCurveChart(ctx, env, envProducts);
+    drawKpis(ctx, [["Subtotal", `${fmt(r.subtotal_kcal_h, 0)} kcal/h`], ["Segurança", `${fmt(r.safety_kcal_h, 0)} kcal/h`], ["Requerida", `${fmt(r.total_required_kcal_h, 0)} kcal/h`]]);
+  });
+
+  addPage(ctx);
+  heading(ctx, "Equipamento selecionado", 1);
+  for (const env of environments) {
+    const result = results.find((item: any) => item.environment_id === env.id);
+    const selection = selections.find((item: any) => item.environment_id === env.id);
+    if (!selection) continue;
+    const required = Number(result?.total_required_kcal_h ?? 0);
+    const offered = Number(selection.capacity_total_kcal_h ?? 0);
+    const status = selectionStatus(required, offered);
+    heading(ctx, env.name, 3);
+    loadOfferChart(ctx, required, offered);
+    table(ctx, ["Modelo", "Qtd.", "Capacidade", "Sobra", "Status"], [[selection.model, fmt(selection.quantity), `${fmt(offered, 0)} kcal/h`, `${fmt(selection.surplus_percent)}%`, status.label]], [0.3, 0.1, 0.24, 0.16, 0.2]);
+    drawKeyGrid(ctx, [["Refrigerante", selection.refrigerant ?? selection.catalog_model?.refrigerante ?? "—"], ["Tensão", selection.catalog_model?.electrical_configuration ?? selection.catalog_performance?.voltage ?? "—"], ["Potência", `${fmt(selection.total_power_kw ?? selection.catalog_performance?.total_power_kw)} kW`], ["COP", selection.cop ? fmt(selection.cop, 2) : selection.catalog_performance?.cop ? fmt(selection.catalog_performance.cop, 2) : "—"], ["Vazão total", `${fmt(selection.air_flow_total_m3_h, 0)} m3/h`], ["Trocas/h", fmt(selection.air_changes_hour)]], 2);
+    const y = ctx.y - 78;
+    ctx.page.drawRectangle({ x: A4[0] - M - 136, y: y - 6, width: 136, height: 92, color: COLORS.soft, borderColor: COLORS.border, borderWidth: 0.5 });
+    const ok = await drawEquipmentImage(ctx, selection, A4[0] - M - 128, y + 2);
+    if (!ok) ctx.page.drawText("Foto do equipamento não cadastrada", { x: A4[0] - M - 126, y: y + 38, size: 7.5, font: ctx.fonts.regular, color: COLORS.muted });
+    ctx.y -= 34;
+  }
+}
+
+export async function buildColdProMemorialPdfBuffer({ project, environments, results, selections, products, generatedAt, generatedBy, aiAnalysis, reportType = "full" }: any): Promise<Uint8Array> {
   const pdf = await PDFDocument.create();
   const fonts = { regular: await pdf.embedFont(StandardFonts.Helvetica), bold: await pdf.embedFont(StandardFonts.HelveticaBold) };
   const ctx: Ctx = { pdf, page: pdf.addPage(A4), fonts, y: A4[1] - 76, projectName: project?.name ?? "Projeto", generatedAt };
+
+  if (reportType === "proposal_summary") {
+    await drawProposalSummary(ctx, project, environments, results, selections, products);
+    const pageCount = pdf.getPageCount();
+    pdf.getPages().forEach((page, i) => {
+      page.drawLine({ start: { x: M, y: 30 }, end: { x: A4[0] - M, y: 30 }, thickness: 0.5, color: COLORS.border });
+      page.drawText(`CN ColdPro - Resumo para proposta gerado em ${clean(generatedAt)}`, { x: M, y: 18, size: 7, font: fonts.regular, color: COLORS.muted });
+      page.drawText(`Página ${i + 1} de ${pageCount}`, { x: A4[0] - M - 70, y: 18, size: 7, font: fonts.regular, color: COLORS.muted });
+    });
+    return pdf.save();
+  }
 
   ctx.page.drawRectangle({ x: 0, y: 0, width: A4[0], height: A4[1], color: COLORS.primary });
   ctx.page.drawText("CN COLDPRO - MEMORIAL TÉCNICO", { x: M + 14, y: A4[1] - 96, size: 10, font: fonts.bold, color: rgb(0.61, 0.74, 0.84) });
