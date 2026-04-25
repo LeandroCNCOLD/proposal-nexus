@@ -1018,6 +1018,9 @@ export const nomusSyncProposalsFull = createServerFn({ method: "POST" })
                   valid_until: mapped.validade,
                   ...(ex.client_id || !clientId ? {} : { client_id: clientId }),
                   nomus_synced_at: new Date().toISOString(),
+                  last_synced_at: new Date().toISOString(),
+                  external_updated_at: pickExternalUpdatedAt(raw),
+                  sync_hash: upsertPayload.sync_hash,
                 })
                 .eq("id", ex.id);
               if (error) throw new Error(error.message);
@@ -1026,6 +1029,9 @@ export const nomusSyncProposalsFull = createServerFn({ method: "POST" })
               nomus_id,
               nomus_proposal_id: mirrorId,
               nomus_synced_at: new Date().toISOString(),
+              last_synced_at: new Date().toISOString(),
+              external_updated_at: pickExternalUpdatedAt(raw),
+              sync_hash: upsertPayload.sync_hash,
               source: "nomus",
               title: baseTitle,
               client_id: clientId,
@@ -1045,6 +1051,9 @@ export const nomusSyncProposalsFull = createServerFn({ method: "POST" })
                 valid_until: mapped.validade,
                 ...(ex.client_id || !clientId ? {} : { client_id: clientId }),
                 nomus_synced_at: new Date().toISOString(),
+                last_synced_at: new Date().toISOString(),
+                external_updated_at: pickExternalUpdatedAt(raw),
+                sync_hash: upsertPayload.sync_hash,
               })
               .eq("id", ex.id);
             if (error) throw new Error(error.message);
