@@ -644,17 +644,18 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
                     {constructionFaces.map((face, index) => {
                       const isWall = face.local.startsWith("PAREDE");
                       const hasGlass = Boolean(face.has_glass);
-                      const faceLoad = calculateFaceTransmission({ ...face, external_temp_c: displayedExternalTemp(face), glass_area_m2: hasGlass ? face.glass_area_m2 : 0 }, faceCalculationEnv as any);
+                      const preparedFace = prepareFaceForCalculation(face, Boolean(form?.has_floor_insulation));
+                      const faceLoad = calculateFaceTransmission({ ...preparedFace, external_temp_c: displayedExternalTemp(preparedFace), glass_area_m2: hasGlass ? preparedFace.glass_area_m2 : 0 }, faceCalculationEnv as any);
                       return (
                         <tr key={face.local} className="border-t">
                           <td className="px-3 py-2 font-medium text-foreground">{face.local}</td>
                           <td className="px-3 py-2"><ColdProInput type="number" disabled={!isWall} value={isWall ? face.wall_length_m ?? "" : ""} onChange={(e) => setFace(index, "wall_length_m", numberOrNull(e.target.value) ?? 0)} /></td>
                           <td className="px-3 py-2"><ColdProInput type="number" disabled={!isWall} value={isWall ? face.wall_height_m ?? "" : ""} onChange={(e) => setFace(index, "wall_height_m", numberOrNull(e.target.value) ?? 0)} /></td>
                           <td className="px-3 py-2"><ColdProInput type="number" value={face.panel_area_m2 ?? ""} onChange={(e) => setFace(index, "panel_area_m2", numberOrNull(e.target.value) ?? 0)} /></td>
-                          <td className="px-3 py-2"><ColdProInput type="number" value={displayedExternalTemp(face) ?? ""} onChange={(e) => setFace(index, "external_temp_c", numberOrNull(e.target.value))} /></td>
+                          <td className="px-3 py-2"><ColdProInput type="number" value={displayedExternalTemp(preparedFace) ?? ""} onChange={(e) => setFace(index, "external_temp_c", numberOrNull(e.target.value))} /></td>
                           <td className="px-3 py-2 text-xs font-medium text-muted-foreground">{face.solar_orientation === "Sol direto" ? "Sol direto" : "—"}</td>
-                          <td className="px-3 py-2 text-xs text-muted-foreground">{face.material_thickness || "—"}</td>
-                          <td className="px-3 py-2 tabular-nums">{fmtColdPro(face.u_value_w_m2k, 3)}</td>
+                          <td className="px-3 py-2 text-xs text-muted-foreground">{preparedFace.material_thickness || "—"}</td>
+                          <td className="px-3 py-2 tabular-nums">{fmtColdPro(preparedFace.u_value_w_m2k, 3)}</td>
                           <td className="px-3 py-2"><Checkbox checked={hasGlass} onCheckedChange={(checked) => setFace(index, "has_glass", Boolean(checked))} /></td>
                           <td className="px-3 py-2"><ColdProInput type="number" disabled={!hasGlass} value={hasGlass ? face.glass_area_m2 ?? "" : ""} onChange={(e) => setFace(index, "glass_area_m2", numberOrNull(e.target.value) ?? 0)} /></td>
                           <td className="px-3 py-2"><ColdProSelect disabled={!hasGlass} value={face.glass_type ?? "simple"} onChange={(e) => setFace(index, "glass_type", e.target.value)}>{GLASS_TYPE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</ColdProSelect></td>
