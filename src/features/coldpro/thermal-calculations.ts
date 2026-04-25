@@ -134,10 +134,10 @@ export const MOTOR_EQUIPMENT_PRESETS = [
 ];
 
 export const LIGHTING_EQUIPMENT_PRESETS = [
-  { label: "Luminária LED câmara fria", powerW: 60 },
-  { label: "Luminária LED industrial", powerW: 100 },
-  { label: "Refletor LED", powerW: 150 },
-  { label: "Painel LED", powerW: 40 },
-  { label: "Fluorescente 2x40 W", powerW: 80 },
-  { label: "Lâmpada tubular LED", powerW: 18 },
+  { label: "Luminária LED câmara fria", powerW: 60, lumens: 7800 },
+  { label: "Luminária LED industrial", powerW: 100, lumens: 13000 },
+  { label: "Refletor LED", powerW: 150, lumens: 19500 },
+  { label: "Painel LED", powerW: 40, lumens: 4000 },
+  { label: "Fluorescente 2x40 W", powerW: 80, lumens: 5600 },
+  { label: "Lâmpada tubular LED", powerW: 18, lumens: 1850 },
 ];
