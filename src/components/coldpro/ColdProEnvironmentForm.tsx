@@ -314,10 +314,10 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, onSav
 
             <ColdProFormSection title="Paredes, painéis e aberturas" description="Complete cada face da câmara com material, orientação solar, vidros e portas." icon={<Grid3X3 className="h-4 w-4" />}>
               <div className="mb-4 grid gap-3 md:grid-cols-4">
-                <ColdProCalculatedInfo label="Total de painéis" value={`${fmtColdPro(totalPanelArea)} m²`} tone={totalPanelArea > 0 ? "success" : "warning"} />
-                <ColdProCalculatedInfo label="Paredes" value={`${fmtColdPro(wallPanelArea)} m²`} />
-                <ColdProCalculatedInfo label="Vidro" value={`${fmtColdPro(totalGlassArea)} m²`} />
-                <ColdProCalculatedInfo label="Portas" value={`${fmtColdPro(totalDoorArea)} m²`} />
+                <ColdProCalculatedInfo label="Volume final" value={`${fmtColdPro(volume)} m³`} description="Área do piso × altura" tone={dimensionError || customDimensionError ? "warning" : "success"} />
+                <ColdProCalculatedInfo label="Piso / teto" value={`${fmtColdPro(floorArea)} / ${fmtColdPro(ceilingArea)} m²`} />
+                <ColdProCalculatedInfo label="Área de paredes" value={`${fmtColdPro(wallPanelArea)} m²`} />
+                <ColdProCalculatedInfo label="Vidro / portas" value={`${fmtColdPro(totalGlassArea)} / ${fmtColdPro(totalDoorArea)} m²`} />
               </div>
               <div className="mb-4 grid gap-x-10 md:grid-cols-2">
                 <ColdProField label="Insolação face oeste">
