@@ -1,266 +1,232 @@
-Plano de implementação: sincronização Nomus em pipeline eficiente, resiliente e observável
+Plano para ajustar o módulo existente `/app/seletor` como ColdPro funcional, sem mexer em CRM, Nomus, sincronização, propostas, templates, clientes ou representantes.
 
-Vou evoluir a sincronização atual sem remover as proteções já criadas: chaves únicas, hash, auditoria, quarentena, locks, mapeamento de fonte mestre e preservação de campos locais.
+## Diagnóstico do que já existe
 
-## 1. Estrutura de banco para operação robusta
+- `/app/seletor` ainda é placeholder.
+- Já existe um módulo ColdPro paralelo em `/app/coldpro` com:
+  - telas de projeto, ambiente, produto, cargas extras, resultado, seleção e relatório;
+  - tabelas já existentes como `coldpro_projects`, `coldpro_environments`, `coldpro_products`, `coldpro_results`, `coldpro_equipment_models`, `coldpro_equipment_performance_points`, `coldpro_equipment_selections`;
+  - cálculo térmico parcial em `src/features/coldpro/coldpro-calculation.engine.ts`;
+  - seleção por curva real em `src/features/coldpro/equipment-selection.engine.ts`.
+- O cálculo atual já cobre parte do necessário, mas precisa ajustes importantes:
+  - separar melhor os services por domínio conforme solicitado;
+  - incluir portas no cálculo por superfície de forma explícita;
+  - padronizar tipos de vidro com os nomes pedidos (`vidro_simples`, `vidro_duplo`, etc.);
+  - corrigir infiltração para usar densidade ajustada por altitude;
+  - ampliar modos de aplicação para os nomes pedidos;
+  - retornar o formato final em kW/TR/kcal/h com `warnings` e `calculationMemory`;
+  - transformar o fluxo em 9 abas dentro do `/app/seletor`.
 
-Criar/ajustar tabelas e campos para controlar execução por lote:
+## Ajustes de estrutura
 
-- `sync_checkpoints`
-  - `entity_type`
-  - `last_page`
-  - `last_external_id`
-  - `last_updated_at`
-  - `status`
-  - `cursor_payload`
-  - `sync_run_id`
-  - `updated_at`
-
-- `sync_pending_issues`
-  - pendências operacionais, separadas de logs técnicos
-  - exemplos: produto sem equipamento, cliente sem CNPJ, proposta sem item, item sem valor, representante não encontrado
-  - status: `open`, `resolved`, `ignored`, `reprocessed`
-
-- `outbound_sync_queue`
-  - preparado para sincronização futura Nexus -> Nomus
-  - nada será enviado diretamente; toda saída futura terá fila, status, tentativa, erro e log
-
-- Campos nas entidades sincronizadas, onde ainda faltarem:
-  - `sync_status text default 'synced'`
-  - `sync_error_code text`
-  - `sync_error_message text`
-  - `last_sync_run_id uuid`
-
-- Tabelas de configuração:
-  - `sync_entity_policies` para frequência, janela padrão, prioridade e dados quentes/frios
-  - `sync_protected_fields` para impedir sobrescrita de campos locais
-
-## 2. Rate control e retry com backoff
-
-A integração já trata 429 parcialmente; vou transformar isso em comportamento padronizado:
-
-- Configuração por entidade:
-  - `max_requests_per_minute`
-  - `retry_after_seconds`
-  - `backoff_multiplier`
-  - `timeout_ms`
-  - `max_attempts`
-
-- Regras:
-  - HTTP 429 respeita `Retry-After`/tempo informado, quando existir
-  - timeout e 5xx fazem retry com backoff exponencial
-  - falha final grava erro detalhado no lote e no log
-
-Observação: não vou implementar rate limiting de backend para usuários. Este controle é apenas para cadenciar chamadas ao Nomus e evitar sobrecarga/429 na API externa.
-
-## 3. Pipeline único por entidade
-
-Refatorar o fluxo para ficar consistente:
+Criar a nova estrutura solicitada, reaproveitando e migrando a lógica existente:
 
 ```text
-API Nomus
-  -> fetch paginado/incremental
-  -> checkpoint por página/lote
-  -> normalize
-  -> validate
-  -> bulk read local
-  -> diff/hash por campo
-  -> bulk upsert
-  -> pendências/quarentena
-  -> auditoria
-  -> relatório/dashboard
+src/modules/coldpro/
+  types/
+    coldPro.types.ts
+  utils/
+    conversions.ts
+    numbers.ts
+  services/
+    surfaceAreaService.ts
+    transmissionLoadService.ts
+    glassLoadService.ts
+    infiltrationLoadService.ts
+    productLoadService.ts
+    internalLoadsService.ts
+    airDensityService.ts
+    psychrometricService.ts
+    coldProEngine.ts
+    coldProValidationService.ts
+  components/
+    ColdProSeletorApp.tsx
+    ColdProTabs.tsx
+    ProjectDataTab.tsx
+    DimensionsTab.tsx
+    SurfacesTab.tsx
+    ProductProcessTab.tsx
+    InfiltrationTab.tsx
+    InternalLoadsTab.tsx
+    ResultTab.tsx
+    EquipmentSelectionTab.tsx
+    TechnicalReportTab.tsx
 ```
 
-Esse pipeline será aplicado gradualmente em:
+Manter os componentes antigos em `src/components/coldpro` quando úteis, mas a rota `/app/seletor` passará a usar os novos componentes em `src/modules/coldpro/components`.
 
-1. clientes
-2. representantes/vendedores
-3. produtos/equipamentos
-4. propostas
-5. itens de proposta
-6. pedidos/notas, mantendo o mesmo padrão onde fizer sentido
+## Banco de dados
 
-## 4. Checkpoint por página/lote
+Aproveitar as tabelas existentes quando equivalentes e criar apenas as que faltam/forem necessárias para persistir o modelo novo.
 
-A sync deixará de depender apenas de `nomus_sync_state.last_cursor`.
+Já existem:
+- `coldpro_projects`
+- `coldpro_products`
+- `coldpro_results`
+- `coldpro_equipment_models`
+- `coldpro_equipment_performance_points`
+- `coldpro_equipment_selections`
+- materiais equivalentes: `coldpro_insulation_materials` e `coldpro_thermal_materials`
 
-- Antes de processar cada lote: registrar checkpoint `running`
-- Após processar lote com sucesso: atualizar `last_page`, `last_external_id`, `last_updated_at`
-- Se cair no meio: próxima execução retoma do checkpoint
-- Se finalizar entidade: status `completed`
-- Se houver erro: status `failed`, mantendo cursor para reprocessar
+Criar/ajustar para o novo fluxo:
+- `coldpro_surfaces` para teto, piso, paredes, portas e vidros por projeto/ambiente;
+- `coldpro_wall_compositions` para composição por superfície/material/camada;
+- `coldpro_process_parameters` para resfriamento, congelamento, túneis, giro freezer, batelada/contínuo;
+- `coldpro_infiltration` para portas, aberturas, renovação, altitude e parâmetros de infiltração;
+- `coldpro_internal_loads` para pessoas, iluminação, motores, embalagem e respiração;
+- `coldpro_reports` para memória de cálculo simples;
+- avaliar se `coldpro_materials` deve ser uma nova tabela ou uma view/compatibilidade sobre `coldpro_thermal_materials`. Para evitar duplicidade, a preferência será usar a base existente e só criar `coldpro_materials` se for indispensável para o novo schema.
 
-## 5. Sync incremental e janelas de tempo
+As tabelas terão RLS, vínculos por projeto/ambiente, timestamps, defaults seguros e políticas compatíveis com usuários autenticados.
 
-Adicionar opções para sincronização:
+## Cálculo térmico
 
-- últimos 7 dias
-- últimos 30 dias
-- período personalizado
-- tudo
-- modo incremental automático por `last_successful_sync`
+Implementar os services pedidos com fórmulas em W/kW como base:
 
-Quando Nomus tiver campo de atualização, usar:
+### Transmissão
+- `Q = U × A × ΔT`
+- Calcular separadamente:
+  - teto
+  - piso
+  - parede 1
+  - parede 2
+  - parede 3
+  - parede 4
+  - portas
+  - vidros
+- Para cada superfície:
+  - `area_opaca = area_total - area_vidro - area_porta`
+  - `Q_opaco = area_opaca × U_opaco × ΔT`
+  - `Q_vidro = area_vidro × U_vidro × ΔT`
+  - `Q_porta = area_porta × U_porta × ΔT`
+  - `Q_total_superficie = Q_opaco + Q_vidro + Q_porta`
+- Piso sem isolamento:
+  - `temperatura_solo_default = 20°C`
+  - `ΔT_piso = temperatura_solo - temperatura_interna`
 
-```text
-updated_at > last_successful_sync
+### Vidro e solar
+- U-values:
+  - `none = 0`
+  - `vidro_simples = 5.8`
+  - `vidro_duplo = 2.8`
+  - `vidro_triplo = 1.8`
+  - `low_e_duplo = 1.6`
+  - `vidro_frigorifico_aquecido = 2.5`
+- Solar:
+  - `Q_solar_vidro = area_vidro × radiacao_solar × fator_solar`
+  - `sem_sol = 0`, `moderado = 150`, `forte = 300`, `critico = 500 W/m²`
+
+### Infiltração
+- `Q_infiltracao = densidade_ar × volume_ar_infiltrado × Cp_ar × ΔT`
+- `Cp_ar = 1.005 kJ/kg.K`
+- Densidade por altitude:
+  - `P = 101325 × (1 - 2.25577e-5 × altitude)^5.2559`
+  - `densidade_ar = 1.20 × (P / 101325)`
+  - se altitude `< 500 m`, usar `1.20 kg/m³`
+
+### Produto/processo
+- Resfriamento:
+  - `Q_produto = massa × Cp × (Ti - Tf)`
+- Congelamento:
+  - `Q1 = massa × Cp_acima × (Ti - Tcong)`
+  - `Q2 = massa × calor_latente × fracao_congelavel`
+  - `Q3 = massa × Cp_abaixo × (Tcong - Tf)`
+  - `Q_produto = Q1 + Q2 + Q3`
+- Contínuo:
+  - `P_produto_kW = producao_kg_h × q_especifica_kj_kg / 3600`
+- Batelada:
+  - `P_produto_kW = massa_lote × q_especifica_kj_kg / (tempo_h × 3600)`
+- Giro freezer/túnel:
+  - `massa_media_dentro = producao_kg_h × tempo_retencao_min / 60`
+  - validar tempo por Plank simplificado;
+  - emitir alertas de retenção adequada/insuficiente, velocidade baixa/alta e dados térmicos faltantes.
+
+### Cargas internas
+- Pessoas, iluminação, motores, embalagem e respiração conforme fórmulas enviadas.
+- Respiração apenas para frutas, vegetais e sementes quando configurado.
+
+### Resultado
+O engine retornará:
+
+```ts
+{
+  transmissionKw,
+  infiltrationKw,
+  productKw,
+  packagingKw,
+  respirationKw,
+  peopleKw,
+  lightingKw,
+  motorsKw,
+  pullDownKw,
+  baseTotalKw,
+  correctedTotalKw,
+  totalKcalH,
+  totalTr,
+  warnings,
+  calculationMemory
+}
 ```
 
-Quando não tiver, usar paginação + hash + checkpoint.
+Com conversões:
+- `kW = W / 1000`
+- `kcal/h = W × 0.859845`
+- `TR = kW / 3.517`
 
-## 6. Dados quentes/frios e prioridade por status
+## Interface em `/app/seletor`
 
-Criar política de frequência:
+Substituir o placeholder por um módulo ColdPro com abas:
 
-- propostas abertas/enviadas/em negociação: alta prioridade, janela curta
-- clientes ativos: diária
-- produtos/equipamentos: diária ou sob demanda
-- propostas encerradas/antigas: semanal ou janela maior
+1. Dados do Projeto
+2. Dimensões
+3. Isolamento / Superfícies
+4. Produto / Processo
+5. Infiltração
+6. Cargas Internas
+7. Resultado
+8. Seleção de Equipamentos
+9. Relatório Técnico
 
-Para propostas:
+A tela permitirá:
+- criar/salvar cálculo;
+- editar projeto depois;
+- duplicar projeto;
+- gerar memória de cálculo simples;
+- visualizar warnings técnicos;
+- navegar entre abas sem perder dados.
 
-- processar abertas/em negociação primeiro
-- depois encerradas recentes
-- por último antigas/canceladas/perdidas
+## Seleção de equipamentos
 
-## 7. Bulk read antes do upsert
+Na aba Seleção de Equipamentos:
+- usar a base existente `coldpro_equipment_models` e `coldpro_equipment_performance_points`;
+- comparar `correctedTotalKw` com capacidade do equipamento;
+- mostrar:
+  - equipamento sugerido;
+  - capacidade nominal;
+  - margem sobre a carga;
+  - alerta de subdimensionamento;
+  - alerta de superdimensionamento.
 
-Substituir consultas uma-a-uma por leitura em lote:
+Não criar lógica de pedido, proposta ou Nomus nesta etapa.
 
-- coletar `nomus_id`, CNPJ, número de proposta, código de produto/modelo do lote
-- buscar todos os registros existentes em uma ou poucas consultas
-- montar `Map` em memória:
-  - `customer_nomus_id -> customer_id`
-  - `product_nomus_id -> product_id/equipment_id`
-  - `representative_nomus_id -> representative_id`
-  - `proposal_nomus_id -> proposal_id`
+## Proteções de escopo
 
-Isso reduz custo, tempo e chance de timeout.
+Não alterar arquivos e fluxos de:
+- CRM
+- Nomus
+- sincronização
+- propostas
+- templates
+- clientes
+- representantes
 
-## 8. Validação antes de gravar
+Também removeremos do fluxo `/app/seletor` qualquer ação de enviar para proposta/PDF vinculado a proposta que existe no ColdPro paralelo atual, porque você pediu foco exclusivo no módulo técnico.
 
-Separar validações por entidade:
+## Validação
 
-- cliente sem ID ou sem nome: quarentena
-- CNPJ inválido: quarentena/pendência
-- produto sem equipamento: pendência operacional, sem criar duplicado
-- proposta sem item: pendência
-- item sem valor: pendência/quarentena conforme gravidade
-- representante não encontrado: pendência
-
-Regra central: registro inválido não entra no cadastro principal como duplicado.
-
-## 9. Diff por campo e anti-sobrescrita
-
-Antes de atualizar:
-
-- calcular hash do payload normalizado
-- se hash igual: `skip`
-- se hash diferente: comparar campo a campo
-- atualizar somente campos alterados e permitidos
-
-Campos locais protegidos não serão sobrescritos pelo Nomus:
-
-- `status_comercial_local` / status comercial interno
-- `temperatura_lead`
-- `observacoes_internas`
-- `responsavel_interno`
-- `timeline`
-- `tags`
-- `prioridade`
-- anexos/templates/campos manuais equivalentes já existentes
-
-## 10. Teste automático de duplicidade após sync
-
-Ao final de cada execução:
-
-- verificar clientes duplicados por CNPJ
-- propostas duplicadas por número/nomus_id
-- produtos duplicados por código
-- equipamentos duplicados por modelo normalizado
-- itens duplicados por proposta + item/chave natural
-
-Resultado:
-
-- gravar em `sync_quality_reports`
-- abrir `sync_pending_issues` quando houver duplicidade
-- não fazer merge automático nem exclusão física
-
-## 11. Dashboard de saúde da sincronização
-
-Atualizar a tela de Integração Nomus para mostrar:
-
-- última sync OK por entidade
-- status atual e progresso/checkpoint
-- tempo médio de sync
-- quantidade de erros
-- quantidade de pendências abertas
-- duplicidades detectadas
-- tempo desde última atualização
-- últimas execuções resumidas
-- erros detalhados separados
-
-Também incluir controles:
-
-- sync geral na ordem correta
-- sync por entidade
-- seleção de janela: 7 dias, 30 dias, personalizada, tudo
-- visualização de pendências operacionais
-
-## 12. Ordem do sync geral
-
-O botão de sincronização geral seguirá ordem segura:
-
-1. representantes/vendedores
-2. clientes
-3. produtos/equipamentos
-4. propostas
-5. itens de proposta
-6. pedidos/notas/vínculos
-7. verificação de duplicidade
-8. relatório de qualidade
-
-## 13. Documentos e anexos
-
-Não sincronizar anexos/documentos pesados automaticamente.
-
-- sync recorrente: dados leves
-- documentos/anexos: somente sob demanda
-- logs devem diferenciar `data_sync` de `document_sync`
-
-## 14. Arquivos principais que serão alterados
-
-- `src/integrations/nomus/client.ts`
-  - padronizar retry/backoff/rate pacing
-
-- `src/integrations/nomus/server.functions.ts`
-  - pipeline por lote, bulk read, diff por campo, checkpoints, janelas e sync geral
-
-- `src/services/sync/normalization.ts`
-  - helpers de diff/campos protegidos/chaves naturais quando necessário
-
-- `src/services/sync/syncAuditService.ts`
-  - checkpoint, pendências, qualidade, status por entidade e logs resumidos
-
-- `src/routes/api.public.hooks.nomus-cron.ts`
-  - adaptar cron para usar políticas, checkpoints e dados quentes/frios
-
-- `src/routes/app.configuracoes.nomus.tsx`
-  - dashboard de saúde, progresso, pendências e botões por janela
-
-- nova migração em `supabase/migrations/...sql`
-  - novas tabelas, índices, RLS e campos de status
-
-## 15. Validação final
-
-Após implementar, vou verificar:
-
-- TypeScript/build
-- chamadas de sync não fazem uma consulta por registro quando for possível usar lote
-- segunda execução não duplica dados
-- registros inválidos vão para quarentena/pendências
-- campos locais protegidos não são sobrescritos
-- checkpoints permitem retomar
-- dashboard mostra saúde e pendências
-
-Resultado esperado: sincronizar uma ou várias vezes deve manter o mesmo estado final, com execução mais rápida, retomável, auditável e com pendências visíveis em vez de duplicidades silenciosas.
+Após implementar:
+- rodar build/typecheck;
+- testar importações para evitar nova quebra da pré-visualização;
+- conferir que `/app/seletor` abre e exibe as 9 abas;
+- validar um cálculo exemplo com transmissão, infiltração, produto e seleção de equipamento;
+- garantir que não houve alteração em CRM/Nomus/propostas/templates/clientes/representantes.
