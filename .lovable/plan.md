@@ -1,23 +1,27 @@
-Plano para corrigir o menu responsivo:
+Vou adicionar um botão de sincronização diretamente na página `/app/clientes`.
 
-1. Remover o menu horizontal superior criado para telas menores.
-   - O menu não deve virar uma barra superior com todos os links.
-   - O cabeçalho continuará apenas com busca/usuário/botão de menu.
+## Implementação
 
-2. Implementar menu lateral responsivo correto.
-   - Em desktop: manter a sidebar lateral fixa à esquerda.
-   - Em tablet/mobile: usar um botão no topo para abrir/fechar o menu lateral em gaveta.
-   - O menu deve aparecer pela lateral, não como faixa superior.
+1. Adicionar ação no cabeçalho da página Clientes
+- Incluir botão “Sincronizar Nomus” ao lado de “Novo cliente”.
+- Usar ícone de atualização e estado de carregamento enquanto sincroniza.
 
-3. Usar o padrão de sidebar já existente no projeto.
-   - Aproveitar `SidebarProvider`, `Sidebar`, `SidebarTrigger`, `SidebarContent`, `SidebarMenu` etc.
-   - Configurar `collapsible="icon"` ou gaveta mobile para o menu não sumir sem opção de retorno.
-   - Manter destaque visual da rota ativa.
+2. Conectar com a função existente do Nomus
+- Reutilizar a função já existente `nomusSyncClients` em `src/integrations/nomus/server.functions.ts`.
+- Ao clicar, chamar a sincronização de clientes do Nomus.
+- Exibir mensagem de sucesso com quantidade sincronizada.
+- Exibir erro amigável se a integração falhar.
 
-4. Preservar responsividade do conteúdo.
-   - Manter os ajustes de formulários, tabelas e espaçamentos responsivos já aplicados.
-   - Garantir que o conteúdo principal não estoure lateralmente quando a sidebar estiver aberta ou recolhida.
+3. Atualizar a lista automaticamente
+- Após sincronizar, invalidar/recarregar a query `clients` para a tabela mostrar os clientes trazidos do Nomus imediatamente.
+- Também atualizar o estado/log de sync se necessário.
 
-5. Validar.
-   - Rodar verificação TypeScript para confirmar que a alteração não quebrou o app.
-   - Conferir especificamente o layout em largura parecida com a atual do usuário, aproximadamente 768px.
+4. Ajustar responsividade
+- Manter os botões do cabeçalho quebrando linha em telas menores.
+- Evitar que a tabela ou os botões estourem a largura em mobile.
+
+## Arquivo principal
+
+- `src/routes/app.clientes.tsx`
+
+A implementação será validada com TypeScript após sua aprovação.
