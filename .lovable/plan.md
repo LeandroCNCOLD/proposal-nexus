@@ -1,240 +1,170 @@
-Plano — melhorar a etapa “Produtos / Carga de produto” no ColdPro
+Implementarei a regra central: o ColdPro não “sugere” temperatura, velocidade ou vazão por preset; ele usa presets apenas como condição inicial e só apresenta a recomendação final quando ela for provada por cálculo iterativo.
 
-O ajuste correto é separar melhor os conceitos que hoje estão misturados em “movimentação diária”, “movimentação horária” e “tempo de processo”. A tela precisa explicar e calcular conforme o cenário real: armazenamento, entrada diária, pico horário ou tentativa de congelar dentro da própria câmara.
+## Objetivo
 
-1. Separar a etapa Produto em modos de aplicação
-
-Adicionar um campo de uso/cálculo do produto, por exemplo `product_load_mode`:
-
-- `storage_turnover`
-  - Câmara de armazenagem.
-  - O usuário informa carga total estocada e percentual movimentado por dia.
-  - O sistema calcula a massa movimentada/dia.
-
-- `daily_intake`
-  - Produto recebido/processado por dia.
-  - O usuário informa diretamente kg/dia.
-  - O sistema divide pelo tempo de processo/recuperação para obter kcal/h.
-
-- `hourly_intake`
-  - Processo com alimentação contínua ou pico conhecido.
-  - O usuário informa diretamente kg/h.
-  - O sistema usa kg/h como base principal, sem depender de kg/dia.
-
-- `room_pull_down_or_freezing`
-  - Câmara de armazenagem sendo usada também para resfriar/congelar produto novo.
-  - O usuário informa uma massa que entra em determinado período e o tempo desejado de recuperação/congelamento.
-  - O sistema calcula a potência necessária nesse intervalo e alerta que câmara de estocagem não substitui túnel de congelamento quando a carga for pesada.
-
-2. Novos campos para carga estocada e movimentação
-
-Adicionar campos na tabela de produtos do ambiente (`coldpro_environment_products`):
-
-- `product_load_mode`
-- `stored_mass_kg`
-- `daily_turnover_percent`
-- `daily_movement_kg`
-- `hourly_movement_kg`
-- `recovery_time_h`
-- `is_freezing_inside_storage_room`
-- `freezing_batch_mass_kg`
-- `freezing_batch_time_h`
-- `movement_basis`
-  - `calculated_from_stock`
-  - `manual_daily`
-  - `manual_hourly`
-  - `batch_recovery`
-
-Manter compatibilidade com os campos atuais:
-
-- `mass_kg_day`
-- `mass_kg_hour`
-- `process_time_h`
-
-Mas a tela passará a explicar qual deles está sendo usado.
-
-3. Regra de cálculo por modo
-
-Modo A — Carga estocada com giro diário
+Na aba de túnel/processo, a recomendação final passará a seguir este fluxo:
 
 ```text
-massa_movimentada_dia = carga_estocada_kg × percentual_movimentado / 100
-carga_kcal_h = energia_total_da_massa_movimentada / tempo_recuperacao_h
+Entrada do usuário
+→ calcula energia específica do produto
+→ calcula potência frigorífica requerida
+→ estima tempo até núcleo na condição atual
+→ compara com tempo desejado
+→ testa combinações de Tar e velocidade dentro dos limites
+→ calcula vazão necessária para cada tentativa
+→ retorna a menor condição que atende, com memória de cálculo
 ```
 
-Exemplo:
+## Alterações no motor de cálculo
+
+1. Criar `optimizeProcessAirCondition()` em `coldpro-calculation.engine.ts`.
+
+A função receberá os dados do túnel/processo:
+- tipo de processo: contínuo/girofreezer/estático/pallet;
+- tipo de arranjo: individual, bandeja, carrinho, caixa, pallet/bloco, granel;
+- propriedades do produto carregadas do catálogo ou preenchidas manualmente;
+- massa ou kg/h;
+- temperatura inicial e final do produto;
+- tempo desejado;
+- geometria/dimensão térmica e distância até o núcleo;
+- temperatura inicial do ar, velocidade inicial e ΔT do ar;
+- limites técnicos de temperatura e velocidade;
+- densidade do ar;
+- fatores de exposição ao ar e penetração térmica.
+
+2. Para cada tentativa, calcular:
+- energia específica `q`;
+- potência requerida `P_kW`;
+- `h_base = 10 + 10 × velocidade^0.8`;
+- `h_efetivo = h_base × fator_exposicao_ar`;
+- `k_efetivo = k_produto × fator_penetracao`;
+- tempo estimado até núcleo;
+- vazão necessária:
 
 ```text
-Carga estocada: 10.000 kg
-Movimentação diária: 30%
-Massa movimentada: 3.000 kg/dia
-Tempo de recuperação: 20 h
-Base horária: 150 kg/h equivalente
+Vazao_m3_s = P_kW / (ρ_ar × Cp_ar × ΔT_ar)
+Vazao_m3_h = Vazao_m3_s × 3600
 ```
 
-Aqui o “kg/h” é calculado para distribuir a carga no período de recuperação.
+3. Implementar a busca iterativa em ordem técnica:
+- primeiro validar a condição atual do usuário;
+- se não atender, reduzir a temperatura do ar passo a passo até o limite mínimo;
+- se ainda não atender, aumentar velocidade do ar passo a passo até o limite máximo;
+- para cada combinação, recalcular tempo, h efetivo, potência e vazão;
+- escolher a menor condição que atende ao tempo desejado, evitando recomendar condição mais severa que o necessário;
+- se nenhuma combinação atender, retornar status de inviabilidade/revisão técnica.
 
-Modo B — Entrada diária direta
+4. Não permitir recomendação sem cálculo.
 
-```text
-massa_dia = kg/dia informado
-carga_kcal_h = energia_total_da_massa_dia / tempo_processo_h
-```
+Se faltarem dados essenciais, o resultado será “revisar aplicação” ou “sem dados suficientes”, com alerta técnico, em vez de inventar condição de ar.
 
-Uso típico:
+## Campos e limites técnicos
 
-- câmara recebe produto todo dia;
-- produto entra já resfriado ou precisa apenas equalizar temperatura;
-- o compressor tem algumas horas para recuperar.
+Vou adicionar campos opcionais ao modelo de túnel para que os limites não fiquem escondidos no código:
 
-Modo C — Entrada horária direta
+- `air_delta_t_k`: ΔT do ar usado para calcular vazão;
+- `min_air_temp_c` e `max_air_temp_c`: limites de temperatura do ar;
+- `min_air_velocity_m_s` e `max_air_velocity_m_s`: limites de velocidade;
+- `air_temp_step_c`: passo de iteração da temperatura;
+- `air_velocity_step_m_s`: passo de iteração da velocidade;
+- campos de saída/memória: condição recomendada, status, margem, quantidade de tentativas e memória de cálculo.
 
-```text
-carga_kcal_h = kg/h informado × energia_específica_do_produto
-```
+Os valores iniciais continuarão existindo, mas serão tratados como “ponto inicial”, não como recomendação final.
 
-Uso típico:
+## Ajustes no banco/backend
 
-- linha contínua;
-- recebimento concentrado por hora;
-- pico operacional conhecido;
-- quando o usuário já sabe a vazão horária real.
+1. Criar migração para expandir `coldpro_tunnels` com os novos campos de limites, ΔT de ar e resultado da otimização.
+2. Atualizar a validação do salvamento do túnel para aceitar os novos campos.
+3. Manter compatibilidade com túneis já cadastrados: quando os campos novos estiverem vazios, usar valores iniciais técnicos como fallback apenas para iniciar a simulação.
 
-Nesse modo, o sistema deve deixar claro que kg/h substitui kg/dia dividido por tempo.
+## Ajustes na interface
 
-Modo D — Congelamento/resfriamento dentro da câmara de armazenagem
+Na aba “Ar e embalagem”, vou reorganizar para separar claramente:
 
-```text
-energia_total = massa_lote × energia_específica_do_produto
-potência_requerida = energia_total / tempo_desejado_h
-```
+1. Condição inicial informada
+- temperatura inicial do ar;
+- velocidade inicial do ar;
+- ΔT do ar para cálculo de vazão.
 
-Uso típico:
+2. Limites técnicos de iteração
+- temperatura mínima/máxima permitida;
+- velocidade mínima/máxima permitida;
+- passo de temperatura e velocidade.
 
-- cliente quer armazenar e congelar na mesma câmara;
-- não há túnel dedicado;
-- entra uma quantidade de produto quente/resfriado/congelando em determinado período.
+3. Fatores físicos do arranjo
+- fator de exposição ao ar;
+- fator de penetração térmica;
+- embalagem/arranjo.
 
-O sistema deve mostrar alerta técnico:
+Também vou ajustar textos para deixar claro que esses campos alimentam a otimização, e não são “presets finais”.
 
-```text
-Câmara de armazenagem pode recuperar temperatura de produto, mas congelamento de carga nova dentro da câmara depende de circulação de ar, embalagem, empilhamento, área exposta e tempo disponível. Para congelamento intenso ou recorrente, recomenda-se túnel ou processo dedicado.
-```
+## Resultado e memória de cálculo
 
-4. Melhorar nomes e ajuda da interface
+No card de resultado, a seção “Validação térmica do túnel” passará a mostrar:
 
-Na tela `ColdProProductForm`, reorganizar a seção “Movimentação e processo” para ficar mais didática:
-
-- “Como esta carga entra na câmara?”
-  - Estoque com giro percentual
-  - Entrada diária informada
-  - Entrada horária informada
-  - Lote para resfriar/congelar dentro da câmara
-
-Exibir campos conforme a escolha:
-
-- Estoque com giro percentual:
-  - carga total estocada kg;
-  - percentual movimentado/dia;
-  - massa movimentada calculada kg/dia;
-  - tempo de recuperação h.
-
-- Entrada diária:
-  - kg/dia;
-  - tempo de recuperação/processo h;
-  - kg/h equivalente calculado.
-
-- Entrada horária:
-  - kg/h;
-  - observação de que é vazão/pico direto.
-
-- Lote dentro da câmara:
-  - massa do lote kg;
-  - tempo desejado h;
-  - opção “inclui mudança de fase/congelamento”; 
-  - temperaturas de entrada/final/congelamento.
-
-5. Ajustar o motor de cálculo
-
-Atualizar `calculateProductLoadBreakdown` para escolher a massa e o divisor correto conforme o modo:
-
-- Para `storage_turnover`:
-  - calcular kg/dia a partir do estoque e percentual;
-  - dividir pelo tempo de recuperação.
-
-- Para `daily_intake`:
-  - usar kg/dia informado;
-  - dividir pelo tempo de processo.
-
-- Para `hourly_intake`:
-  - usar kg/h diretamente;
-  - não dividir de novo por tempo.
-
-- Para `room_pull_down_or_freezing`:
-  - usar massa do lote;
-  - dividir pelo tempo desejado;
-  - manter cálculo sensível + latente + sensível abaixo quando cruzar a temperatura de congelamento.
-
-6. Deixar o cálculo transparente
-
-No `calculation_breakdown.products`, incluir:
-
-- modo selecionado;
-- massa estocada;
-- percentual movimentado;
-- kg/dia calculado;
-- kg/h equivalente;
-- tempo de recuperação/processo;
-- energia específica do produto;
-- carga sensível acima;
-- carga latente;
-- carga sensível abaixo;
+- status: adequado, insuficiente, revisar aplicação ou inviável;
+- condição inicial testada;
+- condição recomendada calculada;
+- temperatura do ar recomendada;
+- velocidade mínima recomendada;
+- vazão necessária;
+- potência frigorífica requerida;
+- tempo desejado;
+- tempo estimado;
+- margem percentual;
+- energia específica;
+- `h_base`;
+- `h_efetivo`;
+- `k_efetivo`;
+- dimensão térmica usada;
+- fator de exposição ao ar;
+- fator de penetração térmica;
+- número de tentativas testadas;
 - alertas técnicos.
 
-7. Atualizar resultado e relatório
+Também incluirei uma tabela/resumo das tentativas principais para evidenciar a prova matemática, por exemplo:
 
-Em `ColdProResultCard` e `ColdProReport`, mostrar a carga de produto de forma mais compreensível:
+```text
+Tar       Velocidade      Tempo estimado      Status
+-30°C     3 m/s           95 min              não atende
+-35°C     3 m/s           78 min              não atende
+-40°C     3 m/s           66 min              não atende
+-40°C     4 m/s           58 min              atende
+```
 
-- “Base de cálculo: estoque com 30% de giro”
-- “Massa movimentada: 3.000 kg/dia”
-- “Tempo de recuperação: 20 h”
-- “Equivalente: 150 kg/h”
-- “Carga de produto: X kcal/h”
+## Regras técnicas que serão aplicadas
 
-Para congelamento em câmara, destacar:
+- Preset não será resultado final.
+- Toda recomendação precisa ter tentativa calculada.
+- Se o tempo estimado for maior que o desejado, o sistema tentará primeiro temperatura, depois velocidade.
+- A vazão será consequência da potência e do ΔT do ar, não um número chutado.
+- Produto em caixa, pallet, bloco ou granel continuará gerando alerta técnico por depender de embalagem, passagem real de ar e arranjo físico.
+- Se faltar densidade, condutividade, calor latente, temperatura de congelamento, dimensão térmica ou tempo desejado, o sistema não recomendará condição final.
 
-- carga térmica exigida;
-- tempo informado;
-- aviso de limitação do método;
-- recomendação de validar circulação/empilhamento ou considerar túnel.
+## Arquivos que serão alterados
 
-8. Validações
-
-Adicionar validações para evitar ambiguidade:
-
-- Se modo for estoque, exigir carga estocada e percentual.
-- Se modo for diário, exigir kg/dia e tempo.
-- Se modo for horário, exigir kg/h.
-- Se modo for lote/congelamento em câmara, exigir massa do lote e tempo desejado.
-- Avisar quando o usuário preencher kg/dia e kg/h ao mesmo tempo, explicando qual será usado.
-
-9. Arquivos principais
-
-- Migração para novos campos em `coldpro_environment_products`.
+- `src/features/coldpro/coldpro-calculation.engine.ts`
 - `src/features/coldpro/coldpro.types.ts`
 - `src/features/coldpro/coldpro.functions.ts`
-- `src/features/coldpro/coldpro-calculation.engine.ts`
-- `src/components/coldpro/ColdProProductForm.tsx`
+- `src/components/coldpro/ColdProTunnelForm.tsx`
 - `src/components/coldpro/ColdProResultCard.tsx`
-- `src/components/coldpro/ColdProReport.tsx`
+- nova migração em `supabase/migrations/` para os novos campos do túnel
 
-Resultado esperado
+## Resultado esperado
 
-A etapa Produto deixará claro que:
+Ao final, o ColdPro mostrará algo no estilo:
 
-- carga estocada não é automaticamente carga térmica;
-- o que gera carga térmica é a movimentação/entrada/recuperação de temperatura;
-- kg/dia é usado quando a entrada é diária e distribuída no tempo de recuperação;
-- kg/h é usado quando existe vazão horária ou pico conhecido;
-- tempo de processo em câmara é tempo de recuperação térmica;
-- congelamento em câmara é possível de calcular como carga de recuperação/congelamento, mas precisa de alerta técnico porque depende de circulação, embalagem, empilhamento e área exposta.
+```text
+Condição calculada para atender 60 min:
+Tar: -40°C
+Velocidade mínima: 4 m/s
+Vazão necessária: 32.500 m³/h
+Potência requerida: 85 kW
+Tempo estimado: 58 min
+Margem: 3,3%
+Status: adequado
+
+Base: 4 tentativas calculadas. A condição inicial não atendia; a temperatura foi reduzida até o limite e depois a velocidade foi elevada até encontrar a menor condição viável.
+```
+
+Assim, a recomendação deixa de ser um preset fixo e passa a ser uma conclusão comprovada pela memória de cálculo.
