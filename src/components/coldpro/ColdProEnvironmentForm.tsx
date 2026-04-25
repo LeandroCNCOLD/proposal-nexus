@@ -18,6 +18,7 @@ import {
 type Props = {
   environment: any;
   insulationMaterials: any[];
+  thermalMaterials?: any[];
   onSave: (patch: Record<string, unknown>) => void;
 };
 
