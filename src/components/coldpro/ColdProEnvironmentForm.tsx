@@ -360,6 +360,17 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
 
         <TabsContent value="dimensoes">
           <div className="space-y-5">
+            <ColdProFormSection title="Dados psicrométricos" description="Condições base usadas no cálculo térmico da câmara." icon={<Thermometer className="h-4 w-4" />}>
+              <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-6">
+                <ColdProField label="Temp. externa" unit="°C"><ColdProInput {...num("external_temp_c")} /></ColdProField>
+                <ColdProField label="Temp. interna" unit="°C"><ColdProInput {...num("internal_temp_c")} /></ColdProField>
+                <ColdProField label="UR externa" unit="%"><ColdProInput {...num("external_relative_humidity_percent")} placeholder="70" /></ColdProField>
+                <ColdProField label="UR interna" unit="%"><ColdProInput {...num("relative_humidity_percent")} placeholder="70" /></ColdProField>
+                <ColdProField label="Pressão atm." unit="kPa"><ColdProInput {...num("atmospheric_pressure_kpa")} placeholder="92,6" /></ColdProField>
+                <ColdProField label="Tempo processo" unit="h"><ColdProInput {...num("operation_hours_day")} /></ColdProField>
+              </div>
+            </ColdProFormSection>
+
             <ColdProFormSection title="Formato, dimensões e paredes" description="Selecione o desenho da câmara para calcular volume, teto, piso e paredes com medidas diferentes." icon={<DraftingCompass className="h-4 w-4" />}>
               <div className="grid gap-5 xl:grid-cols-[1fr_260px]">
                 <div className="space-y-5">
