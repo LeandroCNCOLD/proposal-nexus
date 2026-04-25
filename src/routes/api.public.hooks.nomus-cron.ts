@@ -333,13 +333,14 @@ async function pullProposalsNewestFirst(): Promise<{ ok: boolean; count?: number
     .maybeSingle();
 
   const previousTotal = (stateRow as { total_synced?: number | null } | null)?.total_synced ?? 0;
-  const { data: maxRow } = await supabaseAdmin
+  const { data: knownRows } = await supabaseAdmin
     .from("nomus_proposals")
     .select("nomus_id")
-    .order("nomus_id", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  const maxKnownId = Number((maxRow as { nomus_id?: string | null } | null)?.nomus_id ?? 0) || 0;
+    .limit(10000);
+  const maxKnownId = ((knownRows as Array<{ nomus_id?: string | null }> | null) ?? []).reduce((max, row) => {
+    const id = Number(row.nomus_id ?? 0) || 0;
+    return id > max ? id : max;
+  }, 0);
 
   let count = 0;
   let done = false;
