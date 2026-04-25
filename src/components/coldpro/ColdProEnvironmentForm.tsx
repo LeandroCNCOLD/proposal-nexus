@@ -383,7 +383,7 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
     const wallMaterial = insulationOptions.find((item) => item.id === materialKey) ?? selectedInsulation;
     const floorMaterial = insulationOptions.find((item) => item.id === floorMaterialKey) ?? wallMaterial;
     const next = normalizeFaces(form?.construction_faces, layout, wallCount, length, width, height, geometry).map((face) => {
-      if (face.local === "PISO" && !form?.has_floor_insulation) return { ...face, layers: [], u_value_w_m2k: null };
+      if (face.local === "PISO" && !form?.has_floor_insulation) return applyUninsulatedFloorToFace(face);
       if (face.local === "PISO") return applyLayerToFace(face, makeInsulationLayer(floorMaterial, floorThickness));
       if (face.local === "TETO") return applyLayerToFace(face, makeInsulationLayer(wallMaterial, ceilingThickness));
       return applyLayerToFace(face, makeInsulationLayer(wallMaterial, wallThickness));
@@ -417,7 +417,7 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
     if (floorIndex >= 0) {
       const layer = makeInsulationLayer(selectedFloorInsulation, form?.floor_thickness_mm);
       const next = [...constructionFaces];
-      next[floorIndex] = enabled ? applyLayerToFace(next[floorIndex], layer) : { ...next[floorIndex], layers: [], u_value_w_m2k: null };
+      next[floorIndex] = enabled ? applyLayerToFace(next[floorIndex], layer) : applyUninsulatedFloorToFace(next[floorIndex]);
       set("construction_faces", [...next, geometry]);
     }
   };
