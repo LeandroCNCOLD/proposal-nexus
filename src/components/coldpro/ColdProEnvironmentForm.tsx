@@ -437,6 +437,11 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
     set("construction_faces", [...next, geometry]);
   };
 
+  const displayedExternalTemp = (face: any) => {
+    if (face.external_temp_c !== null && face.external_temp_c !== undefined) return face.external_temp_c;
+    return face.local === "PISO" ? form?.floor_temp_c : form?.external_temp_c;
+  };
+
   const currentSolarFace = constructionFaces.find((face) => face.solar_orientation === "Sol direto")?.local;
   const faceCalculationEnv = { ...form, construction_faces: constructionFaces, chamber_layout_type: layout, wall_count: wallCount };
 
