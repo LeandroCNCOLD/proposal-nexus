@@ -3,6 +3,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { renderToBuffer } from "@react-pdf/renderer";
 import * as React from "react";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { ColdProMemorialPdf } from "./ColdProMemorialPdf";
 
 const inputSchema = z.object({
@@ -16,6 +17,7 @@ const inputSchema = z.object({
  * Retorna URL assinada para download.
  */
 export const generateColdProMemorialPdf = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator(inputSchema)
   .handler(async ({ data }) => {
     const supabase = supabaseAdmin;
