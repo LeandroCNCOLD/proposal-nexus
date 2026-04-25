@@ -171,6 +171,8 @@ export function ColdProTunnelForm({ environmentId, tunnel, productCatalog = [], 
                 <ColdProField label="Cp acima"><ColdProInput {...num("specific_heat_above_kcal_kg_c")} /></ColdProField>
                 <ColdProField label="Cp abaixo"><ColdProInput {...num("specific_heat_below_kcal_kg_c")} /></ColdProField>
                 <ColdProField label="Calor latente"><ColdProInput {...num("latent_heat_kcal_kg")} /></ColdProField>
+                <ColdProField label="Calor latente" unit="kJ/kg"><ColdProInput {...num("latent_heat_kj_kg")} /></ColdProField>
+                <ColdProField label="Água" unit="%"><ColdProInput {...num("water_content_percent")} /></ColdProField>
                 <ColdProField label="Condutividade congelado"><ColdProInput {...num("thermal_conductivity_frozen_w_m_k")} /></ColdProField>
                 <ColdProField label="Coef. convecção manual"><ColdProInput {...num("convective_coefficient_w_m2_k")} /></ColdProField>
                 <ColdProValidationMessage>{velocityWarning ? "Confira a velocidade do ar. Valores usuais ficam acima de 0 e geralmente abaixo de 10 m/s." : ""}</ColdProValidationMessage>
