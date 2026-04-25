@@ -1,147 +1,232 @@
-Analisei o código e a base atual. O CRM já está parcialmente integrado com os endpoints de Processos do Nomus, mas ainda não segue 100% as regras que você enviou.
+Plano de implementação — ColdPro túneis com dois modelos físicos
 
-## O que já está funcionando
+Vou ajustar o módulo ColdPro para separar claramente os processos contínuos/girofreezer dos processos estáticos em carrinho, caixa, pallet ou massa a granel. O foco será cálculo térmico/frigorífico, sem dimensionar mecanicamente túnel, esteira, carrinho ou pallet.
 
-- O endpoint central já está mapeado como `processos: "/processos"`.
-- Existe sincronização de leitura do Nomus para o CRM:
-  - `GET /processos`
-  - `GET /processos/:id` em algumas rotinas de rechecagem.
-- Os processos são salvos em uma tabela espelho (`nomus_processes`) com campos compatíveis:
-  - `nome`, `tipo`, `etapa`, `prioridade`, `equipe`, `origem`, `responsavel`, `reportador`, `dataCriacao`, `dataHoraProgramada`, `raw`.
-- O Kanban do CRM usa `tipo` como funil e `etapa` como coluna.
-- Etapas novas vindas do Nomus são cadastradas automaticamente em `crm_funnel_stages`.
-- Há sincronização automática/recorrente: os logs mostram chamadas recentes com sucesso para `GET /processos?pagina=1`.
-- Hoje existem dados reais sincronizados:
-  - 121 processos em `nomus_processes`
-  - 16 etapas/funis em `crm_funnel_stages`
-  - logs de integração com status 200 para processos.
+1. Modelo de dados
 
-## O que não está completo ou diverge das regras
+Criar novos campos em `coldpro_tunnels` para representar o processo físico:
 
-1. **Sincronização bidirecional ainda não está implementada de fato**
-   - Existe apenas um `pingProcessoPut`, que testa `PUT /processos/:id` sem mudar nada.
-   - Não encontrei função real para alterar etapa/responsável/prioridade no Lovable e enviar `PUT` ao Nomus.
-   - Também não encontrei drag-and-drop ou ação de mover card no Kanban.
-   - A tabela `crm_stage_changes` existe, mas está vazia; ou seja, o sistema não está registrando mudanças de etapa.
+- `process_type`
+  - `continuous_individual_freezing`
+  - `continuous_girofreezer`
+  - `static_cart_freezing`
+  - `static_pallet_freezing`
 
-2. **Criação de processo no Nomus ainda não está implementada**
-   - O endpoint `POST /processos` está documentado na sua regra, mas o sistema atual não tem uma função de “criar processo no Nomus”.
+- `arrangement_type`
+  - `individual_exposed`
+  - `tray_layer`
+  - `boxed_product`
+  - `cart_rack`
+  - `pallet_block`
+  - `bulk_static`
 
-3. **Mapeamento de campos está parcial**
-   - A leitura já mapeia os principais campos, mas a tela do CRM não usa todos de forma operacional.
-   - `dataHoraProgramada` é armazenada, mas o Kanban/detalhe ainda usa mais `proximo_contato`/datas locais do que a regra enviada.
-   - O campo `idPrioridade` não existe em coluna própria; se vier do Nomus, fica apenas dentro do `raw`.
+- Geometria unitária:
+  - `product_length_m`
+  - `product_width_m`
+  - `product_thickness_m`
+  - `unit_weight_kg`
 
-4. **Regra de “etapa Nomus -> status CRM” está sendo usada como espelho, não como tradução configurável**
-   - Hoje o sistema usa a própria `etapa` como coluna do CRM.
-   - Há uma exceção local: se uma proposta vinculada parecer “venda confirmada”, o card pode aparecer como “Venda confirmada”, mesmo que o processo no Nomus esteja em outra etapa. Isso pode criar divergência visual.
+- Geometria de bloco/pallet/carrinho:
+  - `pallet_length_m`
+  - `pallet_width_m`
+  - `pallet_height_m`
+  - `pallet_mass_kg`
+  - `number_of_pallets`
+  - `batch_time_h`
+  - `layers_count`
+  - `boxes_count`
+  - `tray_spacing_m`
 
-5. **Sincronização incremental atual só olha páginas/IDs recentes**
-   - Isso é bom para performance, mas mudanças antigas no Nomus podem demorar ou não entrar se não forem rechecadas em uma varredura completa/manual.
+- Embalagem e passagem de ar:
+  - `package_type`
+  - `air_exposure_factor`
+  - `thermal_penetration_factor`
 
-6. **Há um registro suspeito sincronizado com `nomus_id = 0`**
-   - Isso indica que algum detalhe retornou/salvou `{ id: 0 }` ou que a rotina aceitou um ID inválido. Deve ser tratado para evitar card/processo fantasma.
+- Ar e coeficientes:
+  - `airflow_m3_h`
+  - `convective_coefficient_manual_w_m2_k`
+  - `convective_coefficient_effective_w_m2_k`
 
-## Plano de ajuste para seguir exatamente as regras enviadas
+- Dimensão térmica calculada/salva para auditoria:
+  - `thermal_characteristic_dimension_m`
+  - `distance_to_core_m`
 
-### 1. Completar o mapeamento de Processo Nomus
-- Ajustar o parser/salvamento para aceitar explicitamente:
-  - `id`
-  - `nome`
-  - `etapa`
-  - `tipo`
-  - `prioridade`
-  - `idPrioridade`
-  - `reportador`
-  - `responsavel`
-  - `equipe`
-  - `dataHoraProgramada`
-  - `dataCriacao`
-  - `origem`
-- Criar coluna para `id_prioridade` se necessário.
-- Bloquear salvamento de processos com `id` vazio ou `0`.
+Manter os campos existentes como compatibilidade (`operation_mode`, `product_thickness_mm`, `product_unit_weight_kg`, `mass_kg_hour`, `process_time_min`) e mapear para os novos campos quando fizer sentido.
 
-### 2. Implementar atualização real Lovable -> Nomus
-- Criar uma server function segura para atualizar processo:
-  - recebe `process_id` local e campos alterados.
-  - busca o processo atual no banco.
-  - monta payload no formato aceito pelo Nomus.
-  - chama `PUT /processos/:id`.
-  - se o Nomus confirmar, atualiza `nomus_processes` local.
-  - registra histórico em `crm_stage_changes` quando a etapa mudar.
-- Usar esse fluxo para:
-  - alteração de etapa.
-  - responsável.
-  - prioridade/idPrioridade.
-  - equipe.
-  - data programada.
+2. Regras padrão por tipo de arranjo
 
-### 3. Adicionar movimento de etapa no CRM/Kanban
-- Permitir mover cards entre colunas/etapas.
-- Ao mover:
-  - chamar `PUT /processos/:id` no Nomus.
-  - atualizar a etapa local somente depois do sucesso.
-  - exibir erro amigável se o Nomus recusar.
-  - gravar histórico em `crm_stage_changes`.
-
-### 4. Implementar criação de processo no Nomus
-- Criar ação “Novo processo” no CRM.
-- Enviar `POST /processos` com campos conforme sua regra:
-  - `dataHoraProgramada`
-  - `nome`
-  - `reportador`
-  - `responsavel`
-  - `tipo`
-  - `prioridade`/`idPrioridade`
-  - `etapa`
-  - `equipe`
-  - `origem`
-- Após criar, puxar o detalhe do processo criado e salvar no CRM local.
-
-### 5. Separar “espelho Nomus” de “enriquecimento local”
-- Manter `nomus_processes.etapa` como fonte oficial do Nomus.
-- Evitar mover visualmente um card para “Venda confirmada” só por status de proposta, a menos que também exista atualização real no processo Nomus.
-- Se quiser manter esse comportamento, mostrar como “sugestão/alerta”, não como etapa oficial.
-
-### 6. Melhorar sincronização Nomus -> Lovable
-- Manter sync rápido das páginas recentes.
-- Adicionar uma opção administrativa de “varredura completa de processos” para reprocessar todas as páginas.
-- Garantir que novas etapas/tipos encontrados continuem criando funis/colunas automaticamente.
-
-### 7. Ajustar a tela do CRM
-- Mostrar os campos operacionais enviados pelo Nomus:
-  - etapa
-  - tipo
-  - prioridade
-  - responsável
-  - equipe
-  - origem
-  - data programada
-- Adicionar botão/ação de edição do processo.
-- Adicionar indicação clara quando o card está sincronizado ou quando houve falha ao enviar para o Nomus.
-
-## Resultado esperado
-
-Depois desses ajustes, o CRM seguirá a regra:
+Adicionar constantes no motor ColdPro:
 
 ```text
-Nomus Processo            CRM Lovable
---------------------------------------------
-nome                      Título da oportunidade
-etapa                     Coluna/status do Kanban
-tipo                      Funil/tipo de oportunidade
-responsavel               Responsável
-prioridade/idPrioridade   Prioridade
-dataHoraProgramada        Data programada/fechamento
-origem                    Origem
+individual_exposed: air_exposure_factor 1.00, penetration_factor 1.00
+tray_layer:         air_exposure_factor 0.80, penetration_factor 0.80
+cart_rack:          air_exposure_factor 0.70, penetration_factor 0.70
+boxed_product:      air_exposure_factor 0.25–0.50, penetration_factor 0.35–0.60
+pallet_block:       air_exposure_factor 0.10–0.20, penetration_factor 0.15–0.25
+bulk_static:        air_exposure_factor 0.10, penetration_factor 0.15
 ```
 
-E o fluxo ficará bidirecional:
+Para `boxed_product` e `pallet_block`, usar valores conservadores por padrão e permitir edição manual pelo usuário.
+
+3. Motor de cálculo
+
+Atualizar `coldpro-calculation.engine.ts` para criar dois caminhos físicos.
+
+Modelo A — contínuo/girofreezer:
+
+- Produto tratado como unidade individual ou camada fina exposta.
+- Massa usada:
+  - `mass_kg_hour` informado; ou
+  - `units_per_cycle × unit_weight_kg × cycles_per_hour`.
+- Carga térmica:
+  - `Q_kcal_h = kg/h × energia_específica_do_produto`.
+- Dimensão térmica:
+  - `thermal_characteristic_dimension = product_thickness_m`;
+  - `distance_to_core = product_thickness_m / 2`.
+- Validação:
+  - `retention_time_min >= estimated_core_freezing_time_min`.
+
+Modelo B — estático/carrinho/pallet/bloco:
+
+- Produto tratado como massa agrupada/bloco térmico equivalente.
+- Massa usada:
+  - `pallet_mass_kg × number_of_pallets`, ou massa total de lote.
+- Energia total:
+  - `Q_total = massa_total × energia_específica_do_produto`.
+- Potência:
+  - `P_kW = Q_total_kJ / (batch_time_h × 3600)`.
+- Dimensão térmica:
+  - `thermal_characteristic_dimension = menor dimensão do bloco/pallet`;
+  - `distance_to_core = menor dimensão / 2`.
+- Validação:
+  - comparar tempo desejado de batelada com tempo estimado até o núcleo.
+
+4. Fórmula de tempo até núcleo
+
+Implementar a estimativa tipo Plank generalizada:
 
 ```text
-Nomus GET /processos        -> atualiza CRM
-Nomus GET /processos/:id    -> atualiza detalhe local
-CRM muda etapa/campos       -> PUT /processos/:id no Nomus
-CRM cria processo           -> POST /processos no Nomus
-Nomus muda processo         -> próximo sync atualiza CRM
+t = (ρ × L_eff / ΔT) × [ (a / h_efetivo) + (a² / (2 × k_efetivo)) ]
 ```
+
+Onde:
+
+- `h = 10 + 10 × velocidade_ar^0.8`
+- `h_efetivo = h × air_exposure_factor`
+- `k_efetivo = k_produto × thermal_penetration_factor`
+- contínuo: `a = espessura_produto / 2`
+- pallet/bloco: `a = menor_dimensão_pallet / 2`
+- `L_eff` usa calor latente efetivo considerando fração congelável/fração de água quando houver.
+
+Para pallet/bloco fechado, o sistema exibirá aviso técnico de que é estimativa conservadora e depende de embalagem, passagem real de ar, vazão e arranjo físico.
+
+5. Formulário de túnel
+
+Refatorar `ColdProTunnelForm.tsx` para deixar o preenchimento organizado:
+
+- Aba “Modelo físico”
+  - tipo de processo;
+  - tipo de arranjo;
+  - explicação curta do modelo aplicado.
+
+- Aba “Produto”
+  - seleção ASHRAE/CN ColdPro;
+  - propriedades térmicas do produto;
+  - composição quando disponível.
+
+- Aba “Contínuo / Girofreezer”
+  - comprimento, largura, espessura;
+  - peso unitário;
+  - kg/h ou unidades/ciclo e ciclos/h;
+  - tempo de retenção.
+
+- Aba “Estático / Pallet / Carrinho”
+  - massa total/pallet;
+  - dimensões do bloco/pallet/carrinho;
+  - número de pallets;
+  - número de camadas/caixas;
+  - espaçamento entre bandejas quando aplicável;
+  - tempo desejado de batelada.
+
+- Aba “Ar e embalagem”
+  - temperatura do ar;
+  - velocidade do ar;
+  - vazão de ar;
+  - tipo de embalagem;
+  - fator de exposição ao ar;
+  - fator de penetração térmica;
+  - coeficiente convectivo manual/opcional.
+
+- Aba “Cargas internas”
+  - embalagem em kg/h ou massa de embalagem;
+  - motor esteira;
+  - ventiladores internos;
+  - outras cargas.
+
+6. Validações e mensagens técnicas
+
+Adicionar validações no formulário e no servidor:
+
+- Processo contínuo exige produto, massa/throughput, espessura, temperatura do ar, velocidade do ar e tempo de retenção.
+- Processo estático exige massa total, dimensões do bloco/pallet/carrinho e tempo de batelada.
+- Se faltar densidade, condutividade congelada ou calor latente, mostrar que a validação de tempo até núcleo pode ficar incompleta.
+- Se `static_pallet_freezing`, `pallet_block`, `boxed_product` ou `bulk_static`, mostrar alerta:
+  - “Congelamento de pallet/bloco depende fortemente da embalagem, arranjo, vazão e passagem real de ar. Resultado deve ser validado em campo ou por ensaio.”
+
+7. Resultado e memorial
+
+Atualizar os resultados para exibir:
+
+- tipo de processo;
+- tipo de arranjo;
+- carga térmica total a remover;
+- potência requerida;
+- tempo disponível;
+- tempo estimado até núcleo;
+- dimensão térmica usada;
+- distância até núcleo;
+- velocidade do ar;
+- vazão de ar;
+- fator de exposição ao ar;
+- fator de penetração térmica;
+- coeficiente convectivo efetivo;
+- status técnico:
+  - adequado;
+  - insuficiente;
+  - revisar aplicação;
+  - sem dados suficientes;
+- alertas técnicos.
+
+Também atualizarei o `calculation_breakdown` para registrar as fórmulas e parâmetros usados, diferenciando dados ASHRAE, dados manuais e estimativas do sistema.
+
+8. Isolantes térmicos e tabelas auxiliares
+
+Analisar o pacote enviado e comparar com as tabelas existentes. Como o sistema já tem `coldpro_insulation_materials`, `coldpro_thermal_materials`, `coldpro_materials` e `coldpro_wall_compositions`, vou evitar duplicar estruturas.
+
+A direção será:
+
+- usar uma base técnica de materiais térmicos para seleção no ambiente;
+- garantir que isolantes térmicos tenham condutividade, densidade, espessura típica, faixa de temperatura e fonte;
+- facilitar preenchimento de paredes, teto e piso;
+- preservar compatibilidade com o formulário atual.
+
+9. Arquivos principais a alterar
+
+- Migração de banco para novos campos em `coldpro_tunnels` e, se necessário, ajustes em materiais térmicos.
+- `src/features/coldpro/coldpro.types.ts`
+- `src/features/coldpro/coldpro-calculation.engine.ts`
+- `src/features/coldpro/coldpro.functions.ts`
+- `src/components/coldpro/ColdProTunnelForm.tsx`
+- `src/components/coldpro/ColdProResultCard.tsx`
+- `src/components/coldpro/ColdProReport.tsx`
+- `src/integrations/coldpro/ColdProMemorialPdf.tsx`, se o memorial precisar refletir os novos detalhes.
+
+10. Critérios de aceite
+
+- O usuário consegue escolher entre contínuo/girofreezer e estático/pallet/carrinho.
+- O contínuo calcula carga por kg/h e valida tempo de retenção da unidade.
+- O estático calcula energia total, potência por tempo de batelada e valida penetração até o núcleo.
+- O cálculo usa `air_exposure_factor`, `thermal_penetration_factor`, `h_efetivo` e dimensão térmica correta.
+- O sistema avisa quando o cálculo é conservador ou depende de ensaio/campo.
+- Nenhum campo de geometria, embalagem ou arranjo físico é tratado como dado ASHRAE.
+- O sistema continua calculando câmaras frias e produtos simples como antes.
