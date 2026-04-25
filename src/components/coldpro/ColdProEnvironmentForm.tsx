@@ -180,6 +180,19 @@ function describeLayer(layer: any) {
   };
 }
 
+function normalizeInsulationOption(material: any, source: "legacy" | "thermal") {
+  const id = `${source}:${material.id}`;
+  return {
+    id,
+    source,
+    rawId: material.id,
+    name: material.name ?? material.material_name ?? "Isolante",
+    conductivity_w_m_k: material.conductivity_w_m_k ?? material.thermal_conductivity_w_mk,
+    conductivity_kcal_h_m_c: material.conductivity_kcal_h_m_c,
+    default_thickness_mm: material.default_thickness_mm ?? material.typical_thickness_mm,
+  };
+}
+
 function calculateUValue(layers: any[]) {
   const valid = layers.filter((layer) => toNumber(layer.thickness_m) > 0 && toNumber(layer.conductivity_w_mk) > 0);
   const rLayers = valid.reduce((sum, layer) => sum + toNumber(layer.thickness_m) / toNumber(layer.conductivity_w_mk), 0);
@@ -246,9 +259,14 @@ function ChamberShapePreview({ layout }: { layout: ChamberLayout }) {
 export function ColdProEnvironmentForm({ environment, insulationMaterials, onSave }: Props) {
   const [form, setForm] = React.useState<any>(environment);
   const [floorInsulationMaterialId, setFloorInsulationMaterialId] = React.useState<string>(environment?.insulation_material_id ?? "");
+  const [panelMaterialKey, setPanelMaterialKey] = React.useState<string>(environment?.insulation_material_id ? `legacy:${environment.insulation_material_id}` : "");
   const [soilRegion, setSoilRegion] = React.useState("");
   React.useEffect(() => setForm(environment), [environment]);
-  React.useEffect(() => setFloorInsulationMaterialId(environment?.insulation_material_id ?? ""), [environment]);
+  React.useEffect(() => {
+    const legacyKey = environment?.insulation_material_id ? `legacy:${environment.insulation_material_id}` : "";
+    setFloorInsulationMaterialId(legacyKey);
+    setPanelMaterialKey(legacyKey);
+  }, [environment]);
 
   const isClimatized = form?.environment_type === "climatized_room";
   const isSeed = form?.environment_type === "seed_storage";
