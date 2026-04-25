@@ -3769,7 +3769,10 @@ export type Database = {
           external_deleted_at: string | null
           external_updated_at: string | null
           id: string
+          id_prioridade: number | null
           is_active: boolean
+          last_pull_error: string | null
+          last_push_error: string | null
           last_pushed_at: string | null
           last_synced_at: string | null
           local_dirty: boolean
@@ -3799,7 +3802,10 @@ export type Database = {
           external_deleted_at?: string | null
           external_updated_at?: string | null
           id?: string
+          id_prioridade?: number | null
           is_active?: boolean
+          last_pull_error?: string | null
+          last_push_error?: string | null
           last_pushed_at?: string | null
           last_synced_at?: string | null
           local_dirty?: boolean
@@ -3829,7 +3835,10 @@ export type Database = {
           external_deleted_at?: string | null
           external_updated_at?: string | null
           id?: string
+          id_prioridade?: number | null
           is_active?: boolean
+          last_pull_error?: string | null
+          last_push_error?: string | null
           last_pushed_at?: string | null
           last_synced_at?: string | null
           local_dirty?: boolean
