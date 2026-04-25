@@ -5,6 +5,33 @@ function fmt(value: unknown, digits = 2) {
   return new Intl.NumberFormat("pt-BR", { maximumFractionDigits: digits }).format(Number(value ?? 0));
 }
 
+function loadRows(result: any): Array<[string, number]> {
+  const rows: Array<[string, number]> = [
+    ["Transmissão", Number(result?.transmission_kcal_h ?? 0)],
+    ["Produto", Number(result?.product_kcal_h ?? 0)],
+    ["Embalagem", Number(result?.packaging_kcal_h ?? 0)],
+    ["Infiltração", Number(result?.infiltration_kcal_h ?? 0)],
+    ["Pessoas", Number(result?.people_kcal_h ?? 0)],
+    ["Iluminação", Number(result?.lighting_kcal_h ?? 0)],
+    ["Motores", Number(result?.motors_kcal_h ?? 0)],
+    ["Ventiladores", Number(result?.fans_kcal_h ?? 0)],
+    ["Degelo", Number(result?.defrost_kcal_h ?? 0)],
+    ["Outros", Number(result?.other_kcal_h ?? 0) + Number(result?.tunnel_internal_load_kcal_h ?? 0)],
+  ];
+  return rows.filter(([, value]) => value > 0);
+}
+
+function LoadChart({ result }: { result: any }) {
+  const rows = loadRows(result);
+  const max = Math.max(1, ...rows.map(([, value]) => value));
+  if (!rows.length) return null;
+  return <div className="rounded-lg border bg-muted/20 p-3"><div className="mb-3 text-sm font-semibold">Gráfico de cargas por componente</div><div className="space-y-2">{rows.map(([label, value]) => <div key={label} className="grid grid-cols-[96px_minmax(0,1fr)_92px] items-center gap-2 text-xs"><div className="truncate text-muted-foreground">{label}</div><div className="h-2.5 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary" style={{ width: `${Math.max(3, (value / max) * 100)}%` }} /></div><div className="text-right font-medium">{fmt(value, 0)} kcal/h</div></div>)}</div></div>;
+}
+
+function TemperatureStrip({ env }: { env: any }) {
+  return <div className="rounded-lg border bg-muted/20 p-3"><div className="mb-2 text-sm font-semibold">Temperaturas de projeto</div><div className="grid grid-cols-2 gap-3 text-sm"><div className="rounded-md bg-background p-2"><div className="text-xs text-muted-foreground">Interna</div><div className="text-lg font-bold">{fmt(env.internal_temp_c)} °C</div></div><div className="rounded-md bg-background p-2"><div className="text-xs text-muted-foreground">Externa</div><div className="text-lg font-bold">{fmt(env.external_temp_c)} °C</div></div></div></div>;
+}
+
 type Props = {
   project: any;
   environments: any[];
@@ -180,6 +207,10 @@ export function ColdProReport({
               {result ? (
                 <div>
                   <div className="mb-1 text-sm font-semibold">Decomposição da carga térmica</div>
+                  <div className="mb-3 grid gap-3 lg:grid-cols-[minmax(0,1fr)_260px]">
+                    <LoadChart result={result} />
+                    <TemperatureStrip env={env} />
+                  </div>
                   <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm md:grid-cols-3">
                     <div>Transmissão: <b>{fmt(result.transmission_kcal_h)} kcal/h</b></div>
                     <div>Produto: <b>{fmt(result.product_kcal_h)} kcal/h</b></div>
@@ -241,15 +272,20 @@ export function ColdProReport({
               {selection ? (
                 <div>
                   <div className="mb-1 text-sm font-semibold">Equipamento selecionado</div>
-                  <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm md:grid-cols-3">
-                    <div>Modelo: <b>{selection.model}</b></div>
-                    <div>Quantidade: <b>{fmt(selection.quantity)}</b></div>
-                    <div>Capacidade total: <b>{fmt(selection.capacity_total_kcal_h)} kcal/h</b></div>
-                    <div>Vazão de ar: <b>{fmt(selection.air_flow_total_m3_h)} m³/h</b></div>
-                    <div>Trocas/h: <b>{fmt(selection.air_changes_hour)}</b></div>
-                    <div>Sobra técnica: <b>{fmt(selection.surplus_percent)}%</b></div>
-                    <div>Potência estimada: <b>{selection.total_power_kw ? `${fmt(selection.total_power_kw)} kW` : "—"}</b></div>
-                    <div>COP: <b>{selection.cop ? fmt(selection.cop) : "—"}</b></div>
+                  <div className="grid gap-4 rounded-lg border bg-muted/20 p-3 md:grid-cols-[220px_minmax(0,1fr)]">
+                    <div className="flex aspect-[4/3] items-center justify-center overflow-hidden rounded-md border bg-background">
+                      {selection.equipment_image_url ? <img src={selection.equipment_image_url} alt={`Equipamento selecionado ${selection.model}`} className="h-full w-full object-contain" /> : <span className="px-4 text-center text-xs text-muted-foreground">Foto do equipamento não cadastrada</span>}
+                    </div>
+                    <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm md:grid-cols-3">
+                      <div>Modelo: <b>{selection.model}</b></div>
+                      <div>Quantidade: <b>{fmt(selection.quantity)}</b></div>
+                      <div>Capacidade total: <b>{fmt(selection.capacity_total_kcal_h)} kcal/h</b></div>
+                      <div>Vazão de ar: <b>{fmt(selection.air_flow_total_m3_h)} m³/h</b></div>
+                      <div>Trocas/h: <b>{fmt(selection.air_changes_hour)}</b></div>
+                      <div>Sobra técnica: <b>{fmt(selection.surplus_percent)}%</b></div>
+                      <div>Potência estimada: <b>{selection.total_power_kw ? `${fmt(selection.total_power_kw)} kW` : "—"}</b></div>
+                      <div>COP: <b>{selection.cop ? fmt(selection.cop) : "—"}</b></div>
+                    </div>
                   </div>
                   {selection.notes ? <div className="mt-2 text-xs text-muted-foreground">{selection.notes}</div> : null}
                 </div>

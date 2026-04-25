@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
+import { Document, Image, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
 
 const COLORS = {
   primary: "#0d2438",
@@ -146,6 +146,16 @@ const styles = StyleSheet.create({
   },
   totalLabel: { color: "#ffffff", fontFamily: "Helvetica-Bold", fontSize: 10 },
   totalValue: { color: "#ffffff", fontFamily: "Helvetica-Bold", fontSize: 11 },
+  chartBox: { borderWidth: 1, borderColor: COLORS.border, borderRadius: 4, padding: 8, marginTop: 6, backgroundColor: "#ffffff" },
+  chartRow: { flexDirection: "row", alignItems: "center", marginBottom: 5, gap: 6 },
+  chartLabel: { width: 92, fontSize: 7.5, color: COLORS.muted },
+  chartTrack: { flex: 1, height: 8, backgroundColor: COLORS.bgSoft, borderRadius: 8 },
+  chartBar: { height: 8, borderRadius: 8, backgroundColor: COLORS.accent },
+  chartValue: { width: 68, textAlign: "right", fontSize: 7.5, fontFamily: "Helvetica-Bold" },
+  imageWrap: { width: 145, minHeight: 96, borderWidth: 1, borderColor: COLORS.border, borderRadius: 4, padding: 6, backgroundColor: COLORS.bgSoft, alignItems: "center", justifyContent: "center" },
+  equipmentImage: { width: 132, height: 82, objectFit: "contain" },
+  twoCol: { flexDirection: "row", gap: 10, alignItems: "stretch" },
+  flexGrow: { flex: 1 },
 });
 
 function fmt(value: unknown, digits = 2): string {
@@ -153,6 +163,38 @@ function fmt(value: unknown, digits = 2): string {
   return new Intl.NumberFormat("pt-BR", { maximumFractionDigits: digits }).format(
     Number.isFinite(n) ? n : 0,
   );
+}
+
+function loadRows(result: any): Array<[string, number]> {
+  const rows: Array<[string, number]> = [
+    ["Transmissão", Number(result?.transmission_kcal_h ?? 0)],
+    ["Produto", Number(result?.product_kcal_h ?? 0)],
+    ["Embalagem", Number(result?.packaging_kcal_h ?? 0)],
+    ["Infiltração", Number(result?.infiltration_kcal_h ?? 0)],
+    ["Pessoas", Number(result?.people_kcal_h ?? 0)],
+    ["Iluminação", Number(result?.lighting_kcal_h ?? 0)],
+    ["Motores", Number(result?.motors_kcal_h ?? 0)],
+    ["Ventiladores", Number(result?.fans_kcal_h ?? 0)],
+    ["Degelo", Number(result?.defrost_kcal_h ?? 0)],
+    ["Outros", Number(result?.other_kcal_h ?? 0) + Number(result?.tunnel_internal_load_kcal_h ?? 0)],
+  ];
+  return rows.filter(([, value]) => value > 0);
+}
+
+function LoadChart({ result }: { result: any }) {
+  const rows = loadRows(result);
+  const max = Math.max(1, ...rows.map(([, value]) => value));
+  if (!rows.length) return null;
+  return <View style={styles.chartBox}>{rows.map(([label, value]) => <View key={label} style={styles.chartRow}><Text style={styles.chartLabel}>{label}</Text><View style={styles.chartTrack}><View style={[styles.chartBar, { width: `${Math.max(3, (value / max) * 100)}%` }]} /></View><Text style={styles.chartValue}>{fmt(value, 0)} kcal/h</Text></View>)}</View>;
+}
+
+function TemperatureChart({ env }: { env: any }) {
+  const internal = Number(env?.internal_temp_c ?? 0);
+  const external = Number(env?.external_temp_c ?? 0);
+  const min = Math.min(internal, external, -40);
+  const max = Math.max(internal, external, 45);
+  const scale = (value: number) => `${Math.max(3, ((value - min) / Math.max(1, max - min)) * 100)}%`;
+  return <View style={styles.chartBox}><View style={styles.chartRow}><Text style={styles.chartLabel}>T interna</Text><View style={styles.chartTrack}><View style={[styles.chartBar, { width: scale(internal), backgroundColor: COLORS.primary }]} /></View><Text style={styles.chartValue}>{fmt(internal)} °C</Text></View><View style={styles.chartRow}><Text style={styles.chartLabel}>T externa</Text><View style={styles.chartTrack}><View style={[styles.chartBar, { width: scale(external), backgroundColor: COLORS.accent }]} /></View><Text style={styles.chartValue}>{fmt(external)} °C</Text></View></View>;
 }
 
 type Props = {
@@ -320,6 +362,7 @@ export function ColdProMemorialPdf({
               <Text style={styles.pill}>Compressor: {fmt(env.compressor_runtime_hours_day)} h/dia</Text>
               <Text style={styles.pill}>Aberturas porta: {fmt(env.door_openings_per_day)}/dia</Text>
             </View>
+            <TemperatureChart env={env} />
 
             {envProducts.length > 0 && (
               <>
@@ -351,6 +394,7 @@ export function ColdProMemorialPdf({
             {result && (
               <>
                 <Text style={styles.h3}>Decomposição da carga térmica</Text>
+                <LoadChart result={result} />
                 <View style={styles.table}>
                   {[
                     ["Transmissão (paredes/teto/piso)", result.transmission_kcal_h],
@@ -414,6 +458,8 @@ export function ColdProMemorialPdf({
             {selection && (
               <>
                 <Text style={styles.h3}>Equipamento selecionado</Text>
+                <View style={styles.twoCol}>
+                  <View style={styles.flexGrow}>
                 <View style={styles.table}>
                   <View style={styles.tr}>
                     <Text style={[styles.th, { flex: 2 }]}>Modelo</Text>
@@ -428,6 +474,11 @@ export function ColdProMemorialPdf({
                     <Text style={[styles.td, styles.tdRight]}>{fmt(selection.capacity_unit_kcal_h, 0)} kcal/h</Text>
                     <Text style={[styles.td, styles.tdRight]}>{fmt(selection.capacity_total_kcal_h, 0)} kcal/h</Text>
                     <Text style={[styles.td, styles.tdRight, { borderRightWidth: 0 }]}>{fmt(selection.surplus_percent)}%</Text>
+                  </View>
+                </View>
+                  </View>
+                  <View style={styles.imageWrap}>
+                    {selection.equipment_image_url ? <Image src={selection.equipment_image_url} style={styles.equipmentImage} /> : <Text style={[styles.p, { color: COLORS.muted, textAlign: "center" }]}>Foto do equipamento não cadastrada</Text>}
                   </View>
                 </View>
                 <View style={[styles.pillRow, { marginTop: 6 }]}>
