@@ -29,6 +29,8 @@ async function syncProposalDetail(rawSummary: Record<string, unknown>, options: 
 
   const detailRes = await getOne<Record<string, unknown>>(NOMUS_ENDPOINTS.propostas, id, {
     entity: "propostas",
+    timeoutMs: options.requireDetail ? 4_000 : undefined,
+    maxAttempts: options.requireDetail ? 1 : undefined,
   });
   if (!detailRes.ok && options.requireDetail) return false;
   // Se falhar o detalhe, salvamos pelo menos o que veio na listagem para não perder o ID.
