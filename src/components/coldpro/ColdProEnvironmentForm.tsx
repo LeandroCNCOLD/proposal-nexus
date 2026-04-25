@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Box, DraftingCompass, Grid3X3, Save, ShieldCheck, Thermometer } from "lucide-react";
+import { Box, DraftingCompass, Droplets, Grid3X3, Save, ShieldCheck, Thermometer } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -15,7 +15,7 @@ import {
   fmtColdPro,
   numberOrNull,
 } from "./ColdProFormPrimitives";
-import { calculateFaceTransmission } from "@/features/coldpro/coldpro-calculation.engine";
+import { calculateFaceTransmission, calculateSeedDehumidificationLoad } from "@/features/coldpro/coldpro-calculation.engine";
 
 type Props = {
   environment: any;
@@ -548,6 +548,7 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
   const transmissionTotalKcalH = transmissionTotals.w * W_TO_KCAL_H;
   const transmissionTotalKw = transmissionTotals.w / 1000;
   const transmissionTotalTr = transmissionTotalKcalH / KCAL_H_PER_TR;
+  const seedDehumidificationPreview = calculateSeedDehumidificationLoad({ ...form, volume_m3: volume } as any);
 
   return (
     <div className="min-w-0 rounded-xl border bg-background p-3 shadow-sm sm:p-5">
