@@ -18,7 +18,7 @@ export function ColdProField({ label, unit, htmlFor, children, className }: Fiel
     <div className={cn("flex items-center gap-3 py-2", className)}>
       <label
         htmlFor={htmlFor}
-        className="w-1/2 shrink-0 text-right text-[13px] font-medium text-muted-foreground"
+        className="w-[42%] shrink-0 text-right text-sm font-medium text-muted-foreground"
       >
         {label} :
       </label>
@@ -41,7 +41,7 @@ export function ColdProInput(
     <input
       {...rest}
       className={cn(
-        "h-9 w-full rounded-md border border-transparent px-3 text-right text-sm tabular-nums",
+        "h-10 w-full rounded-md border border-transparent px-3 text-right text-base tabular-nums",
         "transition focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/15",
         readOnlyValue
           ? "bg-primary/5 text-foreground"
@@ -60,7 +60,7 @@ export function ColdProSelect(
     <select
       {...rest}
       className={cn(
-        "h-9 w-full rounded-md border border-transparent bg-muted/40 px-3 text-sm",
+        "h-10 w-full rounded-md border border-transparent bg-muted/40 px-3 text-sm",
         "transition hover:bg-muted/60 focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/15",
         className,
       )}

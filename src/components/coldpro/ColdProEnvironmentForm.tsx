@@ -226,13 +226,14 @@ function normalizeFaces(value: unknown, layout: ChamberLayout, wallCount: number
     const wallHeight = wallIndex >= 0 ? (toNumber(existing.wall_height_m) || height || 0) : null;
     const calculatedArea = wallIndex >= 0 ? toNumber(wallLength) * toNumber(wallHeight) : floorArea;
     const existingArea = toNumber(existing.panel_area_m2);
+    const shouldUseCalculatedArea = local === "TETO" || local === "PISO" || existingArea <= 0;
 
     return {
       local,
       wall_length_m: wallLength,
       wall_height_m: wallHeight,
       material_thickness: existing.material_thickness ?? "",
-      panel_area_m2: existingArea > 0 ? existingArea : calculatedArea,
+      panel_area_m2: shouldUseCalculatedArea ? calculatedArea : existingArea,
       layers: Array.isArray(existing.layers) ? existing.layers : [],
       u_value_w_m2k: existing.u_value_w_m2k ?? null,
       transmission_w: existing.transmission_w ?? null,
@@ -524,26 +525,26 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
             </ColdProFormSection>
 
             <ColdProFormSection title="Formato, dimensões e paredes" description="Selecione o desenho da câmara para calcular volume, teto, piso e paredes com medidas diferentes." icon={<DraftingCompass className="h-4 w-4" />}>
-              <div className="grid gap-5 xl:grid-cols-[1fr_260px]">
+              <div className="grid gap-5 xl:grid-cols-[1fr_180px]">
                 <div className="space-y-5">
-                  <div className="grid gap-3 md:grid-cols-4">
+                  <div className="grid gap-2 md:grid-cols-4">
                     {CHAMBER_LAYOUTS.map((item) => (
                       <button
                         key={item.value}
                         type="button"
                         onClick={() => setLayout(item.value)}
-                        className={`rounded-lg border p-3 text-left transition hover:border-primary ${layout === item.value ? "border-primary bg-primary/10" : "bg-background"}`}
+                        className={`rounded-md border p-2 text-left transition hover:border-primary ${layout === item.value ? "border-primary bg-primary/10" : "bg-background"}`}
                       >
-                        <ChamberShapePreview layout={item.value} />
+                        <div className="hidden lg:block"><ChamberShapePreview layout={item.value} /></div>
                         <span className="block text-sm font-semibold">{item.label}</span>
                         <span className="mt-1 block text-xs text-muted-foreground">{item.description}</span>
                       </button>
                     ))}
                   </div>
 
-                      <div className="grid grid-cols-1 gap-x-10 md:grid-cols-[1.4fr_0.8fr]">
+                      <div className="grid grid-cols-1 gap-x-10 md:grid-cols-[1.5fr_0.9fr]">
                     <div>
-                          <div className="grid gap-x-10 md:grid-cols-2">
+                          <div className="grid gap-x-8 md:grid-cols-2">
                             {constructionFaces.filter((face) => face.local.startsWith("PAREDE")).map((face, faceListIndex) => {
                               const index = constructionFaces.findIndex((item) => item.local === face.local);
                               return <ColdProField key={face.local} label={`Dim. ${String.fromCharCode(65 + faceListIndex)}`} unit="m"><ColdProInput type="number" value={face.wall_length_m ?? ""} onChange={(e) => setFace(index, "wall_length_m", numberOrNull(e.target.value) ?? 0)} /></ColdProField>;
@@ -558,8 +559,8 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
                       <ColdProValidationMessage tone="error">{dimensionError || customDimensionError ? "Informe medidas válidas para volume, piso e paredes." : ""}</ColdProValidationMessage>
                     </div>
                     <div className="space-y-3">
-                      <ColdProCalculatedInfo label="Formato" value={`${wallCount} paredes`} description="As áreas finais saem da tabela de faces." />
-                      <ColdProCalculatedInfo label="Base geométrica" value={`${fmtColdPro(geometricFloorArea)} m²`} description="Referência inicial para teto e piso." tone={dimensionError || customDimensionError ? "warning" : "info"} />
+                      <ColdProCalculatedInfo label="Formato" value={`${wallCount} paredes`} description="Áreas calculadas pelas dimensões." />
+                      <ColdProCalculatedInfo label="Teto e piso" value={`${fmtColdPro(geometricFloorArea)} m²`} description="Área da planta da câmara." tone={dimensionError || customDimensionError ? "warning" : "info"} />
                     </div>
                   </div>
                 </div>
@@ -627,22 +628,22 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
               </div>
 
               <div className="overflow-x-auto rounded-xl border">
-                <table className="w-full min-w-[1080px] text-sm">
-                  <thead className="bg-muted/50 text-xs text-muted-foreground">
+                <table className="w-full min-w-[1240px] text-sm">
+                  <thead className="bg-muted/50 text-sm text-muted-foreground">
                     <tr>
-                      <th className="px-3 py-2 text-left font-medium">Local</th>
-                      <th className="px-3 py-2 text-left font-medium">Comp. m</th>
-                      <th className="px-3 py-2 text-left font-medium">Altura m</th>
-                      <th className="px-3 py-2 text-left font-medium">Área total m²</th>
-                      <th className="px-3 py-2 text-left font-medium">Temp. ext °C</th>
-                      <th className="px-3 py-2 text-left font-medium">Sol</th>
-                      <th className="px-3 py-2 text-left font-medium">Material aplicado</th>
-                      <th className="px-3 py-2 text-left font-medium">U painel</th>
-                      <th className="px-3 py-2 text-left font-medium">Vidro</th>
-                      <th className="px-3 py-2 text-left font-medium">Área vidro m²</th>
-                      <th className="px-3 py-2 text-left font-medium">Tipo de vidro</th>
-                      <th className="px-3 py-2 text-left font-medium">Área isolada m²</th>
-                      <th className="px-3 py-2 text-left font-medium">Carga kcal/h</th>
+                      <th className="px-3 py-3 text-left font-medium">Local</th>
+                      <th className="px-3 py-3 text-left font-medium">Comp. m</th>
+                      <th className="px-3 py-3 text-left font-medium">Altura m</th>
+                      <th className="px-3 py-3 text-left font-medium">Área total m²</th>
+                      <th className="px-3 py-3 text-left font-medium">Temp. ext °C</th>
+                      <th className="px-3 py-3 text-left font-medium">Sol</th>
+                      <th className="px-3 py-3 text-left font-medium">Material aplicado</th>
+                      <th className="px-3 py-3 text-left font-medium">U painel</th>
+                      <th className="px-3 py-3 text-left font-medium">Vidro</th>
+                      <th className="px-3 py-3 text-left font-medium">Área vidro m²</th>
+                      <th className="px-3 py-3 text-left font-medium">Tipo de vidro</th>
+                      <th className="px-3 py-3 text-left font-medium">Área isolada m²</th>
+                      <th className="px-3 py-3 text-left font-medium">Carga kcal/h</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -652,20 +653,20 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
                       const preparedFace = prepareFaceForCalculation(face, Boolean(form?.has_floor_insulation));
                       const faceLoad = calculateFaceTransmission({ ...preparedFace, external_temp_c: displayedExternalTemp(preparedFace), glass_area_m2: hasGlass ? preparedFace.glass_area_m2 : 0 }, faceCalculationEnv as any);
                       return (
-                        <tr key={face.local} className="border-t">
-                          <td className="px-3 py-2 font-medium text-foreground">{face.local}</td>
-                          <td className="px-3 py-2"><ColdProInput type="number" disabled={!isWall} value={isWall ? face.wall_length_m ?? "" : ""} onChange={(e) => setFace(index, "wall_length_m", numberOrNull(e.target.value) ?? 0)} /></td>
-                          <td className="px-3 py-2"><ColdProInput type="number" disabled={!isWall} value={isWall ? face.wall_height_m ?? "" : ""} onChange={(e) => setFace(index, "wall_height_m", numberOrNull(e.target.value) ?? 0)} /></td>
-                          <td className="px-3 py-2"><ColdProInput type="number" value={face.panel_area_m2 ?? ""} onChange={(e) => setFace(index, "panel_area_m2", numberOrNull(e.target.value) ?? 0)} /></td>
-                          <td className="px-3 py-2"><ColdProInput type="number" value={displayedExternalTemp(preparedFace) ?? ""} onChange={(e) => setFace(index, "external_temp_c", numberOrNull(e.target.value))} /></td>
-                          <td className="px-3 py-2 text-xs font-medium text-muted-foreground">{face.solar_orientation === "Sol direto" ? "Sol direto" : "—"}</td>
-                          <td className="px-3 py-2 text-xs text-muted-foreground">{preparedFace.material_thickness || "—"}</td>
-                          <td className="px-3 py-2 tabular-nums">{fmtColdPro(preparedFace.u_value_w_m2k, 3)}</td>
-                          <td className="px-3 py-2"><Checkbox checked={hasGlass} onCheckedChange={(checked) => setFace(index, "has_glass", Boolean(checked))} /></td>
-                          <td className="px-3 py-2"><ColdProInput type="number" disabled={!hasGlass} value={hasGlass ? face.glass_area_m2 ?? "" : ""} onChange={(e) => setFace(index, "glass_area_m2", numberOrNull(e.target.value) ?? 0)} /></td>
-                          <td className="px-3 py-2"><ColdProSelect disabled={!hasGlass} value={face.glass_type ?? "simple"} onChange={(e) => setFace(index, "glass_type", e.target.value)}>{GLASS_TYPE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</ColdProSelect></td>
-                          <td className="px-3 py-2 tabular-nums">{fmtColdPro(faceLoad.insulated_area_m2)}</td>
-                          <td className="px-3 py-2 tabular-nums font-medium">{fmtColdPro(faceLoad.transmission_kcal_h)}</td>
+                        <tr key={face.local} className="border-t align-middle">
+                          <td className="px-3 py-3 font-medium text-foreground">{face.local}</td>
+                          <td className="px-3 py-3"><ColdProInput type="number" disabled={!isWall} value={isWall ? face.wall_length_m ?? "" : ""} onChange={(e) => setFace(index, "wall_length_m", numberOrNull(e.target.value) ?? 0)} /></td>
+                          <td className="px-3 py-3"><ColdProInput type="number" disabled={!isWall} value={isWall ? face.wall_height_m ?? "" : ""} onChange={(e) => setFace(index, "wall_height_m", numberOrNull(e.target.value) ?? 0)} /></td>
+                          <td className="px-3 py-3"><ColdProInput type="number" readOnlyValue={face.local === "TETO" || face.local === "PISO"} value={face.panel_area_m2 ?? ""} onChange={(e) => setFace(index, "panel_area_m2", numberOrNull(e.target.value) ?? 0)} /></td>
+                          <td className="px-3 py-3"><ColdProInput type="number" value={displayedExternalTemp(preparedFace) ?? ""} onChange={(e) => setFace(index, "external_temp_c", numberOrNull(e.target.value))} /></td>
+                          <td className="px-3 py-3 text-sm font-medium text-muted-foreground">{face.solar_orientation === "Sol direto" ? "Sol direto" : "—"}</td>
+                          <td className="max-w-48 px-3 py-3 text-sm text-muted-foreground">{preparedFace.material_thickness || "—"}</td>
+                          <td className="px-3 py-3 tabular-nums">{fmtColdPro(preparedFace.u_value_w_m2k, 3)}</td>
+                          <td className="px-3 py-3"><Checkbox checked={hasGlass} onCheckedChange={(checked) => setFace(index, "has_glass", Boolean(checked))} /></td>
+                          <td className="px-3 py-3"><ColdProInput type="number" disabled={!hasGlass} value={hasGlass ? face.glass_area_m2 ?? "" : ""} onChange={(e) => setFace(index, "glass_area_m2", numberOrNull(e.target.value) ?? 0)} /></td>
+                          <td className="px-3 py-3"><ColdProSelect disabled={!hasGlass} value={face.glass_type ?? "simple"} onChange={(e) => setFace(index, "glass_type", e.target.value)}>{GLASS_TYPE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</ColdProSelect></td>
+                          <td className="px-3 py-3 tabular-nums">{fmtColdPro(faceLoad.insulated_area_m2)}</td>
+                          <td className="px-3 py-3 tabular-nums font-medium">{fmtColdPro(faceLoad.transmission_kcal_h)}</td>
                         </tr>
                       );
                     })}
