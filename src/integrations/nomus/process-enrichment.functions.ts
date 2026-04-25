@@ -111,7 +111,15 @@ export const getFunnelData = createServerFn({ method: "POST" })
     const clientNames = Array.from(new Set(processList.map((p) => normalizeName(p.pessoa)).filter(Boolean)));
 
     // 2) Propostas Nomus por nome de cliente (match automático)
-    const proposalsByClient = new Map<string, Array<{ id: string; numero: string | null; valor_total: number | null; validade: string | null; status_nomus: string | null; nomus_id: string }>>();
+    const proposalsByClient = new Map<string, Array<{
+      id: string;
+      numero: string | null;
+      valor_total: number | null;
+      validade: string | null;
+      status_nomus: string | null;
+      data_emissao: string | null;
+      nomus_id: string;
+    }>>();
     const proposalIds: string[] = [];
     if (clientNames.length > 0) {
       const { data: props } = await supabase
