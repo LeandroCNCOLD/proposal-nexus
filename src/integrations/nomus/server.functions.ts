@@ -826,11 +826,13 @@ export const nomusSyncProposalsFull = createServerFn({ method: "POST" })
         // Itens da proposta (itensProposta)
         const items = extractProposalItems(raw);
         if (items.length > 0) {
-          await supabaseAdmin.from("nomus_proposal_items").delete().eq("nomus_proposal_id", mirrorId);
-          await supabaseAdmin.from("nomus_proposal_items").insert(
-            items.map((it, idx) => ({
+          for (let idx = 0; idx < items.length; idx += 1) {
+            const it = items[idx];
+            const naturalItemId = it.nomus_item_id
+              ?? stableNaturalItemId(idx, it.product_code, it.description);
+            const itemPayload = {
               nomus_proposal_id: mirrorId,
-              nomus_item_id: it.nomus_item_id,
+              nomus_item_id: naturalItemId,
               nomus_product_id: it.nomus_product_id,
               product_code: it.product_code,
               description: it.description,
@@ -840,8 +842,13 @@ export const nomusSyncProposalsFull = createServerFn({ method: "POST" })
               total: it.total,
               position: idx,
               raw: it as never,
-            }))
-          );
+              synced_at: new Date().toISOString(),
+            };
+            const { error: itemErr } = await supabaseAdmin
+              .from("nomus_proposal_items")
+              .upsert(itemPayload, { onConflict: "nomus_proposal_id,nomus_item_id" });
+            if (itemErr) throw new Error(itemErr.message);
+          }
         }
 
         // Espelha em proposals (cria ou atualiza)
@@ -865,7 +872,25 @@ export const nomusSyncProposalsFull = createServerFn({ method: "POST" })
           const { data: existing } = await supabaseAdmin
             .from("proposals").select("id, client_id").eq("nomus_id", nomus_id).maybeSingle();
           if (!existing) {
-            const { error } = await supabaseAdmin.from("proposals").insert({
+            const { data: byNumber } = mapped.numero
+              ? await supabaseAdmin.from("proposals").select("id, client_id").eq("number", mapped.numero).maybeSingle()
+              : { data: null };
+            if (byNumber) {
+              const ex = byNumber as { id: string; client_id: string | null };
+              const { error } = await supabaseAdmin.from("proposals")
+                .update({
+                  nomus_id,
+                  nomus_proposal_id: mirrorId,
+                  title: baseTitle,
+                  total_value: mapped.valor_total ?? 0,
+                  valid_until: mapped.validade,
+                  ...(ex.client_id || !clientId ? {} : { client_id: clientId }),
+                  nomus_synced_at: new Date().toISOString(),
+                })
+                .eq("id", ex.id);
+              if (error) throw new Error(error.message);
+            } else {
+              const { error } = await supabaseAdmin.from("proposals").upsert({
               nomus_id,
               nomus_proposal_id: mirrorId,
               nomus_synced_at: new Date().toISOString(),
@@ -875,8 +900,9 @@ export const nomusSyncProposalsFull = createServerFn({ method: "POST" })
               total_value: mapped.valor_total ?? 0,
               valid_until: mapped.validade,
               status: "em_elaboracao",
-            });
+            }, { onConflict: "nomus_id" });
             if (error) throw new Error(error.message);
+            }
           } else {
             const ex = existing as { id: string; client_id: string | null };
             const { error } = await supabaseAdmin.from("proposals")
