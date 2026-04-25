@@ -233,7 +233,7 @@ async function syncNomusProcessRecord(
   return { changed: persisted.upserted > 0, id };
 }
 
-export async function syncNomusProcessesNewestFirst(options: { tipos?: string[]; triggeredBy?: string | null } = {}) {
+export async function syncNomusProcessesNewestFirst(options: { tipos?: string[]; triggeredBy?: string | null; maxPages?: number } = {}) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { listPage } = await import("./client");
   const { NOMUS_ENDPOINTS } = await import("./endpoints");
@@ -273,7 +273,8 @@ export async function syncNomusProcessesNewestFirst(options: { tipos?: string[];
   const wants = (raw: NomusProcessRaw) => wantedTipos.length === 0 || wantedTipos.includes((raw.tipo ?? "").trim());
 
   try {
-    for (let page = 1; page <= PROCESS_RECENT_LIST_PAGES; page += 1) {
+    const recentListPages = options.maxPages ?? PROCESS_RECENT_LIST_PAGES;
+    for (let page = 1; page <= recentListPages; page += 1) {
       const recentPage = await listPage<NomusProcessRaw>(NOMUS_ENDPOINTS.processos, {}, {
         entity: "processos",
         page,
@@ -344,7 +345,7 @@ export const pullNomusProcesses = createServerFn({ method: "POST" })
       .default({}),
   )
   .handler(async ({ data, context }) => {
-    const r = await syncNomusProcessesNewestFirst({ tipos: data?.tipos, triggeredBy: context.userId });
+    const r = await syncNomusProcessesNewestFirst({ tipos: data?.tipos, triggeredBy: context.userId, maxPages: data?.maxPages ?? 12 });
     return r.ok
       ? { ok: true as const, total: r.count ?? 0, upserted: r.count ?? 0, stagesDiscovered: [] }
       : { ok: false as const, error: r.error ?? "Falha ao sincronizar processos" };
