@@ -617,6 +617,27 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
               </div>
             </ColdProFormSection>
 
+            {isSeed ? (
+              <ColdProFormSection title="Carga latente / desumidificação" description="Controle específico de umidade para câmara de sementes, separado da carga sensível comum." icon={<Droplets className="h-4 w-4" />}>
+                <div className="grid gap-x-10 md:grid-cols-2 xl:grid-cols-3">
+                  <ColdProField label="Trocas de ar" unit="1/h"><ColdProInput {...num("air_changes_per_hour")} /></ColdProField>
+                  <ColdProField label="Renovação de ar" unit="m³/h"><ColdProInput {...num("fresh_air_m3_h")} /></ColdProField>
+                  <ColdProField label="Infiltração portas" unit="m³/h"><ColdProInput {...num("door_infiltration_m3_h")} /></ColdProField>
+                  <ColdProField label="Massa sementes" unit="kg"><ColdProInput {...num("seed_mass_kg")} /></ColdProField>
+                  <ColdProField label="Umidade inicial" unit="% b.u."><ColdProInput {...num("seed_initial_moisture_percent")} /></ColdProField>
+                  <ColdProField label="Umidade final" unit="% b.u."><ColdProInput {...num("seed_final_moisture_percent")} /></ColdProField>
+                  <ColdProField label="Tempo estabilização" unit="h"><ColdProInput {...num("seed_stabilization_time_h")} /></ColdProField>
+                </div>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                  <ColdProCalculatedInfo label="W externo" value={`${fmtColdPro((seedDehumidificationPreview as any).external_absolute_humidity_kg_kg, 5)} kg/kg`} description="Umidade absoluta externa." />
+                  <ColdProCalculatedInfo label="W interno" value={`${fmtColdPro((seedDehumidificationPreview as any).internal_absolute_humidity_kg_kg, 5)} kg/kg`} description="Umidade absoluta desejada." />
+                  <ColdProCalculatedInfo label="Água do ar" value={`${fmtColdPro((seedDehumidificationPreview as any).water_removed_air_kg_h, 2)} kg/h`} description="Remoção por infiltração/renovação." />
+                  <ColdProCalculatedInfo label="Desumidificação" value={`${fmtColdPro((seedDehumidificationPreview as any).total_kw, 2)} kW`} description={`${fmtColdPro((seedDehumidificationPreview as any).total_kcal_h)} kcal/h`} tone="success" />
+                </div>
+                {Array.isArray((seedDehumidificationPreview as any).warnings) && (seedDehumidificationPreview as any).warnings.length ? <ColdProValidationMessage>{(seedDehumidificationPreview as any).warnings.join(" ")}</ColdProValidationMessage> : null}
+              </ColdProFormSection>
+            ) : null}
+
             <ColdProFormSection title="Formato, dimensões e paredes" description="Selecione o desenho da câmara para calcular volume, teto, piso e paredes com medidas diferentes." icon={<DraftingCompass className="h-4 w-4" />}>
               <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_180px]">
                 <div className="space-y-5">
