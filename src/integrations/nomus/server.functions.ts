@@ -113,7 +113,7 @@ async function syncPersonContacts(args: { clientId: string; pessoaId: string; tr
       let query = supabaseAdmin.from("client_contacts").select("id").eq("client_id", args.clientId);
       if (email) query = query.eq("email", email);
       else if (phone) query = query.eq("phone", phone);
-      else query = query.eq("mobile", mobile);
+      else if (mobile) query = query.eq("mobile", mobile);
       const { data } = await query.maybeSingle();
       existingId = (data as { id?: string } | null)?.id ?? null;
     }
