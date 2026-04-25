@@ -547,7 +547,9 @@ export async function buildColdProMemorialPdfBuffer({ project, environments, res
     ctx.page.drawText(`${idx + 1}. ${clean(env.name)}`, { x: M + 8, y: ctx.y - 15, size: 10, font: fonts.bold, color: COLORS.white });
     ctx.y -= 32;
     heading(ctx, "1. Premissas de cálculo do ambiente", 3);
-    drawKeyGrid(ctx, [["Solicitado", env.name], ["Tipo", env.environment_type], ["Dimensões", `${fmt(env.length_m)} x ${fmt(env.width_m)} x ${fmt(env.height_m)} m`], ["Volume", `${fmt(env.volume_m3)} m3`], ["Temp. requerida", `${fmt(env.internal_temp_c)} °C`], ["Condição externa", `${fmt(env.external_temp_c)} °C`], ["UR interna", `${fmt(env.relative_humidity_percent)}%`], ["Painel", `${fmt(env.wall_thickness_mm)} mm`], ["Portas", `${fmt(env.door_openings_per_day)}/dia`], ["Compressor", `${fmt(env.compressor_runtime_hours_day)} h/dia`]], 2);
+    const result = results.find((r: any) => r.environment_id === env.id);
+    const infPremise = result?.calculation_breakdown?.infiltration_technical;
+    drawKeyGrid(ctx, [["Solicitado", env.name], ["Tipo", env.environment_type], ["Dimensões", `${fmt(env.length_m)} x ${fmt(env.width_m)} x ${fmt(env.height_m)} m`], ["Volume", `${fmt(env.volume_m3)} m3`], ["Temp. requerida", `${fmt(env.internal_temp_c)} °C`], ["Condição externa", `${fmt(infPremise?.externalTempC ?? env.external_temp_c)} °C`], ["UR interna", infPremise ? `${fmt(infPremise.internalRH)}% (${infPremise.internalRHSource === "manual" ? "manual" : "automática"})` : "automática se não informada"], ["Painel", `${fmt(env.wall_thickness_mm)} mm`], ["Portas", `${fmt(env.door_openings_per_day)}/dia`], ["Compressor", `${fmt(env.compressor_runtime_hours_day)} h/dia`]], 2);
     if (envProducts.length) {
       table(ctx, ["Produto", "kg/dia", "T entrada", "T final", "Tempo"], envProducts.map((p: any) => [p.product_name, fmt(p.mass_kg_day), `${fmt(p.inlet_temp_c)} °C`, `${fmt(p.outlet_temp_c)} °C`, `${fmt(p.process_time_h)} h`]), [0.36, 0.16, 0.16, 0.16, 0.16]);
       drawProductThermalDetails(ctx, envProducts, env);
