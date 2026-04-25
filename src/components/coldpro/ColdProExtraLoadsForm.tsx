@@ -30,21 +30,30 @@ export function ColdProExtraLoadsForm({ environment, catalogFanLoadKcalH = 0, on
     setForm((prev: any) => ({ ...prev, motors_power_kw: Number(prev?.motors_power_kw ?? 0) + preset.powerKw, motors_dissipation_factor: preset.dissipationFactor, motors_hours_day: prev?.motors_hours_day ?? 8 }));
   };
   const selectedLighting = LIGHTING_EQUIPMENT_PRESETS[Number(selectedLightingPreset)] ?? LIGHTING_EQUIPMENT_PRESETS[0];
-  const lengthM = Number(form?.length_m ?? 0);
-  const widthM = Number(form?.width_m ?? 0);
+  const lengthM = Number(form?.length_m ?? form?.dimension_a_m ?? 0);
+  const widthM = Number(form?.width_m ?? form?.dimension_b_m ?? 0);
   const heightM = Number(form?.height_m ?? 0);
   const volumeM3 = Number(form?.volume_m3 ?? 0);
   const lightingAreaM2 = Math.max(0, lengthM * widthM || (heightM > 0 ? volumeM3 / heightM : 0));
   const utilizationFactor = 0.72;
   const maintenanceFactor = 0.85;
   const recommendedLightingQty = selectedLighting?.lumens ? Math.max(0, Math.ceil((lightingAreaM2 * targetLux) / (selectedLighting.lumens * utilizationFactor * maintenanceFactor))) : 0;
+  const recommendedLightingPowerW = recommendedLightingQty * (selectedLighting?.powerW ?? 0);
+  const lightingPowerW = Number(form?.lighting_power_w ?? 0);
   const addOneLightingFixture = () => {
     if (!selectedLighting) return;
     setForm((prev: any) => ({ ...prev, lighting_power_w: Number(prev?.lighting_power_w ?? 0) + selectedLighting.powerW, lighting_hours_day: prev?.lighting_hours_day ?? 8 }));
   };
+  React.useEffect(() => {
+    setForm((prev: any) => {
+      const currentPower = Number(prev?.lighting_power_w ?? 0);
+      if (recommendedLightingPowerW <= 0 || currentPower > 0) return prev;
+      return { ...prev, lighting_power_w: recommendedLightingPowerW, lighting_hours_day: prev?.lighting_hours_day ?? 8 };
+    });
+  }, [recommendedLightingPowerW]);
   const addLightingRecommendation = () => {
     if (!selectedLighting) return;
-    setForm((prev: any) => ({ ...prev, lighting_power_w: Number(prev?.lighting_power_w ?? 0) + recommendedLightingQty * selectedLighting.powerW, lighting_hours_day: prev?.lighting_hours_day ?? 8 }));
+    setForm((prev: any) => ({ ...prev, lighting_power_w: recommendedLightingPowerW, lighting_hours_day: prev?.lighting_hours_day ?? 8 }));
   };
   const save = () => onSave({ ...form, infiltration_factor: Number(form?.infiltration_factor ?? 0) > 0 ? form.infiltration_factor : suggestedFactor, defrost_kcal_h: Number(form?.defrost_kcal_h ?? 0) > 0 ? form.defrost_kcal_h : preview.defrost_suggestion.defrostKcalH });
 
