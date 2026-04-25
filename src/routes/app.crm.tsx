@@ -269,6 +269,24 @@ function CrmPage() {
                 />
               </SheetContent>
             </Sheet>
+            <Dialog open={newProcessOpen} onOpenChange={setNewProcessOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Plus className="mr-2 h-4 w-4" /> Novo processo
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Novo processo no Nomus</DialogTitle>
+                </DialogHeader>
+                <NewProcessForm
+                  defaultTipo={activeTab || DEFAULT_FUNNEL}
+                  stages={funnelData?.stages?.map((s: any) => s.etapa) ?? []}
+                  saving={createMutation.isPending}
+                  onSubmit={(payload) => createMutation.mutate(payload)}
+                />
+              </DialogContent>
+            </Dialog>
             <Button
               size="sm"
               onClick={() => pullMutation.mutate()}
@@ -296,7 +314,13 @@ function CrmPage() {
           {activeFunnels.map((tipo) => (
             <TabsContent key={tipo} value={tipo} className="mt-0">
               {tipo === activeTab && (
-                <KanbanBoardRich stages={stages} loading={loadingFunnel} error={funnelError} />
+                <KanbanBoardRich
+                  stages={stages}
+                  loading={loadingFunnel}
+                  error={funnelError}
+                  moving={moveMutation.isPending}
+                  onMove={(processId, etapa) => moveMutation.mutate({ processId, etapa })}
+                />
               )}
             </TabsContent>
           ))}
