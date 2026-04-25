@@ -73,6 +73,8 @@ export type SelectionCandidate = {
     evaporation_temp_c: number | null;
     condensation_temp_c: number | null;
   };
+  capacity_nominal_kcal_h: number | null;
+  curve_source: string;
   capacity_unit_kcal_h: number;
   total_power_kw: number | null;
   fan_power_kw: number | null;
@@ -122,6 +124,7 @@ function selectCapacityForModel(
   input: SelectionInput,
 ): {
   capacity: number;
+  referenceCapacity: number | null;
   power: number | null;
   cop: number | null;
   used: { interpolated: boolean; polynomial: boolean; polynomial_r2: number | null; t_room: number | null; t_evap: number | null; t_cond: number | null };
@@ -144,6 +147,7 @@ function selectCapacityForModel(
       const cop = evaluatePolynomial(polynomial.cop, curveInput) ?? (power && power > 0 ? capacity / 860 / power : null);
       return {
         capacity,
+        referenceCapacity: nearestPerformancePoint(valid, input)?.evaporator_capacity_kcal_h ?? null,
         power,
         cop,
         used: {
@@ -213,6 +217,7 @@ function selectCapacityForModel(
           : (upper.cop ?? lower.cop);
       return {
         capacity: cap,
+        referenceCapacity: upper.evaporator_capacity_kcal_h ?? lower.evaporator_capacity_kcal_h ?? null,
         power: pow,
         cop,
         used: {
@@ -243,6 +248,7 @@ function selectCapacityForModel(
   if (!best) return null;
   return {
     capacity: best.evaporator_capacity_kcal_h!,
+    referenceCapacity: best.evaporator_capacity_kcal_h,
     power: best.total_power_kw,
     cop: best.cop,
     used: {
