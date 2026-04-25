@@ -5,6 +5,33 @@ function fmt(value: unknown, digits = 2) {
   return new Intl.NumberFormat("pt-BR", { maximumFractionDigits: digits }).format(Number(value ?? 0));
 }
 
+function loadRows(result: any): Array<[string, number]> {
+  const rows: Array<[string, number]> = [
+    ["Transmissão", Number(result?.transmission_kcal_h ?? 0)],
+    ["Produto", Number(result?.product_kcal_h ?? 0)],
+    ["Embalagem", Number(result?.packaging_kcal_h ?? 0)],
+    ["Infiltração", Number(result?.infiltration_kcal_h ?? 0)],
+    ["Pessoas", Number(result?.people_kcal_h ?? 0)],
+    ["Iluminação", Number(result?.lighting_kcal_h ?? 0)],
+    ["Motores", Number(result?.motors_kcal_h ?? 0)],
+    ["Ventiladores", Number(result?.fans_kcal_h ?? 0)],
+    ["Degelo", Number(result?.defrost_kcal_h ?? 0)],
+    ["Outros", Number(result?.other_kcal_h ?? 0) + Number(result?.tunnel_internal_load_kcal_h ?? 0)],
+  ];
+  return rows.filter(([, value]) => value > 0);
+}
+
+function LoadChart({ result }: { result: any }) {
+  const rows = loadRows(result);
+  const max = Math.max(1, ...rows.map(([, value]) => value));
+  if (!rows.length) return null;
+  return <div className="rounded-lg border bg-muted/20 p-3"><div className="mb-3 text-sm font-semibold">Gráfico de cargas por componente</div><div className="space-y-2">{rows.map(([label, value]) => <div key={label} className="grid grid-cols-[96px_minmax(0,1fr)_92px] items-center gap-2 text-xs"><div className="truncate text-muted-foreground">{label}</div><div className="h-2.5 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary" style={{ width: `${Math.max(3, (value / max) * 100)}%` }} /></div><div className="text-right font-medium">{fmt(value, 0)} kcal/h</div></div>)}</div></div>;
+}
+
+function TemperatureStrip({ env }: { env: any }) {
+  return <div className="rounded-lg border bg-muted/20 p-3"><div className="mb-2 text-sm font-semibold">Temperaturas de projeto</div><div className="grid grid-cols-2 gap-3 text-sm"><div className="rounded-md bg-background p-2"><div className="text-xs text-muted-foreground">Interna</div><div className="text-lg font-bold">{fmt(env.internal_temp_c)} °C</div></div><div className="rounded-md bg-background p-2"><div className="text-xs text-muted-foreground">Externa</div><div className="text-lg font-bold">{fmt(env.external_temp_c)} °C</div></div></div></div>;
+}
+
 type Props = {
   project: any;
   environments: any[];
