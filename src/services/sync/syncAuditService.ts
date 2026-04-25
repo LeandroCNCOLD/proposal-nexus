@@ -31,7 +31,7 @@ export async function logSyncRow(input: {
   rawPayload?: unknown;
 }) {
   if (!input.syncRunId) return;
-  await supabaseAdmin.from("sync_row_logs").insert({
+  const payload = {
     sync_run_id: input.syncRunId,
     entity_type: input.entityType,
     external_id: input.externalId ?? null,
@@ -40,7 +40,8 @@ export async function logSyncRow(input: {
     status: input.status,
     error_message: input.errorMessage ?? null,
     raw_payload: input.rawPayload ? (input.rawPayload as Json) : null,
-  });
+  };
+  await supabaseAdmin.from("sync_row_logs").insert(payload as never);
 }
 
 export async function finishSyncRun(input: {
