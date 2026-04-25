@@ -77,3 +77,20 @@ export function stableNaturalKey(...parts: unknown[]): string | null {
   const normalized = parts.map((part) => normalizeString(part) ?? "").filter(Boolean);
   return normalized.length > 0 ? normalized.join("|") : null;
 }
+
+export function diffChangedFields(previous: Record<string, unknown> | null | undefined, next: Record<string, unknown>) {
+  if (!previous) return Object.keys(next);
+  return Object.entries(next)
+    .filter(([field, value]) => JSON.stringify(previous[field] ?? null) !== JSON.stringify(value ?? null))
+    .map(([field]) => field);
+}
+
+export function omitProtectedFields<T extends Record<string, unknown>>(payload: T, protectedFields: Iterable<string>): Partial<T> {
+  const blocked = new Set(protectedFields);
+  return Object.fromEntries(Object.entries(payload).filter(([field]) => !blocked.has(field))) as Partial<T>;
+}
+
+export const DEFAULT_PROTECTED_SYNC_FIELDS: Record<string, string[]> = {
+  proposals: ["status", "temperature", "notes", "priority", "tags", "assigned_to"],
+  clients: ["notes", "owner_id", "tags"],
+};
