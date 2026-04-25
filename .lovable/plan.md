@@ -1,145 +1,177 @@
-Plano para implementar o módulo de materiais térmicos e integrar ao cálculo de transmissão do CN ColdPro.
+Plano para criar uma versão modernizada da tela Kitfrigor dentro da aba Ambiente do CN ColdPro.
 
 ## Objetivo
-Substituir o cálculo simplificado de transmissão por um cálculo técnico baseado em composição construtiva por face:
+Transformar a aba “Dimensões e painéis” em uma tela técnica mais visual, parecida com o fluxo usado hoje no Kitfrigor, mas com UI moderna e integrada ao cálculo atual do ColdPro.
+
+## 1. Layout modernizado da aba Ambiente
+
+Reorganizar a aba para seguir esta lógica:
 
 ```text
-U = 1 / (Rsi + Σ(espessura / k) + Rse)
-Q = U × A × ΔT
+Dados psicrométricos
+↓
+Escolha da geometria da câmara
+↓
+Dimensões externas A, B, C, D, E, F e altura H
+↓
+Insolação / face selecionada
+↓
+Tabela de teto, piso e laterais
+↓
+Resumo final: volume, área de piso/teto, área de paredes e carga térmica
 ```
 
-O usuário poderá montar paredes, teto e piso com múltiplas camadas, usando materiais padrão ou composições personalizadas.
+A interface continuará no padrão visual do sistema atual, mas usando o layout da imagem como referência funcional.
 
-## 1. Banco de dados
+## 2. Dados psicrométricos
 
-Criar uma migration com:
+Adicionar/organizar os campos no topo da aba:
 
-1. Nova tabela `coldpro_thermal_materials` para catálogo padronizado:
-   - nome do material
-   - categoria: isolamento, painel, estrutural, metal, madeira, etc.
-   - condutividade térmica em W/mK
-   - densidade
-   - faixa de temperatura
-   - espessura típica
-   - indicação se é isolante
-   - observações técnicas
+- Temperatura externa °C
+- Temperatura interna °C
+- Umidade relativa externa %
+- Umidade relativa interna %
+- Pressão atmosférica kPa
+- Tempo de processo h
 
-2. Seed inicial com os materiais fornecidos:
-   - EPS, XPS, PUR, PIR
-   - lã de vidro, lã de rocha
-   - painel isotérmico PUR/PIR/EPS
-   - concreto, cimento, bloco, tijolo, aço, alumínio, madeira
+Campos já existentes serão reaproveitados quando possível:
 
-3. Persistência das camadas por face no próprio JSON de `construction_faces`, evitando criar complexidade excessiva agora. Cada face poderá salvar:
+- Temperatura externa: `external_temp_c`
+- Temperatura interna: `internal_temp_c`
+- Umidade interna: `relative_humidity_percent`
+- Tempo de processo: usar operação diária / tempo de processo conforme o fluxo atual
+
+Campos novos necessários:
+
+- `external_relative_humidity_percent`
+- `atmospheric_pressure_kpa`
+
+## 3. Geometria visual da câmara
+
+Substituir/expandir os cards atuais de formato por opções visuais mais claras:
+
+- Retangular
+- Em L simples
+- Em L com recorte duplo / irregular
+- Personalizada
+
+Cada opção terá um desenho SVG próprio, com cotas A, B, C, D, E, F e H, inspirado na imagem enviada, mas redesenhado em estilo moderno.
+
+## 4. Dimensões A–F + H
+
+Adicionar campos técnicos de cotas:
+
+- Dim. A
+- Dim. B
+- Dim. C
+- Dim. D
+- Dim. E
+- Dim. F
+- Altura H
+
+Mapeamento inicial:
+
+- A/C podem representar comprimentos principais
+- B/D larguras/profundidades
+- E/F recortes conforme geometrias em L/irregular
+- H altura
+
+A lógica de cálculo será atualizada para gerar automaticamente:
+
+- área de piso
+- área de teto
+- quantidade de paredes
+- comprimentos das paredes
+- volume interno final
+
+Para geometrias personalizadas, manter edição manual por face.
+
+## 5. Insolação por face
+
+Criar um bloco lateral parecido com a referência:
+
+- seletor da face principal / face norte
+- preview pequeno da câmara
+- opção “Piso com isolamento?”
+- seleção rápida da face ativa: Teto, Piso, Lateral 1, Lateral 2, etc.
+
+Isso vai controlar/editar a linha correspondente na tabela de faces.
+
+## 6. Tabela técnica de faces
+
+Modernizar a tabela existente para ficar mais parecida com a ferramenta atual, mas mantendo os recursos novos:
+
+Colunas principais:
+
+- Local: Teto, Piso, Lateral 1, Lateral 2...
+- Material / Espessura
+- Camadas térmicas
+- Temperatura externa da face
+- Orientação solar
+- Cor
+- Área vidro m²
+- Tipo de vidro
+- Área porta m²
+- Área painel m²
+- U calculado
+
+A coluna “Material / Espessura” poderá ser preenchida automaticamente com a camada principal, por exemplo:
 
 ```text
-layers: [
-  { material_id, material_name, thickness_m, conductivity_w_mk, position }
-]
-u_value_w_m2k
-transmission_w
-transmission_kcal_h
+Painel isotérmico PUR - 100mm
 ```
 
-4. Manter compatibilidade com os campos atuais (`insulation_material_id`, espessuras padrão), para não quebrar projetos já existentes.
-
-## 2. Tipos e validação
-
-Atualizar os tipos ColdPro para incluir:
-
-- `ColdProThermalMaterial`
-- `ColdProWallLayer`
-- novos campos em `ColdProConstructionFace`:
-  - `layers`
-  - `u_value_w_m2k`
-  - `transmission_w`
-  - `transmission_kcal_h`
-
-Atualizar validação no servidor para aceitar camadas, com limites seguros:
-
-- até 8 camadas por face
-- espessura não negativa
-- condutividade positiva
-- nomes e categorias com tamanho limitado
-
-## 3. Motor de cálculo térmico
-
-Adicionar funções no engine:
+E o botão “Camadas” continuará abrindo a montagem detalhada:
 
 ```text
-calculateUValue(layers)
-calculateFaceTransmission(face, env)
-calculateConstructionTransmission(env, fallbackInsulation)
+Aço 0,5 mm + PUR 100 mm + Aço 0,5 mm
 ```
 
-Regras:
+## 7. Integração com cálculo
 
-- Converter W para kcal/h usando `1 W = 0,859845 kcal/h`.
-- Usar `R_internal = 0,12` e `R_external = 0,08` como padrão inicial.
-- Para paredes e teto: `ΔT = temperatura externa da face ou ambiente externo - temperatura interna`.
-- Para piso: se houver temperatura de piso, usar `temperatura sob o piso - temperatura interna`; caso contrário usar ΔT externo.
-- Se a face tiver camadas, usar cálculo por U técnico.
-- Se não tiver camadas, manter fallback atual por material isolante + espessura, para compatibilidade.
+Atualizar o motor para usar as novas dimensões A–F/H e as faces geradas.
 
-O resultado detalhado entrará em `calculation_breakdown.transmission_faces`, mostrando face, área, U, ΔT e carga.
+Prioridade de cálculo:
 
-## 4. Interface na aba Ambiente
+1. Se a face tiver área manual, usar área manual.
+2. Se a geometria gerar área automaticamente, usar área calculada.
+3. Se a face tiver camadas, calcular U por camadas.
+4. Se não tiver camadas, usar fallback por material/espessura global para manter compatibilidade.
 
-Na aba “Dimensões e painéis”, ajustar a tabela de faces para permitir montar a composição térmica de cada face.
+## 8. Banco de dados
 
-Proposta de UX:
+Criar migration para adicionar os campos faltantes em `coldpro_environments`:
 
-- Cada linha continua representando TETO, PAREDE 1, PAREDE 2, PISO etc.
-- Adicionar botão “Camadas” em cada face.
-- Ao clicar, abrir um painel/modal simples com:
-  - lista de camadas
-  - seletor de material
-  - espessura em mm
-  - condutividade preenchida automaticamente pelo material
-  - botão adicionar/remover camada
-  - prévia automática do U da face
+- `external_relative_humidity_percent`
+- `atmospheric_pressure_kpa`
+- `dimension_a_m`
+- `dimension_b_m`
+- `dimension_c_m`
+- `dimension_d_m`
+- `dimension_e_m`
+- `dimension_f_m`
 
-Exemplo de montagem:
+Os campos atuais `length_m`, `width_m`, `height_m` serão mantidos para compatibilidade e sincronizados com as dimensões principais.
 
-```text
-Parede 1
-1. Aço carbono — 0,5 mm
-2. Painel isotérmico PUR — 100 mm
-3. Aço carbono — 0,5 mm
-U calculado: ~0,21 W/m²K
-```
+## 9. Resultado visual
 
-## 5. Integração com carregamento de dados
+Na própria aba Ambiente, colocar um resumo final no rodapé da aba, após a tabela:
 
-Atualizar `getColdProProjectBundle` para retornar também `thermalMaterials`, ordenados por categoria/nome.
+- Volume interno final
+- Área de piso
+- Área de teto
+- Área total de paredes
+- Área total de painéis
+- Carga térmica de transmissão, quando já calculada
 
-Passar `thermalMaterials` para `ColdProEnvironmentForm` pela rota `/app/coldpro/$id`.
+Isso segue sua orientação anterior: volume e áreas aparecem no final, depois de preencher as medidas.
 
-## 6. Resultado e memorial
-
-Atualizar visualização de resultado para incluir informação mais técnica da transmissão:
-
-- Transmissão total continua aparecendo no card principal.
-- Detalhamento opcional por face no breakdown:
-  - área
-  - U
-  - ΔT
-  - carga em kcal/h
-
-Atualizar o memorial PDF para refletir, quando disponível, o cálculo por camadas em vez de apenas material/espessura global.
-
-## 7. Observações importantes
-
-- Não vou substituir os dados atuais de isolamento; vou adicionar o novo catálogo térmico e usar fallback para projetos antigos.
-- A tabela sugerida pelo usuário será adaptada para o padrão de nomes do ColdPro (`coldpro_thermal_materials`) para manter consistência.
-- Como estamos em modo de planejamento, a implementação começa após aprovação.
-
-## Validação
+## 10. Validação
 
 Após implementar:
 
-- Rodar TypeScript sem emissão.
-- Rodar build de produção.
-- Conferir que projetos antigos ainda calculam com fallback.
-- Conferir exemplo PUR 100 mm com U aproximado de 0,21 W/m²K.
-- Conferir que o cálculo de transmissão final aparece em kcal/h corretamente.
+- Validar TypeScript.
+- Gerar build de produção.
+- Conferir que projetos antigos continuam funcionando.
+- Testar que o cálculo de volume e áreas sai da geometria/cotas e da tabela de faces.
+- Garantir que a tabela de materiais térmicos e camadas continue integrada ao cálculo U.

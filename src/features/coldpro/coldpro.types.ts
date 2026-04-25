@@ -68,6 +68,8 @@ export type ColdProEnvironment = {
   volume_m3: number;
   internal_temp_c: number;
   external_temp_c: number;
+  external_relative_humidity_percent?: number | null;
+  atmospheric_pressure_kpa?: number | null;
   floor_temp_c?: number | null;
   relative_humidity_percent?: number | null;
   insulation_material_id?: string | null;
@@ -92,6 +94,12 @@ export type ColdProEnvironment = {
   other_kcal_h: number;
   safety_factor_percent: number;
   chamber_layout_type?: string | null;
+  dimension_a_m?: number | null;
+  dimension_b_m?: number | null;
+  dimension_c_m?: number | null;
+  dimension_d_m?: number | null;
+  dimension_e_m?: number | null;
+  dimension_f_m?: number | null;
   wall_count?: number | null;
   module_count?: number | null;
   west_face_insolation?: boolean | null;
