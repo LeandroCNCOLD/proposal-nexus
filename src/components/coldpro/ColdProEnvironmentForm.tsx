@@ -1,5 +1,6 @@
 import * as React from "react";
 import { Box, DraftingCompass, Grid3X3, Save, ShieldCheck, Thermometer } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   ColdProField,
@@ -69,6 +70,8 @@ const GLASS_TYPE_OPTIONS = [
   { value: "double", label: "Vidro duplo" },
   { value: "insulated", label: "Vidro insulado" },
 ];
+
+const UNINSULATED_FLOOR_U_VALUE_W_M2K = 1.75;
 
 const LEGACY_LAYOUTS = new Set(["industrial", "modular", "climatized_storage", "blast_freezer", "cooling_tunnel", "climatized_room"]);
 
@@ -170,6 +173,10 @@ function makeInsulationLayer(material: any, thicknessMm: unknown) {
 function applyLayerToFace(face: any, layer: any) {
   const layers = layer.thickness_m > 0 && layer.conductivity_w_mk > 0 ? [layer] : [];
   return { ...face, layers, u_value_w_m2k: calculateUValue(layers), material_thickness: layers.length ? `${layer.material_name} ${toNumber(layer.thickness_m) * 1000} mm` : face.material_thickness };
+}
+
+function applyUninsulatedFloorToFace(face: any) {
+  return { ...face, layers: [], u_value_w_m2k: UNINSULATED_FLOOR_U_VALUE_W_M2K, material_thickness: "Piso sem isolamento" };
 }
 
 function describeLayer(layer: any) {
