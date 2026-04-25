@@ -18,7 +18,7 @@ import {
   round2,
 } from "./coldpro.constants";
 import { calculateAdvancedProcess } from "@/modules/coldpro/services/advancedProcesses/advancedProcessEngine";
-import { suggestedInfiltrationFactor } from "./extra-loads-preview";
+import { calculateEvaporatorFrostRisk, suggestedInfiltrationFactor } from "./extra-loads-preview";
 
 const W_TO_KCAL_H = 0.859845;
 const R_INTERNAL_M2K_W = 0.12;
@@ -790,6 +790,7 @@ export function calculateColdProLoad(params: {
   const advancedProcesses = (params.advancedProcesses ?? []).map(calculateAdvancedProcess);
   const advancedProcessLoad = advancedProcesses.reduce((sum, item) => sum + n(item.total_additional_kcal_h), 0);
   const infiltration = calculateInfiltrationLoad(params.env);
+  const evaporatorFrost = calculateEvaporatorFrostRisk(params.env, infiltration);
   const people = calculatePeopleLoad(params.env);
   const lighting = calculateLightingLoad(params.env);
   const motors = calculateMotorsLoad(params.env);
@@ -797,7 +798,7 @@ export function calculateColdProLoad(params: {
   const defrost = n(params.env.defrost_kcal_h);
   const other = n(params.env.other_kcal_h);
 
-  const subtotal = transmission + product + packaging + respiration + tunnelInternalLoad + dehumidificationLoad + advancedProcessLoad + infiltration + people + lighting + motors + fans + defrost + other;
+  const subtotal = transmission + product + packaging + respiration + tunnelInternalLoad + dehumidificationLoad + advancedProcessLoad + infiltration + evaporatorFrost.additional_load_kcal_h + people + lighting + motors + fans + defrost + other;
   const safetyFactor = n(params.env.safety_factor_percent);
   const safety = subtotal * (safetyFactor / 100);
   const total = subtotal + safety;
@@ -834,6 +835,7 @@ export function calculateColdProLoad(params: {
       seed_dehumidification: dehumidification,
       advanced_processes: advancedProcesses,
       advanced_processes_kcal_h: round2(advancedProcessLoad),
+      evaporator_frost: evaporatorFrost,
       products: productBreakdown,
       respiration_kcal_h: round2(respiration),
       formulas: {
@@ -842,7 +844,7 @@ export function calculateColdProLoad(params: {
         respiration: "Q_respiração = massa_kg × taxa_W_kg × 0,859845, com interpolação por temperatura",
         tunnel: "Q túnel = sensível acima + latente + sensível abaixo + embalagem + cargas internas",
         seed_dehumidification: "W = 0,62198 × Pv / (P_atm - Pv); Q_latente = água_kg_h × 2500 / 3600",
-        infiltration: "Q = V_ar × densidade_ar × cp_ar × ΔT / h",
+        infiltration: "Q = V_ar × densidade_ar × cp_ar × ΔT / h; gelo = ar_infiltrado × diferença_umidade_absoluta",
         lighting: "Q = kW × 860 × horas / horas_compressor",
         motors: "Q = kW × 860 × horas / horas_compressor",
       },
