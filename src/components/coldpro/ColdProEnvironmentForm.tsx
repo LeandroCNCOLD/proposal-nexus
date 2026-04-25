@@ -384,8 +384,14 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
 
   const setInsulationThickness = (key: string, value: unknown) => {
     const thickness = numberOrNull(value);
+    if (key === "wall_thickness_mm") {
+      const shouldSyncCeiling = !form?.ceiling_thickness_mm || toNumber(form?.ceiling_thickness_mm) === toNumber(form?.wall_thickness_mm);
+      setForm((prev: any) => ({ ...prev, wall_thickness_mm: thickness, ...(shouldSyncCeiling ? { ceiling_thickness_mm: thickness } : {}) }));
+      applyInsulationToFaces(panelMaterialKey, thickness, shouldSyncCeiling ? thickness : form?.ceiling_thickness_mm, form?.floor_thickness_mm, floorInsulationMaterialId);
+      return;
+    }
     set(key, thickness);
-    applyInsulationToFaces(form?.insulation_material_id, key === "wall_thickness_mm" ? thickness : form?.wall_thickness_mm, key === "ceiling_thickness_mm" ? thickness : form?.ceiling_thickness_mm, key === "floor_thickness_mm" ? thickness : form?.floor_thickness_mm, floorInsulationMaterialId);
+    applyInsulationToFaces(panelMaterialKey, form?.wall_thickness_mm, key === "ceiling_thickness_mm" ? thickness : form?.ceiling_thickness_mm, key === "floor_thickness_mm" ? thickness : form?.floor_thickness_mm, floorInsulationMaterialId);
   };
 
   const setFloorInsulated = (enabled: boolean) => {
