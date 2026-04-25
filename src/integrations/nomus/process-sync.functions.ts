@@ -163,11 +163,11 @@ async function persistNomusProcessBatch(items: NomusProcessRaw[], userId: string
   };
 }
 
-const PROCESS_RECENT_BATCH_SIZE = 20;
-const PROCESS_FORWARD_LOOKAHEAD = 40;
-const PROCESS_RECENT_RECHECK = 20;
-const PROCESS_RECENT_PAGE_SCAN = 20;
-const PROCESS_MAX_CONSECUTIVE_MISSES = 8;
+const PROCESS_RECENT_BATCH_SIZE = 6;
+const PROCESS_FORWARD_LOOKAHEAD = 12;
+const PROCESS_RECENT_RECHECK = 6;
+const PROCESS_RECENT_PAGE_SCAN = 6;
+const PROCESS_MAX_CONSECUTIVE_MISSES = 3;
 
 function processIdOf(raw: NomusProcessRaw): number {
   return Number(raw.id ?? 0) || 0;
@@ -213,6 +213,17 @@ export async function syncNomusProcessesNewestFirst(options: { tipos?: string[];
   const wantedTipos = (options.tipos ?? []).map((t) => t.trim()).filter(Boolean);
   const now = new Date().toISOString();
 
+  const { data: lockRow } = await supabaseAdmin
+    .from("nomus_sync_state")
+    .select("running, updated_at, total_synced")
+    .eq("entity", "processos")
+    .maybeSingle();
+  const lock = lockRow as { running?: boolean | null; updated_at?: string | null; total_synced?: number | null } | null;
+  const lockAgeMs = lock?.updated_at ? Date.now() - new Date(lock.updated_at).getTime() : Number.POSITIVE_INFINITY;
+  if (lock?.running && lockAgeMs < 90_000) {
+    return { ok: true, count: 0, done: false, skipped: true };
+  }
+
   await supabaseAdmin.from("nomus_sync_state").upsert({
     entity: "processos",
     running: true,
@@ -220,12 +231,7 @@ export async function syncNomusProcessesNewestFirst(options: { tipos?: string[];
     updated_at: now,
   });
 
-  const { data: stateRow } = await supabaseAdmin
-    .from("nomus_sync_state")
-    .select("total_synced")
-    .eq("entity", "processos")
-    .maybeSingle();
-  const previousTotal = (stateRow as { total_synced?: number | null } | null)?.total_synced ?? 0;
+  const previousTotal = lock?.total_synced ?? 0;
 
   const { data: knownRows } = await supabaseAdmin.from("nomus_processes").select("nomus_id").limit(10000);
   const maxKnownId = ((knownRows as Array<{ nomus_id?: string | null }> | null) ?? []).reduce((max, row) => {
