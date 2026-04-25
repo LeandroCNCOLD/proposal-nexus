@@ -40,6 +40,16 @@ function fmt(value: unknown, digits = 1): string {
   return new Intl.NumberFormat("pt-BR", { maximumFractionDigits: digits }).format(Number.isFinite(n) ? n : 0);
 }
 
+function latestRowsByEnvironment<T extends { environment_id?: string | null }>(rows: T[] = []) {
+  const seen = new Set<string>();
+  return rows.filter((row) => {
+    const environmentId = row.environment_id;
+    if (!environmentId || seen.has(environmentId)) return false;
+    seen.add(environmentId);
+    return true;
+  });
+}
+
 function buildAiPrompt({ project, environments, results, selections, products, question, previousAnalysis }: any) {
   const lines = [
     `Projeto: ${project?.name ?? "Projeto"}. Aplicação: ${project?.application_type ?? "não informada"}.`,
@@ -101,11 +111,11 @@ async function loadColdProAnalysisBundle(projectId: string) {
   const { data: environments } = await supabase.from("coldpro_environments").select("*").eq("coldpro_project_id", projectId).order("sort_order", { ascending: true });
   const envIds = (environments ?? []).map((e: any) => e.id);
   const [{ data: results }, { data: selections }, { data: products }] = await Promise.all([
-    envIds.length ? supabase.from("coldpro_results").select("*").in("environment_id", envIds) : Promise.resolve({ data: [] as any[] }),
-    envIds.length ? supabase.from("coldpro_equipment_selections").select("*").in("environment_id", envIds) : Promise.resolve({ data: [] as any[] }),
+    envIds.length ? supabase.from("coldpro_results").select("*").in("environment_id", envIds).order("created_at", { ascending: false }) : Promise.resolve({ data: [] as any[] }),
+    envIds.length ? supabase.from("coldpro_equipment_selections").select("*").in("environment_id", envIds).order("created_at", { ascending: false }) : Promise.resolve({ data: [] as any[] }),
     envIds.length ? supabase.from("coldpro_environment_products").select("*").in("environment_id", envIds) : Promise.resolve({ data: [] as any[] }),
   ]);
-  return { project, environments: environments ?? [], results: results ?? [], selections: selections ?? [], products: products ?? [] };
+  return { project, environments: environments ?? [], results: latestRowsByEnvironment(results ?? []), selections: latestRowsByEnvironment(selections ?? []), products: products ?? [] };
 }
 
 async function generateAiAnalysis(input: any): Promise<string | null> {
