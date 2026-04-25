@@ -210,7 +210,7 @@ export function optimizeProcessAirCondition(params: {
   if (!recommendation) warnings.push("Nenhuma combinação dentro dos limites técnicos atingiu o tempo desejado; revisar arranjo, embalagem, dimensão térmica, temperatura limite ou tempo de processo.");
   if (params.arrangementType === "boxed_product" || params.arrangementType === "pallet_block" || params.arrangementType === "bulk_static") warnings.push("Arranjo com baixa exposição ao ar: a recomendação depende da passagem real de ar pela embalagem e do empilhamento físico.");
 
-  return {
+  const calculatedResult: ColdProResult = {
     status: recommendation ? "adequado" : "inviável",
     recommendation,
     attempts: attempts.slice(0, 40),
