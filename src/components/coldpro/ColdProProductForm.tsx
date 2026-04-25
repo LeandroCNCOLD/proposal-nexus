@@ -23,11 +23,20 @@ const initialForm = (environmentId: string) => ({
   process_time_h: 24,
   packaging_mass_kg_day: 0,
   packaging_specific_heat_kcal_kg_c: 0.4,
+  specific_heat_above_kj_kg_k: null as number | null,
+  specific_heat_below_kj_kg_k: null as number | null,
   specific_heat_above_kcal_kg_c: 0.8,
   specific_heat_below_kcal_kg_c: 0.4,
+  latent_heat_kj_kg: null as number | null,
   latent_heat_kcal_kg: 60,
   initial_freezing_temp_c: -1.5 as number | null,
   density_kg_m3: null as number | null,
+  water_content_percent: null as number | null,
+  protein_content_percent: null as number | null,
+  fat_content_percent: null as number | null,
+  carbohydrate_content_percent: null as number | null,
+  fiber_content_percent: null as number | null,
+  ash_content_percent: null as number | null,
   thermal_conductivity_unfrozen_w_m_k: null as number | null,
   thermal_conductivity_frozen_w_m_k: null as number | null,
   frozen_water_fraction: null as number | null,
@@ -40,6 +49,12 @@ const initialForm = (environmentId: string) => ({
   respiration_rate_10c_w_kg: null as number | null,
   respiration_rate_15c_w_kg: null as number | null,
   respiration_rate_20c_w_kg: null as number | null,
+  respiration_rate_0c_mw_kg: null as number | null,
+  respiration_rate_5c_mw_kg: null as number | null,
+  respiration_rate_10c_mw_kg: null as number | null,
+  respiration_rate_15c_mw_kg: null as number | null,
+  respiration_rate_20c_mw_kg: null as number | null,
+  notes: null as string | null,
 });
 
 export function ColdProProductForm({ environmentId, productCatalog = [], onSave }: Props) {
@@ -70,11 +85,20 @@ export function ColdProProductForm({ environmentId, productCatalog = [], onSave 
       ...prev,
       product_id: p.id,
       product_name: p.name,
+      specific_heat_above_kj_kg_k: p.specific_heat_above_kj_kg_k ?? null,
+      specific_heat_below_kj_kg_k: p.specific_heat_below_kj_kg_k ?? null,
       specific_heat_above_kcal_kg_c: Number(p.specific_heat_above_kcal_kg_c ?? prev.specific_heat_above_kcal_kg_c),
       specific_heat_below_kcal_kg_c: Number(p.specific_heat_below_kcal_kg_c ?? prev.specific_heat_below_kcal_kg_c),
+      latent_heat_kj_kg: p.latent_heat_kj_kg ?? null,
       latent_heat_kcal_kg: Number(p.latent_heat_kcal_kg ?? prev.latent_heat_kcal_kg),
       initial_freezing_temp_c: p.initial_freezing_temp_c ?? prev.initial_freezing_temp_c,
       density_kg_m3: p.density_kg_m3 ?? null,
+      water_content_percent: p.water_content_percent ?? null,
+      protein_content_percent: p.protein_content_percent ?? null,
+      fat_content_percent: p.fat_content_percent ?? null,
+      carbohydrate_content_percent: p.carbohydrate_content_percent ?? null,
+      fiber_content_percent: p.fiber_content_percent ?? null,
+      ash_content_percent: p.ash_content_percent ?? null,
       thermal_conductivity_unfrozen_w_m_k: p.thermal_conductivity_unfrozen_w_m_k ?? p.thermal_conductivity_w_m_k ?? null,
       thermal_conductivity_frozen_w_m_k: p.thermal_conductivity_frozen_w_m_k ?? null,
       frozen_water_fraction: p.frozen_water_fraction ?? null,
@@ -87,6 +111,12 @@ export function ColdProProductForm({ environmentId, productCatalog = [], onSave 
       respiration_rate_10c_w_kg: p.respiration_rate_10c_w_kg ?? null,
       respiration_rate_15c_w_kg: p.respiration_rate_15c_w_kg ?? null,
       respiration_rate_20c_w_kg: p.respiration_rate_20c_w_kg ?? null,
+      respiration_rate_0c_mw_kg: p.respiration_rate_0c_mw_kg ?? null,
+      respiration_rate_5c_mw_kg: p.respiration_rate_5c_mw_kg ?? null,
+      respiration_rate_10c_mw_kg: p.respiration_rate_10c_mw_kg ?? null,
+      respiration_rate_15c_mw_kg: p.respiration_rate_15c_mw_kg ?? null,
+      respiration_rate_20c_mw_kg: p.respiration_rate_20c_mw_kg ?? null,
+      notes: p.notes ?? null,
     }));
   };
 
@@ -169,11 +199,14 @@ export function ColdProProductForm({ environmentId, productCatalog = [], onSave 
                   <ColdProField label="Temp. final produto" unit="°C"><ColdProInput {...num("outlet_temp_c")} /></ColdProField>
                   <ColdProField label="Temp. congelamento" unit="°C"><ColdProInput {...num("initial_freezing_temp_c")} /></ColdProField>
                   <ColdProField label="Densidade" unit="kg/m³"><ColdProInput {...num("density_kg_m3")} /></ColdProField>
+                  <ColdProField label="Água" unit="%"><ColdProInput {...num("water_content_percent")} /></ColdProField>
+                  <ColdProField label="Proteína" unit="%"><ColdProInput {...num("protein_content_percent")} /></ColdProField>
                 </div>
                 <div>
                   <ColdProField label="Cp acima"><ColdProInput {...num("specific_heat_above_kcal_kg_c")} /></ColdProField>
                   <ColdProField label="Cp abaixo"><ColdProInput {...num("specific_heat_below_kcal_kg_c")} /></ColdProField>
                   <ColdProField label="Calor latente"><ColdProInput {...num("latent_heat_kcal_kg")} /></ColdProField>
+                  <ColdProField label="Calor latente" unit="kJ/kg"><ColdProInput {...num("latent_heat_kj_kg")} /></ColdProField>
                   <ColdProField label="Condutividade congelado"><ColdProInput {...num("thermal_conductivity_frozen_w_m_k")} /></ColdProField>
                   <ColdProField label="Fração água congelável"><ColdProInput {...num("frozen_water_fraction")} /></ColdProField>
                   <ColdProField label="Espessura característica" unit="m"><ColdProInput {...num("characteristic_thickness_m")} /></ColdProField>

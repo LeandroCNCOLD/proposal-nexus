@@ -33,8 +33,9 @@ const defaultTunnel = (environmentId: string) => ({
   other_internal_kw: 0,
 });
 
-export function ColdProTunnelForm({ environmentId, tunnel, onSave }: { environmentId: string; tunnel?: any; onSave: (data: any) => void }) {
+export function ColdProTunnelForm({ environmentId, tunnel, productCatalog = [], onSave }: { environmentId: string; tunnel?: any; productCatalog?: any[]; onSave: (data: any) => void }) {
   const [form, setForm] = React.useState<any>(defaultTunnel(environmentId));
+  const [selectedGroup, setSelectedGroup] = React.useState("");
 
   React.useEffect(() => setForm((prev: any) => ({ ...prev, ...(tunnel ?? {}), environment_id: environmentId })), [environmentId, tunnel?.id]);
 
@@ -47,6 +48,41 @@ export function ColdProTunnelForm({ environmentId, tunnel, onSave }: { environme
   const velocityWarning = Number(form.air_velocity_m_s ?? 0) <= 0 || Number(form.air_velocity_m_s ?? 0) > 10;
   const requiredError = String(form.product_name ?? "").trim().length === 0;
   const canSave = !processError && !requiredError;
+  const groups = React.useMemo(() => Array.from(new Set(productCatalog.map((p) => p.category).filter(Boolean))).sort((a, b) => String(a).localeCompare(String(b), "pt-BR")), [productCatalog]);
+  const filteredProducts = React.useMemo(() => productCatalog.filter((p) => !selectedGroup || p.category === selectedGroup), [productCatalog, selectedGroup]);
+  const applyProduct = (id: string) => {
+    const p = productCatalog.find((item) => item.id === id);
+    if (!p) return;
+    setForm((prev: any) => ({
+      ...prev,
+      product_id: p.id,
+      product_name: p.name,
+      freezing_temp_c: p.initial_freezing_temp_c ?? prev.freezing_temp_c,
+      density_kg_m3: p.density_kg_m3 ?? prev.density_kg_m3,
+      specific_heat_above_kj_kg_k: p.specific_heat_above_kj_kg_k ?? null,
+      specific_heat_below_kj_kg_k: p.specific_heat_below_kj_kg_k ?? null,
+      specific_heat_above_kcal_kg_c: Number(p.specific_heat_above_kcal_kg_c ?? prev.specific_heat_above_kcal_kg_c),
+      specific_heat_below_kcal_kg_c: Number(p.specific_heat_below_kcal_kg_c ?? prev.specific_heat_below_kcal_kg_c),
+      latent_heat_kj_kg: p.latent_heat_kj_kg ?? null,
+      latent_heat_kcal_kg: Number(p.latent_heat_kcal_kg ?? prev.latent_heat_kcal_kg),
+      thermal_conductivity_unfrozen_w_m_k: p.thermal_conductivity_unfrozen_w_m_k ?? null,
+      thermal_conductivity_frozen_w_m_k: p.thermal_conductivity_frozen_w_m_k ?? prev.thermal_conductivity_frozen_w_m_k,
+      water_content_percent: p.water_content_percent ?? null,
+      protein_content_percent: p.protein_content_percent ?? null,
+      fat_content_percent: p.fat_content_percent ?? null,
+      carbohydrate_content_percent: p.carbohydrate_content_percent ?? null,
+      fiber_content_percent: p.fiber_content_percent ?? null,
+      ash_content_percent: p.ash_content_percent ?? null,
+      frozen_water_fraction: p.frozen_water_fraction ?? null,
+      freezable_water_content_percent: p.freezable_water_content_percent ?? null,
+      respiration_rate_0c_mw_kg: p.respiration_rate_0c_mw_kg ?? null,
+      respiration_rate_5c_mw_kg: p.respiration_rate_5c_mw_kg ?? null,
+      respiration_rate_10c_mw_kg: p.respiration_rate_10c_mw_kg ?? null,
+      respiration_rate_15c_mw_kg: p.respiration_rate_15c_mw_kg ?? null,
+      respiration_rate_20c_mw_kg: p.respiration_rate_20c_mw_kg ?? null,
+      notes: p.notes ?? null,
+    }));
+  };
 
   return (
     <div className="rounded-xl border bg-background p-5 shadow-sm">
@@ -92,6 +128,18 @@ export function ColdProTunnelForm({ environmentId, tunnel, onSave }: { environme
           <ColdProFormSection title="Produto e throughput" description="Dados físicos e vazão mássica do produto no túnel." icon={<Package className="h-4 w-4" />}>
             <div className="grid grid-cols-1 gap-x-10 md:grid-cols-2">
               <div>
+                <ColdProField label="Grupo ASHRAE">
+                  <ColdProSelect value={selectedGroup} onChange={(e) => { setSelectedGroup(e.target.value); set("product_id", null); }}>
+                    <option value="">Seleção manual</option>
+                    {groups.map((group) => <option key={group} value={group}>{group}</option>)}
+                  </ColdProSelect>
+                </ColdProField>
+                <ColdProField label="Produto ASHRAE">
+                  <ColdProSelect value={form.product_id ?? ""} disabled={!selectedGroup} onChange={(e) => applyProduct(e.target.value)}>
+                    <option value="">{selectedGroup ? "Selecione o produto" : "Selecione primeiro o grupo"}</option>
+                    {filteredProducts.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </ColdProSelect>
+                </ColdProField>
                 <ColdProField label="Produto"><ColdProInput type="text" value={form.product_name ?? ""} onChange={(e) => set("product_name", e.target.value)} className="text-left" /></ColdProField>
                 <ColdProField label="Espessura produto" unit="mm"><ColdProInput {...num("product_thickness_mm")} /></ColdProField>
                 <ColdProField label="Peso unitário" unit="kg"><ColdProInput {...num("product_unit_weight_kg")} /></ColdProField>
@@ -123,6 +171,8 @@ export function ColdProTunnelForm({ environmentId, tunnel, onSave }: { environme
                 <ColdProField label="Cp acima"><ColdProInput {...num("specific_heat_above_kcal_kg_c")} /></ColdProField>
                 <ColdProField label="Cp abaixo"><ColdProInput {...num("specific_heat_below_kcal_kg_c")} /></ColdProField>
                 <ColdProField label="Calor latente"><ColdProInput {...num("latent_heat_kcal_kg")} /></ColdProField>
+                <ColdProField label="Calor latente" unit="kJ/kg"><ColdProInput {...num("latent_heat_kj_kg")} /></ColdProField>
+                <ColdProField label="Água" unit="%"><ColdProInput {...num("water_content_percent")} /></ColdProField>
                 <ColdProField label="Condutividade congelado"><ColdProInput {...num("thermal_conductivity_frozen_w_m_k")} /></ColdProField>
                 <ColdProField label="Coef. convecção manual"><ColdProInput {...num("convective_coefficient_w_m2_k")} /></ColdProField>
                 <ColdProValidationMessage>{velocityWarning ? "Confira a velocidade do ar. Valores usuais ficam acima de 0 e geralmente abaixo de 10 m/s." : ""}</ColdProValidationMessage>
