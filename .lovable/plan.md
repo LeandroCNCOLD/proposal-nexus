@@ -1,238 +1,266 @@
-Plano de implementação — Sync Nomus/Proposal Nexus em nível profissional
+Plano de implementação: sincronização Nomus em pipeline eficiente, resiliente e observável
 
-Vou incorporar os 14 pontos como uma segunda camada sobre a base anti-duplicidade já iniciada, mantendo o objetivo central: sincronização idempotente, auditável, segura e previsível.
+Vou evoluir a sincronização atual sem remover as proteções já criadas: chaves únicas, hash, auditoria, quarentena, locks, mapeamento de fonte mestre e preservação de campos locais.
 
-## 1. Governança de “fonte mestre” por campo
+## 1. Estrutura de banco para operação robusta
 
-Criar uma tabela de configuração para definir quem manda em cada campo:
+Criar/ajustar tabelas e campos para controlar execução por lote:
 
-- Nomus: razão social, CNPJ, endereço fiscal, proposta, itens, valores, impostos.
-- Proposal Nexus: status comercial interno, temperatura do lead, observações internas, timeline, anexos, templates.
+- `sync_checkpoints`
+  - `entity_type`
+  - `last_page`
+  - `last_external_id`
+  - `last_updated_at`
+  - `status`
+  - `cursor_payload`
+  - `sync_run_id`
+  - `updated_at`
 
-A sincronização passará a consultar essa configuração antes de atualizar campos locais, para impedir que uma sync sobrescreva informações estratégicas editadas manualmente.
+- `sync_pending_issues`
+  - pendências operacionais, separadas de logs técnicos
+  - exemplos: produto sem equipamento, cliente sem CNPJ, proposta sem item, item sem valor, representante não encontrado
+  - status: `open`, `resolved`, `ignored`, `reprocessed`
 
-## 2. Campos de controle de sincronização
+- `outbound_sync_queue`
+  - preparado para sincronização futura Nexus -> Nomus
+  - nada será enviado diretamente; toda saída futura terá fila, status, tentativa, erro e log
 
-Adicionar campos nas entidades sincronizadas principais, quando ainda não existirem:
+- Campos nas entidades sincronizadas, onde ainda faltarem:
+  - `sync_status text default 'synced'`
+  - `sync_error_code text`
+  - `sync_error_message text`
+  - `last_sync_run_id uuid`
 
-- `external_updated_at`
-- `last_synced_at`
-- `sync_hash`
-- `external_deleted_at`
-- `is_active` onde faltar
+- Tabelas de configuração:
+  - `sync_entity_policies` para frequência, janela padrão, prioridade e dados quentes/frios
+  - `sync_protected_fields` para impedir sobrescrita de campos locais
 
-Entidades alvo:
+## 2. Rate control e retry com backoff
 
-- clientes
-- propostas locais
-- itens de proposta
-- equipamentos
-- propostas espelhadas do Nomus
-- itens espelhados do Nomus
-- representantes/vendedores
-- processos do CRM
+A integração já trata 429 parcialmente; vou transformar isso em comportamento padronizado:
 
-## 3. Hash de payload normalizado
+- Configuração por entidade:
+  - `max_requests_per_minute`
+  - `retry_after_seconds`
+  - `backoff_multiplier`
+  - `timeout_ms`
+  - `max_attempts`
 
-Implementar utilitário único para:
+- Regras:
+  - HTTP 429 respeita `Retry-After`/tempo informado, quando existir
+  - timeout e 5xx fazem retry com backoff exponencial
+  - falha final grava erro detalhado no lote e no log
 
-- normalizar payloads vindos do Nomus
-- ordenar chaves de JSON de forma estável
-- remover campos voláteis
-- gerar `sync_hash`
+Observação: não vou implementar rate limiting de backend para usuários. Este controle é apenas para cadenciar chamadas ao Nomus e evitar sobrecarga/429 na API externa.
 
-Regra:
+## 3. Pipeline único por entidade
 
-- hash igual ao anterior: registrar `skipped_no_change`, sem update desnecessário
-- hash diferente: atualizar apenas campos permitidos pela fonte mestre e gravar histórico por campo
-
-## 4. Soft delete / inativação
-
-Não apagar registros locais se sumirem do Nomus.
-
-A rotina marcará como:
-
-- `is_active = false`
-- `external_deleted_at = now()`
-
-Isso será aplicado de forma conservadora: apenas quando uma sincronização completa ou uma janela confiável indicar que o registro não veio mais do Nomus.
-
-## 5. Bloqueio de concorrência
-
-Criar tabela `sync_locks` e funções auxiliares para:
-
-- adquirir lock por entidade/fonte
-- impedir duas syncs simultâneas da mesma entidade
-- expirar lock antigo em caso de falha
-- liberar lock no `finally`
-
-Também vou substituir gradualmente o uso simples de `running` em `nomus_sync_state` por esse lock transacional.
-
-## 6. Dry-run / homologação
-
-Adicionar modo `dryRun` às rotinas principais de sincronização.
-
-O dry-run fará todo o processamento, mas sem gravar dados. Resultado esperado:
-
-- seriam inseridos: X
-- seriam atualizados: Y
-- seriam ignorados: Z
-- teriam erro: W
-- seriam enviados para quarentena: Q
-
-## 7. Quarentena de dados ruins
-
-Criar `sync_quarantine` para registros incompletos ou incoerentes, por exemplo:
-
-- CNPJ inválido
-- cliente sem nome
-- produto sem código
-- proposta sem número
-- item sem valor
-- item sem equipamento vinculado
-
-A sincronização não criará cadastros duplicados “na dúvida”; vai registrar o caso na quarentena para revisão.
-
-## 8. Reprocessamento individual de erros
-
-Adicionar suporte para reprocessar:
-
-- uma linha específica da quarentena
-- linhas por código de erro
-- propostas com erro
-- clientes sem CNPJ
-- produtos unmatched
-
-A execução de reprocessamento criará novo `sync_run` vinculado ao erro original.
-
-## 9. Mapeamento de campos versionado
-
-Criar `sync_field_mappings` para registrar:
-
-- entidade
-- campo Nomus
-- campo local
-- transformação aplicada
-- se é obrigatório
-- se está ativo
-- versão
-
-Isso permitirá ajustar mapeamentos quando o Nomus mudar campos, sem espalhar regras fixas pelo código.
-
-## 10. Relatório de qualidade da sync
-
-Criar serviço de indicadores com métricas como:
-
-- % registros com `nomus_id`
-- clientes sem CNPJ
-- produtos unmatched
-- propostas sem itens
-- itens sem equipamento vinculado
-- duplicidades detectadas
-- última sync bem-sucedida
-- últimas falhas por entidade
-
-Esse relatório será disponibilizado na área de auditoria/sync.
-
-## 11. Histórico de alterações por campo
-
-Criar `sync_field_changes` para cada update relevante:
-
-- entidade
-- registro local
-- campo alterado
-- valor anterior
-- valor novo
-- origem
-- sync_run_id
-- data
-
-Isso deixará claro exatamente o que a sincronização alterou.
-
-## 12. Merge seguro de duplicidades
-
-Nunca excluir duplicado diretamente.
-
-Implementar fluxo seguro:
-
-1. detectar duplicidade
-2. sugerir registro principal
-3. listar relacionamentos impactados
-4. transferir vínculos
-5. marcar duplicado como `merged`
-6. manter histórico, sem apagar fisicamente
-
-Criar tabela `sync_merge_suggestions` / `entity_merge_history` para registrar isso.
-
-## 13. Normalização forte de modelos CN Cold
-
-Melhorar o normalizador de equipamentos/produtos para gerar `normalized_model_code`, tratando variações como:
-
-- `CN-010-HT-MB-6-22M-CP`
-- `CN 010 HT MB 6 22M CP`
-- `010HTMB622MCP`
-
-Todas devem convergir para uma chave comparável. Essa chave será usada para matching de produto/equipamento antes de enviar para unmatched/quarentena.
-
-## 14. Biblioteca padronizada de erros
-
-Criar `sync_error_codes` com códigos como:
-
-- `INVALID_CNPJ`
-- `MISSING_EXTERNAL_ID`
-- `DUPLICATE_NATURAL_KEY`
-- `UNMATCHED_EQUIPMENT`
-- `INVALID_PROPOSAL_TOTAL`
-- `MISSING_REQUIRED_FIELD`
-- `SKIPPED_NO_CHANGE`
-
-Os logs e a quarentena passarão a usar esses códigos, deixando o diagnóstico mais profissional.
-
-## Ajustes técnicos nos fluxos existentes
-
-Vou aplicar esses recursos principalmente em:
-
-- sincronização de clientes
-- sincronização de propostas
-- itens de proposta
-- produtos/equipamentos
-- vendedores/representantes
-- processos do CRM
-- cron de propostas/CRM
-
-O fluxo final ficará assim:
+Refatorar o fluxo para ficar consistente:
 
 ```text
-Nomus payload
-  -> normalização
-  -> validação
-  -> hash
-  -> lock por entidade
-  -> dry-run ou persistência real
-  -> regra de fonte mestre
-  -> upsert idempotente
-  -> histórico por campo
-  -> logs por linha
-  -> quarentena se inválido
-  -> relatório de qualidade
+API Nomus
+  -> fetch paginado/incremental
+  -> checkpoint por página/lote
+  -> normalize
+  -> validate
+  -> bulk read local
+  -> diff/hash por campo
+  -> bulk upsert
+  -> pendências/quarentena
+  -> auditoria
+  -> relatório/dashboard
 ```
 
-## Validação
+Esse pipeline será aplicado gradualmente em:
 
-Após implementar, vou validar com:
+1. clientes
+2. representantes/vendedores
+3. produtos/equipamentos
+4. propostas
+5. itens de proposta
+6. pedidos/notas, mantendo o mesmo padrão onde fizer sentido
 
-- checagem TypeScript
-- inspeção das queries e constraints
-- teste lógico de idempotência: rodar a mesma sync não deve criar duplicados
-- verificação dos logs de auditoria
-- verificação de dry-run sem gravação
+## 4. Checkpoint por página/lote
 
-Resultado esperado:
+A sync deixará de depender apenas de `nomus_sync_state.last_cursor`.
 
-- sincronizar 1 vez ou 10 vezes gera o mesmo estado
-- não duplica clientes, propostas, itens, produtos, equipamentos ou representantes
-- campos locais estratégicos não são sobrescritos
-- dados ruins vão para quarentena
-- erros podem ser reprocessados
-- cada alteração fica rastreável por campo
-- duplicidades são tratadas por merge seguro, sem exclusão física imediata
+- Antes de processar cada lote: registrar checkpoint `running`
+- Após processar lote com sucesso: atualizar `last_page`, `last_external_id`, `last_updated_at`
+- Se cair no meio: próxima execução retoma do checkpoint
+- Se finalizar entidade: status `completed`
+- Se houver erro: status `failed`, mantendo cursor para reprocessar
+
+## 5. Sync incremental e janelas de tempo
+
+Adicionar opções para sincronização:
+
+- últimos 7 dias
+- últimos 30 dias
+- período personalizado
+- tudo
+- modo incremental automático por `last_successful_sync`
+
+Quando Nomus tiver campo de atualização, usar:
+
+```text
+updated_at > last_successful_sync
+```
+
+Quando não tiver, usar paginação + hash + checkpoint.
+
+## 6. Dados quentes/frios e prioridade por status
+
+Criar política de frequência:
+
+- propostas abertas/enviadas/em negociação: alta prioridade, janela curta
+- clientes ativos: diária
+- produtos/equipamentos: diária ou sob demanda
+- propostas encerradas/antigas: semanal ou janela maior
+
+Para propostas:
+
+- processar abertas/em negociação primeiro
+- depois encerradas recentes
+- por último antigas/canceladas/perdidas
+
+## 7. Bulk read antes do upsert
+
+Substituir consultas uma-a-uma por leitura em lote:
+
+- coletar `nomus_id`, CNPJ, número de proposta, código de produto/modelo do lote
+- buscar todos os registros existentes em uma ou poucas consultas
+- montar `Map` em memória:
+  - `customer_nomus_id -> customer_id`
+  - `product_nomus_id -> product_id/equipment_id`
+  - `representative_nomus_id -> representative_id`
+  - `proposal_nomus_id -> proposal_id`
+
+Isso reduz custo, tempo e chance de timeout.
+
+## 8. Validação antes de gravar
+
+Separar validações por entidade:
+
+- cliente sem ID ou sem nome: quarentena
+- CNPJ inválido: quarentena/pendência
+- produto sem equipamento: pendência operacional, sem criar duplicado
+- proposta sem item: pendência
+- item sem valor: pendência/quarentena conforme gravidade
+- representante não encontrado: pendência
+
+Regra central: registro inválido não entra no cadastro principal como duplicado.
+
+## 9. Diff por campo e anti-sobrescrita
+
+Antes de atualizar:
+
+- calcular hash do payload normalizado
+- se hash igual: `skip`
+- se hash diferente: comparar campo a campo
+- atualizar somente campos alterados e permitidos
+
+Campos locais protegidos não serão sobrescritos pelo Nomus:
+
+- `status_comercial_local` / status comercial interno
+- `temperatura_lead`
+- `observacoes_internas`
+- `responsavel_interno`
+- `timeline`
+- `tags`
+- `prioridade`
+- anexos/templates/campos manuais equivalentes já existentes
+
+## 10. Teste automático de duplicidade após sync
+
+Ao final de cada execução:
+
+- verificar clientes duplicados por CNPJ
+- propostas duplicadas por número/nomus_id
+- produtos duplicados por código
+- equipamentos duplicados por modelo normalizado
+- itens duplicados por proposta + item/chave natural
+
+Resultado:
+
+- gravar em `sync_quality_reports`
+- abrir `sync_pending_issues` quando houver duplicidade
+- não fazer merge automático nem exclusão física
+
+## 11. Dashboard de saúde da sincronização
+
+Atualizar a tela de Integração Nomus para mostrar:
+
+- última sync OK por entidade
+- status atual e progresso/checkpoint
+- tempo médio de sync
+- quantidade de erros
+- quantidade de pendências abertas
+- duplicidades detectadas
+- tempo desde última atualização
+- últimas execuções resumidas
+- erros detalhados separados
+
+Também incluir controles:
+
+- sync geral na ordem correta
+- sync por entidade
+- seleção de janela: 7 dias, 30 dias, personalizada, tudo
+- visualização de pendências operacionais
+
+## 12. Ordem do sync geral
+
+O botão de sincronização geral seguirá ordem segura:
+
+1. representantes/vendedores
+2. clientes
+3. produtos/equipamentos
+4. propostas
+5. itens de proposta
+6. pedidos/notas/vínculos
+7. verificação de duplicidade
+8. relatório de qualidade
+
+## 13. Documentos e anexos
+
+Não sincronizar anexos/documentos pesados automaticamente.
+
+- sync recorrente: dados leves
+- documentos/anexos: somente sob demanda
+- logs devem diferenciar `data_sync` de `document_sync`
+
+## 14. Arquivos principais que serão alterados
+
+- `src/integrations/nomus/client.ts`
+  - padronizar retry/backoff/rate pacing
+
+- `src/integrations/nomus/server.functions.ts`
+  - pipeline por lote, bulk read, diff por campo, checkpoints, janelas e sync geral
+
+- `src/services/sync/normalization.ts`
+  - helpers de diff/campos protegidos/chaves naturais quando necessário
+
+- `src/services/sync/syncAuditService.ts`
+  - checkpoint, pendências, qualidade, status por entidade e logs resumidos
+
+- `src/routes/api.public.hooks.nomus-cron.ts`
+  - adaptar cron para usar políticas, checkpoints e dados quentes/frios
+
+- `src/routes/app.configuracoes.nomus.tsx`
+  - dashboard de saúde, progresso, pendências e botões por janela
+
+- nova migração em `supabase/migrations/...sql`
+  - novas tabelas, índices, RLS e campos de status
+
+## 15. Validação final
+
+Após implementar, vou verificar:
+
+- TypeScript/build
+- chamadas de sync não fazem uma consulta por registro quando for possível usar lote
+- segunda execução não duplica dados
+- registros inválidos vão para quarentena/pendências
+- campos locais protegidos não são sobrescritos
+- checkpoints permitem retomar
+- dashboard mostra saúde e pendências
+
+Resultado esperado: sincronizar uma ou várias vezes deve manter o mesmo estado final, com execução mais rápida, retomável, auditável e com pendências visíveis em vez de duplicidades silenciosas.
