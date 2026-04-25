@@ -19,12 +19,23 @@ type Ctx = { pdf: PDFDocument; page: PDFPage; fonts: Fonts; y: number; projectNa
 
 function clean(value: unknown) {
   return String(value ?? "—")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[\u{1F300}-\u{1FAFF}]/gu, "")
+    .replace(/[\u{2600}-\u{27BF}]/gu, "")
+    .replace(/[\uE000-\uF8FF]/g, "")
+    .replace(/[\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFE0E\uFE0F]/g, "")
     .replace(/[–—]/g, "-")
     .replace(/[×]/g, "x")
     .replace(/[Δ]/g, "Delta ")
     .replace(/[²]/g, "2")
     .replace(/[³]/g, "3")
-    .replace(/[•]/g, "-");
+    .replace(/[•·]/g, "-")
+    .replace(/[“”]/g, '"')
+    .replace(/[‘’]/g, "'")
+    .replace(/[^\x09\x0A\x0D\x20-\x7E\xA0-\xFF]/g, "")
+    .replace(/\s+/g, " ")
+    .trim() || "-";
 }
 
 function fmt(value: unknown, digits = 2) {
