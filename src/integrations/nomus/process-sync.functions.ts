@@ -335,10 +335,10 @@ async function syncNomusProcessesFullScan(options: { tipos?: string[]; triggered
   const { NOMUS_ENDPOINTS } = await import("./endpoints");
   const wantedTipos = (options.tipos ?? []).map((t) => t.trim()).filter(Boolean);
   const now = new Date().toISOString();
-  const maxPages = options.maxPages ?? 3;
-  const maxItems = options.maxItems ?? 150;
+  const maxPages = options.maxPages ?? 1;
+  const maxItems = options.maxItems ?? 50;
   const pageSize = 50;
-  const deadlineAt = Date.now() + 22_000;
+  const deadlineAt = Date.now() + 8_000;
 
   const { data: lockRow } = await supabaseAdmin
     .from("nomus_sync_state")
@@ -370,6 +370,7 @@ async function syncNomusProcessesFullScan(options: { tipos?: string[]; triggered
         entity: "processos",
         page,
         pageSize,
+        timeoutMs: 4_000,
         triggeredBy: options.triggeredBy ?? null,
       });
       if (!res.ok) throw new Error(res.error);
@@ -423,8 +424,8 @@ export const pullNomusProcesses = createServerFn({ method: "POST" })
     const r = await syncNomusProcessesFullScan({
       tipos: data?.tipos,
       triggeredBy: context.userId,
-      maxPages: data?.maxPages ?? 3,
-      maxItems: data?.maxItems ?? 150,
+      maxPages: data?.maxPages ?? 1,
+      maxItems: data?.maxItems ?? 50,
     });
     return r.ok
       ? { ok: true as const, total: r.count ?? 0, upserted: r.count ?? 0, stagesDiscovered: [] }
