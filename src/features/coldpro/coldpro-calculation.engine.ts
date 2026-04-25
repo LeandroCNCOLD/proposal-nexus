@@ -88,6 +88,25 @@ function positive(value: number): number {
   return Math.max(0, value);
 }
 
+function kcalFromKj(value: unknown): number {
+  const kj = n(value);
+  return kj > 0 ? kj / KCAL_TO_KJ : 0;
+}
+
+function thermalValueKcal(kcal: unknown, kj: unknown): number {
+  return n(kcal) || kcalFromKj(kj);
+}
+
+function waterFreezeFraction(item: Pick<ColdProEnvironmentProduct | ColdProTunnel, "frozen_water_fraction" | "freezable_water_content_percent" | "water_content_percent">): number {
+  const explicit = n(item.frozen_water_fraction, NaN);
+  if (Number.isFinite(explicit) && explicit > 0) return explicit > 1 ? explicit / 100 : explicit;
+  const freezable = n(item.freezable_water_content_percent, NaN);
+  if (Number.isFinite(freezable) && freezable > 0) return freezable / 100;
+  const water = n(item.water_content_percent, NaN);
+  if (Number.isFinite(water) && water > 0) return Math.min(1, water / 100);
+  return 1;
+}
+
 export function calculateVolume(env: Pick<ColdProEnvironment, "length_m" | "width_m" | "height_m">): number {
   return positive(n(env.length_m) * n(env.width_m) * n(env.height_m));
 }
@@ -238,11 +257,11 @@ export function calculateProductLoad(product: ColdProEnvironmentProduct): number
 
 export function calculateProductRespirationLoad(product: ColdProEnvironmentProduct, storageTempC: number): number {
   const points = [
-    [0, product.respiration_rate_0c_w_kg],
-    [5, product.respiration_rate_5c_w_kg],
-    [10, product.respiration_rate_10c_w_kg],
-    [15, product.respiration_rate_15c_w_kg],
-    [20, product.respiration_rate_20c_w_kg],
+    [0, product.respiration_rate_0c_w_kg ?? (product.respiration_rate_0c_mw_kg != null ? product.respiration_rate_0c_mw_kg / 1000 : null)],
+    [5, product.respiration_rate_5c_w_kg ?? (product.respiration_rate_5c_mw_kg != null ? product.respiration_rate_5c_mw_kg / 1000 : null)],
+    [10, product.respiration_rate_10c_w_kg ?? (product.respiration_rate_10c_mw_kg != null ? product.respiration_rate_10c_mw_kg / 1000 : null)],
+    [15, product.respiration_rate_15c_w_kg ?? (product.respiration_rate_15c_mw_kg != null ? product.respiration_rate_15c_mw_kg / 1000 : null)],
+    [20, product.respiration_rate_20c_w_kg ?? (product.respiration_rate_20c_mw_kg != null ? product.respiration_rate_20c_mw_kg / 1000 : null)],
   ].filter((row): row is [number, number] => row[1] !== null && row[1] !== undefined && Number.isFinite(Number(row[1])));
 
   if (points.length === 0) return 0;
