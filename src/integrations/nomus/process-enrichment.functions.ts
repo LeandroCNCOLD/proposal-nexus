@@ -125,7 +125,8 @@ export const getFunnelData = createServerFn({ method: "POST" })
       const { data: props } = await supabase
         .from("nomus_proposals")
         .select("id, nomus_id, numero, cliente_nome, valor_total, validade, status_nomus, data_emissao")
-        .limit(5000);
+        .in("cliente_nome", processList.map((p) => p.pessoa).filter(Boolean) as string[])
+        .limit(1000);
       for (const pr of props ?? []) {
         const key = normalizeName(pr.cliente_nome);
         if (!key) continue;
@@ -144,17 +145,6 @@ export const getFunnelData = createServerFn({ method: "POST" })
     }
 
     const itemStatusByProposal = new Map<string, string>();
-    for (let i = 0; i < proposalIds.length; i += 1000) {
-      const { data: items } = await supabase
-        .from("nomus_proposal_items")
-        .select("nomus_proposal_id, item_status")
-        .in("nomus_proposal_id", proposalIds.slice(i, i + 1000));
-      for (const item of items ?? []) {
-        if (item.nomus_proposal_id && item.item_status && !itemStatusByProposal.has(item.nomus_proposal_id)) {
-          itemStatusByProposal.set(item.nomus_proposal_id, item.item_status);
-        }
-      }
-    }
 
     // 3) Meta local + vínculos manuais + último stage_change
     const [metaRes, manualLinksRes, stageChangesRes, attachCountsRes] = await Promise.all([
