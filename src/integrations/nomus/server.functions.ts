@@ -452,7 +452,7 @@ export const nomusSyncClients = createServerFn({ method: "POST" })
         const { data: upserted, error } = await supabaseAdmin
           .from("clients")
           .upsert(
-            {
+            ({
               ...(current?.id ? changedPayload : syncPayload),
               nomus_id,
               nomus_raw: { ...full, situacaoEstadual } as never,
@@ -465,7 +465,7 @@ export const nomusSyncClients = createServerFn({ method: "POST" })
               sync_error_code: null,
               sync_error_message: null,
               last_sync_run_id: syncRunId,
-            },
+            } as never),
             { onConflict: "nomus_id" }
           )
           .select("id")
@@ -481,6 +481,8 @@ export const nomusSyncClients = createServerFn({ method: "POST" })
       const nextOffset = offset + batch.length;
       const done = (!res.hasMore && nextOffset >= res.items.length) || res.items.length === 0;
       const nextPage = done ? null : nextOffset < res.items.length ? `${page}:${nextOffset}` : `${page + 1}:0`;
+      const lastExternalId = batch.length > 0 ? pickStr(batch[batch.length - 1], "id", "codigo", "idCliente", "idPessoa") : null;
+      await upsertSyncCheckpoint({ entityType: "clientes", syncRunId, lastPage: done ? 1 : page + 1, lastExternalId, status: done ? "completed" : "running", cursorPayload: { done, nextPage } });
       await setState("clientes", {
         running: false,
         last_synced_at: now,
@@ -493,6 +495,7 @@ export const nomusSyncClients = createServerFn({ method: "POST" })
       return { ok: true as const, count, contactsCount, skipped, unmatched: 0, done, nextPage };
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
+      await upsertSyncCheckpoint({ entityType: "clientes", syncRunId, status: "failed", errorMessage: msg });
       await setState("clientes", { running: false, last_error: msg });
       await finishSyncRun({ syncRunId, status: "error", totalErrors: 1, errorMessage: msg });
       await releaseSyncLock(lockKey);
