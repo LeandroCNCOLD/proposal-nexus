@@ -599,35 +599,28 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
               </div>
             </ColdProFormSection>
 
-            <ColdProFormSection title="Paredes, painéis e aberturas" description="Complete cada face da câmara com material, orientação solar, vidros e portas." icon={<Grid3X3 className="h-4 w-4" />}>
+            <ColdProFormSection title="Paredes, painéis e aberturas" description="Revise áreas das faces, escolha a face com sol direto e informe áreas de vidro quando houver." icon={<Grid3X3 className="h-4 w-4" />}>
               <div className="mb-4 grid gap-3 md:grid-cols-4">
                 <ColdProCalculatedInfo label="Volume final" value={`${fmtColdPro(volume)} m³`} description="Área do piso × altura" tone={dimensionError || customDimensionError ? "warning" : "success"} />
                 <ColdProCalculatedInfo label="Piso / teto" value={`${fmtColdPro(floorArea)} / ${fmtColdPro(ceilingArea)} m²`} />
                 <ColdProCalculatedInfo label="Área de paredes" value={`${fmtColdPro(wallPanelArea)} m²`} />
                 <ColdProCalculatedInfo label="Área de vidro" value={`${fmtColdPro(totalGlassArea)} m²`} />
               </div>
-              <div className="mb-4 grid gap-5 lg:grid-cols-[280px_1fr]">
-                <div className="rounded-xl border bg-muted/20 p-4">
-                  <div className="mb-3 text-sm font-semibold">Face com sol direto</div>
+              <div className="mb-4 grid gap-x-10 md:grid-cols-2">
+                <div>
                   <ColdProField label="Insolação">
                     <ColdProSelect value={currentSolarFace ?? ""} onChange={(e) => setSolarFace(e.target.value)}>
                       {SOLAR_FACE_OPTIONS.filter((option) => option.value === "" || constructionFaces.some((face) => face.local === option.value)).map((option) => <option key={option.value || "none"} value={option.value}>{option.label}</option>)}
                     </ColdProSelect>
                   </ColdProField>
-                  <ChamberShapePreview layout={layout} />
-                  <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-                    {constructionFaces.map((face, index) => (
-                      <button key={face.local} type="button" onClick={() => setActiveFaceIndex(index)} className={`rounded-md border px-2 py-1.5 text-left ${face.solar_orientation === "Sol direto" ? "border-primary bg-primary/10 text-primary" : activeFaceIndex === index ? "border-primary/60 bg-primary/5 text-primary" : "bg-background text-muted-foreground"}`}>{face.local}</button>
-                    ))}
-                  </div>
                 </div>
-                <div className="grid gap-x-10 md:grid-cols-2">
+                <div>
                   <ColdProField label="Módulos/painéis" unit="un"><ColdProInput {...num("module_count")} /></ColdProField>
                 </div>
               </div>
 
               <div className="overflow-x-auto rounded-xl border">
-                <table className="w-full min-w-[1160px] text-sm">
+                <table className="w-full min-w-[1080px] text-sm">
                   <thead className="bg-muted/50 text-xs text-muted-foreground">
                     <tr>
                       <th className="px-3 py-2 text-left font-medium">Local</th>
