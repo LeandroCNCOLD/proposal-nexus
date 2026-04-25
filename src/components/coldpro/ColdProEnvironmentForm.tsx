@@ -503,6 +503,36 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
               </div>
             </ColdProFormSection>
 
+            <ColdProFormSection title="Isolamento dos painéis" description="Selecione o painel isotérmico e a espessura para preencher automaticamente paredes, teto e piso." icon={<ShieldCheck className="h-4 w-4" />}>
+              <div className="grid gap-x-10 lg:grid-cols-2">
+                <div>
+                  <ColdProField label="Material paredes/teto">
+                    <ColdProSelect value={form?.insulation_material_id ?? ""} onChange={(e) => setInsulationMaterial(e.target.value)}>
+                      <option value="">Selecione</option>
+                      {insulationMaterials.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+                    </ColdProSelect>
+                  </ColdProField>
+                  <ColdProField label="Esp. paredes" unit="mm"><ColdProInput type="number" value={form?.wall_thickness_mm ?? ""} onChange={(e) => setInsulationThickness("wall_thickness_mm", e.target.value)} /></ColdProField>
+                  <ColdProField label="Esp. teto" unit="mm"><ColdProInput type="number" value={form?.ceiling_thickness_mm ?? ""} onChange={(e) => setInsulationThickness("ceiling_thickness_mm", e.target.value)} /></ColdProField>
+                </div>
+                <div>
+                  <ColdProField label="Piso isolado">
+                    <ColdProSelect value={form?.has_floor_insulation ? "sim" : "nao"} onChange={(e) => setFloorInsulated(e.target.value === "sim")}>
+                      <option value="nao">Não</option>
+                      <option value="sim">Sim</option>
+                    </ColdProSelect>
+                  </ColdProField>
+                  <ColdProField label="Material piso">
+                    <ColdProSelect disabled={!form?.has_floor_insulation} value={floorInsulationMaterialId || form?.insulation_material_id || ""} onChange={(e) => { setFloorInsulationMaterialId(e.target.value); applyInsulationToFaces(form?.insulation_material_id, form?.wall_thickness_mm, form?.ceiling_thickness_mm, form?.floor_thickness_mm, e.target.value); }}>
+                      <option value="">Mesmo das paredes</option>
+                      {insulationMaterials.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+                    </ColdProSelect>
+                  </ColdProField>
+                  <ColdProField label="Esp. piso" unit="mm"><ColdProInput type="number" disabled={!form?.has_floor_insulation} value={form?.floor_thickness_mm ?? ""} onChange={(e) => setInsulationThickness("floor_thickness_mm", e.target.value)} /></ColdProField>
+                </div>
+              </div>
+            </ColdProFormSection>
+
             <ColdProFormSection title="Paredes, painéis e aberturas" description="Complete cada face da câmara com material, orientação solar, vidros e portas." icon={<Grid3X3 className="h-4 w-4" />}>
               <div className="mb-4 grid gap-3 md:grid-cols-4">
                 <ColdProCalculatedInfo label="Volume final" value={`${fmtColdPro(volume)} m³`} description="Área do piso × altura" tone={dimensionError || customDimensionError ? "warning" : "success"} />
