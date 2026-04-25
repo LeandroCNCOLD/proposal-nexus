@@ -639,6 +639,143 @@ export const setUserFunnels = createServerFn({ method: "POST" })
     return { ok: true as const };
   });
 
+// ---------------- criação/edição bidirecional Nomus ----------------
+
+const processMutationSchema = z.object({
+  process_id: z.string().uuid(),
+  nome: z.string().min(1).max(255).optional(),
+  etapa: z.string().min(1).max(120).optional(),
+  tipo: z.string().min(1).max(120).optional(),
+  prioridade: z.string().min(1).max(80).optional(),
+  idPrioridade: z.number().int().positive().nullable().optional(),
+  reportador: z.string().min(1).max(160).optional(),
+  responsavel: z.string().min(1).max(160).optional(),
+  equipe: z.string().min(1).max(160).optional(),
+  dataHoraProgramada: z.string().min(1).max(40).nullable().optional(),
+  origem: z.string().min(1).max(160).optional(),
+});
+
+const processCreateSchema = processMutationSchema.omit({ process_id: true }).extend({
+  nome: z.string().min(1).max(255),
+  tipo: z.string().min(1).max(120),
+  etapa: z.string().min(1).max(120),
+  responsavel: z.string().min(1).max(160),
+  reportador: z.string().min(1).max(160),
+});
+
+function formatNomusDateTime(value: string | null | undefined): string | undefined {
+  if (!value) return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  const iso = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})(?:T|\s)?(\d{2})?:?(\d{2})?/);
+  if (iso) return `${iso[3]}/${iso[2]}/${iso[1]} ${iso[4] ?? "00"}:${iso[5] ?? "00"}`;
+  return trimmed;
+}
+
+function cleanPayload(input: Record<string, unknown>) {
+  return Object.fromEntries(Object.entries(input).filter(([, value]) => value !== undefined && value !== null && value !== ""));
+}
+
+function buildProcessPayload(row: Record<string, unknown>, patch: z.infer<typeof processMutationSchema> | z.infer<typeof processCreateSchema>) {
+  const raw = (row.raw && typeof row.raw === "object" ? row.raw : {}) as Record<string, unknown>;
+  const idPrioridade = "idPrioridade" in patch ? patch.idPrioridade : (row.id_prioridade as number | null | undefined);
+  return cleanPayload({
+    ...raw,
+    id: row.nomus_id ? Number(row.nomus_id) : undefined,
+    nome: patch.nome ?? row.nome ?? raw.nome,
+    etapa: patch.etapa ?? row.etapa ?? raw.etapa,
+    tipo: patch.tipo ?? row.tipo ?? raw.tipo,
+    prioridade: patch.prioridade ?? row.prioridade ?? raw.prioridade,
+    idPrioridade: idPrioridade ?? raw.idPrioridade,
+    reportador: patch.reportador ?? row.reportador ?? raw.reportador,
+    responsavel: patch.responsavel ?? row.responsavel ?? raw.responsavel,
+    equipe: patch.equipe ?? row.equipe ?? raw.equipe,
+    origem: patch.origem ?? row.origem ?? raw.origem,
+    dataHoraProgramada: formatNomusDateTime(patch.dataHoraProgramada) ?? raw.dataHoraProgramada,
+  });
+}
+
+export const updateNomusProcess = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(processMutationSchema)
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { nomusFetch } = await import("./client");
+    const { data: row, error } = await (supabaseAdmin as any)
+      .from("nomus_processes")
+      .select("*")
+      .eq("id", data.process_id)
+      .maybeSingle();
+    if (error) return { ok: false as const, error: error.message };
+    if (!row?.nomus_id || row.nomus_id === "0") return { ok: false as const, error: "Processo sem ID válido do Nomus" };
+
+    const payload = buildProcessPayload(row, data);
+    const res = await nomusFetch<NomusProcessRaw>(`/processos/${encodeURIComponent(row.nomus_id)}`, {
+      method: "PUT",
+      body: payload,
+      entity: "processos",
+      operation: "update",
+      direction: "push",
+      triggeredBy: context.userId,
+    });
+    if (!res.ok) {
+      await (supabaseAdmin as any).from("nomus_processes").update({ local_dirty: true, last_push_error: res.error }).eq("id", data.process_id);
+      return { ok: false as const, error: res.error };
+    }
+
+    const newRaw = res.data && typeof res.data === "object" ? res.data : { ...((row.raw as object) ?? {}), ...payload };
+    const updateRow = {
+      nome: data.nome ?? row.nome,
+      etapa: data.etapa ?? row.etapa,
+      tipo: data.tipo ?? row.tipo,
+      prioridade: data.prioridade ?? row.prioridade,
+      id_prioridade: data.idPrioridade ?? row.id_prioridade ?? null,
+      reportador: data.reportador ?? row.reportador,
+      responsavel: data.responsavel ?? row.responsavel,
+      equipe: data.equipe ?? row.equipe,
+      origem: data.origem ?? row.origem,
+      data_hora_programada: parseBrDateTime(data.dataHoraProgramada ?? undefined) ?? row.data_hora_programada,
+      raw: newRaw as never,
+      local_dirty: false,
+      last_pushed_at: new Date().toISOString(),
+      last_push_error: null,
+      synced_at: new Date().toISOString(),
+    };
+    const { error: updErr } = await (supabaseAdmin as any).from("nomus_processes").update(updateRow).eq("id", data.process_id);
+    if (updErr) return { ok: false as const, error: updErr.message };
+    if (data.etapa && data.etapa !== row.etapa) {
+      await supabaseAdmin.from("crm_stage_changes").insert({
+        process_id: data.process_id,
+        from_etapa: row.etapa ?? null,
+        to_etapa: data.etapa,
+        changed_by: context.userId,
+      });
+    }
+    return { ok: true as const, process: { ...row, ...updateRow } };
+  });
+
+export const createNomusProcess = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(processCreateSchema)
+  .handler(async ({ data, context }) => {
+    const { nomusFetch } = await import("./client");
+    const payload = buildProcessPayload({}, data);
+    const res = await nomusFetch<NomusProcessRaw>("/processos", {
+      method: "POST",
+      body: payload,
+      entity: "processos",
+      operation: "create",
+      direction: "push",
+      triggeredBy: context.userId,
+    });
+    if (!res.ok) return { ok: false as const, error: res.error };
+    const raw = res.data && typeof res.data === "object" ? res.data : (payload as NomusProcessRaw);
+    const persisted = await persistNomusProcessBatch([raw], context.userId);
+    return persisted.errors.length
+      ? { ok: false as const, error: persisted.errors.join("; ") }
+      : { ok: true as const, process: raw };
+  });
+
 // ---------------- ping individual: garante que o PUT segue funcionando ----------------
 
 export const pingProcessoPut = createServerFn({ method: "POST" })
