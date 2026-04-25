@@ -193,6 +193,21 @@ export function ColdProReport({
                     <b>Total requerido:</b> {fmt(result.total_required_kcal_h)} kcal/h ·{" "}
                     {fmt(result.total_required_kw)} kW · {fmt(result.total_required_tr)} TR
                   </div>
+                  {Array.isArray(result.calculation_breakdown?.transmission_faces) && result.calculation_breakdown.transmission_faces.length ? (
+                    <div className="mt-3">
+                      <div className="mb-1 text-sm font-semibold">Transmissão por face</div>
+                      <table className="w-full border-collapse text-xs">
+                        <thead className="bg-muted/40">
+                          <tr><th className="border px-2 py-1 text-left">Face</th><th className="border px-2 py-1 text-right">Área m²</th><th className="border px-2 py-1 text-right">U W/m²K</th><th className="border px-2 py-1 text-right">ΔT °C</th><th className="border px-2 py-1 text-right">kcal/h</th></tr>
+                        </thead>
+                        <tbody>
+                          {result.calculation_breakdown.transmission_faces.map((face: any) => (
+                            <tr key={face.local}><td className="border px-2 py-1">{face.local}</td><td className="border px-2 py-1 text-right">{fmt(face.area_m2)}</td><td className="border px-2 py-1 text-right">{fmt(face.u_value_w_m2k)}</td><td className="border px-2 py-1 text-right">{fmt(face.delta_t_c)}</td><td className="border px-2 py-1 text-right">{fmt(face.transmission_kcal_h)}</td></tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : null}
                 </div>
               ) : (
                 <div className="text-sm text-muted-foreground">Cálculo não realizado.</div>

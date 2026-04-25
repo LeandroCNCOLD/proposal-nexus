@@ -246,6 +246,7 @@ function ColdProProjectPage() {
                   <ColdProEnvironmentForm
                     environment={selectedEnv}
                     insulationMaterials={data?.insulationMaterials ?? []}
+                    thermalMaterials={data?.thermalMaterials ?? []}
                     onSave={(patch) => {
                       updateEnv.mutate(
                         { id: selectedEnv.id, patch },

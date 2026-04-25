@@ -17,6 +17,10 @@ export type ColdProStatus =
 
 export type ColdProConstructionFace = {
   local: string;
+  layers?: ColdProWallLayer[] | null;
+  u_value_w_m2k?: number | null;
+  transmission_w?: number | null;
+  transmission_kcal_h?: number | null;
   wall_length_m?: number | null;
   wall_height_m?: number | null;
   cutout_length_m?: number | null;
@@ -29,6 +33,28 @@ export type ColdProConstructionFace = {
   glass_area_m2?: number | null;
   glass_type?: string | null;
   door_area_m2?: number | null;
+};
+
+export type ColdProWallLayer = {
+  material_id?: string | null;
+  material_name: string;
+  category?: string | null;
+  thickness_m: number;
+  conductivity_w_mk: number;
+  position: number;
+};
+
+export type ColdProThermalMaterial = {
+  id: string;
+  material_name: string;
+  category: string;
+  thermal_conductivity_w_mk: number;
+  density_kg_m3?: number | null;
+  min_temp_c?: number | null;
+  max_temp_c?: number | null;
+  typical_thickness_mm?: number | null;
+  is_insulation: boolean;
+  notes?: string | null;
 };
 
 export type ColdProEnvironment = {

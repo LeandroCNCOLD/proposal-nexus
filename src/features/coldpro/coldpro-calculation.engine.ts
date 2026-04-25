@@ -1,9 +1,11 @@
 import type {
   ColdProEnvironment,
   ColdProEnvironmentProduct,
+  ColdProConstructionFace,
   ColdProInsulationMaterial,
   ColdProResult,
   ColdProTunnel,
+  ColdProWallLayer,
 } from "./coldpro.types";
 import {
   AIR_DENSITY_KG_M3,
@@ -17,6 +19,8 @@ import {
 } from "./coldpro.constants";
 
 const W_TO_KCAL_H = 0.859845;
+const R_INTERNAL_M2K_W = 0.12;
+const R_EXTERNAL_M2K_W = 0.08;
 
 export function calculateConvectionCoefficient(airVelocityMS?: number | null, fallback?: number | null): number | null {
   const velocity = n(airVelocityMS);
@@ -82,11 +86,70 @@ export function calculateSurfaceAreas(env: ColdProEnvironment) {
   };
 }
 
+export function calculateUValue(layers: Pick<ColdProWallLayer, "thickness_m" | "conductivity_w_mk">[]): number {
+  const layerResistance = layers.reduce((sum, layer) => {
+    const thickness = n(layer.thickness_m);
+    const conductivity = n(layer.conductivity_w_mk);
+    return conductivity > 0 ? sum + thickness / conductivity : sum;
+  }, 0);
+  const totalResistance = R_INTERNAL_M2K_W + layerResistance + R_EXTERNAL_M2K_W;
+  return totalResistance > 0 ? 1 / totalResistance : 0;
+}
+
+function constructionFaces(env: ColdProEnvironment): ColdProConstructionFace[] {
+  return Array.isArray(env.construction_faces) ? env.construction_faces.filter((face) => face.local !== "__GEOMETRY__") : [];
+}
+
+function faceArea(face: ColdProConstructionFace) {
+  return positive(n(face.panel_area_m2));
+}
+
+function faceDeltaT(face: ColdProConstructionFace, env: ColdProEnvironment) {
+  const targetTemp = face.local === "PISO" && env.floor_temp_c !== null && env.floor_temp_c !== undefined
+    ? env.floor_temp_c
+    : face.external_temp_c ?? env.external_temp_c;
+  return positive(n(targetTemp) - n(env.internal_temp_c));
+}
+
+export function calculateFaceTransmission(face: ColdProConstructionFace, env: ColdProEnvironment) {
+  const layers = Array.isArray(face.layers) ? face.layers.filter((layer) => n(layer.thickness_m) > 0 && n(layer.conductivity_w_mk) > 0) : [];
+  const area = faceArea(face);
+  const deltaT = faceDeltaT(face, env);
+  const uValue = layers.length ? calculateUValue(layers) : n(face.u_value_w_m2k);
+  const watts = uValue * area * deltaT;
+  const kcalH = watts * W_TO_KCAL_H;
+  return {
+    local: face.local,
+    area_m2: round2(area),
+    delta_t_c: round2(deltaT),
+    u_value_w_m2k: round2(uValue),
+    transmission_w: round2(watts),
+    transmission_kcal_h: round2(kcalH),
+    layers: layers.map((layer) => ({
+      material_name: layer.material_name,
+      thickness_m: n(layer.thickness_m),
+      conductivity_w_mk: n(layer.conductivity_w_mk),
+      position: n(layer.position),
+    })),
+  };
+}
+
+export function calculateConstructionTransmission(env: ColdProEnvironment) {
+  const faces = constructionFaces(env).filter((face) => faceArea(face) > 0 && (Array.isArray(face.layers) || n(face.u_value_w_m2k) > 0));
+  const faceResults = faces.map((face) => calculateFaceTransmission(face, env));
+  return {
+    total_kcal_h: faceResults.reduce((sum, face) => sum + face.transmission_kcal_h, 0),
+    faces: faceResults,
+  };
+}
+
 export function calculateTransmissionLoad(params: {
   env: ColdProEnvironment;
   insulation: ColdProInsulationMaterial;
 }): number {
   const { env, insulation } = params;
+  const construction = calculateConstructionTransmission(env);
+  if (construction.faces.length > 0) return construction.total_kcal_h;
   const areas = calculateSurfaceAreas(env);
   const deltaT = positive(n(env.external_temp_c) - n(env.internal_temp_c));
   const k = n(insulation.conductivity_kcal_h_m_c);
@@ -302,6 +365,7 @@ export function calculateColdProLoad(params: {
   tunnel?: ColdProTunnel | null;
 }): ColdProResult {
   const transmission = calculateTransmissionLoad(params);
+  const transmissionBreakdown = calculateConstructionTransmission(params.env);
   const productBreakdown = params.products.map(calculateProductLoadBreakdown);
   const product = productBreakdown.reduce((acc, item) => acc + item.total_kcal_h, 0);
   const packaging = params.products.reduce((acc, item) => acc + calculatePackagingLoad(item), 0);
@@ -340,6 +404,7 @@ export function calculateColdProLoad(params: {
     total_required_kw: round2(kcalhToKw(total)),
     total_required_tr: round2(kcalhToTr(total)),
     calculation_breakdown: {
+      transmission_faces: transmissionBreakdown.faces,
       tunnel: tunnelResult,
       products: productBreakdown,
       respiration_kcal_h: round2(respiration),

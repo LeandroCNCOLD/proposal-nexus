@@ -1816,6 +1816,51 @@ export type Database = {
           },
         ]
       }
+      coldpro_thermal_materials: {
+        Row: {
+          category: string
+          created_at: string
+          density_kg_m3: number | null
+          id: string
+          is_insulation: boolean
+          material_name: string
+          max_temp_c: number | null
+          min_temp_c: number | null
+          notes: string | null
+          thermal_conductivity_w_mk: number
+          typical_thickness_mm: number | null
+          updated_at: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          density_kg_m3?: number | null
+          id?: string
+          is_insulation?: boolean
+          material_name: string
+          max_temp_c?: number | null
+          min_temp_c?: number | null
+          notes?: string | null
+          thermal_conductivity_w_mk: number
+          typical_thickness_mm?: number | null
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          density_kg_m3?: number | null
+          id?: string
+          is_insulation?: boolean
+          material_name?: string
+          max_temp_c?: number | null
+          min_temp_c?: number | null
+          notes?: string | null
+          thermal_conductivity_w_mk?: number
+          typical_thickness_mm?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       coldpro_tunnels: {
         Row: {
           air_temp_c: number
