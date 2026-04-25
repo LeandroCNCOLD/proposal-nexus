@@ -476,8 +476,11 @@ export type Database = {
       coldpro_environments: {
         Row: {
           ceiling_thickness_mm: number
+          chamber_layout_type: string | null
           coldpro_project_id: string
           compressor_runtime_hours_day: number
+          construction_faces: Json
+          construction_load_kcal_h: number
           created_at: string
           defrost_kcal_h: number
           door_height_m: number
@@ -497,6 +500,7 @@ export type Database = {
           length_m: number
           lighting_hours_day: number
           lighting_power_w: number
+          module_count: number | null
           motors_hours_day: number
           motors_power_kw: number
           name: string
@@ -507,15 +511,23 @@ export type Database = {
           relative_humidity_percent: number | null
           safety_factor_percent: number
           sort_order: number
+          total_door_area_m2: number
+          total_glass_area_m2: number
+          total_panel_area_m2: number
           updated_at: string
           volume_m3: number
+          wall_count: number | null
           wall_thickness_mm: number
+          west_face_insolation: boolean | null
           width_m: number
         }
         Insert: {
           ceiling_thickness_mm?: number
+          chamber_layout_type?: string | null
           coldpro_project_id: string
           compressor_runtime_hours_day?: number
+          construction_faces?: Json
+          construction_load_kcal_h?: number
           created_at?: string
           defrost_kcal_h?: number
           door_height_m?: number
@@ -535,6 +547,7 @@ export type Database = {
           length_m?: number
           lighting_hours_day?: number
           lighting_power_w?: number
+          module_count?: number | null
           motors_hours_day?: number
           motors_power_kw?: number
           name: string
@@ -545,15 +558,23 @@ export type Database = {
           relative_humidity_percent?: number | null
           safety_factor_percent?: number
           sort_order?: number
+          total_door_area_m2?: number
+          total_glass_area_m2?: number
+          total_panel_area_m2?: number
           updated_at?: string
           volume_m3?: number
+          wall_count?: number | null
           wall_thickness_mm?: number
+          west_face_insolation?: boolean | null
           width_m?: number
         }
         Update: {
           ceiling_thickness_mm?: number
+          chamber_layout_type?: string | null
           coldpro_project_id?: string
           compressor_runtime_hours_day?: number
+          construction_faces?: Json
+          construction_load_kcal_h?: number
           created_at?: string
           defrost_kcal_h?: number
           door_height_m?: number
@@ -573,6 +594,7 @@ export type Database = {
           length_m?: number
           lighting_hours_day?: number
           lighting_power_w?: number
+          module_count?: number | null
           motors_hours_day?: number
           motors_power_kw?: number
           name?: string
@@ -583,9 +605,14 @@ export type Database = {
           relative_humidity_percent?: number | null
           safety_factor_percent?: number
           sort_order?: number
+          total_door_area_m2?: number
+          total_glass_area_m2?: number
+          total_panel_area_m2?: number
           updated_at?: string
           volume_m3?: number
+          wall_count?: number | null
           wall_thickness_mm?: number
+          west_face_insolation?: boolean | null
           width_m?: number
         }
         Relationships: [
