@@ -146,14 +146,14 @@ export function ColdProExtraLoadsForm({ environment, catalogFanLoadKcalH = 0, on
                     </select>
                   </ColdProField>
                   <ColdProField label="Iluminância alvo" unit="lux"><ColdProInput type="number" value={targetLux} onChange={(e) => setTargetLux(Number(e.target.value || 0))} /></ColdProField>
-                  <ColdProField label="Potência de iluminação" unit="W"><ColdProInput {...num("lighting_power_w")} /></ColdProField>
+                  <ColdProField label="Potência de iluminação calculada" unit="W"><ColdProInput {...num("lighting_power_w")} /></ColdProField>
                   <ColdProField label="Horas de iluminação" unit="h/dia"><ColdProInput {...num("lighting_hours_day")} /></ColdProField>
                   <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    <ColdProCalculatedInfo label="Luminárias sugeridas" value={`${fmtColdPro(recommendedLightingQty, 0)} un`} description={lightingAreaM2 > 0 ? `${fmtColdPro(recommendedLightingQty * selectedLighting.powerW)} W totais sugeridos` : "Informe dimensões/volume do ambiente para calcular por lux"} tone={lightingAreaM2 > 0 ? "success" : "warning"} />
-                    <button type="button" onClick={addLightingRecommendation} disabled={recommendedLightingQty <= 0} className="rounded-md border bg-background px-3 py-2 text-left text-xs font-medium hover:bg-muted disabled:opacity-50">Adicionar sugestão · {fmtColdPro(recommendedLightingQty * selectedLighting.powerW)} W</button>
+                    <ColdProCalculatedInfo label="Luminárias sugeridas" value={`${fmtColdPro(recommendedLightingQty, 0)} un`} description={lightingAreaM2 > 0 ? `${fmtColdPro(recommendedLightingPowerW)} W aplicados pela câmara` : "Informe dimensões/volume do ambiente para calcular por lux"} tone={lightingAreaM2 > 0 ? "success" : "warning"} />
+                    <button type="button" onClick={addLightingRecommendation} disabled={recommendedLightingQty <= 0} className="rounded-md border bg-background px-3 py-2 text-left text-xs font-medium hover:bg-muted disabled:opacity-50">Usar cálculo sugerido · {fmtColdPro(recommendedLightingPowerW)} W</button>
                     <button type="button" onClick={addOneLightingFixture} className="rounded-md border bg-background px-3 py-2 text-left text-xs font-medium hover:bg-muted">Adicionar 1 luminária · {fmtColdPro(selectedLighting.powerW)} W</button>
                   </div>
-                  <button type="button" onClick={() => set("lighting_power_w", 0)} className="mb-4 rounded-md border bg-background px-3 py-2 text-xs font-medium hover:bg-muted">Limpar iluminação</button>
+                  <button type="button" onClick={() => set("lighting_power_w", 0)} className="mb-4 rounded-md border bg-background px-3 py-2 text-xs font-medium hover:bg-muted">Zerar iluminação manualmente</button>
                   <ColdProCalculatedInfo label="Carga ocupação + iluminação" value={`${fmtColdPro(preview.people_kcal_h + preview.lighting_kcal_h)} kcal/h`} description={`Pessoas ${fmtColdPro(preview.people_kcal_h)} · iluminação ${fmtColdPro(preview.lighting_kcal_h)}`} />
                 </div>
               </div>
@@ -171,7 +171,7 @@ export function ColdProExtraLoadsForm({ environment, catalogFanLoadKcalH = 0, on
                   <ColdProField label="Horas de motores" unit="h/dia"><ColdProInput {...num("motors_hours_day")} /></ColdProField>
                   <ColdProField label="Dissipação motores"><ColdProInput {...num("motors_dissipation_factor")} /></ColdProField>
                   <ColdProField label="Ventiladores" unit="kcal/h"><ColdProInput {...num("fans_kcal_h")} /></ColdProField>
-                  <ColdProField label="Equipamento adicional">
+                  <ColdProField label="Sugestões de cargas adicionais">
                     <select value={selectedMotorPreset} onChange={(e) => setSelectedMotorPreset(e.target.value)} className="h-10 w-full rounded-md border bg-background px-3 text-sm">
                       {MOTOR_EQUIPMENT_PRESETS.map((preset, index) => <option key={preset.label} value={index}>{preset.label} · {fmtColdPro(preset.powerKw)} kW</option>)}
                     </select>
