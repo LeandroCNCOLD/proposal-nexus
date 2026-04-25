@@ -508,6 +508,109 @@ function FunnelManager({
   );
 }
 
+function NewProcessForm({
+  defaultTipo,
+  stages,
+  saving,
+  onSubmit,
+}: {
+  defaultTipo: string;
+  stages: string[];
+  saving: boolean;
+  onSubmit: (payload: NewProcessPayload) => void;
+}) {
+  const defaultEtapa = stages[0] ?? "Orçamento";
+  const [form, setForm] = useState<NewProcessPayload>({
+    nome: "",
+    tipo: defaultTipo,
+    etapa: defaultEtapa,
+    responsavel: "",
+    reportador: "",
+    prioridade: "Baixa",
+    equipe: "",
+    origem: "",
+    dataHoraProgramada: "",
+  });
+
+  useEffect(() => {
+    setForm((prev) => ({ ...prev, tipo: defaultTipo, etapa: stages[0] ?? prev.etapa }));
+  }, [defaultTipo, stages]);
+
+  const update = (key: keyof NewProcessPayload, value: string) => setForm((prev) => ({ ...prev, [key]: value }));
+
+  return (
+    <form
+      className="space-y-3"
+      onSubmit={(event) => {
+        event.preventDefault();
+        onSubmit({ ...form, dataHoraProgramada: form.dataHoraProgramada || null });
+      }}
+    >
+      <div className="space-y-2">
+        <Label>Nome</Label>
+        <Input value={form.nome} onChange={(e) => update("nome", e.target.value)} required />
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label>Tipo</Label>
+          <Input value={form.tipo} onChange={(e) => update("tipo", e.target.value)} required />
+        </div>
+        <div className="space-y-2">
+          <Label>Etapa</Label>
+          <Select value={form.etapa} onValueChange={(value) => update("etapa", value)}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {Array.from(new Set([form.etapa, ...stages].filter(Boolean))).map((stage) => (
+                <SelectItem key={stage} value={stage}>{stage}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label>Responsável</Label>
+          <Input value={form.responsavel} onChange={(e) => update("responsavel", e.target.value)} required />
+        </div>
+        <div className="space-y-2">
+          <Label>Reportador</Label>
+          <Input value={form.reportador} onChange={(e) => update("reportador", e.target.value)} required />
+        </div>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label>Prioridade</Label>
+          <Select value={form.prioridade} onValueChange={(value) => update("prioridade", value)}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Baixa">Baixa</SelectItem>
+              <SelectItem value="Média">Média</SelectItem>
+              <SelectItem value="Alta">Alta</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label>Data programada</Label>
+          <Input type="datetime-local" value={form.dataHoraProgramada ?? ""} onChange={(e) => update("dataHoraProgramada", e.target.value)} />
+        </div>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label>Equipe</Label>
+          <Input value={form.equipe ?? ""} onChange={(e) => update("equipe", e.target.value)} />
+        </div>
+        <div className="space-y-2">
+          <Label>Origem</Label>
+          <Input value={form.origem ?? ""} onChange={(e) => update("origem", e.target.value)} />
+        </div>
+      </div>
+      <Button type="submit" className="w-full" disabled={saving}>
+        {saving ? "Criando…" : "Criar processo"}
+      </Button>
+    </form>
+  );
+}
+
 function EmptyFunnels({ onSync, syncing }: { onSync: () => void; syncing: boolean }) {
   return (
     <div className="rounded-lg border border-dashed border-border p-12 text-center">
