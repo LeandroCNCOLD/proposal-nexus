@@ -246,28 +246,6 @@ function ProposalsList() {
         }
       />
 
-      <div className="mb-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
-        {syncEntities.map((ent) => {
-          const st = stateByEntity[ent.key];
-          const running = !!st?.running;
-          const error = st?.last_error;
-          return (
-            <div key={ent.key} className="rounded-lg border bg-card px-3 py-2 shadow-[var(--shadow-sm)]">
-              <div className="flex items-center justify-between gap-2">
-                <span className="truncate text-xs font-semibold">{ent.label}</span>
-                {running ? <Activity className="h-3.5 w-3.5 animate-pulse text-primary" /> : error ? <AlertCircle className="h-3.5 w-3.5 text-destructive" /> : <CheckCircle2 className="h-3.5 w-3.5 text-primary" />}
-              </div>
-              <div className="mt-1 text-[11px] text-muted-foreground">
-                {st?.last_synced_at ? new Date(st.last_synced_at).toLocaleString("pt-BR") : "Aguardando sync"}
-              </div>
-              <div className="truncate text-[11px] text-muted-foreground" title={error ?? st?.last_cursor ?? undefined}>
-                {error ? error : `${st?.total_synced ?? 0} sincronizados${st?.last_cursor ? ` · ${st.last_cursor}` : ""}`}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
       <div className="mb-4 flex flex-wrap gap-3">
         <div className="relative flex-1 min-w-[260px]">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
