@@ -128,6 +128,18 @@ export function ColdProTunnelForm({ environmentId, tunnel, productCatalog = [], 
           <ColdProFormSection title="Produto e throughput" description="Dados físicos e vazão mássica do produto no túnel." icon={<Package className="h-4 w-4" />}>
             <div className="grid grid-cols-1 gap-x-10 md:grid-cols-2">
               <div>
+                <ColdProField label="Grupo ASHRAE">
+                  <ColdProSelect value={selectedGroup} onChange={(e) => { setSelectedGroup(e.target.value); set("product_id", null); }}>
+                    <option value="">Seleção manual</option>
+                    {groups.map((group) => <option key={group} value={group}>{group}</option>)}
+                  </ColdProSelect>
+                </ColdProField>
+                <ColdProField label="Produto ASHRAE">
+                  <ColdProSelect value={form.product_id ?? ""} disabled={!selectedGroup} onChange={(e) => applyProduct(e.target.value)}>
+                    <option value="">{selectedGroup ? "Selecione o produto" : "Selecione primeiro o grupo"}</option>
+                    {filteredProducts.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </ColdProSelect>
+                </ColdProField>
                 <ColdProField label="Produto"><ColdProInput type="text" value={form.product_name ?? ""} onChange={(e) => set("product_name", e.target.value)} className="text-left" /></ColdProField>
                 <ColdProField label="Espessura produto" unit="mm"><ColdProInput {...num("product_thickness_mm")} /></ColdProField>
                 <ColdProField label="Peso unitário" unit="kg"><ColdProInput {...num("product_unit_weight_kg")} /></ColdProField>
