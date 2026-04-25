@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
+import { Document, Image, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
 
 const COLORS = {
   primary: "#0d2438",
@@ -146,6 +146,16 @@ const styles = StyleSheet.create({
   },
   totalLabel: { color: "#ffffff", fontFamily: "Helvetica-Bold", fontSize: 10 },
   totalValue: { color: "#ffffff", fontFamily: "Helvetica-Bold", fontSize: 11 },
+  chartBox: { borderWidth: 1, borderColor: COLORS.border, borderRadius: 4, padding: 8, marginTop: 6, backgroundColor: "#ffffff" },
+  chartRow: { flexDirection: "row", alignItems: "center", marginBottom: 5, gap: 6 },
+  chartLabel: { width: 92, fontSize: 7.5, color: COLORS.muted },
+  chartTrack: { flex: 1, height: 8, backgroundColor: COLORS.bgSoft, borderRadius: 8 },
+  chartBar: { height: 8, borderRadius: 8, backgroundColor: COLORS.accent },
+  chartValue: { width: 68, textAlign: "right", fontSize: 7.5, fontFamily: "Helvetica-Bold" },
+  imageWrap: { width: 145, minHeight: 96, borderWidth: 1, borderColor: COLORS.border, borderRadius: 4, padding: 6, backgroundColor: COLORS.bgSoft, alignItems: "center", justifyContent: "center" },
+  equipmentImage: { width: 132, height: 82, objectFit: "contain" },
+  twoCol: { flexDirection: "row", gap: 10, alignItems: "stretch" },
+  flexGrow: { flex: 1 },
 });
 
 function fmt(value: unknown, digits = 2): string {
@@ -153,6 +163,28 @@ function fmt(value: unknown, digits = 2): string {
   return new Intl.NumberFormat("pt-BR", { maximumFractionDigits: digits }).format(
     Number.isFinite(n) ? n : 0,
   );
+}
+
+function loadRows(result: any) {
+  return [
+    ["Transmissão", Number(result?.transmission_kcal_h ?? 0)],
+    ["Produto", Number(result?.product_kcal_h ?? 0)],
+    ["Embalagem", Number(result?.packaging_kcal_h ?? 0)],
+    ["Infiltração", Number(result?.infiltration_kcal_h ?? 0)],
+    ["Pessoas", Number(result?.people_kcal_h ?? 0)],
+    ["Iluminação", Number(result?.lighting_kcal_h ?? 0)],
+    ["Motores", Number(result?.motors_kcal_h ?? 0)],
+    ["Ventiladores", Number(result?.fans_kcal_h ?? 0)],
+    ["Degelo", Number(result?.defrost_kcal_h ?? 0)],
+    ["Outros", Number(result?.other_kcal_h ?? 0) + Number(result?.tunnel_internal_load_kcal_h ?? 0)],
+  ].filter(([, value]) => value > 0);
+}
+
+function LoadChart({ result }: { result: any }) {
+  const rows = loadRows(result);
+  const max = Math.max(1, ...rows.map(([, value]) => value));
+  if (!rows.length) return null;
+  return <View style={styles.chartBox}>{rows.map(([label, value]) => <View key={label} style={styles.chartRow}><Text style={styles.chartLabel}>{label}</Text><View style={styles.chartTrack}><View style={[styles.chartBar, { width: `${Math.max(3, (value / max) * 100)}%` }]} /></View><Text style={styles.chartValue}>{fmt(value, 0)} kcal/h</Text></View>)}</View>;
 }
 
 type Props = {
