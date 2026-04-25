@@ -295,6 +295,7 @@ export const nomusSyncClients = createServerFn({ method: "POST" })
         const seller = firstArrayObj(full, "vendedores");
         const representative = firstArrayObj(full, "representantes");
         const cnae = pickStr(full, "cnaePrincipal", "classificacao", "classificação");
+        const situacaoEstadual = pickStr(full, "situacaoEstadual", "situaçãoEstadual", "situacaoIE", "statusInscricaoEstadual");
         const notes = [pickStr(full, "observacoes", "observações"), cnae ? `CNAE/Classificação: ${cnae}` : null].filter(Boolean).join("\n") || null;
 
         const { data: upserted, error } = await supabaseAdmin
@@ -318,7 +319,7 @@ export const nomusSyncClients = createServerFn({ method: "POST" })
               country: pickStr(full, "pais", "nomePais"),
               segment: pickStr(full, "segmento", "ramo", "ramoAtividade", "segmentoMercado", "cnaePrincipal", "classificacao"),
               region: pickStr(full, "regiao", "regiaoComercial", "territorio", "uf", "estado", "siglaEstado"),
-              state_registration: pickStr(full, "inscricaoEstadual", "ie"),
+              state_registration: pickStr(full, "inscricaoEstadual", "ie", "situacaoEstadual", "situaçãoEstadual"),
               municipal_registration: pickStr(full, "inscricaoMunicipal", "im"),
               nomus_seller_id: pickStr(full, "idVendedor", "vendedorId") ?? pickNestedStr(full, "vendedor", "id", "codigo") ?? (seller ? pickStr(seller, "id", "codigo") : null),
               nomus_seller_name: pickStr(full, "nomeVendedor", "vendedorNome") ?? pickNestedStr(full, "vendedor", "nome", "razaoSocial") ?? (seller ? pickStr(seller, "nome", "razaoSocial") : null),
@@ -326,7 +327,7 @@ export const nomusSyncClients = createServerFn({ method: "POST" })
               nomus_representative_name: pickStr(full, "nomeRepresentante", "representanteNome") ?? pickNestedStr(full, "representante", "nome", "razaoSocial") ?? (representative ? pickStr(representative, "nome", "razaoSocial") : null),
               notes,
               is_active: pickBool(full, "ativo", "isActive", "ativoCliente") ?? true,
-              nomus_raw: full as never,
+              nomus_raw: { ...full, situacaoEstadual } as never,
               origin: "nomus",
               nomus_synced_at: new Date().toISOString(),
             },
