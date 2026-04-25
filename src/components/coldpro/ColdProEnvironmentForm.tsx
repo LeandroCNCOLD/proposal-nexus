@@ -418,6 +418,17 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
     }
   };
 
+  const setSolarFace = (faceName: string) => {
+    set("west_face_insolation", faceName !== "Sem sol direto");
+    const next = constructionFaces.map((face) => ({
+      ...face,
+      solar_orientation: faceName === face.local || (faceName === "Teto" && face.local === "TETO") ? "Sol direto" : "",
+    }));
+    set("construction_faces", [...next, geometry]);
+  };
+
+  const currentSolarFace = constructionFaces.find((face) => face.solar_orientation === "Sol direto")?.local;
+
   return (
     <div className="rounded-xl border bg-background p-5 shadow-sm">
       <div className="mb-5 flex flex-col gap-3 border-b pb-4 md:flex-row md:items-start md:justify-between">
