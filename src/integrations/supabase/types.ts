@@ -642,6 +642,7 @@ export type Database = {
       }
       coldpro_environments: {
         Row: {
+          air_changes_per_hour: number
           atmospheric_pressure_kpa: number | null
           ceiling_thickness_mm: number
           chamber_layout_type: string | null
@@ -658,6 +659,7 @@ export type Database = {
           dimension_e_m: number | null
           dimension_f_m: number | null
           door_height_m: number
+          door_infiltration_m3_h: number
           door_openings_per_day: number
           door_width_m: number
           environment_type: string
@@ -666,6 +668,7 @@ export type Database = {
           fans_kcal_h: number
           floor_temp_c: number | null
           floor_thickness_mm: number
+          fresh_air_m3_h: number
           has_floor_insulation: boolean
           height_m: number
           id: string
@@ -685,6 +688,10 @@ export type Database = {
           people_hours_day: number
           relative_humidity_percent: number | null
           safety_factor_percent: number
+          seed_final_moisture_percent: number
+          seed_initial_moisture_percent: number
+          seed_mass_kg: number
+          seed_stabilization_time_h: number
           sort_order: number
           total_door_area_m2: number
           total_glass_area_m2: number
@@ -697,6 +704,7 @@ export type Database = {
           width_m: number
         }
         Insert: {
+          air_changes_per_hour?: number
           atmospheric_pressure_kpa?: number | null
           ceiling_thickness_mm?: number
           chamber_layout_type?: string | null
@@ -713,6 +721,7 @@ export type Database = {
           dimension_e_m?: number | null
           dimension_f_m?: number | null
           door_height_m?: number
+          door_infiltration_m3_h?: number
           door_openings_per_day?: number
           door_width_m?: number
           environment_type?: string
@@ -721,6 +730,7 @@ export type Database = {
           fans_kcal_h?: number
           floor_temp_c?: number | null
           floor_thickness_mm?: number
+          fresh_air_m3_h?: number
           has_floor_insulation?: boolean
           height_m?: number
           id?: string
@@ -740,6 +750,10 @@ export type Database = {
           people_hours_day?: number
           relative_humidity_percent?: number | null
           safety_factor_percent?: number
+          seed_final_moisture_percent?: number
+          seed_initial_moisture_percent?: number
+          seed_mass_kg?: number
+          seed_stabilization_time_h?: number
           sort_order?: number
           total_door_area_m2?: number
           total_glass_area_m2?: number
@@ -752,6 +766,7 @@ export type Database = {
           width_m?: number
         }
         Update: {
+          air_changes_per_hour?: number
           atmospheric_pressure_kpa?: number | null
           ceiling_thickness_mm?: number
           chamber_layout_type?: string | null
@@ -768,6 +783,7 @@ export type Database = {
           dimension_e_m?: number | null
           dimension_f_m?: number | null
           door_height_m?: number
+          door_infiltration_m3_h?: number
           door_openings_per_day?: number
           door_width_m?: number
           environment_type?: string
@@ -776,6 +792,7 @@ export type Database = {
           fans_kcal_h?: number
           floor_temp_c?: number | null
           floor_thickness_mm?: number
+          fresh_air_m3_h?: number
           has_floor_insulation?: boolean
           height_m?: number
           id?: string
@@ -795,6 +812,10 @@ export type Database = {
           people_hours_day?: number
           relative_humidity_percent?: number | null
           safety_factor_percent?: number
+          seed_final_moisture_percent?: number
+          seed_initial_moisture_percent?: number
+          seed_mass_kg?: number
+          seed_stabilization_time_h?: number
           sort_order?: number
           total_door_area_m2?: number
           total_glass_area_m2?: number
