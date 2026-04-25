@@ -248,6 +248,32 @@ function TemperatureChart({ env }: { env: any }) {
   return <View style={styles.chartBox}><View style={styles.chartRow}><Text style={styles.chartLabel}>T interna</Text><View style={styles.chartTrack}><View style={[styles.chartBar, { width: scale(internal), backgroundColor: COLORS.primary }]} /></View><Text style={styles.chartValue}>{fmt(internal)} °C</Text></View><View style={styles.chartRow}><Text style={styles.chartLabel}>T externa</Text><View style={styles.chartTrack}><View style={[styles.chartBar, { width: scale(external), backgroundColor: COLORS.accent }]} /></View><Text style={styles.chartValue}>{fmt(external)} °C</Text></View></View>;
 }
 
+function EnvironmentPremises({ env, products }: { env: any; products: any[] }) {
+  const productMass = products.reduce((sum, item) => sum + Number(item?.mass_kg_day ?? 0), 0);
+  return (
+    <>
+      <Text style={styles.h3}>1. Premissas de cálculo do ambiente</Text>
+      <View style={styles.pillRow}>
+        <Text style={styles.pill}>Solicitado: {env.name}</Text>
+        <Text style={styles.pill}>Tipo: {env.environment_type}</Text>
+        <Text style={styles.pill}>Dim.: {fmt(env.length_m)} × {fmt(env.width_m)} × {fmt(env.height_m)} m</Text>
+        <Text style={styles.pill}>Volume: {fmt(env.volume_m3)} m³</Text>
+        <Text style={styles.pill}>Temperatura requerida: {fmt(env.internal_temp_c)} °C</Text>
+        <Text style={styles.pill}>Condição externa: {fmt(env.external_temp_c)} °C</Text>
+        <Text style={styles.pill}>UR interna: {fmt(env.relative_humidity_percent)}%</Text>
+        <Text style={styles.pill}>Painel: {fmt(env.wall_thickness_mm)} mm</Text>
+        <Text style={styles.pill}>Operação do compressor: {fmt(env.compressor_runtime_hours_day)} h/dia</Text>
+        <Text style={styles.pill}>Aberturas de porta: {fmt(env.door_openings_per_day)}/dia</Text>
+        {productMass > 0 && <Text style={styles.pill}>Carga de produto: {fmt(productMass, 0)} kg/dia</Text>}
+      </View>
+      <Text style={styles.calculationText}>
+        Estas premissas representam o que o ambiente está exigindo do sistema frigorífico: temperatura alvo,
+        dimensões, isolamento, regime de operação, uso de portas e movimentação de produtos/processos.
+      </Text>
+    </>
+  );
+}
+
 type Props = {
   project: any;
   environments: any[];
