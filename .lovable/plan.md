@@ -1,232 +1,240 @@
-Plano de implementação — ColdPro túneis com dois modelos físicos
+Plano — melhorar a etapa “Produtos / Carga de produto” no ColdPro
 
-Vou ajustar o módulo ColdPro para separar claramente os processos contínuos/girofreezer dos processos estáticos em carrinho, caixa, pallet ou massa a granel. O foco será cálculo térmico/frigorífico, sem dimensionar mecanicamente túnel, esteira, carrinho ou pallet.
+O ajuste correto é separar melhor os conceitos que hoje estão misturados em “movimentação diária”, “movimentação horária” e “tempo de processo”. A tela precisa explicar e calcular conforme o cenário real: armazenamento, entrada diária, pico horário ou tentativa de congelar dentro da própria câmara.
 
-1. Modelo de dados
+1. Separar a etapa Produto em modos de aplicação
 
-Criar novos campos em `coldpro_tunnels` para representar o processo físico:
+Adicionar um campo de uso/cálculo do produto, por exemplo `product_load_mode`:
 
-- `process_type`
-  - `continuous_individual_freezing`
-  - `continuous_girofreezer`
-  - `static_cart_freezing`
-  - `static_pallet_freezing`
+- `storage_turnover`
+  - Câmara de armazenagem.
+  - O usuário informa carga total estocada e percentual movimentado por dia.
+  - O sistema calcula a massa movimentada/dia.
 
-- `arrangement_type`
-  - `individual_exposed`
-  - `tray_layer`
-  - `boxed_product`
-  - `cart_rack`
-  - `pallet_block`
-  - `bulk_static`
+- `daily_intake`
+  - Produto recebido/processado por dia.
+  - O usuário informa diretamente kg/dia.
+  - O sistema divide pelo tempo de processo/recuperação para obter kcal/h.
 
-- Geometria unitária:
-  - `product_length_m`
-  - `product_width_m`
-  - `product_thickness_m`
-  - `unit_weight_kg`
+- `hourly_intake`
+  - Processo com alimentação contínua ou pico conhecido.
+  - O usuário informa diretamente kg/h.
+  - O sistema usa kg/h como base principal, sem depender de kg/dia.
 
-- Geometria de bloco/pallet/carrinho:
-  - `pallet_length_m`
-  - `pallet_width_m`
-  - `pallet_height_m`
-  - `pallet_mass_kg`
-  - `number_of_pallets`
-  - `batch_time_h`
-  - `layers_count`
-  - `boxes_count`
-  - `tray_spacing_m`
+- `room_pull_down_or_freezing`
+  - Câmara de armazenagem sendo usada também para resfriar/congelar produto novo.
+  - O usuário informa uma massa que entra em determinado período e o tempo desejado de recuperação/congelamento.
+  - O sistema calcula a potência necessária nesse intervalo e alerta que câmara de estocagem não substitui túnel de congelamento quando a carga for pesada.
 
-- Embalagem e passagem de ar:
-  - `package_type`
-  - `air_exposure_factor`
-  - `thermal_penetration_factor`
+2. Novos campos para carga estocada e movimentação
 
-- Ar e coeficientes:
-  - `airflow_m3_h`
-  - `convective_coefficient_manual_w_m2_k`
-  - `convective_coefficient_effective_w_m2_k`
+Adicionar campos na tabela de produtos do ambiente (`coldpro_environment_products`):
 
-- Dimensão térmica calculada/salva para auditoria:
-  - `thermal_characteristic_dimension_m`
-  - `distance_to_core_m`
+- `product_load_mode`
+- `stored_mass_kg`
+- `daily_turnover_percent`
+- `daily_movement_kg`
+- `hourly_movement_kg`
+- `recovery_time_h`
+- `is_freezing_inside_storage_room`
+- `freezing_batch_mass_kg`
+- `freezing_batch_time_h`
+- `movement_basis`
+  - `calculated_from_stock`
+  - `manual_daily`
+  - `manual_hourly`
+  - `batch_recovery`
 
-Manter os campos existentes como compatibilidade (`operation_mode`, `product_thickness_mm`, `product_unit_weight_kg`, `mass_kg_hour`, `process_time_min`) e mapear para os novos campos quando fizer sentido.
+Manter compatibilidade com os campos atuais:
 
-2. Regras padrão por tipo de arranjo
+- `mass_kg_day`
+- `mass_kg_hour`
+- `process_time_h`
 
-Adicionar constantes no motor ColdPro:
+Mas a tela passará a explicar qual deles está sendo usado.
 
-```text
-individual_exposed: air_exposure_factor 1.00, penetration_factor 1.00
-tray_layer:         air_exposure_factor 0.80, penetration_factor 0.80
-cart_rack:          air_exposure_factor 0.70, penetration_factor 0.70
-boxed_product:      air_exposure_factor 0.25–0.50, penetration_factor 0.35–0.60
-pallet_block:       air_exposure_factor 0.10–0.20, penetration_factor 0.15–0.25
-bulk_static:        air_exposure_factor 0.10, penetration_factor 0.15
-```
+3. Regra de cálculo por modo
 
-Para `boxed_product` e `pallet_block`, usar valores conservadores por padrão e permitir edição manual pelo usuário.
-
-3. Motor de cálculo
-
-Atualizar `coldpro-calculation.engine.ts` para criar dois caminhos físicos.
-
-Modelo A — contínuo/girofreezer:
-
-- Produto tratado como unidade individual ou camada fina exposta.
-- Massa usada:
-  - `mass_kg_hour` informado; ou
-  - `units_per_cycle × unit_weight_kg × cycles_per_hour`.
-- Carga térmica:
-  - `Q_kcal_h = kg/h × energia_específica_do_produto`.
-- Dimensão térmica:
-  - `thermal_characteristic_dimension = product_thickness_m`;
-  - `distance_to_core = product_thickness_m / 2`.
-- Validação:
-  - `retention_time_min >= estimated_core_freezing_time_min`.
-
-Modelo B — estático/carrinho/pallet/bloco:
-
-- Produto tratado como massa agrupada/bloco térmico equivalente.
-- Massa usada:
-  - `pallet_mass_kg × number_of_pallets`, ou massa total de lote.
-- Energia total:
-  - `Q_total = massa_total × energia_específica_do_produto`.
-- Potência:
-  - `P_kW = Q_total_kJ / (batch_time_h × 3600)`.
-- Dimensão térmica:
-  - `thermal_characteristic_dimension = menor dimensão do bloco/pallet`;
-  - `distance_to_core = menor dimensão / 2`.
-- Validação:
-  - comparar tempo desejado de batelada com tempo estimado até o núcleo.
-
-4. Fórmula de tempo até núcleo
-
-Implementar a estimativa tipo Plank generalizada:
+Modo A — Carga estocada com giro diário
 
 ```text
-t = (ρ × L_eff / ΔT) × [ (a / h_efetivo) + (a² / (2 × k_efetivo)) ]
+massa_movimentada_dia = carga_estocada_kg × percentual_movimentado / 100
+carga_kcal_h = energia_total_da_massa_movimentada / tempo_recuperacao_h
 ```
 
-Onde:
+Exemplo:
 
-- `h = 10 + 10 × velocidade_ar^0.8`
-- `h_efetivo = h × air_exposure_factor`
-- `k_efetivo = k_produto × thermal_penetration_factor`
-- contínuo: `a = espessura_produto / 2`
-- pallet/bloco: `a = menor_dimensão_pallet / 2`
-- `L_eff` usa calor latente efetivo considerando fração congelável/fração de água quando houver.
+```text
+Carga estocada: 10.000 kg
+Movimentação diária: 30%
+Massa movimentada: 3.000 kg/dia
+Tempo de recuperação: 20 h
+Base horária: 150 kg/h equivalente
+```
 
-Para pallet/bloco fechado, o sistema exibirá aviso técnico de que é estimativa conservadora e depende de embalagem, passagem real de ar, vazão e arranjo físico.
+Aqui o “kg/h” é calculado para distribuir a carga no período de recuperação.
 
-5. Formulário de túnel
+Modo B — Entrada diária direta
 
-Refatorar `ColdProTunnelForm.tsx` para deixar o preenchimento organizado:
+```text
+massa_dia = kg/dia informado
+carga_kcal_h = energia_total_da_massa_dia / tempo_processo_h
+```
 
-- Aba “Modelo físico”
-  - tipo de processo;
-  - tipo de arranjo;
-  - explicação curta do modelo aplicado.
+Uso típico:
 
-- Aba “Produto”
-  - seleção ASHRAE/CN ColdPro;
-  - propriedades térmicas do produto;
-  - composição quando disponível.
+- câmara recebe produto todo dia;
+- produto entra já resfriado ou precisa apenas equalizar temperatura;
+- o compressor tem algumas horas para recuperar.
 
-- Aba “Contínuo / Girofreezer”
-  - comprimento, largura, espessura;
-  - peso unitário;
-  - kg/h ou unidades/ciclo e ciclos/h;
-  - tempo de retenção.
+Modo C — Entrada horária direta
 
-- Aba “Estático / Pallet / Carrinho”
-  - massa total/pallet;
-  - dimensões do bloco/pallet/carrinho;
-  - número de pallets;
-  - número de camadas/caixas;
-  - espaçamento entre bandejas quando aplicável;
-  - tempo desejado de batelada.
+```text
+carga_kcal_h = kg/h informado × energia_específica_do_produto
+```
 
-- Aba “Ar e embalagem”
-  - temperatura do ar;
-  - velocidade do ar;
-  - vazão de ar;
-  - tipo de embalagem;
-  - fator de exposição ao ar;
-  - fator de penetração térmica;
-  - coeficiente convectivo manual/opcional.
+Uso típico:
 
-- Aba “Cargas internas”
-  - embalagem em kg/h ou massa de embalagem;
-  - motor esteira;
-  - ventiladores internos;
-  - outras cargas.
+- linha contínua;
+- recebimento concentrado por hora;
+- pico operacional conhecido;
+- quando o usuário já sabe a vazão horária real.
 
-6. Validações e mensagens técnicas
+Nesse modo, o sistema deve deixar claro que kg/h substitui kg/dia dividido por tempo.
 
-Adicionar validações no formulário e no servidor:
+Modo D — Congelamento/resfriamento dentro da câmara de armazenagem
 
-- Processo contínuo exige produto, massa/throughput, espessura, temperatura do ar, velocidade do ar e tempo de retenção.
-- Processo estático exige massa total, dimensões do bloco/pallet/carrinho e tempo de batelada.
-- Se faltar densidade, condutividade congelada ou calor latente, mostrar que a validação de tempo até núcleo pode ficar incompleta.
-- Se `static_pallet_freezing`, `pallet_block`, `boxed_product` ou `bulk_static`, mostrar alerta:
-  - “Congelamento de pallet/bloco depende fortemente da embalagem, arranjo, vazão e passagem real de ar. Resultado deve ser validado em campo ou por ensaio.”
+```text
+energia_total = massa_lote × energia_específica_do_produto
+potência_requerida = energia_total / tempo_desejado_h
+```
 
-7. Resultado e memorial
+Uso típico:
 
-Atualizar os resultados para exibir:
+- cliente quer armazenar e congelar na mesma câmara;
+- não há túnel dedicado;
+- entra uma quantidade de produto quente/resfriado/congelando em determinado período.
 
-- tipo de processo;
-- tipo de arranjo;
-- carga térmica total a remover;
-- potência requerida;
-- tempo disponível;
-- tempo estimado até núcleo;
-- dimensão térmica usada;
-- distância até núcleo;
-- velocidade do ar;
-- vazão de ar;
-- fator de exposição ao ar;
-- fator de penetração térmica;
-- coeficiente convectivo efetivo;
-- status técnico:
-  - adequado;
-  - insuficiente;
-  - revisar aplicação;
-  - sem dados suficientes;
+O sistema deve mostrar alerta técnico:
+
+```text
+Câmara de armazenagem pode recuperar temperatura de produto, mas congelamento de carga nova dentro da câmara depende de circulação de ar, embalagem, empilhamento, área exposta e tempo disponível. Para congelamento intenso ou recorrente, recomenda-se túnel ou processo dedicado.
+```
+
+4. Melhorar nomes e ajuda da interface
+
+Na tela `ColdProProductForm`, reorganizar a seção “Movimentação e processo” para ficar mais didática:
+
+- “Como esta carga entra na câmara?”
+  - Estoque com giro percentual
+  - Entrada diária informada
+  - Entrada horária informada
+  - Lote para resfriar/congelar dentro da câmara
+
+Exibir campos conforme a escolha:
+
+- Estoque com giro percentual:
+  - carga total estocada kg;
+  - percentual movimentado/dia;
+  - massa movimentada calculada kg/dia;
+  - tempo de recuperação h.
+
+- Entrada diária:
+  - kg/dia;
+  - tempo de recuperação/processo h;
+  - kg/h equivalente calculado.
+
+- Entrada horária:
+  - kg/h;
+  - observação de que é vazão/pico direto.
+
+- Lote dentro da câmara:
+  - massa do lote kg;
+  - tempo desejado h;
+  - opção “inclui mudança de fase/congelamento”; 
+  - temperaturas de entrada/final/congelamento.
+
+5. Ajustar o motor de cálculo
+
+Atualizar `calculateProductLoadBreakdown` para escolher a massa e o divisor correto conforme o modo:
+
+- Para `storage_turnover`:
+  - calcular kg/dia a partir do estoque e percentual;
+  - dividir pelo tempo de recuperação.
+
+- Para `daily_intake`:
+  - usar kg/dia informado;
+  - dividir pelo tempo de processo.
+
+- Para `hourly_intake`:
+  - usar kg/h diretamente;
+  - não dividir de novo por tempo.
+
+- Para `room_pull_down_or_freezing`:
+  - usar massa do lote;
+  - dividir pelo tempo desejado;
+  - manter cálculo sensível + latente + sensível abaixo quando cruzar a temperatura de congelamento.
+
+6. Deixar o cálculo transparente
+
+No `calculation_breakdown.products`, incluir:
+
+- modo selecionado;
+- massa estocada;
+- percentual movimentado;
+- kg/dia calculado;
+- kg/h equivalente;
+- tempo de recuperação/processo;
+- energia específica do produto;
+- carga sensível acima;
+- carga latente;
+- carga sensível abaixo;
 - alertas técnicos.
 
-Também atualizarei o `calculation_breakdown` para registrar as fórmulas e parâmetros usados, diferenciando dados ASHRAE, dados manuais e estimativas do sistema.
+7. Atualizar resultado e relatório
 
-8. Isolantes térmicos e tabelas auxiliares
+Em `ColdProResultCard` e `ColdProReport`, mostrar a carga de produto de forma mais compreensível:
 
-Analisar o pacote enviado e comparar com as tabelas existentes. Como o sistema já tem `coldpro_insulation_materials`, `coldpro_thermal_materials`, `coldpro_materials` e `coldpro_wall_compositions`, vou evitar duplicar estruturas.
+- “Base de cálculo: estoque com 30% de giro”
+- “Massa movimentada: 3.000 kg/dia”
+- “Tempo de recuperação: 20 h”
+- “Equivalente: 150 kg/h”
+- “Carga de produto: X kcal/h”
 
-A direção será:
+Para congelamento em câmara, destacar:
 
-- usar uma base técnica de materiais térmicos para seleção no ambiente;
-- garantir que isolantes térmicos tenham condutividade, densidade, espessura típica, faixa de temperatura e fonte;
-- facilitar preenchimento de paredes, teto e piso;
-- preservar compatibilidade com o formulário atual.
+- carga térmica exigida;
+- tempo informado;
+- aviso de limitação do método;
+- recomendação de validar circulação/empilhamento ou considerar túnel.
 
-9. Arquivos principais a alterar
+8. Validações
 
-- Migração de banco para novos campos em `coldpro_tunnels` e, se necessário, ajustes em materiais térmicos.
+Adicionar validações para evitar ambiguidade:
+
+- Se modo for estoque, exigir carga estocada e percentual.
+- Se modo for diário, exigir kg/dia e tempo.
+- Se modo for horário, exigir kg/h.
+- Se modo for lote/congelamento em câmara, exigir massa do lote e tempo desejado.
+- Avisar quando o usuário preencher kg/dia e kg/h ao mesmo tempo, explicando qual será usado.
+
+9. Arquivos principais
+
+- Migração para novos campos em `coldpro_environment_products`.
 - `src/features/coldpro/coldpro.types.ts`
-- `src/features/coldpro/coldpro-calculation.engine.ts`
 - `src/features/coldpro/coldpro.functions.ts`
-- `src/components/coldpro/ColdProTunnelForm.tsx`
+- `src/features/coldpro/coldpro-calculation.engine.ts`
+- `src/components/coldpro/ColdProProductForm.tsx`
 - `src/components/coldpro/ColdProResultCard.tsx`
 - `src/components/coldpro/ColdProReport.tsx`
-- `src/integrations/coldpro/ColdProMemorialPdf.tsx`, se o memorial precisar refletir os novos detalhes.
 
-10. Critérios de aceite
+Resultado esperado
 
-- O usuário consegue escolher entre contínuo/girofreezer e estático/pallet/carrinho.
-- O contínuo calcula carga por kg/h e valida tempo de retenção da unidade.
-- O estático calcula energia total, potência por tempo de batelada e valida penetração até o núcleo.
-- O cálculo usa `air_exposure_factor`, `thermal_penetration_factor`, `h_efetivo` e dimensão térmica correta.
-- O sistema avisa quando o cálculo é conservador ou depende de ensaio/campo.
-- Nenhum campo de geometria, embalagem ou arranjo físico é tratado como dado ASHRAE.
-- O sistema continua calculando câmaras frias e produtos simples como antes.
+A etapa Produto deixará claro que:
+
+- carga estocada não é automaticamente carga térmica;
+- o que gera carga térmica é a movimentação/entrada/recuperação de temperatura;
+- kg/dia é usado quando a entrada é diária e distribuída no tempo de recuperação;
+- kg/h é usado quando existe vazão horária ou pico conhecido;
+- tempo de processo em câmara é tempo de recuperação térmica;
+- congelamento em câmara é possível de calcular como carga de recuperação/congelamento, mas precisa de alerta técnico porque depende de circulação, embalagem, empilhamento e área exposta.
