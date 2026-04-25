@@ -112,6 +112,22 @@ function getWallLengths(layout: ChamberLayout, length: number, width: number, ge
   return Array.from({ length: count }, () => 0);
 }
 
+function makeInsulationLayer(material: any, thicknessMm: unknown) {
+  return {
+    material_id: material?.id ?? null,
+    material_name: material?.name ?? material?.material_name ?? "Isolamento",
+    category: "insulation",
+    thickness_m: Math.max(0, toNumber(thicknessMm)) / 1000,
+    conductivity_w_mk: toNumber(material?.conductivity_w_m_k ?? material?.thermal_conductivity_w_mk),
+    position: 0,
+  };
+}
+
+function applyLayerToFace(face: any, layer: any) {
+  const layers = layer.thickness_m > 0 && layer.conductivity_w_mk > 0 ? [layer] : [];
+  return { ...face, layers, u_value_w_m2k: calculateUValue(layers), material_thickness: layers.length ? `${layer.material_name} ${toNumber(layer.thickness_m) * 1000} mm` : face.material_thickness };
+}
+
 function calculateUValue(layers: any[]) {
   const valid = layers.filter((layer) => toNumber(layer.thickness_m) > 0 && toNumber(layer.conductivity_w_mk) > 0);
   const rLayers = valid.reduce((sum, layer) => sum + toNumber(layer.thickness_m) / toNumber(layer.conductivity_w_mk), 0);
@@ -232,7 +248,9 @@ function FaceLayersDialog({ face, faceIndex, thermalMaterials, onChange }: { fac
 export function ColdProEnvironmentForm({ environment, insulationMaterials, thermalMaterials = [], onSave }: Props) {
   const [form, setForm] = React.useState<any>(environment);
   const [activeFaceIndex, setActiveFaceIndex] = React.useState(0);
+  const [floorInsulationMaterialId, setFloorInsulationMaterialId] = React.useState<string>(environment?.insulation_material_id ?? "");
   React.useEffect(() => setForm(environment), [environment]);
+  React.useEffect(() => setFloorInsulationMaterialId(environment?.insulation_material_id ?? ""), [environment]);
 
   const isClimatized = form?.environment_type === "climatized_room";
   const isSeed = form?.environment_type === "seed_storage";
@@ -264,6 +282,8 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
   const geometry = React.useMemo(() => getGeometry(form?.construction_faces), [form?.construction_faces]);
   const constructionFaces = React.useMemo(() => normalizeFaces(form?.construction_faces, layout, wallCount, length, width, height, geometry), [form?.construction_faces, layout, wallCount, length, width, height, geometry]);
   const activeFace = constructionFaces[Math.min(activeFaceIndex, Math.max(0, constructionFaces.length - 1))];
+  const selectedInsulation = insulationMaterials.find((item) => item.id === form?.insulation_material_id) ?? insulationMaterials[0];
+  const selectedFloorInsulation = insulationMaterials.find((item) => item.id === floorInsulationMaterialId) ?? selectedInsulation;
 
   const geometricFloorArea = getFloorArea(layout, length, width, geometry, constructionFaces);
   const floorFace = constructionFaces.find((face) => face.local === "PISO");
