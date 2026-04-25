@@ -33,6 +33,7 @@ import { Route as AppPropostasIdRouteImport } from './routes/app.propostas.$id'
 import { Route as AppCrmIdRouteImport } from './routes/app.crm.$id'
 import { Route as AppConfiguracoesNomusRouteImport } from './routes/app.configuracoes.nomus'
 import { Route as AppConfiguracoesApiNomusRouteImport } from './routes/app.configuracoes.api-nomus'
+import { Route as AppColdproProdutosRouteImport } from './routes/app.coldpro.produtos'
 import { Route as AppColdproCatalogoRouteImport } from './routes/app.coldpro.catalogo'
 import { Route as AppColdproIdRouteImport } from './routes/app.coldpro.$id'
 import { Route as ApiNomusTestRouteImport } from './routes/api.nomus.test'
@@ -168,6 +169,11 @@ const AppConfiguracoesApiNomusRoute =
     path: '/api-nomus',
     getParentRoute: () => AppConfiguracoesRoute,
   } as any)
+const AppColdproProdutosRoute = AppColdproProdutosRouteImport.update({
+  id: '/coldpro/produtos',
+  path: '/coldpro/produtos',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppColdproCatalogoRoute = AppColdproCatalogoRouteImport.update({
   id: '/coldpro/catalogo',
   path: '/coldpro/catalogo',
@@ -260,6 +266,7 @@ export interface FileRoutesByFullPath {
   '/api/nomus/test': typeof ApiNomusTestRoute
   '/app/coldpro/$id': typeof AppColdproIdRoute
   '/app/coldpro/catalogo': typeof AppColdproCatalogoRoute
+  '/app/coldpro/produtos': typeof AppColdproProdutosRoute
   '/app/configuracoes/api-nomus': typeof AppConfiguracoesApiNomusRoute
   '/app/configuracoes/nomus': typeof AppConfiguracoesNomusRouteWithChildren
   '/app/crm/$id': typeof AppCrmIdRoute
@@ -297,6 +304,7 @@ export interface FileRoutesByTo {
   '/api/nomus/test': typeof ApiNomusTestRoute
   '/app/coldpro/$id': typeof AppColdproIdRoute
   '/app/coldpro/catalogo': typeof AppColdproCatalogoRoute
+  '/app/coldpro/produtos': typeof AppColdproProdutosRoute
   '/app/configuracoes/api-nomus': typeof AppConfiguracoesApiNomusRoute
   '/app/configuracoes/nomus': typeof AppConfiguracoesNomusRouteWithChildren
   '/app/crm/$id': typeof AppCrmIdRoute
@@ -336,6 +344,7 @@ export interface FileRoutesById {
   '/api/nomus/test': typeof ApiNomusTestRoute
   '/app/coldpro/$id': typeof AppColdproIdRoute
   '/app/coldpro/catalogo': typeof AppColdproCatalogoRoute
+  '/app/coldpro/produtos': typeof AppColdproProdutosRoute
   '/app/configuracoes/api-nomus': typeof AppConfiguracoesApiNomusRoute
   '/app/configuracoes/nomus': typeof AppConfiguracoesNomusRouteWithChildren
   '/app/crm/$id': typeof AppCrmIdRoute
@@ -377,6 +386,7 @@ export interface FileRouteTypes {
     | '/api/nomus/test'
     | '/app/coldpro/$id'
     | '/app/coldpro/catalogo'
+    | '/app/coldpro/produtos'
     | '/app/configuracoes/api-nomus'
     | '/app/configuracoes/nomus'
     | '/app/crm/$id'
@@ -414,6 +424,7 @@ export interface FileRouteTypes {
     | '/api/nomus/test'
     | '/app/coldpro/$id'
     | '/app/coldpro/catalogo'
+    | '/app/coldpro/produtos'
     | '/app/configuracoes/api-nomus'
     | '/app/configuracoes/nomus'
     | '/app/crm/$id'
@@ -452,6 +463,7 @@ export interface FileRouteTypes {
     | '/api/nomus/test'
     | '/app/coldpro/$id'
     | '/app/coldpro/catalogo'
+    | '/app/coldpro/produtos'
     | '/app/configuracoes/api-nomus'
     | '/app/configuracoes/nomus'
     | '/app/crm/$id'
@@ -655,6 +667,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppConfiguracoesApiNomusRouteImport
       parentRoute: typeof AppConfiguracoesRoute
     }
+    '/app/coldpro/produtos': {
+      id: '/app/coldpro/produtos'
+      path: '/coldpro/produtos'
+      fullPath: '/app/coldpro/produtos'
+      preLoaderRoute: typeof AppColdproProdutosRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/coldpro/catalogo': {
       id: '/app/coldpro/catalogo'
       path: '/coldpro/catalogo'
@@ -822,6 +841,7 @@ interface AppRouteChildren {
   AppIndexRoute: typeof AppIndexRoute
   AppColdproIdRoute: typeof AppColdproIdRoute
   AppColdproCatalogoRoute: typeof AppColdproCatalogoRoute
+  AppColdproProdutosRoute: typeof AppColdproProdutosRoute
   AppPropostasIdRoute: typeof AppPropostasIdRouteWithChildren
   AppPropostasNovaRoute: typeof AppPropostasNovaRoute
   AppPropostasPedidosNfRoute: typeof AppPropostasPedidosNfRoute
@@ -844,6 +864,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppIndexRoute: AppIndexRoute,
   AppColdproIdRoute: AppColdproIdRoute,
   AppColdproCatalogoRoute: AppColdproCatalogoRoute,
+  AppColdproProdutosRoute: AppColdproProdutosRoute,
   AppPropostasIdRoute: AppPropostasIdRouteWithChildren,
   AppPropostasNovaRoute: AppPropostasNovaRoute,
   AppPropostasPedidosNfRoute: AppPropostasPedidosNfRoute,
