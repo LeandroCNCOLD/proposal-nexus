@@ -158,6 +158,7 @@ const styles = StyleSheet.create({
   flexGrow: { flex: 1 },
   compactSection: { marginTop: 10, paddingTop: 8, borderTopWidth: 1, borderTopColor: COLORS.border },
   noteBox: { backgroundColor: COLORS.bgSoft, borderLeftWidth: 3, borderLeftColor: COLORS.accent, padding: 8, borderRadius: 3, marginBottom: 8 },
+  calculationText: { fontSize: 8.5, lineHeight: 1.4, color: COLORS.text, marginBottom: 6 },
   pieWrap: { borderWidth: 1, borderColor: COLORS.border, borderRadius: 4, padding: 8, marginTop: 6, backgroundColor: "#ffffff", flexDirection: "row", gap: 10, alignItems: "center" },
   pieLegend: { flex: 1, gap: 4 },
   legendRow: { flexDirection: "row", alignItems: "center", gap: 5 },
@@ -245,6 +246,32 @@ function TemperatureChart({ env }: { env: any }) {
   const max = Math.max(internal, external, 45);
   const scale = (value: number) => `${Math.max(3, ((value - min) / Math.max(1, max - min)) * 100)}%`;
   return <View style={styles.chartBox}><View style={styles.chartRow}><Text style={styles.chartLabel}>T interna</Text><View style={styles.chartTrack}><View style={[styles.chartBar, { width: scale(internal), backgroundColor: COLORS.primary }]} /></View><Text style={styles.chartValue}>{fmt(internal)} °C</Text></View><View style={styles.chartRow}><Text style={styles.chartLabel}>T externa</Text><View style={styles.chartTrack}><View style={[styles.chartBar, { width: scale(external), backgroundColor: COLORS.accent }]} /></View><Text style={styles.chartValue}>{fmt(external)} °C</Text></View></View>;
+}
+
+function EnvironmentPremises({ env, products }: { env: any; products: any[] }) {
+  const productMass = products.reduce((sum, item) => sum + Number(item?.mass_kg_day ?? 0), 0);
+  return (
+    <>
+      <Text style={styles.h3}>1. Premissas de cálculo do ambiente</Text>
+      <View style={styles.pillRow}>
+        <Text style={styles.pill}>Solicitado: {env.name}</Text>
+        <Text style={styles.pill}>Tipo: {env.environment_type}</Text>
+        <Text style={styles.pill}>Dim.: {fmt(env.length_m)} × {fmt(env.width_m)} × {fmt(env.height_m)} m</Text>
+        <Text style={styles.pill}>Volume: {fmt(env.volume_m3)} m³</Text>
+        <Text style={styles.pill}>Temperatura requerida: {fmt(env.internal_temp_c)} °C</Text>
+        <Text style={styles.pill}>Condição externa: {fmt(env.external_temp_c)} °C</Text>
+        <Text style={styles.pill}>UR interna: {fmt(env.relative_humidity_percent)}%</Text>
+        <Text style={styles.pill}>Painel: {fmt(env.wall_thickness_mm)} mm</Text>
+        <Text style={styles.pill}>Operação do compressor: {fmt(env.compressor_runtime_hours_day)} h/dia</Text>
+        <Text style={styles.pill}>Aberturas de porta: {fmt(env.door_openings_per_day)}/dia</Text>
+        {productMass > 0 && <Text style={styles.pill}>Carga de produto: {fmt(productMass, 0)} kg/dia</Text>}
+      </View>
+      <Text style={styles.calculationText}>
+        Estas premissas representam o que o ambiente está exigindo do sistema frigorífico: temperatura alvo,
+        dimensões, isolamento, regime de operação, uso de portas e movimentação de produtos/processos.
+      </Text>
+    </>
+  );
 }
 
 type Props = {
@@ -420,17 +447,7 @@ export function ColdProMemorialPdf({
               <Text style={styles.envHeaderMeta}>{env.environment_type}</Text>
             </View>
 
-            <Text style={styles.h3}>Dados do ambiente</Text>
-            <View style={styles.pillRow}>
-              <Text style={styles.pill}>Dim.: {fmt(env.length_m)} × {fmt(env.width_m)} × {fmt(env.height_m)} m</Text>
-              <Text style={styles.pill}>Volume: {fmt(env.volume_m3)} m³</Text>
-              <Text style={styles.pill}>T int: {fmt(env.internal_temp_c)} °C</Text>
-              <Text style={styles.pill}>T ext: {fmt(env.external_temp_c)} °C</Text>
-              <Text style={styles.pill}>UR: {fmt(env.relative_humidity_percent)}%</Text>
-              <Text style={styles.pill}>Painel: {fmt(env.wall_thickness_mm)} mm</Text>
-              <Text style={styles.pill}>Compressor: {fmt(env.compressor_runtime_hours_day)} h/dia</Text>
-              <Text style={styles.pill}>Aberturas porta: {fmt(env.door_openings_per_day)}/dia</Text>
-            </View>
+            <EnvironmentPremises env={env} products={envProducts} />
             <TemperatureChart env={env} />
 
             {envProducts.length > 0 && (
@@ -462,7 +479,12 @@ export function ColdProMemorialPdf({
 
             {result && (
               <>
-                <Text style={styles.h3}>Decomposição da carga térmica</Text>
+                <Text style={styles.h3}>2. Cálculo executado</Text>
+                <Text style={styles.calculationText}>
+                  O cálculo considera as trocas térmicas pela envoltória, a retirada de calor do produto e embalagem,
+                  a entrada de ar por infiltração, as cargas internas de pessoas, iluminação, motores, ventiladores,
+                  degelo e demais fontes informadas para o ambiente.
+                </Text>
                 <LoadChart result={result} />
                 <View style={styles.table}>
                   {[
@@ -504,7 +526,8 @@ export function ColdProMemorialPdf({
                   </>
                 ) : null}
 
-                <View style={[styles.kpiRow, { marginTop: 8 }]}>
+                <Text style={styles.h3}>3. Resultado do dimensionamento</Text>
+                <View style={[styles.kpiRow, { marginTop: 8 }]}> 
                   <View style={styles.kpiBox}>
                     <Text style={styles.kpiLabel}>Subtotal</Text>
                     <Text style={styles.kpiValue}>{fmt(result.subtotal_kcal_h, 0)}</Text>
