@@ -181,7 +181,7 @@ function getWallLengths(layout: ChamberLayout, length: number, width: number, ge
 
 function makeInsulationLayer(material: any, thicknessMm: unknown) {
   return {
-    material_id: material?.id ?? null,
+    material_id: material?.rawId ?? material?.id ?? null,
     material_name: material?.name ?? material?.material_name ?? "Isolamento",
     category: "insulation",
     thickness_m: Math.max(0, toNumber(thicknessMm)) / 1000,
