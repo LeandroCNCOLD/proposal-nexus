@@ -3,11 +3,12 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Plus, Loader2, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { nomusSyncClients } from "@/integrations/nomus/server.functions";
+import { nomusCreateClient, nomusSyncClients } from "@/integrations/nomus/server.functions";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useAuth } from "@/hooks/useAuth";
@@ -16,15 +17,23 @@ import { toast } from "sonner";
 
 export const Route = createFileRoute("/app/clientes")({ component: ClientsPage });
 
+const emptyClientForm = {
+  name: "", trade_name: "", document: "", cpf: "", state_registration: "", state_registration_status: "",
+  municipal_registration: "", tipoPessoa: "1", tipoContribuinteICMS: "1", crt: "", email: "", phone: "", website: "",
+  zip_code: "", address: "", address_number: "", address_complement: "", district: "", city: "", state: "", country: "BRASIL",
+  codigoIBGEMunicipio: "", segment: "", classification: "", region: "", notes: "",
+};
+
 function ClientsPage() {
   const { user } = useAuth();
   const qc = useQueryClient();
   const syncClients = useServerFn(nomusSyncClients);
+  const createClient = useServerFn(nomusCreateClient);
   const [open, setOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
-  const [form, setForm] = useState({ name: "", segment: "", region: "", city: "", state: "" });
+  const [form, setForm] = useState(emptyClientForm);
 
   const { data = [] } = useQuery({
     queryKey: ["clients"],
