@@ -1,10 +1,8 @@
 import { z } from "zod";
 import { createServerFn } from "@tanstack/react-start";
-import { renderToBuffer } from "@react-pdf/renderer";
-import * as React from "react";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { ColdProMemorialPdf } from "./ColdProMemorialPdf";
+import { buildColdProMemorialPdfBuffer } from "./coldproMemorialPdfLib";
 
 const inputSchema = z.object({
   projectId: z.string().uuid(),
@@ -12,13 +10,15 @@ const inputSchema = z.object({
 });
 
 function firstImagePath(model: any): string | null {
-  return model?.plugin_image_path
-    ?? model?.split_image_path
-    ?? model?.biblock_image_path
-    ?? model?.plugin_image_paths?.[0]
-    ?? model?.split_image_paths?.[0]
-    ?? model?.biblock_image_paths?.[0]
-    ?? null;
+  const candidates = [
+    model?.plugin_image_path,
+    model?.split_image_path,
+    model?.biblock_image_path,
+    ...(model?.plugin_image_paths ?? []),
+    ...(model?.split_image_paths ?? []),
+    ...(model?.biblock_image_paths ?? []),
+  ].filter(Boolean) as string[];
+  return candidates.find((path) => /\.(png|jpe?g)$/i.test(path)) ?? candidates[0] ?? null;
 }
 
 function imageMimeType(path: string): string {
@@ -97,8 +97,8 @@ export const generateColdProMemorialPdf = createServerFn({ method: "POST" })
 
     const generatedAt = new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
 
-    // Render PDF para buffer
-    const pdfElement = React.createElement(ColdProMemorialPdf, {
+    // Render PDF para buffer sem WebAssembly, compatível com o ambiente publicado.
+    const buffer = await buildColdProMemorialPdfBuffer({
       project,
       environments: environments ?? [],
       results: results ?? [],
@@ -106,9 +106,6 @@ export const generateColdProMemorialPdf = createServerFn({ method: "POST" })
       products: products ?? [],
       generatedAt,
     });
-
-    // @react-pdf/renderer renderToBuffer aceita o elemento Document
-    const buffer = await renderToBuffer(pdfElement as any);
 
     // Upload no storage
     const safeName = (project.name ?? "projeto")
@@ -137,7 +134,7 @@ export const generateColdProMemorialPdf = createServerFn({ method: "POST" })
         category: "coldpro_memorial",
         storage_path: storagePath,
         mime_type: "application/pdf",
-        size_bytes: buffer.length,
+        size_bytes: buffer.byteLength,
         proposal_id: data.attachToProposal ? project.proposal_id ?? null : null,
         metadata: {
           source: "coldpro",
@@ -160,7 +157,7 @@ export const generateColdProMemorialPdf = createServerFn({ method: "POST" })
       documentId: docRow.id,
       storagePath,
       signedUrl: signed?.signedUrl ?? null,
-      sizeBytes: buffer.length,
+      sizeBytes: buffer.byteLength,
       attachedToProposalId: data.attachToProposal ? project.proposal_id ?? null : null,
     };
   });
