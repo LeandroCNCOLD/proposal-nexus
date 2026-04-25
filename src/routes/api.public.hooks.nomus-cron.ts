@@ -260,11 +260,11 @@ const mappers: Record<EntityKey, { endpoint: string; map: Mapper }> = {
 };
 
 /** Máximo de propostas novas/alteradas processadas por invocação (evita timeout). */
-const PROPOSALS_BATCH_SIZE = 20;
-const PROPOSALS_FORWARD_LOOKAHEAD = 40;
-const PROPOSALS_RECENT_RECHECK = 25;
-const PROPOSALS_RECENT_PAGE_SCAN = 20;
-const PROPOSALS_MAX_CONSECUTIVE_MISSES = 6;
+const PROPOSALS_BATCH_SIZE = 8;
+const PROPOSALS_FORWARD_LOOKAHEAD = 24;
+const PROPOSALS_RECENT_RECHECK = 8;
+const PROPOSALS_RECENT_PAGE_SCAN = 5;
+const PROPOSALS_MAX_CONSECUTIVE_MISSES = 4;
 
 function extractItems(payload: unknown): Array<Record<string, unknown>> {
   if (Array.isArray(payload)) return payload as Array<Record<string, unknown>>;
