@@ -92,6 +92,26 @@ function dist(a: number, b: number) {
   return Math.abs(a - b);
 }
 
+function numericValues(points: PerformancePoint[], key: keyof PerformancePoint): number[] {
+  return points.map((point) => point[key]).filter((value): value is number => typeof value === "number" && Number.isFinite(value));
+}
+
+function isInsideCatalogDomain(points: PerformancePoint[], input: SelectionInput): boolean {
+  const room = numericValues(points, "temperature_room_c");
+  const evap = numericValues(points, "evaporation_temp_c");
+  const cond = numericValues(points, "condensation_temp_c");
+  const inside = (values: number[], target: number) => values.length === 0 || (target >= Math.min(...values) && target <= Math.max(...values));
+  return inside(room, input.internal_temp_c) && inside(evap, input.evaporation_temp_c) && inside(cond, input.condensation_temp_c);
+}
+
+function isPhysicallyPlausibleCapacity(points: PerformancePoint[], capacity: number): boolean {
+  const capacities = numericValues(points, "evaporator_capacity_kcal_h");
+  if (capacities.length === 0) return false;
+  const min = Math.min(...capacities);
+  const max = Math.max(...capacities);
+  return capacity >= min * 0.8 && capacity <= max * 1.05;
+}
+
 /**
  * Interpolação linear simples por temperatura de evaporação,
  * mantendo a temperatura de condensação mais próxima.
@@ -112,14 +132,14 @@ function selectCapacityForModel(
   if (valid.length === 0) return null;
 
   const polynomial = fitPerformancePolynomial(valid);
-  if (polynomial?.capacity) {
+  if (polynomial?.capacity && isInsideCatalogDomain(valid, input)) {
     const curveInput = {
       temperature_room_c: input.internal_temp_c,
       evaporation_temp_c: input.evaporation_temp_c,
       condensation_temp_c: input.condensation_temp_c,
     };
     const capacity = evaluatePolynomial(polynomial.capacity, curveInput);
-    if (capacity !== null && capacity > 0) {
+    if (capacity !== null && capacity > 0 && isPhysicallyPlausibleCapacity(valid, capacity)) {
       const power = evaluatePolynomial(polynomial.power, curveInput);
       const cop = evaluatePolynomial(polynomial.cop, curveInput) ?? (power && power > 0 ? capacity / 860 / power : null);
       return {
