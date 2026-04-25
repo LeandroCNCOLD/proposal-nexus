@@ -10,13 +10,15 @@ const inputSchema = z.object({
 });
 
 function firstImagePath(model: any): string | null {
-  return model?.plugin_image_path
-    ?? model?.split_image_path
-    ?? model?.biblock_image_path
-    ?? model?.plugin_image_paths?.[0]
-    ?? model?.split_image_paths?.[0]
-    ?? model?.biblock_image_paths?.[0]
-    ?? null;
+  const candidates = [
+    model?.plugin_image_path,
+    model?.split_image_path,
+    model?.biblock_image_path,
+    ...(model?.plugin_image_paths ?? []),
+    ...(model?.split_image_paths ?? []),
+    ...(model?.biblock_image_paths ?? []),
+  ].filter(Boolean) as string[];
+  return candidates.find((path) => /\.(png|jpe?g)$/i.test(path)) ?? candidates[0] ?? null;
 }
 
 function imageMimeType(path: string): string {
