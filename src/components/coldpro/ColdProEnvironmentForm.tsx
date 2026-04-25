@@ -316,7 +316,6 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
   const height = toNumber(form?.height_m);
   const geometry = React.useMemo(() => getGeometry(form?.construction_faces), [form?.construction_faces]);
   const constructionFaces = React.useMemo(() => normalizeFaces(form?.construction_faces, layout, wallCount, length, width, height, geometry), [form?.construction_faces, layout, wallCount, length, width, height, geometry]);
-  const activeFace = constructionFaces[Math.min(activeFaceIndex, Math.max(0, constructionFaces.length - 1))];
   const selectedInsulation = insulationMaterials.find((item) => item.id === form?.insulation_material_id) ?? insulationMaterials[0];
   const selectedFloorInsulation = insulationMaterials.find((item) => item.id === floorInsulationMaterialId) ?? selectedInsulation;
   const wallLayerInfo = describeLayer(makeInsulationLayer(selectedInsulation, form?.wall_thickness_mm));
@@ -339,11 +338,6 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
   const hoursError = toNumber(form?.operation_hours_day) < 0 || toNumber(form?.operation_hours_day) > 24 || toNumber(form?.compressor_runtime_hours_day) < 0 || toNumber(form?.compressor_runtime_hours_day) > 24;
   const safetyError = toNumber(form?.safety_factor_percent) < 0;
   const canSave = !dimensionError && !customDimensionError && !hoursError && !safetyError && String(form?.name ?? "").trim().length > 0;
-
-  const setGeometry = (key: keyof Omit<Geometry, "local">, value: unknown) => {
-    const nextGeometry = { ...geometry, [key]: value };
-    set("construction_faces", [...constructionFaces, nextGeometry]);
-  };
 
   const setLayout = (nextLayout: ChamberLayout) => {
     const nextWallCount = wallCountForLayout(nextLayout, form?.wall_count);
