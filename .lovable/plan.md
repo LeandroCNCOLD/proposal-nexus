@@ -1,130 +1,238 @@
-Plano de correção da sincronização Nomus / Proposal Nexus
+Plano de implementação — Sync Nomus/Proposal Nexus em nível profissional
 
-Objetivo: transformar a sincronização em um processo idempotente, rastreável e seguro, para que rodar 1 ou 10 vezes produza o mesmo resultado, sem duplicar clientes, propostas, itens, produtos/equipamentos ou representantes.
+Vou incorporar os 14 pontos como uma segunda camada sobre a base anti-duplicidade já iniciada, mantendo o objetivo central: sincronização idempotente, auditável, segura e previsível.
 
-1. Banco de dados: travas contra duplicidade
-- Criar uma migration para adicionar/garantir índices e constraints únicas onde ainda faltam.
-- Já existem `unique` em alguns `nomus_id`, mas vou reforçar o modelo com índices idempotentes e chaves naturais:
-  - clientes por `nomus_id` e por documento normalizado quando não houver `nomus_id`.
-  - propostas por `nomus_id` e por número normalizado quando não houver `nomus_id`.
-  - representantes/vendedores por `nomus_id`.
-  - itens espelho de proposta por `nomus_proposal_id + nomus_item_id` e itens locais por `proposal_id + nomus_item_id` após adicionar a coluna necessária.
-  - equipamentos por `line_id + model normalizado`.
-  - curvas por equipamento + temperaturas/umidade, usando os nomes reais da base: `equipment_id`, `evaporation_temperature`, `condensation_temperature`, `chamber_temperature`, `chamber_humidity`.
-- Criar as tabelas:
-  - `sync_runs`
-  - `sync_row_logs`
-  - `nomus_product_equipment_links`
-- Habilitar RLS nessas tabelas e permitir leitura para usuários autenticados; alterações serão feitas por funções servidoras confiáveis.
+## 1. Governança de “fonte mestre” por campo
 
-2. Normalização centralizada
-- Criar `src/services/sync/normalization.ts` com:
-  - `normalizeString`
-  - `normalizeDocument`
-  - `normalizePhone`
-  - `normalizeEmail`
-  - `normalizeModel`
-  - `normalizeProposalNumber`
-- Usar essas funções nos fluxos Nomus e na importação de equipamentos, evitando comparação por texto cru.
+Criar uma tabela de configuração para definir quem manda em cada campo:
 
-3. Serviço de auditoria de sync
-- Criar `src/services/sync/syncAuditService.ts` para:
-  - iniciar `sync_run`
-  - registrar cada linha em `sync_row_logs`
-  - contabilizar inseridos, atualizados, ignorados e erros
-  - finalizar a execução com status `success`, `partial_success` ou `error`
-- Substituir o padrão atual de “erros resumidos no state” por log linha a linha, mantendo o `nomus_sync_state` apenas como status rápido para a interface atual.
+- Nomus: razão social, CNPJ, endereço fiscal, proposta, itens, valores, impostos.
+- Proposal Nexus: status comercial interno, temperatura do lead, observações internas, timeline, anexos, templates.
 
-4. Reescrever upserts da sincronização Nomus
-- Ajustar `src/integrations/nomus/server.functions.ts` para nunca usar `insert` simples em dados vindos do Nomus.
-- Fluxo padrão por item:
-  1. normalizar payload
-  2. validar campos mínimos
-  3. procurar por `nomus_id`
-  4. se não achar, procurar por chave natural
-  5. atualizar se existir
-  6. inserir somente se não existir
-  7. registrar ação em `sync_row_logs`
-- Aplicar isso em:
-  - clientes
-  - contatos
-  - produtos/equipamentos
-  - representantes/vendedores
-  - propostas espelho (`nomus_proposals`)
-  - itens de proposta (`nomus_proposal_items` e, quando aplicável, `proposal_items`)
-  - pedidos e notas fiscais, mantendo idempotência por `nomus_id`.
+A sincronização passará a consultar essa configuração antes de atualizar campos locais, para impedir que uma sync sobrescreva informações estratégicas editadas manualmente.
 
-5. Propostas e itens sem duplicação
-- Trocar o trecho que hoje apaga e insere itens da proposta por upsert com chave `nomus_proposal_id + nomus_item_id`.
-- Quando o Nomus não retornar `nomus_item_id`, usar uma chave natural estável baseada em posição/código/descrição normalizada, sem gerar registros novos a cada sync.
-- Espelhar proposta local com `upsert`/update por `nomus_id` ou número normalizado, não por `insert` simples.
+## 2. Campos de controle de sincronização
 
-6. Produtos Nomus x equipamentos locais
-- Criar a tabela `nomus_product_equipment_links` com `match_type`:
-  - `exact_model`
-  - `normalized_model`
-  - `manual`
-  - `unmatched`
-- Ajustar `nomusSyncProducts` para:
-  - tentar vínculo por `nomus_id`
-  - tentar modelo exato
-  - tentar modelo normalizado
-  - se não achar, gravar `unmatched`, sem criar equipamento duplicado
-- Criar funções servidoras para listar pendências e salvar vínculo manual.
+Adicionar campos nas entidades sincronizadas principais, quando ainda não existirem:
 
-7. Serviço de deduplicação
-- Criar `src/services/sync/deduplicationService.ts` com:
-  - `findDuplicateCustomers` / `mergeDuplicateCustomers`
-  - `findDuplicateProducts` / `mergeDuplicateProducts`
-  - `findDuplicateProposals` / `mergeDuplicateProposals`
-  - `findDuplicateEquipments` / `mergeDuplicateEquipments`
-- Critérios de duplicidade:
-  - `nomus_id` igual
-  - documento igual
-  - e-mail igual
-  - nome muito semelhante com documento vazio
-  - código/modelo igual
-  - número de proposta igual
-- Regra de sobrevivente:
-  1. preservar registro com `nomus_id`
-  2. preservar registro mais recente
-  3. preservar registro com mais campos preenchidos
-  4. preservar/reatribuir relacionamentos existentes antes de desativar/remover duplicado
-- Registrar todo merge em `sync_row_logs` antes da alteração.
+- `external_updated_at`
+- `last_synced_at`
+- `sync_hash`
+- `external_deleted_at`
+- `is_active` onde faltar
 
-8. Importação Excel de equipamentos
-- Mover a importação para função servidora em vez de fazer insert direto no cliente.
-- Validar colunas obrigatórias.
-- Bloquear modelo vazio; remover o comportamento atual que cria modelo aleatório.
-- Aplicar `normalizeModel`.
-- Usar upsert por `line_id + model normalizado`.
-- Upsert de curvas pela chave única de performance.
-- Gerar relatório na tela: inseridos, atualizados, ignorados e rejeitados com motivo.
+Entidades alvo:
 
-9. Tela de auditoria `/app/sync-audit`
-- Criar a rota `/app/sync-audit` e adicionar link no menu.
-- Exibir:
-  - histórico de sincronizações
-  - status
-  - entidade
-  - totais inseridos/atualizados/ignorados/erros
-  - detalhes por linha
-  - filtro “ver erros”
-  - botão “ver duplicidades”
-  - botão “executar deduplicação”
-  - botão “reprocessar erros”
-- Criar também uma seção para produtos Nomus sem equipamento correspondente, permitindo vínculo manual.
+- clientes
+- propostas locais
+- itens de proposta
+- equipamentos
+- propostas espelhadas do Nomus
+- itens espelhados do Nomus
+- representantes/vendedores
+- processos do CRM
 
-10. Segurança operacional
-- Verificar `.gitignore` e garantir `.env` ignorado.
-- Manter somente `.env.example` se existir ou criar um exemplo sem segredos reais.
-- Não mexer nos arquivos gerados da integração de backend (`client.ts`, `types.ts`, `.env`).
-- Não versionar tokens, URLs privadas ou chaves sensíveis.
+## 3. Hash de payload normalizado
 
-11. Validação final
-- Rodar verificação de tipos/build.
-- Validar queries de duplicidade antes/depois para clientes, propostas, equipamentos e itens.
-- Executar um ciclo de sync em modo controlado e confirmar que a segunda execução não cria novos registros quando não houver mudanças.
+Implementar utilitário único para:
 
-Observação técnica importante
-- A base atual já tem alguns `unique(nomus_id)`, mas há pontos de risco: itens de proposta são apagados/reinseridos, importação de equipamentos usa `insert`, produtos sem match não têm fila própria de revisão, e o log atual não audita linha a linha. O trabalho vai corrigir esses pontos e adicionar travas no banco para impedir regressão.
+- normalizar payloads vindos do Nomus
+- ordenar chaves de JSON de forma estável
+- remover campos voláteis
+- gerar `sync_hash`
+
+Regra:
+
+- hash igual ao anterior: registrar `skipped_no_change`, sem update desnecessário
+- hash diferente: atualizar apenas campos permitidos pela fonte mestre e gravar histórico por campo
+
+## 4. Soft delete / inativação
+
+Não apagar registros locais se sumirem do Nomus.
+
+A rotina marcará como:
+
+- `is_active = false`
+- `external_deleted_at = now()`
+
+Isso será aplicado de forma conservadora: apenas quando uma sincronização completa ou uma janela confiável indicar que o registro não veio mais do Nomus.
+
+## 5. Bloqueio de concorrência
+
+Criar tabela `sync_locks` e funções auxiliares para:
+
+- adquirir lock por entidade/fonte
+- impedir duas syncs simultâneas da mesma entidade
+- expirar lock antigo em caso de falha
+- liberar lock no `finally`
+
+Também vou substituir gradualmente o uso simples de `running` em `nomus_sync_state` por esse lock transacional.
+
+## 6. Dry-run / homologação
+
+Adicionar modo `dryRun` às rotinas principais de sincronização.
+
+O dry-run fará todo o processamento, mas sem gravar dados. Resultado esperado:
+
+- seriam inseridos: X
+- seriam atualizados: Y
+- seriam ignorados: Z
+- teriam erro: W
+- seriam enviados para quarentena: Q
+
+## 7. Quarentena de dados ruins
+
+Criar `sync_quarantine` para registros incompletos ou incoerentes, por exemplo:
+
+- CNPJ inválido
+- cliente sem nome
+- produto sem código
+- proposta sem número
+- item sem valor
+- item sem equipamento vinculado
+
+A sincronização não criará cadastros duplicados “na dúvida”; vai registrar o caso na quarentena para revisão.
+
+## 8. Reprocessamento individual de erros
+
+Adicionar suporte para reprocessar:
+
+- uma linha específica da quarentena
+- linhas por código de erro
+- propostas com erro
+- clientes sem CNPJ
+- produtos unmatched
+
+A execução de reprocessamento criará novo `sync_run` vinculado ao erro original.
+
+## 9. Mapeamento de campos versionado
+
+Criar `sync_field_mappings` para registrar:
+
+- entidade
+- campo Nomus
+- campo local
+- transformação aplicada
+- se é obrigatório
+- se está ativo
+- versão
+
+Isso permitirá ajustar mapeamentos quando o Nomus mudar campos, sem espalhar regras fixas pelo código.
+
+## 10. Relatório de qualidade da sync
+
+Criar serviço de indicadores com métricas como:
+
+- % registros com `nomus_id`
+- clientes sem CNPJ
+- produtos unmatched
+- propostas sem itens
+- itens sem equipamento vinculado
+- duplicidades detectadas
+- última sync bem-sucedida
+- últimas falhas por entidade
+
+Esse relatório será disponibilizado na área de auditoria/sync.
+
+## 11. Histórico de alterações por campo
+
+Criar `sync_field_changes` para cada update relevante:
+
+- entidade
+- registro local
+- campo alterado
+- valor anterior
+- valor novo
+- origem
+- sync_run_id
+- data
+
+Isso deixará claro exatamente o que a sincronização alterou.
+
+## 12. Merge seguro de duplicidades
+
+Nunca excluir duplicado diretamente.
+
+Implementar fluxo seguro:
+
+1. detectar duplicidade
+2. sugerir registro principal
+3. listar relacionamentos impactados
+4. transferir vínculos
+5. marcar duplicado como `merged`
+6. manter histórico, sem apagar fisicamente
+
+Criar tabela `sync_merge_suggestions` / `entity_merge_history` para registrar isso.
+
+## 13. Normalização forte de modelos CN Cold
+
+Melhorar o normalizador de equipamentos/produtos para gerar `normalized_model_code`, tratando variações como:
+
+- `CN-010-HT-MB-6-22M-CP`
+- `CN 010 HT MB 6 22M CP`
+- `010HTMB622MCP`
+
+Todas devem convergir para uma chave comparável. Essa chave será usada para matching de produto/equipamento antes de enviar para unmatched/quarentena.
+
+## 14. Biblioteca padronizada de erros
+
+Criar `sync_error_codes` com códigos como:
+
+- `INVALID_CNPJ`
+- `MISSING_EXTERNAL_ID`
+- `DUPLICATE_NATURAL_KEY`
+- `UNMATCHED_EQUIPMENT`
+- `INVALID_PROPOSAL_TOTAL`
+- `MISSING_REQUIRED_FIELD`
+- `SKIPPED_NO_CHANGE`
+
+Os logs e a quarentena passarão a usar esses códigos, deixando o diagnóstico mais profissional.
+
+## Ajustes técnicos nos fluxos existentes
+
+Vou aplicar esses recursos principalmente em:
+
+- sincronização de clientes
+- sincronização de propostas
+- itens de proposta
+- produtos/equipamentos
+- vendedores/representantes
+- processos do CRM
+- cron de propostas/CRM
+
+O fluxo final ficará assim:
+
+```text
+Nomus payload
+  -> normalização
+  -> validação
+  -> hash
+  -> lock por entidade
+  -> dry-run ou persistência real
+  -> regra de fonte mestre
+  -> upsert idempotente
+  -> histórico por campo
+  -> logs por linha
+  -> quarentena se inválido
+  -> relatório de qualidade
+```
+
+## Validação
+
+Após implementar, vou validar com:
+
+- checagem TypeScript
+- inspeção das queries e constraints
+- teste lógico de idempotência: rodar a mesma sync não deve criar duplicados
+- verificação dos logs de auditoria
+- verificação de dry-run sem gravação
+
+Resultado esperado:
+
+- sincronizar 1 vez ou 10 vezes gera o mesmo estado
+- não duplica clientes, propostas, itens, produtos, equipamentos ou representantes
+- campos locais estratégicos não são sobrescritos
+- dados ruins vão para quarentena
+- erros podem ser reprocessados
+- cada alteração fica rastreável por campo
+- duplicidades são tratadas por merge seguro, sem exclusão física imediata
