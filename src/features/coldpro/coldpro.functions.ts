@@ -41,6 +41,11 @@ const constructionFaceSchema = z.object({
   door_area_m2: nonNegativeNumber.nullable().optional(),
 });
 
+function stripUiMaterialKey(value: unknown) {
+  if (typeof value !== "string") return value;
+  return value.includes(":") ? value.split(":").pop() : value;
+}
+
 export const listColdProProjects = createServerFn({ method: "GET" }).handler(async () => {
   const supabase = supabaseAdmin;
   const { data, error } = await supabase.from("coldpro_projects").select("*").order("created_at", { ascending: false });
@@ -100,7 +105,15 @@ export const updateColdProEnvironment = createServerFn({ method: "POST" })
     }
     if (patch.chamber_layout_type !== undefined) patch.chamber_layout_type = String(patch.chamber_layout_type ?? "industrial").trim().slice(0, 40);
     if (patch.construction_faces !== undefined) {
-      const parsed = z.array(constructionFaceSchema).max(12).parse(patch.construction_faces);
+      const normalizedFaces = Array.isArray(patch.construction_faces)
+        ? patch.construction_faces.map((face: any) => ({
+            ...face,
+            layers: Array.isArray(face?.layers)
+              ? face.layers.map((layer: any) => ({ ...layer, material_id: stripUiMaterialKey(layer?.material_id) }))
+              : face?.layers,
+          }))
+        : patch.construction_faces;
+      const parsed = z.array(constructionFaceSchema).max(12).parse(normalizedFaces);
       patch.construction_faces = parsed;
     }
     if (patch.length_m !== undefined || patch.width_m !== undefined || patch.height_m !== undefined) {
