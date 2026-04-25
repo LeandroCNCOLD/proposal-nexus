@@ -386,6 +386,17 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
     applyInsulationToFaces(form?.insulation_material_id, key === "wall_thickness_mm" ? thickness : form?.wall_thickness_mm, key === "ceiling_thickness_mm" ? thickness : form?.ceiling_thickness_mm, key === "floor_thickness_mm" ? thickness : form?.floor_thickness_mm, floorInsulationMaterialId);
   };
 
+  const setFloorInsulated = (enabled: boolean) => {
+    setForm((prev: any) => ({ ...prev, has_floor_insulation: enabled }));
+    const floorIndex = constructionFaces.findIndex((face) => face.local === "PISO");
+    if (floorIndex >= 0) {
+      const layer = makeInsulationLayer(selectedFloorInsulation, form?.floor_thickness_mm);
+      const next = [...constructionFaces];
+      next[floorIndex] = enabled ? applyLayerToFace(next[floorIndex], layer) : { ...next[floorIndex], layers: [], u_value_w_m2k: null };
+      set("construction_faces", [...next, geometry]);
+    }
+  };
+
   return (
     <div className="rounded-xl border bg-background p-5 shadow-sm">
       <div className="mb-5 flex flex-col gap-3 border-b pb-4 md:flex-row md:items-start md:justify-between">
@@ -476,12 +487,6 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
                         <ColdProField label="Quantidade de paredes" unit="un">
                           <ColdProInput type="number" value={wallCount} onChange={(e) => set("wall_count", numberOrNull(e.target.value) ?? 4)} />
                         </ColdProField>
-                      ) : null}
-                      {layout === "l_shape" ? (
-                        <div className="grid grid-cols-2 gap-3">
-                          <ColdProField label="Recorte comprimento" unit="m"><ColdProInput type="number" value={geometry.cutout_length_m ?? ""} onChange={(e) => setGeometry("cutout_length_m", numberOrNull(e.target.value))} /></ColdProField>
-                          <ColdProField label="Recorte largura" unit="m"><ColdProInput type="number" value={geometry.cutout_width_m ?? ""} onChange={(e) => setGeometry("cutout_width_m", numberOrNull(e.target.value))} /></ColdProField>
-                        </div>
                       ) : null}
                       <ColdProValidationMessage tone="error">{dimensionError || customDimensionError ? "Informe medidas válidas para volume, piso e paredes." : ""}</ColdProValidationMessage>
                     </div>
