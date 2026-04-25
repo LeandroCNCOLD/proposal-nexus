@@ -207,6 +207,10 @@ export function ColdProReport({
               {result ? (
                 <div>
                   <div className="mb-1 text-sm font-semibold">Decomposição da carga térmica</div>
+                  <div className="mb-3 grid gap-3 lg:grid-cols-[minmax(0,1fr)_260px]">
+                    <LoadChart result={result} />
+                    <TemperatureStrip env={env} />
+                  </div>
                   <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm md:grid-cols-3">
                     <div>Transmissão: <b>{fmt(result.transmission_kcal_h)} kcal/h</b></div>
                     <div>Produto: <b>{fmt(result.product_kcal_h)} kcal/h</b></div>
@@ -268,15 +272,20 @@ export function ColdProReport({
               {selection ? (
                 <div>
                   <div className="mb-1 text-sm font-semibold">Equipamento selecionado</div>
-                  <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm md:grid-cols-3">
-                    <div>Modelo: <b>{selection.model}</b></div>
-                    <div>Quantidade: <b>{fmt(selection.quantity)}</b></div>
-                    <div>Capacidade total: <b>{fmt(selection.capacity_total_kcal_h)} kcal/h</b></div>
-                    <div>Vazão de ar: <b>{fmt(selection.air_flow_total_m3_h)} m³/h</b></div>
-                    <div>Trocas/h: <b>{fmt(selection.air_changes_hour)}</b></div>
-                    <div>Sobra técnica: <b>{fmt(selection.surplus_percent)}%</b></div>
-                    <div>Potência estimada: <b>{selection.total_power_kw ? `${fmt(selection.total_power_kw)} kW` : "—"}</b></div>
-                    <div>COP: <b>{selection.cop ? fmt(selection.cop) : "—"}</b></div>
+                  <div className="grid gap-4 rounded-lg border bg-muted/20 p-3 md:grid-cols-[220px_minmax(0,1fr)]">
+                    <div className="flex aspect-[4/3] items-center justify-center overflow-hidden rounded-md border bg-background">
+                      {selection.equipment_image_url ? <img src={selection.equipment_image_url} alt={`Equipamento selecionado ${selection.model}`} className="h-full w-full object-contain" /> : <span className="px-4 text-center text-xs text-muted-foreground">Foto do equipamento não cadastrada</span>}
+                    </div>
+                    <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm md:grid-cols-3">
+                      <div>Modelo: <b>{selection.model}</b></div>
+                      <div>Quantidade: <b>{fmt(selection.quantity)}</b></div>
+                      <div>Capacidade total: <b>{fmt(selection.capacity_total_kcal_h)} kcal/h</b></div>
+                      <div>Vazão de ar: <b>{fmt(selection.air_flow_total_m3_h)} m³/h</b></div>
+                      <div>Trocas/h: <b>{fmt(selection.air_changes_hour)}</b></div>
+                      <div>Sobra técnica: <b>{fmt(selection.surplus_percent)}%</b></div>
+                      <div>Potência estimada: <b>{selection.total_power_kw ? `${fmt(selection.total_power_kw)} kW` : "—"}</b></div>
+                      <div>COP: <b>{selection.cop ? fmt(selection.cop) : "—"}</b></div>
+                    </div>
                   </div>
                   {selection.notes ? <div className="mt-2 text-xs text-muted-foreground">{selection.notes}</div> : null}
                 </div>
