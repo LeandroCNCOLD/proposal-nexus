@@ -87,16 +87,39 @@ function ClientsPage() {
           </Button>
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild><Button className="bg-[image:var(--gradient-primary)]"><Plus className="mr-1.5 h-4 w-4" /> Novo cliente</Button></DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-5xl">
               <DialogHeader><DialogTitle>Novo cliente</DialogTitle></DialogHeader>
               <form onSubmit={submit} className="space-y-4">
-                <div className="space-y-1.5"><Label>Nome *</Label><Input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <div className="space-y-1.5"><Label>Segmento</Label><Input value={form.segment} onChange={(e) => setForm({ ...form, segment: e.target.value })} /></div>
-                  <div className="space-y-1.5"><Label>Região</Label><Input value={form.region} onChange={(e) => setForm({ ...form, region: e.target.value })} /></div>
-                  <div className="space-y-1.5"><Label>Cidade</Label><Input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} /></div>
-                  <div className="space-y-1.5"><Label>UF</Label><Input maxLength={2} value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value.toUpperCase() })} /></div>
+                  <FormInput label="Razão social / Nome *" required value={form.name} onChange={(name) => setForm({ ...form, name })} />
+                  <FormInput label="Nome fantasia" value={form.trade_name} onChange={(trade_name) => setForm({ ...form, trade_name })} />
+                  <FormInput label="CNPJ" value={form.document} onChange={(document) => setForm({ ...form, document })} />
+                  <FormInput label="CPF" value={form.cpf} onChange={(cpf) => setForm({ ...form, cpf })} />
+                  <FormInput label="Inscrição estadual" value={form.state_registration} onChange={(state_registration) => setForm({ ...form, state_registration })} />
+                  <FormInput label="Situação estadual" value={form.state_registration_status} onChange={(state_registration_status) => setForm({ ...form, state_registration_status })} />
+                  <FormInput label="Inscrição municipal" value={form.municipal_registration} onChange={(municipal_registration) => setForm({ ...form, municipal_registration })} />
+                  <FormInput label="Tipo pessoa" value={form.tipoPessoa} onChange={(tipoPessoa) => setForm({ ...form, tipoPessoa })} />
+                  <FormInput label="Contribuinte ICMS" value={form.tipoContribuinteICMS} onChange={(tipoContribuinteICMS) => setForm({ ...form, tipoContribuinteICMS })} />
+                  <FormInput label="CRT" value={form.crt} onChange={(crt) => setForm({ ...form, crt })} />
+                  <FormInput label="E-mail" type="email" value={form.email} onChange={(email) => setForm({ ...form, email })} />
+                  <FormInput label="Telefone" value={form.phone} onChange={(phone) => setForm({ ...form, phone })} />
+                  <FormInput label="Site" value={form.website} onChange={(website) => setForm({ ...form, website })} />
                 </div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <FormInput label="CEP" value={form.zip_code} onChange={(zip_code) => setForm({ ...form, zip_code })} />
+                  <FormInput label="Endereço" value={form.address} onChange={(address) => setForm({ ...form, address })} />
+                  <FormInput label="Número" value={form.address_number} onChange={(address_number) => setForm({ ...form, address_number })} />
+                  <FormInput label="Complemento" value={form.address_complement} onChange={(address_complement) => setForm({ ...form, address_complement })} />
+                  <FormInput label="Bairro" value={form.district} onChange={(district) => setForm({ ...form, district })} />
+                  <FormInput label="Cidade" value={form.city} onChange={(city) => setForm({ ...form, city })} />
+                  <FormInput label="UF" maxLength={2} value={form.state} onChange={(state) => setForm({ ...form, state: state.toUpperCase() })} />
+                  <FormInput label="País" value={form.country} onChange={(country) => setForm({ ...form, country })} />
+                  <FormInput label="Código IBGE" value={form.codigoIBGEMunicipio} onChange={(codigoIBGEMunicipio) => setForm({ ...form, codigoIBGEMunicipio })} />
+                  <div className="space-y-1.5"><Label>Segmento</Label><Input value={form.segment} onChange={(e) => setForm({ ...form, segment: e.target.value })} /></div>
+                  <FormInput label="Classificação" value={form.classification} onChange={(classification) => setForm({ ...form, classification })} />
+                  <div className="space-y-1.5"><Label>Região</Label><Input value={form.region} onChange={(e) => setForm({ ...form, region: e.target.value })} /></div>
+                </div>
+                <div className="space-y-1.5"><Label>Observações</Label><Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
                 <DialogFooter><Button type="submit" disabled={loading} className="bg-[image:var(--gradient-primary)]">{loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Salvar</Button></DialogFooter>
               </form>
             </DialogContent>
