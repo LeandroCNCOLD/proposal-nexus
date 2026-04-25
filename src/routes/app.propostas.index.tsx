@@ -290,13 +290,14 @@ function ProposalsList() {
               <TableHead className="text-right">Valor</TableHead>
               <TableHead>Validade</TableHead>
               <TableHead>Criada</TableHead>
+              <TableHead>Última atualização</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-12">Carregando...</TableCell></TableRow>
+              <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-12">Carregando...</TableCell></TableRow>
             ) : filtered.length === 0 ? (
-              <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-12">Nenhuma proposta encontrada.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-12">Nenhuma proposta encontrada.</TableCell></TableRow>
             ) : filtered.map((p) => {
               const parsed = parseTitle(p.title);
               const displayNumber = parsed.cn || p.number;
@@ -341,6 +342,7 @@ function ProposalsList() {
                 <TableCell className="text-right tabular-nums font-medium">{brl(Number(p.total_value ?? 0))}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">{dateBR(p.valid_until)}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">{dateBR((p as any)._nomus?.criada_em_nomus ?? (p as any)._nomus?.data_emissao ?? p.created_at)}</TableCell>
+                <TableCell className="text-sm text-muted-foreground">{dateBR(p.updated_at)}</TableCell>
               </TableRow>
               );
             })}
