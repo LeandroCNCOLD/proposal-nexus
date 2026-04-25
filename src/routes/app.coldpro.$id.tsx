@@ -451,8 +451,8 @@ function ColdProProjectPage() {
                       { label: "Outras cargas", value: result?.other_kcal_h ?? extraPreview.other_kcal_h },
                       { label: "Segurança", value: result?.safety_kcal_h ?? extraPreview.safety_kcal_h, muted: true },
                     ]}
-                    totalLabel="Total calculado da aba Cargas extras"
-                    total={extraLoad}
+                    totalLabel="Total calculado da aba Cargas extras + segurança"
+                    total={result ? extraLoad + Number(result.safety_kcal_h ?? 0) : extraPreview.total_with_safety_kcal_h}
                   />
                 </div>
               )}
@@ -504,7 +504,7 @@ function ColdProProjectPage() {
                           curveCondensationTempC: cand.point_used.condensation_temp_c,
                           curvePolynomialR2: cand.point_used.polynomial_r2,
                           curveInterpolated: cand.point_used.interpolated,
-                          curveMetadata: { score: cand.score, warnings: cand.warnings },
+                          curveMetadata: { score: cand.score, warnings: cand.warnings, fan_power_kw: cand.fan_power_kw },
                           notes: `Curva de rendimento · Tevap ${cand.point_used.evaporation_temp_c}°C / Tcond ${cand.point_used.condensation_temp_c}°C${cand.point_used.polynomial ? " · polinomial" : cand.point_used.interpolated ? " · interpolado" : ""}`,
                         });
                         toast.success(`${cand.model.modelo} selecionado`);
