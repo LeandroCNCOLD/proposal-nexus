@@ -165,7 +165,7 @@ function fmt(value: unknown, digits = 2): string {
   );
 }
 
-function loadRows(result: any) {
+function loadRows(result: any): Array<[string, number]> {
   return [
     ["Transmissão", Number(result?.transmission_kcal_h ?? 0)],
     ["Produto", Number(result?.product_kcal_h ?? 0)],
@@ -177,7 +177,7 @@ function loadRows(result: any) {
     ["Ventiladores", Number(result?.fans_kcal_h ?? 0)],
     ["Degelo", Number(result?.defrost_kcal_h ?? 0)],
     ["Outros", Number(result?.other_kcal_h ?? 0) + Number(result?.tunnel_internal_load_kcal_h ?? 0)],
-  ].filter(([, value]) => value > 0);
+  ].filter(([, value]) => value > 0) as Array<[string, number]>;
 }
 
 function LoadChart({ result }: { result: any }) {
