@@ -471,31 +471,49 @@ export const nomusSyncProducts = createServerFn({ method: "POST" })
       entity: "produtos",
       endpoint: NOMUS_ENDPOINTS.produtos,
       triggeredBy: userId,
-      processItem: async (raw) => {
+      processItem: async (raw, syncRunId) => {
         const nomus_id = pickStr(raw, "id", "codigo", "idProduto");
         const model = pickStr(raw, "codigo", "modelo", "descricao");
-        if (!nomus_id || !model) return "skip";
+        if (!nomus_id || !model) {
+          await logSyncRow({ syncRunId, entityType: "produtos", externalId: nomus_id, action: "skipped", status: "skipped", errorMessage: "Produto sem ID ou modelo", rawPayload: raw });
+          return "skip";
+        }
+        const normalizedModel = normalizeModel(model);
         // 1) match por nomus_id já vinculado
         let { data: existing } = await supabaseAdmin
           .from("equipments").select("id").eq("nomus_id", nomus_id).maybeSingle();
+        let matchType: "exact_model" | "normalized_model" | "manual" | "unmatched" = "exact_model";
         // 2) match por model exato
         if (!existing) {
           const r = await supabaseAdmin
             .from("equipments").select("id").eq("model", model).maybeSingle();
           existing = r.data;
         }
-        // 3) match case-insensitive
-        if (!existing) {
+        // 3) match por modelo normalizado, sem criar equipamento duplicado
+        if (!existing && normalizedModel) {
           const r = await supabaseAdmin
-            .from("equipments").select("id").ilike("model", model).maybeSingle();
+            .from("equipments").select("id").eq("normalized_model", normalizedModel).maybeSingle();
           existing = r.data;
+          matchType = "normalized_model";
         }
-        if (!existing) return "unmatched";
+        if (!existing) {
+          await supabaseAdmin.from("nomus_product_equipment_links").upsert(
+            { nomus_product_id: nomus_id, equipment_id: null, match_type: "unmatched", confidence_score: 0 },
+            { onConflict: "nomus_product_id" },
+          );
+          await logSyncRow({ syncRunId, entityType: "produtos", externalId: nomus_id, action: "skipped", status: "skipped", errorMessage: "Produto sem equipamento correspondente", rawPayload: raw });
+          return "unmatched";
+        }
         const { error } = await supabaseAdmin
           .from("equipments")
           .update({ nomus_id, nomus_synced_at: new Date().toISOString() })
           .eq("id", existing.id);
         if (error) throw new Error(error.message);
+        await supabaseAdmin.from("nomus_product_equipment_links").upsert(
+          { nomus_product_id: nomus_id, equipment_id: existing.id, match_type: matchType, confidence_score: matchType === "exact_model" ? 1 : 0.92 },
+          { onConflict: "nomus_product_id" },
+        );
+        await logSyncRow({ syncRunId, entityType: "produtos", externalId: nomus_id, localId: existing.id, action: "updated", status: "success", rawPayload: raw });
         return "ok";
       },
     });
