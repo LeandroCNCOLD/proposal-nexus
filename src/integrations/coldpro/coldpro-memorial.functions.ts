@@ -194,17 +194,19 @@ export const generateColdProMemorialPdf = createServerFn({ method: "POST" })
 
     const [{ data: results }, { data: selections }, { data: products }] = await Promise.all([
       envIds.length
-        ? supabase.from("coldpro_results").select("*").in("environment_id", envIds)
+        ? supabase.from("coldpro_results").select("*").in("environment_id", envIds).order("created_at", { ascending: false })
         : Promise.resolve({ data: [] as any[] }),
       envIds.length
-        ? supabase.from("coldpro_equipment_selections").select("*").in("environment_id", envIds)
+        ? supabase.from("coldpro_equipment_selections").select("*").in("environment_id", envIds).order("created_at", { ascending: false })
         : Promise.resolve({ data: [] as any[] }),
       envIds.length
         ? supabase.from("coldpro_environment_products").select("*").in("environment_id", envIds)
         : Promise.resolve({ data: [] as any[] }),
     ]);
+    const latestResults = latestRowsByEnvironment(results ?? []);
+    const latestSelections = latestRowsByEnvironment(selections ?? []);
 
-    const equipmentModelIds = Array.from(new Set((selections ?? []).map((item: any) => item.equipment_model_id).filter(Boolean)));
+    const equipmentModelIds = Array.from(new Set(latestSelections.map((item: any) => item.equipment_model_id).filter(Boolean)));
     const { data: equipmentModels } = equipmentModelIds.length
       ? await supabase
           .from("coldpro_equipment_models")
@@ -227,19 +229,19 @@ export const generateColdProMemorialPdf = createServerFn({ method: "POST" })
       equipmentImagesByModel.set(model.id, { equipment_image_path: path, equipment_image_url: publicUrl, equipment_image_data_url: dataUrl });
     }));
 
-    const enrichedSelections = (selections ?? []).map((item: any) => ({
+    const enrichedSelections = latestSelections.map((item: any) => ({
       ...item,
       ...(equipmentImagesByModel.get(item.equipment_model_id) ?? {}),
     }));
 
     const generatedAt = new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
-    const aiAnalysis = data.aiAnalysis?.trim() || buildTechnicalFallbackAnalysis({ project, environments: environments ?? [], results: results ?? [], selections: enrichedSelections, products: products ?? [] });
+    const aiAnalysis = data.aiAnalysis?.trim() || buildTechnicalFallbackAnalysis({ project, environments: environments ?? [], results: latestResults, selections: enrichedSelections, products: products ?? [] });
 
     // Render PDF para buffer sem WebAssembly, compatível com o ambiente publicado.
     const buffer = await buildColdProMemorialPdfBuffer({
       project,
       environments: environments ?? [],
-      results: results ?? [],
+      results: latestResults,
       selections: enrichedSelections,
       products: products ?? [],
       generatedAt,
