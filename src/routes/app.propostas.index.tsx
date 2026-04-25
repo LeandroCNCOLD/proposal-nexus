@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, useMemo, useEffect } from "react";
-import { Activity, AlertCircle, CheckCircle2, Plus, Search, RefreshCw } from "lucide-react";
+import { Plus, Search, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { nomusKickoffSyncProposals } from "@/integrations/nomus/server.functions";
@@ -27,30 +27,7 @@ function ProposalsList() {
   // Estado da sincronização — observa nomus_sync_state.propostas.
   // Quando running=true, faz polling para refletir progresso e parar o spinner
   // assim que o cron concluir, sem travar o botão por toda a duração.
-  const syncEntities = [
-    { key: "clientes", label: "Clientes" },
-    { key: "vendedores", label: "Vendedores" },
-    { key: "representantes", label: "Representantes" },
-    { key: "condicoes_pagamento", label: "Pagamento" },
-    { key: "propostas", label: "Propostas" },
-    { key: "pedidos", label: "Pedidos" },
-    { key: "notas_fiscais", label: "NF" },
-  ];
-
-  const { data: syncStates = [] } = useQuery({
-    queryKey: ["nomus-sync-state", "all"],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("nomus_sync_state")
-        .select("entity, running, last_synced_at, total_synced, last_error, last_cursor");
-      return data ?? [];
-    },
-    refetchInterval: 4000,
-  });
-  const stateByEntity = Object.fromEntries(syncStates.map((s) => [s.entity, s]));
-  const syncState = stateByEntity.propostas;
-
-  useQuery({
+  const { data: syncState } = useQuery({
     queryKey: ["nomus-sync-state", "propostas"],
     queryFn: async () => {
       const { data } = await supabase
@@ -73,7 +50,7 @@ function ProposalsList() {
     mutationFn: async () => kickoffSync(),
     onSuccess: () => {
       toast.success("Sincronização iniciada — atualizando em segundo plano.");
-      queryClient.invalidateQueries({ queryKey: ["nomus-sync-state", "all"] });
+      queryClient.invalidateQueries({ queryKey: ["nomus-sync-state", "propostas"] });
     },
     onError: (err: Error) => toast.error(`Erro ao iniciar sincronização: ${err.message}`),
   });
@@ -268,28 +245,6 @@ function ProposalsList() {
           </>
         }
       />
-
-      <div className="mb-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
-        {syncEntities.map((ent) => {
-          const st = stateByEntity[ent.key];
-          const running = !!st?.running;
-          const error = st?.last_error;
-          return (
-            <div key={ent.key} className="rounded-lg border bg-card px-3 py-2 shadow-[var(--shadow-sm)]">
-              <div className="flex items-center justify-between gap-2">
-                <span className="truncate text-xs font-semibold">{ent.label}</span>
-                {running ? <Activity className="h-3.5 w-3.5 animate-pulse text-primary" /> : error ? <AlertCircle className="h-3.5 w-3.5 text-destructive" /> : <CheckCircle2 className="h-3.5 w-3.5 text-primary" />}
-              </div>
-              <div className="mt-1 text-[11px] text-muted-foreground">
-                {st?.last_synced_at ? new Date(st.last_synced_at).toLocaleString("pt-BR") : "Aguardando sync"}
-              </div>
-              <div className="truncate text-[11px] text-muted-foreground" title={error ?? st?.last_cursor ?? undefined}>
-                {error ? error : `${st?.total_synced ?? 0} sincronizados${st?.last_cursor ? ` · ${st.last_cursor}` : ""}`}
-              </div>
-            </div>
-          );
-        })}
-      </div>
 
       <div className="mb-4 flex flex-wrap gap-3">
         <div className="relative flex-1 min-w-[260px]">
