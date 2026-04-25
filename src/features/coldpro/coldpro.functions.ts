@@ -2,6 +2,7 @@ import { z } from "zod";
 import { createServerFn } from "@tanstack/react-start";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { calculateColdProLoad } from "./coldpro-calculation.engine";
+import { calculateAdvancedProcess } from "@/modules/coldpro/services/advancedProcesses/advancedProcessEngine";
 import { findEquipmentCandidates, suggestApplication, suggestEvaporationTemp } from "./equipment-selection.engine";
 
 const finiteNumber = z.number().finite();
@@ -9,6 +10,7 @@ const nonNegativeNumber = finiteNumber.min(0);
 const positiveNumber = finiteNumber.gt(0);
 const dayHours = finiteNumber.min(0).max(24);
 const trimmedName = z.string().trim().min(1).max(120);
+const advancedProcessType = z.enum(["none", "seed_humidity_control", "banana_ripening", "citrus_degreening", "potato_co2_control", "controlled_atmosphere", "ethylene_application", "ethylene_removal", "co2_scrubbing", "humidity_control"]);
 
 const wallLayerSchema = z.object({
   material_id: z.string().uuid().nullable().optional(),
@@ -72,12 +74,13 @@ export const getColdProProjectBundle = createServerFn({ method: "GET" })
     const environmentIds = (environments ?? []).map((e) => e.id);
     const { data: products } = environmentIds.length ? await supabase.from("coldpro_environment_products").select("*").in("environment_id", environmentIds) : { data: [] as any[] };
     const { data: tunnels } = environmentIds.length ? await supabase.from("coldpro_tunnels").select("*").in("environment_id", environmentIds) : { data: [] as any[] };
+    const { data: advancedProcesses } = await supabase.from("coldpro_advanced_processes").select("*").eq("project_id", data.projectId).order("created_at", { ascending: true });
     const { data: results } = environmentIds.length ? await supabase.from("coldpro_results").select("*").in("environment_id", environmentIds).order("created_at", { ascending: false }) : { data: [] as any[] };
     const { data: selections } = environmentIds.length ? await supabase.from("coldpro_equipment_selections").select("*").in("environment_id", environmentIds) : { data: [] as any[] };
     const { data: insulationMaterials } = await supabase.from("coldpro_insulation_materials").select("*").order("name");
     const { data: thermalMaterials } = await supabase.from("coldpro_thermal_materials").select("*").order("category").order("material_name");
     const { data: productCatalog } = await supabase.from("coldpro_products").select("*").order("name");
-    return { project, environments: environments ?? [], products: products ?? [], tunnels: tunnels ?? [], results: results ?? [], selections: selections ?? [], insulationMaterials: insulationMaterials ?? [], thermalMaterials: thermalMaterials ?? [], productCatalog: productCatalog ?? [] };
+    return { project, environments: environments ?? [], products: products ?? [], tunnels: tunnels ?? [], advancedProcesses: advancedProcesses ?? [], results: results ?? [], selections: selections ?? [], insulationMaterials: insulationMaterials ?? [], thermalMaterials: thermalMaterials ?? [], productCatalog: productCatalog ?? [] };
   });
 
 export const createColdProEnvironment = createServerFn({ method: "POST" })
