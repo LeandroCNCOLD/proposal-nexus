@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const nullableNumber = z.number().finite().nullable().optional();
 const productSchema = z.object({
@@ -64,7 +65,7 @@ function toDbPayload(product: z.infer<typeof productSchema>) {
   };
 }
 
-export const listColdProProductCatalog = createServerFn({ method: "GET" }).handler(async () => {
+export const listColdProProductCatalog = createServerFn({ method: "GET" }).middleware([requireSupabaseAuth]).handler(async () => {
   const { data, error } = await supabaseAdmin
     .from("coldpro_products")
     .select("*")
@@ -75,6 +76,7 @@ export const listColdProProductCatalog = createServerFn({ method: "GET" }).handl
 });
 
 export const upsertColdProCatalogProduct = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator(productSchema)
   .handler(async ({ data }) => {
     const payload = toDbPayload(data);
@@ -102,6 +104,7 @@ export const upsertColdProCatalogProduct = createServerFn({ method: "POST" })
   });
 
 export const importColdProCatalogProducts = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator(z.object({ products: z.array(productSchema).min(1).max(5000) }))
   .handler(async ({ data }) => {
     const { data: existing, error: existingError } = await supabaseAdmin
