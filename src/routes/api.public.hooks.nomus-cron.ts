@@ -263,6 +263,7 @@ const mappers: Record<EntityKey, { endpoint: string; map: Mapper }> = {
 const PROPOSALS_BATCH_SIZE = 20;
 const PROPOSALS_FORWARD_LOOKAHEAD = 40;
 const PROPOSALS_RECENT_RECHECK = 25;
+const PROPOSALS_RECENT_PAGE_SCAN = 20;
 const PROPOSALS_MAX_CONSECUTIVE_MISSES = 6;
 
 function extractItems(payload: unknown): Array<Record<string, unknown>> {
@@ -356,7 +357,7 @@ async function pullProposalsNewestFirst(): Promise<{ ok: boolean; count?: number
       pageSize: 50,
     });
     if (firstPage.ok) {
-      for (const summary of firstPage.items) {
+      for (const summary of firstPage.items.slice(0, PROPOSALS_RECENT_PAGE_SCAN)) {
         if (count >= PROPOSALS_BATCH_SIZE) break;
         const changed = await syncProposalDetail(summary, { requireDetail: true });
         if (changed) {
