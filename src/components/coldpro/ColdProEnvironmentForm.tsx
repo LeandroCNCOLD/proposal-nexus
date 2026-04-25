@@ -362,9 +362,9 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
     }));
   };
 
-  const applyInsulationToFaces = (materialId = form?.insulation_material_id, wallThickness = form?.wall_thickness_mm, ceilingThickness = form?.ceiling_thickness_mm, floorThickness = form?.floor_thickness_mm, floorMaterialId = floorInsulationMaterialId) => {
-    const wallMaterial = insulationMaterials.find((item) => item.id === materialId) ?? selectedInsulation;
-    const floorMaterial = insulationMaterials.find((item) => item.id === floorMaterialId) ?? wallMaterial;
+  const applyInsulationToFaces = (materialKey = panelMaterialKey, wallThickness = form?.wall_thickness_mm, ceilingThickness = form?.ceiling_thickness_mm, floorThickness = form?.floor_thickness_mm, floorMaterialKey = floorInsulationMaterialId) => {
+    const wallMaterial = insulationOptions.find((item) => item.id === materialKey) ?? selectedInsulation;
+    const floorMaterial = insulationOptions.find((item) => item.id === floorMaterialKey) ?? wallMaterial;
     const next = normalizeFaces(form?.construction_faces, layout, wallCount, length, width, height, geometry).map((face) => {
       if (face.local === "PISO" && !form?.has_floor_insulation) return { ...face, layers: [], u_value_w_m2k: null };
       if (face.local === "PISO") return applyLayerToFace(face, makeInsulationLayer(floorMaterial, floorThickness));
@@ -374,10 +374,12 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
     set("construction_faces", [...next, geometry]);
   };
 
-  const setInsulationMaterial = (materialId: string) => {
-    set("insulation_material_id", materialId);
-    if (!floorInsulationMaterialId) setFloorInsulationMaterialId(materialId);
-    applyInsulationToFaces(materialId, form?.wall_thickness_mm, form?.ceiling_thickness_mm, form?.floor_thickness_mm, floorInsulationMaterialId || materialId);
+  const setInsulationMaterial = (materialKey: string) => {
+    const material = insulationOptions.find((item) => item.id === materialKey);
+    setPanelMaterialKey(materialKey);
+    set("insulation_material_id", material?.source === "legacy" ? material.rawId : null);
+    if (!floorInsulationMaterialId) setFloorInsulationMaterialId(materialKey);
+    applyInsulationToFaces(materialKey, form?.wall_thickness_mm, form?.ceiling_thickness_mm, form?.floor_thickness_mm, floorInsulationMaterialId || materialKey);
   };
 
   const setInsulationThickness = (key: string, value: unknown) => {
