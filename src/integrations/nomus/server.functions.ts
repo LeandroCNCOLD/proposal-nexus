@@ -339,7 +339,8 @@ export const nomusTestConnection = createServerFn({ method: "POST" })
 /** Pull clients from Nomus and upsert locally. */
 export const nomusSyncClients = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((input?: { window?: SyncWindow; startDate?: string | null; endDate?: string | null }) => input ?? {})
+  .handler(async ({ data, context }) => {
     const userId = (context as { userId?: string }).userId ?? null;
     const now = new Date().toISOString();
     await setState("clientes", { running: true, last_error: null });
@@ -353,11 +354,13 @@ export const nomusSyncClients = createServerFn({ method: "POST" })
         .maybeSingle();
       const cursor = String((state as { last_cursor?: string | null } | null)?.last_cursor ?? "1:0");
       const [cursorPage, cursorOffset] = cursor.includes(":") ? cursor.split(":") : [cursor, "0"];
-      const page = Math.max(1, Number(cursorPage) || 1);
+      const checkpoint = await getSyncCheckpoint("clientes");
+      const checkpointPage = Number(checkpoint?.last_page ?? 0) || 0;
+      const page = Math.max(1, checkpointPage || Number(cursorPage) || 1);
       const offset = Math.max(0, Number(cursorOffset) || 0);
       const previousTotal = page === 1 && offset === 0 ? 0 : Number((state as { total_synced?: number | null } | null)?.total_synced ?? 0) || 0;
       const perClick = 20;
-      const res = await listPage<Json>(NOMUS_ENDPOINTS.clientes, {}, { entity: "clientes", page, pageSize: perClick, triggeredBy: userId });
+      const res = await listPage<Json>(NOMUS_ENDPOINTS.clientes, windowQuery(data.window, data.startDate, data.endDate), { entity: "clientes", page, pageSize: perClick, triggeredBy: userId });
       if (!res.ok) {
         await setState("clientes", { running: false, last_error: res.error });
         return { ok: false as const, error: res.error };
@@ -370,12 +373,15 @@ export const nomusSyncClients = createServerFn({ method: "POST" })
       let quarantined = 0;
       const batch = res.items.slice(offset, offset + perClick);
       syncRunId = await startSyncRun("clientes", userId, batch.length, { lockKey: "nomus:clientes" });
+      await upsertSyncCheckpoint({ entityType: "clientes", syncRunId, lastPage: page, status: "running", cursorPayload: { window: data.window ?? "incremental", batchSize: perClick } });
       const lock = await acquireSyncLock({ entityType: "clientes", syncRunId, userId, ttlMinutes: 5 });
       if (!lock.ok) {
         await setState("clientes", { running: false, last_error: lock.error });
         return { ok: false as const, error: lock.error };
       }
       lockKey = lock.lockKey;
+      const summaryIds = batch.map((raw) => pickStr(raw, "id", "codigo", "idCliente", "idPessoa")).filter((id): id is string => Boolean(id));
+      const existingByNomusId = await bulkReadByNomusId("clients", summaryIds);
       for (const raw of batch) {
         const summaryId = pickStr(raw, "id", "codigo", "idCliente", "idPessoa");
         const detailRes = summaryId
