@@ -124,7 +124,7 @@ export const updateColdProEnvironment = createServerFn({ method: "POST" })
     const supabase = supabaseAdmin;
     const patch = { ...data.patch } as any;
     if (typeof patch.name === "string") patch.name = patch.name.trim().slice(0, 120);
-    const nonNegativeKeys = ["length_m", "width_m", "height_m", "wall_thickness_mm", "ceiling_thickness_mm", "floor_thickness_mm", "operation_hours_day", "compressor_runtime_hours_day", "door_openings_per_day", "door_width_m", "door_height_m", "infiltration_factor", "people_count", "people_hours_day", "lighting_power_w", "lighting_hours_day", "motors_power_kw", "motors_hours_day", "fans_kcal_h", "defrost_kcal_h", "other_kcal_h", "safety_factor_percent", "wall_count", "module_count", "total_panel_area_m2", "total_glass_area_m2", "total_door_area_m2", "construction_load_kcal_h", "external_relative_humidity_percent", "atmospheric_pressure_kpa", "air_changes_per_hour", "fresh_air_m3_h", "door_infiltration_m3_h", "seed_mass_kg", "seed_initial_moisture_percent", "seed_final_moisture_percent", "seed_stabilization_time_h", "dimension_a_m", "dimension_b_m", "dimension_c_m", "dimension_d_m", "dimension_e_m", "dimension_f_m"];
+    const nonNegativeKeys = ["length_m", "width_m", "height_m", "wall_thickness_mm", "ceiling_thickness_mm", "floor_thickness_mm", "operation_hours_day", "compressor_runtime_hours_day", "door_openings_per_day", "door_width_m", "door_height_m", "infiltration_factor", "door_open_seconds_per_opening", "people_count", "people_hours_day", "lighting_power_w", "lighting_hours_day", "motors_power_kw", "motors_hours_day", "motors_dissipation_factor", "fans_kcal_h", "defrost_kcal_h", "defrost_loss_factor", "other_kcal_h", "safety_factor_percent", "wall_count", "module_count", "total_panel_area_m2", "total_glass_area_m2", "total_door_area_m2", "construction_load_kcal_h", "external_relative_humidity_percent", "atmospheric_pressure_kpa", "air_changes_per_hour", "fresh_air_m3_h", "door_infiltration_m3_h", "seed_mass_kg", "seed_initial_moisture_percent", "seed_final_moisture_percent", "seed_stabilization_time_h", "dimension_a_m", "dimension_b_m", "dimension_c_m", "dimension_d_m", "dimension_e_m", "dimension_f_m"];
     for (const key of nonNegativeKeys) {
       if (patch[key] !== undefined && patch[key] !== null && (!Number.isFinite(Number(patch[key])) || Number(patch[key]) < 0)) throw new Error(`Valor inválido em ${key}.`);
     }
@@ -132,6 +132,9 @@ export const updateColdProEnvironment = createServerFn({ method: "POST" })
       if (patch[key] !== undefined && patch[key] !== null && Number(patch[key]) > 24) throw new Error(`Horas inválidas em ${key}.`);
     }
     if (patch.chamber_layout_type !== undefined) patch.chamber_layout_type = String(patch.chamber_layout_type ?? "industrial").trim().slice(0, 40);
+    if (patch.door_operation_profile !== undefined && !["light", "normal", "intense", "critical"].includes(String(patch.door_operation_profile))) patch.door_operation_profile = "normal";
+    if (patch.door_protection_type !== undefined && !["none", "pvc_curtain", "air_curtain", "antechamber", "fast_door", "antechamber_fast_door"].includes(String(patch.door_protection_type))) patch.door_protection_type = "none";
+    if (patch.climate_region !== undefined && !["sp_capital_abcd", "interior_sp", "centro_oeste", "norte_nordeste_umido", "sul", "custom"].includes(String(patch.climate_region))) patch.climate_region = "sp_capital_abcd";
     if (patch.construction_faces !== undefined) {
       const normalizedFaces = Array.isArray(patch.construction_faces)
         ? patch.construction_faces.map((face: any) => ({
