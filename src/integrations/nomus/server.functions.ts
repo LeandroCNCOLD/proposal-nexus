@@ -392,6 +392,7 @@ export const nomusSyncClients = createServerFn({ method: "POST" })
         const name = pickStr(full, "nome", "razaoSocial", "nomeFantasia");
         if (!nomus_id || !name) {
           await quarantineSyncRow({ syncRunId, entityType: "clientes", externalId: nomus_id, errorCode: !nomus_id ? "MISSING_EXTERNAL_ID" : "MISSING_REQUIRED_FIELD", reason: !nomus_id ? "Cliente sem ID Nomus" : "Cliente sem nome/razão social", rawPayload: full });
+          await recordPendingIssue({ syncRunId, entityType: "clientes", issueType: !nomus_id ? "missing_external_id" : "missing_name", externalId: nomus_id, title: !nomus_id ? "Cliente Nomus sem ID" : "Cliente Nomus sem nome", payload: full });
           skipped += 1;
           quarantined += 1;
           continue;
@@ -400,6 +401,7 @@ export const nomusSyncClients = createServerFn({ method: "POST" })
         const documentDigits = normalizeDocument(document);
         if (documentDigits?.length === 14 && !isValidCnpj(documentDigits)) {
           await quarantineSyncRow({ syncRunId, entityType: "clientes", externalId: nomus_id, errorCode: "INVALID_CNPJ", reason: "Cliente com CNPJ inválido", rawPayload: full });
+          await recordPendingIssue({ syncRunId, entityType: "clientes", issueType: "invalid_cnpj", externalId: nomus_id, title: "Cliente com CNPJ inválido", payload: { nomus_id, document } });
           skipped += 1;
           quarantined += 1;
           continue;
@@ -438,25 +440,31 @@ export const nomusSyncClients = createServerFn({ method: "POST" })
           is_active: pickBool(full, "ativo", "isActive", "ativoCliente") ?? true,
         };
         const syncHash = await hashNormalizedPayload(syncPayload);
-        const current = await readCurrentHash("clients", nomus_id);
+        const current = existingByNomusId.get(nomus_id) ?? await readCurrentHash("clients", nomus_id);
         if (current?.sync_hash === syncHash) {
           await logSyncRow({ syncRunId, entityType: "clientes", externalId: nomus_id, localId: current.id, action: "skipped_no_change", status: "skipped", errorCode: "SKIPPED_NO_CHANGE", previousHash: syncHash, newHash: syncHash, rawPayload: full });
           skipped += 1;
           noChange += 1;
           continue;
         }
-        const { data: previous } = current?.id ? await supabaseAdmin.from("clients").select("*").eq("id", current.id).maybeSingle() : { data: null };
+        const previous = current?.id ? current : null;
+        const { payload: changedPayload } = buildUpdatePayload(previous, syncPayload, "clients");
         const { data: upserted, error } = await supabaseAdmin
           .from("clients")
           .upsert(
             {
-              ...syncPayload,
+              ...(current?.id ? changedPayload : syncPayload),
+              nomus_id,
               nomus_raw: { ...full, situacaoEstadual } as never,
               origin: "nomus",
               nomus_synced_at: new Date().toISOString(),
               last_synced_at: new Date().toISOString(),
               external_updated_at: pickExternalUpdatedAt(full),
               sync_hash: syncHash,
+              sync_status: "synced",
+              sync_error_code: null,
+              sync_error_message: null,
+              last_sync_run_id: syncRunId,
             },
             { onConflict: "nomus_id" }
           )
