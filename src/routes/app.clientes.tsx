@@ -27,7 +27,7 @@ function ClientsPage() {
 
   const { data = [] } = useQuery({
     queryKey: ["clients"],
-    queryFn: async () => (await supabase.from("clients").select("*").order("name")).data ?? [],
+    queryFn: async () => (await supabase.from("clients").select("*, client_contacts(*)").order("name")).data ?? [],
   });
 
   const submit = async (e: React.FormEvent) => {
@@ -49,12 +49,13 @@ function ClientsPage() {
         return;
       }
       const extras: string[] = [];
+      if ("contactsCount" in res && res.contactsCount > 0) extras.push(`${res.contactsCount} contato(s)`);
       if (res.skipped > 0) extras.push(`${res.skipped} ignorado(s)`);
       if (res.unmatched > 0) extras.push(`${res.unmatched} sem vínculo local`);
       toast.success(
         res.done
           ? `Clientes sincronizados: ${res.count}${extras.length ? ` (${extras.join(", ")})` : ""}`
-          : `Lote sincronizado: ${res.count} clientes. Clique novamente para continuar.`,
+          : `Lote sincronizado: ${res.count} clientes${extras.length ? ` (${extras.join(", ")})` : ""}. Clique novamente para continuar.`,
       );
       qc.invalidateQueries({ queryKey: ["clients"] });
       qc.invalidateQueries({ queryKey: ["nomus_sync_state"] });
@@ -95,9 +96,9 @@ function ClientsPage() {
 
       <div className="overflow-x-auto rounded-xl border bg-card shadow-[var(--shadow-sm)]">
         <Table>
-          <TableHeader><TableRow><TableHead>Nome</TableHead><TableHead>Segmento</TableHead><TableHead>Região</TableHead><TableHead>Vendedor</TableHead><TableHead>Cidade/UF</TableHead></TableRow></TableHeader>
+          <TableHeader><TableRow><TableHead>Nome</TableHead><TableHead>Segmento</TableHead><TableHead>Região</TableHead><TableHead>Vendedor / Rep.</TableHead><TableHead>Contato</TableHead><TableHead>Cidade/UF</TableHead></TableRow></TableHeader>
           <TableBody>
-            {data.length === 0 ? <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-12">Nenhum cliente cadastrado.</TableCell></TableRow> :
+            {data.length === 0 ? <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-12">Nenhum cliente cadastrado.</TableCell></TableRow> :
               data.map((c) => (
                 <TableRow key={c.id}>
                   <TableCell className="min-w-[220px] font-medium">
@@ -106,7 +107,17 @@ function ClientsPage() {
                   </TableCell>
                   <TableCell className="text-sm">{c.segment ?? "—"}</TableCell>
                   <TableCell className="text-sm">{c.region ?? "—"}</TableCell>
-                  <TableCell className="text-sm">{c.nomus_seller_name ?? "—"}</TableCell>
+                  <TableCell className="min-w-[190px] text-sm">
+                    <div>{c.nomus_seller_name ?? "—"}</div>
+                    {c.nomus_representative_name && <div className="text-xs text-muted-foreground">Rep.: {c.nomus_representative_name}</div>}
+                  </TableCell>
+                  <TableCell className="min-w-[210px] text-sm">
+                    {(() => {
+                      const contact = (c.client_contacts ?? []).find((it) => it.is_primary) ?? c.client_contacts?.[0];
+                      if (!contact) return "—";
+                      return <><div>{contact.name}</div><div className="text-xs text-muted-foreground">{contact.email || contact.phone || contact.mobile || "—"}</div></>;
+                    })()}
+                  </TableCell>
                   <TableCell className="text-sm whitespace-nowrap">{[c.city, c.state].filter(Boolean).join(" / ") || "—"}</TableCell>
                 </TableRow>
               ))}
