@@ -13,6 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "sonner";
 import {
   nomusTestConnection,
+  nomusSyncAll,
   nomusSyncClients,
   nomusSyncProducts,
   nomusSyncPaymentTerms,
@@ -31,6 +32,7 @@ type SyncFnResult = { ok: true; count: number; skipped?: number; unmatched?: num
 function NomusPage() {
   const qc = useQueryClient();
   const test = useServerFn(nomusTestConnection);
+  const syncAll = useServerFn(nomusSyncAll);
   const syncClients = useServerFn(nomusSyncClients);
   const syncProducts = useServerFn(nomusSyncProducts);
   const syncPaymentTerms = useServerFn(nomusSyncPaymentTerms);
@@ -54,6 +56,7 @@ function NomusPage() {
   ];
   const [testing, setTesting] = useState(false);
   const [syncing, setSyncing] = useState<string | null>(null);
+  const [syncWindow, setSyncWindow] = useState<"7d" | "30d" | "all">("7d");
 
   const { data: settings } = useQuery({
     queryKey: ["nomus_settings"],
@@ -70,6 +73,18 @@ function NomusPage() {
     queryKey: ["nomus_sync_log"],
     queryFn: async () =>
       (await supabase.from("nomus_sync_log").select("*").order("created_at", { ascending: false }).limit(50)).data ?? [],
+    refetchInterval: 5000,
+  });
+
+  const { data: checkpoints = [] } = useQuery({
+    queryKey: ["sync_checkpoints"],
+    queryFn: async () => (await supabase.from("sync_checkpoints").select("*").order("updated_at", { ascending: false })).data ?? [],
+    refetchInterval: 5000,
+  });
+
+  const { data: pendingIssues = [] } = useQuery({
+    queryKey: ["sync_pending_issues"],
+    queryFn: async () => (await supabase.from("sync_pending_issues").select("*").eq("status", "open").order("created_at", { ascending: false }).limit(25)).data ?? [],
     refetchInterval: 5000,
   });
 
@@ -235,7 +250,7 @@ function NomusPage() {
                       size="sm"
                       variant="outline"
                       disabled={isRunning}
-                      onClick={() => runSync(ent.key, ent.label, () => ent.run({}) as Promise<SyncFnResult>)}
+                      onClick={() => runSync(ent.key, ent.label, () => ent.run() as Promise<SyncFnResult>)}
                     >
                       {isRunning ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
                     </Button>
