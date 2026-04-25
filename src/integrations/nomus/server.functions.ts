@@ -6,6 +6,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { nomusFetch, listAll, listPage, getOne, testNomusConnection } from "./client";
 import {
   NOMUS_ENDPOINTS,
+  pessoaContatosPath,
   proposalSubpath,
   proposalItemDetailPath,
   proposalItemDetailFallbackPaths,
@@ -36,6 +37,88 @@ const pickNestedStr = (o: Json, nestedKey: string, ...keys: string[]): string | 
   if (!nested || typeof nested !== "object") return null;
   return pickStr(nested as Json, ...keys);
 };
+
+const pickBool = (o: Json, ...keys: string[]): boolean | null => {
+  for (const k of keys) {
+    const v = o[k];
+    if (typeof v === "boolean") return v;
+    if (typeof v === "number") return v !== 0;
+    if (typeof v === "string" && v.trim()) return /^(true|sim|s|1)$/i.test(v.trim());
+  }
+  return null;
+};
+
+const firstArrayObj = (o: Json, key: string): Json | null => {
+  const v = o[key];
+  return Array.isArray(v) && v[0] && typeof v[0] === "object" ? (v[0] as Json) : null;
+};
+
+const extractNomusList = <T,>(payload: unknown): T[] => {
+  if (!payload) return [];
+  if (Array.isArray(payload)) return payload as T[];
+  const env = payload as Json;
+  for (const k of ["items", "resultados", "data", "content", "registros", "lista", "contatos"]) {
+    const v = env[k];
+    if (Array.isArray(v)) return v as T[];
+  }
+  return [];
+};
+
+async function syncPersonContacts(args: { clientId: string; pessoaId: string; triggeredBy: string | null }) {
+  const res = await nomusFetch<unknown>(pessoaContatosPath(args.pessoaId), {
+    method: "GET",
+    entity: "contatos",
+    operation: "list-person-contacts",
+    direction: "pull",
+    triggeredBy: args.triggeredBy,
+    timeoutMs: 8_000,
+    maxAttempts: 1,
+  });
+  if (!res.ok) {
+    if (res.status === 400 || res.status === 404) return 0;
+    throw new Error(res.error);
+  }
+
+  let count = 0;
+  for (const raw of extractNomusList<Json>(res.data)) {
+    const nomus_id = pickStr(raw, "id", "codigo", "idContato", "idPessoaContato");
+    const name = pickStr(raw, "nome", "nomeContato", "contato", "razaoSocial");
+    const email = pickStr(raw, "email", "emailPrincipal");
+    const phone = pickStr(raw, "telefone", "fone", "telefonePrincipal");
+    const mobile = pickStr(raw, "celular", "telefoneCelular", "mobile");
+    if (!name && !email && !phone && !mobile) continue;
+
+    const payload = {
+      client_id: args.clientId,
+      nomus_id,
+      name: name ?? email ?? phone ?? mobile ?? "Contato Nomus",
+      role: pickStr(raw, "cargo", "funcao", "função", "departamento", "tipoContato"),
+      email,
+      phone,
+      mobile,
+      is_primary: pickBool(raw, "principal", "contatoPrincipal", "isPrimary") ?? false,
+      nomus_raw: raw as never,
+    };
+
+    let existingId: string | null = null;
+    if (nomus_id) {
+      const { data } = await supabaseAdmin
+        .from("client_contacts")
+        .select("id")
+        .eq("client_id", args.clientId)
+        .eq("nomus_id", nomus_id)
+        .maybeSingle();
+      existingId = (data as { id?: string } | null)?.id ?? null;
+    }
+
+    const { error } = existingId
+      ? await supabaseAdmin.from("client_contacts").update(payload).eq("id", existingId)
+      : await supabaseAdmin.from("client_contacts").insert(payload);
+    if (error) throw new Error(error.message);
+    count += 1;
+  }
+  return count;
+}
 
 async function setState(entity: string, patch: Record<string, unknown>) {
   await supabaseAdmin.from("nomus_sync_state").upsert({
