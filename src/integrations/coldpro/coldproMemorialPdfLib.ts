@@ -199,6 +199,15 @@ function loadOfferChart(ctx: Ctx, requiredKcalH: number, offeredKcalH: number) {
   ctx.y -= 44;
 }
 
+function selectionStatus(requiredKcalH: number, offeredKcalH: number) {
+  if (requiredKcalH <= 0 || offeredKcalH <= 0) return { label: "PENDENTE", note: "Cálculo ou seleção ainda não informado." };
+  const margin = ((offeredKcalH - requiredKcalH) / requiredKcalH) * 100;
+  if (offeredKcalH < requiredKcalH) return { label: "ALERTA", note: "Capacidade ofertada abaixo da carga requerida; revisar seleção." };
+  if (margin < 10) return { label: "CRÍTICO", note: "Sobra técnica inferior a 10%; margem operacional apertada." };
+  if (margin > 50) return { label: "SUPERDIMENSIONADO", note: "Sobra técnica acima de 50%; avaliar modelo menor ou modulação." };
+  return { label: "ADEQUADO", note: "Sobra técnica dentro da faixa recomendada para validação comercial." };
+}
+
 function projectLineChart(ctx: Ctx, environments: any[], results: any[]) {
   const points = environments.map((env: any, index: number) => ({ index, label: clean(env.name).slice(0, 10), value: Number(results.find((r: any) => r.environment_id === env.id)?.total_required_kcal_h ?? 0) })).filter((point) => point.value > 0);
   if (points.length < 2) return;
@@ -227,22 +236,30 @@ function projectLineChart(ctx: Ctx, environments: any[], results: any[]) {
   ctx.y -= 122;
 }
 
-function temperatureCurveChart(ctx: Ctx, env: any) {
-  const tin = Number(env.external_temp_c ?? 0);
-  const tout = Number(env.internal_temp_c ?? 0);
+function temperatureCurveChart(ctx: Ctx, env: any, products: any[] = []) {
+  const product = products.find((p) => Number.isFinite(Number(p.inlet_temp_c)) && Number.isFinite(Number(p.outlet_temp_c)));
+  const tin = Number(product?.inlet_temp_c ?? env.external_temp_c ?? 0);
+  const tout = Number(product?.outlet_temp_c ?? env.internal_temp_c ?? 0);
+  const freeze = product?.initial_freezing_temp_c != null ? Number(product.initial_freezing_temp_c) : null;
+  const hours = Math.max(1, Number(product?.process_time_h ?? env.compressor_runtime_hours_day ?? 24));
   if (!Number.isFinite(tin) || !Number.isFinite(tout) || tin === tout) return;
-  ensure(ctx, 92);
+  ensure(ctx, 112);
   const x0 = M + 12;
-  const y0 = ctx.y - 70;
+  const y0 = ctx.y - 82;
   const w = A4[0] - M * 2 - 24;
-  const h = 44;
-  const points = [[0, tin], [0.35, tin - (tin - tout) * 0.45], [0.7, tin - (tin - tout) * 0.82], [1, tout]] as Array<[number, number]>;
-  const maxT = Math.max(tin, tout);
-  const minT = Math.min(tin, tout);
-  ctx.page.drawText("Curva técnica de temperatura até o setpoint", { x: M, y: ctx.y, size: 8, font: ctx.fonts.bold, color: COLORS.primary });
+  const h = 54;
+  const points = freeze !== null && tin > freeze && tout < freeze
+    ? [[0, tin], [0.35, freeze], [0.65, freeze], [1, tout]] as Array<[number, number]>
+    : [[0, tin], [0.4, tin - (tin - tout) * 0.5], [0.75, tin - (tin - tout) * 0.85], [1, tout]] as Array<[number, number]>;
+  const maxT = Math.max(tin, tout, freeze ?? tin);
+  const minT = Math.min(tin, tout, freeze ?? tout);
+  ctx.page.drawText("Curva X/Y de temperatura do processo", { x: M, y: ctx.y, size: 8, font: ctx.fonts.bold, color: COLORS.primary });
   ctx.page.drawLine({ start: { x: x0, y: y0 }, end: { x: x0 + w, y: y0 }, thickness: 0.5, color: COLORS.border });
-  ctx.page.drawText(`${fmt(tin)} °C externo`, { x: x0, y: y0 + h + 4, size: 7, font: ctx.fonts.bold, color: COLORS.muted });
-  ctx.page.drawText(`${fmt(tout)} °C alvo`, { x: x0 + w - 52, y: y0 - 12, size: 7, font: ctx.fonts.bold, color: COLORS.muted });
+  ctx.page.drawLine({ start: { x: x0, y: y0 }, end: { x: x0, y: y0 + h }, thickness: 0.5, color: COLORS.border });
+  ctx.page.drawText("Tempo (h)", { x: x0 + w - 34, y: y0 - 13, size: 6.5, font: ctx.fonts.bold, color: COLORS.muted });
+  ctx.page.drawText("Temp. (°C)", { x: x0, y: y0 + h + 7, size: 6.5, font: ctx.fonts.bold, color: COLORS.muted });
+  ctx.page.drawText(`0 h`, { x: x0 - 2, y: y0 - 13, size: 6.5, font: ctx.fonts.regular, color: COLORS.muted });
+  ctx.page.drawText(`${fmt(hours, 1)} h`, { x: x0 + w - 18, y: y0 - 13, size: 6.5, font: ctx.fonts.regular, color: COLORS.muted });
   points.forEach(([t, temp], i) => {
     const x = x0 + t * w;
     const y = y0 + ((temp - minT) / Math.max(1, maxT - minT)) * h;
@@ -251,8 +268,9 @@ function temperatureCurveChart(ctx: Ctx, env: any) {
       ctx.page.drawLine({ start: { x: x0 + pt * w, y: y0 + ((ptemp - minT) / Math.max(1, maxT - minT)) * h }, end: { x, y }, thickness: 1.2, color: COLORS.accent });
     }
     ctx.page.drawCircle({ x, y, size: 2.6, color: COLORS.primary });
+    ctx.page.drawText(`${fmt(t * hours, 1)}h / ${fmt(temp, 1)}°C`, { x: Math.min(x, x0 + w - 54), y: y + 6, size: 6, font: ctx.fonts.regular, color: COLORS.text });
   });
-  ctx.y -= 86;
+  ctx.y -= 104;
 }
 
 function stackedLoadChart(ctx: Ctx, result: any) {
