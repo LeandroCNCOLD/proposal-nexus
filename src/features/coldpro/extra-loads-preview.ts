@@ -1,4 +1,5 @@
-import { AIR_DENSITY_KG_M3, AIR_SPECIFIC_HEAT_KCAL_KG_C, DEFAULT_PEOPLE_LOAD_KCAL_H, kwToKcalh, round2 } from "./coldpro.constants";
+import { DEFAULT_PEOPLE_LOAD_KCAL_H, kwToKcalh, round2 } from "./coldpro.constants";
+import { calculateMotorLoadKcalH, calculateTechnicalDefrost, calculateTechnicalInfiltration } from "./thermal-calculations";
 
 type ExtraLoadEnvironment = {
   volume_m3?: number | null;
@@ -12,14 +13,21 @@ type ExtraLoadEnvironment = {
   air_changes_per_hour?: number | null;
   fresh_air_m3_h?: number | null;
   door_infiltration_m3_h?: number | null;
+  door_open_seconds_per_opening?: number | null;
+  door_operation_profile?: string | null;
+  door_protection_type?: string | null;
+  climate_region?: string | null;
   people_count?: number | null;
   people_hours_day?: number | null;
   lighting_power_w?: number | null;
   lighting_hours_day?: number | null;
   motors_power_kw?: number | null;
   motors_hours_day?: number | null;
+  motors_dissipation_factor?: number | null;
   fans_kcal_h?: number | null;
   defrost_kcal_h?: number | null;
+  evaporator_temp_c?: number | null;
+  defrost_loss_factor?: number | null;
   other_kcal_h?: number | null;
   safety_factor_percent?: number | null;
 };
@@ -36,25 +44,11 @@ export function suggestedInfiltrationFactor(env: ExtraLoadEnvironment) {
   return 18;
 }
 
-function saturatedVaporPressureKpa(tempC: number) {
-  return 0.61078 * Math.exp((17.2694 * tempC) / (tempC + 237.3));
-}
-
-function absoluteHumidityKgM3(tempC: number, rhPercent: number) {
-  const vaporPressurePa = saturatedVaporPressureKpa(tempC) * 1000 * Math.min(100, Math.max(0, rhPercent)) / 100;
-  return 0.00216679 * vaporPressurePa / (tempC + 273.15);
-}
-
 export function calculateEvaporatorFrostRisk(env: ExtraLoadEnvironment, infiltrationKcalH: number) {
-  const compressorHours = n(env.compressor_runtime_hours_day, 20) || 20;
+  const infiltration = calculateTechnicalInfiltration(env);
+  const compressorHours = infiltration.compressorHoursDay;
   const doorArea = n(env.door_width_m) * n(env.door_height_m);
-  const factor = n(env.infiltration_factor) > 0 ? n(env.infiltration_factor) : suggestedInfiltrationFactor(env);
-  const doorAirM3Day = doorArea * n(env.door_openings_per_day) * factor;
-  const continuousAirM3Day = (n(env.volume_m3) * n(env.air_changes_per_hour) + n(env.fresh_air_m3_h) + n(env.door_infiltration_m3_h)) * 24;
-  const externalRh = n((env as any).external_relative_humidity_percent, 70) || 70;
-  const internalRh = n((env as any).relative_humidity_percent, n(env.internal_temp_c) <= 0 ? 85 : 75) || (n(env.internal_temp_c) <= 0 ? 85 : 75);
-  const moistureDeltaKgM3 = Math.max(0, absoluteHumidityKgM3(n(env.external_temp_c), externalRh) - absoluteHumidityKgM3(n(env.internal_temp_c), internalRh));
-  const frostKgDay = (doorAirM3Day + continuousAirM3Day) * moistureDeltaKgM3;
+  const frostKgDay = infiltration.iceKgDay;
   const blockingCapacityKg = Math.max(8, doorArea * 18 + n(env.volume_m3) * 0.03);
   const baseLoss = blockingCapacityKg > 0 ? frostKgDay / blockingCapacityKg : 0;
   const efficiencyLossPercent = Math.min(35, Math.max(0, baseLoss * 18));
@@ -63,7 +57,7 @@ export function calculateEvaporatorFrostRisk(env: ExtraLoadEnvironment, infiltra
 
   return {
     frost_kg_day: round2(frostKgDay),
-    moisture_delta_g_m3: round2(moistureDeltaKgM3 * 1000),
+    moisture_delta_g_m3: infiltration.deltaHumidityGM3,
     estimated_blocking_capacity_kg: round2(blockingCapacityKg),
     normal_block_hours: timeToBlock(1) ? round2(timeToBlock(1)!) : null,
     risky_block_hours: timeToBlock(1.35) ? round2(timeToBlock(1.35)!) : null,
@@ -77,30 +71,28 @@ export function calculateEvaporatorFrostRisk(env: ExtraLoadEnvironment, infiltra
 
 export function calculateExtraLoadPreview(env: ExtraLoadEnvironment) {
   const compressorHours = n(env.compressor_runtime_hours_day, 20) || 20;
-  const deltaT = Math.max(0, n(env.external_temp_c) - n(env.internal_temp_c));
-  const doorArea = n(env.door_width_m) * n(env.door_height_m);
   const infiltrationFactor = n(env.infiltration_factor) > 0 ? n(env.infiltration_factor) : suggestedInfiltrationFactor(env);
-  const doorAirVolumeDay = doorArea * n(env.door_openings_per_day) * infiltrationFactor;
-  const doorLoad = (doorAirVolumeDay * AIR_DENSITY_KG_M3 * AIR_SPECIFIC_HEAT_KCAL_KG_C * deltaT) / compressorHours;
-  const continuousAirM3H = n(env.volume_m3) * n(env.air_changes_per_hour) + n(env.fresh_air_m3_h) + n(env.door_infiltration_m3_h);
-  const continuousLoad = continuousAirM3H * AIR_DENSITY_KG_M3 * AIR_SPECIFIC_HEAT_KCAL_KG_C * deltaT;
-  const infiltration = doorLoad + continuousLoad;
+  const infiltration = calculateTechnicalInfiltration(env);
+  const defrostSuggestion = calculateTechnicalDefrost(env, infiltration.iceKgDay);
+  const manualDefrost = n(env.defrost_kcal_h);
   const people = (n(env.people_count) * DEFAULT_PEOPLE_LOAD_KCAL_H * n(env.people_hours_day)) / compressorHours;
   const lighting = (kwToKcalh(n(env.lighting_power_w) / 1000) * n(env.lighting_hours_day)) / compressorHours;
-  const motors = (kwToKcalh(n(env.motors_power_kw)) * n(env.motors_hours_day)) / compressorHours;
+  const motors = calculateMotorLoadKcalH(env);
   const fans = n(env.fans_kcal_h);
-  const defrost = n(env.defrost_kcal_h);
+  const defrost = manualDefrost > 0 ? manualDefrost : defrostSuggestion.defrostKcalH;
   const other = n(env.other_kcal_h);
-  const evaporatorFrost = calculateEvaporatorFrostRisk(env, infiltration);
+  const evaporatorFrost = calculateEvaporatorFrostRisk(env, infiltration.totalInfiltrationKcalH);
   const subtotal = infiltration + people + lighting + motors + fans + defrost + other + evaporatorFrost.additional_load_kcal_h;
   const safety = subtotal * (n(env.safety_factor_percent) / 100);
 
   return {
-    doorArea: round2(doorArea),
+    doorArea: infiltration.doorAreaM2,
     infiltrationFactor: round2(infiltrationFactor),
-    doorAirVolumeDay: round2(doorAirVolumeDay),
-    continuousAirM3H: round2(continuousAirM3H),
-    infiltration_kcal_h: round2(infiltration),
+    doorAirVolumeDay: infiltration.doorInfiltrationM3Day,
+    continuousAirM3H: round2(infiltration.continuousInfiltrationM3Day / 24),
+    infiltration_breakdown: infiltration,
+    defrost_suggestion: defrostSuggestion,
+    infiltration_kcal_h: round2(infiltration.totalInfiltrationKcalH),
     people_kcal_h: round2(people),
     lighting_kcal_h: round2(lighting),
     motors_kcal_h: round2(motors),
