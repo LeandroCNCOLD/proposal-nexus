@@ -3,7 +3,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { nomusFetch, listAll, testNomusConnection } from "./client";
+import { nomusFetch, listAll, listPage, testNomusConnection } from "./client";
 import {
   NOMUS_ENDPOINTS,
   proposalSubpath,
@@ -40,7 +40,7 @@ async function setState(entity: string, patch: Record<string, unknown>) {
 }
 
 type SyncResult =
-  | { ok: true; count: number; skipped: number; unmatched: number }
+  | { ok: true; count: number; skipped: number; unmatched: number; done?: boolean; nextPage?: number | null }
   | { ok: false; error: string };
 
 /**
@@ -149,14 +149,31 @@ export const nomusSyncClients = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const userId = (context as { userId?: string }).userId ?? null;
-    return runEntitySync({
-      entity: "clientes",
-      endpoint: NOMUS_ENDPOINTS.clientes,
-      triggeredBy: userId,
-      processItem: async (raw) => {
+    const now = new Date().toISOString();
+    await setState("clientes", { running: true, last_error: null });
+    try {
+      const { data: state } = await supabaseAdmin
+        .from("nomus_sync_state")
+        .select("last_cursor, total_synced")
+        .eq("entity", "clientes")
+        .maybeSingle();
+      const page = Math.max(1, Number((state as { last_cursor?: string | null } | null)?.last_cursor ?? "1") || 1);
+      const previousTotal = page === 1 ? 0 : Number((state as { total_synced?: number | null } | null)?.total_synced ?? 0) || 0;
+      const res = await listPage<Json>(NOMUS_ENDPOINTS.clientes, {}, { entity: "clientes", page, pageSize: 50, triggeredBy: userId });
+      if (!res.ok) {
+        await setState("clientes", { running: false, last_error: res.error });
+        return { ok: false as const, error: res.error };
+      }
+
+      let count = 0;
+      let skipped = 0;
+      for (const raw of res.items) {
         const nomus_id = pickStr(raw, "id", "codigo", "idCliente");
         const name = pickStr(raw, "nome", "razaoSocial", "nomeFantasia");
-        if (!nomus_id || !name) return "skip";
+        if (!nomus_id || !name) {
+          skipped += 1;
+          continue;
+        }
         const { error } = await supabaseAdmin
           .from("clients")
           .upsert(
@@ -174,9 +191,24 @@ export const nomusSyncClients = createServerFn({ method: "POST" })
             { onConflict: "nomus_id" }
           );
         if (error) throw new Error(error.message);
-        return "ok";
-      },
-    });
+        count += 1;
+      }
+
+      const done = !res.hasMore || res.items.length === 0;
+      const nextPage = done ? null : page + 1;
+      await setState("clientes", {
+        running: false,
+        last_synced_at: now,
+        total_synced: previousTotal + count,
+        last_cursor: nextPage,
+        last_error: null,
+      });
+      return { ok: true as const, count, skipped, unmatched: 0, done, nextPage };
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      await setState("clientes", { running: false, last_error: msg });
+      return { ok: false as const, error: msg };
+    }
   });
 
 /** Pull products and map to equipments via nomus_id. NÃO cria equipments automaticamente. */

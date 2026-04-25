@@ -51,7 +51,11 @@ function ClientsPage() {
       const extras: string[] = [];
       if (res.skipped > 0) extras.push(`${res.skipped} ignorado(s)`);
       if (res.unmatched > 0) extras.push(`${res.unmatched} sem vínculo local`);
-      toast.success(`Clientes sincronizados: ${res.count}${extras.length ? ` (${extras.join(", ")})` : ""}`);
+      toast.success(
+        res.done
+          ? `Clientes sincronizados: ${res.count}${extras.length ? ` (${extras.join(", ")})` : ""}`
+          : `Lote sincronizado: ${res.count} clientes. Clique novamente para continuar.`,
+      );
       qc.invalidateQueries({ queryKey: ["clients"] });
       qc.invalidateQueries({ queryKey: ["nomus_sync_state"] });
       qc.invalidateQueries({ queryKey: ["nomus_sync_log"] });
