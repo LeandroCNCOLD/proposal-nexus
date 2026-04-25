@@ -780,12 +780,14 @@ export function calculateColdProLoad(params: {
   const advancedProcesses = (params.advancedProcesses ?? []).map(calculateAdvancedProcess);
   const advancedProcessLoad = advancedProcesses.reduce((sum, item) => sum + n(item.total_additional_kcal_h), 0);
   const infiltration = calculateInfiltrationLoad(params.env);
+  const infiltrationBreakdown = calculateTechnicalInfiltration(params.env);
   const evaporatorFrost = calculateEvaporatorFrostRisk(params.env, infiltration);
   const people = calculatePeopleLoad(params.env);
   const lighting = calculateLightingLoad(params.env);
   const motors = calculateMotorsLoad(params.env);
   const fans = n(params.env.fans_kcal_h);
-  const defrost = n(params.env.defrost_kcal_h);
+  const defrostSuggestion = calculateTechnicalDefrost(params.env, infiltrationBreakdown.iceKgDay);
+  const defrost = n(params.env.defrost_kcal_h) > 0 ? n(params.env.defrost_kcal_h) : defrostSuggestion.defrostKcalH;
   const other = n(params.env.other_kcal_h);
 
   const subtotal = transmission + product + packaging + respiration + tunnelInternalLoad + dehumidificationLoad + advancedProcessLoad + infiltration + evaporatorFrost.additional_load_kcal_h + people + lighting + motors + fans + defrost + other;
@@ -823,6 +825,8 @@ export function calculateColdProLoad(params: {
       transmission_faces: transmissionBreakdown.faces,
       tunnel: tunnelResult,
       seed_dehumidification: dehumidification,
+      infiltration_technical: infiltrationBreakdown,
+      defrost_suggestion: defrostSuggestion,
       advanced_processes: advancedProcesses,
       advanced_processes_kcal_h: round2(advancedProcessLoad),
       evaporator_frost: evaporatorFrost,
