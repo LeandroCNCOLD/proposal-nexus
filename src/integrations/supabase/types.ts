@@ -1553,6 +1553,75 @@ export type Database = {
           },
         ]
       }
+      coldpro_infiltration: {
+        Row: {
+          air_density_kg_m3: number | null
+          air_renovation_m3_h: number
+          air_volume_infiltrated_m3_h: number
+          altitude_m: number
+          created_at: string
+          door_area_m2: number
+          door_openings_per_day: number
+          environment_id: string | null
+          external_temp_c: number | null
+          id: string
+          internal_temp_c: number | null
+          notes: string | null
+          opening_factor: number
+          project_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          air_density_kg_m3?: number | null
+          air_renovation_m3_h?: number
+          air_volume_infiltrated_m3_h?: number
+          altitude_m?: number
+          created_at?: string
+          door_area_m2?: number
+          door_openings_per_day?: number
+          environment_id?: string | null
+          external_temp_c?: number | null
+          id?: string
+          internal_temp_c?: number | null
+          notes?: string | null
+          opening_factor?: number
+          project_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          air_density_kg_m3?: number | null
+          air_renovation_m3_h?: number
+          air_volume_infiltrated_m3_h?: number
+          altitude_m?: number
+          created_at?: string
+          door_area_m2?: number
+          door_openings_per_day?: number
+          environment_id?: string | null
+          external_temp_c?: number | null
+          id?: string
+          internal_temp_c?: number | null
+          notes?: string | null
+          opening_factor?: number
+          project_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coldpro_infiltration_environment_id_fkey"
+            columns: ["environment_id"]
+            isOneToOne: false
+            referencedRelation: "coldpro_environments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coldpro_infiltration_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "coldpro_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       coldpro_insulation_materials: {
         Row: {
           conductivity_kcal_h_m_c: number
@@ -1588,6 +1657,265 @@ export type Database = {
           source_reference?: string | null
         }
         Relationships: []
+      }
+      coldpro_internal_loads: {
+        Row: {
+          apply_respiration: boolean
+          created_at: string
+          defrost_factor: number
+          environment_id: string | null
+          fan_factor: number
+          id: string
+          lighting_area_m2: number
+          lighting_use_factor: number
+          lighting_w_m2: number
+          motors_power_kw: number
+          motors_use_factor: number
+          notes: string | null
+          operational_factor: number
+          packaging_cp_kj_kg_k: number
+          packaging_delta_t_k: number
+          packaging_mass_kg: number
+          people_load_w: number
+          people_quantity: number
+          people_use_factor: number
+          project_id: string | null
+          pull_down_kw: number
+          respiration_mass_kg: number
+          respiration_rate_w_kg: number
+          safety_factor: number
+          updated_at: string
+        }
+        Insert: {
+          apply_respiration?: boolean
+          created_at?: string
+          defrost_factor?: number
+          environment_id?: string | null
+          fan_factor?: number
+          id?: string
+          lighting_area_m2?: number
+          lighting_use_factor?: number
+          lighting_w_m2?: number
+          motors_power_kw?: number
+          motors_use_factor?: number
+          notes?: string | null
+          operational_factor?: number
+          packaging_cp_kj_kg_k?: number
+          packaging_delta_t_k?: number
+          packaging_mass_kg?: number
+          people_load_w?: number
+          people_quantity?: number
+          people_use_factor?: number
+          project_id?: string | null
+          pull_down_kw?: number
+          respiration_mass_kg?: number
+          respiration_rate_w_kg?: number
+          safety_factor?: number
+          updated_at?: string
+        }
+        Update: {
+          apply_respiration?: boolean
+          created_at?: string
+          defrost_factor?: number
+          environment_id?: string | null
+          fan_factor?: number
+          id?: string
+          lighting_area_m2?: number
+          lighting_use_factor?: number
+          lighting_w_m2?: number
+          motors_power_kw?: number
+          motors_use_factor?: number
+          notes?: string | null
+          operational_factor?: number
+          packaging_cp_kj_kg_k?: number
+          packaging_delta_t_k?: number
+          packaging_mass_kg?: number
+          people_load_w?: number
+          people_quantity?: number
+          people_use_factor?: number
+          project_id?: string | null
+          pull_down_kw?: number
+          respiration_mass_kg?: number
+          respiration_rate_w_kg?: number
+          safety_factor?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coldpro_internal_loads_environment_id_fkey"
+            columns: ["environment_id"]
+            isOneToOne: false
+            referencedRelation: "coldpro_environments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coldpro_internal_loads_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "coldpro_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      coldpro_materials: {
+        Row: {
+          active: boolean
+          category: string
+          created_at: string
+          default_thickness_mm: number | null
+          density_kg_m3: number | null
+          id: string
+          name: string
+          notes: string | null
+          thermal_conductivity_w_m_k: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          category?: string
+          created_at?: string
+          default_thickness_mm?: number | null
+          density_kg_m3?: number | null
+          id?: string
+          name: string
+          notes?: string | null
+          thermal_conductivity_w_m_k?: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          category?: string
+          created_at?: string
+          default_thickness_mm?: number | null
+          density_kg_m3?: number | null
+          id?: string
+          name?: string
+          notes?: string | null
+          thermal_conductivity_w_m_k?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      coldpro_process_parameters: {
+        Row: {
+          air_temp_c: number | null
+          air_velocity_m_s: number | null
+          application_mode: string
+          batch_mass_kg: number
+          batch_time_h: number
+          cp_above_kj_kg_k: number
+          cp_below_kj_kg_k: number
+          created_at: string
+          environment_id: string | null
+          freezable_fraction: number
+          freezing_temp_c: number
+          id: string
+          inlet_temp_c: number
+          latent_heat_kj_kg: number
+          mass_kg: number
+          notes: string | null
+          operation_mode: string
+          outlet_temp_c: number
+          product_category: string | null
+          product_density_kg_m3: number | null
+          product_id: string | null
+          product_name: string
+          product_thermal_conductivity_w_m_k: number | null
+          product_thickness_m: number | null
+          production_kg_h: number
+          project_id: string | null
+          pull_down_kw: number
+          retention_time_min: number | null
+          specific_load_kj_kg: number | null
+          updated_at: string
+        }
+        Insert: {
+          air_temp_c?: number | null
+          air_velocity_m_s?: number | null
+          application_mode?: string
+          batch_mass_kg?: number
+          batch_time_h?: number
+          cp_above_kj_kg_k?: number
+          cp_below_kj_kg_k?: number
+          created_at?: string
+          environment_id?: string | null
+          freezable_fraction?: number
+          freezing_temp_c?: number
+          id?: string
+          inlet_temp_c?: number
+          latent_heat_kj_kg?: number
+          mass_kg?: number
+          notes?: string | null
+          operation_mode?: string
+          outlet_temp_c?: number
+          product_category?: string | null
+          product_density_kg_m3?: number | null
+          product_id?: string | null
+          product_name?: string
+          product_thermal_conductivity_w_m_k?: number | null
+          product_thickness_m?: number | null
+          production_kg_h?: number
+          project_id?: string | null
+          pull_down_kw?: number
+          retention_time_min?: number | null
+          specific_load_kj_kg?: number | null
+          updated_at?: string
+        }
+        Update: {
+          air_temp_c?: number | null
+          air_velocity_m_s?: number | null
+          application_mode?: string
+          batch_mass_kg?: number
+          batch_time_h?: number
+          cp_above_kj_kg_k?: number
+          cp_below_kj_kg_k?: number
+          created_at?: string
+          environment_id?: string | null
+          freezable_fraction?: number
+          freezing_temp_c?: number
+          id?: string
+          inlet_temp_c?: number
+          latent_heat_kj_kg?: number
+          mass_kg?: number
+          notes?: string | null
+          operation_mode?: string
+          outlet_temp_c?: number
+          product_category?: string | null
+          product_density_kg_m3?: number | null
+          product_id?: string | null
+          product_name?: string
+          product_thermal_conductivity_w_m_k?: number | null
+          product_thickness_m?: number | null
+          production_kg_h?: number
+          project_id?: string | null
+          pull_down_kw?: number
+          retention_time_min?: number | null
+          specific_load_kj_kg?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coldpro_process_parameters_environment_id_fkey"
+            columns: ["environment_id"]
+            isOneToOne: false
+            referencedRelation: "coldpro_environments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coldpro_process_parameters_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "coldpro_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coldpro_process_parameters_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "coldpro_projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       coldpro_products: {
         Row: {
@@ -1849,6 +2177,67 @@ export type Database = {
         }
         Relationships: []
       }
+      coldpro_reports: {
+        Row: {
+          calculation_memory: Json
+          created_at: string
+          created_by: string | null
+          environment_id: string | null
+          id: string
+          project_id: string | null
+          report_text: string
+          result_id: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          calculation_memory?: Json
+          created_at?: string
+          created_by?: string | null
+          environment_id?: string | null
+          id?: string
+          project_id?: string | null
+          report_text?: string
+          result_id?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Update: {
+          calculation_memory?: Json
+          created_at?: string
+          created_by?: string | null
+          environment_id?: string | null
+          id?: string
+          project_id?: string | null
+          report_text?: string
+          result_id?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coldpro_reports_environment_id_fkey"
+            columns: ["environment_id"]
+            isOneToOne: false
+            referencedRelation: "coldpro_environments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coldpro_reports_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "coldpro_projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coldpro_reports_result_id_fkey"
+            columns: ["result_id"]
+            isOneToOne: false
+            referencedRelation: "coldpro_results"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       coldpro_results: {
         Row: {
           calculation_breakdown: Json
@@ -1928,6 +2317,90 @@ export type Database = {
             columns: ["environment_id"]
             isOneToOne: false
             referencedRelation: "coldpro_environments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      coldpro_surfaces: {
+        Row: {
+          area_door_m2: number
+          area_glass_m2: number
+          area_total_m2: number
+          created_at: string
+          environment_id: string | null
+          external_temp_c: number | null
+          glass_type: string
+          has_floor_insulation: boolean
+          id: string
+          label: string
+          notes: string | null
+          project_id: string | null
+          soil_temp_c: number | null
+          solar_factor: number
+          solar_level: string
+          sort_order: number
+          surface_type: string
+          u_door_w_m2k: number
+          u_opaque_w_m2k: number
+          updated_at: string
+        }
+        Insert: {
+          area_door_m2?: number
+          area_glass_m2?: number
+          area_total_m2?: number
+          created_at?: string
+          environment_id?: string | null
+          external_temp_c?: number | null
+          glass_type?: string
+          has_floor_insulation?: boolean
+          id?: string
+          label: string
+          notes?: string | null
+          project_id?: string | null
+          soil_temp_c?: number | null
+          solar_factor?: number
+          solar_level?: string
+          sort_order?: number
+          surface_type: string
+          u_door_w_m2k?: number
+          u_opaque_w_m2k?: number
+          updated_at?: string
+        }
+        Update: {
+          area_door_m2?: number
+          area_glass_m2?: number
+          area_total_m2?: number
+          created_at?: string
+          environment_id?: string | null
+          external_temp_c?: number | null
+          glass_type?: string
+          has_floor_insulation?: boolean
+          id?: string
+          label?: string
+          notes?: string | null
+          project_id?: string | null
+          soil_temp_c?: number | null
+          solar_factor?: number
+          solar_level?: string
+          sort_order?: number
+          surface_type?: string
+          u_door_w_m2k?: number
+          u_opaque_w_m2k?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coldpro_surfaces_environment_id_fkey"
+            columns: ["environment_id"]
+            isOneToOne: false
+            referencedRelation: "coldpro_environments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coldpro_surfaces_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "coldpro_projects"
             referencedColumns: ["id"]
           },
         ]
@@ -2086,6 +2559,60 @@ export type Database = {
             columns: ["environment_id"]
             isOneToOne: false
             referencedRelation: "coldpro_environments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      coldpro_wall_compositions: {
+        Row: {
+          created_at: string
+          id: string
+          layer_order: number
+          material_id: string | null
+          material_name: string
+          notes: string | null
+          surface_id: string
+          thermal_conductivity_w_m_k: number
+          thickness_m: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          layer_order?: number
+          material_id?: string | null
+          material_name: string
+          notes?: string | null
+          surface_id: string
+          thermal_conductivity_w_m_k?: number
+          thickness_m?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          layer_order?: number
+          material_id?: string | null
+          material_name?: string
+          notes?: string | null
+          surface_id?: string
+          thermal_conductivity_w_m_k?: number
+          thickness_m?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coldpro_wall_compositions_material_id_fkey"
+            columns: ["material_id"]
+            isOneToOne: false
+            referencedRelation: "coldpro_materials"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coldpro_wall_compositions_surface_id_fkey"
+            columns: ["surface_id"]
+            isOneToOne: false
+            referencedRelation: "coldpro_surfaces"
             referencedColumns: ["id"]
           },
         ]
