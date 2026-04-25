@@ -1187,17 +1187,17 @@ export const nomusSyncAll = createServerFn({ method: "POST" })
       { entity: "representantes", run: () => runEntitySync({ entity: "representantes", endpoint: NOMUS_ENDPOINTS.representantes, triggeredBy: userId, processItem: syncRepresentativeItem }) },
       { entity: "produtos", run: () => runEntitySync({ entity: "produtos", endpoint: NOMUS_ENDPOINTS.produtos, triggeredBy: userId, processItem: syncProductItem }) },
     ];
-    const results: Record<string, unknown> = {};
+    const results: Record<string, string> = {};
     let errors = 0;
     for (const step of steps) {
       const result = await step.run();
-      results[step.entity] = result;
+      results[step.entity] = result.ok ? `ok:${result.count}` : `erro:${result.error}`;
       if (!result.ok) errors += 1;
     }
     const clients = await nomusSyncClients({ data });
-    results.clientes = clients;
+    results.clientes = clients.ok ? `ok:${clients.count}` : `erro:${clients.error}`;
     if (!clients.ok) errors += 1;
-    await upsertSyncCheckpoint({ entityType: "sync_geral", syncRunId: parentRunId, status: errors > 0 ? "failed" : "completed", cursorPayload: results as Json });
+    await upsertSyncCheckpoint({ entityType: "sync_geral", syncRunId: parentRunId, status: errors > 0 ? "failed" : "completed", cursorPayload: results });
     await finishSyncRun({ syncRunId: parentRunId, status: errors > 0 ? "partial_success" : "success", totalErrors: errors, errorMessage: errors > 0 ? "Sync geral concluída com falhas parciais." : null });
     return { ok: errors === 0, count: Object.keys(results).length, skipped: errors, unmatched: 0, results };
   });
