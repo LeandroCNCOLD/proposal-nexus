@@ -237,6 +237,106 @@ function roundN(value: number, digits: number): number {
   return Math.round(value * factor) / factor;
 }
 
+export type DimensioningStatus = "REPROVADO" | "ATENÇÃO - SOBRA BAIXA" | "ADEQUADO" | "SOBREDIMENSIONADO - VALIDAR" | "PENDENTE";
+
+export function consolidateColdProSubtotal(loads: Record<string, unknown>): number {
+  return round2([
+    "transmission", "product", "packaging", "respiration", "infiltration", "people", "lighting", "motors", "fans", "defrost", "other",
+    "tunnel_internal_load", "seed_dehumidification", "advanced_processes", "evaporator_frost",
+  ].reduce((sum, key) => sum + n(loads[key]), 0));
+}
+
+export function dimensioningStatus(requiredKcalH: number, correctedTotalKcalH: number): DimensioningStatus {
+  if (requiredKcalH <= 0 || correctedTotalKcalH <= 0) return "PENDENTE";
+  const surplus = ((correctedTotalKcalH - requiredKcalH) / requiredKcalH) * 100;
+  if (correctedTotalKcalH < requiredKcalH) return "REPROVADO";
+  if (surplus >= 0 && surplus < 10) return "ATENÇÃO - SOBRA BAIXA";
+  if (surplus >= 10 && surplus <= 30) return "ADEQUADO";
+  return "SOBREDIMENSIONADO - VALIDAR";
+}
+
+export function buildThermalCalculationResult(result: any, selection?: any | null) {
+  const breakdown = result?.calculation_breakdown ?? {};
+  const loads = {
+    transmission: result?.transmission_kcal_h,
+    product: result?.product_kcal_h,
+    packaging: result?.packaging_kcal_h,
+    respiration: breakdown?.respiration_kcal_h,
+    infiltration: result?.infiltration_kcal_h,
+    people: result?.people_kcal_h,
+    lighting: result?.lighting_kcal_h,
+    motors: result?.motors_kcal_h,
+    fans: result?.fans_kcal_h,
+    defrost: result?.defrost_kcal_h,
+    other: result?.other_kcal_h,
+    tunnel_internal_load: result?.tunnel_internal_load_kcal_h,
+    seed_dehumidification: breakdown?.seed_dehumidification?.total_kcal_h,
+    advanced_processes: breakdown?.advanced_processes_kcal_h,
+    evaporator_frost: breakdown?.evaporator_frost?.additional_load_kcal_h,
+  };
+  const subtotalCalculated = consolidateColdProSubtotal(loads);
+  const subtotalDisplayed = round2(n(result?.subtotal_kcal_h));
+  const safetyFactor = round2(n(result?.safety_factor_percent));
+  const requiredCalculated = round2(subtotalCalculated * (1 + safetyFactor / 100));
+  const requiredDisplayed = round2(n(result?.total_required_kcal_h));
+  const quantity = Math.max(0, n(selection?.quantity));
+  const correctedUnit = round2(n(selection?.capacity_unit_kcal_h));
+  const correctedTotalCalculated = round2(correctedUnit * quantity);
+  const correctedTotalDisplayed = round2(n(selection?.capacity_total_kcal_h));
+  const surplusCalculated = requiredCalculated > 0 ? round2(((correctedTotalCalculated - requiredCalculated) / requiredCalculated) * 100) : 0;
+  const surplusDisplayed = round2(n(selection?.surplus_percent));
+  const blockers: Array<{ code: string; message: string }> = [];
+  const warnings: Array<{ code: string; message: string }> = [];
+  const addBlocker = (code: string, message: string) => blockers.push({ code, message });
+  if (Math.abs(subtotalCalculated - subtotalDisplayed) > 1) addBlocker("subtotal_mismatch", "Subtotal calculado pela soma das parcelas não fecha com o subtotal exibido.");
+  if (Math.abs(requiredCalculated - requiredDisplayed) > 1) addBlocker("required_load_mismatch", "Carga requerida calculada não fecha com a carga requerida exibida.");
+  if (selection && Math.abs(correctedTotalCalculated - correctedTotalDisplayed) > 1) addBlocker("capacity_total_mismatch", "Capacidade total exibida não fecha com capacidade unitária corrigida multiplicada pela quantidade.");
+  if (selection && Math.abs(surplusCalculated - surplusDisplayed) > 0.1) addBlocker("surplus_mismatch", "Sobra técnica exibida não fecha com capacidade corrigida total e carga requerida validada.");
+  for (const alert of Array.isArray(breakdown?.validation_alerts) ? breakdown.validation_alerts : []) {
+    if (["internal_rh_zero", "product_energy_inconsistent"].includes(String(alert.code))) addBlocker(String(alert.code), String(alert.message));
+    if (["negative_room_without_defrost", "door_without_infiltration"].includes(String(alert.code))) addBlocker(String(alert.code), String(alert.message));
+  }
+  if (!selection) warnings.push({ code: "equipment_selection_missing", message: "Seleção de equipamento ainda não vinculada ao resultado validado." });
+  const status = dimensioningStatus(requiredCalculated, correctedTotalCalculated);
+  return {
+    subtotal_validado: subtotalCalculated,
+    subtotal_exibido: subtotalDisplayed,
+    subtotal_diferenca_kcal_h: round2(subtotalCalculated - subtotalDisplayed),
+    fator_segurança: safetyFactor,
+    carga_requerida_validada: requiredCalculated,
+    carga_requerida_exibida: requiredDisplayed,
+    carga_requerida_diferenca_kcal_h: round2(requiredCalculated - requiredDisplayed),
+    capacidade_nominal_kcal_h: n(selection?.curve_metadata?.capacity_nominal_kcal_h ?? selection?.curve_metadata?.catalog_reference_capacity_kcal_h),
+    capacidade_unitaria_corrigida: correctedUnit,
+    quantidade: quantity,
+    capacidade_total_corrigida: correctedTotalCalculated,
+    capacidade_total_exibida: correctedTotalDisplayed,
+    capacidade_total_diferenca_kcal_h: round2(correctedTotalCalculated - correctedTotalDisplayed),
+    sobra_percentual: surplusCalculated,
+    sobra_percentual_exibida: surplusDisplayed,
+    sobra_diferenca_percentual: round2(surplusCalculated - surplusDisplayed),
+    status_dimensionamento: status,
+    emissao_permitida: blockers.length ? "PRELIMINAR" : "FINAL",
+    bloqueios: blockers,
+    avisos: warnings,
+    curva: {
+      modelo: selection?.model ?? null,
+      refrigerante: selection?.refrigerant ?? null,
+      temperatura_interna_c: selection?.curve_temperature_room_c ?? null,
+      temperatura_evaporacao_c: selection?.curve_evaporation_temp_c ?? null,
+      temperatura_condensacao_c: selection?.curve_condensation_temp_c ?? null,
+      fonte: selection?.selection_method ?? null,
+      r2: selection?.curve_polynomial_r2 ?? null,
+      potencia_eletrica_kw: selection?.total_power_kw ?? null,
+      cop: selection?.cop ?? null,
+      vazao_m3_h: selection?.air_flow_total_m3_h ?? null,
+      versao_calculo: "coldpro-validation-v1",
+      data_curva: selection?.created_at ?? null,
+    },
+    loads,
+  };
+}
+
 function saturationVaporPressureKpa(tempC: number): number {
   return 0.61078 * Math.exp((17.2694 * tempC) / (tempC + 237.29));
 }
