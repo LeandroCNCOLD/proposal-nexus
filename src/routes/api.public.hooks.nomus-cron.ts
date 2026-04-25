@@ -36,6 +36,15 @@ async function syncProposalDetail(rawSummary: Record<string, unknown>, options: 
   const mapped = mapNomusProposal(raw);
   if (!mapped) return false;
 
+  const { data: currentMirror } = await supabaseAdmin
+    .from("nomus_proposals")
+    .select("raw")
+    .eq("nomus_id", mapped.nomus_id)
+    .maybeSingle();
+  if (currentMirror && JSON.stringify((currentMirror as { raw?: unknown }).raw ?? null) === JSON.stringify(raw ?? null)) {
+    return false;
+  }
+
   // 1) Espelha em nomus_proposals (fonte fiel do payload Nomus)
   const { data: mirror } = await supabaseAdmin
     .from("nomus_proposals")
@@ -250,6 +259,9 @@ const mappers: Record<EntityKey, { endpoint: string; map: Mapper }> = {
 
 /** Máximo de propostas novas/alteradas processadas por invocação (evita timeout). */
 const PROPOSALS_BATCH_SIZE = 20;
+const PROPOSALS_FORWARD_LOOKAHEAD = 80;
+const PROPOSALS_RECENT_RECHECK = 30;
+const PROPOSALS_MAX_CONSECUTIVE_MISSES = 20;
 
 function extractItems(payload: unknown): Array<Record<string, unknown>> {
   if (Array.isArray(payload)) return payload as Array<Record<string, unknown>>;
@@ -314,80 +326,48 @@ async function pullProposalsNewestFirst(): Promise<{ ok: boolean; count?: number
     updated_at: new Date().toISOString(),
   });
 
-  // Lista os resumos de todas as páginas e processa só o topo mais recente.
-  // O Nomus não garante que a página 1 contenha as últimas propostas; por isso
-  // não podemos limitar a busca às primeiras páginas.
   const { data: stateRow } = await supabaseAdmin
     .from("nomus_sync_state")
-    .select("total_synced")
+    .select("total_synced, last_cursor")
     .eq("entity", "propostas")
     .maybeSingle();
 
-  const previousTotal = (stateRow as { total_synced: number } | null)?.total_synced ?? 0;
+  const previousTotal = (stateRow as { total_synced?: number | null } | null)?.total_synced ?? 0;
+  const { data: maxRow } = await supabaseAdmin
+    .from("nomus_proposals")
+    .select("nomus_id")
+    .order("nomus_id", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const maxKnownId = Number((maxRow as { nomus_id?: string | null } | null)?.nomus_id ?? 0) || 0;
 
   let count = 0;
   let done = false;
   let runError: string | null = null;
-  let newestSeenId = 0;
+  let newestSeenId = maxKnownId;
 
   try {
-    const listRes = await listAll<Record<string, unknown>>(endpoint, {}, {
-      entity: "propostas",
-      pageSize: 50,
-      maxItems: 500,
-    });
-    if (!listRes.ok) {
-      runError = listRes.error;
-      return { ok: false, error: listRes.error };
-    }
-    const summaries = listRes.items;
-
-    if (summaries.length === 0) {
-      done = true;
-    } else {
-      const seen = new Set<string>();
-      const items = summaries
-        .filter((summary) => {
-          const id = pickStr(summary, "id", "idProposta", "codigo");
-          if (!id || seen.has(id)) return false;
-          seen.add(id);
-          return true;
-        })
-        .sort((a, b) => {
-          const ar = parseNomusProposalRank(a);
-          const br = parseNomusProposalRank(b);
-          if (br.cn !== ar.cn) return br.cn - ar.cn;
-          if (br.rev !== ar.rev) return br.rev - ar.rev;
-          if (br.id !== ar.id) return br.id - ar.id;
-          const dateDiff = parseNomusSortDate(b) - parseNomusSortDate(a);
-          return dateDiff;
-        });
-
-      for (const summary of items) {
-        if (count >= PROPOSALS_BATCH_SIZE) break;
-
-        const id = pickStr(summary, "id", "idProposta", "codigo");
-        if (!id) continue;
-
-        const { data: existing } = await supabaseAdmin
-          .from("nomus_proposals")
-          .select("nomus_id")
-          .eq("nomus_id", id)
-          .maybeSingle();
-
-        try {
-          const changed = await syncProposalDetail(summary, { requireDetail: !existing });
-          if (changed) {
-            newestSeenId = Math.max(newestSeenId, Number(id) || 0);
-            count += 1;
-          }
-        } catch (e) {
-          console.error("[nomus-cron] erro mapeando proposta:", e);
-        }
+    let misses = 0;
+    for (let id = maxKnownId + 1; id <= maxKnownId + PROPOSALS_FORWARD_LOOKAHEAD; id += 1) {
+      if (count >= PROPOSALS_BATCH_SIZE || misses >= PROPOSALS_MAX_CONSECUTIVE_MISSES) break;
+      const changed = await syncProposalDetail({ id }, { requireDetail: true });
+      if (changed) {
+        newestSeenId = Math.max(newestSeenId, id);
+        count += 1;
+        misses = 0;
+      } else {
+        misses += 1;
       }
-
-      done = true;
     }
+
+    const recheckStart = Math.max(1, newestSeenId - PROPOSALS_RECENT_RECHECK + 1);
+    for (let id = newestSeenId; id >= recheckStart; id -= 1) {
+      if (count >= PROPOSALS_BATCH_SIZE) break;
+      const changed = await syncProposalDetail({ id }, { requireDetail: true });
+      if (changed) count += 1;
+    }
+
+    done = true;
   } catch (e) {
     runError = e instanceof Error ? e.message : String(e);
     console.error("[nomus-cron] exceção em pullProposalsNewestFirst:", e);
