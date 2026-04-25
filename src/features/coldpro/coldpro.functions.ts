@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { createServerFn } from "@tanstack/react-start";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { calculateColdProLoad } from "./coldpro-calculation.engine";
 import { calculateAdvancedProcess } from "@/modules/coldpro/services/advancedProcesses/advancedProcessEngine";
 import { findEquipmentCandidates, suggestApplication, suggestEvaporationTemp } from "./equipment-selection.engine";
@@ -48,7 +49,7 @@ function stripUiMaterialKey(value: unknown) {
   return value.includes(":") ? value.split(":").pop() : value;
 }
 
-export const listColdProProjects = createServerFn({ method: "GET" }).handler(async () => {
+export const listColdProProjects = createServerFn({ method: "GET" }).middleware([requireSupabaseAuth]).handler(async () => {
   const supabase = supabaseAdmin;
   const { data, error } = await supabase.from("coldpro_projects").select("*").order("created_at", { ascending: false });
   if (error) throw new Error(error.message);
@@ -56,6 +57,7 @@ export const listColdProProjects = createServerFn({ method: "GET" }).handler(asy
 });
 
 export const createColdProProject = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator(z.object({ proposal_id: z.string().uuid().nullable().optional(), name: trimmedName, application_type: z.string().default("cold_room") }))
   .handler(async ({ data }) => {
     const supabase = supabaseAdmin;
@@ -65,6 +67,7 @@ export const createColdProProject = createServerFn({ method: "POST" })
   });
 
 export const getColdProProjectBundle = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
   .inputValidator(z.object({ projectId: z.string().uuid() }))
   .handler(async ({ data }) => {
     const supabase = supabaseAdmin;
@@ -84,6 +87,7 @@ export const getColdProProjectBundle = createServerFn({ method: "GET" })
   });
 
 export const createColdProEnvironment = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator(z.object({ projectId: z.string().uuid(), name: trimmedName, environment_type: z.string().default("cold_room") }))
   .handler(async ({ data }) => {
     const supabase = supabaseAdmin;
@@ -94,6 +98,7 @@ export const createColdProEnvironment = createServerFn({ method: "POST" })
   });
 
 export const updateColdProEnvironment = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator(z.object({ id: z.string().uuid(), patch: z.record(z.string(), z.unknown()) }))
   .handler(async ({ data }) => {
     const supabase = supabaseAdmin;
@@ -129,6 +134,7 @@ export const updateColdProEnvironment = createServerFn({ method: "POST" })
   });
 
 export const upsertColdProEnvironmentProduct = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator(z.object({
     id: z.string().uuid().optional(), environment_id: z.string().uuid(), product_id: z.string().uuid().nullable().optional(), product_name: trimmedName, product_load_mode: z.enum(["storage_turnover", "daily_intake", "hourly_intake", "room_pull_down_or_freezing"]).default("daily_intake"), stored_mass_kg: nonNegativeNumber.default(0), daily_turnover_percent: nonNegativeNumber.default(0), daily_movement_kg: nonNegativeNumber.default(0), hourly_movement_kg: nonNegativeNumber.default(0), recovery_time_h: nonNegativeNumber.default(0), is_freezing_inside_storage_room: z.boolean().default(false), freezing_batch_mass_kg: nonNegativeNumber.default(0), freezing_batch_time_h: nonNegativeNumber.default(0), movement_basis: z.enum(["calculated_from_stock", "manual_daily", "manual_hourly", "batch_recovery"]).default("manual_daily"), mass_kg_day: z.number().default(0), mass_kg_hour: z.number().default(0), inlet_temp_c: z.number().default(0), outlet_temp_c: z.number().default(0), process_time_h: z.number().default(24), packaging_mass_kg_day: z.number().default(0), packaging_specific_heat_kcal_kg_c: z.number().default(0.4), specific_heat_above_kj_kg_k: z.number().nullable().optional(), specific_heat_below_kj_kg_k: z.number().nullable().optional(), specific_heat_above_kcal_kg_c: z.number().default(0), specific_heat_below_kcal_kg_c: z.number().default(0), latent_heat_kj_kg: z.number().nullable().optional(), latent_heat_kcal_kg: z.number().default(0), initial_freezing_temp_c: z.number().nullable().optional(), density_kg_m3: z.number().nullable().optional(), water_content_percent: z.number().nullable().optional(), protein_content_percent: z.number().nullable().optional(), fat_content_percent: z.number().nullable().optional(), carbohydrate_content_percent: z.number().nullable().optional(), fiber_content_percent: z.number().nullable().optional(), ash_content_percent: z.number().nullable().optional(), thermal_conductivity_unfrozen_w_m_k: z.number().nullable().optional(), thermal_conductivity_frozen_w_m_k: z.number().nullable().optional(), frozen_water_fraction: z.number().nullable().optional(), freezable_water_content_percent: z.number().nullable().optional(), characteristic_thickness_m: z.number().nullable().optional(), default_convective_coefficient_w_m2_k: z.number().nullable().optional(), allow_phase_change: z.boolean().nullable().optional(), respiration_rate_0c_w_kg: z.number().nullable().optional(), respiration_rate_5c_w_kg: z.number().nullable().optional(), respiration_rate_10c_w_kg: z.number().nullable().optional(), respiration_rate_15c_w_kg: z.number().nullable().optional(), respiration_rate_20c_w_kg: z.number().nullable().optional(), respiration_rate_0c_mw_kg: z.number().nullable().optional(), respiration_rate_5c_mw_kg: z.number().nullable().optional(), respiration_rate_10c_mw_kg: z.number().nullable().optional(), respiration_rate_15c_mw_kg: z.number().nullable().optional(), respiration_rate_20c_mw_kg: z.number().nullable().optional(), notes: z.string().max(1000).nullable().optional()
   }))
@@ -140,6 +146,7 @@ export const upsertColdProEnvironmentProduct = createServerFn({ method: "POST" }
   });
 
 export const upsertColdProTunnel = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator(z.object({
     id: z.string().uuid().optional(), environment_id: z.string().uuid(), tunnel_type: z.enum(["blast_freezer", "cooling_tunnel"]).default("blast_freezer"), operation_mode: z.enum(["continuous", "batch"]).default("continuous"), process_type: z.enum(["continuous_individual_freezing", "continuous_girofreezer", "static_cart_freezing", "static_pallet_freezing"]).default("continuous_individual_freezing"), arrangement_type: z.enum(["individual_exposed", "tray_layer", "boxed_product", "cart_rack", "pallet_block", "bulk_static"]).default("individual_exposed"), product_id: z.string().uuid().nullable().optional(), product_name: trimmedName.default("Produto"), product_length_m: nonNegativeNumber.default(0), product_width_m: nonNegativeNumber.default(0), product_thickness_m: nonNegativeNumber.default(0), unit_weight_kg: nonNegativeNumber.default(0), product_thickness_mm: nonNegativeNumber.default(0), product_unit_weight_kg: nonNegativeNumber.default(0), units_per_cycle: nonNegativeNumber.default(0), cycles_per_hour: nonNegativeNumber.default(0), mass_kg_hour: nonNegativeNumber.default(0), pallet_length_m: nonNegativeNumber.default(0), pallet_width_m: nonNegativeNumber.default(0), pallet_height_m: nonNegativeNumber.default(0), pallet_mass_kg: nonNegativeNumber.default(0), number_of_pallets: nonNegativeNumber.default(1), batch_time_h: nonNegativeNumber.default(0), layers_count: nonNegativeNumber.default(0), boxes_count: nonNegativeNumber.default(0), tray_spacing_m: nonNegativeNumber.default(0), package_type: z.string().max(80).nullable().optional(), air_exposure_factor: nonNegativeNumber.nullable().optional(), thermal_penetration_factor: nonNegativeNumber.nullable().optional(), airflow_m3_h: nonNegativeNumber.default(0), air_delta_t_k: positiveNumber.default(6), min_air_temp_c: finiteNumber.default(-40), max_air_temp_c: finiteNumber.default(-25), min_air_velocity_m_s: nonNegativeNumber.default(1), max_air_velocity_m_s: positiveNumber.default(6), air_temp_step_c: positiveNumber.default(5), air_velocity_step_m_s: positiveNumber.default(1), recommended_air_temp_c: finiteNumber.nullable().optional(), recommended_air_velocity_m_s: nonNegativeNumber.nullable().optional(), optimization_status: z.string().trim().max(80).nullable().optional(), optimization_margin_percent: finiteNumber.nullable().optional(), optimization_attempts_count: z.number().int().nonnegative().nullable().optional(), optimization_memory: z.record(z.string(), z.unknown()).nullable().optional(), convective_coefficient_manual_w_m2_k: nonNegativeNumber.nullable().optional(), convective_coefficient_effective_w_m2_k: nonNegativeNumber.nullable().optional(), thermal_characteristic_dimension_m: nonNegativeNumber.nullable().optional(), distance_to_core_m: nonNegativeNumber.nullable().optional(), inlet_temp_c: finiteNumber.default(0), outlet_temp_c: finiteNumber.default(-18), freezing_temp_c: finiteNumber.nullable().optional(), density_kg_m3: nonNegativeNumber.nullable().optional(), thermal_conductivity_frozen_w_m_k: nonNegativeNumber.nullable().optional(), thermal_conductivity_unfrozen_w_m_k: nonNegativeNumber.nullable().optional(), convective_coefficient_w_m2_k: nonNegativeNumber.nullable().optional(), estimated_freezing_time_min: nonNegativeNumber.nullable().optional(), retention_status: z.string().trim().max(80).nullable().optional(), recommended_airflow_m3_h: nonNegativeNumber.nullable().optional(), air_temp_c: finiteNumber.default(-35), air_velocity_m_s: nonNegativeNumber.default(3), process_time_min: positiveNumber.default(60), specific_heat_above_kj_kg_k: nonNegativeNumber.nullable().optional(), specific_heat_below_kj_kg_k: nonNegativeNumber.nullable().optional(), specific_heat_above_kcal_kg_c: nonNegativeNumber.default(0.8), specific_heat_below_kcal_kg_c: nonNegativeNumber.default(0.4), latent_heat_kj_kg: nonNegativeNumber.nullable().optional(), latent_heat_kcal_kg: nonNegativeNumber.default(60), water_content_percent: nonNegativeNumber.nullable().optional(), protein_content_percent: nonNegativeNumber.nullable().optional(), fat_content_percent: nonNegativeNumber.nullable().optional(), carbohydrate_content_percent: nonNegativeNumber.nullable().optional(), fiber_content_percent: nonNegativeNumber.nullable().optional(), ash_content_percent: nonNegativeNumber.nullable().optional(), frozen_water_fraction: nonNegativeNumber.nullable().optional(), freezable_water_content_percent: nonNegativeNumber.nullable().optional(), respiration_rate_0c_mw_kg: nonNegativeNumber.nullable().optional(), respiration_rate_5c_mw_kg: nonNegativeNumber.nullable().optional(), respiration_rate_10c_mw_kg: nonNegativeNumber.nullable().optional(), respiration_rate_15c_mw_kg: nonNegativeNumber.nullable().optional(), respiration_rate_20c_mw_kg: nonNegativeNumber.nullable().optional(), notes: z.string().max(1000).nullable().optional(), packaging_mass_kg_hour: nonNegativeNumber.default(0), packaging_specific_heat_kcal_kg_c: nonNegativeNumber.default(0.4), belt_motor_kw: nonNegativeNumber.default(0), internal_fans_kw: nonNegativeNumber.default(0), other_internal_kw: nonNegativeNumber.default(0)
   }))
@@ -151,6 +158,7 @@ export const upsertColdProTunnel = createServerFn({ method: "POST" })
   });
 
 export const upsertColdProAdvancedProcess = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator(z.object({
     id: z.string().uuid().optional(), project_id: z.string().uuid(), environment_id: z.string().uuid().nullable().optional(), advanced_process_type: advancedProcessType.default("none"), product_name: z.string().max(120).nullable().optional(), product_mass_kg: nonNegativeNumber.default(0), chamber_volume_m3: nonNegativeNumber.default(0), target_temperature_c: finiteNumber.nullable().optional(), target_relative_humidity: nonNegativeNumber.nullable().optional(), process_time_h: nonNegativeNumber.default(0), technical_notes: z.string().max(1000).nullable().optional(), external_temperature_c: finiteNumber.nullable().optional(), external_relative_humidity: nonNegativeNumber.nullable().optional(), internal_temperature_c: finiteNumber.nullable().optional(), internal_relative_humidity: nonNegativeNumber.nullable().optional(), air_changes_per_hour: nonNegativeNumber.default(0), product_initial_moisture: nonNegativeNumber.nullable().optional(), product_final_moisture: nonNegativeNumber.nullable().optional(), stabilization_time_h: nonNegativeNumber.default(0), ethylene_target_ppm: nonNegativeNumber.nullable().optional(), ethylene_exposure_time_h: nonNegativeNumber.nullable().optional(), ethylene_renewal_after_application: z.boolean().default(false), co2_generation_rate_m3_kg_h: nonNegativeNumber.nullable().optional(), co2_limit_percent: nonNegativeNumber.nullable().optional(), external_co2_percent: nonNegativeNumber.default(0.04), storage_time_h: nonNegativeNumber.default(0), o2_target_percent: nonNegativeNumber.nullable().optional(), co2_target_percent: nonNegativeNumber.nullable().optional(), respiration_rate_w_kg: nonNegativeNumber.default(0), purge_airflow_m3_h: nonNegativeNumber.nullable().optional(), scrubber_enabled: z.boolean().default(false), air_renewal_m3_h: nonNegativeNumber.default(0)
   }))
@@ -163,6 +171,7 @@ export const upsertColdProAdvancedProcess = createServerFn({ method: "POST" })
   });
 
 export const calculateColdProEnvironment = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator(z.object({ environmentId: z.string().uuid() }))
   .handler(async ({ data }) => {
     const supabase = supabaseAdmin;
@@ -199,6 +208,7 @@ export const calculateColdProEnvironment = createServerFn({ method: "POST" })
   });
 
 export const autoSelectColdProEquipment = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator(z.object({ environmentId: z.string().uuid() }))
   .handler(async ({ data }) => {
     const supabase = supabaseAdmin;
