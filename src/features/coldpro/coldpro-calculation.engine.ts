@@ -229,6 +229,11 @@ function n(value: unknown, fallback = 0): number {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function roundN(value: number, digits: number): number {
+  const factor = 10 ** digits;
+  return Math.round(value * factor) / factor;
+}
+
 function saturationVaporPressureKpa(tempC: number): number {
   return 0.61078 * Math.exp((17.2694 * tempC) / (tempC + 237.29));
 }
@@ -274,9 +279,9 @@ export function calculateSeedDehumidificationLoad(env: ColdProEnvironment) {
     applies: true,
     total_kcal_h: round2(kwToKcalh(totalKw)),
     total_kw: round2(totalKw),
-    external_absolute_humidity_kg_kg: round2(externalW),
-    internal_absolute_humidity_kg_kg: round2(internalW),
-    delta_w_kg_kg: round2(deltaW),
+    external_absolute_humidity_kg_kg: roundN(externalW, 5),
+    internal_absolute_humidity_kg_kg: roundN(internalW, 5),
+    delta_w_kg_kg: roundN(deltaW, 5),
     air_flow_m3_h: round2(volumeFlowM3H),
     dry_air_flow_kg_h: round2(dryAirFlowKgH),
     water_removed_air_kg_h: round2(waterFromAirKgH),
