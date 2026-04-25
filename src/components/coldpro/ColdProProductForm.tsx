@@ -199,11 +199,14 @@ export function ColdProProductForm({ environmentId, productCatalog = [], onSave 
                   <ColdProField label="Temp. final produto" unit="°C"><ColdProInput {...num("outlet_temp_c")} /></ColdProField>
                   <ColdProField label="Temp. congelamento" unit="°C"><ColdProInput {...num("initial_freezing_temp_c")} /></ColdProField>
                   <ColdProField label="Densidade" unit="kg/m³"><ColdProInput {...num("density_kg_m3")} /></ColdProField>
+                  <ColdProField label="Água" unit="%"><ColdProInput {...num("water_content_percent")} /></ColdProField>
+                  <ColdProField label="Proteína" unit="%"><ColdProInput {...num("protein_content_percent")} /></ColdProField>
                 </div>
                 <div>
                   <ColdProField label="Cp acima"><ColdProInput {...num("specific_heat_above_kcal_kg_c")} /></ColdProField>
                   <ColdProField label="Cp abaixo"><ColdProInput {...num("specific_heat_below_kcal_kg_c")} /></ColdProField>
                   <ColdProField label="Calor latente"><ColdProInput {...num("latent_heat_kcal_kg")} /></ColdProField>
+                  <ColdProField label="Calor latente" unit="kJ/kg"><ColdProInput {...num("latent_heat_kj_kg")} /></ColdProField>
                   <ColdProField label="Condutividade congelado"><ColdProInput {...num("thermal_conductivity_frozen_w_m_k")} /></ColdProField>
                   <ColdProField label="Fração água congelável"><ColdProInput {...num("frozen_water_fraction")} /></ColdProField>
                   <ColdProField label="Espessura característica" unit="m"><ColdProInput {...num("characteristic_thickness_m")} /></ColdProField>
