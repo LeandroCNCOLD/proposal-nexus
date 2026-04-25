@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { createServerFn } from "@tanstack/react-start";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { calculateColdProLoad } from "./coldpro-calculation.engine";
 import { calculateAdvancedProcess } from "@/modules/coldpro/services/advancedProcesses/advancedProcessEngine";
 import { findEquipmentCandidates, suggestApplication, suggestEvaporationTemp } from "./equipment-selection.engine";
@@ -48,7 +49,7 @@ function stripUiMaterialKey(value: unknown) {
   return value.includes(":") ? value.split(":").pop() : value;
 }
 
-export const listColdProProjects = createServerFn({ method: "GET" }).handler(async () => {
+export const listColdProProjects = createServerFn({ method: "GET" }).middleware([requireSupabaseAuth]).handler(async () => {
   const supabase = supabaseAdmin;
   const { data, error } = await supabase.from("coldpro_projects").select("*").order("created_at", { ascending: false });
   if (error) throw new Error(error.message);
@@ -56,6 +57,7 @@ export const listColdProProjects = createServerFn({ method: "GET" }).handler(asy
 });
 
 export const createColdProProject = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator(z.object({ proposal_id: z.string().uuid().nullable().optional(), name: trimmedName, application_type: z.string().default("cold_room") }))
   .handler(async ({ data }) => {
     const supabase = supabaseAdmin;
@@ -65,6 +67,7 @@ export const createColdProProject = createServerFn({ method: "POST" })
   });
 
 export const getColdProProjectBundle = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
   .inputValidator(z.object({ projectId: z.string().uuid() }))
   .handler(async ({ data }) => {
     const supabase = supabaseAdmin;
@@ -84,6 +87,7 @@ export const getColdProProjectBundle = createServerFn({ method: "GET" })
   });
 
 export const createColdProEnvironment = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator(z.object({ projectId: z.string().uuid(), name: trimmedName, environment_type: z.string().default("cold_room") }))
   .handler(async ({ data }) => {
     const supabase = supabaseAdmin;
@@ -94,6 +98,7 @@ export const createColdProEnvironment = createServerFn({ method: "POST" })
   });
 
 export const updateColdProEnvironment = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator(z.object({ id: z.string().uuid(), patch: z.record(z.string(), z.unknown()) }))
   .handler(async ({ data }) => {
     const supabase = supabaseAdmin;
