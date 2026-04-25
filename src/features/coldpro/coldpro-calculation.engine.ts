@@ -605,13 +605,41 @@ export function calculateTunnelLoad(tunnel: ColdProTunnel) {
 
   const timeDivisor = isStatic && batchTimeH > 0 ? batchTimeH : 1;
   const productHourly = (sensibleAbove + latentLoad + sensibleBelow) / timeDivisor;
+  const qSpecificKjKg = calculationMass > 0 ? ((sensibleAbove + latentLoad + sensibleBelow) / calculationMass) * KCAL_TO_KJ : 0;
   const packaging = n(tunnel.packaging_mass_kg_hour) * n(tunnel.packaging_specific_heat_kcal_kg_c) * Math.abs(tin - tout);
   const internalLoads = kwToKcalh(n(tunnel.belt_motor_kw) + n(tunnel.internal_fans_kw) + n(tunnel.other_internal_kw));
   const total = productHourly + packaging + internalLoads;
   const availableTimeMin = isStatic ? batchTimeH * 60 : n(tunnel.process_time_min);
+  const optimization = optimizeProcessAirCondition({
+    processType,
+    arrangementType,
+    operationMode: isStatic ? "batch" : "continuous",
+    qSpecificKjKg,
+    massKgHour: massHour,
+    batchMassKg: staticMass,
+    batchTimeH,
+    desiredTimeMin: availableTimeMin,
+    initialAirTempC: n(tunnel.air_temp_c),
+    initialAirVelocityMS: n(tunnel.air_velocity_m_s),
+    minAirTempC: n((tunnel as any).min_air_temp_c, -40),
+    maxAirTempC: n((tunnel as any).max_air_temp_c, -25),
+    minAirVelocityMS: n((tunnel as any).min_air_velocity_m_s, 1),
+    maxAirVelocityMS: n((tunnel as any).max_air_velocity_m_s, 6),
+    airTempStepC: n((tunnel as any).air_temp_step_c, 5),
+    airVelocityStepMS: n((tunnel as any).air_velocity_step_m_s, 1),
+    airDeltaTK: n((tunnel as any).air_delta_t_k, 6),
+    airExposureFactor,
+    thermalPenetrationFactor: penetrationFactor,
+    distanceToCoreM,
+    densityKgM3: tunnel.density_kg_m3,
+    thermalConductivityFrozenWMK: tunnel.thermal_conductivity_frozen_w_m_k,
+    freezingTempC: tunnel.freezing_temp_c,
+    latentHeatKcalKg: tunnel.latent_heat_kcal_kg,
+    frozenWaterFraction: frozenFraction,
+  });
   const retentionMargin = estimatedFreezingTimeMin && availableTimeMin > 0 ? availableTimeMin / estimatedFreezingTimeMin : null;
-  const retentionStatus = !retentionMargin ? "Sem dados suficientes" : retentionMargin < 1 ? "Insuficiente" : retentionMargin < 1.1 ? "Adequado com baixa margem" : "Adequado";
-  const warnings = [arrangementDefaults.warning, !estimatedFreezingTimeMin ? "Tempo até núcleo não estimado por falta de densidade, condutividade congelada, calor latente, temperatura de congelamento ou dimensão térmica." : null].filter(Boolean);
+  const retentionStatus = optimization.status === "adequado" ? "Adequado por otimização" : !retentionMargin ? "Sem dados suficientes" : retentionMargin < 1 ? "Insuficiente" : retentionMargin < 1.1 ? "Adequado com baixa margem" : "Adequado";
+  const warnings = [arrangementDefaults.warning, !estimatedFreezingTimeMin ? "Tempo até núcleo não estimado por falta de densidade, condutividade congelada, calor latente, temperatura de congelamento ou dimensão térmica." : null, ...optimization.warnings].filter(Boolean);
 
   return {
     process_type: processType,
@@ -622,6 +650,7 @@ export function calculateTunnelLoad(tunnel: ColdProTunnel) {
     static_mass_kg: round2(staticMass),
     batch_time_h: round2(batchTimeH),
     total_energy_kcal: round2(sensibleAbove + latentLoad + sensibleBelow),
+    q_specific_kj_kg: round2(qSpecificKjKg),
     sensible_above_kcal_h: round2(sensibleAbove / timeDivisor),
     latent_kcal_h: round2(latentLoad / timeDivisor),
     sensible_below_kcal_h: round2(sensibleBelow / timeDivisor),
@@ -658,7 +687,14 @@ export function calculateTunnelLoad(tunnel: ColdProTunnel) {
     retention_status: retentionStatus,
     technical_status: retentionStatus,
     warnings,
-    recommended_airflow_m3_h: calculateRecommendedAirFlowM3H(kcalhToKw(total)),
+    recommended_air_temp_c: optimization.recommendation?.air_temp_c ?? null,
+    recommended_air_velocity_m_s: optimization.recommendation?.air_velocity_m_s ?? null,
+    recommended_airflow_m3_h: optimization.recommendation?.airflow_m3_h ?? calculateRecommendedAirFlowM3H(kcalhToKw(total), n((tunnel as any).air_delta_t_k, 6)),
+    optimization_status: optimization.status,
+    optimization_margin_percent: optimization.recommendation?.margin_percent ?? null,
+    optimization_attempts_count: optimization.attempts_count,
+    optimization_attempts: optimization.attempts,
+    optimization_memory: optimization.memory,
   };
 }
 
