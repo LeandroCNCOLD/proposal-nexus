@@ -883,11 +883,22 @@ export const nomusSyncProposalsFull = createServerFn({ method: "POST" })
       entity: "propostas",
       endpoint: NOMUS_ENDPOINTS.propostas,
       triggeredBy: userId,
-      processItem: async (raw) => {
+      processItem: async (raw, syncRunId) => {
         const { mapNomusProposal, extractProposalItems } = await import("./parse");
         const mapped = mapNomusProposal(raw);
-        if (!mapped) return "skip";
+        if (!mapped) {
+          await quarantineSyncRow({ syncRunId, entityType: "propostas", errorCode: "MISSING_REQUIRED_FIELD", reason: "Proposta sem campos mínimos para mapeamento", rawPayload: raw });
+          return "quarantined";
+        }
         const nomus_id = mapped.nomus_id;
+        if (!nomus_id || !mapped.numero) {
+          await quarantineSyncRow({ syncRunId, entityType: "propostas", externalId: nomus_id, errorCode: !nomus_id ? "MISSING_EXTERNAL_ID" : "MISSING_REQUIRED_FIELD", reason: !nomus_id ? "Proposta sem ID Nomus" : "Proposta sem número", rawPayload: raw });
+          return "quarantined";
+        }
+        if (mapped.valor_total !== null && mapped.valor_total < 0) {
+          await quarantineSyncRow({ syncRunId, entityType: "propostas", externalId: nomus_id, errorCode: "INVALID_PROPOSAL_TOTAL", reason: "Proposta com valor total inválido", rawPayload: raw });
+          return "quarantined";
+        }
 
         const upsertPayload = {
           nomus_id,
@@ -902,7 +913,26 @@ export const nomusSyncProposalsFull = createServerFn({ method: "POST" })
           observacoes: mapped.observacoes,
           raw: raw as never,
           synced_at: new Date().toISOString(),
+          last_synced_at: new Date().toISOString(),
+          external_updated_at: pickExternalUpdatedAt(raw),
+          sync_hash: await hashNormalizedPayload({
+            nomus_id,
+            numero: mapped.numero,
+            cliente_nomus_id: mapped.cliente_nomus_id,
+            vendedor_nomus_id: mapped.vendedor_nomus_id,
+            representante_nomus_id: mapped.representante_nomus_id,
+            valor_total: mapped.valor_total,
+            status_nomus: mapped.status_nomus,
+            validade: mapped.validade,
+            data_emissao: mapped.data_emissao,
+            observacoes: mapped.observacoes,
+          }),
         };
+        const currentMirror = await readCurrentHash("nomus_proposals", nomus_id);
+        if (currentMirror?.sync_hash === upsertPayload.sync_hash) {
+          await logSyncRow({ syncRunId, entityType: "propostas", externalId: nomus_id, localId: currentMirror.id, action: "skipped_no_change", status: "skipped", errorCode: "SKIPPED_NO_CHANGE", previousHash: currentMirror.sync_hash, newHash: upsertPayload.sync_hash, rawPayload: raw });
+          return "no_change";
+        }
         const { data: mirror, error: mErr } = await supabaseAdmin
           .from("nomus_proposals")
           .upsert(upsertPayload, { onConflict: "nomus_id" })
@@ -931,6 +961,20 @@ export const nomusSyncProposalsFull = createServerFn({ method: "POST" })
               position: idx,
               raw: it as never,
               synced_at: new Date().toISOString(),
+              last_synced_at: new Date().toISOString(),
+              normalized_model_code: normalizeCnColdModelCode(it.product_code ?? it.description),
+              sync_hash: await hashNormalizedPayload({
+                nomus_proposal_id: mirrorId,
+                nomus_item_id: naturalItemId,
+                nomus_product_id: it.nomus_product_id,
+                product_code: it.product_code,
+                description: it.description,
+                quantity: it.quantity,
+                unit_price: it.unit_price,
+                discount: it.discount,
+                total: it.total,
+                position: idx,
+              }),
             };
             const { error: itemErr } = await supabaseAdmin
               .from("nomus_proposal_items")
