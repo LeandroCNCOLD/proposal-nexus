@@ -1,4 +1,4 @@
-import { BarChart3, Calculator, Gauge, Snowflake } from "lucide-react";
+import { BarChart3, Calculator, Droplets, Gauge, Snowflake } from "lucide-react";
 import { fmtColdPro } from "./ColdProFormPrimitives";
 
 function n(value: unknown) {
@@ -63,10 +63,12 @@ export function ColdProResultCard({ result }: { result: any }) {
   const transmissionFaces = Array.isArray(result.calculation_breakdown?.transmission_faces) ? result.calculation_breakdown.transmission_faces : [];
   const transmissionSummary = result.calculation_breakdown?.transmission_summary ?? {};
   const tunnel = result.calculation_breakdown?.tunnel;
+  const seedDehumidification = result.calculation_breakdown?.seed_dehumidification;
   const productBreakdown = Array.isArray(result.calculation_breakdown?.products) ? result.calculation_breakdown.products : [];
   const bars = [
     { label: "Ambiente", value: result.transmission_kcal_h },
     { label: "Produtos", value: productTotal },
+    { label: "Desumidificação", value: seedDehumidification?.total_kcal_h },
     { label: "Cargas extras", value: extraTotal },
     { label: "Segurança", value: result.safety_kcal_h },
   ];
