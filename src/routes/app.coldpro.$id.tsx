@@ -162,12 +162,14 @@ function ColdProProjectPage() {
     }
   }
 
-  async function handleGeneratePdf(aiAnalysis?: string | null) {
+  async function handleGeneratePdf(aiAnalysis?: string | null, reportType: "full" | "proposal_summary" = "full") {
     try {
-      const res = await generatePdf.mutateAsync({ attachToProposal: true, aiAnalysis });
+      const res = await generatePdf.mutateAsync({ attachToProposal: true, aiAnalysis, reportType });
       setLastPdfUrl(res.signedUrl ?? null);
       toast.success(
-        res.attachedToProposalId
+        reportType === "proposal_summary" && res.attachedToProposalId
+          ? "Resumo PDF gerado e anexado à proposta."
+          : res.attachedToProposalId
           ? "Memorial PDF gerado e anexado à proposta."
           : "Memorial PDF gerado.",
       );
