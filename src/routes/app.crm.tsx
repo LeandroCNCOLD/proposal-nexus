@@ -348,6 +348,8 @@ function KanbanBoardRich({
   stages,
   loading,
   error,
+  moving,
+  onMove,
 }: {
   stages: Array<{
     etapa: string;
@@ -362,6 +364,8 @@ function KanbanBoardRich({
   }>;
   loading: boolean;
   error?: boolean;
+  moving?: boolean;
+  onMove?: (processId: string, etapa: string) => void;
 }) {
   if (loading) {
     return <div className="text-sm text-muted-foreground">Carregando processos…</div>;
@@ -411,7 +415,23 @@ function KanbanBoardRich({
                   Vazio
                 </div>
               ) : (
-                col.processes.map((p) => <KanbanCardRich key={p.id} card={p} />)
+                col.processes.map((p) => (
+                  <div key={p.id} className="space-y-1.5">
+                    <KanbanCardRich card={p} />
+                    {onMove && (
+                      <Select value={p.etapa ?? col.etapa} onValueChange={(value) => onMove(p.id, value)} disabled={moving}>
+                        <SelectTrigger className="h-7 text-[11px]">
+                          <SelectValue placeholder="Mover para" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {stages.map((stage) => (
+                            <SelectItem key={stage.etapa} value={stage.etapa}>{stage.etapa}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
+                ))
               )}
             </div>
           </div>
