@@ -700,17 +700,19 @@ export const nomusKickoffSyncProposals = createServerFn({ method: "POST" })
       }
     } catch { /* mantém origin */ }
 
+    await setState("propostas", { running: true, last_cursor: null, last_error: null });
+
     let kickoffOk = false;
     let kickoffError: string | null = null;
     try {
-      const r = await fetch(`${origin}/hooks/nomus-cron`, {
+      const r = await fetch(`${origin}/api/public/hooks/nomus-cron`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${cronToken}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ entity: "propostas" }),
-        signal: AbortSignal.timeout(3000),
+        signal: AbortSignal.timeout(900),
       }).catch((e) => {
         console.error("[nomus] kickoff fetch failed", e);
         kickoffError = e instanceof Error ? e.message : String(e);
@@ -730,42 +732,13 @@ export const nomusKickoffSyncProposals = createServerFn({ method: "POST" })
       kickoffError = e instanceof Error ? e.message : String(e);
     }
 
-    if (kickoffOk) {
-      return {
-        ok: true as const,
-        queued: true as const,
-        message: "Sincronização iniciada em segundo plano. Atualize a lista em alguns instantes.",
-        triggered_by: userId,
-      };
-    }
-
-    // Fallback inline: garante que o sync acontece mesmo se o cron HTTP não puder ser disparado.
-    console.warn(`[nomus] kickoff falhou (${kickoffError ?? "sem detalhes"}), executando sync inline como fallback`);
-    try {
-      const { syncProposalsBatch } = await import("@/routes/hooks/nomus-cron");
-      const result = await syncProposalsBatch();
-      return {
-        ok: true as const,
-        queued: false as const,
-        inline: true as const,
-        message: result.done
-          ? `Sincronização concluída: ${result.count ?? 0} propostas processadas.`
-          : `Lote processado: ${result.count ?? 0} propostas. Clique em "Buscar do Nomus" novamente para continuar.`,
-        count: result.count ?? 0,
-        done: result.done ?? false,
-        triggered_by: userId,
-      };
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      await setState("propostas", { running: false, last_error: `inline fallback falhou: ${msg}` });
-      return {
-        ok: false as const,
-        queued: false as const,
-        message: `Falha ao iniciar sincronização: ${msg}`,
-        error: msg,
-        triggered_by: userId,
-      };
-    }
+    if (!kickoffOk) console.warn(`[nomus] kickoff assíncrono não confirmou (${kickoffError ?? "sem detalhes"}); cron automático continuará a fila`);
+    return {
+      ok: true as const,
+      queued: true as const,
+      message: "Sincronização agendada. A rotina automática buscará as propostas mais recentes sem travar a tela.",
+      triggered_by: userId,
+    };
   });
 
 /** @deprecated Use `nomusKickoffSyncProposals`. Mantido para compatibilidade. */

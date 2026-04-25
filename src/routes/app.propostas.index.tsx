@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, useMemo, useEffect } from "react";
-import { Plus, Search, RefreshCw } from "lucide-react";
+import { Activity, AlertCircle, CheckCircle2, Plus, Search, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { nomusKickoffSyncProposals } from "@/integrations/nomus/server.functions";
@@ -27,7 +27,30 @@ function ProposalsList() {
   // Estado da sincronização — observa nomus_sync_state.propostas.
   // Quando running=true, faz polling para refletir progresso e parar o spinner
   // assim que o cron concluir, sem travar o botão por toda a duração.
-  const { data: syncState } = useQuery({
+  const syncEntities = [
+    { key: "clientes", label: "Clientes" },
+    { key: "vendedores", label: "Vendedores" },
+    { key: "representantes", label: "Representantes" },
+    { key: "condicoes_pagamento", label: "Pagamento" },
+    { key: "propostas", label: "Propostas" },
+    { key: "pedidos", label: "Pedidos" },
+    { key: "notas_fiscais", label: "NF" },
+  ];
+
+  const { data: syncStates = [] } = useQuery({
+    queryKey: ["nomus-sync-state", "all"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("nomus_sync_state")
+        .select("entity, running, last_synced_at, total_synced, last_error, last_cursor");
+      return data ?? [];
+    },
+    refetchInterval: 4000,
+  });
+  const stateByEntity = Object.fromEntries(syncStates.map((s) => [s.entity, s]));
+  const syncState = stateByEntity.propostas;
+
+  useQuery({
     queryKey: ["nomus-sync-state", "propostas"],
     queryFn: async () => {
       const { data } = await supabase
@@ -50,7 +73,7 @@ function ProposalsList() {
     mutationFn: async () => kickoffSync(),
     onSuccess: () => {
       toast.success("Sincronização iniciada — atualizando em segundo plano.");
-      queryClient.invalidateQueries({ queryKey: ["nomus-sync-state", "propostas"] });
+      queryClient.invalidateQueries({ queryKey: ["nomus-sync-state", "all"] });
     },
     onError: (err: Error) => toast.error(`Erro ao iniciar sincronização: ${err.message}`),
   });
@@ -62,20 +85,22 @@ function ProposalsList() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("proposals")
-        .select("id, number, title, status, total_value, valid_until, created_at, updated_at, next_followup_at, closed_at, nomus_id, clients(name, document)")
+        .select("id, number, title, status, total_value, valid_until, created_at, updated_at, next_followup_at, closed_at, nomus_id, nomus_synced_at, clients(name, document)")
+        .order("nomus_synced_at", { ascending: false, nullsFirst: false })
         .order("created_at", { ascending: false });
       if (error) throw error;
       const rows = data ?? [];
       const nomusIds = rows.map((r) => r.nomus_id).filter(Boolean) as string[];
-      const nomusMap = new Map<string, { criada_em_nomus: string | null; data_emissao: string | null; representante_nome: string | null; vendedor_nome: string | null; cliente_nomus_id: string | null; numero: string | null }>();
+      const nomusMap = new Map<string, { criada_em_nomus: string | null; data_emissao: string | null; synced_at: string | null; representante_nome: string | null; vendedor_nome: string | null; cliente_nomus_id: string | null; numero: string | null }>();
       if (nomusIds.length > 0) {
         const { data: np } = await supabase
           .from("nomus_proposals")
-          .select("nomus_id, criada_em_nomus, data_emissao, representante_nome, vendedor_nome, cliente_nomus_id, numero")
+          .select("nomus_id, criada_em_nomus, data_emissao, synced_at, representante_nome, vendedor_nome, cliente_nomus_id, numero")
           .in("nomus_id", nomusIds);
         (np ?? []).forEach((n) => nomusMap.set(n.nomus_id, {
           criada_em_nomus: n.criada_em_nomus,
           data_emissao: n.data_emissao,
+          synced_at: n.synced_at,
           representante_nome: n.representante_nome,
           vendedor_nome: n.vendedor_nome,
           cliente_nomus_id: n.cliente_nomus_id,
@@ -172,6 +197,14 @@ function ProposalsList() {
     return m ? parseInt(m[1], 10) : 0;
   };
 
+  const proposalSortTime = (p: any) => {
+    const raw = p._nomus?.criada_em_nomus ?? p._nomus?.data_emissao ?? p._nomus?.synced_at ?? p.nomus_synced_at ?? p.created_at;
+    const ts = raw ? new Date(raw).getTime() : 0;
+    return Number.isFinite(ts) ? ts : 0;
+  };
+
+  const proposalNomusIdNumber = (p: any) => Number(p.nomus_id ?? p._nomus?.nomus_id ?? 0) || 0;
+
   const filtered = useMemo(() => {
     // 1) Aplica filtros de status e busca
     const list = proposals.filter((p) => {
@@ -203,9 +236,8 @@ function ProposalsList() {
         const ra = parseRevision((a as any)._nomus?.numero);
         const rb = parseRevision((b as any)._nomus?.numero);
         if (rb !== ra) return rb - ra;
-        const da = (a as any)._nomus?.criada_em_nomus ?? (a as any)._nomus?.data_emissao ?? a.created_at;
-        const db = (b as any)._nomus?.criada_em_nomus ?? (b as any)._nomus?.data_emissao ?? b.created_at;
-        return new Date(db).getTime() - new Date(da).getTime();
+        const dateDiff = proposalSortTime(b) - proposalSortTime(a);
+        return dateDiff !== 0 ? dateDiff : proposalNomusIdNumber(b) - proposalNomusIdNumber(a);
       });
       const head = sorted[0] as any;
       head._revisions = sorted; // todas as revisões da família
@@ -216,9 +248,8 @@ function ProposalsList() {
 
     // 3) Ordena pela data real do Nomus (mais recente primeiro)
     return latest.sort((a, b) => {
-      const da = a._nomus?.criada_em_nomus ?? a._nomus?.data_emissao ?? a.created_at;
-      const db = b._nomus?.criada_em_nomus ?? b._nomus?.data_emissao ?? b.created_at;
-      return new Date(db).getTime() - new Date(da).getTime();
+      const dateDiff = proposalSortTime(b) - proposalSortTime(a);
+      return dateDiff !== 0 ? dateDiff : proposalNomusIdNumber(b) - proposalNomusIdNumber(a);
     });
   }, [proposals, search, statusFilter]);
 
@@ -237,6 +268,28 @@ function ProposalsList() {
           </>
         }
       />
+
+      <div className="mb-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
+        {syncEntities.map((ent) => {
+          const st = stateByEntity[ent.key];
+          const running = !!st?.running;
+          const error = st?.last_error;
+          return (
+            <div key={ent.key} className="rounded-lg border bg-card px-3 py-2 shadow-[var(--shadow-sm)]">
+              <div className="flex items-center justify-between gap-2">
+                <span className="truncate text-xs font-semibold">{ent.label}</span>
+                {running ? <Activity className="h-3.5 w-3.5 animate-pulse text-primary" /> : error ? <AlertCircle className="h-3.5 w-3.5 text-destructive" /> : <CheckCircle2 className="h-3.5 w-3.5 text-primary" />}
+              </div>
+              <div className="mt-1 text-[11px] text-muted-foreground">
+                {st?.last_synced_at ? new Date(st.last_synced_at).toLocaleString("pt-BR") : "Aguardando sync"}
+              </div>
+              <div className="truncate text-[11px] text-muted-foreground" title={error ?? st?.last_cursor ?? undefined}>
+                {error ? error : `${st?.total_synced ?? 0} sincronizados${st?.last_cursor ? ` · ${st.last_cursor}` : ""}`}
+              </div>
+            </div>
+          );
+        })}
+      </div>
 
       <div className="mb-4 flex flex-wrap gap-3">
         <div className="relative flex-1 min-w-[260px]">
