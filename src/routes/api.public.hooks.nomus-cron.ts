@@ -245,8 +245,6 @@ const mappers: Record<EntityKey, { endpoint: string; map: Mapper }> = {
   },
 };
 
-/** Janela recente verificada automaticamente a cada execução. */
-const PROPOSALS_RECENT_PAGES = 3;
 /** Máximo de propostas novas/alteradas processadas por invocação (evita timeout). */
 const PROPOSALS_BATCH_SIZE = 20;
 
@@ -270,6 +268,18 @@ function parseNomusSortDate(raw: Record<string, unknown>): number {
       : value;
   const ts = new Date(iso).getTime();
   return Number.isFinite(ts) ? ts : 0;
+}
+
+function parseNomusProposalRank(raw: Record<string, unknown>) {
+  const numero = pickStr(raw, "proposta", "numero", "numeroProposta") ?? "";
+  const cn = numero.match(/CN\s*0*(\d+)/i);
+  const rev = numero.match(/Rev\.?\s*0*(\d+)/i);
+  const id = Number(pickStr(raw, "id", "idProposta", "codigo") ?? 0) || 0;
+  return {
+    cn: cn ? Number(cn[1]) || 0 : 0,
+    rev: rev ? Number(rev[1]) || 0 : 0,
+    id,
+  };
 }
 
 /**
@@ -301,7 +311,9 @@ async function pullProposalsNewestFirst(): Promise<{ ok: boolean; count?: number
     updated_at: new Date().toISOString(),
   });
 
-  // Sempre verifica as primeiras páginas: nelas ficam as propostas recém-cadastradas no Nomus.
+  // Lista os resumos de todas as páginas e processa só o topo mais recente.
+  // O Nomus não garante que a página 1 contenha as últimas propostas; por isso
+  // não podemos limitar a busca às primeiras páginas.
   const { data: stateRow } = await supabaseAdmin
     .from("nomus_sync_state")
     .select("total_synced")
@@ -316,26 +328,16 @@ async function pullProposalsNewestFirst(): Promise<{ ok: boolean; count?: number
   let newestSeenId = 0;
 
   try {
-    const summaries: Array<Record<string, unknown>> = [];
-    for (let pagina = 1; pagina <= PROPOSALS_RECENT_PAGES; pagina += 1) {
-      const pageRes = await nomusFetch<unknown>(endpoint, {
-        method: "GET",
-        query: { pagina },
-        entity: "propostas",
-        operation: "list-recent",
-        direction: "pull",
-        timeoutMs: 10_000,
-        maxAttempts: 1,
-      });
-      if (!pageRes.ok) {
-        if (pageRes.status === 400) break;
-        runError = pageRes.error;
-        return { ok: false, error: pageRes.error };
-      }
-      const pageItems = extractItems(pageRes.data);
-      if (pageItems.length === 0) break;
-      summaries.push(...pageItems);
+    const listRes = await listAll<Record<string, unknown>>(endpoint, {}, {
+      entity: "propostas",
+      pageSize: 50,
+      maxItems: 500,
+    });
+    if (!listRes.ok) {
+      runError = listRes.error;
+      return { ok: false, error: listRes.error };
     }
+    const summaries = listRes.items;
 
     if (summaries.length === 0) {
       done = true;
@@ -349,11 +351,13 @@ async function pullProposalsNewestFirst(): Promise<{ ok: boolean; count?: number
           return true;
         })
         .sort((a, b) => {
+          const ar = parseNomusProposalRank(a);
+          const br = parseNomusProposalRank(b);
+          if (br.cn !== ar.cn) return br.cn - ar.cn;
+          if (br.rev !== ar.rev) return br.rev - ar.rev;
+          if (br.id !== ar.id) return br.id - ar.id;
           const dateDiff = parseNomusSortDate(b) - parseNomusSortDate(a);
-          if (dateDiff !== 0) return dateDiff;
-          const ai = Number(pickStr(a, "id", "idProposta", "codigo") ?? 0);
-          const bi = Number(pickStr(b, "id", "idProposta", "codigo") ?? 0);
-          return bi - ai;
+          return dateDiff;
         });
 
       for (const summary of items) {
