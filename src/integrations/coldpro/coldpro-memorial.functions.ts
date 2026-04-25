@@ -11,6 +11,23 @@ const inputSchema = z.object({
   attachToProposal: z.boolean().optional().default(true),
 });
 
+function firstImagePath(model: any): string | null {
+  return model?.plugin_image_path
+    ?? model?.split_image_path
+    ?? model?.biblock_image_path
+    ?? model?.plugin_image_paths?.[0]
+    ?? model?.split_image_paths?.[0]
+    ?? model?.biblock_image_paths?.[0]
+    ?? null;
+}
+
+function imageMimeType(path: string): string {
+  const ext = path.split(".").pop()?.toLowerCase();
+  if (ext === "png") return "image/png";
+  if (ext === "webp") return "image/webp";
+  return "image/jpeg";
+}
+
 /**
  * Gera PDF do memorial técnico do ColdPro, salva no bucket `proposal-files`
  * e cria registro em `documents` (vinculado à proposta se houver).
@@ -50,6 +67,34 @@ export const generateColdProMemorialPdf = createServerFn({ method: "POST" })
         : Promise.resolve({ data: [] as any[] }),
     ]);
 
+    const equipmentModelIds = Array.from(new Set((selections ?? []).map((item: any) => item.equipment_model_id).filter(Boolean)));
+    const { data: equipmentModels } = equipmentModelIds.length
+      ? await supabase
+          .from("coldpro_equipment_models")
+          .select("id, plugin_image_path, split_image_path, biblock_image_path, plugin_image_paths, split_image_paths, biblock_image_paths")
+          .in("id", equipmentModelIds)
+      : { data: [] as any[] };
+
+    const equipmentImagesByModel = new Map<string, { equipment_image_path: string | null; equipment_image_url: string | null; equipment_image_data_url: string | null }>();
+    await Promise.all((equipmentModels ?? []).map(async (model: any) => {
+      const path = firstImagePath(model);
+      const publicUrl = path ? supabase.storage.from("coldpro-equipment-images").getPublicUrl(path).data.publicUrl : null;
+      let dataUrl: string | null = null;
+      if (path) {
+        const { data: blob } = await supabase.storage.from("coldpro-equipment-images").download(path);
+        if (blob) {
+          const buffer = Buffer.from(await blob.arrayBuffer());
+          dataUrl = `data:${imageMimeType(path)};base64,${buffer.toString("base64")}`;
+        }
+      }
+      equipmentImagesByModel.set(model.id, { equipment_image_path: path, equipment_image_url: publicUrl, equipment_image_data_url: dataUrl });
+    }));
+
+    const enrichedSelections = (selections ?? []).map((item: any) => ({
+      ...item,
+      ...(equipmentImagesByModel.get(item.equipment_model_id) ?? {}),
+    }));
+
     const generatedAt = new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
 
     // Render PDF para buffer
@@ -57,7 +102,7 @@ export const generateColdProMemorialPdf = createServerFn({ method: "POST" })
       project,
       environments: environments ?? [],
       results: results ?? [],
-      selections: selections ?? [],
+      selections: enrichedSelections,
       products: products ?? [],
       generatedAt,
     });
