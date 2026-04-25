@@ -4,8 +4,8 @@ import { getRequest } from "@tanstack/react-start/server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { nomusFetch, listAll, listPage, getOne, testNomusConnection } from "./client";
-import { normalizeDocument, normalizeEmail, normalizeModel, normalizeProposalNumber } from "@/services/sync/normalization";
-import { finishSyncRun, logSyncRow, startSyncRun, type SyncAction } from "@/services/sync/syncAuditService";
+import { hashNormalizedPayload, isValidCnpj, normalizeCnColdModelCode, normalizeDocument, normalizeEmail, normalizeModel, normalizeProposalNumber } from "@/services/sync/normalization";
+import { acquireSyncLock, finishSyncRun, logFieldChanges, logSyncRow, quarantineSyncRow, releaseSyncLock, startSyncRun, type SyncAction } from "@/services/sync/syncAuditService";
 import {
   NOMUS_ENDPOINTS,
   pessoaContatosPath,
@@ -15,6 +15,7 @@ import {
 } from "./endpoints";
 
 type Json = Record<string, unknown>;
+type ProcessResult = "ok" | "skip" | "unmatched" | "no_change" | "quarantined";
 
 const pickStr = (o: Json, ...keys: string[]): string | null => {
   for (const k of keys) {
@@ -84,6 +85,15 @@ function stableNaturalItemId(position: number, productCode: string | null, descr
   const code = normalizeModel(productCode) ?? "SEM-CODIGO";
   const desc = normalizeProposalNumber(description)?.slice(0, 80) ?? "SEM-DESCRICAO";
   return `natural:${position}:${code}:${desc}`;
+}
+
+function pickExternalUpdatedAt(raw: Json): string | null {
+  return pickStr(raw, "updatedAt", "updated_at", "dataAlteracao", "dataModificacao", "dataHoraAlteracao", "alteradoEm");
+}
+
+async function readCurrentHash(table: string, externalId: string): Promise<{ id?: string | null; sync_hash?: string | null } | null> {
+  const { data } = await supabaseAdmin.from(table as never).select("id, sync_hash").eq("nomus_id", externalId).maybeSingle();
+  return data as { id?: string | null; sync_hash?: string | null } | null;
 }
 
 async function syncPersonContacts(args: { clientId: string; pessoaId: string; triggeredBy: string | null }) {
