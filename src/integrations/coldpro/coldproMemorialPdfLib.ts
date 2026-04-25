@@ -202,10 +202,10 @@ function loadOfferChart(ctx: Ctx, requiredKcalH: number, offeredKcalH: number) {
 function selectionStatus(requiredKcalH: number, offeredKcalH: number) {
   if (requiredKcalH <= 0 || offeredKcalH <= 0) return { label: "PENDENTE", note: "Cálculo ou seleção ainda não informado." };
   const margin = ((offeredKcalH - requiredKcalH) / requiredKcalH) * 100;
-  if (offeredKcalH < requiredKcalH) return { label: "ALERTA", note: "Capacidade ofertada abaixo da carga requerida; revisar seleção." };
-  if (margin < 10) return { label: "CRÍTICO", note: "Sobra técnica inferior a 10%; margem operacional apertada." };
-  if (margin > 50) return { label: "SUPERDIMENSIONADO", note: "Sobra técnica acima de 50%; avaliar modelo menor ou modulação." };
-  return { label: "ADEQUADO", note: "Sobra técnica dentro da faixa recomendada para validação comercial." };
+  if (offeredKcalH < requiredKcalH) return { label: "REPROVADO", note: "Capacidade total corrigida abaixo da carga requerida." };
+  if (margin < 10) return { label: "ATENÇÃO - SOBRA BAIXA", note: "Sobra técnica inferior a 10%; margem operacional apertada." };
+  if (margin <= 30) return { label: "ADEQUADO", note: "Sobra técnica dentro da faixa validada." };
+  return { label: "SOBREDIMENSIONADO - VALIDAR", note: "Sobra técnica acima de 30%; validar seleção." };
 }
 
 function projectLineChart(ctx: Ctx, environments: any[], results: any[]) {
@@ -369,6 +369,30 @@ function drawAuditMemory(ctx: Ctx, result: any) {
   if (deg) table(ctx, ["Cálculo de degelo obrigatório", "Valor"], [["Fórmula", "gelo_kg_dia x (Cp_gelo x |T_evap| + 80) x fator_perdas"], ["Cp gelo / fator perdas", `0,50 kcal/kg°C / ${fmt(deg.lossFactor)}x`], ["Temperatura evaporação", `${fmt(deg.evapTempC)} °C`], ["Energia por kg", `${fmt(deg.energyPerKg)} kcal/kg`], ["Energia diária de degelo", `${fmt(deg.energyKcalDay, 0)} kcal/dia`], ["Carga térmica equivalente", `${fmt(deg.defrostKcalH, 0)} kcal/h`]], [0.5, 0.5]);
   if (fan || motors) table(ctx, ["Cargas internas auditáveis", "Valor"], [["Ventiladores", `${fmt(fan?.fansKcalH, 0)} kcal/h (${fan?.source ?? "—"})${fan?.airflowM3H ? ` | vazão ${fmt(fan.airflowM3H, 0)} m3/h` : ""}`], ["Motores", `${fmt(motors?.power_kw)} kW x ${fmt(motors?.hours_day)} h/dia x dissipação ${fmt(Number(motors?.dissipation_factor ?? 0) * 100, 0)}%`], ["Regra dissipação motores", motors?.dissipation_rule ?? "interno 100%; parcial 30-70%; externo 0%"]], [0.5, 0.5]);
   if (alerts.length) table(ctx, ["Validações automáticas", "Mensagem"], alerts.map((a: any) => [`${String(a.level).toUpperCase()} - ${a.code}`, a.message]), [0.34, 0.66]);
+}
+
+function drawDimensioningAudit(ctx: Ctx, result: any, selection: any) {
+  const audit = result?.calculation_breakdown?.thermalCalculationResult ?? result?.calculation_breakdown?.mathematical_audit;
+  if (!audit) return;
+  heading(ctx, "Auditoria matemática do dimensionamento", 3);
+  table(ctx, ["Validação", "Valor"], [
+    ["Subtotal calculado pela soma das parcelas", `${fmt(audit.subtotal_validado, 0)} kcal/h`],
+    ["Subtotal exibido", `${fmt(audit.subtotal_exibido, 0)} kcal/h`],
+    ["Diferença subtotal", `${fmt(audit.subtotal_diferenca_kcal_h, 2)} kcal/h`],
+    ["Carga requerida calculada", `${fmt(audit.carga_requerida_validada, 0)} kcal/h`],
+    ["Carga requerida exibida", `${fmt(audit.carga_requerida_exibida, 0)} kcal/h`],
+    ["Diferença carga requerida", `${fmt(audit.carga_requerida_diferenca_kcal_h, 2)} kcal/h`],
+    ["Capacidade nominal/referência", audit.capacidade_nominal_kcal_h ? `${fmt(audit.capacidade_nominal_kcal_h, 0)} kcal/h` : "—"],
+    ["Capacidade unitária corrigida usada", `${fmt(audit.capacidade_unitaria_corrigida, 0)} kcal/h`],
+    ["Quantidade", fmt(audit.quantidade, 0)],
+    ["Capacidade total corrigida", `${fmt(audit.capacidade_total_corrigida, 0)} kcal/h`],
+    ["Sobra técnica calculada", `${fmt(audit.sobra_percentual, 2)}%`],
+    ["Sobra técnica exibida", `${fmt(audit.sobra_percentual_exibida, 2)}%`],
+    ["Status", audit.status_dimensionamento ?? "—"],
+    ["Emissão permitida", audit.emissao_permitida ?? "—"],
+  ], [0.52, 0.48]);
+  table(ctx, ["Premissas da curva", "Valor"], [["Modelo", audit.curva?.modelo ?? selection?.model], ["Tevap usada", `${fmt(audit.curva?.temperatura_evaporacao_c)} °C`], ["Tcond usada", `${fmt(audit.curva?.temperatura_condensacao_c)} °C`], ["Temperatura interna", `${fmt(audit.curva?.temperatura_interna_c)} °C`], ["Refrigerante", audit.curva?.refrigerante ?? "—"], ["Fonte da curva", audit.curva?.fonte ?? "—"], ["R2 da curva", audit.curva?.r2 != null ? fmt(audit.curva.r2, 4) : "—"]], [0.42, 0.58]);
+  if (audit.bloqueios?.length) table(ctx, ["Bloqueio de memorial final", "Mensagem"], audit.bloqueios.map((b: any) => [b.code, b.message]), [0.34, 0.66]);
 }
 
 function pieChart(ctx: Ctx, result: any) {
