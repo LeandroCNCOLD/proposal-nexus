@@ -4,6 +4,8 @@ import { getRequest } from "@tanstack/react-start/server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { nomusFetch, listAll, listPage, getOne, testNomusConnection } from "./client";
+import { normalizeDocument, normalizeEmail, normalizeModel, normalizeProposalNumber } from "@/services/sync/normalization";
+import { finishSyncRun, logSyncRow, startSyncRun, type SyncAction } from "@/services/sync/syncAuditService";
 import {
   NOMUS_ENDPOINTS,
   pessoaContatosPath,
@@ -73,6 +75,10 @@ const toOptionalNumber = (value: unknown): number | null => {
   const n = Number(value);
   return Number.isFinite(n) ? n : null;
 };
+
+function asSyncAction(exists: boolean): SyncAction {
+  return exists ? "updated" : "inserted";
+}
 
 async function syncPersonContacts(args: { clientId: string; pessoaId: string; triggeredBy: string | null }) {
   const res = await nomusFetch<unknown>(pessoaContatosPath(args.pessoaId), {
