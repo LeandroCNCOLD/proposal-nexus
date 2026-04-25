@@ -751,7 +751,16 @@ export const updateNomusProcess = createServerFn({ method: "POST" })
         changed_by: context.userId,
       });
     }
-    return { ok: true as const, process: { ...row, ...updateRow } };
+    return {
+      ok: true as const,
+      process: {
+        id: String(row.id),
+        nomus_id: String(row.nomus_id),
+        nome: updateRow.nome ?? null,
+        etapa: updateRow.etapa ?? null,
+        tipo: updateRow.tipo ?? null,
+      },
+    };
   });
 
 export const createNomusProcess = createServerFn({ method: "POST" })
@@ -771,9 +780,10 @@ export const createNomusProcess = createServerFn({ method: "POST" })
     if (!res.ok) return { ok: false as const, error: res.error };
     const raw = res.data && typeof res.data === "object" ? res.data : (payload as NomusProcessRaw);
     const persisted = await persistNomusProcessBatch([raw], context.userId);
+    const createdId = raw.id != null ? String(raw.id) : "";
     return persisted.errors.length
       ? { ok: false as const, error: persisted.errors.join("; ") }
-      : { ok: true as const, process: raw };
+      : { ok: true as const, process: { nomus_id: createdId, nome: raw.nome ?? null, etapa: raw.etapa ?? null, tipo: raw.tipo ?? null } };
   });
 
 // ---------------- ping individual: garante que o PUT segue funcionando ----------------
