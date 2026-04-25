@@ -280,7 +280,7 @@ export function ColdProTunnelForm({ environmentId, tunnel, productCatalog = [], 
               <ColdProField label="Tipo de embalagem"><ColdProInput type="text" value={form.package_type ?? ""} onChange={(e) => set("package_type", e.target.value)} className="text-left" /></ColdProField>
               <ColdProField label="Fator exposição ao ar"><ColdProInput {...num("air_exposure_factor")} /></ColdProField>
               <ColdProField label="Fator penetração térmica"><ColdProInput {...num("thermal_penetration_factor")} /></ColdProField>
-              <ColdProValidationMessage tone="info">A vazão recomendada será recalculada por potência, densidade do ar, Cp do ar e ΔT do ar.</ColdProValidationMessage>
+              <ColdProValidationMessage>A vazão recomendada será recalculada por potência, densidade do ar, Cp do ar e ΔT do ar.</ColdProValidationMessage>
               <ColdProValidationMessage>{velocityWarning ? "Confira a velocidade do ar. Valores usuais ficam acima de 0 e geralmente abaixo de 10 m/s." : ""}</ColdProValidationMessage>
               <ColdProValidationMessage tone="error">{processError ? (isStatic ? "Tempo de batelada deve ser maior que zero." : "Tempo de retenção deve ser maior que zero.") : ""}</ColdProValidationMessage>
             </div></div>
