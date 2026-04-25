@@ -4,7 +4,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { ColdProField, ColdProInput } from "./ColdProField";
 import { ColdProCalculatedInfo, ColdProFormSection, ColdProValidationMessage, fmtColdPro, numberOrNull } from "./ColdProFormPrimitives";
 import { calculateExtraLoadPreview, suggestedInfiltrationFactor } from "@/features/coldpro/extra-loads-preview";
-import { MOTOR_EQUIPMENT_PRESETS } from "@/features/coldpro/thermal-calculations";
+import { LIGHTING_EQUIPMENT_PRESETS, MOTOR_EQUIPMENT_PRESETS } from "@/features/coldpro/thermal-calculations";
 
 type Props = { environment: any; catalogFanLoadKcalH?: number; onSave: (patch: Record<string, unknown>) => void };
 
@@ -21,8 +21,11 @@ export function ColdProExtraLoadsForm({ environment, catalogFanLoadKcalH = 0, on
   const preview = calculateExtraLoadPreview(form ?? {});
   const suggestedFactor = suggestedInfiltrationFactor(form ?? {});
   const internalPower = Number(form.lighting_power_w ?? 0) / 1000 + Number(form.motors_power_kw ?? 0);
-  const applyMotorPreset = (preset: (typeof MOTOR_EQUIPMENT_PRESETS)[number]) => {
-    setForm((prev: any) => ({ ...prev, motors_power_kw: preset.powerKw, motors_dissipation_factor: preset.dissipationFactor, motors_hours_day: prev?.motors_hours_day ?? 8 }));
+  const addMotorPreset = (preset: (typeof MOTOR_EQUIPMENT_PRESETS)[number]) => {
+    setForm((prev: any) => ({ ...prev, motors_power_kw: Number(prev?.motors_power_kw ?? 0) + preset.powerKw, motors_dissipation_factor: preset.dissipationFactor, motors_hours_day: prev?.motors_hours_day ?? 8 }));
+  };
+  const addLightingPreset = (preset: (typeof LIGHTING_EQUIPMENT_PRESETS)[number]) => {
+    setForm((prev: any) => ({ ...prev, lighting_power_w: Number(prev?.lighting_power_w ?? 0) + preset.powerW, lighting_hours_day: prev?.lighting_hours_day ?? 8 }));
   };
   const save = () => onSave({ ...form, infiltration_factor: Number(form?.infiltration_factor ?? 0) > 0 ? form.infiltration_factor : suggestedFactor, defrost_kcal_h: Number(form?.defrost_kcal_h ?? 0) > 0 ? form.defrost_kcal_h : preview.defrost_suggestion.defrostKcalH });
 
@@ -107,6 +110,10 @@ export function ColdProExtraLoadsForm({ environment, catalogFanLoadKcalH = 0, on
                 <div>
                   <ColdProField label="Iluminação" unit="W"><ColdProInput {...num("lighting_power_w")} /></ColdProField>
                   <ColdProField label="Horas de iluminação" unit="h/dia"><ColdProInput {...num("lighting_hours_day")} /></ColdProField>
+                  <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    {LIGHTING_EQUIPMENT_PRESETS.map((preset) => <button key={preset.label} type="button" onClick={() => addLightingPreset(preset)} className="rounded-md border bg-background px-3 py-2 text-left text-xs font-medium hover:bg-muted">+ {preset.label} · {fmtColdPro(preset.powerW)} W</button>)}
+                  </div>
+                  <button type="button" onClick={() => set("lighting_power_w", 0)} className="mb-4 rounded-md border bg-background px-3 py-2 text-xs font-medium hover:bg-muted">Limpar iluminação</button>
                   <ColdProCalculatedInfo label="Carga ocupação + iluminação" value={`${fmtColdPro(preview.people_kcal_h + preview.lighting_kcal_h)} kcal/h`} description={`Pessoas ${fmtColdPro(preview.people_kcal_h)} · iluminação ${fmtColdPro(preview.lighting_kcal_h)}`} />
                 </div>
               </div>
@@ -125,8 +132,9 @@ export function ColdProExtraLoadsForm({ environment, catalogFanLoadKcalH = 0, on
                   <ColdProField label="Dissipação motores"><ColdProInput {...num("motors_dissipation_factor")} /></ColdProField>
                   <ColdProField label="Ventiladores" unit="kcal/h"><ColdProInput {...num("fans_kcal_h")} /></ColdProField>
                   <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    {MOTOR_EQUIPMENT_PRESETS.map((preset) => <button key={preset.label} type="button" onClick={() => applyMotorPreset(preset)} className="rounded-md border bg-background px-3 py-2 text-left text-xs font-medium hover:bg-muted">{preset.label} · {fmtColdPro(preset.powerKw)} kW</button>)}
+                    {MOTOR_EQUIPMENT_PRESETS.map((preset) => <button key={preset.label} type="button" onClick={() => addMotorPreset(preset)} className="rounded-md border bg-background px-3 py-2 text-left text-xs font-medium hover:bg-muted">+ {preset.label} · {fmtColdPro(preset.powerKw)} kW</button>)}
                   </div>
+                  <button type="button" onClick={() => setForm((prev: any) => ({ ...prev, motors_power_kw: 0 }))} className="mb-4 rounded-md border bg-background px-3 py-2 text-xs font-medium hover:bg-muted">Limpar lista de equipamentos</button>
                   {catalogFanLoadKcalH > 0 ? <button type="button" onClick={() => set("fans_kcal_h", catalogFanLoadKcalH)} className="mb-4 rounded-md border bg-background px-3 py-2 text-xs font-medium hover:bg-muted">Usar ventiladores do catálogo ({fmtColdPro(catalogFanLoadKcalH)} kcal/h)</button> : null}
                 </div>
                 <div>

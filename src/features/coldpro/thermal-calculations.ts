@@ -122,10 +122,22 @@ export function calculateMotorLoadKcalH(env: any) {
 export const MOTOR_EQUIPMENT_PRESETS = [
   { label: "Empilhadeira elétrica", powerKw: 4.5, dissipationFactor: 1 },
   { label: "Transpaleteira elétrica", powerKw: 1.5, dissipationFactor: 1 },
+  { label: "Paleteira manual elétrica", powerKw: 0.8, dissipationFactor: 1 },
   { label: "Esteira transportadora", powerKw: 0.75, dissipationFactor: 1 },
   { label: "Agitador / misturador", powerKw: 2.2, dissipationFactor: 1 },
   { label: "Bomba interna", powerKw: 1.1, dissipationFactor: 1 },
+  { label: "Bomba de glicol interna", powerKw: 3, dissipationFactor: 1 },
   { label: "Ventilador auxiliar", powerKw: 0.55, dissipationFactor: 1 },
+  { label: "Porta rápida motorizada", powerKw: 0.75, dissipationFactor: 0.35 },
   { label: "Motor parcialmente externo", powerKw: 2.2, dissipationFactor: 0.5 },
   { label: "Motor externo", powerKw: 2.2, dissipationFactor: 0 },
+];
+
+export const LIGHTING_EQUIPMENT_PRESETS = [
+  { label: "Luminária LED câmara fria", powerW: 60 },
+  { label: "Luminária LED industrial", powerW: 100 },
+  { label: "Refletor LED", powerW: 150 },
+  { label: "Painel LED", powerW: 40 },
+  { label: "Fluorescente 2x40 W", powerW: 80 },
+  { label: "Lâmpada tubular LED", powerW: 18 },
 ];
