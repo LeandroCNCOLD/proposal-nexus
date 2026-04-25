@@ -372,6 +372,23 @@ export function ColdProMemorialPdf({
                   ))}
                 </View>
 
+                {Array.isArray(result.calculation_breakdown?.transmission_faces) && result.calculation_breakdown.transmission_faces.length ? (
+                  <>
+                    <Text style={styles.h3}>Transmissão por face</Text>
+                    <View style={styles.table}>
+                      {result.calculation_breakdown.transmission_faces.map((face: any, i: number, arr: any[]) => (
+                        <View key={face.local} style={i === arr.length - 1 ? styles.trLast : styles.tr}>
+                          <Text style={[styles.td, { flex: 1.2 }]}>{face.local}</Text>
+                          <Text style={[styles.td, styles.tdRight]}>A {fmt(face.area_m2)} m²</Text>
+                          <Text style={[styles.td, styles.tdRight]}>U {fmt(face.u_value_w_m2k, 3)}</Text>
+                          <Text style={[styles.td, styles.tdRight]}>ΔT {fmt(face.delta_t_c)} °C</Text>
+                          <Text style={[styles.td, styles.tdRight, { borderRightWidth: 0 }]}>{fmt(face.transmission_kcal_h, 0)} kcal/h</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </>
+                ) : null}
+
                 <View style={[styles.kpiRow, { marginTop: 8 }]}>
                   <View style={styles.kpiBox}>
                     <Text style={styles.kpiLabel}>Subtotal</Text>
