@@ -79,18 +79,24 @@ async function loadColdProAnalysisBundle(projectId: string) {
 async function generateAiAnalysis(input: any): Promise<string | null> {
   const key = process.env.LOVABLE_API_KEY;
   if (!key) return null;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 22000);
   try {
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
+      signal: controller.signal,
       headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "google/gemini-3.1-pro-preview",
+        model: "openai/gpt-5-mini",
+        max_tokens: 1800,
+        temperature: 0.2,
         messages: [
-          { role: "system", content: "Você é um agente técnico sênior de engenharia frigorífica. Responda como consultor especialista, com análise crítica, base técnica, recomendações práticas e sem inventar dados. Quando o usuário fizer uma pergunta, responda diretamente e conecte a resposta ao memorial de cálculo." },
+          { role: "system", content: "Você é um agente técnico sênior de engenharia frigorífica. Responda como consultor especialista, com análise crítica, base técnica, recomendações práticas e sem inventar dados. Seja direto, auditável e conciso para evitar respostas longas demais." },
           { role: "user", content: buildAiPrompt(input) },
         ],
       }),
     });
+    clearTimeout(timeout);
     if (!response.ok) {
       const statusText = response.status === 429 ? "limite de uso da IA atingido" : response.status === 402 ? "créditos de IA insuficientes" : `erro ${response.status}`;
       return `Laudo por IA não gerado automaticamente: ${statusText}. O memorial técnico permanece válido com as premissas e cálculos apresentados; recomenda-se revisão técnica final pelo responsável.`;
@@ -98,8 +104,9 @@ async function generateAiAnalysis(input: any): Promise<string | null> {
     const json = await response.json();
     return String(json?.choices?.[0]?.message?.content ?? "").trim() || null;
   } catch (error) {
+    clearTimeout(timeout);
     console.error("Erro ao gerar laudo IA do memorial ColdPro", error);
-    return "Laudo por IA não gerado automaticamente por indisponibilidade momentânea. O memorial técnico permanece válido com as premissas e cálculos apresentados; recomenda-se revisão técnica final pelo responsável.";
+    return "Laudo por IA não gerado automaticamente dentro do tempo seguro da aplicação. O memorial técnico permanece válido com as premissas e cálculos apresentados; recomenda-se revisão técnica final pelo responsável ou tentar novamente com uma pergunta mais objetiva.";
   }
 }
 
