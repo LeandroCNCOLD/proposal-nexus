@@ -422,6 +422,9 @@ export async function buildColdProMemorialPdfBuffer({ project, environments, res
       barChart(ctx, result);
       stackedLoadChart(ctx, result);
       table(ctx, ["Componente", "Carga"], [["Transmissão", result.transmission_kcal_h], ["Produto", result.product_kcal_h], ["Embalagem", result.packaging_kcal_h], ["Infiltração", result.infiltration_kcal_h], ["Pessoas", result.people_kcal_h], ["Iluminação", result.lighting_kcal_h], ["Motores", result.motors_kcal_h], ["Ventiladores", result.fans_kcal_h], ["Degelo", result.defrost_kcal_h], ["Outros", result.other_kcal_h]].map(([l, v]) => [String(l), `${fmt(v, 0)} kcal/h`]), [0.68, 0.32]);
+      const inf = result.calculation_breakdown?.infiltration_technical;
+      const deg = result.calculation_breakdown?.defrost_suggestion;
+      if (inf) table(ctx, ["Memória técnica de infiltração, umidade e gelo", "Valor"], [["Região / UR externa", `${inf.regionDescription ?? inf.regionUsed} / ${fmt(inf.externalRH)}%`], ["UR interna adotada", `${fmt(inf.internalRH)}%`], ["Ar por porta", `${fmt(inf.doorInfiltrationM3Day, 0)} m³/dia`], ["Ar contínuo", `${fmt(inf.continuousInfiltrationM3Day, 0)} m³/dia`], ["Carga sensível", `${fmt(inf.sensibleKcalH, 0)} kcal/h`], ["Carga latente", `${fmt(inf.latentKcalH, 0)} kcal/h`], ["Δ umidade", `${fmt(inf.deltaHumidityGM3)} g/m³`], ["Gelo formado", `${fmt(inf.iceKgDay)} kg/dia`], ["Degelo sugerido", `${fmt(deg?.defrostKcalH, 0)} kcal/h`]], [0.58, 0.42]);
       heading(ctx, "3. Resultado do dimensionamento", 3);
       drawKpis(ctx, [["Subtotal", `${fmt(result.subtotal_kcal_h, 0)} kcal/h`], ["Segurança", `${fmt(result.safety_kcal_h, 0)} kcal/h`], ["Carga requerida", `${fmt(result.total_required_kcal_h, 0)} kcal/h`]]);
       paragraph(ctx, `Resultado final: ${fmt(result.total_required_kcal_h, 0)} kcal/h - ${fmt(result.total_required_kw)} kW - ${fmt(result.total_required_tr)} TR.`, { bold: true, gap: 2 });
