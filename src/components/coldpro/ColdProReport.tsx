@@ -72,7 +72,16 @@ export function ColdProReport({
   async function runAiAnalysis(question = aiQuestion) {
     if (!onAnalyze) return;
     setAiError(null);
-    const analysis = await onAnalyze(question, aiAnalysis);
+    const environmentSnapshot = environments.map((env: any) => {
+      const r = results.find((item: any) => item.environment_id === env.id);
+      return `${env.name}: carga requerida atual ${fmt(r?.total_required_kcal_h, 0)} kcal/h (${fmt(r?.total_required_kw)} kW)`;
+    }).join("; ");
+    const scopedQuestion = [
+      "Use exclusivamente os resultados atuais exibidos neste relatório, por ambiente. Não use bases antigas, histórico salvo ou totais agregados como carga de um ambiente.",
+      environmentSnapshot ? `Resultados atuais por ambiente: ${environmentSnapshot}.` : "Nenhum resultado calculado encontrado para os ambientes atuais.",
+      question,
+    ].filter(Boolean).join("\n");
+    const analysis = await onAnalyze(scopedQuestion, aiAnalysis);
     if (analysis) setAiAnalysis(analysis);
     else setAiError("A IA não respondeu dentro do tempo seguro. Tente uma pergunta mais objetiva ou gere o PDF sem o laudo de IA.");
   }
