@@ -60,6 +60,7 @@ export function ColdProResultCard({ result }: { result: any }) {
   const subtotal = n(result.subtotal_kcal_h);
   const productTotal = n(result.product_kcal_h) + n(result.packaging_kcal_h) + n(result.calculation_breakdown?.respiration_kcal_h) + n(result.tunnel_internal_load_kcal_h);
   const extraTotal = n(result.infiltration_kcal_h) + n(result.people_kcal_h) + n(result.lighting_kcal_h) + n(result.motors_kcal_h) + n(result.fans_kcal_h) + n(result.defrost_kcal_h) + n(result.other_kcal_h);
+  const transmissionFaces = Array.isArray(result.calculation_breakdown?.transmission_faces) ? result.calculation_breakdown.transmission_faces : [];
   const bars = [
     { label: "Ambiente", value: result.transmission_kcal_h },
     { label: "Produtos", value: productTotal },
@@ -101,6 +102,36 @@ export function ColdProResultCard({ result }: { result: any }) {
           <Group title="Fechamento" rows={[{ label: "Subtotal", value: subtotal }, { label: "Segurança", value: result.safety_kcal_h }, { label: "Total requerido", value: result.total_required_kcal_h }]} />
         </div>
       </div>
+
+      {transmissionFaces.length ? (
+        <div className="mt-5 rounded-xl border p-4">
+          <h4 className="mb-3 text-sm font-semibold">Transmissão por face</h4>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[720px] text-sm">
+              <thead className="text-xs text-muted-foreground">
+                <tr className="border-b">
+                  <th className="py-2 text-left font-medium">Face</th>
+                  <th className="py-2 text-right font-medium">Área m²</th>
+                  <th className="py-2 text-right font-medium">U W/m²K</th>
+                  <th className="py-2 text-right font-medium">ΔT °C</th>
+                  <th className="py-2 text-right font-medium">Carga kcal/h</th>
+                </tr>
+              </thead>
+              <tbody>
+                {transmissionFaces.map((face: any) => (
+                  <tr key={face.local} className="border-b last:border-0">
+                    <td className="py-2 font-medium">{face.local}</td>
+                    <td className="py-2 text-right tabular-nums">{fmtColdPro(face.area_m2)}</td>
+                    <td className="py-2 text-right tabular-nums">{fmtColdPro(face.u_value_w_m2k, 3)}</td>
+                    <td className="py-2 text-right tabular-nums">{fmtColdPro(face.delta_t_c)}</td>
+                    <td className="py-2 text-right font-semibold tabular-nums">{fmtColdPro(face.transmission_kcal_h)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
