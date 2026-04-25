@@ -537,7 +537,7 @@ export async function buildColdProMemorialPdfBuffer({ project, environments, res
     if (result) {
       heading(ctx, "2. Cálculo executado", 3);
       paragraph(ctx, "O cálculo considera as trocas térmicas pela envoltória, a retirada de calor do produto e embalagem, a entrada de ar por infiltração e as cargas internas informadas para o ambiente.", { size: 8.5, gap: 4 });
-      temperatureCurveChart(ctx, env);
+      temperatureCurveChart(ctx, env, envProducts);
       barChart(ctx, result);
       stackedLoadChart(ctx, result);
       table(ctx, ["Componente", "Carga"], [["Transmissão", result.transmission_kcal_h], ["Produto", result.product_kcal_h], ["Embalagem", result.packaging_kcal_h], ["Infiltração", result.infiltration_kcal_h], ["Pessoas", result.people_kcal_h], ["Iluminação", result.lighting_kcal_h], ["Motores", result.motors_kcal_h], ["Ventiladores", result.fans_kcal_h], ["Degelo", result.defrost_kcal_h], ["Outros", result.other_kcal_h]].map(([l, v]) => [String(l), `${fmt(v, 0)} kcal/h`]), [0.68, 0.32]);
@@ -564,15 +564,11 @@ export async function buildColdProMemorialPdfBuffer({ project, environments, res
       const ok = await drawEquipmentImage(ctx, selection, A4[0] - M - 128, imageY + 2);
       if (!ok) ctx.page.drawText("Foto do equipamento não cadastrada", { x: A4[0] - M - 126, y: imageY + 38, size: 7.5, font: fonts.regular, color: COLORS.muted });
       drawKeyGrid(ctx, [["Vazão total", `${fmt(selection.air_flow_total_m3_h, 0)} m3/h`], ["Trocas/h", fmt(selection.air_changes_hour)], ["Potência", selection.total_power_kw ? `${fmt(selection.total_power_kw)} kW` : "—"], ["COP", selection.cop ? fmt(selection.cop) : "—"]], 2);
+      drawEquipmentCatalogSpecs(ctx, selection);
     }
   }
 
-  if (aiAnalysis) {
-    addPage(ctx);
-    heading(ctx, "Laudo final de análise técnica", 1);
-    paragraph(ctx, "Análise gerada por IA a partir das premissas, cargas calculadas, propriedades térmicas dos produtos e seleção de equipamentos do memorial.", { size: 8.5, color: COLORS.muted });
-    for (const block of String(aiAnalysis).split(/\n{2,}/).filter(Boolean)) paragraph(ctx, block, { size: 9, gap: 6 });
-  }
+  drawFinalLaudo(ctx, project, environments, results, selections, aiAnalysis);
 
   const pageCount = pdf.getPageCount();
   pdf.getPages().forEach((page, i) => {
