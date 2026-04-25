@@ -11,6 +11,7 @@ export type ColdProStep = {
 export const COLDPRO_STEPS: ColdProStep[] = [
   { id: "ambiente", title: "Ambiente", description: "Dimensões e condições" },
   { id: "produtos", title: "Produtos", description: "Cargas de produto" },
+  { id: "processos-especiais", title: "Processos Especiais", description: "Atmosfera, umidade, etileno e CO₂" },
   { id: "extras", title: "Cargas extras", description: "Pessoas, motores, infiltração" },
   { id: "resultado", title: "Resultado", description: "Cálculo, seleção e relatório" },
 ];
