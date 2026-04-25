@@ -1,232 +1,147 @@
-Plano para ajustar o módulo existente `/app/seletor` como ColdPro funcional, sem mexer em CRM, Nomus, sincronização, propostas, templates, clientes ou representantes.
+Analisei o código e a base atual. O CRM já está parcialmente integrado com os endpoints de Processos do Nomus, mas ainda não segue 100% as regras que você enviou.
 
-## Diagnóstico do que já existe
+## O que já está funcionando
 
-- `/app/seletor` ainda é placeholder.
-- Já existe um módulo ColdPro paralelo em `/app/coldpro` com:
-  - telas de projeto, ambiente, produto, cargas extras, resultado, seleção e relatório;
-  - tabelas já existentes como `coldpro_projects`, `coldpro_environments`, `coldpro_products`, `coldpro_results`, `coldpro_equipment_models`, `coldpro_equipment_performance_points`, `coldpro_equipment_selections`;
-  - cálculo térmico parcial em `src/features/coldpro/coldpro-calculation.engine.ts`;
-  - seleção por curva real em `src/features/coldpro/equipment-selection.engine.ts`.
-- O cálculo atual já cobre parte do necessário, mas precisa ajustes importantes:
-  - separar melhor os services por domínio conforme solicitado;
-  - incluir portas no cálculo por superfície de forma explícita;
-  - padronizar tipos de vidro com os nomes pedidos (`vidro_simples`, `vidro_duplo`, etc.);
-  - corrigir infiltração para usar densidade ajustada por altitude;
-  - ampliar modos de aplicação para os nomes pedidos;
-  - retornar o formato final em kW/TR/kcal/h com `warnings` e `calculationMemory`;
-  - transformar o fluxo em 9 abas dentro do `/app/seletor`.
+- O endpoint central já está mapeado como `processos: "/processos"`.
+- Existe sincronização de leitura do Nomus para o CRM:
+  - `GET /processos`
+  - `GET /processos/:id` em algumas rotinas de rechecagem.
+- Os processos são salvos em uma tabela espelho (`nomus_processes`) com campos compatíveis:
+  - `nome`, `tipo`, `etapa`, `prioridade`, `equipe`, `origem`, `responsavel`, `reportador`, `dataCriacao`, `dataHoraProgramada`, `raw`.
+- O Kanban do CRM usa `tipo` como funil e `etapa` como coluna.
+- Etapas novas vindas do Nomus são cadastradas automaticamente em `crm_funnel_stages`.
+- Há sincronização automática/recorrente: os logs mostram chamadas recentes com sucesso para `GET /processos?pagina=1`.
+- Hoje existem dados reais sincronizados:
+  - 121 processos em `nomus_processes`
+  - 16 etapas/funis em `crm_funnel_stages`
+  - logs de integração com status 200 para processos.
 
-## Ajustes de estrutura
+## O que não está completo ou diverge das regras
 
-Criar a nova estrutura solicitada, reaproveitando e migrando a lógica existente:
+1. **Sincronização bidirecional ainda não está implementada de fato**
+   - Existe apenas um `pingProcessoPut`, que testa `PUT /processos/:id` sem mudar nada.
+   - Não encontrei função real para alterar etapa/responsável/prioridade no Lovable e enviar `PUT` ao Nomus.
+   - Também não encontrei drag-and-drop ou ação de mover card no Kanban.
+   - A tabela `crm_stage_changes` existe, mas está vazia; ou seja, o sistema não está registrando mudanças de etapa.
+
+2. **Criação de processo no Nomus ainda não está implementada**
+   - O endpoint `POST /processos` está documentado na sua regra, mas o sistema atual não tem uma função de “criar processo no Nomus”.
+
+3. **Mapeamento de campos está parcial**
+   - A leitura já mapeia os principais campos, mas a tela do CRM não usa todos de forma operacional.
+   - `dataHoraProgramada` é armazenada, mas o Kanban/detalhe ainda usa mais `proximo_contato`/datas locais do que a regra enviada.
+   - O campo `idPrioridade` não existe em coluna própria; se vier do Nomus, fica apenas dentro do `raw`.
+
+4. **Regra de “etapa Nomus -> status CRM” está sendo usada como espelho, não como tradução configurável**
+   - Hoje o sistema usa a própria `etapa` como coluna do CRM.
+   - Há uma exceção local: se uma proposta vinculada parecer “venda confirmada”, o card pode aparecer como “Venda confirmada”, mesmo que o processo no Nomus esteja em outra etapa. Isso pode criar divergência visual.
+
+5. **Sincronização incremental atual só olha páginas/IDs recentes**
+   - Isso é bom para performance, mas mudanças antigas no Nomus podem demorar ou não entrar se não forem rechecadas em uma varredura completa/manual.
+
+6. **Há um registro suspeito sincronizado com `nomus_id = 0`**
+   - Isso indica que algum detalhe retornou/salvou `{ id: 0 }` ou que a rotina aceitou um ID inválido. Deve ser tratado para evitar card/processo fantasma.
+
+## Plano de ajuste para seguir exatamente as regras enviadas
+
+### 1. Completar o mapeamento de Processo Nomus
+- Ajustar o parser/salvamento para aceitar explicitamente:
+  - `id`
+  - `nome`
+  - `etapa`
+  - `tipo`
+  - `prioridade`
+  - `idPrioridade`
+  - `reportador`
+  - `responsavel`
+  - `equipe`
+  - `dataHoraProgramada`
+  - `dataCriacao`
+  - `origem`
+- Criar coluna para `id_prioridade` se necessário.
+- Bloquear salvamento de processos com `id` vazio ou `0`.
+
+### 2. Implementar atualização real Lovable -> Nomus
+- Criar uma server function segura para atualizar processo:
+  - recebe `process_id` local e campos alterados.
+  - busca o processo atual no banco.
+  - monta payload no formato aceito pelo Nomus.
+  - chama `PUT /processos/:id`.
+  - se o Nomus confirmar, atualiza `nomus_processes` local.
+  - registra histórico em `crm_stage_changes` quando a etapa mudar.
+- Usar esse fluxo para:
+  - alteração de etapa.
+  - responsável.
+  - prioridade/idPrioridade.
+  - equipe.
+  - data programada.
+
+### 3. Adicionar movimento de etapa no CRM/Kanban
+- Permitir mover cards entre colunas/etapas.
+- Ao mover:
+  - chamar `PUT /processos/:id` no Nomus.
+  - atualizar a etapa local somente depois do sucesso.
+  - exibir erro amigável se o Nomus recusar.
+  - gravar histórico em `crm_stage_changes`.
+
+### 4. Implementar criação de processo no Nomus
+- Criar ação “Novo processo” no CRM.
+- Enviar `POST /processos` com campos conforme sua regra:
+  - `dataHoraProgramada`
+  - `nome`
+  - `reportador`
+  - `responsavel`
+  - `tipo`
+  - `prioridade`/`idPrioridade`
+  - `etapa`
+  - `equipe`
+  - `origem`
+- Após criar, puxar o detalhe do processo criado e salvar no CRM local.
+
+### 5. Separar “espelho Nomus” de “enriquecimento local”
+- Manter `nomus_processes.etapa` como fonte oficial do Nomus.
+- Evitar mover visualmente um card para “Venda confirmada” só por status de proposta, a menos que também exista atualização real no processo Nomus.
+- Se quiser manter esse comportamento, mostrar como “sugestão/alerta”, não como etapa oficial.
+
+### 6. Melhorar sincronização Nomus -> Lovable
+- Manter sync rápido das páginas recentes.
+- Adicionar uma opção administrativa de “varredura completa de processos” para reprocessar todas as páginas.
+- Garantir que novas etapas/tipos encontrados continuem criando funis/colunas automaticamente.
+
+### 7. Ajustar a tela do CRM
+- Mostrar os campos operacionais enviados pelo Nomus:
+  - etapa
+  - tipo
+  - prioridade
+  - responsável
+  - equipe
+  - origem
+  - data programada
+- Adicionar botão/ação de edição do processo.
+- Adicionar indicação clara quando o card está sincronizado ou quando houve falha ao enviar para o Nomus.
+
+## Resultado esperado
+
+Depois desses ajustes, o CRM seguirá a regra:
 
 ```text
-src/modules/coldpro/
-  types/
-    coldPro.types.ts
-  utils/
-    conversions.ts
-    numbers.ts
-  services/
-    surfaceAreaService.ts
-    transmissionLoadService.ts
-    glassLoadService.ts
-    infiltrationLoadService.ts
-    productLoadService.ts
-    internalLoadsService.ts
-    airDensityService.ts
-    psychrometricService.ts
-    coldProEngine.ts
-    coldProValidationService.ts
-  components/
-    ColdProSeletorApp.tsx
-    ColdProTabs.tsx
-    ProjectDataTab.tsx
-    DimensionsTab.tsx
-    SurfacesTab.tsx
-    ProductProcessTab.tsx
-    InfiltrationTab.tsx
-    InternalLoadsTab.tsx
-    ResultTab.tsx
-    EquipmentSelectionTab.tsx
-    TechnicalReportTab.tsx
+Nomus Processo            CRM Lovable
+--------------------------------------------
+nome                      Título da oportunidade
+etapa                     Coluna/status do Kanban
+tipo                      Funil/tipo de oportunidade
+responsavel               Responsável
+prioridade/idPrioridade   Prioridade
+dataHoraProgramada        Data programada/fechamento
+origem                    Origem
 ```
 
-Manter os componentes antigos em `src/components/coldpro` quando úteis, mas a rota `/app/seletor` passará a usar os novos componentes em `src/modules/coldpro/components`.
+E o fluxo ficará bidirecional:
 
-## Banco de dados
-
-Aproveitar as tabelas existentes quando equivalentes e criar apenas as que faltam/forem necessárias para persistir o modelo novo.
-
-Já existem:
-- `coldpro_projects`
-- `coldpro_products`
-- `coldpro_results`
-- `coldpro_equipment_models`
-- `coldpro_equipment_performance_points`
-- `coldpro_equipment_selections`
-- materiais equivalentes: `coldpro_insulation_materials` e `coldpro_thermal_materials`
-
-Criar/ajustar para o novo fluxo:
-- `coldpro_surfaces` para teto, piso, paredes, portas e vidros por projeto/ambiente;
-- `coldpro_wall_compositions` para composição por superfície/material/camada;
-- `coldpro_process_parameters` para resfriamento, congelamento, túneis, giro freezer, batelada/contínuo;
-- `coldpro_infiltration` para portas, aberturas, renovação, altitude e parâmetros de infiltração;
-- `coldpro_internal_loads` para pessoas, iluminação, motores, embalagem e respiração;
-- `coldpro_reports` para memória de cálculo simples;
-- avaliar se `coldpro_materials` deve ser uma nova tabela ou uma view/compatibilidade sobre `coldpro_thermal_materials`. Para evitar duplicidade, a preferência será usar a base existente e só criar `coldpro_materials` se for indispensável para o novo schema.
-
-As tabelas terão RLS, vínculos por projeto/ambiente, timestamps, defaults seguros e políticas compatíveis com usuários autenticados.
-
-## Cálculo térmico
-
-Implementar os services pedidos com fórmulas em W/kW como base:
-
-### Transmissão
-- `Q = U × A × ΔT`
-- Calcular separadamente:
-  - teto
-  - piso
-  - parede 1
-  - parede 2
-  - parede 3
-  - parede 4
-  - portas
-  - vidros
-- Para cada superfície:
-  - `area_opaca = area_total - area_vidro - area_porta`
-  - `Q_opaco = area_opaca × U_opaco × ΔT`
-  - `Q_vidro = area_vidro × U_vidro × ΔT`
-  - `Q_porta = area_porta × U_porta × ΔT`
-  - `Q_total_superficie = Q_opaco + Q_vidro + Q_porta`
-- Piso sem isolamento:
-  - `temperatura_solo_default = 20°C`
-  - `ΔT_piso = temperatura_solo - temperatura_interna`
-
-### Vidro e solar
-- U-values:
-  - `none = 0`
-  - `vidro_simples = 5.8`
-  - `vidro_duplo = 2.8`
-  - `vidro_triplo = 1.8`
-  - `low_e_duplo = 1.6`
-  - `vidro_frigorifico_aquecido = 2.5`
-- Solar:
-  - `Q_solar_vidro = area_vidro × radiacao_solar × fator_solar`
-  - `sem_sol = 0`, `moderado = 150`, `forte = 300`, `critico = 500 W/m²`
-
-### Infiltração
-- `Q_infiltracao = densidade_ar × volume_ar_infiltrado × Cp_ar × ΔT`
-- `Cp_ar = 1.005 kJ/kg.K`
-- Densidade por altitude:
-  - `P = 101325 × (1 - 2.25577e-5 × altitude)^5.2559`
-  - `densidade_ar = 1.20 × (P / 101325)`
-  - se altitude `< 500 m`, usar `1.20 kg/m³`
-
-### Produto/processo
-- Resfriamento:
-  - `Q_produto = massa × Cp × (Ti - Tf)`
-- Congelamento:
-  - `Q1 = massa × Cp_acima × (Ti - Tcong)`
-  - `Q2 = massa × calor_latente × fracao_congelavel`
-  - `Q3 = massa × Cp_abaixo × (Tcong - Tf)`
-  - `Q_produto = Q1 + Q2 + Q3`
-- Contínuo:
-  - `P_produto_kW = producao_kg_h × q_especifica_kj_kg / 3600`
-- Batelada:
-  - `P_produto_kW = massa_lote × q_especifica_kj_kg / (tempo_h × 3600)`
-- Giro freezer/túnel:
-  - `massa_media_dentro = producao_kg_h × tempo_retencao_min / 60`
-  - validar tempo por Plank simplificado;
-  - emitir alertas de retenção adequada/insuficiente, velocidade baixa/alta e dados térmicos faltantes.
-
-### Cargas internas
-- Pessoas, iluminação, motores, embalagem e respiração conforme fórmulas enviadas.
-- Respiração apenas para frutas, vegetais e sementes quando configurado.
-
-### Resultado
-O engine retornará:
-
-```ts
-{
-  transmissionKw,
-  infiltrationKw,
-  productKw,
-  packagingKw,
-  respirationKw,
-  peopleKw,
-  lightingKw,
-  motorsKw,
-  pullDownKw,
-  baseTotalKw,
-  correctedTotalKw,
-  totalKcalH,
-  totalTr,
-  warnings,
-  calculationMemory
-}
+```text
+Nomus GET /processos        -> atualiza CRM
+Nomus GET /processos/:id    -> atualiza detalhe local
+CRM muda etapa/campos       -> PUT /processos/:id no Nomus
+CRM cria processo           -> POST /processos no Nomus
+Nomus muda processo         -> próximo sync atualiza CRM
 ```
-
-Com conversões:
-- `kW = W / 1000`
-- `kcal/h = W × 0.859845`
-- `TR = kW / 3.517`
-
-## Interface em `/app/seletor`
-
-Substituir o placeholder por um módulo ColdPro com abas:
-
-1. Dados do Projeto
-2. Dimensões
-3. Isolamento / Superfícies
-4. Produto / Processo
-5. Infiltração
-6. Cargas Internas
-7. Resultado
-8. Seleção de Equipamentos
-9. Relatório Técnico
-
-A tela permitirá:
-- criar/salvar cálculo;
-- editar projeto depois;
-- duplicar projeto;
-- gerar memória de cálculo simples;
-- visualizar warnings técnicos;
-- navegar entre abas sem perder dados.
-
-## Seleção de equipamentos
-
-Na aba Seleção de Equipamentos:
-- usar a base existente `coldpro_equipment_models` e `coldpro_equipment_performance_points`;
-- comparar `correctedTotalKw` com capacidade do equipamento;
-- mostrar:
-  - equipamento sugerido;
-  - capacidade nominal;
-  - margem sobre a carga;
-  - alerta de subdimensionamento;
-  - alerta de superdimensionamento.
-
-Não criar lógica de pedido, proposta ou Nomus nesta etapa.
-
-## Proteções de escopo
-
-Não alterar arquivos e fluxos de:
-- CRM
-- Nomus
-- sincronização
-- propostas
-- templates
-- clientes
-- representantes
-
-Também removeremos do fluxo `/app/seletor` qualquer ação de enviar para proposta/PDF vinculado a proposta que existe no ColdPro paralelo atual, porque você pediu foco exclusivo no módulo técnico.
-
-## Validação
-
-Após implementar:
-- rodar build/typecheck;
-- testar importações para evitar nova quebra da pré-visualização;
-- conferir que `/app/seletor` abre e exibe as 9 abas;
-- validar um cálculo exemplo com transmissão, infiltração, produto e seleção de equipamento;
-- garantir que não houve alteração em CRM/Nomus/propostas/templates/clientes/representantes.
