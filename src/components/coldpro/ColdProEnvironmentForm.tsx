@@ -49,6 +49,9 @@ const CHAMBER_LAYOUTS: Array<{ value: ChamberLayout; label: string; description:
   { value: "custom_polygon", label: "Personalizada", description: "Quantidade manual de paredes", walls: 4 },
 ];
 
+const INSULATION_THICKNESS_OPTIONS_MM = [50, 75, 100, 120, 150, 200];
+const SOLAR_FACE_OPTIONS = ["Sem sol direto", "Parede 1", "Parede 2", "Parede 3", "Parede 4", "Teto"];
+
 const LEGACY_LAYOUTS = new Set(["industrial", "modular", "climatized_storage", "blast_freezer", "cooling_tunnel", "climatized_room"]);
 
 function toNumber(value: unknown) {
@@ -149,6 +152,15 @@ function makeInsulationLayer(material: any, thicknessMm: unknown) {
 function applyLayerToFace(face: any, layer: any) {
   const layers = layer.thickness_m > 0 && layer.conductivity_w_mk > 0 ? [layer] : [];
   return { ...face, layers, u_value_w_m2k: calculateUValue(layers), material_thickness: layers.length ? `${layer.material_name} ${toNumber(layer.thickness_m) * 1000} mm` : face.material_thickness };
+}
+
+function describeLayer(layer: any) {
+  const uValue = calculateUValue(layer?.thickness_m > 0 && layer?.conductivity_w_mk > 0 ? [layer] : []);
+  return {
+    uValue,
+    resistance: uValue > 0 ? 1 / uValue : 0,
+    conductivity: toNumber(layer?.conductivity_w_mk),
+  };
 }
 
 function calculateUValue(layers: any[]) {
