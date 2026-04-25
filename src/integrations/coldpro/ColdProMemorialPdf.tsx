@@ -276,6 +276,12 @@ export function ColdProMemorialPdf({
     },
     { kcal: 0, kw: 0, tr: 0 },
   );
+  const aggregateResult = results.reduce((acc: any, result: any) => {
+    for (const [key, value] of Object.entries(result ?? {})) {
+      if (key.endsWith("_kcal_h")) acc[key] = Number(acc[key] ?? 0) + Number(value ?? 0);
+    }
+    return acc;
+  }, {});
 
   return (
     <Document
@@ -378,24 +384,37 @@ export function ColdProMemorialPdf({
           })}
         </View>
 
+        <Text style={styles.h2}>Visão geral da carga térmica</Text>
+        <View style={styles.noteBox}>
+          <Text style={styles.p}>
+            Tecnicamente, a carga térmica foi consolidada pelas parcelas de transmissão, produto/processo,
+            infiltração, ocupação, iluminação, motores, ventiladores, degelo e demais cargas internas,
+            acrescidas do fator de segurança configurado. Comercialmente, este resultado orienta a seleção
+            de equipamentos com capacidade suficiente para atender a operação diária com margem de sobra auditável.
+          </Text>
+        </View>
+        <LoadPieChart result={aggregateResult} />
+
         <Text style={styles.footer} fixed render={({ pageNumber, totalPages }) =>
           `CN ColdPro  ·  Memorial gerado em ${generatedAt}${generatedBy ? `  ·  por ${generatedBy}` : ""}  ·  Página ${pageNumber} de ${totalPages}`
         } />
       </Page>
 
-      {/* PÁGINAS POR AMBIENTE */}
+      {/* DETALHAMENTO CONSOLIDADO */}
+      <Page size="A4" style={styles.page}>
+        <View style={styles.header} fixed>
+          <Text style={styles.headerTitle}>CN ColdPro · {project?.name}</Text>
+          <Text style={styles.headerTitle}>Detalhamento consolidado</Text>
+        </View>
+        <Text style={styles.h1}>Memória de cálculo por ambiente</Text>
+        <Text style={[styles.p, { marginBottom: 6 }]}>As seções abaixo agrupam dados de entrada, produtos, cargas calculadas e equipamento selecionado, reduzindo quebras desnecessárias entre páginas.</Text>
       {environments.map((env, idx) => {
         const result = results.find((r: any) => r.environment_id === env.id);
         const selection = selections.find((s: any) => s.environment_id === env.id);
         const envProducts = products.filter((p: any) => p.environment_id === env.id);
 
         return (
-          <Page key={env.id} size="A4" style={styles.page}>
-            <View style={styles.header} fixed>
-              <Text style={styles.headerTitle}>CN ColdPro · {project?.name}</Text>
-              <Text style={styles.headerTitle}>Ambiente {idx + 1} de {environments.length}</Text>
-            </View>
-
+          <View key={env.id} style={styles.compactSection} wrap={false}>
             <View style={styles.envHeader}>
               <Text style={styles.envHeaderText}>{idx + 1}. {env.name}</Text>
               <Text style={styles.envHeaderMeta}>{env.environment_type}</Text>
