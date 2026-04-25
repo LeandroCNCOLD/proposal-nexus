@@ -18,6 +18,7 @@ import {
   round2,
 } from "./coldpro.constants";
 import { calculateAdvancedProcess } from "@/modules/coldpro/services/advancedProcesses/advancedProcessEngine";
+import { suggestedInfiltrationFactor } from "./extra-loads-preview";
 
 const W_TO_KCAL_H = 0.859845;
 const R_INTERNAL_M2K_W = 0.12;
@@ -591,17 +592,15 @@ export function calculatePackagingLoad(product: ColdProEnvironmentProduct): numb
 export function calculateInfiltrationLoad(env: ColdProEnvironment): number {
   const doorArea = n(env.door_width_m) * n(env.door_height_m);
   const openings = n(env.door_openings_per_day);
-  const factor = n(env.infiltration_factor);
-
-  if (doorArea <= 0 || openings <= 0 || factor <= 0) return 0;
+  const factor = n(env.infiltration_factor) > 0 ? n(env.infiltration_factor) : suggestedInfiltrationFactor(env);
 
   const deltaT = positive(n(env.external_temp_c) - n(env.internal_temp_c));
   const airVolumeDay = doorArea * openings * factor;
+  const continuousAirM3H = n(env.volume_m3) * n(env.air_changes_per_hour) + n(env.fresh_air_m3_h) + n(env.door_infiltration_m3_h);
 
-  const kcalDay = airVolumeDay * AIR_DENSITY_KG_M3 * AIR_SPECIFIC_HEAT_KCAL_KG_C * deltaT;
   const hours = n(env.compressor_runtime_hours_day, 20) || 20;
 
-  return kcalDay / hours;
+  return (airVolumeDay * AIR_DENSITY_KG_M3 * AIR_SPECIFIC_HEAT_KCAL_KG_C * deltaT) / hours + continuousAirM3H * AIR_DENSITY_KG_M3 * AIR_SPECIFIC_HEAT_KCAL_KG_C * deltaT;
 }
 
 export function calculatePeopleLoad(env: ColdProEnvironment): number {
