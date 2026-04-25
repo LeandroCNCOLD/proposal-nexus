@@ -143,8 +143,8 @@ export function ColdProReport({
         <div className="mb-3 flex items-start gap-3">
           <div className="rounded-lg bg-primary/10 p-2 text-primary"><Bot className="h-4 w-4" /></div>
           <div>
-            <h3 className="text-base font-semibold">Análise técnica por IA antes do memorial</h3>
-            <p className="text-sm text-muted-foreground">Peça validações, dúvidas ou recomendações; depois gere o PDF usando esta análise como laudo final.</p>
+            <h3 className="text-base font-semibold">Agente técnico avançado de IA</h3>
+            <p className="text-sm text-muted-foreground">Peça validações sobre carga térmica, infiltração, umidade, gelo, degelo e seleção; depois gere o PDF usando esta análise como laudo final.</p>
           </div>
         </div>
         <div className="flex flex-col gap-2 md:flex-row">
@@ -154,7 +154,7 @@ export function ColdProReport({
               {isAnalyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageSquare className="h-4 w-4" />}
               {isAnalyzing ? "Analisando..." : "Perguntar à IA"}
             </button>
-            <button type="button" onClick={() => runAiAnalysis("Gerar uma análise técnica completa para compor o laudo final do memorial PDF.")} disabled={!onAnalyze || isAnalyzing} className="rounded-md border px-4 py-2 text-sm hover:bg-muted disabled:opacity-50">Gerar laudo completo</button>
+            <button type="button" onClick={() => runAiAnalysis("Gerar uma análise técnica completa e crítica para compor o laudo final do memorial PDF, incluindo psicrometria, infiltração, formação de gelo, degelo, riscos operacionais, carga adicional recomendada e adequação da seleção dos equipamentos.")} disabled={!onAnalyze || isAnalyzing} className="rounded-md border px-4 py-2 text-sm hover:bg-muted disabled:opacity-50">Gerar laudo completo</button>
           </div>
         </div>
         {aiAnalysis ? <div className="prose prose-sm mt-4 max-w-none rounded-lg border bg-muted/20 p-4 text-foreground"><ReactMarkdown>{aiAnalysis}</ReactMarkdown></div> : null}
