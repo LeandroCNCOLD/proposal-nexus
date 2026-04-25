@@ -40,6 +40,19 @@ const GLASS_SOLAR_FACTORS: Record<string, number> = {
   insulated: 0.55,
 };
 
+const TUNNEL_ARRANGEMENT_DEFAULTS: Record<string, { airExposure: number; penetration: number; label: string; warning?: string }> = {
+  individual_exposed: { airExposure: 1, penetration: 1, label: "Produto individual exposto" },
+  tray_layer: { airExposure: 0.8, penetration: 0.8, label: "Bandeja/camada exposta" },
+  cart_rack: { airExposure: 0.7, penetration: 0.7, label: "Carrinho com bandejas espaçadas" },
+  boxed_product: { airExposure: 0.35, penetration: 0.45, label: "Produto em caixa", warning: "Produto em caixa depende da abertura/perfuração e da passagem real de ar pela embalagem." },
+  pallet_block: { airExposure: 0.15, penetration: 0.2, label: "Pallet/bloco compacto", warning: "Congelamento de pallet/bloco é estimativa conservadora e deve ser validado em campo ou por ensaio." },
+  bulk_static: { airExposure: 0.1, penetration: 0.15, label: "Massa estática a granel", warning: "Produto a granel tem baixa penetração térmica e forte dependência do arranjo físico." },
+};
+
+function tunnelArrangementDefaults(type?: string | null) {
+  return TUNNEL_ARRANGEMENT_DEFAULTS[String(type ?? "individual_exposed")] ?? TUNNEL_ARRANGEMENT_DEFAULTS.individual_exposed;
+}
+
 export function calculateConvectionCoefficient(airVelocityMS?: number | null, fallback?: number | null): number | null {
   const velocity = n(airVelocityMS);
   if (velocity <= 0) return fallback ?? null;
@@ -55,8 +68,10 @@ export function calculateRecommendedAirFlowM3H(powerKw: number, deltaTAirK = 6):
 
 export function estimateFreezingTimePlankMin(params: {
   thicknessM?: number | null;
+  distanceToCoreM?: number | null;
   densityKgM3?: number | null;
   thermalConductivityFrozenWMK?: number | null;
+  effectiveConductivityWMK?: number | null;
   freezingTempC?: number | null;
   latentHeatKcalKg?: number | null;
   frozenWaterFraction?: number | null;
@@ -65,17 +80,17 @@ export function estimateFreezingTimePlankMin(params: {
   convectiveCoefficientWM2K?: number | null;
 }): number | null {
   const thickness = n(params.thicknessM);
+  const distanceToCore = n(params.distanceToCoreM) > 0 ? n(params.distanceToCoreM) : thickness / 2;
   const density = n(params.densityKgM3);
-  const conductivity = n(params.thermalConductivityFrozenWMK);
+  const conductivity = n(params.effectiveConductivityWMK) || n(params.thermalConductivityFrozenWMK);
   const tfreeze = n(params.freezingTempC, NaN);
   const latent = n(params.latentHeatKcalKg) * KCAL_TO_KJ;
   const frozenFraction = n(params.frozenWaterFraction, 0.9) || 0.9;
   const h = n(params.convectiveCoefficientWM2K) || n(calculateConvectionCoefficient(params.airVelocityMS));
   const deltaT = tfreeze - n(params.airTempC);
-  if (thickness <= 0 || density <= 0 || conductivity <= 0 || !Number.isFinite(tfreeze) || latent <= 0 || h <= 0 || deltaT <= 0) return null;
-  const halfThickness = thickness / 2;
+  if (distanceToCore <= 0 || density <= 0 || conductivity <= 0 || !Number.isFinite(tfreeze) || latent <= 0 || h <= 0 || deltaT <= 0) return null;
   const latentJkg = latent * frozenFraction * 1000;
-  const seconds = (density * latentJkg / deltaT) * (halfThickness / h + (halfThickness * halfThickness) / (2 * conductivity));
+  const seconds = (density * latentJkg / deltaT) * (distanceToCore / h + (distanceToCore * distanceToCore) / (2 * conductivity));
   return round2(seconds / 60);
 }
 
