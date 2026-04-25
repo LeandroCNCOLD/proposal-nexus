@@ -289,6 +289,13 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
       if (key === "dimension_a_m") next.length_m = nextValue;
       if (key === "dimension_b_m") next.width_m = nextValue;
       if (key === "height_m") next.height_m = nextValue;
+      const nextLayout = normalizeLayout(next?.chamber_layout_type);
+      const nextWallCount = wallCountForLayout(nextLayout, next?.wall_count);
+      const nextGeometry = getGeometry(next?.construction_faces);
+      next.construction_faces = [
+        ...normalizeFaces(next?.construction_faces, nextLayout, nextWallCount, toNumber(next?.length_m), toNumber(next?.width_m), toNumber(next?.height_m), nextGeometry),
+        nextGeometry,
+      ];
       return next;
     });
   };
@@ -424,6 +431,7 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
   };
 
   const currentSolarFace = constructionFaces.find((face) => face.solar_orientation === "Sol direto")?.local;
+  const faceCalculationEnv = { ...form, construction_faces: constructionFaces, chamber_layout_type: layout, wall_count: wallCount };
 
   return (
     <div className="rounded-xl border bg-background p-5 shadow-sm">
