@@ -175,9 +175,22 @@ export const upsertColdProEnvironmentProduct = createServerFn({ method: "POST" }
   }))
   .handler(async ({ data }) => {
     const supabase = supabaseAdmin;
-    const { data: row, error } = await supabase.from("coldpro_environment_products").upsert(data as any, { onConflict: "id" }).select("*").single();
+    const payload = { ...data } as any;
+    const { data: row, error } = payload.id
+      ? await supabase.from("coldpro_environment_products").update(payload).eq("id", payload.id).select("*").single()
+      : await supabase.from("coldpro_environment_products").insert(payload).select("*").single();
     if (error) throw new Error(error.message);
     return row;
+  });
+
+export const deleteColdProEnvironmentProduct = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(z.object({ id: z.string().uuid() }))
+  .handler(async ({ data }) => {
+    const supabase = supabaseAdmin;
+    const { error } = await supabase.from("coldpro_environment_products").delete().eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { success: true };
   });
 
 export const upsertColdProTunnel = createServerFn({ method: "POST" })
