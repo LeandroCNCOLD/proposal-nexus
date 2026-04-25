@@ -150,6 +150,18 @@ export const upsertColdProTunnel = createServerFn({ method: "POST" })
     return row;
   });
 
+export const upsertColdProAdvancedProcess = createServerFn({ method: "POST" })
+  .inputValidator(z.object({
+    id: z.string().uuid().optional(), project_id: z.string().uuid(), environment_id: z.string().uuid().nullable().optional(), advanced_process_type: advancedProcessType.default("none"), product_name: z.string().max(120).nullable().optional(), product_mass_kg: nonNegativeNumber.default(0), chamber_volume_m3: nonNegativeNumber.default(0), target_temperature_c: finiteNumber.nullable().optional(), target_relative_humidity: nonNegativeNumber.nullable().optional(), process_time_h: nonNegativeNumber.default(0), technical_notes: z.string().max(1000).nullable().optional(), external_temperature_c: finiteNumber.nullable().optional(), external_relative_humidity: nonNegativeNumber.nullable().optional(), internal_temperature_c: finiteNumber.nullable().optional(), internal_relative_humidity: nonNegativeNumber.nullable().optional(), air_changes_per_hour: nonNegativeNumber.default(0), product_initial_moisture: nonNegativeNumber.nullable().optional(), product_final_moisture: nonNegativeNumber.nullable().optional(), stabilization_time_h: nonNegativeNumber.default(0), ethylene_target_ppm: nonNegativeNumber.nullable().optional(), ethylene_exposure_time_h: nonNegativeNumber.nullable().optional(), ethylene_renewal_after_application: z.boolean().default(false), co2_generation_rate_m3_kg_h: nonNegativeNumber.nullable().optional(), co2_limit_percent: nonNegativeNumber.nullable().optional(), external_co2_percent: nonNegativeNumber.default(0.04), storage_time_h: nonNegativeNumber.default(0), o2_target_percent: nonNegativeNumber.nullable().optional(), co2_target_percent: nonNegativeNumber.nullable().optional(), respiration_rate_w_kg: nonNegativeNumber.default(0), purge_airflow_m3_h: nonNegativeNumber.nullable().optional(), scrubber_enabled: z.boolean().default(false), air_renewal_m3_h: nonNegativeNumber.default(0)
+  }))
+  .handler(async ({ data }) => {
+    const supabase = supabaseAdmin;
+    const calculated = calculateAdvancedProcess(data);
+    const { data: row, error } = await supabase.from("coldpro_advanced_processes").upsert({ ...data, calculation_result: calculated as any, calculation_breakdown: calculated as any } as any, { onConflict: "id" }).select("*").single();
+    if (error) throw new Error(error.message);
+    return row;
+  });
+
 export const calculateColdProEnvironment = createServerFn({ method: "POST" })
   .inputValidator(z.object({ environmentId: z.string().uuid() }))
   .handler(async ({ data }) => {
@@ -158,6 +170,7 @@ export const calculateColdProEnvironment = createServerFn({ method: "POST" })
     if (envError) throw new Error(envError.message);
     const { data: products } = await supabase.from("coldpro_environment_products").select("*").eq("environment_id", data.environmentId);
     const { data: tunnel } = await supabase.from("coldpro_tunnels").select("*").eq("environment_id", data.environmentId).maybeSingle();
+    const { data: advancedProcesses } = await supabase.from("coldpro_advanced_processes").select("*").eq("environment_id", data.environmentId);
     let insulation = null;
     if (env.insulation_material_id) {
       const { data: row } = await supabase.from("coldpro_insulation_materials").select("*").eq("id", env.insulation_material_id).maybeSingle();
@@ -168,7 +181,7 @@ export const calculateColdProEnvironment = createServerFn({ method: "POST" })
       insulation = row;
     }
     if (!insulation) throw new Error("Material isolante não encontrado.");
-    const result = calculateColdProLoad({ env: env as any, products: (products ?? []) as any, insulation: insulation as any, tunnel: (tunnel ?? null) as any });
+    const result = calculateColdProLoad({ env: env as any, products: (products ?? []) as any, insulation: insulation as any, tunnel: (tunnel ?? null) as any, advancedProcesses: (advancedProcesses ?? []) as any });
     const { calculation_breakdown, ...resultRest } = result;
     const { data: saved, error } = await supabase
       .from("coldpro_results")
@@ -176,7 +189,7 @@ export const calculateColdProEnvironment = createServerFn({ method: "POST" })
         environment_id: data.environmentId,
         ...resultRest,
         calculation_breakdown: calculation_breakdown as any,
-        calculation_input: { environment: env, products: products ?? [], tunnel, insulation } as any,
+        calculation_input: { environment: env, products: products ?? [], tunnel, advancedProcesses: advancedProcesses ?? [], insulation } as any,
       })
       .select("*")
       .single();
