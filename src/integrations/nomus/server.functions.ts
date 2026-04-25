@@ -1111,6 +1111,33 @@ export const nomusSyncProposalsFull = createServerFn({ method: "POST" })
       },
     });
   });
+
+export const nomusSyncAll = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input?: { window?: SyncWindow; startDate?: string | null; endDate?: string | null }) => input ?? {})
+  .handler(async ({ data, context }) => {
+    const userId = (context as { userId?: string }).userId ?? null;
+    const parentRunId = await startSyncRun("sync_geral", userId, 0, { lockKey: "nomus:sync_geral" });
+    await upsertSyncCheckpoint({ entityType: "sync_geral", syncRunId: parentRunId, status: "running", cursorPayload: { window: data.window ?? "incremental" } });
+    const steps: Array<{ entity: string; run: () => Promise<SyncResult> }> = [
+      { entity: "vendedores", run: () => runEntitySync({ entity: "vendedores", endpoint: NOMUS_ENDPOINTS.vendedores, triggeredBy: userId, processItem: syncSellerItem }) },
+      { entity: "representantes", run: () => runEntitySync({ entity: "representantes", endpoint: NOMUS_ENDPOINTS.representantes, triggeredBy: userId, processItem: syncRepresentativeItem }) },
+      { entity: "produtos", run: () => runEntitySync({ entity: "produtos", endpoint: NOMUS_ENDPOINTS.produtos, triggeredBy: userId, processItem: syncProductItem }) },
+    ];
+    const results: Record<string, unknown> = {};
+    let errors = 0;
+    for (const step of steps) {
+      const result = await step.run();
+      results[step.entity] = result;
+      if (!result.ok) errors += 1;
+    }
+    const clients = await nomusSyncClients({ data });
+    results.clientes = clients;
+    if (!clients.ok) errors += 1;
+    await upsertSyncCheckpoint({ entityType: "sync_geral", syncRunId: parentRunId, status: errors > 0 ? "failed" : "completed", cursorPayload: results as Json });
+    await finishSyncRun({ syncRunId: parentRunId, status: errors > 0 ? "partial_success" : "success", totalErrors: errors, errorMessage: errors > 0 ? "Sync geral concluída com falhas parciais." : null });
+    return { ok: errors === 0, count: Object.keys(results).length, skipped: errors, unmatched: 0, results };
+  });
 export const nomusSyncPedidos = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
