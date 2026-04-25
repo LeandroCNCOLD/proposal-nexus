@@ -2,13 +2,15 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState } from "react";
-import { RefreshCw, Settings2, Search, Filter as FilterIcon } from "lucide-react";
+import { Plus, RefreshCw, Settings2, Search, Filter as FilterIcon } from "lucide-react";
 import { toast } from "sonner";
 import {
   pullNomusProcesses,
   listAvailableProcessTypes,
   getUserFunnels,
   setUserFunnels,
+  updateNomusProcess,
+  createNomusProcess,
 } from "@/integrations/nomus/process-sync.functions";
 import { getFunnelData } from "@/integrations/nomus/process-enrichment.functions";
 import { PageHeader } from "@/components/PageHeader";
