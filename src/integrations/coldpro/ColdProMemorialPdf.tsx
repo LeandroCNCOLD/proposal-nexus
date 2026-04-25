@@ -158,6 +158,7 @@ const styles = StyleSheet.create({
   flexGrow: { flex: 1 },
   compactSection: { marginTop: 10, paddingTop: 8, borderTopWidth: 1, borderTopColor: COLORS.border },
   noteBox: { backgroundColor: COLORS.bgSoft, borderLeftWidth: 3, borderLeftColor: COLORS.accent, padding: 8, borderRadius: 3, marginBottom: 8 },
+  calculationText: { fontSize: 8.5, lineHeight: 1.4, color: COLORS.text, marginBottom: 6 },
   pieWrap: { borderWidth: 1, borderColor: COLORS.border, borderRadius: 4, padding: 8, marginTop: 6, backgroundColor: "#ffffff", flexDirection: "row", gap: 10, alignItems: "center" },
   pieLegend: { flex: 1, gap: 4 },
   legendRow: { flexDirection: "row", alignItems: "center", gap: 5 },
