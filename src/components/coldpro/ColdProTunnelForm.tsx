@@ -1,25 +1,54 @@
 import * as React from "react";
-import { Fan, Package, Save, Settings, Wind } from "lucide-react";
+import { Fan, Package, Save, Settings, Wind, Warehouse } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ColdProField, ColdProInput, ColdProSelect } from "./ColdProField";
 import { ColdProCalculatedInfo, ColdProFormSection, ColdProValidationMessage, fmtColdPro, numberOrNull } from "./ColdProFormPrimitives";
+
+const ARRANGEMENT_DEFAULTS: Record<string, { air: number; penetration: number; label: string }> = {
+  individual_exposed: { air: 1, penetration: 1, label: "Produto individual exposto" },
+  tray_layer: { air: 0.8, penetration: 0.8, label: "Bandeja/camada" },
+  cart_rack: { air: 0.7, penetration: 0.7, label: "Carrinho com circulação" },
+  boxed_product: { air: 0.35, penetration: 0.45, label: "Produto em caixa" },
+  pallet_block: { air: 0.15, penetration: 0.2, label: "Pallet/bloco compacto" },
+  bulk_static: { air: 0.1, penetration: 0.15, label: "Massa a granel" },
+};
 
 const defaultTunnel = (environmentId: string) => ({
   environment_id: environmentId,
   tunnel_type: "blast_freezer",
   operation_mode: "continuous",
+  process_type: "continuous_individual_freezing",
+  arrangement_type: "individual_exposed",
   product_name: "Produto",
+  product_length_m: 0,
+  product_width_m: 0,
+  product_thickness_m: 0,
+  unit_weight_kg: 0,
   product_thickness_mm: 0,
   product_unit_weight_kg: 0,
   units_per_cycle: 0,
   cycles_per_hour: 0,
   mass_kg_hour: 0,
+  pallet_length_m: 0,
+  pallet_width_m: 0,
+  pallet_height_m: 0,
+  pallet_mass_kg: 0,
+  number_of_pallets: 1,
+  batch_time_h: 0,
+  layers_count: 0,
+  boxes_count: 0,
+  tray_spacing_m: 0,
+  package_type: "",
+  air_exposure_factor: 1,
+  thermal_penetration_factor: 1,
+  airflow_m3_h: 0,
   inlet_temp_c: 5,
   outlet_temp_c: -18,
   freezing_temp_c: -1.5,
   density_kg_m3: 0,
   thermal_conductivity_frozen_w_m_k: 0,
   convective_coefficient_w_m2_k: 0,
+  convective_coefficient_manual_w_m2_k: null,
   air_temp_c: -35,
   air_velocity_m_s: 3,
   process_time_min: 60,
@@ -33,6 +62,17 @@ const defaultTunnel = (environmentId: string) => ({
   other_internal_kw: 0,
 });
 
+function isStaticProcess(processType: string) {
+  return processType === "static_cart_freezing" || processType === "static_pallet_freezing";
+}
+
+function defaultArrangement(processType: string) {
+  if (processType === "static_cart_freezing") return "cart_rack";
+  if (processType === "static_pallet_freezing") return "pallet_block";
+  if (processType === "continuous_girofreezer") return "tray_layer";
+  return "individual_exposed";
+}
+
 export function ColdProTunnelForm({ environmentId, tunnel, productCatalog = [], onSave }: { environmentId: string; tunnel?: any; productCatalog?: any[]; onSave: (data: any) => void }) {
   const [form, setForm] = React.useState<any>(defaultTunnel(environmentId));
   const [selectedGroup, setSelectedGroup] = React.useState("");
@@ -41,15 +81,34 @@ export function ColdProTunnelForm({ environmentId, tunnel, productCatalog = [], 
 
   const set = (key: string, value: unknown) => setForm((prev: any) => ({ ...prev, [key]: value }));
   const num = (key: string) => ({ type: "number" as const, value: form?.[key] ?? "", onChange: (e: React.ChangeEvent<HTMLInputElement>) => set(key, numberOrNull(e.target.value)) });
-  const throughput = Number(form.units_per_cycle ?? 0) * Number(form.product_unit_weight_kg ?? 0) * Number(form.cycles_per_hour ?? 0);
+  const processType = String(form.process_type ?? "continuous_individual_freezing");
+  const isStatic = isStaticProcess(processType);
+  const unitWeight = Number(form.unit_weight_kg ?? 0) || Number(form.product_unit_weight_kg ?? 0);
+  const throughput = Number(form.units_per_cycle ?? 0) * unitWeight * Number(form.cycles_per_hour ?? 0);
   const massHour = Number(form.mass_kg_hour ?? 0) || throughput;
+  const staticMass = Number(form.pallet_mass_kg ?? 0) * Math.max(1, Number(form.number_of_pallets ?? 1));
+  const blockDims = [Number(form.pallet_length_m ?? 0), Number(form.pallet_width_m ?? 0), Number(form.pallet_height_m ?? 0)].filter((v) => v > 0);
+  const characteristic = isStatic ? (blockDims.length ? Math.min(...blockDims) : 0) : (Number(form.product_thickness_m ?? 0) || Number(form.product_thickness_mm ?? 0) / 1000);
   const deltaT = Number(form.inlet_temp_c ?? 0) - Number(form.outlet_temp_c ?? 0);
-  const processError = Number(form.process_time_min ?? 0) <= 0;
+  const processError = isStatic ? Number(form.batch_time_h ?? 0) <= 0 : Number(form.process_time_min ?? 0) <= 0;
   const velocityWarning = Number(form.air_velocity_m_s ?? 0) <= 0 || Number(form.air_velocity_m_s ?? 0) > 10;
   const requiredError = String(form.product_name ?? "").trim().length === 0;
+  const staticWarning = isStatic || ["boxed_product", "pallet_block", "bulk_static"].includes(String(form.arrangement_type));
   const canSave = !processError && !requiredError;
   const groups = React.useMemo(() => Array.from(new Set(productCatalog.map((p) => p.category).filter(Boolean))).sort((a, b) => String(a).localeCompare(String(b), "pt-BR")), [productCatalog]);
   const filteredProducts = React.useMemo(() => productCatalog.filter((p) => !selectedGroup || p.category === selectedGroup), [productCatalog, selectedGroup]);
+
+  const setProcessType = (value: string) => {
+    const arrangement = defaultArrangement(value);
+    const defaults = ARRANGEMENT_DEFAULTS[arrangement];
+    setForm((prev: any) => ({ ...prev, process_type: value, operation_mode: isStaticProcess(value) ? "batch" : "continuous", arrangement_type: arrangement, air_exposure_factor: defaults.air, thermal_penetration_factor: defaults.penetration }));
+  };
+
+  const setArrangementType = (value: string) => {
+    const defaults = ARRANGEMENT_DEFAULTS[value] ?? ARRANGEMENT_DEFAULTS.individual_exposed;
+    setForm((prev: any) => ({ ...prev, arrangement_type: value, air_exposure_factor: defaults.air, thermal_penetration_factor: defaults.penetration }));
+  };
+
   const applyProduct = (id: string) => {
     const p = productCatalog.find((item) => item.id === id);
     if (!p) return;
@@ -84,123 +143,151 @@ export function ColdProTunnelForm({ environmentId, tunnel, productCatalog = [], 
     }));
   };
 
+  const save = () => onSave({
+    ...form,
+    product_name: String(form.product_name ?? "").trim(),
+    product_thickness_mm: Number(form.product_thickness_mm ?? 0) || Number(form.product_thickness_m ?? 0) * 1000,
+    product_unit_weight_kg: Number(form.product_unit_weight_kg ?? 0) || Number(form.unit_weight_kg ?? 0),
+    mass_kg_hour: isStatic ? 0 : massHour,
+    thermal_characteristic_dimension_m: characteristic || null,
+    distance_to_core_m: characteristic > 0 ? characteristic / 2 : null,
+  });
+
   return (
     <div className="rounded-xl border bg-background p-5 shadow-sm">
       <div className="mb-5 flex flex-col gap-3 border-b pb-4 md:flex-row md:items-start md:justify-between">
         <div>
           <h2 className="text-lg font-semibold">Túnel de congelamento / resfriamento</h2>
-          <p className="mt-1 text-sm text-muted-foreground">Configuração do túnel, produto, ar de processo e cargas internas.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Configuração térmica separando produto individual e massa agrupada.</p>
         </div>
         <div className="grid grid-cols-2 gap-2 md:min-w-80">
-          <ColdProCalculatedInfo label="Throughput" value={`${fmtColdPro(throughput)} kg/h`} description="un/ciclo × kg × ciclos/h" tone={throughput > 0 ? "success" : "warning"} />
-          <ColdProCalculatedInfo label="ΔT produto" value={`${fmtColdPro(deltaT)} °C`} description="Entrada menos saída" tone={deltaT >= 0 ? "info" : "warning"} />
+          <ColdProCalculatedInfo label={isStatic ? "Massa lote" : "Throughput"} value={`${fmtColdPro(isStatic ? staticMass : massHour)} ${isStatic ? "kg" : "kg/h"}`} description={isStatic ? "pallet/lote × quantidade" : "kg/h ou un/ciclo"} tone={(isStatic ? staticMass : massHour) > 0 ? "success" : "warning"} />
+          <ColdProCalculatedInfo label="Dimensão térmica" value={`${fmtColdPro(characteristic, 3)} m`} description="Caminho até núcleo = metade" tone={characteristic > 0 ? "info" : "warning"} />
         </div>
       </div>
 
-      <Tabs defaultValue="configuracao" className="w-full">
+      <Tabs defaultValue="modelo" className="w-full">
         <TabsList className="mb-4 flex h-auto w-full flex-wrap justify-start gap-1 p-1">
-          <TabsTrigger value="configuracao">Configuração</TabsTrigger>
+          <TabsTrigger value="modelo">Modelo físico</TabsTrigger>
           <TabsTrigger value="produto">Produto</TabsTrigger>
-          <TabsTrigger value="ar">Ar e processo</TabsTrigger>
+          <TabsTrigger value="continuo">Contínuo</TabsTrigger>
+          <TabsTrigger value="estatico">Estático</TabsTrigger>
+          <TabsTrigger value="ar">Ar e embalagem</TabsTrigger>
           <TabsTrigger value="cargas">Cargas internas</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="configuracao">
-          <ColdProFormSection title="Configuração do túnel" description="Defina o tipo de processo e modo de operação." icon={<Settings className="h-4 w-4" />}>
+        <TabsContent value="modelo">
+          <ColdProFormSection title="Modelo físico aplicado" description="Escolha se o produto será tratado como unidade individual ou bloco térmico equivalente." icon={<Settings className="h-4 w-4" />}>
             <div className="grid grid-cols-1 gap-x-10 md:grid-cols-2">
-              <ColdProField label="Tipo de túnel">
-                <ColdProSelect value={form.tunnel_type} onChange={(e) => set("tunnel_type", e.target.value)}>
-                  <option value="blast_freezer">Túnel de congelamento</option>
-                  <option value="cooling_tunnel">Túnel de resfriamento</option>
+              <ColdProField label="Tipo de processo">
+                <ColdProSelect value={processType} onChange={(e) => setProcessType(e.target.value)}>
+                  <option value="continuous_individual_freezing">Túnel contínuo individual</option>
+                  <option value="continuous_girofreezer">Girofreezer contínuo</option>
+                  <option value="static_cart_freezing">Estático em carrinho</option>
+                  <option value="static_pallet_freezing">Estático em pallet/bloco</option>
                 </ColdProSelect>
               </ColdProField>
-              <ColdProField label="Operação">
-                <ColdProSelect value={form.operation_mode} onChange={(e) => set("operation_mode", e.target.value)}>
-                  <option value="continuous">Contínuo</option>
-                  <option value="batch">Batelada</option>
+              <ColdProField label="Tipo de arranjo">
+                <ColdProSelect value={form.arrangement_type} onChange={(e) => setArrangementType(e.target.value)}>
+                  {Object.entries(ARRANGEMENT_DEFAULTS).map(([key, item]) => <option key={key} value={key}>{item.label}</option>)}
                 </ColdProSelect>
               </ColdProField>
+              <ColdProField label="Tipo de túnel"><ColdProSelect value={form.tunnel_type} onChange={(e) => set("tunnel_type", e.target.value)}><option value="blast_freezer">Congelamento</option><option value="cooling_tunnel">Resfriamento</option></ColdProSelect></ColdProField>
+              <ColdProField label="Status físico"><ColdProInput readOnly value={isStatic ? "Massa agrupada / núcleo do bloco" : "Unidade individual / retenção"} /></ColdProField>
             </div>
+            {staticWarning ? <ColdProValidationMessage tone="warning">Congelamento de caixa, pallet ou bloco depende da embalagem, arranjo, vazão e passagem real de ar. Use como estimativa conservadora.</ColdProValidationMessage> : null}
           </ColdProFormSection>
         </TabsContent>
 
         <TabsContent value="produto">
-          <ColdProFormSection title="Produto e throughput" description="Dados físicos e vazão mássica do produto no túnel." icon={<Package className="h-4 w-4" />}>
-            <div className="grid grid-cols-1 gap-x-10 md:grid-cols-2">
-              <div>
-                <ColdProField label="Grupo ASHRAE">
-                  <ColdProSelect value={selectedGroup} onChange={(e) => { setSelectedGroup(e.target.value); set("product_id", null); }}>
-                    <option value="">Seleção manual</option>
-                    {groups.map((group) => <option key={group} value={group}>{group}</option>)}
-                  </ColdProSelect>
-                </ColdProField>
-                <ColdProField label="Produto ASHRAE">
-                  <ColdProSelect value={form.product_id ?? ""} disabled={!selectedGroup} onChange={(e) => applyProduct(e.target.value)}>
-                    <option value="">{selectedGroup ? "Selecione o produto" : "Selecione primeiro o grupo"}</option>
-                    {filteredProducts.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                  </ColdProSelect>
-                </ColdProField>
-                <ColdProField label="Produto"><ColdProInput type="text" value={form.product_name ?? ""} onChange={(e) => set("product_name", e.target.value)} className="text-left" /></ColdProField>
-                <ColdProField label="Espessura produto" unit="mm"><ColdProInput {...num("product_thickness_mm")} /></ColdProField>
-                <ColdProField label="Peso unitário" unit="kg"><ColdProInput {...num("product_unit_weight_kg")} /></ColdProField>
-                <ColdProField label="Densidade" unit="kg/m³"><ColdProInput {...num("density_kg_m3")} /></ColdProField>
-              </div>
-              <div>
-                <ColdProField label="Unidades/ciclo"><ColdProInput {...num("units_per_cycle")} /></ColdProField>
-                <ColdProField label="Ciclos/h"><ColdProInput {...num("cycles_per_hour")} /></ColdProField>
-                <ColdProField label="Massa direta" unit="kg/h"><ColdProInput {...num("mass_kg_hour")} /></ColdProField>
-                <ColdProCalculatedInfo label="Massa usada no cálculo" value={`${fmtColdPro(massHour)} kg/h`} description="Usa massa direta ou throughput calculado." tone={massHour > 0 ? "success" : "warning"} />
-              </div>
-            </div>
+          <ColdProFormSection title="Produto e propriedades térmicas" description="Propriedades do alimento; geometria e embalagem são parâmetros de aplicação." icon={<Package className="h-4 w-4" />}>
+            <div className="grid grid-cols-1 gap-x-10 md:grid-cols-2"><div>
+              <ColdProField label="Grupo ASHRAE"><ColdProSelect value={selectedGroup} onChange={(e) => { setSelectedGroup(e.target.value); set("product_id", null); }}><option value="">Seleção manual</option>{groups.map((group) => <option key={group} value={group}>{group}</option>)}</ColdProSelect></ColdProField>
+              <ColdProField label="Produto ASHRAE"><ColdProSelect value={form.product_id ?? ""} disabled={!selectedGroup} onChange={(e) => applyProduct(e.target.value)}><option value="">{selectedGroup ? "Selecione o produto" : "Selecione primeiro o grupo"}</option>{filteredProducts.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</ColdProSelect></ColdProField>
+              <ColdProField label="Produto"><ColdProInput type="text" value={form.product_name ?? ""} onChange={(e) => set("product_name", e.target.value)} className="text-left" /></ColdProField>
+              <ColdProField label="Densidade" unit="kg/m³"><ColdProInput {...num("density_kg_m3")} /></ColdProField>
+            </div><div>
+              <ColdProField label="Temp. entrada" unit="°C"><ColdProInput {...num("inlet_temp_c")} /></ColdProField>
+              <ColdProField label="Temp. final" unit="°C"><ColdProInput {...num("outlet_temp_c")} /></ColdProField>
+              <ColdProField label="Temp. congelamento" unit="°C"><ColdProInput {...num("freezing_temp_c")} /></ColdProField>
+              <ColdProField label="Cp acima"><ColdProInput {...num("specific_heat_above_kcal_kg_c")} /></ColdProField>
+              <ColdProField label="Cp abaixo"><ColdProInput {...num("specific_heat_below_kcal_kg_c")} /></ColdProField>
+              <ColdProField label="Calor latente"><ColdProInput {...num("latent_heat_kcal_kg")} /></ColdProField>
+              <ColdProField label="Condutividade congelado"><ColdProInput {...num("thermal_conductivity_frozen_w_m_k")} /></ColdProField>
+              <ColdProField label="Água" unit="%"><ColdProInput {...num("water_content_percent")} /></ColdProField>
+            </div></div>
             <ColdProValidationMessage tone="error">{requiredError ? "Informe o produto do túnel." : ""}</ColdProValidationMessage>
           </ColdProFormSection>
         </TabsContent>
 
+        <TabsContent value="continuo">
+          <ColdProFormSection title="Contínuo / girofreezer" description="Produto individualizado ou camada fina exposta ao ar." icon={<Wind className="h-4 w-4" />}>
+            <div className="grid grid-cols-1 gap-x-10 md:grid-cols-2"><div>
+              <ColdProField label="Comprimento produto" unit="m"><ColdProInput {...num("product_length_m")} /></ColdProField>
+              <ColdProField label="Largura produto" unit="m"><ColdProInput {...num("product_width_m")} /></ColdProField>
+              <ColdProField label="Espessura produto" unit="m"><ColdProInput {...num("product_thickness_m")} /></ColdProField>
+              <ColdProField label="Peso unitário" unit="kg"><ColdProInput {...num("unit_weight_kg")} /></ColdProField>
+            </div><div>
+              <ColdProField label="Unidades/ciclo"><ColdProInput {...num("units_per_cycle")} /></ColdProField>
+              <ColdProField label="Ciclos/h"><ColdProInput {...num("cycles_per_hour")} /></ColdProField>
+              <ColdProField label="Massa direta" unit="kg/h"><ColdProInput {...num("mass_kg_hour")} /></ColdProField>
+              <ColdProField label="Tempo retenção" unit="min"><ColdProInput {...num("process_time_min")} /></ColdProField>
+              <ColdProCalculatedInfo label="Massa usada" value={`${fmtColdPro(massHour)} kg/h`} description="Massa direta ou throughput calculado" tone={massHour > 0 ? "success" : "warning"} />
+            </div></div>
+          </ColdProFormSection>
+        </TabsContent>
+
+        <TabsContent value="estatico">
+          <ColdProFormSection title="Estático / carrinho / pallet" description="Massa agrupada tratada como bloco térmico equivalente." icon={<Warehouse className="h-4 w-4" />}>
+            <div className="grid grid-cols-1 gap-x-10 md:grid-cols-2"><div>
+              <ColdProField label="Comprimento pallet/bloco" unit="m"><ColdProInput {...num("pallet_length_m")} /></ColdProField>
+              <ColdProField label="Largura pallet/bloco" unit="m"><ColdProInput {...num("pallet_width_m")} /></ColdProField>
+              <ColdProField label="Altura da carga" unit="m"><ColdProInput {...num("pallet_height_m")} /></ColdProField>
+              <ColdProField label="Massa por pallet/lote" unit="kg"><ColdProInput {...num("pallet_mass_kg")} /></ColdProField>
+            </div><div>
+              <ColdProField label="Número de pallets/lotes"><ColdProInput {...num("number_of_pallets")} /></ColdProField>
+              <ColdProField label="Tempo batelada desejado" unit="h"><ColdProInput {...num("batch_time_h")} /></ColdProField>
+              <ColdProField label="Número de camadas"><ColdProInput {...num("layers_count")} /></ColdProField>
+              <ColdProField label="Número de caixas"><ColdProInput {...num("boxes_count")} /></ColdProField>
+              <ColdProField label="Espaçamento bandejas" unit="m"><ColdProInput {...num("tray_spacing_m")} /></ColdProField>
+              <ColdProCalculatedInfo label="Massa total" value={`${fmtColdPro(staticMass)} kg`} description="massa × quantidade" tone={staticMass > 0 ? "success" : "warning"} />
+            </div></div>
+          </ColdProFormSection>
+        </TabsContent>
+
         <TabsContent value="ar">
-          <ColdProFormSection title="Ar e processo" description="Temperaturas, velocidade do ar, tempo de retenção e propriedades térmicas." icon={<Wind className="h-4 w-4" />}>
-            <div className="grid grid-cols-1 gap-x-10 md:grid-cols-2">
-              <div>
-                <ColdProField label="Temp. entrada" unit="°C"><ColdProInput {...num("inlet_temp_c")} /></ColdProField>
-                <ColdProField label="Temp. final" unit="°C"><ColdProInput {...num("outlet_temp_c")} /></ColdProField>
-                <ColdProField label="Temp. congelamento" unit="°C"><ColdProInput {...num("freezing_temp_c")} /></ColdProField>
-                <ColdProField label="Temp. ar" unit="°C"><ColdProInput {...num("air_temp_c")} /></ColdProField>
-                <ColdProField label="Velocidade ar" unit="m/s"><ColdProInput {...num("air_velocity_m_s")} /></ColdProField>
-                <ColdProField label="Tempo processo" unit="min"><ColdProInput {...num("process_time_min")} /></ColdProField>
-              </div>
-              <div>
-                <ColdProField label="Cp acima"><ColdProInput {...num("specific_heat_above_kcal_kg_c")} /></ColdProField>
-                <ColdProField label="Cp abaixo"><ColdProInput {...num("specific_heat_below_kcal_kg_c")} /></ColdProField>
-                <ColdProField label="Calor latente"><ColdProInput {...num("latent_heat_kcal_kg")} /></ColdProField>
-                <ColdProField label="Calor latente" unit="kJ/kg"><ColdProInput {...num("latent_heat_kj_kg")} /></ColdProField>
-                <ColdProField label="Água" unit="%"><ColdProInput {...num("water_content_percent")} /></ColdProField>
-                <ColdProField label="Condutividade congelado"><ColdProInput {...num("thermal_conductivity_frozen_w_m_k")} /></ColdProField>
-                <ColdProField label="Coef. convecção manual"><ColdProInput {...num("convective_coefficient_w_m2_k")} /></ColdProField>
-                <ColdProValidationMessage>{velocityWarning ? "Confira a velocidade do ar. Valores usuais ficam acima de 0 e geralmente abaixo de 10 m/s." : ""}</ColdProValidationMessage>
-                <ColdProValidationMessage tone="error">{processError ? "Tempo de processo deve ser maior que zero." : ""}</ColdProValidationMessage>
-              </div>
-            </div>
+          <ColdProFormSection title="Ar, embalagem e penetração térmica" description="Fatores que reduzem convecção e penetração no núcleo." icon={<Wind className="h-4 w-4" />}>
+            <div className="grid grid-cols-1 gap-x-10 md:grid-cols-2"><div>
+              <ColdProField label="Temp. ar" unit="°C"><ColdProInput {...num("air_temp_c")} /></ColdProField>
+              <ColdProField label="Velocidade ar" unit="m/s"><ColdProInput {...num("air_velocity_m_s")} /></ColdProField>
+              <ColdProField label="Vazão de ar" unit="m³/h"><ColdProInput {...num("airflow_m3_h")} /></ColdProField>
+              <ColdProField label="Coef. convecção manual"><ColdProInput {...num("convective_coefficient_manual_w_m2_k")} /></ColdProField>
+            </div><div>
+              <ColdProField label="Tipo de embalagem"><ColdProInput type="text" value={form.package_type ?? ""} onChange={(e) => set("package_type", e.target.value)} className="text-left" /></ColdProField>
+              <ColdProField label="Fator exposição ao ar"><ColdProInput {...num("air_exposure_factor")} /></ColdProField>
+              <ColdProField label="Fator penetração térmica"><ColdProInput {...num("thermal_penetration_factor")} /></ColdProField>
+              <ColdProValidationMessage>{velocityWarning ? "Confira a velocidade do ar. Valores usuais ficam acima de 0 e geralmente abaixo de 10 m/s." : ""}</ColdProValidationMessage>
+              <ColdProValidationMessage tone="error">{processError ? (isStatic ? "Tempo de batelada deve ser maior que zero." : "Tempo de retenção deve ser maior que zero.") : ""}</ColdProValidationMessage>
+            </div></div>
           </ColdProFormSection>
         </TabsContent>
 
         <TabsContent value="cargas">
           <ColdProFormSection title="Cargas internas" description="Embalagem, motores, ventiladores internos e demais potências dentro do túnel." icon={<Fan className="h-4 w-4" />}>
-            <div className="grid grid-cols-1 gap-x-10 md:grid-cols-2">
-              <div>
-                <ColdProField label="Embalagem" unit="kg/h"><ColdProInput {...num("packaging_mass_kg_hour")} /></ColdProField>
-                <ColdProField label="Cp embalagem"><ColdProInput {...num("packaging_specific_heat_kcal_kg_c")} /></ColdProField>
-              </div>
-              <div>
-                <ColdProField label="Motor esteira" unit="kW"><ColdProInput {...num("belt_motor_kw")} /></ColdProField>
-                <ColdProField label="Ventiladores internos" unit="kW"><ColdProInput {...num("internal_fans_kw")} /></ColdProField>
-                <ColdProField label="Outras cargas" unit="kW"><ColdProInput {...num("other_internal_kw")} /></ColdProField>
-              </div>
-            </div>
+            <div className="grid grid-cols-1 gap-x-10 md:grid-cols-2"><div>
+              <ColdProField label="Embalagem" unit="kg/h"><ColdProInput {...num("packaging_mass_kg_hour")} /></ColdProField>
+              <ColdProField label="Cp embalagem"><ColdProInput {...num("packaging_specific_heat_kcal_kg_c")} /></ColdProField>
+            </div><div>
+              <ColdProField label="Motor esteira" unit="kW"><ColdProInput {...num("belt_motor_kw")} /></ColdProField>
+              <ColdProField label="Ventiladores internos" unit="kW"><ColdProInput {...num("internal_fans_kw")} /></ColdProField>
+              <ColdProField label="Outras cargas" unit="kW"><ColdProInput {...num("other_internal_kw")} /></ColdProField>
+            </div></div>
           </ColdProFormSection>
         </TabsContent>
       </Tabs>
 
       <div className="mt-5 flex justify-end border-t pt-4">
-        <button type="button" disabled={!canSave} className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-2 text-sm font-medium text-primary-foreground shadow-sm transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50" onClick={() => onSave({ ...form, product_name: String(form.product_name ?? "").trim(), mass_kg_hour: Number(form.mass_kg_hour ?? 0) || throughput })}>
+        <button type="button" disabled={!canSave} className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-2 text-sm font-medium text-primary-foreground shadow-sm transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50" onClick={save}>
           <Save className="h-4 w-4" /> Salvar túnel
         </button>
       </div>
