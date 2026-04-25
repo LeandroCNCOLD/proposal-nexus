@@ -290,11 +290,11 @@ export function calculateProductLoadBreakdown(product: ColdProEnvironmentProduct
   const tout = n(product.outlet_temp_c);
   const tfreeze = product.initial_freezing_temp_c;
 
-  const cpAbove = n(product.specific_heat_above_kcal_kg_c);
-  const cpBelow = n(product.specific_heat_below_kcal_kg_c);
-  const latent = n(product.latent_heat_kcal_kg);
+  const cpAbove = thermalValueKcal(product.specific_heat_above_kcal_kg_c, product.specific_heat_above_kj_kg_k);
+  const cpBelow = thermalValueKcal(product.specific_heat_below_kcal_kg_c, product.specific_heat_below_kj_kg_k);
+  const latent = thermalValueKcal(product.latent_heat_kcal_kg, product.latent_heat_kj_kg);
   const allowPhaseChange = product.allow_phase_change !== false;
-  const frozenFraction = n(product.frozen_water_fraction, 1) || 1;
+  const frozenFraction = waterFreezeFraction(product);
 
   let sensibleAbove = 0;
   let latentLoad = 0;
@@ -319,8 +319,19 @@ export function calculateProductLoadBreakdown(product: ColdProEnvironmentProduct
     freezing_temp_c: tfreeze ?? null,
     cp_above_kcal_kg_c: cpAbove,
     cp_below_kcal_kg_c: cpBelow,
+    cp_above_kj_kg_k: product.specific_heat_above_kj_kg_k ?? round2(cpAbove * KCAL_TO_KJ),
+    cp_below_kj_kg_k: product.specific_heat_below_kj_kg_k ?? round2(cpBelow * KCAL_TO_KJ),
     latent_heat_kcal_kg: latent,
+    latent_heat_kj_kg: product.latent_heat_kj_kg ?? round2(latent * KCAL_TO_KJ),
     frozen_water_fraction: frozenFraction,
+    composition_percent: {
+      water: product.water_content_percent ?? null,
+      protein: product.protein_content_percent ?? null,
+      fat: product.fat_content_percent ?? null,
+      carbohydrate: product.carbohydrate_content_percent ?? null,
+      fiber: product.fiber_content_percent ?? null,
+      ash: product.ash_content_percent ?? null,
+    },
     sensible_above_kcal_h: round2(sensibleAbove / hours),
     latent_kcal_h: round2(latentLoad / hours),
     sensible_below_kcal_h: round2(sensibleBelow / hours),
