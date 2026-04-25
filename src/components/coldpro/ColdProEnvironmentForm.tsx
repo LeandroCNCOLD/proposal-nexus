@@ -156,7 +156,7 @@ function ChamberShapePreview({ layout }: { layout: ChamberLayout }) {
   const points = {
     rectangular: "25,25 135,25 135,95 25,95",
     l_shape: "25,25 135,25 135,58 92,58 92,95 25,95",
-    triangular: "25,95 135,95 25,25",
+    irregular_l: "25,25 135,25 135,45 118,45 118,58 92,58 92,95 25,95",
     custom_polygon: "55,25 125,38 135,82 92,98 35,82 25,42",
   }[layout];
 
