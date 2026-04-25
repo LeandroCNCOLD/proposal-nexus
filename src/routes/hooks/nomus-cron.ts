@@ -416,7 +416,7 @@ async function pullEntity(name: EntityKey): Promise<{ ok: boolean; count?: numbe
   return { ok: true, count };
 }
 
-export const Route = createFileRoute("/hooks/nomus-cron")({
+export const Route = createFileRoute("/api/public/hooks/nomus-cron")({
   server: {
     handlers: {
       POST: async ({ request }) => {
