@@ -627,6 +627,7 @@ export const processNomusProcessSyncBatch = createServerFn({ method: "POST" })
 export const listAvailableProcessTypes = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async () => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data, error } = await supabaseAdmin
       .from("nomus_processes")
       .select("tipo")
@@ -696,6 +697,8 @@ export const pingProcessoPut = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(z.object({ nomusId: z.string().min(1).max(20) }))
   .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { nomusFetch } = await import("./client");
     const userId = context.userId;
     // Busca etapa atual para fazer um PUT idempotente (não muda nada).
     const { data: row } = await supabaseAdmin
