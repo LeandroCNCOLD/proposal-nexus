@@ -50,6 +50,7 @@ type NomusProcessRaw = {
   tipo?: string;
   etapa?: string;
   prioridade?: string;
+  idPrioridade?: number | string;
   equipe?: string;
   origem?: string;
   responsavel?: string;
@@ -85,7 +86,7 @@ async function persistNomusProcessBatch(items: NomusProcessRaw[], userId: string
   const rows = items
     .map((raw) => {
       const nomusId = raw.id != null ? String(raw.id) : "";
-      if (!nomusId) return null;
+      if (!nomusId || nomusId.trim() === "0") return null;
       const tipo = (raw.tipo ?? "").trim() || null;
       const etapa = (raw.etapa ?? "").trim() || null;
       if (tipo && etapa) {
@@ -101,6 +102,7 @@ async function persistNomusProcessBatch(items: NomusProcessRaw[], userId: string
         tipo,
         etapa,
         prioridade: raw.prioridade?.trim() ?? null,
+        id_prioridade: raw.idPrioridade != null && Number(raw.idPrioridade) > 0 ? Number(raw.idPrioridade) : null,
         equipe: raw.equipe?.trim() ?? null,
         origem: raw.origem?.trim() ?? null,
         responsavel: raw.responsavel?.trim() ?? null,
@@ -112,6 +114,7 @@ async function persistNomusProcessBatch(items: NomusProcessRaw[], userId: string
         raw: raw as never,
         synced_at: now,
         local_dirty: false,
+        last_pull_error: null,
       };
     })
     .filter((r): r is NonNullable<typeof r> => r !== null);
@@ -120,7 +123,7 @@ async function persistNomusProcessBatch(items: NomusProcessRaw[], userId: string
   let upserted = 0;
   for (let i = 0; i < rows.length; i += 100) {
     const slice = rows.slice(i, i + 100);
-    const { error } = await supabaseAdmin.from("nomus_processes").upsert(slice, { onConflict: "nomus_id" });
+    const { error } = await (supabaseAdmin as any).from("nomus_processes").upsert(slice, { onConflict: "nomus_id" });
     if (error) errors.push(`batch ${i}-${i + slice.length}: ${error.message}`);
     else upserted += slice.length;
   }
