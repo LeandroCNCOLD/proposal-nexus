@@ -5,8 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { RefreshCw, Settings2, Search, Filter as FilterIcon } from "lucide-react";
 import { toast } from "sonner";
 import {
-  startNomusProcessSyncJob,
-  processNomusProcessSyncBatch,
+  pullNomusProcesses,
   listAvailableProcessTypes,
   getUserFunnels,
   setUserFunnels,
@@ -43,8 +42,7 @@ const EMPTY_FILTERS: Filters = { responsavel: "", equipe: "", pessoa: "", proces
 
 function CrmPage() {
   const queryClient = useQueryClient();
-  const startSync = useServerFn(startNomusProcessSyncJob);
-  const processSyncBatch = useServerFn(processNomusProcessSyncBatch);
+  const pullProcesses = useServerFn(pullNomusProcesses);
   const listTypes = useServerFn(listAvailableProcessTypes);
   const getFunnels = useServerFn(getUserFunnels);
   const saveFunnels = useServerFn(setUserFunnels);
@@ -129,57 +127,14 @@ function CrmPage() {
 
   const pullMutation = useMutation({
     mutationFn: async () => {
-      // Sincroniza APENAS o funil ativo (aba selecionada) para evitar sobrecarga/timeout.
-      // Os demais funis só são sincronizados quando o usuário troca de aba e dispara
-      // manualmente "Sincronizar Nomus" novamente.
       const tipoAtivo = activeTab?.trim();
       if (!tipoAtivo) throw new Error("Selecione um funil antes de sincronizar.");
-
-      const started = await startSync({
-        data: { tipos: [tipoAtivo], maxItems: 5000 },
-      });
-      if (!started.ok) throw new Error(started.error);
-
-      let last = started.job;
-      let consecutiveTimeouts = 0;
-      const MAX_CONSECUTIVE_TIMEOUTS = 3;
-
-      for (let guard = 0; guard < 200; guard += 1) {
-        try {
-          const batch = await processSyncBatch({ data: { jobId: started.job.id, maxPages: 1 } });
-          if (!batch.ok) {
-            // Erro reportado pelo handler — não insistir cegamente
-            throw new Error(batch.error);
-          }
-          consecutiveTimeouts = 0;
-          last = batch.job;
-          if (batch.done) break;
-        } catch (e) {
-          const msg = e instanceof Error ? e.message : String(e);
-          // 504 da gateway: o batch provavelmente continuou rodando no servidor.
-          // Esperamos um pouco e re-tentamos para retomar do ponto onde parou.
-          if (msg.includes("upstream request timeout") || msg.includes("504")) {
-            consecutiveTimeouts += 1;
-            if (consecutiveTimeouts >= MAX_CONSECUTIVE_TIMEOUTS) {
-              throw new Error(
-                "A API do Nomus está respondendo muito devagar. A sincronização foi pausada — tente novamente em alguns instantes.",
-              );
-            }
-            await new Promise((r) => setTimeout(r, 3000));
-            continue;
-          }
-          throw e;
-        }
-      }
-      if (last?.status !== "completed") {
-        throw new Error("A sincronização foi pausada antes de concluir. Tente novamente para continuar.");
-      }
-      return last;
+      const result = await pullProcesses({ data: { tipos: [tipoAtivo] } });
+      if (!result.ok) throw new Error(result.error);
+      return result;
     },
     onSuccess: (r) => {
-      toast.success(
-        `Funil "${activeTab}" sincronizado: ${r.upserted_items ?? 0} processos atualizados.`,
-      );
+      toast.success(`Funil "${activeTab}" sincronizado: ${r.upserted ?? 0} processos atualizados.`);
       queryClient.invalidateQueries({ queryKey: ["crm"] });
     },
     onError: (e) => toast.error(`Falha na sincronização: ${e instanceof Error ? e.message : String(e)}`),
