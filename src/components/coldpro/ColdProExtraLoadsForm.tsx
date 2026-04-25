@@ -61,12 +61,17 @@ export function ColdProExtraLoadsForm({ environment, catalogFanLoadKcalH = 0, on
                   <ColdProField label="Proteção da porta">
                     <select {...select("door_protection_type")}><option value="none">Sem proteção · 1,00</option><option value="pvc_curtain">Cortina PVC · 0,70</option><option value="air_curtain">Cortina de ar · 0,55</option><option value="antechamber">Antecâmara · 0,45</option><option value="fast_door">Porta rápida · 0,35</option><option value="antechamber_fast_door">Antecâmara + porta rápida · 0,25</option></select>
                   </ColdProField>
-                  <ColdProField label="Fator legado"><ColdProInput {...num("infiltration_factor")} /></ColdProField>
-                  <ColdProField label="Trocas de ar" unit="vol/h"><ColdProInput {...num("air_changes_per_hour")} /></ColdProField>
+                  <ColdProField label="Trocas de ar adicionais" unit="vol/h"><ColdProInput {...num("air_changes_per_hour")} /></ColdProField>
                   <ColdProField label="Ar externo contínuo" unit="m³/h"><ColdProInput {...num("fresh_air_m3_h")} /></ColdProField>
-                  <ColdProField label="Infiltração porta" unit="m³/h"><ColdProInput {...num("door_infiltration_m3_h")} /></ColdProField>
+                  <ColdProField label="Infiltração porta adicional" unit="m³/h"><ColdProInput {...num("door_infiltration_m3_h")} /></ColdProField>
                   <ColdProCalculatedInfo label="Carga de infiltração" value={`${fmtColdPro(preview.infiltration_kcal_h)} kcal/h`} description={`Sensível ${fmtColdPro(preview.infiltration_breakdown.sensibleKcalH)} · latente ${fmtColdPro(preview.infiltration_breakdown.latentKcalH)} · ar ${fmtColdPro(preview.infiltration_breakdown.totalInfiltrationM3Day)} m³/dia`} tone={preview.infiltration_kcal_h > 0 ? "success" : "warning"} />
                 </div>
+              </div>
+              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <ColdProCalculatedInfo label="Porta calculada" value={`${fmtColdPro(preview.infiltration_breakdown.doorInfiltrationM3Day)} m³/dia`} description={`${fmtColdPro(preview.infiltration_breakdown.doorInfiltrationM3Day / 24)} m³/h médio · área ${fmtColdPro(preview.infiltration_breakdown.doorAreaM2)} m²`} />
+                <ColdProCalculatedInfo label="Premissas da porta" value={`${fmtColdPro(preview.infiltration_breakdown.airVelocityMS)} m/s`} description={`proteção ${fmtColdPro(preview.infiltration_breakdown.correctionFactor)} · ${fmtColdPro(preview.infiltration_breakdown.externalRH)}% UR externa`} />
+                <ColdProCalculatedInfo label="Renovação contínua" value={`${fmtColdPro(preview.continuousAirM3H)} m³/h`} description={`trocas ${fmtColdPro(preview.infiltration_breakdown.airChangesM3H)} · externo ${fmtColdPro(preview.infiltration_breakdown.freshAirM3H)} · porta ${fmtColdPro(preview.infiltration_breakdown.manualDoorM3H)}`} />
+                <ColdProCalculatedInfo label="Umidade para gelo" value={`${fmtColdPro(preview.infiltration_breakdown.deltaHumidityGM3)} g/m³`} description={`${fmtColdPro(preview.infiltration_breakdown.iceKgDay)} kg/dia de gelo estimado`} tone={preview.infiltration_breakdown.iceKgDay > 0 ? "warning" : "success"} />
               </div>
             </ColdProFormSection>
           </AccordionContent>
