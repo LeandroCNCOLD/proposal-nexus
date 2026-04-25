@@ -43,6 +43,16 @@ function buildColdProItemDescription(params: {
   ].join("\n");
 }
 
+function latestRowsByEnvironment<T extends { environment_id?: string | null }>(rows: T[] = []) {
+  const seen = new Set<string>();
+  return rows.filter((row) => {
+    const environmentId = row.environment_id;
+    if (!environmentId || seen.has(environmentId)) return false;
+    seen.add(environmentId);
+    return true;
+  });
+}
+
 export const pushColdProToProposal = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(inputSchema)
@@ -84,7 +94,10 @@ export const pushColdProToProposal = createServerFn({ method: "POST" })
           .from("coldpro_equipment_selections")
           .select("*")
           .in("environment_id", environmentIds)
+          .order("created_at", { ascending: false })
       : { data: [] as any[] };
+    const latestResults = latestRowsByEnvironment(results ?? []);
+    const latestSelections = latestRowsByEnvironment(selections ?? []);
 
     if (data.mode === "replace_coldpro_items") {
       const { error: deleteError } = await supabase
@@ -97,8 +110,8 @@ export const pushColdProToProposal = createServerFn({ method: "POST" })
     }
 
     const items = (envs ?? []).map((env: any, index: number) => {
-      const result = (results ?? []).find((r: any) => r.environment_id === env.id);
-      const selection = (selections ?? []).find((s: any) => s.environment_id === env.id);
+      const result = latestResults.find((r: any) => r.environment_id === env.id);
+      const selection = latestSelections.find((s: any) => s.environment_id === env.id);
 
       return {
         proposal_id: proposalId,
