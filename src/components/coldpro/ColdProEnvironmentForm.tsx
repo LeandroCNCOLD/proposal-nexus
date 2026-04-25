@@ -50,6 +50,12 @@ const CHAMBER_LAYOUTS: Array<{ value: ChamberLayout; label: string; description:
 ];
 
 const INSULATION_THICKNESS_OPTIONS_MM = [50, 75, 100, 120, 150, 200];
+const SOIL_TEMPERATURE_REGIONS = [
+  { value: "sul", label: "Sul", range: "16 – 18°C", temp: 17 },
+  { value: "sudeste", label: "Sudeste", range: "18 – 22°C", temp: 20 },
+  { value: "centro_oeste", label: "Centro-Oeste", range: "20 – 24°C", temp: 22 },
+  { value: "nordeste", label: "Nordeste", range: "22 – 26°C", temp: 24 },
+];
 const SOLAR_FACE_OPTIONS = [
   { value: "", label: "Sem sol direto" },
   { value: "PAREDE 1", label: "Parede 1" },
@@ -291,6 +297,7 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
   const [form, setForm] = React.useState<any>(environment);
   const [activeFaceIndex, setActiveFaceIndex] = React.useState(0);
   const [floorInsulationMaterialId, setFloorInsulationMaterialId] = React.useState<string>(environment?.insulation_material_id ?? "");
+  const [soilRegion, setSoilRegion] = React.useState("");
   React.useEffect(() => setForm(environment), [environment]);
   React.useEffect(() => setFloorInsulationMaterialId(environment?.insulation_material_id ?? ""), [environment]);
 
