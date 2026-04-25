@@ -346,10 +346,12 @@ function ColdProProjectPage() {
                   ) : (
                     <ColdProProductForm
                       environmentId={selectedEnv.id}
+                      product={products.find((p: any) => p.id === editingProductId) ?? products[0] ?? null}
                       productCatalog={data?.productCatalog ?? []}
+                      saving={upsertProduct.isPending}
                       onSave={(payload) =>
                         upsertProduct.mutate(payload, {
-                          onSuccess: () => toast.success("Produto adicionado"),
+                          onSuccess: (row: any) => { setEditingProductId(row?.id ?? null); toast.success(payload.id ? "Produto atualizado" : "Produto adicionado"); },
                           onError: (e: any) => toast.error(e?.message ?? "Erro ao salvar"),
                         })
                       }
@@ -375,10 +377,14 @@ function ColdProProjectPage() {
                     ) : (
                       <div className="space-y-2">
                         {products.map((p: any) => (
-                          <div key={p.id} className="flex items-center justify-between rounded-md border px-3 py-2 text-sm">
+                          <div key={p.id} className="flex flex-wrap items-center justify-between gap-3 rounded-md border px-3 py-2 text-sm">
                             <div>
                               <b>{p.product_name}</b> · {fmt(p.mass_kg_day)} kg/dia · entrada {p.inlet_temp_c}°C → final{" "}
                               {p.outlet_temp_c}°C
+                            </div>
+                            <div className="flex gap-2">
+                              <button type="button" onClick={() => setEditingProductId(p.id)} className="rounded-md border px-2 py-1 text-xs hover:bg-muted">Editar</button>
+                              <button type="button" onClick={() => { if (window.confirm(`Excluir o produto "${p.product_name}"?`)) deleteProduct.mutate(p.id, { onSuccess: () => { if (editingProductId === p.id) setEditingProductId(null); toast.success("Produto excluído"); }, onError: (e: any) => toast.error(e?.message ?? "Erro ao excluir") }); }} className="rounded-md border border-destructive/30 px-2 py-1 text-xs text-destructive hover:bg-destructive/10">Excluir</button>
                             </div>
                           </div>
                         ))}
