@@ -3,7 +3,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { nomusFetch, listAll, listPage, testNomusConnection } from "./client";
+import { nomusFetch, listAll, listPage, getOne, testNomusConnection } from "./client";
 import {
   NOMUS_ENDPOINTS,
   proposalSubpath,
@@ -29,6 +29,12 @@ const pickNum = (o: Json, ...keys: string[]): number | null => {
     }
   }
   return null;
+};
+
+const pickNestedStr = (o: Json, nestedKey: string, ...keys: string[]): string | null => {
+  const nested = o[nestedKey];
+  if (!nested || typeof nested !== "object") return null;
+  return pickStr(nested as Json, ...keys);
 };
 
 async function setState(entity: string, patch: Record<string, unknown>) {
