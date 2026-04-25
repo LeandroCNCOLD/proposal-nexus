@@ -24,7 +24,7 @@ type Props = {
   onSave: (patch: Record<string, unknown>) => void;
 };
 
-type ChamberLayout = "rectangular" | "l_shape" | "triangular" | "custom_polygon";
+type ChamberLayout = "rectangular" | "l_shape" | "irregular_l" | "custom_polygon";
 
 type Geometry = {
   local: "__GEOMETRY__";
@@ -45,7 +45,7 @@ const APPLICATIONS = [
 const CHAMBER_LAYOUTS: Array<{ value: ChamberLayout; label: string; description: string; walls: number }> = [
   { value: "rectangular", label: "Retangular", description: "4 paredes, teto e piso", walls: 4 },
   { value: "l_shape", label: "Formato em L", description: "6 paredes com recorte", walls: 6 },
-  { value: "triangular", label: "Triangular", description: "3 paredes com medidas distintas", walls: 3 },
+  { value: "irregular_l", label: "Irregular", description: "8 laterais com recorte duplo", walls: 8 },
   { value: "custom_polygon", label: "Personalizada", description: "Quantidade manual de paredes", walls: 4 },
 ];
 
@@ -58,7 +58,8 @@ function toNumber(value: unknown) {
 
 function normalizeLayout(value: unknown): ChamberLayout {
   const current = String(value ?? "rectangular");
-  if (current === "l_shape" || current === "triangular" || current === "custom_polygon" || current === "rectangular") return current;
+  if (current === "l_shape" || current === "irregular_l" || current === "custom_polygon" || current === "rectangular") return current;
+  if (current === "triangular") return "irregular_l";
   if (LEGACY_LAYOUTS.has(current)) return "rectangular";
   return "rectangular";
 }
@@ -79,7 +80,11 @@ function getGeometry(value: unknown): Geometry {
 }
 
 function getFloorArea(layout: ChamberLayout, length: number, width: number, geometry: Geometry, constructionFaces?: any[]) {
-  if (layout === "triangular") return Math.max(0, (length * width) / 2);
+  if (layout === "irregular_l") {
+    const cutoutLength = Math.min(length, Math.max(0, toNumber(geometry.cutout_length_m)));
+    const cutoutWidth = Math.min(width, Math.max(0, toNumber(geometry.cutout_width_m)));
+    return Math.max(0, (length * width) - (cutoutLength * cutoutWidth));
+  }
   if (layout === "l_shape") {
     const cutoutLength = Math.min(length, Math.max(0, toNumber(geometry.cutout_length_m)));
     const cutoutWidth = Math.min(width, Math.max(0, toNumber(geometry.cutout_width_m)));
@@ -93,11 +98,15 @@ function getFloorArea(layout: ChamberLayout, length: number, width: number, geom
 }
 
 function getWallLengths(layout: ChamberLayout, length: number, width: number, geometry: Geometry, count: number) {
-  if (layout === "triangular") return [length, width, Math.hypot(length, width)];
   if (layout === "l_shape") {
     const cutoutLength = Math.min(length, Math.max(0, toNumber(geometry.cutout_length_m)));
     const cutoutWidth = Math.min(width, Math.max(0, toNumber(geometry.cutout_width_m)));
     return [length, Math.max(0, width - cutoutWidth), cutoutLength, cutoutWidth, Math.max(0, length - cutoutLength), width];
+  }
+  if (layout === "irregular_l") {
+    const cutoutLength = Math.min(length, Math.max(0, toNumber(geometry.cutout_length_m)));
+    const cutoutWidth = Math.min(width, Math.max(0, toNumber(geometry.cutout_width_m)));
+    return [length, Math.max(0, width - cutoutWidth), cutoutLength, cutoutWidth, Math.max(0, cutoutLength), Math.max(0, width - cutoutWidth), Math.max(0, length - cutoutLength), width];
   }
   if (layout === "rectangular") return [length, width, length, width];
   return Array.from({ length: count }, () => 0);
