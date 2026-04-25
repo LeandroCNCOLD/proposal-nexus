@@ -64,6 +64,7 @@ export function ColdProResultCard({ result }: { result: any }) {
   const transmissionSummary = result.calculation_breakdown?.transmission_summary ?? {};
   const tunnel = result.calculation_breakdown?.tunnel;
   const seedDehumidification = result.calculation_breakdown?.seed_dehumidification;
+  const evaporatorFrost = result.calculation_breakdown?.evaporator_frost;
   const advancedProcesses = Array.isArray(result.calculation_breakdown?.advanced_processes) ? result.calculation_breakdown.advanced_processes : [];
   const productBreakdown = Array.isArray(result.calculation_breakdown?.products) ? result.calculation_breakdown.products : [];
   const bars = [
@@ -107,10 +108,30 @@ export function ColdProResultCard({ result }: { result: any }) {
           <Group title="Produtos" rows={[{ label: "Produto", value: result.product_kcal_h }, { label: "Embalagem", value: result.packaging_kcal_h }, { label: "Respiração", value: result.calculation_breakdown?.respiration_kcal_h }, { label: "Túnel/processo", value: result.tunnel_internal_load_kcal_h }]} />
           {seedDehumidification?.applies ? <Group title="Desumidificação" rows={[{ label: "Latente do ar", value: n(seedDehumidification.latent_air_kw) * 860 }, { label: "Latente da semente", value: n(seedDehumidification.latent_seed_kw) * 860 }, { label: "Total", value: seedDehumidification.total_kcal_h }]} /> : null}
           {advancedProcesses.length ? <Group title="Processos Especiais" rows={[{ label: "Umidade / latente", value: advancedProcesses.reduce((sum: number, item: any) => sum + n(item.humidity?.total_kcal_h), 0) }, { label: "Purga", value: advancedProcesses.reduce((sum: number, item: any) => sum + n(item.co2?.purge_thermal_load_kcal_h ?? item.controlled_atmosphere?.co2_control?.purge_thermal_load_kcal_h), 0) }, { label: "Respiração", value: advancedProcesses.reduce((sum: number, item: any) => sum + n(item.controlled_atmosphere?.respiration_load_kcal_h), 0) }]} /> : null}
-          <Group title="Cargas extras" rows={[{ label: "Infiltração", value: result.infiltration_kcal_h }, { label: "Pessoas", value: result.people_kcal_h }, { label: "Iluminação", value: result.lighting_kcal_h }, { label: "Motores", value: result.motors_kcal_h }, { label: "Ventiladores", value: result.fans_kcal_h }, { label: "Degelo", value: result.defrost_kcal_h }, { label: "Outras", value: result.other_kcal_h }]} />
+          <Group title="Cargas extras" rows={[{ label: "Infiltração", value: result.infiltration_kcal_h }, { label: "Impacto gelo evaporador", value: evaporatorFrost?.additional_load_kcal_h }, { label: "Pessoas", value: result.people_kcal_h }, { label: "Iluminação", value: result.lighting_kcal_h }, { label: "Motores", value: result.motors_kcal_h }, { label: "Ventiladores", value: result.fans_kcal_h }, { label: "Degelo", value: result.defrost_kcal_h }, { label: "Outras", value: result.other_kcal_h }]} />
           <Group title="Fechamento" rows={[{ label: "Subtotal", value: subtotal }, { label: "Segurança", value: result.safety_kcal_h }, { label: "Total requerido", value: result.total_required_kcal_h }]} />
         </div>
       </div>
+
+      {evaporatorFrost ? (
+        <div className="mt-5 rounded-xl border p-4">
+          <div className="mb-4 flex items-center gap-2">
+            <Snowflake className="h-4 w-4 text-primary" />
+            <h4 className="text-sm font-semibold">Análise de gelo no evaporador</h4>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <Kpi label="Gelo por dia" value={evaporatorFrost.frost_kg_day} unit="kg/dia" icon={<Droplets className="h-4 w-4" />} />
+            <Kpi label="Perda rendimento" value={evaporatorFrost.efficiency_loss_percent} unit="%" icon={<Gauge className="h-4 w-4" />} />
+            <Kpi label="Carga adicional" value={evaporatorFrost.additional_load_kcal_h} unit="kcal/h" icon={<Calculator className="h-4 w-4" />} />
+            <Kpi label="Degelo preventivo" value={evaporatorFrost.recommended_defrost_interval_h ?? 0} unit="h" icon={<Snowflake className="h-4 w-4" />} />
+          </div>
+          <div className="mt-4 grid grid-cols-1 gap-3 text-sm md:grid-cols-3">
+            <div className="rounded-lg bg-muted/30 p-3">Operação normal: <b>{evaporatorFrost.normal_block_hours ? `${fmtColdPro(evaporatorFrost.normal_block_hours)} h` : "sem bloqueio estimado"}</b></div>
+            <div className="rounded-lg bg-muted/30 p-3">Operação arriscada: <b>{evaporatorFrost.risky_block_hours ? `${fmtColdPro(evaporatorFrost.risky_block_hours)} h` : "sem bloqueio estimado"}</b></div>
+            <div className="rounded-lg bg-muted/30 p-3">Operação complexa: <b>{evaporatorFrost.complex_block_hours ? `${fmtColdPro(evaporatorFrost.complex_block_hours)} h` : "sem bloqueio estimado"}</b></div>
+          </div>
+        </div>
+      ) : null}
 
       {seedDehumidification?.applies ? (
         <div className="mt-5 rounded-xl border p-4">
