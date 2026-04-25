@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const payloadSchema = z.object({
   name: z.string().trim().min(1).max(160),
@@ -10,6 +11,7 @@ const payloadSchema = z.object({
 });
 
 export const saveColdProSeletorCalculation = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator(payloadSchema)
   .handler(async ({ data }) => {
     const { data: project, error: projectError } = await supabaseAdmin
@@ -36,6 +38,7 @@ export const saveColdProSeletorCalculation = createServerFn({ method: "POST" })
   });
 
 export const duplicateColdProSeletorCalculation = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator(payloadSchema)
   .handler(async ({ data }) => {
     const { data: project, error } = await supabaseAdmin
@@ -48,6 +51,7 @@ export const duplicateColdProSeletorCalculation = createServerFn({ method: "POST
   });
 
 export const listColdProEquipmentSuggestions = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
   .inputValidator(z.object({ requiredKw: z.number().min(0), limit: z.number().min(1).max(20).default(8) }))
   .handler(async ({ data }) => {
     const requiredKcalH = data.requiredKw * 1000 * 0.859845;
