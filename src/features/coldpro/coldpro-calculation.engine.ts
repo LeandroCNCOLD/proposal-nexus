@@ -17,7 +17,7 @@ import {
   kwToKcalh,
   round2,
 } from "./coldpro.constants";
-import { calculateAdvancedProcess } from "@/modules/coldpro/services/advancedProcesses/advancedProcessEngine";
+import { calculateAdvancedProcess } from "./advancedProcesses/advancedProcessEngine";
 import { calculateEvaporatorFrostRisk, suggestedInfiltrationFactor } from "./extra-loads-preview";
 import { calculateMotorLoadKcalH, calculateTechnicalDefrost, calculateTechnicalInfiltration } from "./thermal-calculations";
 

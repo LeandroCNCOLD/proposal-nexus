@@ -1,32 +1,30 @@
-Vou corrigir a falha **“WinAnsi cannot encode”** na geração do memorial/PDF do ColdPro.
+Vou remover o “Seletor Técnico” duplicado que aparece em Inteligência para evitar conflito com o ColdPro principal.
 
-## Causa identificada
+## O que será feito
 
-O PDF usa fonte padrão do gerador atual, que não aceita emojis/símbolos fora da codificação básica. A análise técnica pode chegar com caracteres como alerta/emoji, e o PDF quebra ao medir ou desenhar esse texto.
+1. Remover o item do menu lateral
+   - Tirar “Seletor Técnico” do grupo “Inteligência”.
+   - Manter os demais itens: Head-to-Head, Documentos & IA e Relatórios.
 
-## Correção proposta
+2. Remover a rota `/app/seletor`
+   - Excluir a página que carrega o módulo `ColdProSeletorApp`.
+   - Assim o usuário não consegue mais acessar esse cálculo paralelo pelo menu nem por rota direta.
 
-1. **Fortalecer a limpeza de texto do PDF**
-   - Atualizar a função de sanitização em `coldproMemorialPdfLib.ts` para remover/substituir:
-     - emojis
-     - pictogramas
-     - símbolos privados
-     - caracteres invisíveis/problemáticos
-     - bullets e símbolos especiais não suportados pela fonte padrão
-   - Exemplo: transformar alerta/emoji em texto simples como `[Alerta]` ou remover quando não agregar informação.
+3. Remover o módulo antigo/duplicado do seletor
+   - Apagar os componentes e serviços em `src/modules/coldpro` que pertencem a esse seletor paralelo.
+   - Preservar o ColdPro oficial em `src/features/coldpro`, `src/components/coldpro`, `src/integrations/coldpro` e rotas `/app/coldpro*`.
 
-2. **Garantir sanitização em todos os pontos de escrita**
-   - Revisar chamadas de `drawText`, `paragraph`, `table`, rodapé e laudo final para que todo texto dinâmico passe por `clean()`.
-   - Corrigir qualquer ponto que ainda escreva texto dinâmico diretamente.
+4. Ajustar importações compartilhadas com cuidado
+   - Existem funções do ColdPro oficial que reutilizam apenas o motor de processos avançados dentro de `src/modules/coldpro/services/advancedProcesses`.
+   - Para não quebrar o ColdPro oficial, vou migrar essas funções compartilhadas para dentro de `src/features/coldpro` ou ajustar as importações antes de remover o módulo antigo.
 
-3. **Proteger o laudo da IA antes do PDF**
-   - Sanitizar `aiAnalysis` antes de renderizar no PDF.
-   - Isso evita que respostas futuras da IA com emojis ou caracteres especiais voltem a quebrar o memorial.
-
-4. **Validação**
-   - Rodar build/typecheck.
-   - Gerar/validar o fluxo de PDF novamente para confirmar que o erro não ocorre mais.
+5. Validar build e referências
+   - Rodar busca por `/app/seletor`, `ColdProSeletorApp` e `saveColdProSeletorCalculation` para garantir que não sobrou referência quebrada.
+   - Rodar build/typecheck para confirmar que o sistema continua funcionando.
 
 ## Resultado esperado
 
-O memorial técnico volta a ser gerado normalmente, mesmo quando a análise automática trouxer símbolos, alertas ou caracteres especiais.
+- O menu “Inteligência > Seletor Técnico” desaparece.
+- A página antiga de cálculo térmico não existe mais.
+- O ColdPro correto continua disponível em “Cadastros > ColdPro”, “Produtos Ashrae” e “Catálogo ColdPro”.
+- Reduzimos o risco de conflito entre dois motores de cálculo diferentes.

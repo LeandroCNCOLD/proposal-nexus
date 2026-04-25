@@ -14,7 +14,6 @@ import { Route as AppRouteImport } from './routes/app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppIndexRouteImport } from './routes/app.index'
 import { Route as AppTarefasRouteImport } from './routes/app.tarefas'
-import { Route as AppSeletorRouteImport } from './routes/app.seletor'
 import { Route as AppRelatoriosRouteImport } from './routes/app.relatorios'
 import { Route as AppEquipamentosRouteImport } from './routes/app.equipamentos'
 import { Route as AppDocumentosRouteImport } from './routes/app.documentos'
@@ -71,11 +70,6 @@ const AppIndexRoute = AppIndexRouteImport.update({
 const AppTarefasRoute = AppTarefasRouteImport.update({
   id: '/tarefas',
   path: '/tarefas',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppSeletorRoute = AppSeletorRouteImport.update({
-  id: '/seletor',
-  path: '/seletor',
   getParentRoute: () => AppRoute,
 } as any)
 const AppRelatoriosRoute = AppRelatoriosRouteImport.update({
@@ -260,7 +254,6 @@ export interface FileRoutesByFullPath {
   '/app/documentos': typeof AppDocumentosRoute
   '/app/equipamentos': typeof AppEquipamentosRoute
   '/app/relatorios': typeof AppRelatoriosRoute
-  '/app/seletor': typeof AppSeletorRoute
   '/app/tarefas': typeof AppTarefasRoute
   '/app/': typeof AppIndexRoute
   '/api/nomus/test': typeof ApiNomusTestRoute
@@ -298,7 +291,6 @@ export interface FileRoutesByTo {
   '/app/documentos': typeof AppDocumentosRoute
   '/app/equipamentos': typeof AppEquipamentosRoute
   '/app/relatorios': typeof AppRelatoriosRoute
-  '/app/seletor': typeof AppSeletorRoute
   '/app/tarefas': typeof AppTarefasRoute
   '/app': typeof AppIndexRoute
   '/api/nomus/test': typeof ApiNomusTestRoute
@@ -338,7 +330,6 @@ export interface FileRoutesById {
   '/app/documentos': typeof AppDocumentosRoute
   '/app/equipamentos': typeof AppEquipamentosRoute
   '/app/relatorios': typeof AppRelatoriosRoute
-  '/app/seletor': typeof AppSeletorRoute
   '/app/tarefas': typeof AppTarefasRoute
   '/app/': typeof AppIndexRoute
   '/api/nomus/test': typeof ApiNomusTestRoute
@@ -380,7 +371,6 @@ export interface FileRouteTypes {
     | '/app/documentos'
     | '/app/equipamentos'
     | '/app/relatorios'
-    | '/app/seletor'
     | '/app/tarefas'
     | '/app/'
     | '/api/nomus/test'
@@ -418,7 +408,6 @@ export interface FileRouteTypes {
     | '/app/documentos'
     | '/app/equipamentos'
     | '/app/relatorios'
-    | '/app/seletor'
     | '/app/tarefas'
     | '/app'
     | '/api/nomus/test'
@@ -457,7 +446,6 @@ export interface FileRouteTypes {
     | '/app/documentos'
     | '/app/equipamentos'
     | '/app/relatorios'
-    | '/app/seletor'
     | '/app/tarefas'
     | '/app/'
     | '/api/nomus/test'
@@ -532,13 +520,6 @@ declare module '@tanstack/react-router' {
       path: '/tarefas'
       fullPath: '/app/tarefas'
       preLoaderRoute: typeof AppTarefasRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/seletor': {
-      id: '/app/seletor'
-      path: '/seletor'
-      fullPath: '/app/seletor'
-      preLoaderRoute: typeof AppSeletorRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/relatorios': {
@@ -836,7 +817,6 @@ interface AppRouteChildren {
   AppDocumentosRoute: typeof AppDocumentosRoute
   AppEquipamentosRoute: typeof AppEquipamentosRoute
   AppRelatoriosRoute: typeof AppRelatoriosRoute
-  AppSeletorRoute: typeof AppSeletorRoute
   AppTarefasRoute: typeof AppTarefasRoute
   AppIndexRoute: typeof AppIndexRoute
   AppColdproIdRoute: typeof AppColdproIdRoute
@@ -859,7 +839,6 @@ const AppRouteChildren: AppRouteChildren = {
   AppDocumentosRoute: AppDocumentosRoute,
   AppEquipamentosRoute: AppEquipamentosRoute,
   AppRelatoriosRoute: AppRelatoriosRoute,
-  AppSeletorRoute: AppSeletorRoute,
   AppTarefasRoute: AppTarefasRoute,
   AppIndexRoute: AppIndexRoute,
   AppColdproIdRoute: AppColdproIdRoute,

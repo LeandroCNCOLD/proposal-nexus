@@ -3,7 +3,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { calculateColdProLoad } from "./coldpro-calculation.engine";
-import { calculateAdvancedProcess } from "@/modules/coldpro/services/advancedProcesses/advancedProcessEngine";
+import { calculateAdvancedProcess } from "./advancedProcesses/advancedProcessEngine";
 import { findEquipmentCandidates, suggestApplication, suggestEvaporationTemp } from "./equipment-selection.engine";
 
 const finiteNumber = z.number().finite();
