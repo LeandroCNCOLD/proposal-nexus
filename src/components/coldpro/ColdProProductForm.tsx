@@ -100,13 +100,13 @@ export function ColdProProductForm({ environmentId, productCatalog = [], onSave 
   const canSave = !requiredError && !processError && !negativeError;
 
   return (
-    <div className="rounded-xl border bg-background p-5 shadow-sm">
+    <div className="min-w-0 rounded-xl border bg-background p-3 shadow-sm sm:p-5">
       <div className="mb-5 flex flex-col gap-3 border-b pb-4 md:flex-row md:items-start md:justify-between">
         <div>
           <h2 className="text-lg font-semibold">Produtos</h2>
           <p className="mt-1 text-sm text-muted-foreground">Produto, movimentação diária, temperaturas, embalagem e propriedades térmicas ASHRAE.</p>
         </div>
-        <div className="grid grid-cols-2 gap-2 md:min-w-80">
+        <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 md:w-auto md:min-w-80">
           <ColdProCalculatedInfo label="kg/h esperado" value={`${fmtColdPro(expectedHour)} kg/h`} description="Massa diária / tempo de processo" tone={massDiverges ? "warning" : "info"} />
           <ColdProCalculatedInfo label="ΔT produto" value={`${fmtColdPro(deltaT)} °C`} description="Entrada menos final" tone={deltaT >= 0 ? "info" : "warning"} />
         </div>
