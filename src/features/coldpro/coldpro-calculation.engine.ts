@@ -365,6 +365,7 @@ export function calculateColdProLoad(params: {
   tunnel?: ColdProTunnel | null;
 }): ColdProResult {
   const transmission = calculateTransmissionLoad(params);
+  const transmissionBreakdown = calculateConstructionTransmission(params.env);
   const productBreakdown = params.products.map(calculateProductLoadBreakdown);
   const product = productBreakdown.reduce((acc, item) => acc + item.total_kcal_h, 0);
   const packaging = params.products.reduce((acc, item) => acc + calculatePackagingLoad(item), 0);
@@ -403,6 +404,7 @@ export function calculateColdProLoad(params: {
     total_required_kw: round2(kcalhToKw(total)),
     total_required_tr: round2(kcalhToTr(total)),
     calculation_breakdown: {
+      transmission_faces: transmissionBreakdown.faces,
       tunnel: tunnelResult,
       products: productBreakdown,
       respiration_kcal_h: round2(respiration),
