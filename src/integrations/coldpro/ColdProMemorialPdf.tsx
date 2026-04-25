@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Document, Image, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
+import { Document, Image, Page, Path, Svg, Text, View, StyleSheet } from "@react-pdf/renderer";
 
 const COLORS = {
   primary: "#0d2438",
@@ -156,6 +156,14 @@ const styles = StyleSheet.create({
   equipmentImage: { width: 132, height: 82, objectFit: "contain" },
   twoCol: { flexDirection: "row", gap: 10, alignItems: "stretch" },
   flexGrow: { flex: 1 },
+  compactSection: { marginTop: 10, paddingTop: 8, borderTopWidth: 1, borderTopColor: COLORS.border },
+  noteBox: { backgroundColor: COLORS.bgSoft, borderLeftWidth: 3, borderLeftColor: COLORS.accent, padding: 8, borderRadius: 3, marginBottom: 8 },
+  pieWrap: { borderWidth: 1, borderColor: COLORS.border, borderRadius: 4, padding: 8, marginTop: 6, backgroundColor: "#ffffff", flexDirection: "row", gap: 10, alignItems: "center" },
+  pieLegend: { flex: 1, gap: 4 },
+  legendRow: { flexDirection: "row", alignItems: "center", gap: 5 },
+  legendSwatch: { width: 8, height: 8, borderRadius: 2 },
+  legendText: { flex: 1, fontSize: 7.5, color: COLORS.text },
+  tiny: { fontSize: 7.5, color: COLORS.muted, lineHeight: 1.35 },
 });
 
 function fmt(value: unknown, digits = 2): string {
@@ -179,6 +187,48 @@ function loadRows(result: any): Array<[string, number]> {
     ["Outros", Number(result?.other_kcal_h ?? 0) + Number(result?.tunnel_internal_load_kcal_h ?? 0)],
   ];
   return rows.filter(([, value]) => value > 0);
+}
+
+const PIE_COLORS = [COLORS.accent, COLORS.primary, "#4b9f86", "#d68b2d", "#8b5fbf", "#c54f5f", "#64748b", "#2f7aa3", "#7c8c2f", "#a15c38"];
+
+function polarToCartesian(cx: number, cy: number, radius: number, angleInDegrees: number) {
+  const angleInRadians = ((angleInDegrees - 90) * Math.PI) / 180;
+  return { x: cx + radius * Math.cos(angleInRadians), y: cy + radius * Math.sin(angleInRadians) };
+}
+
+function describeArc(cx: number, cy: number, radius: number, startAngle: number, endAngle: number) {
+  const start = polarToCartesian(cx, cy, radius, endAngle);
+  const end = polarToCartesian(cx, cy, radius, startAngle);
+  const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
+  return `M ${cx} ${cy} L ${start.x} ${start.y} A ${radius} ${radius} 0 ${largeArcFlag} 0 ${end.x} ${end.y} Z`;
+}
+
+function LoadPieChart({ result }: { result: any }) {
+  const rows = loadRows(result);
+  const total = rows.reduce((sum, [, value]) => sum + value, 0);
+  if (!rows.length || total <= 0) return null;
+  let angle = 0;
+  return (
+    <View style={styles.pieWrap}>
+      <Svg width={120} height={120} viewBox="0 0 120 120">
+        {rows.map(([label, value], index) => {
+          const slice = (value / total) * 360;
+          const path = describeArc(60, 60, 52, angle, angle + slice);
+          angle += slice;
+          return <Path key={label} d={path} fill={PIE_COLORS[index % PIE_COLORS.length]} />;
+        })}
+      </Svg>
+      <View style={styles.pieLegend}>
+        {rows.map(([label, value], index) => (
+          <View key={label} style={styles.legendRow}>
+            <View style={[styles.legendSwatch, { backgroundColor: PIE_COLORS[index % PIE_COLORS.length] }]} />
+            <Text style={styles.legendText}>{label}</Text>
+            <Text style={[styles.legendText, { textAlign: "right", flex: 0.9 }]}>{fmt((value / total) * 100, 1)}%</Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
 }
 
 function LoadChart({ result }: { result: any }) {
@@ -226,6 +276,12 @@ export function ColdProMemorialPdf({
     },
     { kcal: 0, kw: 0, tr: 0 },
   );
+  const aggregateResult = results.reduce((acc: any, result: any) => {
+    for (const [key, value] of Object.entries(result ?? {})) {
+      if (key.endsWith("_kcal_h")) acc[key] = Number(acc[key] ?? 0) + Number(value ?? 0);
+    }
+    return acc;
+  }, {});
 
   return (
     <Document
@@ -328,24 +384,37 @@ export function ColdProMemorialPdf({
           })}
         </View>
 
+        <Text style={styles.h2}>Visão geral da carga térmica</Text>
+        <View style={styles.noteBox}>
+          <Text style={styles.p}>
+            Tecnicamente, a carga térmica foi consolidada pelas parcelas de transmissão, produto/processo,
+            infiltração, ocupação, iluminação, motores, ventiladores, degelo e demais cargas internas,
+            acrescidas do fator de segurança configurado. Comercialmente, este resultado orienta a seleção
+            de equipamentos com capacidade suficiente para atender a operação diária com margem de sobra auditável.
+          </Text>
+        </View>
+        <LoadPieChart result={aggregateResult} />
+
         <Text style={styles.footer} fixed render={({ pageNumber, totalPages }) =>
           `CN ColdPro  ·  Memorial gerado em ${generatedAt}${generatedBy ? `  ·  por ${generatedBy}` : ""}  ·  Página ${pageNumber} de ${totalPages}`
         } />
       </Page>
 
-      {/* PÁGINAS POR AMBIENTE */}
+      {/* DETALHAMENTO CONSOLIDADO */}
+      <Page size="A4" style={styles.page}>
+        <View style={styles.header} fixed>
+          <Text style={styles.headerTitle}>CN ColdPro · {project?.name}</Text>
+          <Text style={styles.headerTitle}>Detalhamento consolidado</Text>
+        </View>
+        <Text style={styles.h1}>Memória de cálculo por ambiente</Text>
+        <Text style={[styles.p, { marginBottom: 6 }]}>As seções abaixo agrupam dados de entrada, produtos, cargas calculadas e equipamento selecionado, reduzindo quebras desnecessárias entre páginas.</Text>
       {environments.map((env, idx) => {
         const result = results.find((r: any) => r.environment_id === env.id);
         const selection = selections.find((s: any) => s.environment_id === env.id);
         const envProducts = products.filter((p: any) => p.environment_id === env.id);
 
         return (
-          <Page key={env.id} size="A4" style={styles.page}>
-            <View style={styles.header} fixed>
-              <Text style={styles.headerTitle}>CN ColdPro · {project?.name}</Text>
-              <Text style={styles.headerTitle}>Ambiente {idx + 1} de {environments.length}</Text>
-            </View>
-
+          <View key={env.id} style={styles.compactSection}>
             <View style={styles.envHeader}>
               <Text style={styles.envHeaderText}>{idx + 1}. {env.name}</Text>
               <Text style={styles.envHeaderMeta}>{env.environment_type}</Text>
@@ -478,7 +547,7 @@ export function ColdProMemorialPdf({
                 </View>
                   </View>
                   <View style={styles.imageWrap}>
-                    {selection.equipment_image_url ? <Image src={selection.equipment_image_url} style={styles.equipmentImage} /> : <Text style={[styles.p, { color: COLORS.muted, textAlign: "center" }]}>Foto do equipamento não cadastrada</Text>}
+                    {selection.equipment_image_data_url || selection.equipment_image_url ? <Image src={selection.equipment_image_data_url ?? selection.equipment_image_url} style={styles.equipmentImage} /> : <Text style={[styles.p, { color: COLORS.muted, textAlign: "center" }]}>Foto do equipamento não cadastrada</Text>}
                   </View>
                 </View>
                 <View style={[styles.pillRow, { marginTop: 6 }]}>
@@ -492,12 +561,13 @@ export function ColdProMemorialPdf({
               </>
             )}
 
-            <Text style={styles.footer} fixed render={({ pageNumber, totalPages }) =>
-              `CN ColdPro  ·  Memorial gerado em ${generatedAt}  ·  Página ${pageNumber} de ${totalPages}`
-            } />
-          </Page>
+          </View>
         );
       })}
+        <Text style={styles.footer} fixed render={({ pageNumber, totalPages }) =>
+          `CN ColdPro  ·  Memorial gerado em ${generatedAt}  ·  Página ${pageNumber} de ${totalPages}`
+        } />
+      </Page>
     </Document>
   );
 }
