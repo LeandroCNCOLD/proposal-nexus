@@ -43,8 +43,9 @@ function fmt(value: unknown, digits = 1): string {
 function buildAiPrompt({ project, environments, results, selections, products, question, previousAnalysis }: any) {
   const lines = [
     `Projeto: ${project?.name ?? "Projeto"}. Aplicação: ${project?.application_type ?? "não informada"}.`,
-    `Gere um laudo técnico e comercial final, em português do Brasil, para encerrar um memorial de cálculo frigorífico. Seja objetivo, auditável e profissional.`,
-    `Estruture em: Conclusão executiva, Validação das premissas, Análise de produto/mudança de estado, Comparação carga requerida x ofertada, Riscos/observações e Recomendação final.`,
+    `Atue como um agente de IA especialista em engenharia frigorífica industrial, psicrometria, formação de gelo, degelo, seleção de evaporadores/condensadores e auditoria de carga térmica.`,
+    `Gere um laudo técnico e comercial final, em português do Brasil, para encerrar um memorial de cálculo frigorífico. Seja objetivo, auditável, profissional e crítico quando houver risco técnico.`,
+    `Estruture em: Conclusão executiva, Validação das premissas, Análise psicrométrica/infiltração/umidade/gelo, Análise de produto/mudança de estado, Comparação carga requerida x ofertada, Riscos/observações e Recomendação final.`,
     `Não invente dados ausentes; quando faltar dado, indique que deve ser validado.`,
     question ? `Pergunta/solicitação do usuário para esta análise: ${question}` : `Faça uma análise completa e aponte pontos técnicos relevantes para validação antes da emissão do PDF.`,
     previousAnalysis ? `Análise anterior para contexto: ${previousAnalysis}` : "",
@@ -83,9 +84,9 @@ async function generateAiAnalysis(input: any): Promise<string | null> {
       method: "POST",
       headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: "google/gemini-3.1-pro-preview",
         messages: [
-          { role: "system", content: "Você é um engenheiro frigorista sênior. Gere laudos claros, técnicos, comerciais e auditáveis, sem exageros e sem inventar dados." },
+          { role: "system", content: "Você é um agente técnico sênior de engenharia frigorífica. Responda como consultor especialista, com análise crítica, base técnica, recomendações práticas e sem inventar dados. Quando o usuário fizer uma pergunta, responda diretamente e conecte a resposta ao memorial de cálculo." },
           { role: "user", content: buildAiPrompt(input) },
         ],
       }),
