@@ -80,10 +80,20 @@ export const getColdProProjectBundle = createServerFn({ method: "GET" })
     const { data: advancedProcesses } = await supabase.from("coldpro_advanced_processes").select("*").eq("project_id", data.projectId).order("created_at", { ascending: true });
     const { data: results } = environmentIds.length ? await supabase.from("coldpro_results").select("*").in("environment_id", environmentIds).order("created_at", { ascending: false }) : { data: [] as any[] };
     const { data: selections } = environmentIds.length ? await supabase.from("coldpro_equipment_selections").select("*").in("environment_id", environmentIds) : { data: [] as any[] };
+    const equipmentModelIds = Array.from(new Set((selections ?? []).map((item: any) => item.equipment_model_id).filter(Boolean)));
+    const { data: equipmentModels } = equipmentModelIds.length
+      ? await supabase.from("coldpro_equipment_models").select("id, plugin_image_path, split_image_path, biblock_image_path").in("id", equipmentModelIds)
+      : { data: [] as any[] };
+    const equipmentImagesByModel = new Map((equipmentModels ?? []).map((model: any) => {
+      const path = model.plugin_image_path ?? model.split_image_path ?? model.biblock_image_path ?? null;
+      const publicUrl = path ? supabase.storage.from("coldpro-equipment-images").getPublicUrl(path).data.publicUrl : null;
+      return [model.id, { equipment_image_path: path, equipment_image_url: publicUrl }];
+    }));
+    const enrichedSelections = (selections ?? []).map((item: any) => ({ ...item, ...(equipmentImagesByModel.get(item.equipment_model_id) ?? {}) }));
     const { data: insulationMaterials } = await supabase.from("coldpro_insulation_materials").select("*").order("name");
     const { data: thermalMaterials } = await supabase.from("coldpro_thermal_materials").select("*").order("category").order("material_name");
     const { data: productCatalog } = await supabase.from("coldpro_products").select("*").order("name");
-    return { project, environments: environments ?? [], products: products ?? [], tunnels: tunnels ?? [], advancedProcesses: advancedProcesses ?? [], results: results ?? [], selections: selections ?? [], insulationMaterials: insulationMaterials ?? [], thermalMaterials: thermalMaterials ?? [], productCatalog: productCatalog ?? [] };
+    return { project, environments: environments ?? [], products: products ?? [], tunnels: tunnels ?? [], advancedProcesses: advancedProcesses ?? [], results: results ?? [], selections: enrichedSelections, insulationMaterials: insulationMaterials ?? [], thermalMaterials: thermalMaterials ?? [], productCatalog: productCatalog ?? [] };
   });
 
 export const createColdProEnvironment = createServerFn({ method: "POST" })
