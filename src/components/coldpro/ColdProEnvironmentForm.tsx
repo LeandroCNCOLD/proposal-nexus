@@ -226,13 +226,14 @@ function normalizeFaces(value: unknown, layout: ChamberLayout, wallCount: number
     const wallHeight = wallIndex >= 0 ? (toNumber(existing.wall_height_m) || height || 0) : null;
     const calculatedArea = wallIndex >= 0 ? toNumber(wallLength) * toNumber(wallHeight) : floorArea;
     const existingArea = toNumber(existing.panel_area_m2);
+    const shouldUseCalculatedArea = local === "TETO" || local === "PISO" || existingArea <= 0;
 
     return {
       local,
       wall_length_m: wallLength,
       wall_height_m: wallHeight,
       material_thickness: existing.material_thickness ?? "",
-      panel_area_m2: existingArea > 0 ? existingArea : calculatedArea,
+      panel_area_m2: shouldUseCalculatedArea ? calculatedArea : existingArea,
       layers: Array.isArray(existing.layers) ? existing.layers : [],
       u_value_w_m2k: existing.u_value_w_m2k ?? null,
       transmission_w: existing.transmission_w ?? null,
