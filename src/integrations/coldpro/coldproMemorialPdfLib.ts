@@ -32,7 +32,7 @@ function fmt(value: unknown, digits = 2) {
 }
 
 function loadRows(result: any): Array<[string, number]> {
-  return [
+  const rows: Array<[string, number]> = [
     ["Transmissão", Number(result?.transmission_kcal_h ?? 0)],
     ["Produto", Number(result?.product_kcal_h ?? 0)],
     ["Embalagem", Number(result?.packaging_kcal_h ?? 0)],
@@ -43,7 +43,8 @@ function loadRows(result: any): Array<[string, number]> {
     ["Ventiladores", Number(result?.fans_kcal_h ?? 0)],
     ["Degelo", Number(result?.defrost_kcal_h ?? 0)],
     ["Outros", Number(result?.other_kcal_h ?? 0) + Number(result?.tunnel_internal_load_kcal_h ?? 0)],
-  ].filter(([, value]) => value > 0);
+  ];
+  return rows.filter(([, value]) => value > 0);
 }
 
 function textWidth(font: PDFFont, text: string, size: number) {
