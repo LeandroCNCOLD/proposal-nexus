@@ -1,6 +1,6 @@
 import * as React from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, ArrowRight, Plus } from "lucide-react";
+import { ArrowLeft, ArrowRight, Plus, Snowflake, Thermometer, Wind, Warehouse } from "lucide-react";
 import { toast } from "sonner";
 import {
   useColdProProjectBundle,
@@ -139,22 +139,22 @@ function ColdProProjectPage() {
 
   return (
     <div className="min-h-screen bg-muted/30">
-      {/* HEADER ESTILO INTARCON: faixa escura com identidade */}
-      <div className="border-b border-border bg-[#0d2438] text-white print:hidden">
+      {/* HEADER ESTILO SELECT COLD: faixa escura com identidade */}
+      <div className="border-b border-sidebar-border bg-sidebar text-sidebar-foreground print:hidden">
         <div className="mx-auto flex max-w-[1400px] items-center justify-between px-6 py-3">
           <div className="flex items-center gap-6">
-            <Link to="/app/coldpro" className="text-xs text-white/60 hover:text-white">
+            <Link to="/app/coldpro" className="text-xs text-sidebar-foreground/70 hover:text-sidebar-foreground">
               ← Projetos
             </Link>
-            <div className="h-6 w-px bg-white/15" />
+            <div className="h-6 w-px bg-sidebar-border" />
             <div>
-              <div className="text-[11px] uppercase tracking-widest text-white/50">
+              <div className="text-[11px] uppercase tracking-widest text-sidebar-foreground/60">
                 CN ColdPro · Cálculo térmico
               </div>
               <div className="text-sm font-semibold">{data?.project?.name ?? "Novo projeto"}</div>
             </div>
           </div>
-          <div className="text-[11px] text-white/60">
+          <div className="text-[11px] text-sidebar-foreground/70">
             Etapa {stepIndex + 1} / {COLDPRO_STEPS.length} — {COLDPRO_STEPS[stepIndex].title}
           </div>
         </div>
@@ -162,27 +162,30 @@ function ColdProProjectPage() {
 
       <div className="mx-auto max-w-[1400px] grid grid-cols-1 gap-6 p-6 md:grid-cols-[260px_1fr]">
         {/* Sidebar de ambientes */}
-        <aside className="space-y-4 print:hidden">
+        <aside className="space-y-4 print:hidden md:sticky md:top-4 md:self-start">
           <div className="rounded-xl border bg-background p-4 shadow-sm">
             <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
               Novo ambiente
             </h2>
-            <div className="grid grid-cols-1 gap-1.5">
+            <div className="grid grid-cols-1 gap-2">
               {[
-                { type: "cold_room", label: "Câmara fria" },
-                { type: "freezer_room", label: "Câmara congelados" },
-                { type: "blast_freezer", label: "Túnel congelamento" },
-                { type: "cooling_tunnel", label: "Túnel resfriamento" },
-              ].map((opt) => (
-                <button
-                  key={opt.type}
-                  type="button"
-                  className="inline-flex items-center justify-start gap-2 rounded-md px-2 py-1.5 text-[12px] text-muted-foreground transition hover:bg-muted hover:text-foreground"
-                  onClick={() => handleCreateEnv(opt.type)}
-                >
-                  <Plus className="h-3 w-3" /> {opt.label}
-                </button>
-              ))}
+                { type: "cold_room", label: "Câmara fria", icon: Thermometer },
+                { type: "freezer_room", label: "Câmara congelados", icon: Snowflake },
+                { type: "blast_freezer", label: "Túnel congelamento", icon: Wind },
+                { type: "cooling_tunnel", label: "Túnel resfriamento", icon: Warehouse },
+              ].map((opt) => {
+                const Icon = opt.icon;
+                return (
+                  <button
+                    key={opt.type}
+                    type="button"
+                    className="inline-flex items-center justify-start gap-2 rounded-lg border border-transparent px-3 py-2 text-[12px] text-muted-foreground transition hover:border-primary/20 hover:bg-primary/5 hover:text-foreground"
+                    onClick={() => handleCreateEnv(opt.type)}
+                  >
+                    <Icon className="h-3.5 w-3.5 text-primary" /> {opt.label}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -195,14 +198,14 @@ function ColdProProjectPage() {
                 Nenhum ambiente. Crie o primeiro acima.
               </div>
             ) : (
-              <div className="space-y-1.5">
+              <div className="max-h-[420px] space-y-2 overflow-y-auto pr-1">
                 {environments.map((env: any) => (
                   <button
                     key={env.id}
                     type="button"
-                    className={`w-full rounded-md border px-3 py-2 text-left text-sm transition ${
+                    className={`w-full rounded-lg border px-3 py-2.5 text-left text-sm transition ${
                       env.id === selectedEnv?.id
-                        ? "border-primary/40 bg-primary/5"
+                        ? "border-primary/40 bg-primary/10 shadow-sm"
                         : "border-transparent hover:bg-muted"
                     }`}
                     onClick={() => {
