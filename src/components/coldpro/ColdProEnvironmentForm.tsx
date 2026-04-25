@@ -426,6 +426,12 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
     }
   };
 
+  const setSoilTemperatureRegion = (regionValue: string) => {
+    setSoilRegion(regionValue);
+    const region = SOIL_TEMPERATURE_REGIONS.find((item) => item.value === regionValue);
+    if (region) set("floor_temp_c", region.temp);
+  };
+
   const setSolarFace = (faceName: string) => {
     set("west_face_insolation", faceName !== "");
     const next = constructionFaces.map((face) => ({
@@ -486,6 +492,14 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
                 <ColdProField label="Temp. externa" unit="°C"><ColdProInput {...num("external_temp_c")} /></ColdProField>
                 <ColdProField label="Temp. interna" unit="°C"><ColdProInput {...num("internal_temp_c")} /></ColdProField>
                 <ColdProField label="Temp. sob o piso" unit="°C"><ColdProInput {...num("floor_temp_c")} /></ColdProField>
+                {!form?.has_floor_insulation ? (
+                  <ColdProField label="Região do solo">
+                    <ColdProSelect value={soilRegion} onChange={(e) => setSoilTemperatureRegion(e.target.value)}>
+                      <option value="">Selecione</option>
+                      {SOIL_TEMPERATURE_REGIONS.map((region) => <option key={region.value} value={region.value}>{region.label} · {region.range}</option>)}
+                    </ColdProSelect>
+                  </ColdProField>
+                ) : null}
                 <ColdProField label="UR externa" unit="%"><ColdProInput {...num("external_relative_humidity_percent")} placeholder="70" /></ColdProField>
                 <ColdProField label="UR interna" unit="%"><ColdProInput {...num("relative_humidity_percent")} placeholder="70" /></ColdProField>
                 <ColdProField label="Pressão atm." unit="kPa"><ColdProInput {...num("atmospheric_pressure_kpa")} placeholder="92,6" /></ColdProField>
