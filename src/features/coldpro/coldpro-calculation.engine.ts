@@ -19,7 +19,7 @@ import {
 } from "./coldpro.constants";
 import { calculateAdvancedProcess } from "./advancedProcesses/advancedProcessEngine";
 import { calculateEvaporatorFrostRisk, suggestedInfiltrationFactor } from "./extra-loads-preview";
-import { calculateMotorLoadKcalH, calculateTechnicalDefrost, calculateTechnicalInfiltration } from "./thermal-calculations";
+import { calculateEvaporatorFanLoad, calculateMotorLoadKcalH, calculateTechnicalDefrost, calculateTechnicalInfiltration } from "./thermal-calculations";
 
 const W_TO_KCAL_H = 0.859845;
 const R_INTERNAL_M2K_W = 0.12;
@@ -572,6 +572,12 @@ export function calculateProductLoadBreakdown(product: ColdProEnvironmentProduct
       ash: product.ash_content_percent ?? null,
     },
     total_energy_kcal: round2(totalEnergy),
+    sensible_above_energy_kcal: round2(sensibleAbove),
+    latent_energy_kcal: round2(latentLoad),
+    sensible_below_energy_kcal: round2(sensibleBelow),
+    energy_steps_sum_kcal: round2(sensibleAbove + latentLoad + sensibleBelow),
+    energy_consistency_delta_kcal: round2(Math.abs(totalEnergy - (sensibleAbove + latentLoad + sensibleBelow))),
+    specific_energy_kcal_kg: massDay > 0 ? round2(totalEnergy / massDay) : 0,
     sensible_above_kcal_h: round2(loadMode === "hourly_intake" ? sensibleAbove / 24 : sensibleAbove / hours),
     latent_kcal_h: round2(loadMode === "hourly_intake" ? latentLoad / 24 : latentLoad / hours),
     sensible_below_kcal_h: round2(loadMode === "hourly_intake" ? sensibleBelow / 24 : sensibleBelow / hours),
@@ -766,6 +772,7 @@ export function calculateColdProLoad(params: {
   insulation: ColdProInsulationMaterial;
   tunnel?: ColdProTunnel | null;
   advancedProcesses?: any[];
+  selection?: any | null;
 }): ColdProResult {
   const transmission = calculateTransmissionLoad(params);
   const transmissionBreakdown = calculateConstructionTransmission(params.env);
@@ -785,11 +792,13 @@ export function calculateColdProLoad(params: {
   const people = calculatePeopleLoad(params.env);
   const lighting = calculateLightingLoad(params.env);
   const motors = calculateMotorsLoad(params.env);
-  const fans = n(params.env.fans_kcal_h);
+  const fanLoad = calculateEvaporatorFanLoad(params.env, params.selection);
+  const fans = fanLoad.fansKcalH;
   const defrostSuggestion = calculateTechnicalDefrost(params.env, infiltrationBreakdown.iceKgDay);
   const defrost = n(params.env.defrost_kcal_h) > 0 ? n(params.env.defrost_kcal_h) : defrostSuggestion.defrostKcalH;
   const other = n(params.env.other_kcal_h);
 
+  const validationAlerts = buildColdProValidationAlerts(params.env, productBreakdown, infiltrationBreakdown, defrost, fanLoad);
   const subtotal = transmission + product + packaging + respiration + tunnelInternalLoad + dehumidificationLoad + advancedProcessLoad + infiltration + evaporatorFrost.additional_load_kcal_h + people + lighting + motors + fans + defrost + other;
   const safetyFactor = n(params.env.safety_factor_percent);
   const safety = subtotal * (safetyFactor / 100);
@@ -827,10 +836,20 @@ export function calculateColdProLoad(params: {
       seed_dehumidification: dehumidification,
       infiltration_technical: infiltrationBreakdown,
       defrost_suggestion: defrostSuggestion,
+      evaporator_fans: fanLoad,
+      motors: {
+        power_kw: round2(n(params.env.motors_power_kw)),
+        hours_day: round2(n(params.env.motors_hours_day)),
+        dissipation_factor: round2(n(params.env.motors_dissipation_factor, 1)),
+        dissipation_rule: "interno = 100%; parcial = 30-70%; externo = 0%",
+        formula: "Q_motor = kW x 859,845 x horas_dia / horas_compressor x fator_dissipacao",
+      },
       advanced_processes: advancedProcesses,
       advanced_processes_kcal_h: round2(advancedProcessLoad),
       evaporator_frost: evaporatorFrost,
       products: productBreakdown,
+      validation_alerts: validationAlerts,
+      final_sum_formula: "Carga total = transmissão + produto + embalagem + respiração + infiltração sensível/latente + gelo/degelo + motores + iluminação + pessoas + ventiladores + outros + segurança",
       respiration_kcal_h: round2(respiration),
       formulas: {
         transmission: "Q_linha = (Área opaca × U painel × ΔT) + (Área vidro × U vidro × ΔT) + (Área vidro × radiação solar × fator solar)",
