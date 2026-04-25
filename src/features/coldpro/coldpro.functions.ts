@@ -66,6 +66,16 @@ export const createColdProProject = createServerFn({ method: "POST" })
     return row;
   });
 
+export const updateColdProProject = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(z.object({ id: z.string().uuid(), name: trimmedName }))
+  .handler(async ({ data }) => {
+    const supabase = supabaseAdmin;
+    const { data: row, error } = await supabase.from("coldpro_projects").update({ name: data.name }).eq("id", data.id).select("*").single();
+    if (error) throw new Error(error.message);
+    return row;
+  });
+
 export const getColdProProjectBundle = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator(z.object({ projectId: z.string().uuid() }))
@@ -141,6 +151,21 @@ export const updateColdProEnvironment = createServerFn({ method: "POST" })
     const { data: row, error } = await supabase.from("coldpro_environments").update(patch).eq("id", data.id).select("*").single();
     if (error) throw new Error(error.message);
     return row;
+  });
+
+export const deleteColdProEnvironment = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(z.object({ id: z.string().uuid() }))
+  .handler(async ({ data }) => {
+    const supabase = supabaseAdmin;
+    await supabase.from("coldpro_equipment_selections").delete().eq("environment_id", data.id);
+    await supabase.from("coldpro_results").delete().eq("environment_id", data.id);
+    await supabase.from("coldpro_advanced_processes").delete().eq("environment_id", data.id);
+    await supabase.from("coldpro_tunnels").delete().eq("environment_id", data.id);
+    await supabase.from("coldpro_environment_products").delete().eq("environment_id", data.id);
+    const { error } = await supabase.from("coldpro_environments").delete().eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { success: true };
   });
 
 export const upsertColdProEnvironmentProduct = createServerFn({ method: "POST" })
