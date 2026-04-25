@@ -433,14 +433,36 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
                 <ColdProCalculatedInfo label="Área de paredes" value={`${fmtColdPro(wallPanelArea)} m²`} />
                 <ColdProCalculatedInfo label="Vidro / portas" value={`${fmtColdPro(totalGlassArea)} / ${fmtColdPro(totalDoorArea)} m²`} />
               </div>
-              <div className="mb-4 grid gap-x-10 md:grid-cols-2">
-                <ColdProField label="Insolação face oeste">
+              <div className="mb-4 grid gap-5 lg:grid-cols-[280px_1fr]">
+                <div className="rounded-xl border bg-muted/20 p-4">
+                  <div className="mb-3 text-sm font-semibold">Insolação e face ativa</div>
+                  <ColdProField label="Face norte">
+                    <ColdProSelect value={activeFace?.local ?? ""} onChange={(e) => setActiveFaceIndex(Math.max(0, constructionFaces.findIndex((face) => face.local === e.target.value)))}>
+                      {constructionFaces.map((face) => <option key={face.local} value={face.local}>{face.local}</option>)}
+                    </ColdProSelect>
+                  </ColdProField>
+                  <ChamberShapePreview layout={layout} />
+                  <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                    {constructionFaces.map((face, index) => (
+                      <button key={face.local} type="button" onClick={() => setActiveFaceIndex(index)} className={`rounded-md border px-2 py-1.5 text-left ${activeFaceIndex === index ? "border-primary bg-primary/10 text-primary" : "bg-background text-muted-foreground"}`}>{face.local}</button>
+                    ))}
+                  </div>
+                </div>
+                <div className="grid gap-x-10 md:grid-cols-2">
+                  <ColdProField label="Insolação face oeste">
                   <ColdProSelect value={form?.west_face_insolation ? "sim" : "nao"} onChange={(e) => set("west_face_insolation", e.target.value === "sim")}>
                     <option value="nao">Não</option>
                     <option value="sim">Sim</option>
                   </ColdProSelect>
                 </ColdProField>
-                <ColdProField label="Módulos/painéis" unit="un"><ColdProInput {...num("module_count")} /></ColdProField>
+                  <ColdProField label="Piso com isolamento?">
+                    <ColdProSelect value={form?.has_floor_insulation ? "sim" : "nao"} onChange={(e) => set("has_floor_insulation", e.target.value === "sim")}>
+                      <option value="nao">Não</option>
+                      <option value="sim">Sim</option>
+                    </ColdProSelect>
+                  </ColdProField>
+                  <ColdProField label="Módulos/painéis" unit="un"><ColdProInput {...num("module_count")} /></ColdProField>
+                </div>
               </div>
 
               <div className="overflow-x-auto rounded-xl border">
