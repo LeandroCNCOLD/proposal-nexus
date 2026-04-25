@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { listColdProProjects, createColdProProject, updateColdProProject, getColdProProjectBundle, createColdProEnvironment, updateColdProEnvironment, deleteColdProEnvironment, upsertColdProEnvironmentProduct, deleteColdProEnvironmentProduct, upsertColdProTunnel, upsertColdProAdvancedProcess, calculateColdProEnvironment, autoSelectColdProEquipment } from "./coldpro.functions";
 import { pushColdProToProposal } from "./push-coldpro-to-proposal.functions";
-import { generateColdProMemorialPdf } from "@/integrations/coldpro/coldpro-memorial.functions";
+import { analyzeColdProMemorial, generateColdProMemorialPdf } from "@/integrations/coldpro/coldpro-memorial.functions";
 
 export function useColdProProjects() {
   return useQuery({ queryKey: ["coldpro-projects"], queryFn: () => listColdProProjects() });
@@ -64,8 +64,17 @@ export function usePushColdProToProposal(projectId: string) {
 export function useGenerateColdProMemorialPdf(projectId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (attachToProposal: boolean = true) =>
-      generateColdProMemorialPdf({ data: { projectId, attachToProposal } }),
+    mutationFn: (input: boolean | { attachToProposal?: boolean; aiAnalysis?: string | null } = true) => {
+      const payload = typeof input === "boolean" ? { attachToProposal: input } : input;
+      return generateColdProMemorialPdf({ data: { projectId, attachToProposal: payload.attachToProposal ?? true, aiAnalysis: payload.aiAnalysis ?? null } });
+    },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["coldpro-project", projectId] }),
+  });
+}
+
+export function useAnalyzeColdProMemorial(projectId: string) {
+  return useMutation({
+    mutationFn: (data: { question?: string; previousAnalysis?: string | null }) =>
+      analyzeColdProMemorial({ data: { projectId, ...data } }),
   });
 }
