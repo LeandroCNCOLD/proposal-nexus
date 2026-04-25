@@ -370,9 +370,7 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
       <Tabs defaultValue="gerais" className="w-full">
         <TabsList className="mb-4 flex h-auto w-full flex-wrap justify-start gap-1 p-1">
           <TabsTrigger value="gerais">Dados gerais</TabsTrigger>
-          <TabsTrigger value="dimensoes">Dimensões e painéis</TabsTrigger>
-          <TabsTrigger value="condicoes">Condições</TabsTrigger>
-          <TabsTrigger value="isolamento">Isolamento</TabsTrigger>
+          <TabsTrigger value="dimensoes">Dimensões, condições e isolamento</TabsTrigger>
         </TabsList>
 
         <TabsContent value="gerais">
@@ -405,13 +403,17 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
         <TabsContent value="dimensoes">
           <div className="space-y-5">
             <ColdProFormSection title="Dados psicrométricos" description="Condições base usadas no cálculo térmico da câmara." icon={<Thermometer className="h-4 w-4" />}>
-              <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-6">
+              <div className="grid gap-x-10 md:grid-cols-2 xl:grid-cols-3">
                 <ColdProField label="Temp. externa" unit="°C"><ColdProInput {...num("external_temp_c")} /></ColdProField>
                 <ColdProField label="Temp. interna" unit="°C"><ColdProInput {...num("internal_temp_c")} /></ColdProField>
+                <ColdProField label="Temp. sob o piso" unit="°C"><ColdProInput {...num("floor_temp_c")} /></ColdProField>
                 <ColdProField label="UR externa" unit="%"><ColdProInput {...num("external_relative_humidity_percent")} placeholder="70" /></ColdProField>
                 <ColdProField label="UR interna" unit="%"><ColdProInput {...num("relative_humidity_percent")} placeholder="70" /></ColdProField>
                 <ColdProField label="Pressão atm." unit="kPa"><ColdProInput {...num("atmospheric_pressure_kpa")} placeholder="92,6" /></ColdProField>
-                <ColdProField label="Tempo processo" unit="h"><ColdProInput {...num("operation_hours_day")} /></ColdProField>
+              </div>
+              <div className="mt-3 grid gap-3 md:grid-cols-2">
+                <ColdProCalculatedInfo label="Diferença térmica" value={`${fmtColdPro(deltaT)} °C`} description="Temperatura externa menos interna." tone={deltaT > 0 ? "info" : "warning"} />
+                {deltaT <= 0 ? <ColdProValidationMessage>Temperatura externa menor ou igual à interna. Confira se o regime está correto.</ColdProValidationMessage> : null}
               </div>
             </ColdProFormSection>
 
@@ -433,17 +435,15 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
                     ))}
                   </div>
 
-                  <div className="grid grid-cols-1 gap-x-10 md:grid-cols-[1.4fr_0.8fr]">
+                      <div className="grid grid-cols-1 gap-x-10 md:grid-cols-[1.4fr_0.8fr]">
                     <div>
-                      <div className="grid gap-3 md:grid-cols-4">
-                        <ColdProField label="Dim. A" unit="m"><ColdProInput type="number" value={form?.dimension_a_m ?? form?.length_m ?? ""} onChange={(e) => setDimension("dimension_a_m", e.target.value)} /></ColdProField>
-                        <ColdProField label="Dim. B" unit="m"><ColdProInput type="number" value={form?.dimension_b_m ?? form?.width_m ?? ""} onChange={(e) => setDimension("dimension_b_m", e.target.value)} /></ColdProField>
-                        <ColdProField label="Dim. C" unit="m"><ColdProInput {...num("dimension_c_m")} disabled={layout === "rectangular"} /></ColdProField>
-                        <ColdProField label="Dim. D" unit="m"><ColdProInput {...num("dimension_d_m")} disabled={layout === "rectangular"} /></ColdProField>
-                        <ColdProField label="Dim. E" unit="m"><ColdProInput {...num("dimension_e_m")} disabled={layout === "rectangular" || layout === "l_shape"} /></ColdProField>
-                        <ColdProField label="Dim. F" unit="m"><ColdProInput {...num("dimension_f_m")} disabled={layout === "rectangular" || layout === "l_shape"} /></ColdProField>
-                        <ColdProField label="Altura H" unit="m"><ColdProInput type="number" value={form?.height_m ?? ""} onChange={(e) => setDimension("height_m", e.target.value)} /></ColdProField>
-                      </div>
+                          <div className="grid gap-x-10 md:grid-cols-2">
+                            {constructionFaces.filter((face) => face.local.startsWith("PAREDE")).map((face, faceListIndex) => {
+                              const index = constructionFaces.findIndex((item) => item.local === face.local);
+                              return <ColdProField key={face.local} label={`Dim. ${String.fromCharCode(65 + faceListIndex)}`} unit="m"><ColdProInput type="number" value={face.wall_length_m ?? ""} onChange={(e) => setFace(index, "wall_length_m", numberOrNull(e.target.value) ?? 0)} /></ColdProField>;
+                            })}
+                            <ColdProField label="Altura" unit="m"><ColdProInput type="number" value={form?.height_m ?? ""} onChange={(e) => setDimension("height_m", e.target.value)} /></ColdProField>
+                          </div>
                       {layout === "custom_polygon" ? (
                         <ColdProField label="Quantidade de paredes" unit="un">
                           <ColdProInput type="number" value={wallCount} onChange={(e) => set("wall_count", numberOrNull(e.target.value) ?? 4)} />
