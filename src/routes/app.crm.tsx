@@ -42,6 +42,18 @@ type Filters = {
   processo: string;
 };
 
+type NewProcessPayload = {
+  nome: string;
+  tipo: string;
+  etapa: string;
+  responsavel: string;
+  reportador: string;
+  prioridade?: string;
+  equipe?: string;
+  origem?: string;
+  dataHoraProgramada?: string | null;
+};
+
 const EMPTY_FILTERS: Filters = { responsavel: "", equipe: "", pessoa: "", processo: "" };
 
 function CrmPage() {
@@ -163,7 +175,7 @@ function CrmPage() {
   });
 
   const createMutation = useMutation({
-    mutationFn: async (payload: Parameters<typeof createProcess>[0]["data"]) => {
+    mutationFn: async (payload: NewProcessPayload) => {
       const result = await createProcess({ data: payload });
       if (!result.ok) throw new Error(result.error);
       return result;
@@ -283,7 +295,7 @@ function CrmPage() {
                   defaultTipo={activeTab || DEFAULT_FUNNEL}
                   stages={funnelData?.stages?.map((s: any) => s.etapa) ?? []}
                   saving={createMutation.isPending}
-                  onSubmit={(payload) => createMutation.mutate(payload)}
+                  onSubmit={(payload: NewProcessPayload) => createMutation.mutate(payload)}
                 />
               </DialogContent>
             </Dialog>
@@ -319,7 +331,7 @@ function CrmPage() {
                   loading={loadingFunnel}
                   error={funnelError}
                   moving={moveMutation.isPending}
-                  onMove={(processId, etapa) => moveMutation.mutate({ processId, etapa })}
+                  onMove={(processId: string, etapa: string) => moveMutation.mutate({ processId, etapa })}
                 />
               )}
             </TabsContent>
