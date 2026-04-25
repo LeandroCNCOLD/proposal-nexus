@@ -1,79 +1,117 @@
-## Plano de melhoria dos relatórios do CN ColdPro
+## Plano para auditoria completa do cálculo térmico ColdPro
 
-Vou evoluir o relatório para ficar alinhado ao padrão técnico/comercial informado, sem reintroduzir o antigo “Seletor Técnico”. A fonte de dados continuará sendo o cálculo atual do CodePro/ColdPro por ambiente.
+Vou ajustar o motor de cálculo e o memorial técnico para eliminar premissas irreais e deixar rastreável toda a memória de infiltração, psicrometria, gelo, degelo, ventiladores, motores e produto.
 
-### 1. Garantir dados corretos por ambiente
-- Manter a regra: cada ambiente usa apenas o resultado calculado mais recente daquele ambiente.
-- Aplicar a mesma regra nas seleções de equipamento, inclusive no envio para proposta, para evitar pegar seleção/cálculo antigo.
-- No PDF e no laudo, deixar explícito o nome do ambiente e a carga requerida correspondente, evitando misturar total do projeto com resultado individual.
+### 1. Corrigir UR interna automática
+- Ajustar o mapeamento de aplicações para não cair sempre em `cold_room`.
+- Remover a interpretação de UR interna como `0%` quando o usuário não informou.
+- Aplicar UR padrão por aplicação:
+  - `freezer_room`: 85%
+  - `blast_freezer` / túnel: 85%
+  - `cold_room`: 75%
+  - `climatized_room`: 65%
+- Registrar no breakdown se a UR interna foi “automática” ou “informada pelo usuário”.
+- Validar e bloquear cálculo se uma UR interna igual a 0 for explicitamente enviada.
 
-### 2. Enriquecer o bundle do relatório com dados de catálogo
-- Buscar, junto da seleção salva, os dados completos do equipamento selecionado:
-  - modelo, linha/série, gabinete, tipo, refrigerante, degelo, tensão/fase/frequência;
-  - compressores cadastrados;
-  - evaporador e condensador: modelos, vazão, área, volume interno, ventiladores, diâmetro, lançamento, carga estimada de fluido quando disponível;
-  - ponto/curva de performance usado na seleção: capacidade, potência, COP, correntes, vazão, condições de evaporação/condensação/ambiente;
-  - imagem do equipamento, quando cadastrada.
-- Usar esses dados reais do catálogo antes de qualquer texto genérico/estimado.
+### 2. Completar memória de infiltração
+- Enriquecer `calculateTechnicalInfiltration` com todos os campos auditáveis:
+  - tipo/proteção de porta;
+  - largura, altura, área;
+  - aberturas/dia;
+  - tempo médio aberta;
+  - tempo total de abertura;
+  - perfil operacional;
+  - velocidade de ar adotada;
+  - fator de correção;
+  - volume por porta, contínuo e total em m³/dia.
+- Incluir fórmulas textuais no resultado para auditoria:
+  - `A = largura × altura`
+  - `V = A × velocidade_ar × tempo_total_abertura × fator_correcao`
 
-### 3. Criar PDF completo no padrão de 5 páginas
-- Reestruturar o gerador PDF para o formato profissional solicitado:
-  1. Capa azul-marinho com cards de carga total, kW e TR.
-  2. Resumo do projeto, tabela de ambientes, visão geral e gráficos de distribuição.
-  3. Cálculo executado e seleção por ambiente, com componentes, subtotal, segurança, carga requerida e comparativo requerido x oferecido.
-  4. Especificações técnicas e comerciais do equipamento selecionado, usando dados de catálogo.
-  5. Laudo final técnico/comercial com conclusão, validações, riscos e recomendação.
-- Para projetos com múltiplos ambientes, organizar a seção técnica por ambiente, mantendo cada ambiente com seu resultado e seleção.
+### 3. Expor cálculo psicrométrico
+- Exibir no breakdown e no PDF:
+  - temperatura externa;
+  - UR externa;
+  - temperatura interna;
+  - UR interna;
+  - umidade absoluta externa kg/m³;
+  - umidade absoluta interna kg/m³;
+  - delta de umidade kg/m³ e g/m³.
+- Mostrar claramente se a UR foi automática ou manual.
 
-### 4. Modernizar gráficos e curvas
-- Melhorar os gráficos PDF atuais:
-  - pizza de distribuição de cargas por componente;
-  - barra empilhada percentual;
-  - barras horizontais de componentes;
-  - comparativo “Carga Requerida x Carga Oferecida”.
-- Substituir a curva simples de temperatura por uma curva X/Y com tempo e temperatura:
-  - X = tempo do processo ou tempo estimado;
-  - Y = temperatura do produto/ar;
-  - pontos principais: temperatura de entrada, congelamento/mudança de estado quando aplicável, temperatura final.
-- Quando houver produto com dados suficientes, usar as etapas reais calculadas; quando faltar informação, indicar como estimativa auditável.
+### 4. Separar carga sensível e latente de infiltração
+- Manter o cálculo de infiltração como soma de:
+  - `sensibleKcalH`
+  - `latentKcalH`
+  - `totalInfiltrationKcalH`
+- Atualizar o PDF para mostrar `Q_sensível`, `Q_latente` e `Q_total`.
 
-### 5. Criar versão curta para inserir na proposta
-- Adicionar uma geração separada de PDF resumido com 2 páginas:
-  - Página 1: resumo técnico do cálculo por ambiente, cargas, gráficos e resultado requerido.
-  - Página 2: equipamento selecionado, capacidade ofertada, sobra técnica, principais especificações e imagem.
-- Adicionar botão na tela do relatório: “Gerar resumo para proposta”.
-- Salvar e anexar esse PDF resumido à proposta quando o projeto estiver vinculado, além do memorial completo continuar disponível.
+### 5. Formação de gelo e degelo obrigatório
+- Tornar a formação de gelo explícita:
+  - kg/dia;
+  - kg/h;
+  - fórmula `gelo = volume_ar_infiltrado × Δ umidade`.
+- Tornar o degelo automático obrigatório para câmaras negativas com gelo calculado:
+  - `energia_degelo_dia = gelo_kg_dia × (Cp_gelo × |T_evap| + 80) × fator_perdas`
+  - `Q_degelo = energia_degelo_dia / horas_compressor`
+- Exibir energia diária, carga equivalente, temperatura de evaporação, Cp do gelo e fator de perdas.
 
-### 6. Regras de validação técnica no laudo
-- Aplicar status automático por ambiente:
-  - carga oferecida menor que requerida: ALERTA;
-  - sobra técnica menor que 10%: CRÍTICO;
-  - sobra maior que 50%: SUPERDIMENSIONADO;
-  - sobra entre 10% e 50%: ADEQUADO.
-- Gerar recomendações coerentes:
-  - déficit relevante: recomendar equipamento maior ou múltiplas unidades;
-  - sobra excessiva: recomendar revisão para equipamento menor;
-  - margem adequada: aprovar tecnicamente com observações de premissas.
+### 6. Ventiladores do evaporador
+- Calcular ventiladores automaticamente quando o campo manual estiver zerado:
+  - prioridade 1: potência de ventilador vinda da seleção/equipamento salvo (`curve_metadata.fan_power_kw`) quando disponível;
+  - prioridade 2: estimativa pela vazão: 0,03 kW por 1.000 m³/h;
+  - converter para kcal/h.
+- Salvar no resultado se a origem foi catálogo, estimativa por vazão ou manual.
+- Exibir no memorial: “Ventiladores: X kcal/h” com a origem.
 
-### 7. Interface e integração
-- Atualizar `ColdProReport` para exibir botões separados:
-  - “Gerar memorial PDF completo”;
-  - “Gerar resumo PDF para proposta”.
-- Ajustar os hooks e server functions para aceitar o tipo de relatório.
-- Preservar o fluxo atual de download, registro em documentos e anexo à proposta.
+### 7. Motores e dissipação
+- Padronizar a memória do motor:
+  - interno = 100%;
+  - parcial = 30–70%;
+  - externo = 0%.
+- Exibir potência, horas, fator de dissipação e fórmula no PDF.
+- Adicionar alerta quando houver potência de motor com fator ausente/inválido.
 
-### 8. Validação final
-- Rodar build do projeto.
-- Conferir que os PDFs usam dados atuais do cálculo por ambiente.
-- Conferir que o envio para proposta não usa seleção/cálculo antigo.
-- Validar que projetos sem equipamento, sem imagem ou com dados de catálogo incompletos geram PDF sem quebrar, marcando os campos ausentes como “não informado”.
+### 8. Consistência de produto
+- Validar que a carga de produto não está duplicada.
+- Incluir no breakdown por produto:
+  - energia antes do congelamento;
+  - energia latente;
+  - energia após congelamento;
+  - energia total kcal;
+  - kcal/h;
+  - kcal/kg;
+  - diferença entre soma das etapas e total.
+- Gerar erro se houver inconsistência relevante.
 
-## Arquivos principais a alterar
-- `src/integrations/coldpro/coldpro-memorial.functions.ts`
-- `src/integrations/coldpro/coldproMemorialPdfLib.ts`
-- `src/components/coldpro/ColdProReport.tsx`
-- `src/features/coldpro/use-coldpro.ts`
-- `src/routes/app.coldpro.$id.tsx`
-- `src/features/coldpro/push-coldpro-to-proposal.functions.ts`
+### 9. Alertas automáticos
+- Implementar lista de alertas/erros no `calculation_breakdown.validation_alerts`:
+  - erro se UR interna = 0;
+  - alerta se porta > 0 e infiltração = 0;
+  - alerta se câmara negativa e degelo = 0;
+  - erro se produto inconsistente;
+  - alerta se ventiladores zerados sem vazão/seleção suficiente.
+- Exibir esses alertas no relatório e no PDF.
 
-Não pretendo criar novas tabelas neste primeiro momento, porque os dados necessários já existem no catálogo e nos resultados atuais.
+### 10. Atualizar o PDF/memorial
+- Inserir seções específicas no PDF:
+  - Memória de cálculo de infiltração;
+  - Memória psicrométrica;
+  - Formação de gelo no evaporador;
+  - Cálculo de degelo;
+  - Ventiladores do evaporador;
+  - Motores e dissipação;
+  - Validações automáticas;
+  - Premissas automáticas x informadas manualmente.
+- Garantir que o resultado final mostre a soma completa:
+  - transmissão + produto + infiltração sensível/latente + degelo + motores + iluminação + pessoas + ventiladores + outros + segurança.
+
+### 11. Integração com seleção de equipamento
+- Ao calcular, buscar a seleção atual do ambiente para usar potência/vazão dos ventiladores quando já houver equipamento selecionado.
+- Se a seleção ainda não existir, calcular sem quebrar e usar estimativa por vazão apenas quando houver dados suficientes.
+
+### 12. Validação final
+- Rodar build completo.
+- Confirmar que o memorial não exibe mais UR interna 0%.
+- Confirmar que degelo, gelo e ventiladores aparecem auditáveis no PDF.
+- Confirmar que cálculos atuais continuam por ambiente e não usam base antiga.
