@@ -1,4 +1,4 @@
-import { BarChart3, Calculator, Gauge, Snowflake } from "lucide-react";
+import { BarChart3, Calculator, Droplets, Gauge, Snowflake } from "lucide-react";
 import { fmtColdPro } from "./ColdProFormPrimitives";
 
 function n(value: unknown) {
@@ -63,10 +63,12 @@ export function ColdProResultCard({ result }: { result: any }) {
   const transmissionFaces = Array.isArray(result.calculation_breakdown?.transmission_faces) ? result.calculation_breakdown.transmission_faces : [];
   const transmissionSummary = result.calculation_breakdown?.transmission_summary ?? {};
   const tunnel = result.calculation_breakdown?.tunnel;
+  const seedDehumidification = result.calculation_breakdown?.seed_dehumidification;
   const productBreakdown = Array.isArray(result.calculation_breakdown?.products) ? result.calculation_breakdown.products : [];
   const bars = [
     { label: "Ambiente", value: result.transmission_kcal_h },
     { label: "Produtos", value: productTotal },
+    { label: "Desumidificação", value: seedDehumidification?.total_kcal_h },
     { label: "Cargas extras", value: extraTotal },
     { label: "Segurança", value: result.safety_kcal_h },
   ];
@@ -101,10 +103,30 @@ export function ColdProResultCard({ result }: { result: any }) {
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           <Group title="Ambiente" rows={[{ label: "Transmissão", value: result.transmission_kcal_h }]} />
           <Group title="Produtos" rows={[{ label: "Produto", value: result.product_kcal_h }, { label: "Embalagem", value: result.packaging_kcal_h }, { label: "Respiração", value: result.calculation_breakdown?.respiration_kcal_h }, { label: "Túnel/processo", value: result.tunnel_internal_load_kcal_h }]} />
+          {seedDehumidification?.applies ? <Group title="Desumidificação" rows={[{ label: "Latente do ar", value: n(seedDehumidification.latent_air_kw) * 860 }, { label: "Latente da semente", value: n(seedDehumidification.latent_seed_kw) * 860 }, { label: "Total", value: seedDehumidification.total_kcal_h }]} /> : null}
           <Group title="Cargas extras" rows={[{ label: "Infiltração", value: result.infiltration_kcal_h }, { label: "Pessoas", value: result.people_kcal_h }, { label: "Iluminação", value: result.lighting_kcal_h }, { label: "Motores", value: result.motors_kcal_h }, { label: "Ventiladores", value: result.fans_kcal_h }, { label: "Degelo", value: result.defrost_kcal_h }, { label: "Outras", value: result.other_kcal_h }]} />
           <Group title="Fechamento" rows={[{ label: "Subtotal", value: subtotal }, { label: "Segurança", value: result.safety_kcal_h }, { label: "Total requerido", value: result.total_required_kcal_h }]} />
         </div>
       </div>
+
+      {seedDehumidification?.applies ? (
+        <div className="mt-5 rounded-xl border p-4">
+          <div className="mb-3 flex items-center gap-2 border-b pb-3"><Droplets className="h-4 w-4 text-primary" /><h4 className="text-sm font-semibold">Controle de umidade — sementes</h4></div>
+          <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm md:grid-cols-4">
+            <div>W externo: <b>{fmtColdPro(seedDehumidification.external_absolute_humidity_kg_kg, 5)} kg/kg</b></div>
+            <div>W interno: <b>{fmtColdPro(seedDehumidification.internal_absolute_humidity_kg_kg, 5)} kg/kg</b></div>
+            <div>ΔW: <b>{fmtColdPro(seedDehumidification.delta_w_kg_kg, 5)} kg/kg</b></div>
+            <div>Vazão ar: <b>{fmtColdPro(seedDehumidification.air_flow_m3_h)} m³/h</b></div>
+            <div>Água do ar: <b>{fmtColdPro(seedDehumidification.water_removed_air_kg_h, 2)} kg/h</b></div>
+            <div>Água semente: <b>{fmtColdPro(seedDehumidification.water_removed_seed_kg_h, 2)} kg/h</b></div>
+            <div>Latente ar: <b>{fmtColdPro(seedDehumidification.latent_air_kw, 2)} kW</b></div>
+            <div>Latente semente: <b>{fmtColdPro(seedDehumidification.latent_seed_kw, 2)} kW</b></div>
+            <div>Total: <b>{fmtColdPro(seedDehumidification.total_kw, 2)} kW</b></div>
+            <div>Total: <b>{fmtColdPro(seedDehumidification.total_kcal_h)} kcal/h</b></div>
+          </div>
+          {Array.isArray(seedDehumidification.warnings) && seedDehumidification.warnings.length ? <div className="mt-3 rounded-md bg-muted p-3 text-xs text-muted-foreground">{seedDehumidification.warnings.join(" ")}</div> : null}
+        </div>
+      ) : null}
 
       {transmissionFaces.length ? (
         <div className="mt-5 rounded-xl border p-4">

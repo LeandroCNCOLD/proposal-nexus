@@ -39,6 +39,7 @@ const GLASS_SOLAR_FACTORS: Record<string, number> = {
   heated_refrigerated: 0.55,
   insulated: 0.55,
 };
+const WATER_LATENT_HEAT_KJ_KG = 2500;
 
 const TUNNEL_ARRANGEMENT_DEFAULTS: Record<string, { airExposure: number; penetration: number; label: string; warning?: string }> = {
   individual_exposed: { airExposure: 1, penetration: 1, label: "Produto individual exposto" },
@@ -226,6 +227,77 @@ export function optimizeProcessAirCondition(params: {
 function n(value: unknown, fallback = 0): number {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function roundN(value: number, digits: number): number {
+  const factor = 10 ** digits;
+  return Math.round(value * factor) / factor;
+}
+
+function saturationVaporPressureKpa(tempC: number): number {
+  return 0.61078 * Math.exp((17.2694 * tempC) / (tempC + 237.29));
+}
+
+function humidityRatioKgKg(tempC: number, relativeHumidityPercent: number, atmosphericPressureKpa: number): number {
+  const rh = Math.max(0, Math.min(1, relativeHumidityPercent / 100));
+  const pws = saturationVaporPressureKpa(tempC);
+  const pv = rh * pws;
+  if (atmosphericPressureKpa <= pv || atmosphericPressureKpa <= 0) return 0;
+  return 0.62198 * pv / (atmosphericPressureKpa - pv);
+}
+
+export function calculateSeedDehumidificationLoad(env: ColdProEnvironment) {
+  const warnings: string[] = [];
+  if (env.environment_type !== "seed_storage") {
+    return { applies: false, total_kcal_h: 0, total_kw: 0, warnings, memory: null };
+  }
+
+  const pressure = n(env.atmospheric_pressure_kpa, 101.325) || 101.325;
+  const externalRh = n(env.external_relative_humidity_percent);
+  const internalRh = n(env.relative_humidity_percent);
+  const externalW = humidityRatioKgKg(n(env.external_temp_c), externalRh, pressure);
+  const internalW = humidityRatioKgKg(n(env.internal_temp_c), internalRh, pressure);
+  const deltaW = externalW - internalW;
+  const volumeFlowM3H = n(env.volume_m3) * n(env.air_changes_per_hour) + n(env.fresh_air_m3_h) + n(env.door_infiltration_m3_h);
+  const dryAirFlowKgH = volumeFlowM3H * AIR_DENSITY_KG_M3;
+  const waterFromAirKgH = deltaW > 0 ? dryAirFlowKgH * deltaW : 0;
+  if (deltaW <= 0) warnings.push("Umidade externa menor ou igual à umidade interna desejada: não foi calculada remoção de umidade do ar externo.");
+
+  const initialMoisture = n(env.seed_initial_moisture_percent) / 100;
+  const finalMoisture = n(env.seed_final_moisture_percent) / 100;
+  const seedMass = n(env.seed_mass_kg);
+  const stabilizationTimeH = n(env.seed_stabilization_time_h);
+  const waterFromSeedKg = initialMoisture > finalMoisture && finalMoisture < 1 ? seedMass * (initialMoisture - finalMoisture) / (1 - finalMoisture) : 0;
+  if (initialMoisture <= finalMoisture) warnings.push("Umidade inicial da semente menor ou igual à umidade final desejada: não foi calculada remoção de água da semente.");
+  if (waterFromSeedKg > 0 && stabilizationTimeH <= 0) warnings.push("Informe o tempo de estabilização para transformar a água removida da semente em kg/h.");
+  const waterFromSeedKgH = waterFromSeedKg > 0 && stabilizationTimeH > 0 ? waterFromSeedKg / stabilizationTimeH : 0;
+  const latentAirKw = waterFromAirKgH * WATER_LATENT_HEAT_KJ_KG / 3600;
+  const latentSeedKw = waterFromSeedKgH * WATER_LATENT_HEAT_KJ_KG / 3600;
+  const totalKw = latentAirKw + latentSeedKw;
+
+  return {
+    applies: true,
+    total_kcal_h: round2(kwToKcalh(totalKw)),
+    total_kw: round2(totalKw),
+    external_absolute_humidity_kg_kg: roundN(externalW, 5),
+    internal_absolute_humidity_kg_kg: roundN(internalW, 5),
+    delta_w_kg_kg: roundN(deltaW, 5),
+    air_flow_m3_h: round2(volumeFlowM3H),
+    dry_air_flow_kg_h: round2(dryAirFlowKgH),
+    water_removed_air_kg_h: round2(waterFromAirKgH),
+    water_removed_seed_kg: round2(waterFromSeedKg),
+    water_removed_seed_kg_h: round2(waterFromSeedKgH),
+    latent_air_kw: round2(latentAirKw),
+    latent_seed_kw: round2(latentSeedKw),
+    warnings,
+    memory: {
+      formula_pv: "Pv = UR × Pws",
+      formula_w: "W = 0,62198 × Pv / (P_atm - Pv)",
+      formula_air: "água_ar_kg_h = vazão_ar_kg_h × (W_externo - W_interno)",
+      formula_seed: "água_semente = massa × (Ui - Uf) / (1 - Uf)",
+      formula_latent: "Q_latente_kW = água_kg_h × 2500 / 3600",
+    },
+  };
 }
 
 function positive(value: number): number {
@@ -712,6 +784,8 @@ export function calculateColdProLoad(params: {
   const respiration = params.products.reduce((acc, item) => acc + calculateProductRespirationLoad(item, n(params.env.internal_temp_c)), 0);
   const tunnelResult = params.tunnel ? calculateTunnelLoad(params.tunnel) : null;
   const tunnelInternalLoad = tunnelResult?.total_kcal_h ?? 0;
+  const dehumidification = calculateSeedDehumidificationLoad(params.env);
+  const dehumidificationLoad = dehumidification.total_kcal_h;
   const infiltration = calculateInfiltrationLoad(params.env);
   const people = calculatePeopleLoad(params.env);
   const lighting = calculateLightingLoad(params.env);
@@ -720,7 +794,7 @@ export function calculateColdProLoad(params: {
   const defrost = n(params.env.defrost_kcal_h);
   const other = n(params.env.other_kcal_h);
 
-  const subtotal = transmission + product + packaging + respiration + tunnelInternalLoad + infiltration + people + lighting + motors + fans + defrost + other;
+  const subtotal = transmission + product + packaging + respiration + tunnelInternalLoad + dehumidificationLoad + infiltration + people + lighting + motors + fans + defrost + other;
   const safetyFactor = n(params.env.safety_factor_percent);
   const safety = subtotal * (safetyFactor / 100);
   const total = subtotal + safety;
@@ -754,6 +828,7 @@ export function calculateColdProLoad(params: {
       },
       transmission_faces: transmissionBreakdown.faces,
       tunnel: tunnelResult,
+      seed_dehumidification: dehumidification,
       products: productBreakdown,
       respiration_kcal_h: round2(respiration),
       formulas: {
@@ -761,6 +836,7 @@ export function calculateColdProLoad(params: {
         product: "Q = m × cp × ΔT / h; congelamento inclui calor latente",
         respiration: "Q_respiração = massa_kg × taxa_W_kg × 0,859845, com interpolação por temperatura",
         tunnel: "Q túnel = sensível acima + latente + sensível abaixo + embalagem + cargas internas",
+        seed_dehumidification: "W = 0,62198 × Pv / (P_atm - Pv); Q_latente = água_kg_h × 2500 / 3600",
         infiltration: "Q = V_ar × densidade_ar × cp_ar × ΔT / h",
         lighting: "Q = kW × 860 × horas / horas_compressor",
         motors: "Q = kW × 860 × horas / horas_compressor",
