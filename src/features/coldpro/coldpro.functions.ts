@@ -4,6 +4,12 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { calculateColdProLoad } from "./coldpro-calculation.engine";
 import { findEquipmentCandidates, suggestApplication, suggestEvaporationTemp } from "./equipment-selection.engine";
 
+const finiteNumber = z.number().finite();
+const nonNegativeNumber = finiteNumber.min(0);
+const positiveNumber = finiteNumber.gt(0);
+const dayHours = finiteNumber.min(0).max(24);
+const trimmedName = z.string().trim().min(1).max(120);
+
 export const listColdProProjects = createServerFn({ method: "GET" }).handler(async () => {
   const supabase = supabaseAdmin;
   const { data, error } = await supabase.from("coldpro_projects").select("*").order("created_at", { ascending: false });
@@ -12,7 +18,7 @@ export const listColdProProjects = createServerFn({ method: "GET" }).handler(asy
 });
 
 export const createColdProProject = createServerFn({ method: "POST" })
-  .inputValidator(z.object({ proposal_id: z.string().uuid().nullable().optional(), name: z.string().min(1), application_type: z.string().default("cold_room") }))
+  .inputValidator(z.object({ proposal_id: z.string().uuid().nullable().optional(), name: trimmedName, application_type: z.string().default("cold_room") }))
   .handler(async ({ data }) => {
     const supabase = supabaseAdmin;
     const { data: row, error } = await supabase.from("coldpro_projects").insert({ proposal_id: data.proposal_id ?? null, name: data.name, application_type: data.application_type }).select("*").single();
@@ -38,7 +44,7 @@ export const getColdProProjectBundle = createServerFn({ method: "GET" })
   });
 
 export const createColdProEnvironment = createServerFn({ method: "POST" })
-  .inputValidator(z.object({ projectId: z.string().uuid(), name: z.string().min(1), environment_type: z.string().default("cold_room") }))
+  .inputValidator(z.object({ projectId: z.string().uuid(), name: trimmedName, environment_type: z.string().default("cold_room") }))
   .handler(async ({ data }) => {
     const supabase = supabaseAdmin;
     const { data: insulation } = await supabase.from("coldpro_insulation_materials").select("id").eq("name", "PIR").limit(1).maybeSingle();
@@ -52,6 +58,14 @@ export const updateColdProEnvironment = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const supabase = supabaseAdmin;
     const patch = { ...data.patch } as any;
+    if (typeof patch.name === "string") patch.name = patch.name.trim().slice(0, 120);
+    const nonNegativeKeys = ["length_m", "width_m", "height_m", "wall_thickness_mm", "ceiling_thickness_mm", "floor_thickness_mm", "operation_hours_day", "compressor_runtime_hours_day", "door_openings_per_day", "door_width_m", "door_height_m", "infiltration_factor", "people_count", "people_hours_day", "lighting_power_w", "lighting_hours_day", "motors_power_kw", "motors_hours_day", "fans_kcal_h", "defrost_kcal_h", "other_kcal_h", "safety_factor_percent"];
+    for (const key of nonNegativeKeys) {
+      if (patch[key] !== undefined && patch[key] !== null && (!Number.isFinite(Number(patch[key])) || Number(patch[key]) < 0)) throw new Error(`Valor inválido em ${key}.`);
+    }
+    for (const key of ["operation_hours_day", "compressor_runtime_hours_day", "people_hours_day", "lighting_hours_day", "motors_hours_day"]) {
+      if (patch[key] !== undefined && patch[key] !== null && Number(patch[key]) > 24) throw new Error(`Horas inválidas em ${key}.`);
+    }
     if (patch.length_m !== undefined || patch.width_m !== undefined || patch.height_m !== undefined) {
       const { data: current } = await supabase.from("coldpro_environments").select("*").eq("id", data.id).single();
       patch.volume_m3 = Number(patch.length_m ?? current?.length_m ?? 0) * Number(patch.width_m ?? current?.width_m ?? 0) * Number(patch.height_m ?? current?.height_m ?? 0);
@@ -63,7 +77,7 @@ export const updateColdProEnvironment = createServerFn({ method: "POST" })
 
 export const upsertColdProEnvironmentProduct = createServerFn({ method: "POST" })
   .inputValidator(z.object({
-    id: z.string().uuid().optional(), environment_id: z.string().uuid(), product_id: z.string().uuid().nullable().optional(), product_name: z.string().min(1), mass_kg_day: z.number().default(0), mass_kg_hour: z.number().default(0), inlet_temp_c: z.number().default(0), outlet_temp_c: z.number().default(0), process_time_h: z.number().default(24), packaging_mass_kg_day: z.number().default(0), packaging_specific_heat_kcal_kg_c: z.number().default(0.4), specific_heat_above_kcal_kg_c: z.number().default(0), specific_heat_below_kcal_kg_c: z.number().default(0), latent_heat_kcal_kg: z.number().default(0), initial_freezing_temp_c: z.number().nullable().optional(), density_kg_m3: z.number().nullable().optional(), thermal_conductivity_unfrozen_w_m_k: z.number().nullable().optional(), thermal_conductivity_frozen_w_m_k: z.number().nullable().optional(), frozen_water_fraction: z.number().nullable().optional(), freezable_water_content_percent: z.number().nullable().optional(), characteristic_thickness_m: z.number().nullable().optional(), default_convective_coefficient_w_m2_k: z.number().nullable().optional(), allow_phase_change: z.boolean().nullable().optional(), respiration_rate_0c_w_kg: z.number().nullable().optional(), respiration_rate_5c_w_kg: z.number().nullable().optional(), respiration_rate_10c_w_kg: z.number().nullable().optional(), respiration_rate_15c_w_kg: z.number().nullable().optional(), respiration_rate_20c_w_kg: z.number().nullable().optional()
+    id: z.string().uuid().optional(), environment_id: z.string().uuid(), product_id: z.string().uuid().nullable().optional(), product_name: trimmedName, mass_kg_day: z.number().default(0), mass_kg_hour: z.number().default(0), inlet_temp_c: z.number().default(0), outlet_temp_c: z.number().default(0), process_time_h: z.number().default(24), packaging_mass_kg_day: z.number().default(0), packaging_specific_heat_kcal_kg_c: z.number().default(0.4), specific_heat_above_kcal_kg_c: z.number().default(0), specific_heat_below_kcal_kg_c: z.number().default(0), latent_heat_kcal_kg: z.number().default(0), initial_freezing_temp_c: z.number().nullable().optional(), density_kg_m3: z.number().nullable().optional(), thermal_conductivity_unfrozen_w_m_k: z.number().nullable().optional(), thermal_conductivity_frozen_w_m_k: z.number().nullable().optional(), frozen_water_fraction: z.number().nullable().optional(), freezable_water_content_percent: z.number().nullable().optional(), characteristic_thickness_m: z.number().nullable().optional(), default_convective_coefficient_w_m2_k: z.number().nullable().optional(), allow_phase_change: z.boolean().nullable().optional(), respiration_rate_0c_w_kg: z.number().nullable().optional(), respiration_rate_5c_w_kg: z.number().nullable().optional(), respiration_rate_10c_w_kg: z.number().nullable().optional(), respiration_rate_15c_w_kg: z.number().nullable().optional(), respiration_rate_20c_w_kg: z.number().nullable().optional()
   }))
   .handler(async ({ data }) => {
     const supabase = supabaseAdmin;
@@ -74,7 +88,7 @@ export const upsertColdProEnvironmentProduct = createServerFn({ method: "POST" }
 
 export const upsertColdProTunnel = createServerFn({ method: "POST" })
   .inputValidator(z.object({
-    id: z.string().uuid().optional(), environment_id: z.string().uuid(), tunnel_type: z.string().default("blast_freezer"), operation_mode: z.string().default("continuous"), product_name: z.string().default("Produto"), product_thickness_mm: z.number().default(0), product_unit_weight_kg: z.number().default(0), units_per_cycle: z.number().default(0), cycles_per_hour: z.number().default(0), mass_kg_hour: z.number().default(0), inlet_temp_c: z.number().default(0), outlet_temp_c: z.number().default(-18), freezing_temp_c: z.number().nullable().optional(), density_kg_m3: z.number().nullable().optional(), thermal_conductivity_frozen_w_m_k: z.number().nullable().optional(), convective_coefficient_w_m2_k: z.number().nullable().optional(), estimated_freezing_time_min: z.number().nullable().optional(), retention_status: z.string().nullable().optional(), recommended_airflow_m3_h: z.number().nullable().optional(), air_temp_c: z.number().default(-35), air_velocity_m_s: z.number().default(3), process_time_min: z.number().default(60), specific_heat_above_kcal_kg_c: z.number().default(0.8), specific_heat_below_kcal_kg_c: z.number().default(0.4), latent_heat_kcal_kg: z.number().default(60), packaging_mass_kg_hour: z.number().default(0), packaging_specific_heat_kcal_kg_c: z.number().default(0.4), belt_motor_kw: z.number().default(0), internal_fans_kw: z.number().default(0), other_internal_kw: z.number().default(0)
+    id: z.string().uuid().optional(), environment_id: z.string().uuid(), tunnel_type: z.enum(["blast_freezer", "cooling_tunnel"]).default("blast_freezer"), operation_mode: z.enum(["continuous", "batch"]).default("continuous"), product_name: trimmedName.default("Produto"), product_thickness_mm: nonNegativeNumber.default(0), product_unit_weight_kg: nonNegativeNumber.default(0), units_per_cycle: nonNegativeNumber.default(0), cycles_per_hour: nonNegativeNumber.default(0), mass_kg_hour: nonNegativeNumber.default(0), inlet_temp_c: finiteNumber.default(0), outlet_temp_c: finiteNumber.default(-18), freezing_temp_c: finiteNumber.nullable().optional(), density_kg_m3: nonNegativeNumber.nullable().optional(), thermal_conductivity_frozen_w_m_k: nonNegativeNumber.nullable().optional(), convective_coefficient_w_m2_k: nonNegativeNumber.nullable().optional(), estimated_freezing_time_min: nonNegativeNumber.nullable().optional(), retention_status: z.string().trim().max(80).nullable().optional(), recommended_airflow_m3_h: nonNegativeNumber.nullable().optional(), air_temp_c: finiteNumber.default(-35), air_velocity_m_s: nonNegativeNumber.default(3), process_time_min: positiveNumber.default(60), specific_heat_above_kcal_kg_c: nonNegativeNumber.default(0.8), specific_heat_below_kcal_kg_c: nonNegativeNumber.default(0.4), latent_heat_kcal_kg: nonNegativeNumber.default(60), packaging_mass_kg_hour: nonNegativeNumber.default(0), packaging_specific_heat_kcal_kg_c: nonNegativeNumber.default(0.4), belt_motor_kw: nonNegativeNumber.default(0), internal_fans_kw: nonNegativeNumber.default(0), other_internal_kw: nonNegativeNumber.default(0)
   }))
   .handler(async ({ data }) => {
     const supabase = supabaseAdmin;
