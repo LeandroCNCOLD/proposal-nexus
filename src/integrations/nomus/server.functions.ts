@@ -75,8 +75,9 @@ async function syncPersonContacts(args: { clientId: string; pessoaId: string; tr
     maxAttempts: 1,
   });
   if (!res.ok) {
-    if (res.status === 400 || res.status === 404) return 0;
-    throw new Error(res.error);
+    if (res.status === 400 || res.status === 404 || res.status === 429 || /limitou|thrott|timeout|aborted|unknown/i.test(res.error)) return 0;
+    console.warn(`[nomus] contatos ignorados para pessoa ${args.pessoaId}: ${res.error}`);
+    return 0;
   }
 
   let count = 0;

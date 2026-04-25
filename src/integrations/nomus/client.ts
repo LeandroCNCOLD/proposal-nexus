@@ -206,6 +206,7 @@ export async function nomusFetch<T = unknown>(
       if (res.status === 429) {
         const retryHeader = res.headers.get("tempoAteLiberar") || res.headers.get("retry-after");
         const wait = Math.min(Number(retryHeader) || 2 * attempt, 15) * 1000;
+        lastErr = `Nomus limitou as requisições (429). Tente novamente em alguns segundos.`;
         await logCall({
           entity, operation, direction,
           status: "throttled",
@@ -215,6 +216,9 @@ export async function nomusFetch<T = unknown>(
           error: `Throttled, retrying in ${wait}ms`,
           triggered_by: opts.triggeredBy ?? null,
         });
+        if (attempt >= maxAttempts) {
+          return { ok: false, error: lastErr, status: res.status };
+        }
         await new Promise((r) => setTimeout(r, wait));
         continue;
       }
