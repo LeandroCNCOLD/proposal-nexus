@@ -50,7 +50,14 @@ const CHAMBER_LAYOUTS: Array<{ value: ChamberLayout; label: string; description:
 ];
 
 const INSULATION_THICKNESS_OPTIONS_MM = [50, 75, 100, 120, 150, 200];
-const SOLAR_FACE_OPTIONS = ["Sem sol direto", "Parede 1", "Parede 2", "Parede 3", "Parede 4", "Teto"];
+const SOLAR_FACE_OPTIONS = [
+  { value: "", label: "Sem sol direto" },
+  { value: "PAREDE 1", label: "Parede 1" },
+  { value: "PAREDE 2", label: "Parede 2" },
+  { value: "PAREDE 3", label: "Parede 3" },
+  { value: "PAREDE 4", label: "Parede 4" },
+  { value: "TETO", label: "Teto" },
+];
 
 const LEGACY_LAYOUTS = new Set(["industrial", "modular", "climatized_storage", "blast_freezer", "cooling_tunnel", "climatized_room"]);
 
@@ -413,10 +420,10 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
   };
 
   const setSolarFace = (faceName: string) => {
-    set("west_face_insolation", faceName !== "Sem sol direto");
+    set("west_face_insolation", faceName !== "");
     const next = constructionFaces.map((face) => ({
       ...face,
-      solar_orientation: faceName === face.local || (faceName === "Teto" && face.local === "TETO") ? "Sol direto" : "",
+      solar_orientation: faceName === face.local ? "Sol direto" : "",
     }));
     set("construction_faces", [...next, geometry]);
   };
