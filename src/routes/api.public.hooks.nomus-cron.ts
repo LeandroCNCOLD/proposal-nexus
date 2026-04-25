@@ -417,6 +417,7 @@ async function pullProposalsNewestFirst(): Promise<{ ok: boolean; count?: number
 
 async function pullEntity(name: EntityKey): Promise<{ ok: boolean; count?: number; error?: string }> {
   if (name === "propostas") return pullProposalsNewestFirst();
+  if (name === "processos") return syncNomusProcessesNewestFirst();
   const { endpoint, map } = mappers[name];
   const res = await listAll<Record<string, unknown>>(endpoint, {}, { entity: name });
   if (!res.ok) return { ok: false, error: res.error };
@@ -462,7 +463,7 @@ export const Route = createFileRoute("/api/public/hooks/nomus-cron")({
         const requested = body.entity ?? "all";
 
         const targets: EntityKey[] = requested === "all"
-          ? ["propostas", "pedidos", "notas_fiscais"]
+          ? ["propostas", "processos", "pedidos", "notas_fiscais"]
           : (Object.keys(mappers).includes(requested) ? [requested as EntityKey] : []);
 
         if (targets.length === 0) {
