@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Box, Ruler, Save, ShieldCheck, Thermometer } from "lucide-react";
+import { Box, Grid3X3, Ruler, Save, ShieldCheck, Thermometer } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   ColdProField,
@@ -20,6 +20,26 @@ type Props = {
   insulationMaterials: any[];
   onSave: (patch: Record<string, unknown>) => void;
 };
+
+const CONSTRUCTION_FACE_LABELS = ["TETO", "PAREDE 1", "PAREDE 02", "PAREDE 03", "PAREDE 04", "PISO"];
+
+function normalizeFaces(value: unknown) {
+  const faces = Array.isArray(value) ? value : [];
+  return CONSTRUCTION_FACE_LABELS.map((local) => {
+    const existing = faces.find((face: any) => face?.local === local) ?? {};
+    return {
+      local,
+      material_thickness: existing.material_thickness ?? "",
+      panel_area_m2: existing.panel_area_m2 ?? 0,
+      external_temp_c: existing.external_temp_c ?? null,
+      solar_orientation: existing.solar_orientation ?? "",
+      color: existing.color ?? "",
+      glass_area_m2: existing.glass_area_m2 ?? 0,
+      glass_type: existing.glass_type ?? "",
+      door_area_m2: existing.door_area_m2 ?? 0,
+    };
+  });
+}
 
 const APPLICATIONS = [
   { value: "cold_room", label: "Câmara resfriados" },
@@ -46,8 +66,18 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, onSav
     onChange: (e: React.ChangeEvent<HTMLInputElement>) => set(key, numberOrNull(e.target.value)),
   });
 
+  const constructionFaces = React.useMemo(() => normalizeFaces(form?.construction_faces), [form?.construction_faces]);
+  const setFace = (index: number, key: string, value: unknown) => {
+    const next = normalizeFaces(form?.construction_faces);
+    next[index] = { ...next[index], [key]: value };
+    set("construction_faces", next);
+  };
+
   const volume = React.useMemo(() => Number(form?.length_m ?? 0) * Number(form?.width_m ?? 0) * Number(form?.height_m ?? 0), [form?.length_m, form?.width_m, form?.height_m]);
   const deltaT = Number(form?.external_temp_c ?? 0) - Number(form?.internal_temp_c ?? 0);
+  const totalPanelArea = constructionFaces.reduce((sum, face) => sum + Number(face.panel_area_m2 ?? 0), 0);
+  const totalGlassArea = constructionFaces.reduce((sum, face) => sum + Number(face.glass_area_m2 ?? 0), 0);
+  const totalDoorArea = constructionFaces.reduce((sum, face) => sum + Number(face.door_area_m2 ?? 0), 0);
   const dimensionError = ["length_m", "width_m", "height_m"].some((key) => Number(form?.[key] ?? 0) <= 0);
   const hoursError = Number(form?.operation_hours_day ?? 0) < 0 || Number(form?.operation_hours_day ?? 0) > 24 || Number(form?.compressor_runtime_hours_day ?? 0) < 0 || Number(form?.compressor_runtime_hours_day ?? 0) > 24;
   const safetyError = Number(form?.safety_factor_percent ?? 0) < 0;
@@ -70,6 +100,7 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, onSav
         <TabsList className="mb-4 flex h-auto w-full flex-wrap justify-start gap-1 p-1">
           <TabsTrigger value="gerais">Dados gerais</TabsTrigger>
           <TabsTrigger value="dimensoes">Dimensões</TabsTrigger>
+          <TabsTrigger value="construcao">Paredes e painéis</TabsTrigger>
           <TabsTrigger value="condicoes">Condições</TabsTrigger>
           <TabsTrigger value="isolamento">Isolamento</TabsTrigger>
         </TabsList>
@@ -114,6 +145,75 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, onSav
                 <ColdProCalculatedInfo label="Volume interno calculado" value={`${fmtColdPro(volume)} m³`} description="Atualiza automaticamente ao alterar as dimensões." tone={dimensionError ? "warning" : "success"} />
                 <ColdProCalculatedInfo label="Área aproximada de troca" value={`${fmtColdPro(2 * ((Number(form?.length_m ?? 0) * Number(form?.width_m ?? 0)) + (Number(form?.length_m ?? 0) * Number(form?.height_m ?? 0)) + (Number(form?.width_m ?? 0) * Number(form?.height_m ?? 0))))} m²`} description="Referência visual para transmissão térmica." />
               </div>
+            </div>
+          </ColdProFormSection>
+        </TabsContent>
+
+
+
+        <TabsContent value="construcao">
+          <ColdProFormSection title="Paredes, módulos e aberturas" description="Dados construtivos para dimensionar painéis, vidro, portas e faces da câmara." icon={<Grid3X3 className="h-4 w-4" />}>
+            <div className="grid grid-cols-1 gap-x-10 md:grid-cols-2">
+              <div>
+                <ColdProField label="Tipo/layout da câmara">
+                  <ColdProSelect value={form?.chamber_layout_type ?? "industrial"} onChange={(e) => set("chamber_layout_type", e.target.value)}>
+                    <option value="industrial">Câmara industrial</option>
+                    <option value="modular">Câmara modular</option>
+                    <option value="climatized_storage">Armazém climatizado</option>
+                    <option value="blast_freezer">Túnel de congelamento</option>
+                    <option value="cooling_tunnel">Túnel de resfriamento</option>
+                    <option value="climatized_room">Climatização</option>
+                  </ColdProSelect>
+                </ColdProField>
+                <ColdProField label="Quantidade de paredes" unit="un"><ColdProInput {...num("wall_count")} /></ColdProField>
+                <ColdProField label="Módulos/paredes" unit="un"><ColdProInput {...num("module_count")} /></ColdProField>
+              </div>
+              <div className="space-y-3">
+                <ColdProField label="Insolação face oeste">
+                  <ColdProSelect value={form?.west_face_insolation ? "sim" : "nao"} onChange={(e) => set("west_face_insolation", e.target.value === "sim")}>
+                    <option value="nao">Não</option>
+                    <option value="sim">Sim</option>
+                  </ColdProSelect>
+                </ColdProField>
+                <ColdProCalculatedInfo label="Total de painéis" value={`${fmtColdPro(totalPanelArea)} m²`} description="Soma das áreas informadas por face." tone={totalPanelArea > 0 ? "success" : "warning"} />
+                <div className="grid grid-cols-2 gap-2">
+                  <ColdProCalculatedInfo label="Vidro" value={`${fmtColdPro(totalGlassArea)} m²`} />
+                  <ColdProCalculatedInfo label="Portas" value={`${fmtColdPro(totalDoorArea)} m²`} />
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 overflow-x-auto rounded-xl border">
+              <table className="w-full min-w-[980px] text-sm">
+                <thead className="bg-muted/50 text-xs text-muted-foreground">
+                  <tr>
+                    <th className="px-3 py-2 text-left font-medium">Local</th>
+                    <th className="px-3 py-2 text-left font-medium">Material / espessura</th>
+                    <th className="px-3 py-2 text-left font-medium">Área painel m²</th>
+                    <th className="px-3 py-2 text-left font-medium">Temp. ext °C</th>
+                    <th className="px-3 py-2 text-left font-medium">Orientação solar</th>
+                    <th className="px-3 py-2 text-left font-medium">Cor</th>
+                    <th className="px-3 py-2 text-left font-medium">Área vidro m²</th>
+                    <th className="px-3 py-2 text-left font-medium">Tipo de vidro</th>
+                    <th className="px-3 py-2 text-left font-medium">Área porta m²</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {constructionFaces.map((face, index) => (
+                    <tr key={face.local} className="border-t">
+                      <td className="px-3 py-2 font-medium text-foreground">{face.local}</td>
+                      <td className="px-3 py-2"><ColdProInput value={face.material_thickness ?? ""} onChange={(e) => setFace(index, "material_thickness", e.target.value)} className="text-left" /></td>
+                      <td className="px-3 py-2"><ColdProInput type="number" value={face.panel_area_m2 ?? ""} onChange={(e) => setFace(index, "panel_area_m2", numberOrNull(e.target.value) ?? 0)} /></td>
+                      <td className="px-3 py-2"><ColdProInput type="number" value={face.external_temp_c ?? ""} onChange={(e) => setFace(index, "external_temp_c", numberOrNull(e.target.value))} /></td>
+                      <td className="px-3 py-2"><ColdProInput value={face.solar_orientation ?? ""} onChange={(e) => setFace(index, "solar_orientation", e.target.value)} className="text-left" /></td>
+                      <td className="px-3 py-2"><ColdProInput value={face.color ?? ""} onChange={(e) => setFace(index, "color", e.target.value)} className="text-left" /></td>
+                      <td className="px-3 py-2"><ColdProInput type="number" value={face.glass_area_m2 ?? ""} onChange={(e) => setFace(index, "glass_area_m2", numberOrNull(e.target.value) ?? 0)} /></td>
+                      <td className="px-3 py-2"><ColdProInput value={face.glass_type ?? ""} onChange={(e) => setFace(index, "glass_type", e.target.value)} className="text-left" /></td>
+                      <td className="px-3 py-2"><ColdProInput type="number" value={face.door_area_m2 ?? ""} onChange={(e) => setFace(index, "door_area_m2", numberOrNull(e.target.value) ?? 0)} /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </ColdProFormSection>
         </TabsContent>
@@ -166,7 +266,7 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, onSav
       </Tabs>
 
       <div className="mt-5 flex justify-end border-t pt-4">
-        <button type="button" disabled={!canSave} onClick={() => onSave({ ...form, name: String(form?.name ?? "").trim(), volume_m3: volume })} className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-2 text-sm font-medium text-primary-foreground shadow-sm transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50">
+        <button type="button" disabled={!canSave} onClick={() => onSave({ ...form, name: String(form?.name ?? "").trim(), volume_m3: volume, construction_faces: constructionFaces, total_panel_area_m2: totalPanelArea, total_glass_area_m2: totalGlassArea, total_door_area_m2: totalDoorArea })} className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-2 text-sm font-medium text-primary-foreground shadow-sm transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50">
           <Save className="h-4 w-4" /> Salvar ambiente
         </button>
       </div>
