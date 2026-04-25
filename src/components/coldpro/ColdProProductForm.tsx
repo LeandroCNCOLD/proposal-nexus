@@ -51,7 +51,7 @@ export function ColdProProductForm({ environmentId, productCatalog = [], onSave 
   const set = (key: string, value: unknown) => setForm((prev) => ({ ...prev, [key]: value }));
   const num = (key: keyof ReturnType<typeof initialForm>) => ({
     type: "number" as const,
-    value: form[key] ?? "",
+    value: typeof form[key] === "boolean" ? "" : (form[key] ?? ""),
     onChange: (e: React.ChangeEvent<HTMLInputElement>) => set(key, numberOrNull(e.target.value)),
   });
 
