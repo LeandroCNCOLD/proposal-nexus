@@ -351,8 +351,8 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
   const deltaT = toNumber(form?.external_temp_c) - toNumber(form?.internal_temp_c);
   const totalPanelArea = constructionFaces.reduce((sum, face) => sum + toNumber(face.panel_area_m2), 0);
   const totalGlassArea = constructionFaces.reduce((sum, face) => sum + toNumber(face.glass_area_m2), 0);
-  const totalDoorArea = constructionFaces.reduce((sum, face) => sum + toNumber(face.door_area_m2), 0);
   const wallPanelArea = constructionFaces.filter((face) => face.local.startsWith("PAREDE")).reduce((sum, face) => sum + toNumber(face.panel_area_m2), 0);
+  const selectedGlassTypeLabel = (value: unknown) => GLASS_TYPE_OPTIONS.find((item) => item.value === value)?.label ?? "Vidro simples";
   const dimensionError = layout !== "custom_polygon" && (length <= 0 || width <= 0 || height <= 0);
   const customDimensionError = layout === "custom_polygon" && (floorArea <= 0 || height <= 0 || wallCount < 3);
   const hoursError = toNumber(form?.operation_hours_day) < 0 || toNumber(form?.operation_hours_day) > 24 || toNumber(form?.compressor_runtime_hours_day) < 0 || toNumber(form?.compressor_runtime_hours_day) > 24;
