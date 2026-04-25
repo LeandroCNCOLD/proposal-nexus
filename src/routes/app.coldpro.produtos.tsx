@@ -265,7 +265,11 @@ function ColdProProductsPage() {
     const rawRows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: "", blankrows: false });
     const headerIndex = rawRows.findIndex((row) => Array.isArray(row) && row[0] === "Produto" && row[1] === "Grupo");
     const rows = headerIndex >= 0
-      ? XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "", range: headerIndex + 1 })
+      ? rawRows.slice(headerIndex + 2).map((row) => ({
+          Produto: row[0], Grupo: row[1], "Água %": row[2], "Proteína %": row[3], "Gordura %": row[4], "Carb. Total %": row[5], "Fibra %": row[6], "Cinzas %": row[7],
+          "Tc (°C)\nPonto Inicial\nCongelamento": row[8], "Cp_AT (kJ/kg·K)": row[9], "Cp_AP (kJ/kg·K)": row[10], "Cp_AT (kcal/kg·°C)": row[11], "Cp_AP (kcal/kg·°C)": row[12],
+          "Calor Latente\n(kJ/kg)": row[13], "Calor Latente\n(kcal/kg)": row[14], "Cond. Térmica\n(W/m·K)": row[15], "0°C": row[16], "5°C": row[17], "10°C": row[18], "15°C": row[19], "20°C": row[20], Observações: row[21],
+        }))
       : XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "" });
     const parsed = rows.map(rowToProduct).filter(Boolean) as ProductForm[];
     const unique = Array.from(new Map(parsed.map((product) => [keyOf(product), product])).values());
