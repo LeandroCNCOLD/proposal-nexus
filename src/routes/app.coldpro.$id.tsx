@@ -1,12 +1,15 @@
 import * as React from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, ArrowRight, Plus, Snowflake, Thermometer, Wind, Warehouse } from "lucide-react";
+import { ArrowLeft, ArrowRight, Pencil, Plus, Snowflake, Thermometer, Trash2, Wind, Warehouse } from "lucide-react";
 import { toast } from "sonner";
 import {
   useColdProProjectBundle,
   useCreateColdProEnvironment,
+  useUpdateColdProProject,
   useUpdateColdProEnvironment,
+  useDeleteColdProEnvironment,
   useUpsertColdProProduct,
+  useDeleteColdProProduct,
   useUpsertColdProTunnel,
   useUpsertColdProAdvancedProcess,
   useCalculateColdProEnvironment,
@@ -37,8 +40,11 @@ function ColdProProjectPage() {
   const { id } = Route.useParams();
   const { data, isLoading } = useColdProProjectBundle(id);
   const createEnv = useCreateColdProEnvironment(id);
+  const updateProject = useUpdateColdProProject(id);
   const updateEnv = useUpdateColdProEnvironment(id);
+  const deleteEnv = useDeleteColdProEnvironment(id);
   const upsertProduct = useUpsertColdProProduct(id);
+  const deleteProduct = useDeleteColdProProduct(id);
   const upsertTunnel = useUpsertColdProTunnel(id);
   const upsertAdvancedProcess = useUpsertColdProAdvancedProcess(id);
   const calculate = useCalculateColdProEnvironment(id);
@@ -54,6 +60,9 @@ function ColdProProjectPage() {
 
   const [selectedEnvId, setSelectedEnvId] = React.useState<string | null>(null);
   const [stepIndex, setStepIndex] = React.useState(0);
+  const [editingProjectName, setEditingProjectName] = React.useState(false);
+  const [projectNameDraft, setProjectNameDraft] = React.useState("");
+  const [editingProductId, setEditingProductId] = React.useState<string | null>(null);
 
   const environments = data?.environments ?? [];
   const selectedEnv = environments.find((env: any) => env.id === selectedEnvId) ?? environments[0];
@@ -70,6 +79,8 @@ function ColdProProjectPage() {
   React.useEffect(() => {
     if (!selectedEnvId && environments[0]?.id) setSelectedEnvId(environments[0].id);
   }, [selectedEnvId, environments]);
+
+  React.useEffect(() => setProjectNameDraft(data?.project?.name ?? ""), [data?.project?.name]);
 
   const completed: Record<number, boolean> = {
     0: !!selectedEnv?.length_m,
@@ -88,6 +99,32 @@ function ColdProProjectPage() {
     });
     setSelectedEnvId(env.id);
     setStepIndex(0);
+  }
+
+  async function handleSaveProjectName() {
+    const name = projectNameDraft.trim();
+    if (!name) return toast.error("Informe o nome do projeto");
+    try {
+      await updateProject.mutateAsync({ id, name });
+      setEditingProjectName(false);
+      toast.success("Nome do projeto atualizado");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Erro ao atualizar projeto");
+    }
+  }
+
+  async function handleDeleteEnvironment() {
+    if (!selectedEnv) return;
+    if (!window.confirm(`Excluir o ambiente "${selectedEnv.name}" e todos os dados vinculados?`)) return;
+    try {
+      await deleteEnv.mutateAsync(selectedEnv.id);
+      const nextEnv = environments.find((env: any) => env.id !== selectedEnv.id);
+      setSelectedEnvId(nextEnv?.id ?? null);
+      setStepIndex(0);
+      toast.success("Ambiente excluído");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Erro ao excluir ambiente");
+    }
   }
 
   async function handleCalculate() {
@@ -152,12 +189,22 @@ function ColdProProjectPage() {
               ← Projetos
             </Link>
             <div className="h-6 w-px bg-sidebar-border" />
-            <div className="min-w-0">
-              <div className="text-[11px] uppercase tracking-widest text-sidebar-foreground/60">
-                CN ColdPro · Cálculo térmico
+              <div className="min-w-0">
+                <div className="text-[11px] uppercase tracking-widest text-sidebar-foreground/60">
+                  CN ColdPro · Cálculo térmico
+                </div>
+                {editingProjectName ? (
+                  <div className="mt-1 flex max-w-xl gap-2">
+                    <input value={projectNameDraft} onChange={(event) => setProjectNameDraft(event.target.value)} className="h-8 min-w-0 flex-1 rounded-md border border-sidebar-border bg-background px-2 text-sm text-foreground" />
+                    <button type="button" onClick={handleSaveProjectName} disabled={updateProject.isPending} className="rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground disabled:opacity-50">Salvar</button>
+                    <button type="button" onClick={() => { setEditingProjectName(false); setProjectNameDraft(data?.project?.name ?? ""); }} className="rounded-md px-2 text-xs text-sidebar-foreground/70 hover:bg-sidebar-accent">Cancelar</button>
+                  </div>
+                ) : (
+                  <button type="button" onClick={() => setEditingProjectName(true)} className="group mt-0.5 flex max-w-xl items-center gap-2 text-left text-sm font-semibold">
+                    <span className="truncate">{data?.project?.name ?? "Novo projeto"}</span><Pencil className="h-3.5 w-3.5 opacity-60 group-hover:opacity-100" />
+                  </button>
+                )}
               </div>
-              <div className="truncate text-sm font-semibold">{data?.project?.name ?? "Novo projeto"}</div>
-            </div>
           </div>
           <div className="text-[11px] text-sidebar-foreground/70">
             Etapa {stepIndex + 1} / {COLDPRO_STEPS.length} — {COLDPRO_STEPS[stepIndex].title}
@@ -245,6 +292,16 @@ function ColdProProjectPage() {
                 />
               </div>
 
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-background px-4 py-3 shadow-sm print:hidden">
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-semibold">{selectedEnv.name}</div>
+                  <div className="text-xs text-muted-foreground">{selectedEnv.environment_type} · {fmt(selectedEnv.volume_m3)} m³ · {selectedEnv.internal_temp_c}°C</div>
+                </div>
+                <button type="button" onClick={handleDeleteEnvironment} disabled={deleteEnv.isPending} className="inline-flex items-center gap-2 rounded-md border border-destructive/30 px-3 py-1.5 text-sm text-destructive transition hover:bg-destructive/10 disabled:opacity-50">
+                  <Trash2 className="h-4 w-4" /> {deleteEnv.isPending ? "Excluindo..." : "Excluir ambiente"}
+                </button>
+              </div>
+
               {/* STEP 0 - AMBIENTE */}
               {stepIndex === 0 && (
                 <div className="space-y-4">
@@ -289,10 +346,12 @@ function ColdProProjectPage() {
                   ) : (
                     <ColdProProductForm
                       environmentId={selectedEnv.id}
+                      product={products.find((p: any) => p.id === editingProductId) ?? products[0] ?? null}
                       productCatalog={data?.productCatalog ?? []}
+                      saving={upsertProduct.isPending}
                       onSave={(payload) =>
                         upsertProduct.mutate(payload, {
-                          onSuccess: () => toast.success("Produto adicionado"),
+                          onSuccess: (row: any) => { setEditingProductId(row?.id ?? null); toast.success(payload.id ? "Produto atualizado" : "Produto adicionado"); },
                           onError: (e: any) => toast.error(e?.message ?? "Erro ao salvar"),
                         })
                       }
@@ -318,10 +377,14 @@ function ColdProProjectPage() {
                     ) : (
                       <div className="space-y-2">
                         {products.map((p: any) => (
-                          <div key={p.id} className="flex items-center justify-between rounded-md border px-3 py-2 text-sm">
+                          <div key={p.id} className="flex flex-wrap items-center justify-between gap-3 rounded-md border px-3 py-2 text-sm">
                             <div>
                               <b>{p.product_name}</b> · {fmt(p.mass_kg_day)} kg/dia · entrada {p.inlet_temp_c}°C → final{" "}
                               {p.outlet_temp_c}°C
+                            </div>
+                            <div className="flex gap-2">
+                              <button type="button" onClick={() => setEditingProductId(p.id)} className="rounded-md border px-2 py-1 text-xs hover:bg-muted">Editar</button>
+                              <button type="button" onClick={() => { if (window.confirm(`Excluir o produto "${p.product_name}"?`)) deleteProduct.mutate(p.id, { onSuccess: () => { if (editingProductId === p.id) setEditingProductId(null); toast.success("Produto excluído"); }, onError: (e: any) => toast.error(e?.message ?? "Erro ao excluir") }); }} className="rounded-md border border-destructive/30 px-2 py-1 text-xs text-destructive hover:bg-destructive/10">Excluir</button>
                             </div>
                           </div>
                         ))}

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { listColdProProjects, createColdProProject, getColdProProjectBundle, createColdProEnvironment, updateColdProEnvironment, upsertColdProEnvironmentProduct, upsertColdProTunnel, upsertColdProAdvancedProcess, calculateColdProEnvironment, autoSelectColdProEquipment } from "./coldpro.functions";
+import { listColdProProjects, createColdProProject, updateColdProProject, getColdProProjectBundle, createColdProEnvironment, updateColdProEnvironment, deleteColdProEnvironment, upsertColdProEnvironmentProduct, deleteColdProEnvironmentProduct, upsertColdProTunnel, upsertColdProAdvancedProcess, calculateColdProEnvironment, autoSelectColdProEquipment } from "./coldpro.functions";
 import { pushColdProToProposal } from "./push-coldpro-to-proposal.functions";
 import { generateColdProMemorialPdf } from "@/integrations/coldpro/coldpro-memorial.functions";
 
@@ -9,6 +9,10 @@ export function useColdProProjects() {
 export function useCreateColdProProject() {
   const qc = useQueryClient();
   return useMutation({ mutationFn: (data: { proposal_id?: string | null; name: string; application_type: string }) => createColdProProject({ data }), onSuccess: () => qc.invalidateQueries({ queryKey: ["coldpro-projects"] }) });
+}
+export function useUpdateColdProProject(projectId: string) {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: (data: { id: string; name: string }) => updateColdProProject({ data }), onSuccess: () => { qc.invalidateQueries({ queryKey: ["coldpro-project", projectId] }); qc.invalidateQueries({ queryKey: ["coldpro-projects"] }); } });
 }
 export function useColdProProjectBundle(projectId: string) {
   return useQuery({ queryKey: ["coldpro-project", projectId], queryFn: () => getColdProProjectBundle({ data: { projectId } }), enabled: !!projectId });
@@ -21,9 +25,17 @@ export function useUpdateColdProEnvironment(projectId: string) {
   const qc = useQueryClient();
   return useMutation({ mutationFn: (data: { id: string; patch: Record<string, unknown> }) => updateColdProEnvironment({ data }), onSuccess: () => qc.invalidateQueries({ queryKey: ["coldpro-project", projectId] }) });
 }
+export function useDeleteColdProEnvironment(projectId: string) {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: (id: string) => deleteColdProEnvironment({ data: { id } }), onSuccess: () => qc.invalidateQueries({ queryKey: ["coldpro-project", projectId] }) });
+}
 export function useUpsertColdProProduct(projectId: string) {
   const qc = useQueryClient();
   return useMutation({ mutationFn: (data: any) => upsertColdProEnvironmentProduct({ data }), onSuccess: () => qc.invalidateQueries({ queryKey: ["coldpro-project", projectId] }) });
+}
+export function useDeleteColdProProduct(projectId: string) {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: (id: string) => deleteColdProEnvironmentProduct({ data: { id } }), onSuccess: () => qc.invalidateQueries({ queryKey: ["coldpro-project", projectId] }) });
 }
 export function useUpsertColdProTunnel(projectId: string) {
   const qc = useQueryClient();

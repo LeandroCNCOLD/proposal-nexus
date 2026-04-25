@@ -4,9 +4,10 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { ColdProField, ColdProInput, ColdProSelect } from "./ColdProField";
 import { ColdProCalculatedInfo, ColdProFormSection, ColdProValidationMessage, fmtColdPro, numberOrNull } from "./ColdProFormPrimitives";
 
-type Props = { environmentId: string; productCatalog?: any[]; onSave: (data: any) => void };
+type Props = { environmentId: string; product?: any | null; productCatalog?: any[]; saving?: boolean; onSave: (data: any) => void };
 
 const initialForm = (environmentId: string) => ({
+  id: undefined as string | undefined,
   environment_id: environmentId,
   product_id: null as string | null,
   product_name: "Produto genérico",
@@ -61,11 +62,13 @@ const initialForm = (environmentId: string) => ({
   notes: null as string | null,
 });
 
-export function ColdProProductForm({ environmentId, productCatalog = [], onSave }: Props) {
+export function ColdProProductForm({ environmentId, product, productCatalog = [], saving = false, onSave }: Props) {
   const [selectedGroup, setSelectedGroup] = React.useState("");
   const [form, setForm] = React.useState(initialForm(environmentId));
 
-  React.useEffect(() => setForm((prev) => ({ ...prev, environment_id: environmentId })), [environmentId]);
+  React.useEffect(() => {
+    setForm((prev) => ({ ...initialForm(environmentId), ...product, environment_id: environmentId, id: product?.id ?? prev.id }));
+  }, [environmentId, product]);
 
   const set = (key: string, value: unknown) => setForm((prev) => ({ ...prev, [key]: value }));
   const num = (key: keyof ReturnType<typeof initialForm>) => ({ type: "number" as const, value: typeof form[key] === "boolean" ? "" : (form[key] ?? ""), onChange: (e: React.ChangeEvent<HTMLInputElement>) => set(key, numberOrNull(e.target.value)) });
@@ -132,6 +135,7 @@ export function ColdProProductForm({ environmentId, productCatalog = [], onSave 
   const canSave = !requiredError && !modeError && !negativeError;
 
   const save = () => {
+    if (saving) return;
     const movement_basis = mode === "storage_turnover" ? "calculated_from_stock" : mode === "hourly_intake" ? "manual_hourly" : mode === "room_pull_down_or_freezing" ? "batch_recovery" : "manual_daily";
     onSave({
       ...form,
@@ -151,7 +155,7 @@ export function ColdProProductForm({ environmentId, productCatalog = [], onSave 
     <div className="min-w-0 rounded-xl border bg-background p-3 shadow-sm sm:p-5">
       <div className="mb-5 flex flex-col gap-3 border-b pb-4 md:flex-row md:items-start md:justify-between">
         <div>
-          <h2 className="text-lg font-semibold">Produtos</h2>
+          <h2 className="text-lg font-semibold">{form.id ? "Editar produto" : "Produtos"}</h2>
           <p className="mt-1 text-sm text-muted-foreground">Carga estocada, giro diário, entrada horária ou recuperação/congelamento dentro da câmara.</p>
         </div>
         <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 md:w-auto md:min-w-80">
@@ -235,8 +239,8 @@ export function ColdProProductForm({ environmentId, productCatalog = [], onSave 
       </Accordion>
 
       <div className="mt-5 flex justify-end border-t pt-4">
-        <button type="button" disabled={!canSave} className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-2 text-sm font-medium text-primary-foreground shadow-sm transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50" onClick={save}>
-          <Save className="h-4 w-4" /> Salvar produto
+        <button type="button" disabled={!canSave || saving} className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-2 text-sm font-medium text-primary-foreground shadow-sm transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50" onClick={save}>
+          <Save className="h-4 w-4" /> {saving ? "Salvando..." : form.id ? "Atualizar produto" : "Salvar produto"}
         </button>
       </div>
     </div>
