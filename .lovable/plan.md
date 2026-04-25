@@ -1,165 +1,145 @@
-# Plano de implementação — Melhorias de Layout CN ColdPro
+Plano para implementar o módulo de materiais térmicos e integrar ao cálculo de transmissão do CN ColdPro.
 
 ## Objetivo
-Reorganizar a ferramenta CN ColdPro para ficar mais clara, visual e segura, usando as referências do SELECT COLD e a análise enviada: abas bem definidas, formulários agrupados, validação visual, prévias de cálculo por etapa e resultado mais legível.
-
-## Estrutura final do fluxo
-Manter o fluxo principal em 4 etapas, como definido anteriormente:
+Substituir o cálculo simplificado de transmissão por um cálculo técnico baseado em composição construtiva por face:
 
 ```text
-Ambiente → Produtos → Cargas Extras → Resultado
+U = 1 / (Rsi + Σ(espessura / k) + Rse)
+Q = U × A × ΔT
 ```
 
-A aba antiga de “Renovação de Ar” da referência será absorvida em “Cargas Extras”, porque tecnicamente pertence às cargas de infiltração/renovação. A aba “Cadastro inicial” será representada no cabeçalho/projeto e sidebar, sem virar uma etapa extra obrigatória.
+O usuário poderá montar paredes, teto e piso com múltiplas camadas, usando materiais padrão ou composições personalizadas.
 
-## 1. Componentes base de formulário
-Criar componentes reutilizáveis para padronizar o ColdPro:
+## 1. Banco de dados
 
-- `ColdProFormSection`: card/seção com título, descrição e ícone.
-- `ColdProFieldHint`: ajuda curta/tooltip para campos técnicos.
-- `ColdProValidationMessage`: mensagens de alerta/erro abaixo do campo.
-- `ColdProCalculatedInfo`: blocos de cálculo automático, como volume, ΔT, kg/h esperado, throughput.
+Criar uma migration com:
 
-Esses componentes usarão os tokens semânticos já existentes (`primary`, `muted`, `border`, `warning`, `success`, etc.), sem cores diretas hardcoded.
+1. Nova tabela `coldpro_thermal_materials` para catálogo padronizado:
+   - nome do material
+   - categoria: isolamento, painel, estrutural, metal, madeira, etc.
+   - condutividade térmica em W/mK
+   - densidade
+   - faixa de temperatura
+   - espessura típica
+   - indicação se é isolante
+   - observações técnicas
 
-## 2. Refatorar Ambiente
-Atualizar `ColdProEnvironmentForm.tsx` para ficar dividido em abas internas:
+2. Seed inicial com os materiais fornecidos:
+   - EPS, XPS, PUR, PIR
+   - lã de vidro, lã de rocha
+   - painel isotérmico PUR/PIR/EPS
+   - concreto, cimento, bloco, tijolo, aço, alumínio, madeira
+
+3. Persistência das camadas por face no próprio JSON de `construction_faces`, evitando criar complexidade excessiva agora. Cada face poderá salvar:
 
 ```text
-Dados gerais | Dimensões | Condições | Isolamento
+layers: [
+  { material_id, material_name, thickness_m, conductivity_w_mk, position }
+]
+u_value_w_m2k
+transmission_w
+transmission_kcal_h
 ```
 
-Campos por grupo:
+4. Manter compatibilidade com os campos atuais (`insulation_material_id`, espessuras padrão), para não quebrar projetos já existentes.
 
-- Dados gerais: nome, tipo de aplicação, operação diária, tempo de compressor.
-- Dimensões: comprimento, largura, altura, volume calculado.
-- Condições: temperatura interna, temperatura externa, temperatura sob piso, umidade quando for climatizado/sementes.
-- Isolamento: material, parede, teto, piso, piso isolado.
+## 2. Tipos e validação
 
-Adicionar validações visuais:
+Atualizar os tipos ColdPro para incluir:
 
-- dimensões devem ser maiores que zero;
-- compressor e operação entre 0 e 24 h/dia;
-- fator de segurança não negativo;
-- alertas quando valores essenciais estiverem ausentes.
+- `ColdProThermalMaterial`
+- `ColdProWallLayer`
+- novos campos em `ColdProConstructionFace`:
+  - `layers`
+  - `u_value_w_m2k`
+  - `transmission_w`
+  - `transmission_kcal_h`
 
-## 3. Refatorar Produtos
-Atualizar `ColdProProductForm.tsx` para usar seções/accordion:
+Atualizar validação no servidor para aceitar camadas, com limites seguros:
+
+- até 8 camadas por face
+- espessura não negativa
+- condutividade positiva
+- nomes e categorias com tamanho limitado
+
+## 3. Motor de cálculo térmico
+
+Adicionar funções no engine:
 
 ```text
-Catálogo ASHRAE
-Movimentação e processo
-Temperaturas e propriedades térmicas
-Embalagem
+calculateUValue(layers)
+calculateFaceTransmission(face, env)
+calculateConstructionTransmission(env, fallbackInsulation)
 ```
 
-Melhorias:
+Regras:
 
-- manter seleção por grupo ASHRAE primeiro e produto depois;
-- ao selecionar produto, carregar automaticamente propriedades térmicas já mapeadas;
-- mostrar `kg/h esperado = kg/dia / horas de processo`;
-- mostrar ΔT do produto;
-- separar dados operacionais de propriedades técnicas;
-- melhorar campos de densidade, condutividade, fração de água congelável e espessura característica.
+- Converter W para kcal/h usando `1 W = 0,859845 kcal/h`.
+- Usar `R_internal = 0,12` e `R_external = 0,08` como padrão inicial.
+- Para paredes e teto: `ΔT = temperatura externa da face ou ambiente externo - temperatura interna`.
+- Para piso: se houver temperatura de piso, usar `temperatura sob o piso - temperatura interna`; caso contrário usar ΔT externo.
+- Se a face tiver camadas, usar cálculo por U técnico.
+- Se não tiver camadas, manter fallback atual por material isolante + espessura, para compatibilidade.
 
-Validações:
+O resultado detalhado entrará em `calculation_breakdown.transmission_faces`, mostrando face, área, U, ΔT e carga.
 
-- produto obrigatório;
-- massa diária/hora não negativa;
-- tempo de processo maior que zero;
-- aviso quando massa horária divergir muito da massa diária dividida pelo tempo;
-- alerta quando temperatura final for incoerente com entrada para resfriamento/congelamento.
+## 4. Interface na aba Ambiente
 
-## 4. Refatorar Túnel
-Atualizar `ColdProTunnelForm.tsx`, hoje o mais compacto, para layout em abas internas:
+Na aba “Dimensões e painéis”, ajustar a tabela de faces para permitir montar a composição térmica de cada face.
+
+Proposta de UX:
+
+- Cada linha continua representando TETO, PAREDE 1, PAREDE 2, PISO etc.
+- Adicionar botão “Camadas” em cada face.
+- Ao clicar, abrir um painel/modal simples com:
+  - lista de camadas
+  - seletor de material
+  - espessura em mm
+  - condutividade preenchida automaticamente pelo material
+  - botão adicionar/remover camada
+  - prévia automática do U da face
+
+Exemplo de montagem:
 
 ```text
-Configuração | Produto | Ar e processo | Cargas internas
+Parede 1
+1. Aço carbono — 0,5 mm
+2. Painel isotérmico PUR — 100 mm
+3. Aço carbono — 0,5 mm
+U calculado: ~0,21 W/m²K
 ```
 
-Melhorias:
+## 5. Integração com carregamento de dados
 
-- separar tipo de túnel e modo de operação;
-- agrupar dados físicos do produto;
-- calcular throughput previsto: unidades/ciclo × peso unitário × ciclos/h;
-- agrupar temperatura do ar, velocidade, tempo de retenção e propriedades térmicas;
-- destacar tempo estimado/conferência de retenção quando disponível pelo motor de cálculo;
-- agrupar motor de esteira, ventiladores internos, embalagem e outras cargas.
+Atualizar `getColdProProjectBundle` para retornar também `thermalMaterials`, ordenados por categoria/nome.
 
-## 5. Refatorar Cargas Extras
-Atualizar `ColdProExtraLoadsForm.tsx` para refletir melhor as telas de referência:
+Passar `thermalMaterials` para `ColdProEnvironmentForm` pela rota `/app/coldpro/$id`.
 
-```text
-Infiltração / Renovação de ar
-Pessoas e iluminação
-Motores e outras cargas
-Segurança
-```
+## 6. Resultado e memorial
 
-Melhorias:
+Atualizar visualização de resultado para incluir informação mais técnica da transmissão:
 
-- destacar renovação/infiltração como bloco próprio;
-- reorganizar pessoas, iluminação, motores, ventiladores, degelo e outras cargas;
-- mostrar prévia da carga térmica total da etapa quando já houver resultado calculado;
-- adicionar validações para valores negativos e horas fora de 0–24.
+- Transmissão total continua aparecendo no card principal.
+- Detalhamento opcional por face no breakdown:
+  - área
+  - U
+  - ΔT
+  - carga em kcal/h
 
-## 6. Melhorar Resultado
-Atualizar `ColdProResultCard.tsx` para ter hierarquia e visualização:
+Atualizar o memorial PDF para refletir, quando disponível, o cálculo por camadas em vez de apenas material/espessura global.
 
-- cards principais: carga requerida, kW, TR;
-- breakdown agrupado:
-  - Ambiente: transmissão;
-  - Produto: produto, embalagem, respiração/túnel;
-  - Extras: infiltração, pessoas, iluminação, motores, ventiladores, degelo, outras;
-  - Segurança;
-- barras percentuais de participação por carga usando tokens de chart;
-- resumo final semelhante à referência: capacidade requerida, fator de segurança, total;
-- manter integração existente com seleção de equipamento e relatório.
+## 7. Observações importantes
 
-## 7. Melhorar layout principal
-Atualizar `app.coldpro.$id.tsx`:
+- Não vou substituir os dados atuais de isolamento; vou adicionar o novo catálogo térmico e usar fallback para projetos antigos.
+- A tabela sugerida pelo usuário será adaptada para o padrão de nomes do ColdPro (`coldpro_thermal_materials`) para manter consistência.
+- Como estamos em modo de planejamento, a implementação começa após aprovação.
 
-- manter sidebar de ambientes, mas deixá-la mais visual com ícones e melhor seleção;
-- melhorar espaçamento geral e largura dos cards;
-- garantir scroll da lista de ambientes quando houver muitos ambientes;
-- manter o stepper superior de 4 etapas;
-- preservar os cards de prévia de carga por etapa;
-- evitar empilhar informações demais sem separação.
+## Validação
 
-## 8. Validação client-side e server-side
-Adicionar validação de entrada com schemas Zod compartilhados ou auxiliares consistentes:
+Após implementar:
 
-- client-side: feedback visual antes de salvar;
-- server-side: reforçar os `.inputValidator()` em `coldpro.functions.ts` com limites e mensagens mais seguras;
-- sanitizar strings com `trim()` e limitar tamanho de nomes;
-- impedir números inválidos, `NaN`, infinitos e valores negativos onde não fizer sentido.
-
-Nenhuma mudança de banco é necessária inicialmente, porque os campos já existem após as migrações anteriores.
-
-## 9. QA e validação
-Após aprovação e implementação:
-
-- rodar `bunx tsc --noEmit`;
-- rodar `bun run build`;
-- abrir a rota ColdPro no preview;
-- validar as 4 etapas visualmente;
-- testar seleção grupo ASHRAE → produto → preenchimento automático;
-- testar salvamento de ambiente, produto/túnel e cargas extras;
-- confirmar que o cálculo chega ao resultado sem erro;
-- revisar console e rede para falhas.
-
-## Arquivos previstos
-
-- `src/components/coldpro/ColdProEnvironmentForm.tsx`
-- `src/components/coldpro/ColdProProductForm.tsx`
-- `src/components/coldpro/ColdProTunnelForm.tsx`
-- `src/components/coldpro/ColdProExtraLoadsForm.tsx`
-- `src/components/coldpro/ColdProResultCard.tsx`
-- `src/components/coldpro/ColdProField.tsx`
-- `src/components/coldpro/ColdProStepper.tsx`
-- `src/components/coldpro/ColdProSectionLoadSummary.tsx`
-- `src/routes/app.coldpro.$id.tsx`
-- `src/features/coldpro/coldpro.functions.ts`
-
-## Resultado esperado
-A ferramenta continuará funcional, mas com aparência mais próxima da referência SELECT COLD: navegação clara, formulários organizados por assunto, menos confusão visual, validação imediata e resultado com leitura técnica mais profissional.
+- Rodar TypeScript sem emissão.
+- Rodar build de produção.
+- Conferir que projetos antigos ainda calculam com fallback.
+- Conferir exemplo PUR 100 mm com U aproximado de 0,21 W/m²K.
+- Conferir que o cálculo de transmissão final aparece em kcal/h corretamente.
