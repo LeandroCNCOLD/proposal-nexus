@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { listAll, getOne, nomusFetch } from "@/integrations/nomus/client";
+import { listAll, listPage, getOne } from "@/integrations/nomus/client";
 import { NOMUS_ENDPOINTS } from "@/integrations/nomus/endpoints";
 import {
   mapNomusProposal,
@@ -29,6 +29,8 @@ async function syncProposalDetail(rawSummary: Record<string, unknown>, options: 
 
   const detailRes = await getOne<Record<string, unknown>>(NOMUS_ENDPOINTS.propostas, id, {
     entity: "propostas",
+    timeoutMs: options.requireDetail ? 4_000 : undefined,
+    maxAttempts: options.requireDetail ? 1 : undefined,
   });
   if (!detailRes.ok && options.requireDetail) return false;
   // Se falhar o detalhe, salvamos pelo menos o que veio na listagem para não perder o ID.
@@ -258,10 +260,11 @@ const mappers: Record<EntityKey, { endpoint: string; map: Mapper }> = {
 };
 
 /** Máximo de propostas novas/alteradas processadas por invocação (evita timeout). */
-const PROPOSALS_BATCH_SIZE = 20;
-const PROPOSALS_FORWARD_LOOKAHEAD = 80;
-const PROPOSALS_RECENT_RECHECK = 30;
-const PROPOSALS_MAX_CONSECUTIVE_MISSES = 20;
+const PROPOSALS_BATCH_SIZE = 8;
+const PROPOSALS_FORWARD_LOOKAHEAD = 24;
+const PROPOSALS_RECENT_RECHECK = 8;
+const PROPOSALS_RECENT_PAGE_SCAN = 5;
+const PROPOSALS_MAX_CONSECUTIVE_MISSES = 4;
 
 function extractItems(payload: unknown): Array<Record<string, unknown>> {
   if (Array.isArray(payload)) return payload as Array<Record<string, unknown>>;
@@ -333,13 +336,14 @@ async function pullProposalsNewestFirst(): Promise<{ ok: boolean; count?: number
     .maybeSingle();
 
   const previousTotal = (stateRow as { total_synced?: number | null } | null)?.total_synced ?? 0;
-  const { data: maxRow } = await supabaseAdmin
+  const { data: knownRows } = await supabaseAdmin
     .from("nomus_proposals")
     .select("nomus_id")
-    .order("nomus_id", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  const maxKnownId = Number((maxRow as { nomus_id?: string | null } | null)?.nomus_id ?? 0) || 0;
+    .limit(10000);
+  const maxKnownId = ((knownRows as Array<{ nomus_id?: string | null }> | null) ?? []).reduce((max, row) => {
+    const id = Number(row.nomus_id ?? 0) || 0;
+    return id > max ? id : max;
+  }, 0);
 
   let count = 0;
   let done = false;
@@ -347,6 +351,25 @@ async function pullProposalsNewestFirst(): Promise<{ ok: boolean; count?: number
   let newestSeenId = maxKnownId;
 
   try {
+    const firstPage = await listPage<Record<string, unknown>>(endpoint, {}, {
+      entity: "propostas",
+      page: 1,
+      pageSize: 50,
+    });
+    if (firstPage.ok) {
+      for (const summary of firstPage.items.slice(0, PROPOSALS_RECENT_PAGE_SCAN)) {
+        if (count >= PROPOSALS_BATCH_SIZE) break;
+        const changed = await syncProposalDetail(summary, { requireDetail: true });
+        if (changed) {
+          const id = Number(pickStr(summary, "id", "idProposta", "codigo") ?? 0) || 0;
+          newestSeenId = Math.max(newestSeenId, id);
+          count += 1;
+        }
+      }
+    } else {
+      console.error("[nomus-cron] erro listando página recente de propostas:", firstPage.error);
+    }
+
     let misses = 0;
     for (let id = maxKnownId + 1; id <= maxKnownId + PROPOSALS_FORWARD_LOOKAHEAD; id += 1) {
       if (count >= PROPOSALS_BATCH_SIZE || misses >= PROPOSALS_MAX_CONSECUTIVE_MISSES) break;
