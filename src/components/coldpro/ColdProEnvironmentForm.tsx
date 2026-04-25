@@ -72,6 +72,7 @@ const GLASS_TYPE_OPTIONS = [
 ];
 
 const UNINSULATED_FLOOR_U_VALUE_W_M2K = 1.75;
+const DEFAULT_SOLAR_FACE = "TETO";
 
 const LEGACY_LAYOUTS = new Set(["industrial", "modular", "climatized_storage", "blast_freezer", "cooling_tunnel", "climatized_room"]);
 
@@ -218,6 +219,7 @@ function normalizeFaces(value: unknown, layout: ChamberLayout, wallCount: number
   const floorArea = getFloorArea(layout, length, width, geometry, faces);
   const wallLengths = getWallLengths(layout, length, width, geometry, wallCount);
   const labels = ["TETO", ...Array.from({ length: wallCount }, (_, index) => `PAREDE ${index + 1}`), "PISO"];
+  const hasSelectedSolarFace = faces.some((face: any) => String(face?.solar_orientation ?? "") === "Sol direto");
 
   return labels.map((local) => {
     const existing = faces.find((face: any) => face?.local === local || face?.local === local.replace("PAREDE ", "PAREDE 0")) ?? {};
@@ -239,7 +241,7 @@ function normalizeFaces(value: unknown, layout: ChamberLayout, wallCount: number
       transmission_w: existing.transmission_w ?? null,
       transmission_kcal_h: existing.transmission_kcal_h ?? null,
       external_temp_c: existing.external_temp_c ?? null,
-      solar_orientation: existing.solar_orientation ?? "",
+      solar_orientation: existing.solar_orientation ?? (!hasSelectedSolarFace && local === DEFAULT_SOLAR_FACE ? "Sol direto" : ""),
       color: existing.color ?? "",
       glass_area_m2: existing.glass_area_m2 ?? 0,
       has_glass: existing.has_glass ?? toNumber(existing.glass_area_m2) > 0,
@@ -454,8 +456,12 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
     return face.local === "PISO" ? form?.floor_temp_c : form?.external_temp_c;
   };
 
-  const currentSolarFace = constructionFaces.find((face) => face.solar_orientation === "Sol direto")?.local;
-  const faceCalculationEnv = { ...form, construction_faces: finalizedConstructionFaces, chamber_layout_type: layout, wall_count: wallCount };
+  const currentSolarFace = constructionFaces.find((face) => face.solar_orientation === "Sol direto")?.local ?? DEFAULT_SOLAR_FACE;
+  const solarAdjustedConstructionFaces = React.useMemo(() => finalizedConstructionFaces.map((face) => ({
+    ...face,
+    solar_orientation: face.local === currentSolarFace ? "Sol direto" : "",
+  })), [finalizedConstructionFaces, currentSolarFace]);
+  const faceCalculationEnv = { ...form, construction_faces: solarAdjustedConstructionFaces, chamber_layout_type: layout, wall_count: wallCount };
 
   return (
     <div className="rounded-xl border bg-background p-5 shadow-sm">
@@ -650,8 +656,12 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
                     {constructionFaces.map((face, index) => {
                       const isWall = face.local.startsWith("PAREDE");
                       const hasGlass = Boolean(face.has_glass);
-                      const preparedFace = prepareFaceForCalculation(face, Boolean(form?.has_floor_insulation));
+                      const preparedFace = {
+                        ...prepareFaceForCalculation(face, Boolean(form?.has_floor_insulation)),
+                        solar_orientation: face.local === currentSolarFace ? "Sol direto" : "",
+                      };
                       const faceLoad = calculateFaceTransmission({ ...preparedFace, external_temp_c: displayedExternalTemp(preparedFace), glass_area_m2: hasGlass ? preparedFace.glass_area_m2 : 0 }, faceCalculationEnv as any);
+                      const solarRise = toNumber((faceLoad as any).solar_equivalent_temp_rise_c);
                       return (
                         <tr key={face.local} className="border-t align-middle">
                           <td className="px-3 py-3 font-medium text-foreground">{face.local}</td>
@@ -659,7 +669,7 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
                           <td className="px-3 py-3"><ColdProInput type="number" disabled={!isWall} value={isWall ? face.wall_height_m ?? "" : ""} onChange={(e) => setFace(index, "wall_height_m", numberOrNull(e.target.value) ?? 0)} /></td>
                           <td className="px-3 py-3"><ColdProInput type="number" readOnlyValue={face.local === "TETO" || face.local === "PISO"} value={face.panel_area_m2 ?? ""} onChange={(e) => setFace(index, "panel_area_m2", numberOrNull(e.target.value) ?? 0)} /></td>
                           <td className="px-3 py-3"><ColdProInput type="number" value={displayedExternalTemp(preparedFace) ?? ""} onChange={(e) => setFace(index, "external_temp_c", numberOrNull(e.target.value))} /></td>
-                          <td className="px-3 py-3 text-sm font-medium text-muted-foreground">{face.solar_orientation === "Sol direto" ? "Sol direto" : "—"}</td>
+                          <td className="px-3 py-3 text-sm font-medium text-muted-foreground">{solarRise > 0 ? `Sol direto +${fmtColdPro(solarRise)}°C` : "—"}</td>
                           <td className="max-w-48 px-3 py-3 text-sm text-muted-foreground">{preparedFace.material_thickness || "—"}</td>
                           <td className="px-3 py-3 tabular-nums">{fmtColdPro(preparedFace.u_value_w_m2k, 3)}</td>
                           <td className="px-3 py-3"><Checkbox checked={hasGlass} onCheckedChange={(checked) => setFace(index, "has_glass", Boolean(checked))} /></td>
@@ -725,7 +735,7 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
       </Tabs>
 
       <div className="mt-5 flex justify-end border-t pt-4">
-        <button type="button" disabled={!canSave} onClick={() => onSave({ ...form, name: String(form?.name ?? "").trim(), chamber_layout_type: layout, wall_count: wallCount, volume_m3: volume, construction_faces: [...finalizedConstructionFaces, geometry], total_panel_area_m2: totalPanelArea, total_glass_area_m2: totalGlassArea, total_door_area_m2: 0 })} className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-2 text-sm font-medium text-primary-foreground shadow-sm transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50">
+        <button type="button" disabled={!canSave} onClick={() => onSave({ ...form, name: String(form?.name ?? "").trim(), chamber_layout_type: layout, wall_count: wallCount, volume_m3: volume, west_face_insolation: Boolean(currentSolarFace), construction_faces: [...solarAdjustedConstructionFaces, geometry], total_panel_area_m2: totalPanelArea, total_glass_area_m2: totalGlassArea, total_door_area_m2: 0 })} className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-2 text-sm font-medium text-primary-foreground shadow-sm transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50">
           <Save className="h-4 w-4" /> Salvar ambiente
         </button>
       </div>
