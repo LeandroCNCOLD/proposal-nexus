@@ -42,11 +42,11 @@ function ClientsPage() {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault(); setLoading(true);
-    const { error } = await supabase.from("clients").insert({ ...form, created_by: user?.id });
+    const res = await createClient({ data: form });
     setLoading(false);
-    if (error) return toast.error(error.message);
-    toast.success("Cliente criado");
-    setOpen(false); setForm({ name: "", segment: "", region: "", city: "", state: "" });
+    if (!res.ok) return toast.error(res.error ?? "Erro ao cadastrar cliente no Nomus");
+    toast.success("Cliente criado no Nomus");
+    setOpen(false); setForm(emptyClientForm);
     qc.invalidateQueries({ queryKey: ["clients"] });
   };
 
