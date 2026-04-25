@@ -15,6 +15,18 @@ export type ColdProStatus =
   | "approved"
   | "sent_to_proposal";
 
+export type ColdProConstructionFace = {
+  local: string;
+  material_thickness?: string | null;
+  panel_area_m2?: number | null;
+  external_temp_c?: number | null;
+  solar_orientation?: string | null;
+  color?: string | null;
+  glass_area_m2?: number | null;
+  glass_type?: string | null;
+  door_area_m2?: number | null;
+};
+
 export type ColdProEnvironment = {
   id: string;
   coldpro_project_id: string;
@@ -49,6 +61,15 @@ export type ColdProEnvironment = {
   defrost_kcal_h: number;
   other_kcal_h: number;
   safety_factor_percent: number;
+  chamber_layout_type?: string | null;
+  wall_count?: number | null;
+  module_count?: number | null;
+  west_face_insolation?: boolean | null;
+  construction_faces?: ColdProConstructionFace[] | null;
+  total_panel_area_m2?: number | null;
+  total_glass_area_m2?: number | null;
+  total_door_area_m2?: number | null;
+  construction_load_kcal_h?: number | null;
 };
 
 export type ColdProEnvironmentProduct = {
