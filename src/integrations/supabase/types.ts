@@ -278,6 +278,138 @@ export type Database = {
           },
         ]
       }
+      coldpro_advanced_processes: {
+        Row: {
+          advanced_process_type: string
+          air_changes_per_hour: number | null
+          air_renewal_m3_h: number | null
+          calculation_breakdown: Json | null
+          calculation_result: Json | null
+          chamber_volume_m3: number | null
+          co2_generation_rate_m3_kg_h: number | null
+          co2_limit_percent: number | null
+          co2_target_percent: number | null
+          created_at: string
+          environment_id: string | null
+          ethylene_exposure_time_h: number | null
+          ethylene_renewal_after_application: boolean | null
+          ethylene_target_ppm: number | null
+          external_co2_percent: number | null
+          external_relative_humidity: number | null
+          external_temperature_c: number | null
+          id: string
+          internal_relative_humidity: number | null
+          internal_temperature_c: number | null
+          o2_target_percent: number | null
+          process_time_h: number | null
+          product_final_moisture: number | null
+          product_initial_moisture: number | null
+          product_mass_kg: number | null
+          product_name: string | null
+          project_id: string
+          purge_airflow_m3_h: number | null
+          respiration_rate_w_kg: number | null
+          scrubber_enabled: boolean | null
+          stabilization_time_h: number | null
+          storage_time_h: number | null
+          target_relative_humidity: number | null
+          target_temperature_c: number | null
+          technical_notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          advanced_process_type?: string
+          air_changes_per_hour?: number | null
+          air_renewal_m3_h?: number | null
+          calculation_breakdown?: Json | null
+          calculation_result?: Json | null
+          chamber_volume_m3?: number | null
+          co2_generation_rate_m3_kg_h?: number | null
+          co2_limit_percent?: number | null
+          co2_target_percent?: number | null
+          created_at?: string
+          environment_id?: string | null
+          ethylene_exposure_time_h?: number | null
+          ethylene_renewal_after_application?: boolean | null
+          ethylene_target_ppm?: number | null
+          external_co2_percent?: number | null
+          external_relative_humidity?: number | null
+          external_temperature_c?: number | null
+          id?: string
+          internal_relative_humidity?: number | null
+          internal_temperature_c?: number | null
+          o2_target_percent?: number | null
+          process_time_h?: number | null
+          product_final_moisture?: number | null
+          product_initial_moisture?: number | null
+          product_mass_kg?: number | null
+          product_name?: string | null
+          project_id: string
+          purge_airflow_m3_h?: number | null
+          respiration_rate_w_kg?: number | null
+          scrubber_enabled?: boolean | null
+          stabilization_time_h?: number | null
+          storage_time_h?: number | null
+          target_relative_humidity?: number | null
+          target_temperature_c?: number | null
+          technical_notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          advanced_process_type?: string
+          air_changes_per_hour?: number | null
+          air_renewal_m3_h?: number | null
+          calculation_breakdown?: Json | null
+          calculation_result?: Json | null
+          chamber_volume_m3?: number | null
+          co2_generation_rate_m3_kg_h?: number | null
+          co2_limit_percent?: number | null
+          co2_target_percent?: number | null
+          created_at?: string
+          environment_id?: string | null
+          ethylene_exposure_time_h?: number | null
+          ethylene_renewal_after_application?: boolean | null
+          ethylene_target_ppm?: number | null
+          external_co2_percent?: number | null
+          external_relative_humidity?: number | null
+          external_temperature_c?: number | null
+          id?: string
+          internal_relative_humidity?: number | null
+          internal_temperature_c?: number | null
+          o2_target_percent?: number | null
+          process_time_h?: number | null
+          product_final_moisture?: number | null
+          product_initial_moisture?: number | null
+          product_mass_kg?: number | null
+          product_name?: string | null
+          project_id?: string
+          purge_airflow_m3_h?: number | null
+          respiration_rate_w_kg?: number | null
+          scrubber_enabled?: boolean | null
+          stabilization_time_h?: number | null
+          storage_time_h?: number | null
+          target_relative_humidity?: number | null
+          target_temperature_c?: number | null
+          technical_notes?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coldpro_advanced_processes_environment_id_fkey"
+            columns: ["environment_id"]
+            isOneToOne: false
+            referencedRelation: "coldpro_environments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coldpro_advanced_processes_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "coldpro_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       coldpro_booster_models: {
         Row: {
           absorbed_power_kw: number | null
