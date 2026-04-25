@@ -13,7 +13,7 @@ type FormSectionProps = {
 
 export function ColdProFormSection({ title, description, icon, children, className }: FormSectionProps) {
   return (
-    <section className={cn("rounded-xl border bg-background p-5 shadow-sm", className)}>
+    <section className={cn("rounded-xl border bg-background p-3 shadow-sm sm:p-5", className)}>
       <div className="mb-5 flex items-start gap-3 border-b pb-4">
         {icon ? <div className="mt-0.5 rounded-lg bg-primary/10 p-2 text-primary">{icon}</div> : null}
         <div>
@@ -55,13 +55,13 @@ export function ColdProValidationMessage({ children, tone = "warning" }: { child
 export function ColdProCalculatedInfo({ label, value, description, tone = "info" }: { label: string; value: string; description?: string; tone?: "info" | "success" | "warning" }) {
   return (
     <div className={cn(
-      "rounded-lg border px-4 py-3",
+      "min-w-0 rounded-lg border px-3 py-3 sm:px-4",
       tone === "success" && "bg-success/10 text-success border-success/20",
       tone === "warning" && "bg-warning/10 text-warning border-warning/20",
       tone === "info" && "bg-primary/5 text-foreground border-primary/15"
     )}>
       <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</div>
-      <div className="mt-1 text-lg font-semibold tabular-nums">{value}</div>
+      <div className="mt-1 break-words text-base font-semibold tabular-nums sm:text-lg">{value}</div>
       {description ? <div className="mt-1 text-xs text-muted-foreground">{description}</div> : null}
     </div>
   );
