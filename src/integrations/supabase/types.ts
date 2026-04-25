@@ -455,20 +455,27 @@ export type Database = {
           carbohydrate_content_percent: number | null
           characteristic_thickness_m: number | null
           created_at: string
+          daily_movement_kg: number
+          daily_turnover_percent: number
           default_convective_coefficient_w_m2_k: number | null
           density_kg_m3: number | null
           environment_id: string
           fat_content_percent: number | null
           fiber_content_percent: number | null
           freezable_water_content_percent: number | null
+          freezing_batch_mass_kg: number
+          freezing_batch_time_h: number
           frozen_water_fraction: number | null
+          hourly_movement_kg: number
           id: string
           initial_freezing_temp_c: number | null
           inlet_temp_c: number
+          is_freezing_inside_storage_room: boolean
           latent_heat_kcal_kg: number
           latent_heat_kj_kg: number | null
           mass_kg_day: number
           mass_kg_hour: number
+          movement_basis: string
           notes: string | null
           outlet_temp_c: number
           packaging_inlet_temp_c: number | null
@@ -477,8 +484,10 @@ export type Database = {
           packaging_specific_heat_kcal_kg_c: number
           process_time_h: number
           product_id: string | null
+          product_load_mode: string
           product_name: string
           protein_content_percent: number | null
+          recovery_time_h: number
           respiration_rate_0c_mw_kg: number | null
           respiration_rate_0c_w_kg: number | null
           respiration_rate_10c_mw_kg: number | null
@@ -493,6 +502,7 @@ export type Database = {
           specific_heat_above_kj_kg_k: number | null
           specific_heat_below_kcal_kg_c: number
           specific_heat_below_kj_kg_k: number | null
+          stored_mass_kg: number
           thermal_conductivity_frozen_w_m_k: number | null
           thermal_conductivity_unfrozen_w_m_k: number | null
           water_content_percent: number | null
@@ -503,20 +513,27 @@ export type Database = {
           carbohydrate_content_percent?: number | null
           characteristic_thickness_m?: number | null
           created_at?: string
+          daily_movement_kg?: number
+          daily_turnover_percent?: number
           default_convective_coefficient_w_m2_k?: number | null
           density_kg_m3?: number | null
           environment_id: string
           fat_content_percent?: number | null
           fiber_content_percent?: number | null
           freezable_water_content_percent?: number | null
+          freezing_batch_mass_kg?: number
+          freezing_batch_time_h?: number
           frozen_water_fraction?: number | null
+          hourly_movement_kg?: number
           id?: string
           initial_freezing_temp_c?: number | null
           inlet_temp_c?: number
+          is_freezing_inside_storage_room?: boolean
           latent_heat_kcal_kg?: number
           latent_heat_kj_kg?: number | null
           mass_kg_day?: number
           mass_kg_hour?: number
+          movement_basis?: string
           notes?: string | null
           outlet_temp_c?: number
           packaging_inlet_temp_c?: number | null
@@ -525,8 +542,10 @@ export type Database = {
           packaging_specific_heat_kcal_kg_c?: number
           process_time_h?: number
           product_id?: string | null
+          product_load_mode?: string
           product_name: string
           protein_content_percent?: number | null
+          recovery_time_h?: number
           respiration_rate_0c_mw_kg?: number | null
           respiration_rate_0c_w_kg?: number | null
           respiration_rate_10c_mw_kg?: number | null
@@ -541,6 +560,7 @@ export type Database = {
           specific_heat_above_kj_kg_k?: number | null
           specific_heat_below_kcal_kg_c?: number
           specific_heat_below_kj_kg_k?: number | null
+          stored_mass_kg?: number
           thermal_conductivity_frozen_w_m_k?: number | null
           thermal_conductivity_unfrozen_w_m_k?: number | null
           water_content_percent?: number | null
@@ -551,20 +571,27 @@ export type Database = {
           carbohydrate_content_percent?: number | null
           characteristic_thickness_m?: number | null
           created_at?: string
+          daily_movement_kg?: number
+          daily_turnover_percent?: number
           default_convective_coefficient_w_m2_k?: number | null
           density_kg_m3?: number | null
           environment_id?: string
           fat_content_percent?: number | null
           fiber_content_percent?: number | null
           freezable_water_content_percent?: number | null
+          freezing_batch_mass_kg?: number
+          freezing_batch_time_h?: number
           frozen_water_fraction?: number | null
+          hourly_movement_kg?: number
           id?: string
           initial_freezing_temp_c?: number | null
           inlet_temp_c?: number
+          is_freezing_inside_storage_room?: boolean
           latent_heat_kcal_kg?: number
           latent_heat_kj_kg?: number | null
           mass_kg_day?: number
           mass_kg_hour?: number
+          movement_basis?: string
           notes?: string | null
           outlet_temp_c?: number
           packaging_inlet_temp_c?: number | null
@@ -573,8 +600,10 @@ export type Database = {
           packaging_specific_heat_kcal_kg_c?: number
           process_time_h?: number
           product_id?: string | null
+          product_load_mode?: string
           product_name?: string
           protein_content_percent?: number | null
+          recovery_time_h?: number
           respiration_rate_0c_mw_kg?: number | null
           respiration_rate_0c_w_kg?: number | null
           respiration_rate_10c_mw_kg?: number | null
@@ -589,6 +618,7 @@ export type Database = {
           specific_heat_above_kj_kg_k?: number | null
           specific_heat_below_kcal_kg_c?: number
           specific_heat_below_kj_kg_k?: number | null
+          stored_mass_kg?: number
           thermal_conductivity_frozen_w_m_k?: number | null
           thermal_conductivity_unfrozen_w_m_k?: number | null
           water_content_percent?: number | null

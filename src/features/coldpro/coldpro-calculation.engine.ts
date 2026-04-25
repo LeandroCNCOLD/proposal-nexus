@@ -295,12 +295,21 @@ export function calculateProductRespirationLoad(product: ColdProEnvironmentProdu
 }
 
 export function calculateProductLoadBreakdown(product: ColdProEnvironmentProduct) {
-  const massDay =
-    n(product.mass_kg_day) > 0
-      ? n(product.mass_kg_day)
-      : n(product.mass_kg_hour) * n(product.process_time_h);
-
-  const hours = n(product.process_time_h, 24) || 24;
+  const loadMode = String(product.product_load_mode ?? "daily_intake");
+  const storedMovement = n(product.stored_mass_kg) * (n(product.daily_turnover_percent) / 100);
+  const massDay = loadMode === "storage_turnover"
+    ? storedMovement
+    : loadMode === "hourly_intake"
+      ? n(product.hourly_movement_kg || product.mass_kg_hour) * 24
+      : loadMode === "room_pull_down_or_freezing"
+        ? n(product.freezing_batch_mass_kg)
+        : n(product.daily_movement_kg) || n(product.mass_kg_day) || n(product.mass_kg_hour) * n(product.process_time_h);
+  const hours = loadMode === "hourly_intake"
+    ? 1
+    : loadMode === "room_pull_down_or_freezing"
+      ? n(product.freezing_batch_time_h) || n(product.recovery_time_h) || n(product.process_time_h, 24) || 24
+      : n(product.recovery_time_h) || n(product.process_time_h, 24) || 24;
+  const hourlyMass = loadMode === "hourly_intake" ? n(product.hourly_movement_kg || product.mass_kg_hour) : hours > 0 ? massDay / hours : 0;
   const tin = n(product.inlet_temp_c);
   const tout = n(product.outlet_temp_c);
   const tfreeze = product.initial_freezing_temp_c;
@@ -324,9 +333,20 @@ export function calculateProductLoadBreakdown(product: ColdProEnvironmentProduct
     sensibleAbove = massDay * cp * Math.abs(tin - tout);
   }
 
-  const total = (sensibleAbove + latentLoad + sensibleBelow) / hours;
+  const totalEnergy = sensibleAbove + latentLoad + sensibleBelow;
+  const total = loadMode === "hourly_intake" ? totalEnergy / 24 : totalEnergy / hours;
+  const warnings = [loadMode === "room_pull_down_or_freezing" ? "Câmara de armazenagem usada para resfriar/congelar produto novo: validar circulação de ar, empilhamento, embalagem, área exposta e tempo disponível; para cargas intensas ou recorrentes, considerar túnel dedicado." : null].filter(Boolean);
   return {
     product_name: product.product_name,
+    product_load_mode: loadMode,
+    movement_basis: product.movement_basis ?? (loadMode === "storage_turnover" ? "calculated_from_stock" : loadMode === "hourly_intake" ? "manual_hourly" : loadMode === "room_pull_down_or_freezing" ? "batch_recovery" : "manual_daily"),
+    stored_mass_kg: round2(n(product.stored_mass_kg)),
+    daily_turnover_percent: round2(n(product.daily_turnover_percent)),
+    daily_movement_kg: round2(loadMode === "storage_turnover" ? storedMovement : n(product.daily_movement_kg) || n(product.mass_kg_day)),
+    hourly_movement_kg: round2(hourlyMass),
+    recovery_time_h: round2(hours),
+    is_freezing_inside_storage_room: loadMode === "room_pull_down_or_freezing" || product.is_freezing_inside_storage_room === true,
+    warnings,
     mass_kg_day: round2(massDay),
     hours,
     inlet_temp_c: tin,
@@ -347,9 +367,10 @@ export function calculateProductLoadBreakdown(product: ColdProEnvironmentProduct
       fiber: product.fiber_content_percent ?? null,
       ash: product.ash_content_percent ?? null,
     },
-    sensible_above_kcal_h: round2(sensibleAbove / hours),
-    latent_kcal_h: round2(latentLoad / hours),
-    sensible_below_kcal_h: round2(sensibleBelow / hours),
+    total_energy_kcal: round2(totalEnergy),
+    sensible_above_kcal_h: round2(loadMode === "hourly_intake" ? sensibleAbove / 24 : sensibleAbove / hours),
+    latent_kcal_h: round2(loadMode === "hourly_intake" ? latentLoad / 24 : latentLoad / hours),
+    sensible_below_kcal_h: round2(loadMode === "hourly_intake" ? sensibleBelow / 24 : sensibleBelow / hours),
     total_kcal_h: round2(total),
     source: product.product_id ? "Catálogo ASHRAE/CN ColdPro" : "Manual",
   };
