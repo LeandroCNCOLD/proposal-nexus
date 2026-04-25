@@ -13,6 +13,16 @@ const dayHours = finiteNumber.min(0).max(24);
 const trimmedName = z.string().trim().min(1).max(120);
 const advancedProcessType = z.enum(["none", "seed_humidity_control", "banana_ripening", "citrus_degreening", "potato_co2_control", "controlled_atmosphere", "ethylene_application", "ethylene_removal", "co2_scrubbing", "humidity_control"]);
 
+function latestRowsByEnvironment<T extends { environment_id?: string | null }>(rows: T[] = []) {
+  const seen = new Set<string>();
+  return rows.filter((row) => {
+    const environmentId = row.environment_id;
+    if (!environmentId || seen.has(environmentId)) return false;
+    seen.add(environmentId);
+    return true;
+  });
+}
+
 const wallLayerSchema = z.object({
   material_id: z.string().uuid().nullable().optional(),
   material_name: z.string().trim().min(1).max(120),
@@ -89,8 +99,10 @@ export const getColdProProjectBundle = createServerFn({ method: "GET" })
     const { data: tunnels } = environmentIds.length ? await supabase.from("coldpro_tunnels").select("*").in("environment_id", environmentIds) : { data: [] as any[] };
     const { data: advancedProcesses } = await supabase.from("coldpro_advanced_processes").select("*").eq("project_id", data.projectId).order("created_at", { ascending: true });
     const { data: results } = environmentIds.length ? await supabase.from("coldpro_results").select("*").in("environment_id", environmentIds).order("created_at", { ascending: false }) : { data: [] as any[] };
-    const { data: selections } = environmentIds.length ? await supabase.from("coldpro_equipment_selections").select("*").in("environment_id", environmentIds) : { data: [] as any[] };
-    const equipmentModelIds = Array.from(new Set((selections ?? []).map((item: any) => item.equipment_model_id).filter(Boolean)));
+    const { data: selections } = environmentIds.length ? await supabase.from("coldpro_equipment_selections").select("*").in("environment_id", environmentIds).order("created_at", { ascending: false }) : { data: [] as any[] };
+    const latestResults = latestRowsByEnvironment(results ?? []);
+    const latestSelections = latestRowsByEnvironment(selections ?? []);
+    const equipmentModelIds = Array.from(new Set(latestSelections.map((item: any) => item.equipment_model_id).filter(Boolean)));
     const { data: equipmentModels } = equipmentModelIds.length
       ? await supabase.from("coldpro_equipment_models").select("id, plugin_image_path, split_image_path, biblock_image_path").in("id", equipmentModelIds)
       : { data: [] as any[] };
@@ -99,11 +111,11 @@ export const getColdProProjectBundle = createServerFn({ method: "GET" })
       const publicUrl = path ? supabase.storage.from("coldpro-equipment-images").getPublicUrl(path).data.publicUrl : null;
       return [model.id, { equipment_image_path: path, equipment_image_url: publicUrl }];
     }));
-    const enrichedSelections = (selections ?? []).map((item: any) => ({ ...item, ...(equipmentImagesByModel.get(item.equipment_model_id) ?? {}) }));
+    const enrichedSelections = latestSelections.map((item: any) => ({ ...item, ...(equipmentImagesByModel.get(item.equipment_model_id) ?? {}) }));
     const { data: insulationMaterials } = await supabase.from("coldpro_insulation_materials").select("*").order("name");
     const { data: thermalMaterials } = await supabase.from("coldpro_thermal_materials").select("*").order("category").order("material_name");
     const { data: productCatalog } = await supabase.from("coldpro_products").select("*").order("name");
-    return { project, environments: environments ?? [], products: products ?? [], tunnels: tunnels ?? [], advancedProcesses: advancedProcesses ?? [], results: results ?? [], selections: enrichedSelections, insulationMaterials: insulationMaterials ?? [], thermalMaterials: thermalMaterials ?? [], productCatalog: productCatalog ?? [] };
+    return { project, environments: environments ?? [], products: products ?? [], tunnels: tunnels ?? [], advancedProcesses: advancedProcesses ?? [], results: latestResults, selections: enrichedSelections, insulationMaterials: insulationMaterials ?? [], thermalMaterials: thermalMaterials ?? [], productCatalog: productCatalog ?? [] };
   });
 
 export const createColdProEnvironment = createServerFn({ method: "POST" })
@@ -243,6 +255,7 @@ export const calculateColdProEnvironment = createServerFn({ method: "POST" })
     if (!insulation) throw new Error("Material isolante não encontrado.");
     const result = calculateColdProLoad({ env: env as any, products: (products ?? []) as any, insulation: insulation as any, tunnel: (tunnel ?? null) as any, advancedProcesses: (advancedProcesses ?? []) as any });
     const { calculation_breakdown, ...resultRest } = result;
+    await supabase.from("coldpro_results").delete().eq("environment_id", data.environmentId);
     const { data: saved, error } = await supabase
       .from("coldpro_results")
       .insert({
