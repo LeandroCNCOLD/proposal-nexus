@@ -21,6 +21,7 @@ function ClientsPage() {
   const qc = useQueryClient();
   const syncClients = useServerFn(nomusSyncClients);
   const [open, setOpen] = useState(false);
+  const [selectedClient, setSelectedClient] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [form, setForm] = useState({ name: "", segment: "", region: "", city: "", state: "" });
@@ -100,7 +101,7 @@ function ClientsPage() {
           <TableBody>
             {data.length === 0 ? <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-12">Nenhum cliente cadastrado.</TableCell></TableRow> :
               data.map((c) => (
-                <TableRow key={c.id}>
+                <TableRow key={c.id} className="cursor-pointer" onClick={() => setSelectedClient(c)}>
                   <TableCell className="min-w-[220px] font-medium">
                     <div>{c.name}</div>
                     {c.trade_name && <div className="text-xs font-normal text-muted-foreground">{c.trade_name}</div>}
@@ -124,6 +125,128 @@ function ClientsPage() {
           </TableBody>
         </Table>
       </div>
+
+      <Dialog open={!!selectedClient} onOpenChange={(isOpen) => !isOpen && setSelectedClient(null)}>
+        <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-5xl">
+          {selectedClient && <ClientDetails client={selectedClient} />}
+        </DialogContent>
+      </Dialog>
     </>
+  );
+}
+
+function ClientDetails({ client }: { client: any }) {
+  const raw = client.nomus_raw && typeof client.nomus_raw === "object" ? client.nomus_raw : null;
+  const rawEntries = raw ? Object.entries(raw).filter(([, value]) => value !== null && value !== undefined && value !== "") : [];
+  const rawScalarEntries = rawEntries.filter(([, value]) => typeof value !== "object");
+  const rawObjectEntries = rawEntries.filter(([, value]) => typeof value === "object");
+
+  return (
+    <div className="space-y-6">
+      <DialogHeader>
+        <DialogTitle className="text-xl">{client.name}</DialogTitle>
+        <p className="text-sm text-muted-foreground">{client.trade_name || client.nomus_id ? [client.trade_name, client.nomus_id ? `Nomus #${client.nomus_id}` : null].filter(Boolean).join(" • ") : "Dados cadastrais"}</p>
+      </DialogHeader>
+
+      <section className="space-y-3">
+        <h3 className="text-sm font-semibold">Dados fiscais</h3>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <DetailField label="CNPJ / CPF" value={client.document} />
+          <DetailField label="Inscrição estadual" value={client.state_registration ?? raw?.inscricaoEstadual} />
+          <DetailField label="Inscrição municipal" value={client.municipal_registration ?? raw?.inscricaoMunicipal} />
+          <DetailField label="Tipo de pessoa" value={raw?.tipoPessoa} />
+          <DetailField label="Tipo contribuinte ICMS" value={raw?.tipoContribuinteICMS} />
+          <DetailField label="CRT" value={raw?.crt} />
+        </div>
+      </section>
+
+      <section className="space-y-3">
+        <h3 className="text-sm font-semibold">Dados cadastrais</h3>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <DetailField label="E-mail" value={client.email ?? raw?.email} />
+          <DetailField label="Telefone" value={client.phone ?? raw?.telefone} />
+          <DetailField label="Site" value={client.website ?? raw?.site} />
+          <DetailField label="Status" value={client.is_active ? "Ativo" : "Inativo"} />
+          <DetailField label="Origem" value={client.origin} />
+          <DetailField label="Criado no Nomus" value={raw?.dataCriacao} />
+          <DetailField label="Modificado no Nomus" value={raw?.dataModificacao} />
+          <DetailField label="Código Nomus" value={raw?.codigo ?? client.nomus_id} />
+          <DetailField label="Razão social" value={raw?.razaoSocial ?? client.name} />
+        </div>
+      </section>
+
+      <section className="space-y-3">
+        <h3 className="text-sm font-semibold">Endereço</h3>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <DetailField label="CEP" value={client.zip_code ?? raw?.cep} />
+          <DetailField label="Logradouro" value={client.address ?? raw?.endereco} />
+          <DetailField label="Número" value={client.address_number ?? raw?.numero} />
+          <DetailField label="Complemento" value={client.address_complement ?? raw?.complemento} />
+          <DetailField label="Bairro" value={client.district ?? raw?.bairro} />
+          <DetailField label="Cidade" value={client.city ?? raw?.municipio} />
+          <DetailField label="UF" value={client.state ?? raw?.uf} />
+          <DetailField label="País" value={client.country ?? raw?.pais} />
+          <DetailField label="Código IBGE" value={raw?.codigoIBGEMunicipio} />
+        </div>
+      </section>
+
+      <section className="space-y-3">
+        <h3 className="text-sm font-semibold">Comercial</h3>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <DetailField label="Segmento / CNAE" value={client.segment ?? raw?.cnaePrincipal ?? raw?.classificacao} />
+          <DetailField label="Região" value={client.region ?? raw?.regiao ?? raw?.uf} />
+          <DetailField label="Vendedor" value={client.nomus_seller_name} />
+          <DetailField label="Representante" value={client.nomus_representative_name} />
+          <DetailField label="Início relacionamento" value={raw?.dataInicioRelacionamento} />
+          <DetailField label="Término relacionamento" value={raw?.dataTerminoRelacionamento} />
+        </div>
+        {client.notes && <DetailField label="Observações" value={client.notes} wide />}
+      </section>
+
+      <section className="space-y-3">
+        <h3 className="text-sm font-semibold">Contatos</h3>
+        {client.client_contacts?.length ? (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {client.client_contacts.map((contact: any) => (
+              <div key={contact.id} className="rounded-lg border p-3">
+                <div className="font-medium">{contact.name}</div>
+                <div className="mt-1 space-y-0.5 text-sm text-muted-foreground">
+                  <div>{contact.role || "Cargo não informado"}</div>
+                  <div>{contact.email || "E-mail não informado"}</div>
+                  <div>{contact.phone || contact.mobile || "Telefone não informado"}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : <p className="text-sm text-muted-foreground">Nenhum contato sincronizado para este cliente.</p>}
+      </section>
+
+      <section className="space-y-3">
+        <h3 className="text-sm font-semibold">Dados completos do Nomus</h3>
+        {raw ? (
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {rawScalarEntries.map(([key, value]) => <DetailField key={key} label={key} value={value} />)}
+            </div>
+            {rawObjectEntries.map(([key, value]) => (
+              <div key={key} className="rounded-lg border p-3">
+                <div className="mb-2 text-xs font-medium text-muted-foreground">{key}</div>
+                <pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words text-xs">{JSON.stringify(value, null, 2)}</pre>
+              </div>
+            ))}
+          </div>
+        ) : <p className="text-sm text-muted-foreground">Este cliente ainda não possui dados completos do Nomus sincronizados.</p>}
+      </section>
+    </div>
+  );
+}
+
+function DetailField({ label, value, wide }: { label: string; value: unknown; wide?: boolean }) {
+  const text = value === null || value === undefined || value === "" ? "—" : String(value);
+  return (
+    <div className={wide ? "rounded-lg border p-3 sm:col-span-2 lg:col-span-3" : "rounded-lg border p-3"}>
+      <div className="text-xs font-medium text-muted-foreground">{label}</div>
+      <div className="mt-1 break-words text-sm">{text}</div>
+    </div>
   );
 }
