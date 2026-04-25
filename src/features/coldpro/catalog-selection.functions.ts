@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const SaveSelectionSchema = z.object({
   environmentId: z.string().uuid(),
@@ -28,6 +29,7 @@ const SaveSelectionSchema = z.object({
 });
 
 export const saveCatalogEquipmentSelection = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => SaveSelectionSchema.parse(input))
   .handler(async ({ data }) => {
     const supabase = supabaseAdmin;
