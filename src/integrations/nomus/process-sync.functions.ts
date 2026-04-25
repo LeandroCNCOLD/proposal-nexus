@@ -208,15 +208,17 @@ async function syncNomusProcessRecord(
   const id = processIdOf(rawSummary);
   if (!id) return { changed: false, id: 0 };
 
-  const detailRes = await getOne<NomusProcessRaw>(NOMUS_ENDPOINTS.processos, id, {
-    entity: "processos",
-    timeoutMs: options.requireDetail ? 4_000 : undefined,
-    maxAttempts: options.requireDetail ? 1 : undefined,
-    triggeredBy: options.triggeredBy ?? null,
-  });
-  if (!detailRes.ok && options.requireDetail) return { changed: false, id };
-
-  const raw = detailRes.ok ? detailRes.data : rawSummary;
+  let raw = rawSummary;
+  if (options.requireDetail) {
+    const detailRes = await getOne<NomusProcessRaw>(NOMUS_ENDPOINTS.processos, id, {
+      entity: "processos",
+      timeoutMs: 4_000,
+      maxAttempts: 1,
+      triggeredBy: options.triggeredBy ?? null,
+    });
+    if (!detailRes.ok) return { changed: false, id };
+    raw = detailRes.data;
+  }
   const { data: current } = await supabaseAdmin
     .from("nomus_processes")
     .select("raw")
