@@ -4,8 +4,8 @@ import { getRequest } from "@tanstack/react-start/server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { nomusFetch, listAll, listPage, getOne, testNomusConnection } from "./client";
-import { hashNormalizedPayload, isValidCnpj, normalizeCnColdModelCode, normalizeDocument, normalizeEmail, normalizeModel, normalizeProposalNumber } from "@/services/sync/normalization";
-import { acquireSyncLock, finishSyncRun, logFieldChanges, logSyncRow, quarantineSyncRow, releaseSyncLock, startSyncRun, type SyncAction } from "@/services/sync/syncAuditService";
+import { DEFAULT_PROTECTED_SYNC_FIELDS, diffChangedFields, hashNormalizedPayload, isValidCnpj, normalizeCnColdModelCode, normalizeDocument, normalizeEmail, normalizeModel, normalizeProposalNumber, omitProtectedFields } from "@/services/sync/normalization";
+import { acquireSyncLock, finishSyncRun, getSyncCheckpoint, logFieldChanges, logSyncRow, quarantineSyncRow, recordPendingIssue, releaseSyncLock, startSyncRun, upsertSyncCheckpoint, writeSyncQualityReport, type SyncAction } from "@/services/sync/syncAuditService";
 import {
   NOMUS_ENDPOINTS,
   pessoaContatosPath,
