@@ -319,6 +319,9 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
   const activeFace = constructionFaces[Math.min(activeFaceIndex, Math.max(0, constructionFaces.length - 1))];
   const selectedInsulation = insulationMaterials.find((item) => item.id === form?.insulation_material_id) ?? insulationMaterials[0];
   const selectedFloorInsulation = insulationMaterials.find((item) => item.id === floorInsulationMaterialId) ?? selectedInsulation;
+  const wallLayerInfo = describeLayer(makeInsulationLayer(selectedInsulation, form?.wall_thickness_mm));
+  const ceilingLayerInfo = describeLayer(makeInsulationLayer(selectedInsulation, form?.ceiling_thickness_mm));
+  const floorLayerInfo = describeLayer(makeInsulationLayer(selectedFloorInsulation, form?.floor_thickness_mm));
 
   const geometricFloorArea = getFloorArea(layout, length, width, geometry, constructionFaces);
   const floorFace = constructionFaces.find((face) => face.local === "PISO");
@@ -360,6 +363,12 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
       updated.panel_area_m2 = toNumber(updated.wall_length_m) * toNumber(updated.wall_height_m);
     }
     next[index] = updated;
+    if (layout === "rectangular" && key === "wall_length_m") {
+      const oppositeIndex = updated.local === "PAREDE 1" ? 2 : updated.local === "PAREDE 3" ? 0 : updated.local === "PAREDE 2" ? 3 : updated.local === "PAREDE 4" ? 1 : -1;
+      if (oppositeIndex >= 0 && next[oppositeIndex]) {
+        next[oppositeIndex] = { ...next[oppositeIndex], wall_length_m: numberOrNull(value) ?? 0, panel_area_m2: (numberOrNull(value) ?? 0) * toNumber(next[oppositeIndex].wall_height_m) };
+      }
+    }
     setForm((prev: any) => ({
       ...prev,
       ...(updated.local === "PAREDE 1" && key === "wall_length_m" ? { length_m: numberOrNull(value), dimension_a_m: numberOrNull(value) } : {}),
