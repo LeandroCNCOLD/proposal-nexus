@@ -17,6 +17,10 @@ import {
 type Json = Record<string, unknown>;
 type ProcessResult = "ok" | "skip" | "unmatched" | "no_change" | "quarantined";
 
+type SyncWindow = "incremental" | "7d" | "30d" | "custom" | "all";
+
+type ExistingRow = { id: string; nomus_id?: string | null; sync_hash?: string | null; [key: string]: unknown };
+
 const pickStr = (o: Json, ...keys: string[]): string | null => {
   for (const k of keys) {
     const v = o[k];
@@ -89,6 +93,33 @@ function stableNaturalItemId(position: number, productCode: string | null, descr
 
 function pickExternalUpdatedAt(raw: Json): string | null {
   return pickStr(raw, "updatedAt", "updated_at", "dataAlteracao", "dataModificacao", "dataHoraAlteracao", "alteradoEm");
+}
+
+function windowQuery(window?: SyncWindow, startDate?: string | null, endDate?: string | null) {
+  if (!window || window === "all") return {};
+  const end = endDate ? new Date(endDate) : new Date();
+  const start = startDate ? new Date(startDate) : new Date(end);
+  if (window === "7d") start.setDate(end.getDate() - 7);
+  if (window === "30d") start.setDate(end.getDate() - 30);
+  if (window === "incremental" && !startDate) return {};
+  return {
+    dataModificacaoInicial: start.toISOString().slice(0, 10),
+    dataModificacaoFinal: end.toISOString().slice(0, 10),
+  };
+}
+
+async function bulkReadByNomusId(table: string, ids: string[]) {
+  const unique = Array.from(new Set(ids.filter(Boolean)));
+  if (unique.length === 0) return new Map<string, ExistingRow>();
+  const { data, error } = await supabaseAdmin.from(table as never).select("*").in("nomus_id", unique as never);
+  if (error) throw new Error(error.message);
+  return new Map(((data as ExistingRow[] | null) ?? []).map((row) => [String(row.nomus_id), row]));
+}
+
+function buildUpdatePayload<T extends Record<string, unknown>>(previous: Record<string, unknown> | null | undefined, next: T, table: keyof typeof DEFAULT_PROTECTED_SYNC_FIELDS) {
+  const safeNext = omitProtectedFields(next, DEFAULT_PROTECTED_SYNC_FIELDS[table] ?? []);
+  const changed = diffChangedFields(previous, safeNext);
+  return { changed, payload: Object.fromEntries(changed.map((field) => [field, safeNext[field]])) as Partial<T> };
 }
 
 async function readCurrentHash(table: string, externalId: string): Promise<{ id?: string | null; sync_hash?: string | null } | null> {
