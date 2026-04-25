@@ -20,6 +20,21 @@ function shouldMoveToWonStage(status: string | null | undefined): boolean {
   return /venda confirmada|confirmad|ganh|aprovad/.test(label);
 }
 
+function extractProposalNumbers(...values: Array<string | null | undefined>): string[] {
+  const found = new Set<string>();
+  for (const value of values) {
+    const text = value ?? "";
+    for (const match of text.matchAll(/CN\s*0*\d+(?:\s*Rev\.?\s*0*\d+)?/gi)) {
+      found.add(match[0].replace(/\s+/g, " ").trim().toLowerCase());
+    }
+  }
+  return Array.from(found);
+}
+
+function normalizeProposalNumber(value: string | null | undefined): string {
+  return (value ?? "").replace(/\s+/g, " ").trim().toLowerCase();
+}
+
 const FIELD_PATTERNS: Record<string, RegExp> = {
   decisor: /decisor\s*[:：]\s*([^\n<]+)/i,
   interesse: /interesse\s*[:：]\s*([^\n<]+)/i,
@@ -89,17 +104,27 @@ export const getFunnelData = createServerFn({ method: "POST" })
     const { data: processes, error: pErr } = await q;
     if (pErr) return { ok: false as const, error: pErr.message };
 
-    const processList = processes ?? [];
+    const processList = Array.from(
+      new Map((processes ?? []).map((p) => [p.nomus_id, p])).values(),
+    );
     const processIds = processList.map((p) => p.id);
     const clientNames = Array.from(new Set(processList.map((p) => normalizeName(p.pessoa)).filter(Boolean)));
 
     // 2) Propostas Nomus por nome de cliente (match automático)
-    const proposalsByClient = new Map<string, Array<{ id: string; numero: string | null; valor_total: number | null; validade: string | null; status_nomus: string | null; nomus_id: string }>>();
+    const proposalsByClient = new Map<string, Array<{
+      id: string;
+      numero: string | null;
+      valor_total: number | null;
+      validade: string | null;
+      status_nomus: string | null;
+      data_emissao: string | null;
+      nomus_id: string;
+    }>>();
     const proposalIds: string[] = [];
     if (clientNames.length > 0) {
       const { data: props } = await supabase
         .from("nomus_proposals")
-        .select("id, nomus_id, numero, cliente_nome, valor_total, validade, status_nomus")
+        .select("id, nomus_id, numero, cliente_nome, valor_total, validade, status_nomus, data_emissao")
         .limit(5000);
       for (const pr of props ?? []) {
         const key = normalizeName(pr.cliente_nome);
@@ -112,6 +137,7 @@ export const getFunnelData = createServerFn({ method: "POST" })
           valor_total: pr.valor_total,
           validade: pr.validade,
           status_nomus: pr.status_nomus,
+          data_emissao: pr.data_emissao,
           nomus_id: pr.nomus_id,
         });
       }
@@ -171,10 +197,20 @@ export const getFunnelData = createServerFn({ method: "POST" })
       const parsed = parseProcessDescription(p.descricao);
       const meta = metaMap.get(p.id);
       const clientKey = normalizeName(p.pessoa);
-      const clientProposals = proposalsByClient.get(clientKey) ?? [];
+      const allClientProposals = proposalsByClient.get(clientKey) ?? [];
+      const mentionedNumbers = extractProposalNumbers(p.nome, p.descricao);
+      const clientProposals = mentionedNumbers.length > 0
+        ? allClientProposals.filter((proposal) => mentionedNumbers.includes(normalizeProposalNumber(proposal.numero)))
+        : allClientProposals.length === 1
+          ? allClientProposals
+          : [];
 
-      // proposta "primária" para mostrar no card: maior valor
-      const sorted = [...clientProposals].sort((a, b) => (b.valor_total ?? 0) - (a.valor_total ?? 0));
+      // Proposta primária: vínculo explícito por número CN; se houver mais de uma revisão, usa a mais recente.
+      const sorted = [...clientProposals].sort((a, b) => {
+        const byDate = new Date(b.data_emissao ?? "").getTime() - new Date(a.data_emissao ?? "").getTime();
+        if (Number.isFinite(byDate) && byDate !== 0) return byDate;
+        return (Number(b.nomus_id) || 0) - (Number(a.nomus_id) || 0);
+      });
       const primary = sorted[0];
       const primaryStatus = proposalStatusLabel(primary?.status_nomus ?? itemStatusByProposal.get(primary?.id ?? ""));
       const etapa = shouldMoveToWonStage(primaryStatus) ? "Venda confirmada" : p.etapa;
