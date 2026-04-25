@@ -779,6 +779,8 @@ export function calculateColdProLoad(params: {
   const respiration = params.products.reduce((acc, item) => acc + calculateProductRespirationLoad(item, n(params.env.internal_temp_c)), 0);
   const tunnelResult = params.tunnel ? calculateTunnelLoad(params.tunnel) : null;
   const tunnelInternalLoad = tunnelResult?.total_kcal_h ?? 0;
+  const dehumidification = calculateSeedDehumidificationLoad(params.env);
+  const dehumidificationLoad = dehumidification.total_kcal_h;
   const infiltration = calculateInfiltrationLoad(params.env);
   const people = calculatePeopleLoad(params.env);
   const lighting = calculateLightingLoad(params.env);
@@ -787,7 +789,7 @@ export function calculateColdProLoad(params: {
   const defrost = n(params.env.defrost_kcal_h);
   const other = n(params.env.other_kcal_h);
 
-  const subtotal = transmission + product + packaging + respiration + tunnelInternalLoad + infiltration + people + lighting + motors + fans + defrost + other;
+  const subtotal = transmission + product + packaging + respiration + tunnelInternalLoad + dehumidificationLoad + infiltration + people + lighting + motors + fans + defrost + other;
   const safetyFactor = n(params.env.safety_factor_percent);
   const safety = subtotal * (safetyFactor / 100);
   const total = subtotal + safety;
@@ -821,6 +823,7 @@ export function calculateColdProLoad(params: {
       },
       transmission_faces: transmissionBreakdown.faces,
       tunnel: tunnelResult,
+      seed_dehumidification: dehumidification,
       products: productBreakdown,
       respiration_kcal_h: round2(respiration),
       formulas: {
@@ -828,6 +831,7 @@ export function calculateColdProLoad(params: {
         product: "Q = m × cp × ΔT / h; congelamento inclui calor latente",
         respiration: "Q_respiração = massa_kg × taxa_W_kg × 0,859845, com interpolação por temperatura",
         tunnel: "Q túnel = sensível acima + latente + sensível abaixo + embalagem + cargas internas",
+        seed_dehumidification: "W = 0,62198 × Pv / (P_atm - Pv); Q_latente = água_kg_h × 2500 / 3600",
         infiltration: "Q = V_ar × densidade_ar × cp_ar × ΔT / h",
         lighting: "Q = kW × 860 × horas / horas_compressor",
         motors: "Q = kW × 860 × horas / horas_compressor",
