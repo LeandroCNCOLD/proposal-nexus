@@ -301,101 +301,67 @@ async function pullProposalsNewestFirst(): Promise<{ ok: boolean; count?: number
     updated_at: new Date().toISOString(),
   });
 
-  // Cursor agora é o número da página a processar (string para compat com schema text)
+  // Sempre verifica as primeiras páginas: nelas ficam as propostas recém-cadastradas no Nomus.
   const { data: stateRow } = await supabaseAdmin
     .from("nomus_sync_state")
-    .select("last_cursor, total_synced")
+    .select("total_synced")
     .eq("entity", "propostas")
     .maybeSingle();
 
   const previousTotal = (stateRow as { total_synced: number } | null)?.total_synced ?? 0;
-  const cursorRaw = (stateRow as { last_cursor: string | null } | null)?.last_cursor ?? null;
-  // Se cursor parece um id antigo (>1000), reseta para página 1.
-  // Caso contrário usa como número de página (1-based).
-  const parsedCursor = cursorRaw ? Number(cursorRaw) : NaN;
-  let pagina = Number.isFinite(parsedCursor) && parsedCursor > 0 && parsedCursor <= 200
-    ? parsedCursor
-    : 1;
 
   let count = 0;
   let done = false;
   let runError: string | null = null;
-  let nextCursor: string | null = String(pagina);
+  let newestSeenId = 0;
 
   try {
-    const cutoff = new Date();
-    cutoff.setMonth(cutoff.getMonth() - PROPOSALS_WINDOW_MONTHS);
-    const cutoffMs = cutoff.getTime();
-
-    // Busca apenas UMA página
-    const pageRes = await nomusFetch<unknown>(endpoint, {
-      method: "GET",
-      query: { pagina },
-      entity: "propostas",
-      operation: "list",
-      direction: "pull",
-    });
-
-    if (!pageRes.ok) {
-      // 400 = página inexistente (fim) — encerra normalmente
-      if (pageRes.status === 400) {
-        done = true;
-      } else {
+    const summaries: Array<Record<string, unknown>> = [];
+    for (let pagina = 1; pagina <= PROPOSALS_RECENT_PAGES; pagina += 1) {
+      const pageRes = await nomusFetch<unknown>(endpoint, {
+        method: "GET",
+        query: { pagina },
+        entity: "propostas",
+        operation: "list-recent",
+        direction: "pull",
+        timeoutMs: 10_000,
+        maxAttempts: 1,
+      });
+      if (!pageRes.ok) {
+        if (pageRes.status === 400) break;
         runError = pageRes.error;
         return { ok: false, error: pageRes.error };
       }
+      const pageItems = extractItems(pageRes.data);
+      if (pageItems.length === 0) break;
+      summaries.push(...pageItems);
     }
 
-    const rawList = pageRes.ok ? pageRes.data : null;
-    const items: Array<Record<string, unknown>> = Array.isArray(rawList)
-      ? (rawList as Array<Record<string, unknown>>)
-      : (() => {
-          const env = (rawList ?? {}) as Record<string, unknown>;
-          for (const k of ["items", "resultados", "data", "content", "registros", "lista"]) {
-            const v = env[k];
-            if (Array.isArray(v)) return v as Array<Record<string, unknown>>;
-          }
-          return [];
-        })();
-
-    if (items.length === 0) {
+    if (summaries.length === 0) {
       done = true;
     } else {
-      // Ordena por id desc (mais novo primeiro) dentro da página
-      items.sort((a, b) => {
-        const ai = Number(pickStr(a, "id", "idProposta", "codigo") ?? 0);
-        const bi = Number(pickStr(b, "id", "idProposta", "codigo") ?? 0);
-        return bi - ai;
-      });
-
-      let consecutiveOutOfWindow = 0;
-      const STOP_AFTER_OLD = 25;
+      const seen = new Set<string>();
+      const items = summaries
+        .filter((summary) => {
+          const id = pickStr(summary, "id", "idProposta", "codigo");
+          if (!id || seen.has(id)) return false;
+          seen.add(id);
+          return true;
+        })
+        .sort((a, b) => {
+          const dateDiff = parseNomusSortDate(b) - parseNomusSortDate(a);
+          if (dateDiff !== 0) return dateDiff;
+          const ai = Number(pickStr(a, "id", "idProposta", "codigo") ?? 0);
+          const bi = Number(pickStr(b, "id", "idProposta", "codigo") ?? 0);
+          return bi - ai;
+        });
 
       for (const summary of items) {
         if (count >= PROPOSALS_BATCH_SIZE) break;
 
         const id = pickStr(summary, "id", "idProposta", "codigo");
         if (!id) continue;
-
-        // Tenta filtrar pela janela usando data do summary primeiro (sem precisar do detalhe)
-        const summaryDate = pickStr(summary, "dataHoraCriacao", "criadaEm", "dataCriacao", "dataEmissao");
-        if (summaryDate) {
-          const iso = /^\d{4}-\d{2}-\d{2}/.test(summaryDate)
-            ? summaryDate
-            : /^\d{2}\/\d{2}\/\d{4}/.test(summaryDate)
-            ? `${summaryDate.slice(6, 10)}-${summaryDate.slice(3, 5)}-${summaryDate.slice(0, 2)}`
-            : null;
-          const ts = iso ? new Date(iso).getTime() : NaN;
-          if (Number.isFinite(ts) && ts < cutoffMs) {
-            consecutiveOutOfWindow += 1;
-            if (consecutiveOutOfWindow >= STOP_AFTER_OLD) {
-              done = true;
-              break;
-            }
-            continue;
-          }
-        }
-        consecutiveOutOfWindow = 0;
+        newestSeenId = Math.max(newestSeenId, Number(id) || 0);
 
         try {
           await syncProposalDetail(summary);
@@ -405,11 +371,7 @@ async function pullProposalsNewestFirst(): Promise<{ ok: boolean; count?: number
         }
       }
 
-      // Página processada — avança cursor
-      if (!done) {
-        pagina += 1;
-        nextCursor = String(pagina);
-      }
+      done = true;
     }
   } catch (e) {
     runError = e instanceof Error ? e.message : String(e);
@@ -420,7 +382,7 @@ async function pullProposalsNewestFirst(): Promise<{ ok: boolean; count?: number
       entity: "propostas",
       last_synced_at: new Date().toISOString(),
       total_synced: previousTotal + count,
-      last_cursor: done ? null : nextCursor,
+      last_cursor: newestSeenId > 0 ? `recentes:${newestSeenId}` : null,
       running: false,
       last_error: runError,
       updated_at: new Date().toISOString(),
