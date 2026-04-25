@@ -375,14 +375,16 @@ export function ColdProMemorialPdf({
                 {Array.isArray(result.calculation_breakdown?.transmission_faces) && result.calculation_breakdown.transmission_faces.length ? (
                   <>
                     <Text style={styles.h3}>Transmissão por face</Text>
+                    <Text style={styles.muted}>Total: {fmt(result.calculation_breakdown?.transmission_summary?.total_w, 0)} W · {fmt(result.calculation_breakdown?.transmission_summary?.total_kw)} kW · {fmt(result.calculation_breakdown?.transmission_summary?.total_kcal_h, 0)} kcal/h · {fmt(result.calculation_breakdown?.transmission_summary?.total_tr)} TR</Text>
                     <View style={styles.table}>
                       {result.calculation_breakdown.transmission_faces.map((face: any, i: number, arr: any[]) => (
                         <View key={face.local} style={i === arr.length - 1 ? styles.trLast : styles.tr}>
                           <Text style={[styles.td, { flex: 1.2 }]}>{face.local}</Text>
-                          <Text style={[styles.td, styles.tdRight]}>Painel {fmt(face.insulated_area_m2 ?? face.area_m2)} m²</Text>
+                          <Text style={[styles.td, styles.tdRight]}>Opaca {fmt(face.insulated_area_m2 ?? face.area_m2)} m²</Text>
                           <Text style={[styles.td, styles.tdRight]}>Vidro {fmt(face.glass_area_m2)} m²</Text>
-                          <Text style={[styles.td, styles.tdRight]}>U {fmt(face.u_value_w_m2k, 3)}</Text>
-                          <Text style={[styles.td, styles.tdRight, { borderRightWidth: 0 }]}>{fmt(face.transmission_kcal_h, 0)} kcal/h</Text>
+                          <Text style={[styles.td, styles.tdRight]}>ΔT {fmt(face.delta_t_c)}</Text>
+                          <Text style={[styles.td, styles.tdRight]}>Solar {fmt(face.glass_solar_w, 0)} W</Text>
+                          <Text style={[styles.td, styles.tdRight, { borderRightWidth: 0 }]}>{fmt(face.transmission_w, 0)} W / {fmt(face.transmission_kcal_h, 0)} kcal/h</Text>
                         </View>
                       ))}
                     </View>
