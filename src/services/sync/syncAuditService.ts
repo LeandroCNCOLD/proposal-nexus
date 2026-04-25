@@ -4,6 +4,8 @@ type Json = Record<string, unknown>;
 export type SyncAction = "inserted" | "updated" | "skipped" | "skipped_no_change" | "quarantined" | "duplicated" | "merged" | "error";
 export type RowStatus = "success" | "skipped" | "error";
 
+export type SyncCheckpointStatus = "idle" | "running" | "completed" | "failed";
+
 export async function startSyncRun(entityType: string, createdBy: string | null, totalReceived = 0, options: { dryRun?: boolean; lockKey?: string; parentSyncRunId?: string | null } = {}) {
   const { data, error } = await supabaseAdmin
     .from("sync_runs")
@@ -149,4 +151,77 @@ export async function finishSyncRun(input: {
       error_message: input.errorMessage ?? null,
     })
     .eq("id", input.syncRunId);
+}
+
+export async function upsertSyncCheckpoint(input: {
+  entityType: string;
+  syncRunId?: string | null;
+  lastPage?: number | null;
+  lastExternalId?: string | null;
+  lastUpdatedAt?: string | null;
+  status: SyncCheckpointStatus;
+  cursorPayload?: Record<string, unknown>;
+  errorMessage?: string | null;
+}) {
+  await supabaseAdmin.from("sync_checkpoints").upsert({
+    source_system: "nomus",
+    entity_type: input.entityType,
+    sync_run_id: input.syncRunId ?? null,
+    last_page: input.lastPage ?? 1,
+    last_external_id: input.lastExternalId ?? null,
+    last_updated_at: input.lastUpdatedAt ?? null,
+    status: input.status,
+    cursor_payload: (input.cursorPayload ?? {}) as Json,
+    error_message: input.errorMessage ?? null,
+    updated_at: new Date().toISOString(),
+  } as never, { onConflict: "source_system,entity_type" });
+}
+
+export async function getSyncCheckpoint(entityType: string) {
+  const { data } = await supabaseAdmin
+    .from("sync_checkpoints")
+    .select("last_page,last_external_id,last_updated_at,status,cursor_payload")
+    .eq("source_system", "nomus")
+    .eq("entity_type", entityType)
+    .maybeSingle();
+  return data as { last_page?: number | null; last_external_id?: string | null; last_updated_at?: string | null; status?: string | null; cursor_payload?: Json | null } | null;
+}
+
+export async function recordPendingIssue(input: {
+  syncRunId?: string | null;
+  entityType: string;
+  issueType: string;
+  title: string;
+  severity?: "info" | "warning" | "error";
+  externalId?: string | null;
+  localId?: string | null;
+  details?: string | null;
+  payload?: Record<string, unknown>;
+}) {
+  await supabaseAdmin.from("sync_pending_issues").insert({
+    source_system: "nomus",
+    entity_type: input.entityType,
+    issue_type: input.issueType,
+    severity: input.severity ?? "warning",
+    external_id: input.externalId ?? null,
+    local_id: input.localId ?? null,
+    sync_run_id: input.syncRunId ?? null,
+    title: input.title,
+    details: input.details ?? null,
+    payload: (input.payload ?? {}) as Json,
+    status: "open",
+  } as never);
+}
+
+export async function writeSyncQualityReport(input: {
+  syncRunId?: string | null;
+  entityType?: string;
+  metrics: Record<string, unknown>;
+}) {
+  await supabaseAdmin.from("sync_quality_reports").insert({
+    sync_run_id: input.syncRunId ?? null,
+    source_system: "nomus",
+    entity_type: input.entityType ?? "global",
+    metrics: input.metrics as Json,
+  } as never);
 }
