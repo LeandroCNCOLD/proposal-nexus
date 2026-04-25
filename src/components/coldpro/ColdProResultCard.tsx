@@ -62,6 +62,7 @@ export function ColdProResultCard({ result }: { result: any }) {
   const extraTotal = n(result.infiltration_kcal_h) + n(result.people_kcal_h) + n(result.lighting_kcal_h) + n(result.motors_kcal_h) + n(result.fans_kcal_h) + n(result.defrost_kcal_h) + n(result.other_kcal_h);
   const transmissionFaces = Array.isArray(result.calculation_breakdown?.transmission_faces) ? result.calculation_breakdown.transmission_faces : [];
   const transmissionSummary = result.calculation_breakdown?.transmission_summary ?? {};
+  const tunnel = result.calculation_breakdown?.tunnel;
   const bars = [
     { label: "Ambiente", value: result.transmission_kcal_h },
     { label: "Produtos", value: productTotal },
@@ -150,6 +151,28 @@ export function ColdProResultCard({ result }: { result: any }) {
               </tbody>
             </table>
           </div>
+        </div>
+      ) : null}
+
+      {tunnel ? (
+        <div className="mt-5 rounded-xl border p-4">
+          <div className="mb-3 flex flex-col gap-1 border-b pb-3">
+            <h4 className="text-sm font-semibold">Validação térmica do túnel</h4>
+            <span className="text-xs text-muted-foreground">{tunnel.arrangement_label} · {tunnel.calculation_model === "static_equivalent_block" ? "massa agrupada/bloco equivalente" : "produto individual exposto"}</span>
+          </div>
+          <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm md:grid-cols-4">
+            <div>Energia total: <b>{fmtColdPro(tunnel.total_energy_kcal)} kcal</b></div>
+            <div>Potência: <b>{fmtColdPro(tunnel.total_kw)} kW</b></div>
+            <div>Tempo disponível: <b>{fmtColdPro(tunnel.process_time_min)} min</b></div>
+            <div>Tempo até núcleo: <b>{tunnel.estimated_freezing_time_min ? `${fmtColdPro(tunnel.estimated_freezing_time_min)} min` : "—"}</b></div>
+            <div>Dimensão térmica: <b>{fmtColdPro(tunnel.thermal_characteristic_dimension_m, 3)} m</b></div>
+            <div>Distância ao núcleo: <b>{fmtColdPro(tunnel.distance_to_core_m, 3)} m</b></div>
+            <div>Fator exposição: <b>{fmtColdPro(tunnel.air_exposure_factor, 2)}</b></div>
+            <div>Fator penetração: <b>{fmtColdPro(tunnel.thermal_penetration_factor, 2)}</b></div>
+            <div>h efetivo: <b>{fmtColdPro(tunnel.convective_coefficient_effective_w_m2_k)} W/m²K</b></div>
+            <div>Status: <b>{tunnel.technical_status}</b></div>
+          </div>
+          {Array.isArray(tunnel.warnings) && tunnel.warnings.length ? <div className="mt-3 rounded-md bg-muted p-3 text-xs text-muted-foreground">{tunnel.warnings.join(" ")}</div> : null}
         </div>
       ) : null}
     </div>

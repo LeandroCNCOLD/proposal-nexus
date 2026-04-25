@@ -2524,15 +2524,23 @@ export type Database = {
       }
       coldpro_tunnels: {
         Row: {
+          air_exposure_factor: number | null
           air_temp_c: number
           air_velocity_m_s: number
+          airflow_m3_h: number
+          arrangement_type: string
           ash_content_percent: number | null
+          batch_time_h: number
           belt_motor_kw: number
+          boxes_count: number
           carbohydrate_content_percent: number | null
+          convective_coefficient_effective_w_m2_k: number | null
+          convective_coefficient_manual_w_m2_k: number | null
           convective_coefficient_w_m2_k: number | null
           created_at: string
           cycles_per_hour: number
           density_kg_m3: number | null
+          distance_to_core_m: number | null
           environment_id: string
           estimated_freezing_time_min: number | null
           fat_content_percent: number | null
@@ -2545,18 +2553,29 @@ export type Database = {
           internal_fans_kw: number
           latent_heat_kcal_kg: number
           latent_heat_kj_kg: number | null
+          layers_count: number
           mass_kg_hour: number
           notes: string | null
+          number_of_pallets: number
           operation_mode: string
           other_internal_kw: number
           outlet_temp_c: number
+          package_type: string | null
           packaging_mass_kg_hour: number
           packaging_specific_heat_kcal_kg_c: number
+          pallet_height_m: number
+          pallet_length_m: number
+          pallet_mass_kg: number
+          pallet_width_m: number
           process_time_min: number
+          process_type: string
           product_id: string | null
+          product_length_m: number
           product_name: string
+          product_thickness_m: number
           product_thickness_mm: number
           product_unit_weight_kg: number
+          product_width_m: number
           protein_content_percent: number | null
           recommended_airflow_m3_h: number | null
           respiration_rate_0c_mw_kg: number | null
@@ -2569,23 +2588,35 @@ export type Database = {
           specific_heat_above_kj_kg_k: number | null
           specific_heat_below_kcal_kg_c: number
           specific_heat_below_kj_kg_k: number | null
+          thermal_characteristic_dimension_m: number | null
           thermal_conductivity_frozen_w_m_k: number | null
           thermal_conductivity_unfrozen_w_m_k: number | null
+          thermal_penetration_factor: number | null
+          tray_spacing_m: number
           tunnel_type: string
+          unit_weight_kg: number
           units_per_cycle: number
           updated_at: string
           water_content_percent: number | null
         }
         Insert: {
+          air_exposure_factor?: number | null
           air_temp_c?: number
           air_velocity_m_s?: number
+          airflow_m3_h?: number
+          arrangement_type?: string
           ash_content_percent?: number | null
+          batch_time_h?: number
           belt_motor_kw?: number
+          boxes_count?: number
           carbohydrate_content_percent?: number | null
+          convective_coefficient_effective_w_m2_k?: number | null
+          convective_coefficient_manual_w_m2_k?: number | null
           convective_coefficient_w_m2_k?: number | null
           created_at?: string
           cycles_per_hour?: number
           density_kg_m3?: number | null
+          distance_to_core_m?: number | null
           environment_id: string
           estimated_freezing_time_min?: number | null
           fat_content_percent?: number | null
@@ -2598,18 +2629,29 @@ export type Database = {
           internal_fans_kw?: number
           latent_heat_kcal_kg?: number
           latent_heat_kj_kg?: number | null
+          layers_count?: number
           mass_kg_hour?: number
           notes?: string | null
+          number_of_pallets?: number
           operation_mode?: string
           other_internal_kw?: number
           outlet_temp_c?: number
+          package_type?: string | null
           packaging_mass_kg_hour?: number
           packaging_specific_heat_kcal_kg_c?: number
+          pallet_height_m?: number
+          pallet_length_m?: number
+          pallet_mass_kg?: number
+          pallet_width_m?: number
           process_time_min?: number
+          process_type?: string
           product_id?: string | null
+          product_length_m?: number
           product_name?: string
+          product_thickness_m?: number
           product_thickness_mm?: number
           product_unit_weight_kg?: number
+          product_width_m?: number
           protein_content_percent?: number | null
           recommended_airflow_m3_h?: number | null
           respiration_rate_0c_mw_kg?: number | null
@@ -2622,23 +2664,35 @@ export type Database = {
           specific_heat_above_kj_kg_k?: number | null
           specific_heat_below_kcal_kg_c?: number
           specific_heat_below_kj_kg_k?: number | null
+          thermal_characteristic_dimension_m?: number | null
           thermal_conductivity_frozen_w_m_k?: number | null
           thermal_conductivity_unfrozen_w_m_k?: number | null
+          thermal_penetration_factor?: number | null
+          tray_spacing_m?: number
           tunnel_type?: string
+          unit_weight_kg?: number
           units_per_cycle?: number
           updated_at?: string
           water_content_percent?: number | null
         }
         Update: {
+          air_exposure_factor?: number | null
           air_temp_c?: number
           air_velocity_m_s?: number
+          airflow_m3_h?: number
+          arrangement_type?: string
           ash_content_percent?: number | null
+          batch_time_h?: number
           belt_motor_kw?: number
+          boxes_count?: number
           carbohydrate_content_percent?: number | null
+          convective_coefficient_effective_w_m2_k?: number | null
+          convective_coefficient_manual_w_m2_k?: number | null
           convective_coefficient_w_m2_k?: number | null
           created_at?: string
           cycles_per_hour?: number
           density_kg_m3?: number | null
+          distance_to_core_m?: number | null
           environment_id?: string
           estimated_freezing_time_min?: number | null
           fat_content_percent?: number | null
@@ -2651,18 +2705,29 @@ export type Database = {
           internal_fans_kw?: number
           latent_heat_kcal_kg?: number
           latent_heat_kj_kg?: number | null
+          layers_count?: number
           mass_kg_hour?: number
           notes?: string | null
+          number_of_pallets?: number
           operation_mode?: string
           other_internal_kw?: number
           outlet_temp_c?: number
+          package_type?: string | null
           packaging_mass_kg_hour?: number
           packaging_specific_heat_kcal_kg_c?: number
+          pallet_height_m?: number
+          pallet_length_m?: number
+          pallet_mass_kg?: number
+          pallet_width_m?: number
           process_time_min?: number
+          process_type?: string
           product_id?: string | null
+          product_length_m?: number
           product_name?: string
+          product_thickness_m?: number
           product_thickness_mm?: number
           product_unit_weight_kg?: number
+          product_width_m?: number
           protein_content_percent?: number | null
           recommended_airflow_m3_h?: number | null
           respiration_rate_0c_mw_kg?: number | null
@@ -2675,9 +2740,13 @@ export type Database = {
           specific_heat_above_kj_kg_k?: number | null
           specific_heat_below_kcal_kg_c?: number
           specific_heat_below_kj_kg_k?: number | null
+          thermal_characteristic_dimension_m?: number | null
           thermal_conductivity_frozen_w_m_k?: number | null
           thermal_conductivity_unfrozen_w_m_k?: number | null
+          thermal_penetration_factor?: number | null
+          tray_spacing_m?: number
           tunnel_type?: string
+          unit_weight_kg?: number
           units_per_cycle?: number
           updated_at?: string
           water_content_percent?: number | null
