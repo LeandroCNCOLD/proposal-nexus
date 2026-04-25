@@ -80,6 +80,12 @@ function asSyncAction(exists: boolean): SyncAction {
   return exists ? "updated" : "inserted";
 }
 
+function stableNaturalItemId(position: number, productCode: string | null, description: string | null): string {
+  const code = normalizeModel(productCode) ?? "SEM-CODIGO";
+  const desc = normalizeProposalNumber(description)?.slice(0, 80) ?? "SEM-DESCRICAO";
+  return `natural:${position}:${code}:${desc}`;
+}
+
 async function syncPersonContacts(args: { clientId: string; pessoaId: string; triggeredBy: string | null }) {
   const res = await nomusFetch<unknown>(pessoaContatosPath(args.pessoaId), {
     method: "GET",
