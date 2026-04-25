@@ -3,7 +3,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { nomusFetch, listAll, listPage, testNomusConnection } from "./client";
+import { nomusFetch, listAll, listPage, getOne, testNomusConnection } from "./client";
 import {
   NOMUS_ENDPOINTS,
   proposalSubpath,
@@ -29,6 +29,12 @@ const pickNum = (o: Json, ...keys: string[]): number | null => {
     }
   }
   return null;
+};
+
+const pickNestedStr = (o: Json, nestedKey: string, ...keys: string[]): string | null => {
+  const nested = o[nestedKey];
+  if (!nested || typeof nested !== "object") return null;
+  return pickStr(nested as Json, ...keys);
 };
 
 async function setState(entity: string, patch: Record<string, unknown>) {
@@ -168,8 +174,13 @@ export const nomusSyncClients = createServerFn({ method: "POST" })
       let count = 0;
       let skipped = 0;
       for (const raw of res.items) {
-        const nomus_id = pickStr(raw, "id", "codigo", "idCliente");
-        const name = pickStr(raw, "nome", "razaoSocial", "nomeFantasia");
+        const summaryId = pickStr(raw, "id", "codigo", "idCliente", "idPessoa");
+        const detailRes = summaryId
+          ? await getOne<Json>(NOMUS_ENDPOINTS.clientes, summaryId, { entity: "clientes", triggeredBy: userId })
+          : { ok: false as const, error: "Cliente sem ID" };
+        const full = detailRes.ok ? { ...raw, ...detailRes.data } : raw;
+        const nomus_id = pickStr(full, "id", "codigo", "idCliente", "idPessoa") ?? summaryId;
+        const name = pickStr(full, "nome", "razaoSocial", "nomeFantasia");
         if (!nomus_id || !name) {
           skipped += 1;
           continue;
@@ -180,11 +191,28 @@ export const nomusSyncClients = createServerFn({ method: "POST" })
             {
               nomus_id,
               name,
-              document: pickStr(raw, "cnpj", "cpf", "documento"),
-              trade_name: pickStr(raw, "nomeFantasia", "fantasia"),
-              city: pickStr(raw, "cidade", "municipio"),
-              state: pickStr(raw, "uf", "estado"),
-              segment: pickStr(raw, "segmento", "ramo"),
+              document: pickStr(full, "cnpj", "cpf", "documento", "cpfCnpj"),
+              trade_name: pickStr(full, "nomeFantasia", "fantasia", "apelido"),
+              email: pickStr(full, "email", "emailPrincipal"),
+              phone: pickStr(full, "telefone", "fone", "telefonePrincipal", "celular"),
+              website: pickStr(full, "site", "website"),
+              zip_code: pickStr(full, "cep", "codigoPostal"),
+              address: pickStr(full, "logradouro", "endereco", "rua"),
+              address_number: pickStr(full, "numero", "numeroEndereco"),
+              address_complement: pickStr(full, "complemento"),
+              district: pickStr(full, "bairro"),
+              city: pickStr(full, "cidade", "municipio", "nomeCidade"),
+              state: pickStr(full, "uf", "estado", "siglaEstado"),
+              country: pickStr(full, "pais", "nomePais"),
+              segment: pickStr(full, "segmento", "ramo", "ramoAtividade", "segmentoMercado"),
+              region: pickStr(full, "regiao", "regiaoComercial", "territorio"),
+              state_registration: pickStr(full, "inscricaoEstadual", "ie"),
+              municipal_registration: pickStr(full, "inscricaoMunicipal", "im"),
+              nomus_seller_id: pickStr(full, "idVendedor", "vendedorId") ?? pickNestedStr(full, "vendedor", "id", "codigo"),
+              nomus_seller_name: pickStr(full, "nomeVendedor", "vendedorNome") ?? pickNestedStr(full, "vendedor", "nome", "razaoSocial"),
+              nomus_representative_id: pickStr(full, "idRepresentante", "representanteId") ?? pickNestedStr(full, "representante", "id", "codigo"),
+              nomus_representative_name: pickStr(full, "nomeRepresentante", "representanteNome") ?? pickNestedStr(full, "representante", "nome", "razaoSocial"),
+              nomus_raw: full as never,
               origin: "nomus",
               nomus_synced_at: new Date().toISOString(),
             },

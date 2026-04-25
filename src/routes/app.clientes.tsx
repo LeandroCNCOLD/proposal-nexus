@@ -95,15 +95,19 @@ function ClientsPage() {
 
       <div className="overflow-x-auto rounded-xl border bg-card shadow-[var(--shadow-sm)]">
         <Table>
-          <TableHeader><TableRow><TableHead>Nome</TableHead><TableHead>Segmento</TableHead><TableHead>Região</TableHead><TableHead>Cidade/UF</TableHead></TableRow></TableHeader>
+          <TableHeader><TableRow><TableHead>Nome</TableHead><TableHead>Segmento</TableHead><TableHead>Região</TableHead><TableHead>Vendedor</TableHead><TableHead>Cidade/UF</TableHead></TableRow></TableHeader>
           <TableBody>
-            {data.length === 0 ? <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-12">Nenhum cliente cadastrado.</TableCell></TableRow> :
+            {data.length === 0 ? <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-12">Nenhum cliente cadastrado.</TableCell></TableRow> :
               data.map((c) => (
                 <TableRow key={c.id}>
-                  <TableCell className="font-medium">{c.name}</TableCell>
+                  <TableCell className="min-w-[220px] font-medium">
+                    <div>{c.name}</div>
+                    {c.trade_name && <div className="text-xs font-normal text-muted-foreground">{c.trade_name}</div>}
+                  </TableCell>
                   <TableCell className="text-sm">{c.segment ?? "—"}</TableCell>
                   <TableCell className="text-sm">{c.region ?? "—"}</TableCell>
-                  <TableCell className="text-sm">{[c.city, c.state].filter(Boolean).join(" / ") || "—"}</TableCell>
+                  <TableCell className="text-sm">{c.nomus_seller_name ?? "—"}</TableCell>
+                  <TableCell className="text-sm whitespace-nowrap">{[c.city, c.state].filter(Boolean).join(" / ") || "—"}</TableCell>
                 </TableRow>
               ))}
           </TableBody>

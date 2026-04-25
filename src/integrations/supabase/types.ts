@@ -92,8 +92,10 @@ export type Database = {
           email: string | null
           id: string
           is_primary: boolean
+          mobile: string | null
           name: string
           nomus_id: string | null
+          nomus_raw: Json | null
           phone: string | null
           role: string | null
         }
@@ -103,8 +105,10 @@ export type Database = {
           email?: string | null
           id?: string
           is_primary?: boolean
+          mobile?: string | null
           name: string
           nomus_id?: string | null
+          nomus_raw?: Json | null
           phone?: string | null
           role?: string | null
         }
@@ -114,8 +118,10 @@ export type Database = {
           email?: string | null
           id?: string
           is_primary?: boolean
+          mobile?: string | null
           name?: string
           nomus_id?: string | null
+          nomus_raw?: Json | null
           phone?: string | null
           role?: string | null
         }
@@ -131,58 +137,106 @@ export type Database = {
       }
       clients: {
         Row: {
+          address: string | null
+          address_complement: string | null
+          address_number: string | null
           city: string | null
+          country: string | null
           created_at: string
           created_by: string | null
+          district: string | null
           document: string | null
+          email: string | null
           id: string
           is_active: boolean
+          municipal_registration: string | null
           name: string
           nomus_id: string | null
+          nomus_raw: Json | null
+          nomus_representative_id: string | null
+          nomus_representative_name: string | null
+          nomus_seller_id: string | null
+          nomus_seller_name: string | null
           nomus_synced_at: string | null
           notes: string | null
           origin: string | null
+          phone: string | null
           region: string | null
           segment: string | null
           state: string | null
+          state_registration: string | null
           trade_name: string | null
           updated_at: string
+          website: string | null
+          zip_code: string | null
         }
         Insert: {
+          address?: string | null
+          address_complement?: string | null
+          address_number?: string | null
           city?: string | null
+          country?: string | null
           created_at?: string
           created_by?: string | null
+          district?: string | null
           document?: string | null
+          email?: string | null
           id?: string
           is_active?: boolean
+          municipal_registration?: string | null
           name: string
           nomus_id?: string | null
+          nomus_raw?: Json | null
+          nomus_representative_id?: string | null
+          nomus_representative_name?: string | null
+          nomus_seller_id?: string | null
+          nomus_seller_name?: string | null
           nomus_synced_at?: string | null
           notes?: string | null
           origin?: string | null
+          phone?: string | null
           region?: string | null
           segment?: string | null
           state?: string | null
+          state_registration?: string | null
           trade_name?: string | null
           updated_at?: string
+          website?: string | null
+          zip_code?: string | null
         }
         Update: {
+          address?: string | null
+          address_complement?: string | null
+          address_number?: string | null
           city?: string | null
+          country?: string | null
           created_at?: string
           created_by?: string | null
+          district?: string | null
           document?: string | null
+          email?: string | null
           id?: string
           is_active?: boolean
+          municipal_registration?: string | null
           name?: string
           nomus_id?: string | null
+          nomus_raw?: Json | null
+          nomus_representative_id?: string | null
+          nomus_representative_name?: string | null
+          nomus_seller_id?: string | null
+          nomus_seller_name?: string | null
           nomus_synced_at?: string | null
           notes?: string | null
           origin?: string | null
+          phone?: string | null
           region?: string | null
           segment?: string | null
           state?: string | null
+          state_registration?: string | null
           trade_name?: string | null
           updated_at?: string
+          website?: string | null
+          zip_code?: string | null
         }
         Relationships: []
       }
