@@ -681,10 +681,9 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
                   </div>
                 </div>
                 <div>
-                  <ColdProField label="Piso isolado">
-                    <ColdProSelect value={form?.has_floor_insulation ? "sim" : "nao"} onChange={(e) => setFloorInsulated(e.target.value === "sim")}>
-                      <option value="nao">Não</option>
-                      <option value="sim">Sim</option>
+                  <ColdProField label="Condição do piso">
+                    <ColdProSelect value={floorCondition} onChange={(e) => setFloorCondition(e.target.value)}>
+                      {FLOOR_CONDITION_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                     </ColdProSelect>
                   </ColdProField>
                   <ColdProField label="Material piso">
@@ -694,7 +693,8 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
                     </ColdProSelect>
                   </ColdProField>
                   <ColdProField label="Esp. piso" unit="mm"><ColdProSelect disabled={!form?.has_floor_insulation} value={form?.floor_thickness_mm ?? ""} onChange={(e) => setInsulationThickness("floor_thickness_mm", e.target.value)}>{!INSULATION_THICKNESS_OPTIONS_MM.includes(toNumber(form?.floor_thickness_mm)) && form?.floor_thickness_mm ? <option value={form.floor_thickness_mm}>{form.floor_thickness_mm}</option> : null}{INSULATION_THICKNESS_OPTIONS_MM.map((value) => <option key={value} value={value}>{value}</option>)}</ColdProSelect></ColdProField>
-                  <ColdProCalculatedInfo label="U piso" value={form?.has_floor_insulation ? `${fmtColdPro(floorLayerInfo.uValue, 3)} W/m²K` : "Sem isolamento"} description={form?.has_floor_insulation ? `k ${fmtColdPro(floorLayerInfo.conductivity, 3)} W/mK` : "Piso não entra como painel isolado."} tone={form?.has_floor_insulation && floorLayerInfo.uValue > 0 ? "success" : "warning"} />
+                  {floorCondition === "lower_room" ? <ColdProField label="Temp. ambiente inferior" unit="°C"><ColdProInput {...num("floor_temp_c")} /></ColdProField> : null}
+                  <ColdProCalculatedInfo label="U piso" value={form?.has_floor_insulation ? `${fmtColdPro(floorLayerInfo.uValue, 3)} W/m²K` : `${fmtColdPro(UNINSULATED_FLOOR_U_VALUE_W_M2K, 3)} W/m²K`} description={form?.has_floor_insulation ? `k ${fmtColdPro(floorLayerInfo.conductivity, 3)} W/mK` : floorCondition === "lower_room" ? "Piso sobre ambiente inferior." : `Solo ${fmtColdPro(form?.floor_temp_c ?? DEFAULT_SOIL_TEMP_C)} °C.`} tone={form?.has_floor_insulation && floorLayerInfo.uValue > 0 ? "success" : "warning"} />
                 </div>
               </div>
             </ColdProFormSection>
@@ -705,10 +705,11 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
                 <ColdProCalculatedInfo label="Piso / teto" value={`${fmtColdPro(floorArea)} / ${fmtColdPro(ceilingArea)} m²`} />
                 <ColdProCalculatedInfo label="Área de paredes" value={`${fmtColdPro(wallPanelArea)} m²`} />
                 <ColdProCalculatedInfo label="Área de vidro" value={`${fmtColdPro(totalGlassArea)} m²`} />
+                <ColdProCalculatedInfo label="Total transmissão" value={`${fmtColdPro(transmissionTotalKw, 2)} kW`} description={`${fmtColdPro(transmissionTotalKcalH)} kcal/h · ${fmtColdPro(transmissionTotalTr, 2)} TR`} tone="success" />
               </div>
               <div className="mb-4 grid gap-x-10 md:grid-cols-2">
                 <div>
-                  <ColdProField label="Insolação">
+                  <ColdProField label="Face com sol">
                     <ColdProSelect value={currentSolarFace ?? ""} onChange={(e) => setSolarFace(e.target.value)}>
                       {SOLAR_FACE_OPTIONS.filter((option) => option.value === "" || constructionFaces.some((face) => face.local === option.value)).map((option) => <option key={option.value || "none"} value={option.value}>{option.label}</option>)}
                     </ColdProSelect>
