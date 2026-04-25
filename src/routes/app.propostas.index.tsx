@@ -73,7 +73,7 @@ function ProposalsList() {
     mutationFn: async () => kickoffSync(),
     onSuccess: () => {
       toast.success("Sincronização iniciada — atualizando em segundo plano.");
-      queryClient.invalidateQueries({ queryKey: ["nomus-sync-state", "propostas"] });
+      queryClient.invalidateQueries({ queryKey: ["nomus-sync-state", "all"] });
     },
     onError: (err: Error) => toast.error(`Erro ao iniciar sincronização: ${err.message}`),
   });
@@ -85,20 +85,22 @@ function ProposalsList() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("proposals")
-        .select("id, number, title, status, total_value, valid_until, created_at, updated_at, next_followup_at, closed_at, nomus_id, clients(name, document)")
+        .select("id, number, title, status, total_value, valid_until, created_at, updated_at, next_followup_at, closed_at, nomus_id, nomus_synced_at, clients(name, document)")
+        .order("nomus_synced_at", { ascending: false, nullsFirst: false })
         .order("created_at", { ascending: false });
       if (error) throw error;
       const rows = data ?? [];
       const nomusIds = rows.map((r) => r.nomus_id).filter(Boolean) as string[];
-      const nomusMap = new Map<string, { criada_em_nomus: string | null; data_emissao: string | null; representante_nome: string | null; vendedor_nome: string | null; cliente_nomus_id: string | null; numero: string | null }>();
+      const nomusMap = new Map<string, { criada_em_nomus: string | null; data_emissao: string | null; synced_at: string | null; representante_nome: string | null; vendedor_nome: string | null; cliente_nomus_id: string | null; numero: string | null }>();
       if (nomusIds.length > 0) {
         const { data: np } = await supabase
           .from("nomus_proposals")
-          .select("nomus_id, criada_em_nomus, data_emissao, representante_nome, vendedor_nome, cliente_nomus_id, numero")
+          .select("nomus_id, criada_em_nomus, data_emissao, synced_at, representante_nome, vendedor_nome, cliente_nomus_id, numero")
           .in("nomus_id", nomusIds);
         (np ?? []).forEach((n) => nomusMap.set(n.nomus_id, {
           criada_em_nomus: n.criada_em_nomus,
           data_emissao: n.data_emissao,
+          synced_at: n.synced_at,
           representante_nome: n.representante_nome,
           vendedor_nome: n.vendedor_nome,
           cliente_nomus_id: n.cliente_nomus_id,
