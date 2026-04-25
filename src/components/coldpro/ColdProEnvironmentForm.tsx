@@ -382,17 +382,24 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
                         onClick={() => setLayout(item.value)}
                         className={`rounded-lg border p-3 text-left transition hover:border-primary ${layout === item.value ? "border-primary bg-primary/10" : "bg-background"}`}
                       >
+                        <ChamberShapePreview layout={item.value} />
                         <span className="block text-sm font-semibold">{item.label}</span>
                         <span className="mt-1 block text-xs text-muted-foreground">{item.description}</span>
                       </button>
                     ))}
                   </div>
 
-                  <div className="grid grid-cols-1 gap-x-10 md:grid-cols-2">
+                  <div className="grid grid-cols-1 gap-x-10 md:grid-cols-[1.4fr_0.8fr]">
                     <div>
-                      <ColdProField label="Comprimento maior" unit="m"><ColdProInput {...num("length_m")} /></ColdProField>
-                      <ColdProField label="Largura maior" unit="m"><ColdProInput {...num("width_m")} /></ColdProField>
-                      <ColdProField label="Altura" unit="m"><ColdProInput {...num("height_m")} /></ColdProField>
+                      <div className="grid gap-3 md:grid-cols-4">
+                        <ColdProField label="Dim. A" unit="m"><ColdProInput type="number" value={form?.dimension_a_m ?? form?.length_m ?? ""} onChange={(e) => setDimension("dimension_a_m", e.target.value)} /></ColdProField>
+                        <ColdProField label="Dim. B" unit="m"><ColdProInput type="number" value={form?.dimension_b_m ?? form?.width_m ?? ""} onChange={(e) => setDimension("dimension_b_m", e.target.value)} /></ColdProField>
+                        <ColdProField label="Dim. C" unit="m"><ColdProInput {...num("dimension_c_m")} disabled={layout === "rectangular"} /></ColdProField>
+                        <ColdProField label="Dim. D" unit="m"><ColdProInput {...num("dimension_d_m")} disabled={layout === "rectangular"} /></ColdProField>
+                        <ColdProField label="Dim. E" unit="m"><ColdProInput {...num("dimension_e_m")} disabled={layout === "rectangular" || layout === "l_shape"} /></ColdProField>
+                        <ColdProField label="Dim. F" unit="m"><ColdProInput {...num("dimension_f_m")} disabled={layout === "rectangular" || layout === "l_shape"} /></ColdProField>
+                        <ColdProField label="Altura H" unit="m"><ColdProInput type="number" value={form?.height_m ?? ""} onChange={(e) => setDimension("height_m", e.target.value)} /></ColdProField>
+                      </div>
                       {layout === "custom_polygon" ? (
                         <ColdProField label="Quantidade de paredes" unit="un">
                           <ColdProInput type="number" value={wallCount} onChange={(e) => set("wall_count", numberOrNull(e.target.value) ?? 4)} />
