@@ -17,6 +17,26 @@ const PROCESS_TYPES = [
   ["humidity_control", "Controle de umidade"],
 ];
 
+function closestRespirationRate(product: any, targetTempC: number) {
+  const points = [
+    { temp: 0, value: product?.respiration_rate_0c_w_kg ?? (product?.respiration_rate_0c_mw_kg ? Number(product.respiration_rate_0c_mw_kg) / 1000 : null) },
+    { temp: 5, value: product?.respiration_rate_5c_w_kg ?? (product?.respiration_rate_5c_mw_kg ? Number(product.respiration_rate_5c_mw_kg) / 1000 : null) },
+    { temp: 10, value: product?.respiration_rate_10c_w_kg ?? (product?.respiration_rate_10c_mw_kg ? Number(product.respiration_rate_10c_mw_kg) / 1000 : null) },
+    { temp: 15, value: product?.respiration_rate_15c_w_kg ?? (product?.respiration_rate_15c_mw_kg ? Number(product.respiration_rate_15c_mw_kg) / 1000 : null) },
+    { temp: 20, value: product?.respiration_rate_20c_w_kg ?? (product?.respiration_rate_20c_mw_kg ? Number(product.respiration_rate_20c_mw_kg) / 1000 : null) },
+  ].filter((point) => Number.isFinite(Number(point.value)) && Number(point.value) > 0);
+  return points.sort((a, b) => Math.abs(a.temp - targetTempC) - Math.abs(b.temp - targetTempC))[0]?.value ?? null;
+}
+
+function suggestedProcessType(product: any, currentType: string) {
+  const text = `${product?.name ?? ""} ${product?.category ?? ""}`.toLowerCase();
+  if (text.includes("banana")) return "banana_ripening";
+  if (text.includes("citro") || text.includes("laranja") || text.includes("limao") || text.includes("limão")) return "citrus_degreening";
+  if (text.includes("batata")) return "potato_co2_control";
+  if (text.includes("semente")) return "seed_humidity_control";
+  return currentType === "none" ? "controlled_atmosphere" : currentType;
+}
+
 function n(value: unknown) {
   return Number(value ?? 0);
 }
@@ -29,7 +49,8 @@ function field(name: string, label: string, unit: string | undefined, value: any
   );
 }
 
-export function ColdProAdvancedProcessForm({ projectId, environment, process, onSave }: { projectId: string; environment: any; process?: any; onSave: (payload: any) => void }) {
+export function ColdProAdvancedProcessForm({ projectId, environment, process, productCatalog = [], onSave }: { projectId: string; environment: any; process?: any; productCatalog?: any[]; onSave: (payload: any) => void }) {
+  const [selectedGroup, setSelectedGroup] = React.useState("");
   const [draft, setDraft] = React.useState<any>(() => ({
     id: process?.id,
     project_id: projectId,
@@ -65,6 +86,23 @@ export function ColdProAdvancedProcessForm({ projectId, environment, process, on
     air_renewal_m3_h: process?.air_renewal_m3_h ?? 0,
   }));
   const result = React.useMemo(() => calculateAdvancedProcess(draft), [draft]);
+  const groups = React.useMemo(() => Array.from(new Set(productCatalog.map((p) => p.category).filter(Boolean))).sort((a, b) => String(a).localeCompare(String(b), "pt-BR")), [productCatalog]);
+  const filteredProducts = React.useMemo(() => productCatalog.filter((p) => !selectedGroup || p.category === selectedGroup), [productCatalog, selectedGroup]);
+  const applyProduct = (id: string) => {
+    const product = productCatalog.find((item) => item.id === id);
+    if (!product) return;
+    const respirationRate = closestRespirationRate(product, Number(draft.target_temperature_c ?? draft.internal_temperature_c ?? 0));
+    const co2Rate = respirationRate ? respirationRate * 3600 / 10_700_000 : null;
+    setDraft((old: any) => ({
+      ...old,
+      advanced_process_type: suggestedProcessType(product, old.advanced_process_type),
+      product_name: product.name,
+      product_initial_moisture: old.product_initial_moisture || product.water_content_percent || old.product_initial_moisture,
+      respiration_rate_w_kg: respirationRate ?? old.respiration_rate_w_kg,
+      co2_generation_rate_m3_kg_h: co2Rate ?? old.co2_generation_rate_m3_kg_h,
+      technical_notes: [old.technical_notes, product.source_reference ? `Produto F3: ${product.source_reference}` : "Produto carregado da tabela F3."].filter(Boolean).join("\n"),
+    }));
+  };
 
   return (
     <div className="space-y-4">
@@ -73,6 +111,18 @@ export function ColdProAdvancedProcessForm({ projectId, environment, process, on
           <ColdProField label="Tipo de processo">
             <ColdProSelect value={draft.advanced_process_type} onChange={(e) => setDraft((old: any) => ({ ...old, advanced_process_type: e.target.value }))}>
               {PROCESS_TYPES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            </ColdProSelect>
+          </ColdProField>
+          <ColdProField label="Grupo F3">
+            <ColdProSelect value={selectedGroup} onChange={(e) => setSelectedGroup(e.target.value)}>
+              <option value="">Todos os grupos</option>
+              {groups.map((group) => <option key={group} value={group}>{group}</option>)}
+            </ColdProSelect>
+          </ColdProField>
+          <ColdProField label="Produto F3">
+            <ColdProSelect value="" onChange={(e) => applyProduct(e.target.value)}>
+              <option value="">Buscar na tabela F3</option>
+              {filteredProducts.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}
             </ColdProSelect>
           </ColdProField>
           <ColdProField label="Produto">
