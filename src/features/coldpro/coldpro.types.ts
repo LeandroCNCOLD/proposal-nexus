@@ -117,6 +117,16 @@ export type ColdProEnvironmentProduct = {
   environment_id?: string;
   product_id?: string | null;
   product_name: string;
+  product_load_mode?: "storage_turnover" | "daily_intake" | "hourly_intake" | "room_pull_down_or_freezing";
+  stored_mass_kg?: number;
+  daily_turnover_percent?: number;
+  daily_movement_kg?: number;
+  hourly_movement_kg?: number;
+  recovery_time_h?: number;
+  is_freezing_inside_storage_room?: boolean;
+  freezing_batch_mass_kg?: number;
+  freezing_batch_time_h?: number;
+  movement_basis?: "calculated_from_stock" | "manual_daily" | "manual_hourly" | "batch_recovery";
   mass_kg_day: number;
   mass_kg_hour: number;
   inlet_temp_c: number;
