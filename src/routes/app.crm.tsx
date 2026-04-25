@@ -95,7 +95,7 @@ function CrmPage() {
     return out;
   }, [filters]);
 
-  const { data: funnelData, isLoading: loadingFunnel } = useQuery({
+  const { data: funnelData, isLoading: loadingFunnel, isError: funnelError } = useQuery({
     queryKey: ["crm", "funnel", activeTab, filtersForServer],
     queryFn: async () => {
       if (!activeTab) return { stages: [] as Array<any> };
@@ -105,6 +105,8 @@ function CrmPage() {
     },
     enabled: !!activeTab,
     staleTime: 60_000,
+    retry: false,
+    throwOnError: false,
   });
 
   // Busca livre client-side (rápida, sobre o resultado já carregado)
@@ -260,7 +262,7 @@ function CrmPage() {
           {activeFunnels.map((tipo) => (
             <TabsContent key={tipo} value={tipo} className="mt-0">
               {tipo === activeTab && (
-                <KanbanBoardRich stages={stages} loading={loadingFunnel} />
+                <KanbanBoardRich stages={stages} loading={loadingFunnel} error={funnelError} />
               )}
             </TabsContent>
           ))}
@@ -275,6 +277,7 @@ function CrmPage() {
 function KanbanBoardRich({
   stages,
   loading,
+  error,
 }: {
   stages: Array<{
     etapa: string;
@@ -288,6 +291,7 @@ function KanbanBoardRich({
     processes: EnrichedCard[];
   }>;
   loading: boolean;
+  error?: boolean;
 }) {
   if (loading) {
     return <div className="text-sm text-muted-foreground">Carregando processos…</div>;
@@ -295,7 +299,7 @@ function KanbanBoardRich({
   if (stages.length === 0) {
     return (
       <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-        Nenhum processo encontrado. Sincronize com o Nomus ou ajuste os filtros.
+        {error ? "Não foi possível carregar o funil agora. Tente atualizar novamente." : "Nenhum processo encontrado. Sincronize com o Nomus ou ajuste os filtros."}
       </div>
     );
   }

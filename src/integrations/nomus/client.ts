@@ -340,6 +340,7 @@ export async function listPage<T = unknown>(
     triggeredBy?: string | null;
     pageSize?: number;
     page: number;
+    timeoutMs?: number;
   },
 ): Promise<{ ok: true; items: T[]; hasMore: boolean } | { ok: false; error: string }> {
   const pageSize = opts.pageSize ?? LIST_DEFAULT_PAGE_SIZE;
@@ -350,7 +351,7 @@ export async function listPage<T = unknown>(
     operation: "list-page",
     direction: "pull",
     triggeredBy: opts.triggeredBy ?? null,
-    timeoutMs: 10_000,
+    timeoutMs: opts.timeoutMs ?? 6_000,
     maxAttempts: 1,
   });
   if (!res.ok) {
