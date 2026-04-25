@@ -113,6 +113,9 @@ export function ColdProExtraLoadsForm({ environment, catalogFanLoadKcalH = 0, on
                 <div>
                   <ColdProField label="Iluminação" unit="W"><ColdProInput {...num("lighting_power_w")} /></ColdProField>
                   <ColdProField label="Horas de iluminação" unit="h/dia"><ColdProInput {...num("lighting_hours_day")} /></ColdProField>
+                  <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    {LIGHTING_EQUIPMENT_PRESETS.map((preset) => <button key={preset.label} type="button" onClick={() => addLightingPreset(preset)} className="rounded-md border bg-background px-3 py-2 text-left text-xs font-medium hover:bg-muted">+ {preset.label} · {fmtColdPro(preset.powerW)} W</button>)}
+                  </div>
                   <ColdProCalculatedInfo label="Carga ocupação + iluminação" value={`${fmtColdPro(preview.people_kcal_h + preview.lighting_kcal_h)} kcal/h`} description={`Pessoas ${fmtColdPro(preview.people_kcal_h)} · iluminação ${fmtColdPro(preview.lighting_kcal_h)}`} />
                 </div>
               </div>
@@ -131,8 +134,9 @@ export function ColdProExtraLoadsForm({ environment, catalogFanLoadKcalH = 0, on
                   <ColdProField label="Dissipação motores"><ColdProInput {...num("motors_dissipation_factor")} /></ColdProField>
                   <ColdProField label="Ventiladores" unit="kcal/h"><ColdProInput {...num("fans_kcal_h")} /></ColdProField>
                   <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    {MOTOR_EQUIPMENT_PRESETS.map((preset) => <button key={preset.label} type="button" onClick={() => applyMotorPreset(preset)} className="rounded-md border bg-background px-3 py-2 text-left text-xs font-medium hover:bg-muted">{preset.label} · {fmtColdPro(preset.powerKw)} kW</button>)}
+                    {MOTOR_EQUIPMENT_PRESETS.map((preset) => <button key={preset.label} type="button" onClick={() => addMotorPreset(preset)} className="rounded-md border bg-background px-3 py-2 text-left text-xs font-medium hover:bg-muted">+ {preset.label} · {fmtColdPro(preset.powerKw)} kW</button>)}
                   </div>
+                  <button type="button" onClick={() => setForm((prev: any) => ({ ...prev, motors_power_kw: 0 }))} className="mb-4 rounded-md border bg-background px-3 py-2 text-xs font-medium hover:bg-muted">Limpar lista de equipamentos</button>
                   {catalogFanLoadKcalH > 0 ? <button type="button" onClick={() => set("fans_kcal_h", catalogFanLoadKcalH)} className="mb-4 rounded-md border bg-background px-3 py-2 text-xs font-medium hover:bg-muted">Usar ventiladores do catálogo ({fmtColdPro(catalogFanLoadKcalH)} kcal/h)</button> : null}
                 </div>
                 <div>
