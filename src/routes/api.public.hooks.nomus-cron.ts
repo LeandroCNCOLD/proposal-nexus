@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { listAll, getOne, nomusFetch } from "@/integrations/nomus/client";
+import { listAll, listPage, getOne } from "@/integrations/nomus/client";
 import { NOMUS_ENDPOINTS } from "@/integrations/nomus/endpoints";
 import {
   mapNomusProposal,
@@ -261,9 +261,9 @@ const mappers: Record<EntityKey, { endpoint: string; map: Mapper }> = {
 
 /** Máximo de propostas novas/alteradas processadas por invocação (evita timeout). */
 const PROPOSALS_BATCH_SIZE = 20;
-const PROPOSALS_FORWARD_LOOKAHEAD = 80;
-const PROPOSALS_RECENT_RECHECK = 30;
-const PROPOSALS_MAX_CONSECUTIVE_MISSES = 20;
+const PROPOSALS_FORWARD_LOOKAHEAD = 40;
+const PROPOSALS_RECENT_RECHECK = 25;
+const PROPOSALS_MAX_CONSECUTIVE_MISSES = 6;
 
 function extractItems(payload: unknown): Array<Record<string, unknown>> {
   if (Array.isArray(payload)) return payload as Array<Record<string, unknown>>;
