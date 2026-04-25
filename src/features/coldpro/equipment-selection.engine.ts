@@ -114,6 +114,15 @@ function isPhysicallyPlausibleCapacity(points: PerformancePoint[], capacity: num
   return capacity >= min * 0.8 && capacity <= max * 1.05;
 }
 
+function nearestPerformancePoint(points: PerformancePoint[], input: SelectionInput): PerformancePoint | null {
+  return points
+    .map((point) => ({
+      point,
+      score: dist(point.temperature_room_c ?? input.internal_temp_c, input.internal_temp_c) + dist(point.evaporation_temp_c ?? input.evaporation_temp_c, input.evaporation_temp_c) + dist(point.condensation_temp_c ?? input.condensation_temp_c, input.condensation_temp_c),
+    }))
+    .sort((a, b) => a.score - b.score)[0]?.point ?? null;
+}
+
 /**
  * Interpolação linear simples por temperatura de evaporação,
  * mantendo a temperatura de condensação mais próxima.
@@ -369,6 +378,8 @@ export async function findEquipmentCandidates(
         evaporation_temp_c: sel.used.t_evap,
         condensation_temp_c: sel.used.t_cond,
       },
+      capacity_nominal_kcal_h: sel.referenceCapacity,
+      curve_source: sel.used.polynomial ? "polynomial" : sel.used.interpolated ? "interpolated" : "catalog_point",
       capacity_unit_kcal_h: sel.capacity,
       total_power_kw: sel.power,
       fan_power_kw: sel.used.polynomial ? null : pts.find((point) => point.evaporation_temp_c === sel.used.t_evap && point.condensation_temp_c === sel.used.t_cond)?.fan_power_kw ?? pts.find((point) => point.fan_power_kw !== null)?.fan_power_kw ?? null,
