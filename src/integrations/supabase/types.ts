@@ -147,8 +147,13 @@ export type Database = {
           district: string | null
           document: string | null
           email: string | null
+          external_deleted_at: string | null
+          external_updated_at: string | null
           id: string
           is_active: boolean
+          last_synced_at: string | null
+          merged_at: string | null
+          merged_into_id: string | null
           municipal_registration: string | null
           name: string
           nomus_id: string | null
@@ -165,6 +170,7 @@ export type Database = {
           segment: string | null
           state: string | null
           state_registration: string | null
+          sync_hash: string | null
           trade_name: string | null
           updated_at: string
           website: string | null
@@ -181,8 +187,13 @@ export type Database = {
           district?: string | null
           document?: string | null
           email?: string | null
+          external_deleted_at?: string | null
+          external_updated_at?: string | null
           id?: string
           is_active?: boolean
+          last_synced_at?: string | null
+          merged_at?: string | null
+          merged_into_id?: string | null
           municipal_registration?: string | null
           name: string
           nomus_id?: string | null
@@ -199,6 +210,7 @@ export type Database = {
           segment?: string | null
           state?: string | null
           state_registration?: string | null
+          sync_hash?: string | null
           trade_name?: string | null
           updated_at?: string
           website?: string | null
@@ -215,8 +227,13 @@ export type Database = {
           district?: string | null
           document?: string | null
           email?: string | null
+          external_deleted_at?: string | null
+          external_updated_at?: string | null
           id?: string
           is_active?: boolean
+          last_synced_at?: string | null
+          merged_at?: string | null
+          merged_into_id?: string | null
           municipal_registration?: string | null
           name?: string
           nomus_id?: string | null
@@ -233,6 +250,7 @@ export type Database = {
           segment?: string | null
           state?: string | null
           state_registration?: string | null
+          sync_hash?: string | null
           trade_name?: string | null
           updated_at?: string
           website?: string | null
@@ -2592,14 +2610,21 @@ export type Database = {
           evaporator_fan: string | null
           evaporator_fan_flow: number | null
           evaporator_model: string | null
+          external_deleted_at: string | null
+          external_updated_at: string | null
           id: string
           is_active: boolean
+          last_synced_at: string | null
           line_id: string | null
+          merged_at: string | null
+          merged_into_id: string | null
           model: string
           nomus_id: string | null
           nomus_synced_at: string | null
           normalized_model: string | null
+          normalized_model_code: string | null
           refrigerant: string | null
+          sync_hash: string | null
           tags: string[] | null
           technical_notes: string | null
           updated_at: string
@@ -2620,14 +2645,21 @@ export type Database = {
           evaporator_fan?: string | null
           evaporator_fan_flow?: number | null
           evaporator_model?: string | null
+          external_deleted_at?: string | null
+          external_updated_at?: string | null
           id?: string
           is_active?: boolean
+          last_synced_at?: string | null
           line_id?: string | null
+          merged_at?: string | null
+          merged_into_id?: string | null
           model: string
           nomus_id?: string | null
           nomus_synced_at?: string | null
           normalized_model?: string | null
+          normalized_model_code?: string | null
           refrigerant?: string | null
+          sync_hash?: string | null
           tags?: string[] | null
           technical_notes?: string | null
           updated_at?: string
@@ -2648,14 +2680,21 @@ export type Database = {
           evaporator_fan?: string | null
           evaporator_fan_flow?: number | null
           evaporator_model?: string | null
+          external_deleted_at?: string | null
+          external_updated_at?: string | null
           id?: string
           is_active?: boolean
+          last_synced_at?: string | null
           line_id?: string | null
+          merged_at?: string | null
+          merged_into_id?: string | null
           model?: string
           nomus_id?: string | null
           nomus_synced_at?: string | null
           normalized_model?: string | null
+          normalized_model_code?: string | null
           refrigerant?: string | null
+          sync_hash?: string | null
           tags?: string[] | null
           technical_notes?: string | null
           updated_at?: string
@@ -3161,8 +3200,12 @@ export type Database = {
           descricao: string | null
           equipe: string | null
           etapa: string | null
+          external_deleted_at: string | null
+          external_updated_at: string | null
           id: string
+          is_active: boolean
           last_pushed_at: string | null
+          last_synced_at: string | null
           local_dirty: boolean
           nome: string | null
           nomus_id: string
@@ -3174,6 +3217,7 @@ export type Database = {
           raw: Json | null
           reportador: string | null
           responsavel: string | null
+          sync_hash: string | null
           synced_at: string
           tipo: string | null
           updated_at: string
@@ -3186,8 +3230,12 @@ export type Database = {
           descricao?: string | null
           equipe?: string | null
           etapa?: string | null
+          external_deleted_at?: string | null
+          external_updated_at?: string | null
           id?: string
+          is_active?: boolean
           last_pushed_at?: string | null
+          last_synced_at?: string | null
           local_dirty?: boolean
           nome?: string | null
           nomus_id: string
@@ -3199,6 +3247,7 @@ export type Database = {
           raw?: Json | null
           reportador?: string | null
           responsavel?: string | null
+          sync_hash?: string | null
           synced_at?: string
           tipo?: string | null
           updated_at?: string
@@ -3211,8 +3260,12 @@ export type Database = {
           descricao?: string | null
           equipe?: string | null
           etapa?: string | null
+          external_deleted_at?: string | null
+          external_updated_at?: string | null
           id?: string
+          is_active?: boolean
           last_pushed_at?: string | null
+          last_synced_at?: string | null
           local_dirty?: boolean
           nome?: string | null
           nomus_id?: string
@@ -3224,6 +3277,7 @@ export type Database = {
           raw?: Json | null
           reportador?: string | null
           responsavel?: string | null
+          sync_hash?: string | null
           synced_at?: string
           tipo?: string | null
           updated_at?: string
@@ -3277,17 +3331,23 @@ export type Database = {
           analise_lucro: Json | null
           description: string | null
           discount: number | null
+          external_deleted_at: string | null
+          external_updated_at: string | null
           id: string
           impostos: Json | null
+          is_active: boolean
           item_status: string | null
+          last_synced_at: string | null
           nomus_item_id: string | null
           nomus_product_id: string | null
           nomus_proposal_id: string
+          normalized_model_code: string | null
           position: number | null
           prazo_entrega_dias: number | null
           product_code: string | null
           quantity: number | null
           raw: Json | null
+          sync_hash: string | null
           synced_at: string
           total: number | null
           total_with_discount: number | null
@@ -3299,17 +3359,23 @@ export type Database = {
           analise_lucro?: Json | null
           description?: string | null
           discount?: number | null
+          external_deleted_at?: string | null
+          external_updated_at?: string | null
           id?: string
           impostos?: Json | null
+          is_active?: boolean
           item_status?: string | null
+          last_synced_at?: string | null
           nomus_item_id?: string | null
           nomus_product_id?: string | null
           nomus_proposal_id: string
+          normalized_model_code?: string | null
           position?: number | null
           prazo_entrega_dias?: number | null
           product_code?: string | null
           quantity?: number | null
           raw?: Json | null
+          sync_hash?: string | null
           synced_at?: string
           total?: number | null
           total_with_discount?: number | null
@@ -3321,17 +3387,23 @@ export type Database = {
           analise_lucro?: Json | null
           description?: string | null
           discount?: number | null
+          external_deleted_at?: string | null
+          external_updated_at?: string | null
           id?: string
           impostos?: Json | null
+          is_active?: boolean
           item_status?: string | null
+          last_synced_at?: string | null
           nomus_item_id?: string | null
           nomus_product_id?: string | null
           nomus_proposal_id?: string
+          normalized_model_code?: string | null
           position?: number | null
           prazo_entrega_dias?: number | null
           product_code?: string | null
           quantity?: number | null
           raw?: Json | null
+          sync_hash?: string | null
           synced_at?: string
           total?: number | null
           total_with_discount?: number | null
@@ -3372,6 +3444,8 @@ export type Database = {
           detail_synced_at: string | null
           empresa_nome: string | null
           empresa_nomus_id: string | null
+          external_deleted_at: string | null
+          external_updated_at: string | null
           frete_percentual: number | null
           frete_valor: number | null
           ibs_estadual_recolher: number | null
@@ -3380,7 +3454,9 @@ export type Database = {
           icms_st_recolher: number | null
           id: string
           ipi_recolher: number | null
+          is_active: boolean
           issqn_recolher: number | null
+          last_synced_at: string | null
           layout_pdf: string | null
           lucro_antes_impostos: number | null
           lucro_bruto: number | null
@@ -3399,6 +3475,7 @@ export type Database = {
           seguros_valor: number | null
           simples_nacional_recolher: number | null
           status_nomus: string | null
+          sync_hash: string | null
           synced_at: string
           tabela_preco_nome: string | null
           tabela_preco_nomus_id: string | null
@@ -3436,6 +3513,8 @@ export type Database = {
           detail_synced_at?: string | null
           empresa_nome?: string | null
           empresa_nomus_id?: string | null
+          external_deleted_at?: string | null
+          external_updated_at?: string | null
           frete_percentual?: number | null
           frete_valor?: number | null
           ibs_estadual_recolher?: number | null
@@ -3444,7 +3523,9 @@ export type Database = {
           icms_st_recolher?: number | null
           id?: string
           ipi_recolher?: number | null
+          is_active?: boolean
           issqn_recolher?: number | null
+          last_synced_at?: string | null
           layout_pdf?: string | null
           lucro_antes_impostos?: number | null
           lucro_bruto?: number | null
@@ -3463,6 +3544,7 @@ export type Database = {
           seguros_valor?: number | null
           simples_nacional_recolher?: number | null
           status_nomus?: string | null
+          sync_hash?: string | null
           synced_at?: string
           tabela_preco_nome?: string | null
           tabela_preco_nomus_id?: string | null
@@ -3500,6 +3582,8 @@ export type Database = {
           detail_synced_at?: string | null
           empresa_nome?: string | null
           empresa_nomus_id?: string | null
+          external_deleted_at?: string | null
+          external_updated_at?: string | null
           frete_percentual?: number | null
           frete_valor?: number | null
           ibs_estadual_recolher?: number | null
@@ -3508,7 +3592,9 @@ export type Database = {
           icms_st_recolher?: number | null
           id?: string
           ipi_recolher?: number | null
+          is_active?: boolean
           issqn_recolher?: number | null
+          last_synced_at?: string | null
           layout_pdf?: string | null
           lucro_antes_impostos?: number | null
           lucro_bruto?: number | null
@@ -3527,6 +3613,7 @@ export type Database = {
           seguros_valor?: number | null
           simples_nacional_recolher?: number | null
           status_nomus?: string | null
+          sync_hash?: string | null
           synced_at?: string
           tabela_preco_nome?: string | null
           tabela_preco_nomus_id?: string | null
@@ -3586,34 +3673,46 @@ export type Database = {
         Row: {
           document: string | null
           email: string | null
+          external_deleted_at: string | null
+          external_updated_at: string | null
           id: string
           is_active: boolean
+          last_synced_at: string | null
           name: string
           nomus_id: string
           raw: Json | null
           region: string | null
+          sync_hash: string | null
           synced_at: string
         }
         Insert: {
           document?: string | null
           email?: string | null
+          external_deleted_at?: string | null
+          external_updated_at?: string | null
           id?: string
           is_active?: boolean
+          last_synced_at?: string | null
           name: string
           nomus_id: string
           raw?: Json | null
           region?: string | null
+          sync_hash?: string | null
           synced_at?: string
         }
         Update: {
           document?: string | null
           email?: string | null
+          external_deleted_at?: string | null
+          external_updated_at?: string | null
           id?: string
           is_active?: boolean
+          last_synced_at?: string | null
           name?: string
           nomus_id?: string
           raw?: Json | null
           region?: string | null
+          sync_hash?: string | null
           synced_at?: string
         }
         Relationships: []
@@ -3622,31 +3721,43 @@ export type Database = {
         Row: {
           document: string | null
           email: string | null
+          external_deleted_at: string | null
+          external_updated_at: string | null
           id: string
           is_active: boolean
+          last_synced_at: string | null
           name: string
           nomus_id: string
           raw: Json | null
+          sync_hash: string | null
           synced_at: string
         }
         Insert: {
           document?: string | null
           email?: string | null
+          external_deleted_at?: string | null
+          external_updated_at?: string | null
           id?: string
           is_active?: boolean
+          last_synced_at?: string | null
           name: string
           nomus_id: string
           raw?: Json | null
+          sync_hash?: string | null
           synced_at?: string
         }
         Update: {
           document?: string | null
           email?: string | null
+          external_deleted_at?: string | null
+          external_updated_at?: string | null
           id?: string
           is_active?: boolean
+          last_synced_at?: string | null
           name?: string
           nomus_id?: string
           raw?: Json | null
+          sync_hash?: string | null
           synced_at?: string
         }
         Relationships: []
@@ -4006,7 +4117,13 @@ export type Database = {
           created_at: string
           description: string
           equipment_id: string | null
+          external_deleted_at: string | null
+          external_updated_at: string | null
           id: string
+          is_active: boolean
+          last_synced_at: string | null
+          merged_at: string | null
+          merged_into_id: string | null
           nomus_item_id: string | null
           nomus_raw: Json | null
           nomus_synced_at: string | null
@@ -4014,6 +4131,7 @@ export type Database = {
           position: number | null
           proposal_id: string
           quantity: number
+          sync_hash: string | null
           total_price: number | null
           unit_price: number
         }
@@ -4021,7 +4139,13 @@ export type Database = {
           created_at?: string
           description: string
           equipment_id?: string | null
+          external_deleted_at?: string | null
+          external_updated_at?: string | null
           id?: string
+          is_active?: boolean
+          last_synced_at?: string | null
+          merged_at?: string | null
+          merged_into_id?: string | null
           nomus_item_id?: string | null
           nomus_raw?: Json | null
           nomus_synced_at?: string | null
@@ -4029,6 +4153,7 @@ export type Database = {
           position?: number | null
           proposal_id: string
           quantity?: number
+          sync_hash?: string | null
           total_price?: number | null
           unit_price?: number
         }
@@ -4036,7 +4161,13 @@ export type Database = {
           created_at?: string
           description?: string
           equipment_id?: string | null
+          external_deleted_at?: string | null
+          external_updated_at?: string | null
           id?: string
+          is_active?: boolean
+          last_synced_at?: string | null
+          merged_at?: string | null
+          merged_into_id?: string | null
           nomus_item_id?: string | null
           nomus_raw?: Json | null
           nomus_synced_at?: string | null
@@ -4044,6 +4175,7 @@ export type Database = {
           position?: number | null
           proposal_id?: string
           quantity?: number
+          sync_hash?: string | null
           total_price?: number | null
           unit_price?: number
         }
@@ -4583,9 +4715,15 @@ export type Database = {
           delivery_term: string | null
           discount: number | null
           estimated_margin: number | null
+          external_deleted_at: string | null
+          external_updated_at: string | null
           id: string
+          is_active: boolean
+          last_synced_at: string | null
           lead_origin: string | null
           loss_reason: string | null
+          merged_at: string | null
+          merged_into_id: string | null
           next_followup_at: string | null
           nomus_id: string | null
           nomus_invoice_ids: string[] | null
@@ -4605,6 +4743,7 @@ export type Database = {
           sent_at: string | null
           source: Database["public"]["Enums"]["proposal_source"]
           status: Database["public"]["Enums"]["proposal_status"]
+          sync_hash: string | null
           technical_notes: string | null
           technical_owner_id: string | null
           temperature:
@@ -4629,9 +4768,15 @@ export type Database = {
           delivery_term?: string | null
           discount?: number | null
           estimated_margin?: number | null
+          external_deleted_at?: string | null
+          external_updated_at?: string | null
           id?: string
+          is_active?: boolean
+          last_synced_at?: string | null
           lead_origin?: string | null
           loss_reason?: string | null
+          merged_at?: string | null
+          merged_into_id?: string | null
           next_followup_at?: string | null
           nomus_id?: string | null
           nomus_invoice_ids?: string[] | null
@@ -4651,6 +4796,7 @@ export type Database = {
           sent_at?: string | null
           source?: Database["public"]["Enums"]["proposal_source"]
           status?: Database["public"]["Enums"]["proposal_status"]
+          sync_hash?: string | null
           technical_notes?: string | null
           technical_owner_id?: string | null
           temperature?:
@@ -4675,9 +4821,15 @@ export type Database = {
           delivery_term?: string | null
           discount?: number | null
           estimated_margin?: number | null
+          external_deleted_at?: string | null
+          external_updated_at?: string | null
           id?: string
+          is_active?: boolean
+          last_synced_at?: string | null
           lead_origin?: string | null
           loss_reason?: string | null
+          merged_at?: string | null
+          merged_into_id?: string | null
           next_followup_at?: string | null
           nomus_id?: string | null
           nomus_invoice_ids?: string[] | null
@@ -4697,6 +4849,7 @@ export type Database = {
           sent_at?: string | null
           source?: Database["public"]["Enums"]["proposal_source"]
           status?: Database["public"]["Enums"]["proposal_status"]
+          sync_hash?: string | null
           technical_notes?: string | null
           technical_owner_id?: string | null
           temperature?:
@@ -4740,16 +4893,332 @@ export type Database = {
           },
         ]
       }
+      sync_error_codes: {
+        Row: {
+          code: string
+          created_at: string
+          description: string
+          is_retryable: boolean
+          severity: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          description: string
+          is_retryable?: boolean
+          severity?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          description?: string
+          is_retryable?: boolean
+          severity?: string
+        }
+        Relationships: []
+      }
+      sync_field_changes: {
+        Row: {
+          created_at: string
+          entity_type: string
+          external_id: string | null
+          field_name: string
+          id: string
+          local_id: string | null
+          new_value: Json | null
+          origin: string
+          previous_value: Json | null
+          source_system: string
+          sync_run_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          entity_type: string
+          external_id?: string | null
+          field_name: string
+          id?: string
+          local_id?: string | null
+          new_value?: Json | null
+          origin: string
+          previous_value?: Json | null
+          source_system?: string
+          sync_run_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          entity_type?: string
+          external_id?: string | null
+          field_name?: string
+          id?: string
+          local_id?: string | null
+          new_value?: Json | null
+          origin?: string
+          previous_value?: Json | null
+          source_system?: string
+          sync_run_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sync_field_changes_sync_run_id_fkey"
+            columns: ["sync_run_id"]
+            isOneToOne: false
+            referencedRelation: "sync_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sync_field_mappings: {
+        Row: {
+          created_at: string
+          entity_type: string
+          external_field: string
+          id: string
+          is_active: boolean
+          is_required: boolean
+          local_field: string
+          master_source: string
+          source_system: string
+          transformation: string | null
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          entity_type: string
+          external_field: string
+          id?: string
+          is_active?: boolean
+          is_required?: boolean
+          local_field: string
+          master_source?: string
+          source_system?: string
+          transformation?: string | null
+          version?: number
+        }
+        Update: {
+          created_at?: string
+          entity_type?: string
+          external_field?: string
+          id?: string
+          is_active?: boolean
+          is_required?: boolean
+          local_field?: string
+          master_source?: string
+          source_system?: string
+          transformation?: string | null
+          version?: number
+        }
+        Relationships: []
+      }
+      sync_locks: {
+        Row: {
+          acquired_at: string
+          acquired_by: string | null
+          entity_type: string
+          expires_at: string
+          heartbeat_at: string
+          lock_key: string
+          source_system: string
+          sync_run_id: string | null
+        }
+        Insert: {
+          acquired_at?: string
+          acquired_by?: string | null
+          entity_type: string
+          expires_at?: string
+          heartbeat_at?: string
+          lock_key: string
+          source_system?: string
+          sync_run_id?: string | null
+        }
+        Update: {
+          acquired_at?: string
+          acquired_by?: string | null
+          entity_type?: string
+          expires_at?: string
+          heartbeat_at?: string
+          lock_key?: string
+          source_system?: string
+          sync_run_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sync_locks_sync_run_id_fkey"
+            columns: ["sync_run_id"]
+            isOneToOne: false
+            referencedRelation: "sync_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sync_merge_suggestions: {
+        Row: {
+          confidence_score: number
+          created_at: string
+          duplicate_record_id: string
+          entity_type: string
+          id: string
+          merged_at: string | null
+          merged_by: string | null
+          primary_record_id: string | null
+          reason: string
+          relationships: Json
+          status: string
+        }
+        Insert: {
+          confidence_score?: number
+          created_at?: string
+          duplicate_record_id: string
+          entity_type: string
+          id?: string
+          merged_at?: string | null
+          merged_by?: string | null
+          primary_record_id?: string | null
+          reason: string
+          relationships?: Json
+          status?: string
+        }
+        Update: {
+          confidence_score?: number
+          created_at?: string
+          duplicate_record_id?: string
+          entity_type?: string
+          id?: string
+          merged_at?: string | null
+          merged_by?: string | null
+          primary_record_id?: string | null
+          reason?: string
+          relationships?: Json
+          status?: string
+        }
+        Relationships: []
+      }
+      sync_quality_reports: {
+        Row: {
+          created_at: string
+          entity_type: string
+          id: string
+          metrics: Json
+          source_system: string
+          sync_run_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          entity_type?: string
+          id?: string
+          metrics?: Json
+          source_system?: string
+          sync_run_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          entity_type?: string
+          id?: string
+          metrics?: Json
+          source_system?: string
+          sync_run_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sync_quality_reports_sync_run_id_fkey"
+            columns: ["sync_run_id"]
+            isOneToOne: false
+            referencedRelation: "sync_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sync_quarantine: {
+        Row: {
+          created_at: string
+          entity_type: string
+          error_code: string | null
+          external_id: string | null
+          id: string
+          normalized_payload: Json | null
+          raw_payload: Json | null
+          reason: string
+          reprocess_sync_run_id: string | null
+          resolved_at: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          source_system: string
+          status: string
+          sync_run_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          entity_type: string
+          error_code?: string | null
+          external_id?: string | null
+          id?: string
+          normalized_payload?: Json | null
+          raw_payload?: Json | null
+          reason: string
+          reprocess_sync_run_id?: string | null
+          resolved_at?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          source_system?: string
+          status?: string
+          sync_run_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          entity_type?: string
+          error_code?: string | null
+          external_id?: string | null
+          id?: string
+          normalized_payload?: Json | null
+          raw_payload?: Json | null
+          reason?: string
+          reprocess_sync_run_id?: string | null
+          resolved_at?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          source_system?: string
+          status?: string
+          sync_run_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sync_quarantine_error_code_fkey"
+            columns: ["error_code"]
+            isOneToOne: false
+            referencedRelation: "sync_error_codes"
+            referencedColumns: ["code"]
+          },
+          {
+            foreignKeyName: "sync_quarantine_reprocess_sync_run_id_fkey"
+            columns: ["reprocess_sync_run_id"]
+            isOneToOne: false
+            referencedRelation: "sync_runs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sync_quarantine_sync_run_id_fkey"
+            columns: ["sync_run_id"]
+            isOneToOne: false
+            referencedRelation: "sync_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sync_row_logs: {
         Row: {
           action: string
           created_at: string
           entity_type: string
+          error_code: string | null
           error_message: string | null
           external_id: string | null
           id: string
           local_id: string | null
+          new_hash: string | null
+          previous_hash: string | null
           raw_payload: Json | null
+          reprocess_status: string | null
+          reprocessed_at: string | null
+          reprocessed_sync_run_id: string | null
           status: string
           sync_run_id: string | null
         }
@@ -4757,11 +5226,17 @@ export type Database = {
           action: string
           created_at?: string
           entity_type: string
+          error_code?: string | null
           error_message?: string | null
           external_id?: string | null
           id?: string
           local_id?: string | null
+          new_hash?: string | null
+          previous_hash?: string | null
           raw_payload?: Json | null
+          reprocess_status?: string | null
+          reprocessed_at?: string | null
+          reprocessed_sync_run_id?: string | null
           status: string
           sync_run_id?: string | null
         }
@@ -4769,15 +5244,28 @@ export type Database = {
           action?: string
           created_at?: string
           entity_type?: string
+          error_code?: string | null
           error_message?: string | null
           external_id?: string | null
           id?: string
           local_id?: string | null
+          new_hash?: string | null
+          previous_hash?: string | null
           raw_payload?: Json | null
+          reprocess_status?: string | null
+          reprocessed_at?: string | null
+          reprocessed_sync_run_id?: string | null
           status?: string
           sync_run_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "sync_row_logs_reprocessed_sync_run_id_fkey"
+            columns: ["reprocessed_sync_run_id"]
+            isOneToOne: false
+            referencedRelation: "sync_runs"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "sync_row_logs_sync_run_id_fkey"
             columns: ["sync_run_id"]
@@ -4790,50 +5278,73 @@ export type Database = {
       sync_runs: {
         Row: {
           created_by: string | null
+          dry_run: boolean
           entity_type: string
           error_message: string | null
           finished_at: string | null
           id: string
+          lock_key: string | null
+          parent_sync_run_id: string | null
           source_system: string
           started_at: string
           status: string
           total_errors: number
           total_inserted: number
+          total_no_change: number
+          total_quarantined: number
           total_received: number
           total_skipped: number
           total_updated: number
         }
         Insert: {
           created_by?: string | null
+          dry_run?: boolean
           entity_type: string
           error_message?: string | null
           finished_at?: string | null
           id?: string
+          lock_key?: string | null
+          parent_sync_run_id?: string | null
           source_system?: string
           started_at?: string
           status?: string
           total_errors?: number
           total_inserted?: number
+          total_no_change?: number
+          total_quarantined?: number
           total_received?: number
           total_skipped?: number
           total_updated?: number
         }
         Update: {
           created_by?: string | null
+          dry_run?: boolean
           entity_type?: string
           error_message?: string | null
           finished_at?: string | null
           id?: string
+          lock_key?: string | null
+          parent_sync_run_id?: string | null
           source_system?: string
           started_at?: string
           status?: string
           total_errors?: number
           total_inserted?: number
+          total_no_change?: number
+          total_quarantined?: number
           total_received?: number
           total_skipped?: number
           total_updated?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "sync_runs_parent_sync_run_id_fkey"
+            columns: ["parent_sync_run_id"]
+            isOneToOne: false
+            referencedRelation: "sync_runs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
@@ -4910,6 +5421,8 @@ export type Database = {
         Returns: Json
       }
       sync_digits_only: { Args: { value: string }; Returns: string }
+      sync_jsonb_hash: { Args: { payload: Json }; Returns: string }
+      sync_normalize_cn_cold_model: { Args: { value: string }; Returns: string }
       sync_normalize_model: { Args: { value: string }; Returns: string }
       sync_normalize_text: { Args: { value: string }; Returns: string }
     }
