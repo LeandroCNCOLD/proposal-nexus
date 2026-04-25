@@ -14,6 +14,7 @@ import {
   fmtColdPro,
   numberOrNull,
 } from "./ColdProFormPrimitives";
+import { calculateFaceTransmission } from "@/features/coldpro/coldpro-calculation.engine";
 
 type Props = {
   environment: any;
@@ -212,13 +213,14 @@ function normalizeFaces(value: unknown, layout: ChamberLayout, wallCount: number
     const wallLength = wallIndex >= 0 ? (toNumber(existing.wall_length_m) || wallLengths[wallIndex] || 0) : null;
     const wallHeight = wallIndex >= 0 ? (toNumber(existing.wall_height_m) || height || 0) : null;
     const calculatedArea = wallIndex >= 0 ? toNumber(wallLength) * toNumber(wallHeight) : floorArea;
+    const existingArea = toNumber(existing.panel_area_m2);
 
     return {
       local,
       wall_length_m: wallLength,
       wall_height_m: wallHeight,
       material_thickness: existing.material_thickness ?? "",
-      panel_area_m2: existing.panel_area_m2 ?? calculatedArea,
+      panel_area_m2: existingArea > 0 ? existingArea : calculatedArea,
       layers: Array.isArray(existing.layers) ? existing.layers : [],
       u_value_w_m2k: existing.u_value_w_m2k ?? null,
       transmission_w: existing.transmission_w ?? null,
@@ -227,6 +229,7 @@ function normalizeFaces(value: unknown, layout: ChamberLayout, wallCount: number
       solar_orientation: existing.solar_orientation ?? "",
       color: existing.color ?? "",
       glass_area_m2: existing.glass_area_m2 ?? 0,
+      has_glass: existing.has_glass ?? toNumber(existing.glass_area_m2) > 0,
       glass_type: existing.glass_type ?? "simple",
       door_area_m2: 0,
     };
