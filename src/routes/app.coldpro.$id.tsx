@@ -273,6 +273,7 @@ function ColdProProjectPage() {
                     <ColdProTunnelForm
                       environmentId={selectedEnv.id}
                       tunnel={tunnel}
+                      productCatalog={data?.productCatalog ?? []}
                       onSave={(payload) =>
                         upsertTunnel.mutate(payload, {
                           onSuccess: () => toast.success("Túnel salvo"),
