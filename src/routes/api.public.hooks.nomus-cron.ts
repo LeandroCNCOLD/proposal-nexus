@@ -16,24 +16,25 @@ import {
 
 type EntityKey = "propostas" | "pedidos" | "notas_fiscais";
 
-type Mapper = (raw: Record<string, unknown>) => Promise<void>;
+type Mapper = (raw: Record<string, unknown>) => Promise<unknown>;
 
 /**
  * Pull de propostas: listagem retorna só {id} → para cada uma chamamos
  * GET /propostas/{id} para puxar o payload completo (cliente, valores,
  * tributos, custos, lucro, itens etc.).
  */
-async function syncProposalDetail(rawSummary: Record<string, unknown>): Promise<void> {
+async function syncProposalDetail(rawSummary: Record<string, unknown>, options: { requireDetail?: boolean } = {}): Promise<boolean> {
   const id = pickStr(rawSummary, "id", "idProposta", "codigo");
-  if (!id) return;
+  if (!id) return false;
 
   const detailRes = await getOne<Record<string, unknown>>(NOMUS_ENDPOINTS.propostas, id, {
     entity: "propostas",
   });
+  if (!detailRes.ok && options.requireDetail) return false;
   // Se falhar o detalhe, salvamos pelo menos o que veio na listagem para não perder o ID.
   const raw = detailRes.ok ? detailRes.data : rawSummary;
   const mapped = mapNomusProposal(raw);
-  if (!mapped) return;
+  if (!mapped) return false;
 
   // 1) Espelha em nomus_proposals (fonte fiel do payload Nomus)
   const { data: mirror } = await supabaseAdmin
@@ -198,6 +199,8 @@ async function syncProposalDetail(rawSummary: Record<string, unknown>): Promise<
       nomus_synced_at: new Date().toISOString(),
     }).eq("id", ex.id);
   }
+
+  return true;
 }
 
 const mappers: Record<EntityKey, { endpoint: string; map: Mapper }> = {
@@ -365,11 +368,19 @@ async function pullProposalsNewestFirst(): Promise<{ ok: boolean; count?: number
 
         const id = pickStr(summary, "id", "idProposta", "codigo");
         if (!id) continue;
-        newestSeenId = Math.max(newestSeenId, Number(id) || 0);
+
+        const { data: existing } = await supabaseAdmin
+          .from("nomus_proposals")
+          .select("nomus_id")
+          .eq("nomus_id", id)
+          .maybeSingle();
 
         try {
-          await syncProposalDetail(summary);
-          count += 1;
+          const changed = await syncProposalDetail(summary, { requireDetail: !existing });
+          if (changed) {
+            newestSeenId = Math.max(newestSeenId, Number(id) || 0);
+            count += 1;
+          }
         } catch (e) {
           console.error("[nomus-cron] erro mapeando proposta:", e);
         }
