@@ -73,7 +73,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const primaryRole = roles[0];
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex min-h-screen overflow-x-hidden bg-background">
       {/* Sidebar */}
       <aside className="hidden w-64 shrink-0 flex-col bg-sidebar text-sidebar-foreground lg:flex">
         <div className="flex h-16 items-center gap-2.5 border-b border-sidebar-border px-5">
@@ -104,10 +104,20 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       {/* Main */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-card/80 px-6 backdrop-blur">
-          <div className="relative flex-1 max-w-xl">
+        <header className="sticky top-0 z-30 border-b bg-card/80 backdrop-blur">
+          <div className="flex min-h-16 items-center gap-2 px-3 py-2 sm:gap-4 sm:px-6">
+          <div className="relative hidden max-w-xl flex-1 sm:block">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input placeholder="Buscar propostas, clientes, equipamentos..." className="pl-9 bg-secondary/50 border-transparent focus:bg-card" />
+          </div>
+          <div className="flex min-w-0 flex-1 items-center gap-2 sm:hidden">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-[image:var(--gradient-primary)] shadow-[var(--shadow-glow)]">
+              <Snowflake className="h-5 w-5 text-primary-foreground" />
+            </div>
+            <div className="min-w-0 leading-tight">
+              <div className="truncate text-sm font-semibold tracking-tight">CN Cold</div>
+              <div className="truncate text-[10px] uppercase tracking-widest text-muted-foreground">Sales Intelligence</div>
+            </div>
           </div>
           <Button variant="ghost" size="icon" className="relative">
             <Bell className="h-5 w-5" />
@@ -136,8 +146,24 @@ export function AppShell({ children }: { children: ReactNode }) {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          </div>
+          <nav className="flex gap-1 overflow-x-auto border-t px-2 py-2 lg:hidden" aria-label="Navegação principal">
+            {NAV.flatMap((group) => group.items).map((item) => {
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  className="inline-flex shrink-0 items-center gap-2 rounded-md px-3 py-2 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                >
+                  <Icon className="h-4 w-4" />
+                  <span>{item.label}</span>
+                </Link>
+              );
+            })}
+          </nav>
         </header>
-        <main className="flex-1 p-6 lg:p-8">{children}</main>
+        <main className="min-w-0 flex-1 p-3 sm:p-5 lg:p-8">{children}</main>
       </div>
     </div>
   );
