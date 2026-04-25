@@ -173,7 +173,7 @@ async function runEntitySync(args: {
   entity: string;
   endpoint: string;
   triggeredBy: string | null;
-  processItem: (raw: Json) => Promise<"ok" | "skip" | "unmatched">;
+  processItem: (raw: Json, syncRunId: string | null) => Promise<"ok" | "skip" | "unmatched">;
   /** Query extra para o listAll (ex.: dataModificacaoInicial p/ incremental). */
   query?: Record<string, string | number | undefined>;
   /** Página máxima de itens — passado adiante para listAll. */
@@ -181,6 +181,11 @@ async function runEntitySync(args: {
 }): Promise<SyncResult> {
   const { entity, endpoint, triggeredBy, processItem, query, pageSize } = args;
   await setState(entity, { running: true, last_error: null });
+  let syncRunId: string | null = null;
+  let count = 0;
+  let skipped = 0;
+  let unmatched = 0;
+  let errors = 0;
   try {
     const res = await listAll<Json>(endpoint, query ?? {}, { entity, triggeredBy, pageSize });
     if (!res.ok) {
@@ -188,19 +193,19 @@ async function runEntitySync(args: {
       await setState(entity, { running: false, last_error: error });
       return { ok: false, error };
     }
-    let count = 0;
-    let skipped = 0;
-    let unmatched = 0;
+    syncRunId = await startSyncRun(entity, triggeredBy, res.items.length);
     const itemErrors: string[] = [];
     for (const raw of res.items) {
       try {
-        const r = await processItem(raw);
+        const r = await processItem(raw, syncRunId);
         if (r === "ok") count += 1;
         else if (r === "unmatched") { unmatched += 1; skipped += 1; }
         else skipped += 1;
       } catch (e) {
         skipped += 1;
+        errors += 1;
         const msg = e instanceof Error ? e.message : String(e);
+        await logSyncRow({ syncRunId, entityType: entity, action: "error", status: "error", errorMessage: msg, rawPayload: raw });
         if (itemErrors.length < 3) itemErrors.push(msg);
       }
     }
@@ -213,10 +218,19 @@ async function runEntitySync(args: {
       total_synced: count,
       last_error: noteParts.length > 0 ? noteParts.join(" • ") : null,
     });
+    await finishSyncRun({
+      syncRunId,
+      totalReceived: res.items.length,
+      totalInserted: count,
+      totalSkipped: skipped,
+      totalErrors: errors,
+      errorMessage: noteParts.length > 0 ? noteParts.join(" • ") : null,
+    });
     return { ok: true, count, skipped, unmatched };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     await setState(entity, { running: false, last_error: msg });
+    await finishSyncRun({ syncRunId, status: "error", totalInserted: count, totalSkipped: skipped, totalErrors: errors + 1, errorMessage: msg });
     return { ok: false, error: msg };
   }
 }
