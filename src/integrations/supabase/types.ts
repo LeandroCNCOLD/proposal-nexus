@@ -2598,6 +2598,7 @@ export type Database = {
           model: string
           nomus_id: string | null
           nomus_synced_at: string | null
+          normalized_model: string | null
           refrigerant: string | null
           tags: string[] | null
           technical_notes: string | null
@@ -2625,6 +2626,7 @@ export type Database = {
           model: string
           nomus_id?: string | null
           nomus_synced_at?: string | null
+          normalized_model?: string | null
           refrigerant?: string | null
           tags?: string[] | null
           technical_notes?: string | null
@@ -2652,6 +2654,7 @@ export type Database = {
           model?: string
           nomus_id?: string | null
           nomus_synced_at?: string | null
+          normalized_model?: string | null
           refrigerant?: string | null
           tags?: string[] | null
           technical_notes?: string | null
@@ -3226,6 +3229,47 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      nomus_product_equipment_links: {
+        Row: {
+          confidence_score: number
+          created_at: string
+          equipment_id: string | null
+          id: string
+          match_type: string
+          nomus_product_id: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+        }
+        Insert: {
+          confidence_score?: number
+          created_at?: string
+          equipment_id?: string | null
+          id?: string
+          match_type?: string
+          nomus_product_id: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+        }
+        Update: {
+          confidence_score?: number
+          created_at?: string
+          equipment_id?: string | null
+          id?: string
+          match_type?: string
+          nomus_product_id?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nomus_product_equipment_links_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipments"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       nomus_proposal_items: {
         Row: {
@@ -3963,6 +4007,9 @@ export type Database = {
           description: string
           equipment_id: string | null
           id: string
+          nomus_item_id: string | null
+          nomus_raw: Json | null
+          nomus_synced_at: string | null
           notes: string | null
           position: number | null
           proposal_id: string
@@ -3975,6 +4022,9 @@ export type Database = {
           description: string
           equipment_id?: string | null
           id?: string
+          nomus_item_id?: string | null
+          nomus_raw?: Json | null
+          nomus_synced_at?: string | null
           notes?: string | null
           position?: number | null
           proposal_id: string
@@ -3987,6 +4037,9 @@ export type Database = {
           description?: string
           equipment_id?: string | null
           id?: string
+          nomus_item_id?: string | null
+          nomus_raw?: Json | null
+          nomus_synced_at?: string | null
           notes?: string | null
           position?: number | null
           proposal_id?: string
@@ -4687,6 +4740,101 @@ export type Database = {
           },
         ]
       }
+      sync_row_logs: {
+        Row: {
+          action: string
+          created_at: string
+          entity_type: string
+          error_message: string | null
+          external_id: string | null
+          id: string
+          local_id: string | null
+          raw_payload: Json | null
+          status: string
+          sync_run_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          entity_type: string
+          error_message?: string | null
+          external_id?: string | null
+          id?: string
+          local_id?: string | null
+          raw_payload?: Json | null
+          status: string
+          sync_run_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          entity_type?: string
+          error_message?: string | null
+          external_id?: string | null
+          id?: string
+          local_id?: string | null
+          raw_payload?: Json | null
+          status?: string
+          sync_run_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sync_row_logs_sync_run_id_fkey"
+            columns: ["sync_run_id"]
+            isOneToOne: false
+            referencedRelation: "sync_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sync_runs: {
+        Row: {
+          created_by: string | null
+          entity_type: string
+          error_message: string | null
+          finished_at: string | null
+          id: string
+          source_system: string
+          started_at: string
+          status: string
+          total_errors: number
+          total_inserted: number
+          total_received: number
+          total_skipped: number
+          total_updated: number
+        }
+        Insert: {
+          created_by?: string | null
+          entity_type: string
+          error_message?: string | null
+          finished_at?: string | null
+          id?: string
+          source_system?: string
+          started_at?: string
+          status?: string
+          total_errors?: number
+          total_inserted?: number
+          total_received?: number
+          total_skipped?: number
+          total_updated?: number
+        }
+        Update: {
+          created_by?: string | null
+          entity_type?: string
+          error_message?: string | null
+          finished_at?: string | null
+          id?: string
+          source_system?: string
+          started_at?: string
+          status?: string
+          total_errors?: number
+          total_inserted?: number
+          total_received?: number
+          total_skipped?: number
+          total_updated?: number
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -4761,6 +4909,9 @@ export type Database = {
         Args: { p_table_type: string }
         Returns: Json
       }
+      sync_digits_only: { Args: { value: string }; Returns: string }
+      sync_normalize_model: { Args: { value: string }; Returns: string }
+      sync_normalize_text: { Args: { value: string }; Returns: string }
     }
     Enums: {
       app_role:
