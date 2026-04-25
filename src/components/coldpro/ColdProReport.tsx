@@ -42,7 +42,7 @@ type Props = {
   advancedProcesses?: any[];
   onPushToProposal?: () => void;
   isPushing?: boolean;
-  onGeneratePdf?: () => void;
+  onGeneratePdf?: (aiAnalysis?: string | null) => void;
   onAnalyze?: (question: string, previousAnalysis?: string | null) => Promise<string | null>;
   isGeneratingPdf?: boolean;
   isAnalyzing?: boolean;
@@ -98,7 +98,7 @@ export function ColdProReport({
           {onGeneratePdf ? (
             <button
               type="button"
-              onClick={onGeneratePdf}
+              onClick={() => onGeneratePdf(aiAnalysis)}
               disabled={isGeneratingPdf}
               className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground disabled:opacity-50"
             >
