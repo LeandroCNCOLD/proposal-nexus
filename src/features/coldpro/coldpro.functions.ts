@@ -10,8 +10,21 @@ const positiveNumber = finiteNumber.gt(0);
 const dayHours = finiteNumber.min(0).max(24);
 const trimmedName = z.string().trim().min(1).max(120);
 
+const wallLayerSchema = z.object({
+  material_id: z.string().uuid().nullable().optional(),
+  material_name: z.string().trim().min(1).max(120),
+  category: z.string().trim().max(50).nullable().optional(),
+  thickness_m: nonNegativeNumber,
+  conductivity_w_mk: positiveNumber,
+  position: z.number().int().min(0).max(20),
+});
+
 const constructionFaceSchema = z.object({
   local: z.string().trim().max(40).default(""),
+  layers: z.array(wallLayerSchema).max(8).nullable().optional(),
+  u_value_w_m2k: nonNegativeNumber.nullable().optional(),
+  transmission_w: nonNegativeNumber.nullable().optional(),
+  transmission_kcal_h: nonNegativeNumber.nullable().optional(),
   wall_length_m: nonNegativeNumber.nullable().optional(),
   wall_height_m: nonNegativeNumber.nullable().optional(),
   cutout_length_m: nonNegativeNumber.nullable().optional(),
@@ -55,8 +68,9 @@ export const getColdProProjectBundle = createServerFn({ method: "GET" })
     const { data: results } = environmentIds.length ? await supabase.from("coldpro_results").select("*").in("environment_id", environmentIds).order("created_at", { ascending: false }) : { data: [] as any[] };
     const { data: selections } = environmentIds.length ? await supabase.from("coldpro_equipment_selections").select("*").in("environment_id", environmentIds) : { data: [] as any[] };
     const { data: insulationMaterials } = await supabase.from("coldpro_insulation_materials").select("*").order("name");
+    const { data: thermalMaterials } = await supabase.from("coldpro_thermal_materials").select("*").order("category").order("material_name");
     const { data: productCatalog } = await supabase.from("coldpro_products").select("*").order("name");
-    return { project, environments: environments ?? [], products: products ?? [], tunnels: tunnels ?? [], results: results ?? [], selections: selections ?? [], insulationMaterials: insulationMaterials ?? [], productCatalog: productCatalog ?? [] };
+    return { project, environments: environments ?? [], products: products ?? [], tunnels: tunnels ?? [], results: results ?? [], selections: selections ?? [], insulationMaterials: insulationMaterials ?? [], thermalMaterials: thermalMaterials ?? [], productCatalog: productCatalog ?? [] };
   });
 
 export const createColdProEnvironment = createServerFn({ method: "POST" })
