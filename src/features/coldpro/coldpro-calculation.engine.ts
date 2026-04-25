@@ -378,7 +378,7 @@ export function calculateSeedDehumidificationLoad(env: ColdProEnvironment) {
   const latentSeedKw = waterFromSeedKgH * WATER_LATENT_HEAT_KJ_KG / 3600;
   const totalKw = latentAirKw + latentSeedKw;
 
-  const calculatedResult: ColdProResult = {
+  return {
     applies: true,
     total_kcal_h: round2(kwToKcalh(totalKw)),
     total_kw: round2(totalKw),
@@ -925,7 +925,7 @@ export function calculateColdProLoad(params: {
   const safety = subtotal * (safetyFactor / 100);
   const total = subtotal + safety;
 
-  return {
+  const calculatedResult: ColdProResult = {
     transmission_kcal_h: round2(transmission),
     product_kcal_h: round2(product),
     packaging_kcal_h: round2(packaging),
