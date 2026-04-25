@@ -65,6 +65,12 @@ const SOLAR_FACE_OPTIONS = [
   { value: "TETO", label: "Teto" },
 ];
 
+const GLASS_TYPE_OPTIONS = [
+  { value: "simple", label: "Vidro simples" },
+  { value: "double", label: "Vidro duplo" },
+  { value: "insulated", label: "Vidro insulado" },
+];
+
 const LEGACY_LAYOUTS = new Set(["industrial", "modular", "climatized_storage", "blast_freezer", "cooling_tunnel", "climatized_room"]);
 
 function toNumber(value: unknown) {
@@ -210,8 +216,8 @@ function normalizeFaces(value: unknown, layout: ChamberLayout, wallCount: number
       solar_orientation: existing.solar_orientation ?? "",
       color: existing.color ?? "",
       glass_area_m2: existing.glass_area_m2 ?? 0,
-      glass_type: existing.glass_type ?? "",
-      door_area_m2: existing.door_area_m2 ?? 0,
+      glass_type: existing.glass_type ?? "simple",
+      door_area_m2: 0,
     };
   });
 }
