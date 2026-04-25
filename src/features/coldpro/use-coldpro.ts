@@ -64,9 +64,9 @@ export function usePushColdProToProposal(projectId: string) {
 export function useGenerateColdProMemorialPdf(projectId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: boolean | { attachToProposal?: boolean; aiAnalysis?: string | null } = true) => {
+    mutationFn: (input: boolean | { attachToProposal?: boolean; aiAnalysis?: string | null; reportType?: "full" | "proposal_summary" } = true) => {
       const payload = typeof input === "boolean" ? { attachToProposal: input } : input;
-      return generateColdProMemorialPdf({ data: { projectId, attachToProposal: payload.attachToProposal ?? true, aiAnalysis: payload.aiAnalysis ?? null } });
+      return generateColdProMemorialPdf({ data: { projectId, attachToProposal: payload.attachToProposal ?? true, aiAnalysis: payload.aiAnalysis ?? null, reportType: payload.reportType ?? "full" } });
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["coldpro-project", projectId] }),
   });

@@ -8,6 +8,7 @@ const inputSchema = z.object({
   projectId: z.string().uuid(),
   attachToProposal: z.boolean().optional().default(true),
   aiAnalysis: z.string().max(20000).nullable().optional(),
+  reportType: z.enum(["full", "proposal_summary"]).optional().default("full"),
 });
 
 const analysisInputSchema = z.object({
@@ -33,6 +34,23 @@ function imageMimeType(path: string): string {
   if (ext === "png") return "image/png";
   if (ext === "webp") return "image/webp";
   return "image/jpeg";
+}
+
+function closestPerformancePoint(selection: any, points: any[] = []) {
+  const candidates = points.filter((point) => point.equipment_model_id === selection?.equipment_model_id);
+  if (!candidates.length) return null;
+  const targetRoom = Number(selection?.curve_temperature_room_c ?? NaN);
+  const targetEvap = Number(selection?.curve_evaporation_temp_c ?? NaN);
+  const targetCond = Number(selection?.curve_condensation_temp_c ?? NaN);
+  return candidates
+    .map((point) => {
+      const score =
+        (Number.isFinite(targetRoom) ? Math.abs(Number(point.temperature_room_c ?? 0) - targetRoom) : 0) +
+        (Number.isFinite(targetEvap) ? Math.abs(Number(point.evaporation_temp_c ?? 0) - targetEvap) : 0) +
+        (Number.isFinite(targetCond) ? Math.abs(Number(point.condensation_temp_c ?? 0) - targetCond) : 0);
+      return { point, score };
+    })
+    .sort((a, b) => a.score - b.score)[0]?.point ?? candidates[0];
 }
 
 function fmt(value: unknown, digits = 1): string {
@@ -207,12 +225,19 @@ export const generateColdProMemorialPdf = createServerFn({ method: "POST" })
     const latestSelections = latestRowsByEnvironment(selections ?? []);
 
     const equipmentModelIds = Array.from(new Set(latestSelections.map((item: any) => item.equipment_model_id).filter(Boolean)));
-    const { data: equipmentModels } = equipmentModelIds.length
+    const [{ data: equipmentModels }, { data: compressors }, { data: condensers }, { data: evaporators }, { data: performancePoints }] = equipmentModelIds.length
       ? await supabase
           .from("coldpro_equipment_models")
-          .select("id, plugin_image_path, split_image_path, biblock_image_path, plugin_image_paths, split_image_paths, biblock_image_paths")
+          .select("*")
           .in("id", equipmentModelIds)
-      : { data: [] as any[] };
+          .then(async (modelsRes) => Promise.all([
+            Promise.resolve(modelsRes),
+            supabase.from("coldpro_equipment_compressors").select("*").in("equipment_model_id", equipmentModelIds),
+            supabase.from("coldpro_equipment_condensers").select("*").in("equipment_model_id", equipmentModelIds),
+            supabase.from("coldpro_equipment_evaporators").select("*").in("equipment_model_id", equipmentModelIds),
+            supabase.from("coldpro_equipment_performance_points").select("*").in("equipment_model_id", equipmentModelIds),
+          ]))
+      : [{ data: [] as any[] }, { data: [] as any[] }, { data: [] as any[] }, { data: [] as any[] }, { data: [] as any[] }];
 
     const equipmentImagesByModel = new Map<string, { equipment_image_path: string | null; equipment_image_url: string | null; equipment_image_data_url: string | null }>();
     await Promise.all((equipmentModels ?? []).map(async (model: any) => {
@@ -232,6 +257,11 @@ export const generateColdProMemorialPdf = createServerFn({ method: "POST" })
     const enrichedSelections = latestSelections.map((item: any) => ({
       ...item,
       ...(equipmentImagesByModel.get(item.equipment_model_id) ?? {}),
+      catalog_model: (equipmentModels ?? []).find((model: any) => model.id === item.equipment_model_id) ?? null,
+      catalog_compressor: (compressors ?? []).find((row: any) => row.equipment_model_id === item.equipment_model_id) ?? null,
+      catalog_condenser: (condensers ?? []).find((row: any) => row.equipment_model_id === item.equipment_model_id) ?? null,
+      catalog_evaporator: (evaporators ?? []).find((row: any) => row.equipment_model_id === item.equipment_model_id) ?? null,
+      catalog_performance: closestPerformancePoint(item, performancePoints ?? []),
     }));
 
     const generatedAt = new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
@@ -246,6 +276,7 @@ export const generateColdProMemorialPdf = createServerFn({ method: "POST" })
       products: products ?? [],
       generatedAt,
       aiAnalysis,
+      reportType: data.reportType,
     });
 
     // Upload no storage
@@ -257,7 +288,7 @@ export const generateColdProMemorialPdf = createServerFn({ method: "POST" })
       .toLowerCase()
       .slice(0, 60);
     const ts = Date.now();
-    const storagePath = `coldpro-memorials/${project.id}/${safeName}-rev${project.revision ?? 0}-${ts}.pdf`;
+    const storagePath = `coldpro-memorials/${project.id}/${safeName}-${data.reportType === "proposal_summary" ? "resumo-proposta" : "memorial"}-rev${project.revision ?? 0}-${ts}.pdf`;
 
     const { error: upErr } = await supabase.storage
       .from("proposal-files")
@@ -271,8 +302,8 @@ export const generateColdProMemorialPdf = createServerFn({ method: "POST" })
     const { data: docRow, error: docErr } = await supabase
       .from("documents")
       .insert({
-        name: `Memorial CN ColdPro — ${project.name} (rev ${project.revision ?? 0}).pdf`,
-        category: "coldpro_memorial",
+        name: `${data.reportType === "proposal_summary" ? "Resumo para proposta" : "Memorial"} CN ColdPro — ${project.name} (rev ${project.revision ?? 0}).pdf`,
+        category: data.reportType === "proposal_summary" ? "coldpro_proposal_summary" : "coldpro_memorial",
         storage_path: storagePath,
         mime_type: "application/pdf",
         size_bytes: buffer.byteLength,
@@ -282,11 +313,25 @@ export const generateColdProMemorialPdf = createServerFn({ method: "POST" })
           coldpro_project_id: project.id,
           revision: project.revision ?? 0,
           environments_count: (environments ?? []).length,
+          report_type: data.reportType,
         },
       })
       .select("id")
       .single();
     if (docErr) throw new Error(`Falha ao registrar documento: ${docErr.message}`);
+
+    if (data.attachToProposal && project.proposal_id && data.reportType === "proposal_summary") {
+      const { data: proposalDoc } = await supabase
+        .from("proposal_documents")
+        .select("attached_pdf_paths")
+        .eq("proposal_id", project.proposal_id)
+        .maybeSingle();
+      const currentPaths = Array.isArray(proposalDoc?.attached_pdf_paths) ? proposalDoc.attached_pdf_paths : [];
+      await supabase
+        .from("proposal_documents")
+        .update({ attached_pdf_paths: Array.from(new Set([...currentPaths, storagePath])) })
+        .eq("proposal_id", project.proposal_id);
+    }
 
     // URL assinada para download imediato (1h)
     const { data: signed } = await supabase.storage

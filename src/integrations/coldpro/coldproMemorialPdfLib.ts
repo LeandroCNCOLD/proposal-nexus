@@ -199,6 +199,15 @@ function loadOfferChart(ctx: Ctx, requiredKcalH: number, offeredKcalH: number) {
   ctx.y -= 44;
 }
 
+function selectionStatus(requiredKcalH: number, offeredKcalH: number) {
+  if (requiredKcalH <= 0 || offeredKcalH <= 0) return { label: "PENDENTE", note: "Cálculo ou seleção ainda não informado." };
+  const margin = ((offeredKcalH - requiredKcalH) / requiredKcalH) * 100;
+  if (offeredKcalH < requiredKcalH) return { label: "ALERTA", note: "Capacidade ofertada abaixo da carga requerida; revisar seleção." };
+  if (margin < 10) return { label: "CRÍTICO", note: "Sobra técnica inferior a 10%; margem operacional apertada." };
+  if (margin > 50) return { label: "SUPERDIMENSIONADO", note: "Sobra técnica acima de 50%; avaliar modelo menor ou modulação." };
+  return { label: "ADEQUADO", note: "Sobra técnica dentro da faixa recomendada para validação comercial." };
+}
+
 function projectLineChart(ctx: Ctx, environments: any[], results: any[]) {
   const points = environments.map((env: any, index: number) => ({ index, label: clean(env.name).slice(0, 10), value: Number(results.find((r: any) => r.environment_id === env.id)?.total_required_kcal_h ?? 0) })).filter((point) => point.value > 0);
   if (points.length < 2) return;
@@ -227,22 +236,30 @@ function projectLineChart(ctx: Ctx, environments: any[], results: any[]) {
   ctx.y -= 122;
 }
 
-function temperatureCurveChart(ctx: Ctx, env: any) {
-  const tin = Number(env.external_temp_c ?? 0);
-  const tout = Number(env.internal_temp_c ?? 0);
+function temperatureCurveChart(ctx: Ctx, env: any, products: any[] = []) {
+  const product = products.find((p) => Number.isFinite(Number(p.inlet_temp_c)) && Number.isFinite(Number(p.outlet_temp_c)));
+  const tin = Number(product?.inlet_temp_c ?? env.external_temp_c ?? 0);
+  const tout = Number(product?.outlet_temp_c ?? env.internal_temp_c ?? 0);
+  const freeze = product?.initial_freezing_temp_c != null ? Number(product.initial_freezing_temp_c) : null;
+  const hours = Math.max(1, Number(product?.process_time_h ?? env.compressor_runtime_hours_day ?? 24));
   if (!Number.isFinite(tin) || !Number.isFinite(tout) || tin === tout) return;
-  ensure(ctx, 92);
+  ensure(ctx, 112);
   const x0 = M + 12;
-  const y0 = ctx.y - 70;
+  const y0 = ctx.y - 82;
   const w = A4[0] - M * 2 - 24;
-  const h = 44;
-  const points = [[0, tin], [0.35, tin - (tin - tout) * 0.45], [0.7, tin - (tin - tout) * 0.82], [1, tout]] as Array<[number, number]>;
-  const maxT = Math.max(tin, tout);
-  const minT = Math.min(tin, tout);
-  ctx.page.drawText("Curva técnica de temperatura até o setpoint", { x: M, y: ctx.y, size: 8, font: ctx.fonts.bold, color: COLORS.primary });
+  const h = 54;
+  const points = freeze !== null && tin > freeze && tout < freeze
+    ? [[0, tin], [0.35, freeze], [0.65, freeze], [1, tout]] as Array<[number, number]>
+    : [[0, tin], [0.4, tin - (tin - tout) * 0.5], [0.75, tin - (tin - tout) * 0.85], [1, tout]] as Array<[number, number]>;
+  const maxT = Math.max(tin, tout, freeze ?? tin);
+  const minT = Math.min(tin, tout, freeze ?? tout);
+  ctx.page.drawText("Curva X/Y de temperatura do processo", { x: M, y: ctx.y, size: 8, font: ctx.fonts.bold, color: COLORS.primary });
   ctx.page.drawLine({ start: { x: x0, y: y0 }, end: { x: x0 + w, y: y0 }, thickness: 0.5, color: COLORS.border });
-  ctx.page.drawText(`${fmt(tin)} °C externo`, { x: x0, y: y0 + h + 4, size: 7, font: ctx.fonts.bold, color: COLORS.muted });
-  ctx.page.drawText(`${fmt(tout)} °C alvo`, { x: x0 + w - 52, y: y0 - 12, size: 7, font: ctx.fonts.bold, color: COLORS.muted });
+  ctx.page.drawLine({ start: { x: x0, y: y0 }, end: { x: x0, y: y0 + h }, thickness: 0.5, color: COLORS.border });
+  ctx.page.drawText("Tempo (h)", { x: x0 + w - 34, y: y0 - 13, size: 6.5, font: ctx.fonts.bold, color: COLORS.muted });
+  ctx.page.drawText("Temp. (°C)", { x: x0, y: y0 + h + 7, size: 6.5, font: ctx.fonts.bold, color: COLORS.muted });
+  ctx.page.drawText(`0 h`, { x: x0 - 2, y: y0 - 13, size: 6.5, font: ctx.fonts.regular, color: COLORS.muted });
+  ctx.page.drawText(`${fmt(hours, 1)} h`, { x: x0 + w - 18, y: y0 - 13, size: 6.5, font: ctx.fonts.regular, color: COLORS.muted });
   points.forEach(([t, temp], i) => {
     const x = x0 + t * w;
     const y = y0 + ((temp - minT) / Math.max(1, maxT - minT)) * h;
@@ -251,8 +268,9 @@ function temperatureCurveChart(ctx: Ctx, env: any) {
       ctx.page.drawLine({ start: { x: x0 + pt * w, y: y0 + ((ptemp - minT) / Math.max(1, maxT - minT)) * h }, end: { x, y }, thickness: 1.2, color: COLORS.accent });
     }
     ctx.page.drawCircle({ x, y, size: 2.6, color: COLORS.primary });
+    ctx.page.drawText(`${fmt(t * hours, 1)}h / ${fmt(temp, 1)}°C`, { x: Math.min(x, x0 + w - 54), y: y + 6, size: 6, font: ctx.fonts.regular, color: COLORS.text });
   });
-  ctx.y -= 86;
+  ctx.y -= 104;
 }
 
 function stackedLoadChart(ctx: Ctx, result: any) {
@@ -374,10 +392,100 @@ async function drawEquipmentImage(ctx: Ctx, selection: any, x: number, y: number
   return true;
 }
 
-export async function buildColdProMemorialPdfBuffer({ project, environments, results, selections, products, generatedAt, generatedBy, aiAnalysis }: any): Promise<Uint8Array> {
+function drawEquipmentCatalogSpecs(ctx: Ctx, selection: any) {
+  const model = selection?.catalog_model ?? {};
+  const compressor = selection?.catalog_compressor ?? {};
+  const condenser = selection?.catalog_condenser ?? {};
+  const evaporator = selection?.catalog_evaporator ?? {};
+  const perf = selection?.catalog_performance ?? {};
+  const voltage = model.electrical_configuration ?? perf.voltage ?? "—";
+  const compressorName = [compressor.copeland, compressor.bitzer, compressor.danfoss_bock, compressor.dorin].filter(Boolean).join(" / ") || "—";
+  heading(ctx, "Especificações técnicas e comerciais do equipamento", 2);
+  table(ctx, ["4.1 Informações gerais", "Valor"], [["Modelo", selection?.model ?? model.modelo], ["Série / linha", model.linha ?? model.designacao_hp], ["Tipo / gabinete", model.tipo_gabinete ?? model.gabinete], ["Aplicação", model.application_type ?? "Câmaras frigoríficas"], ["Refrigerante", selection?.refrigerant ?? model.refrigerante], ["Fabricante", "CN ColdPro"]], [0.42, 0.58]);
+  table(ctx, ["4.2 Elétrica / performance", "Valor"], [["Tensão / fase / frequência", `${voltage} | ${model.phase_count ?? "—"}F | ${model.frequency_hz ?? "—"} Hz`], ["Corrente nominal estimada", perf.estimated_current_a ? `${fmt(perf.estimated_current_a)} A` : "—"], ["Corrente compressor / ventiladores", `${perf.compressor_current_a ? fmt(perf.compressor_current_a) : "—"} A / ${perf.fan_current_a ? fmt(perf.fan_current_a) : "—"} A`], ["Potência total", `${fmt(selection?.total_power_kw ?? perf.total_power_kw)} kW`], ["COP", perf.cop ? fmt(perf.cop, 2) : selection?.cop ? fmt(selection.cop, 2) : "—"], ["Capacidade na curva", `${fmt(perf.evaporator_capacity_kcal_h ?? selection?.capacity_unit_kcal_h, 0)} kcal/h`]], [0.42, 0.58]);
+  table(ctx, ["4.3 Sistemas principais", "Valor"], [["Compressor", compressorName], ["Evaporador", evaporator.evaporator_model ?? "—"], ["Condensador", condenser.condenser_model ?? "—"], ["Vazão evaporador", evaporator.airflow_m3_h ? `${fmt(evaporator.airflow_m3_h, 0)} m3/h` : `${fmt(selection?.air_flow_unit_m3_h, 0)} m3/h`], ["Vazão condensador", condenser.airflow_m3_h ? `${fmt(condenser.airflow_m3_h, 0)} m3/h` : "—"], ["Degelo", model.tipo_degelo ?? evaporator.reheating ?? "—"]], [0.42, 0.58]);
+  table(ctx, ["4.4 Construção / operação", "Valor"], [["Área troca evaporador", evaporator.estimated_exchange_area_m2 ? `${fmt(evaporator.estimated_exchange_area_m2)} m2` : "—"], ["Volume interno evaporador", evaporator.corrected_internal_volume_l ? `${fmt(evaporator.corrected_internal_volume_l)} L` : evaporator.internal_volume_l ? `${fmt(evaporator.internal_volume_l)} L` : "—"], ["Volume interno condensador", condenser.corrected_internal_volume_l ? `${fmt(condenser.corrected_internal_volume_l)} L` : condenser.internal_volume_l ? `${fmt(condenser.internal_volume_l)} L` : "—"], ["Carga estimada refrigerante", evaporator.estimated_refrigerant_charge_kg || condenser.estimated_refrigerant_charge_kg ? `${fmt(Number(evaporator.estimated_refrigerant_charge_kg ?? 0) + Number(condenser.estimated_refrigerant_charge_kg ?? 0))} kg` : "—"], ["Condição da curva", `${fmt(perf.temperature_room_c)} °C sala / evap. ${fmt(perf.evaporation_temp_c)} °C / cond. ${fmt(perf.condensation_temp_c)} °C`], ["Garantia / assistência", "Conforme proposta comercial CN ColdPro"]], [0.42, 0.58]);
+}
+
+function drawFinalLaudo(ctx: Ctx, project: any, environments: any[], results: any[], selections: any[], aiAnalysis?: string | null) {
+  addPage(ctx);
+  heading(ctx, "Laudo final de análise técnica", 1);
+  paragraph(ctx, "LAUDO TÉCNICO E COMERCIAL DE ENGENHARIA FRIGORÍFICA", { size: 10, bold: true, gap: 4 });
+  drawKeyGrid(ctx, [["Projeto", project?.name ?? "—"], ["Aplicação", project?.application_type ?? "—"], ["Responsável técnico", "Engenharia CN ColdPro"], ["Revisão", String(project?.revision ?? 0)]], 2);
+  environments.forEach((env: any) => {
+    const r = results.find((item: any) => item.environment_id === env.id);
+    const s = selections.find((item: any) => item.environment_id === env.id);
+    const required = Number(r?.total_required_kcal_h ?? 0);
+    const offered = Number(s?.capacity_total_kcal_h ?? 0);
+    const status = selectionStatus(required, offered);
+    heading(ctx, env.name, 3);
+    paragraph(ctx, `1. Conclusão executiva: ambiente com carga requerida de ${fmt(required, 0)} kcal/h e capacidade ofertada de ${fmt(offered, 0)} kcal/h. Status: ${status.label}.`, { size: 8.5, bold: true, gap: 3 });
+    paragraph(ctx, `2. Validação das premissas: dimensões ${fmt(env.length_m)} x ${fmt(env.width_m)} x ${fmt(env.height_m)} m, volume ${fmt(env.volume_m3)} m3, regime ${fmt(env.internal_temp_c)} °C interno e ${fmt(env.external_temp_c)} °C externo.`, { size: 8.2, gap: 3 });
+    paragraph(ctx, `3. Análise de produto e mudança de estado: a parcela de produto representa ${fmt(r?.product_kcal_h, 0)} kcal/h; validar massa diária, temperatura de entrada, temperatura final, embalagem e tempo de processo.`, { size: 8.2, gap: 3 });
+    paragraph(ctx, `4. Comparação requerida x oferecida: ${status.note}`, { size: 8.2, gap: 3 });
+    paragraph(ctx, `5. Riscos e observações: revisar infiltração, abertura de portas, umidade externa, degelo, carga de ventiladores e operação real do compressor.`, { size: 8.2, gap: 3 });
+    paragraph(ctx, `6. Recomendação final: ${offered < required ? "selecionar equipamento maior ou múltiplas unidades." : ((offered - required) / Math.max(1, required)) * 100 > 50 ? "avaliar alternativa menor/modulante para evitar superdimensionamento." : "seleção tecnicamente aplicável, sujeita à validação das premissas de campo."}`, { size: 8.2, gap: 5 });
+  });
+  if (aiAnalysis) paragraph(ctx, `Análise complementar: ${aiAnalysis}`, { size: 8, gap: 4 });
+  paragraph(ctx, "Rodapé técnico: Engenheiro responsável: Engenharia CN ColdPro | Data: " + ctx.generatedAt + " | Status: emissão preliminar auditável.", { size: 7.5, color: COLORS.muted });
+}
+
+async function drawProposalSummary(ctx: Ctx, project: any, environments: any[], results: any[], selections: any[], products: any[]) {
+  heading(ctx, "Resumo técnico para proposta", 1);
+  paragraph(ctx, "Página executiva para anexar à proposta comercial, usando exclusivamente o cálculo atual por ambiente e a seleção técnica vigente.");
+  table(ctx, ["Ambiente", "Volume", "Carga requerida", "kW", "TR"], environments.map((env: any) => {
+    const r = results.find((item: any) => item.environment_id === env.id);
+    return [env.name, `${fmt(env.volume_m3)} m3`, `${fmt(r?.total_required_kcal_h, 0)} kcal/h`, fmt(r?.total_required_kw), fmt(r?.total_required_tr)];
+  }), [0.3, 0.16, 0.24, 0.14, 0.16]);
+  const aggregateResult = results.reduce((acc: any, result: any) => { for (const [key, value] of Object.entries(result ?? {})) if (key.endsWith("_kcal_h")) acc[key] = Number(acc[key] ?? 0) + Number(value ?? 0); return acc; }, {});
+  heading(ctx, "Distribuição da carga térmica", 2);
+  pieChart(ctx, aggregateResult);
+  stackedLoadChart(ctx, aggregateResult);
+  environments.forEach((env: any) => {
+    const r = results.find((item: any) => item.environment_id === env.id);
+    const envProducts = products.filter((p: any) => p.environment_id === env.id);
+    if (!r) return;
+    heading(ctx, env.name, 3);
+    temperatureCurveChart(ctx, env, envProducts);
+    drawKpis(ctx, [["Subtotal", `${fmt(r.subtotal_kcal_h, 0)} kcal/h`], ["Segurança", `${fmt(r.safety_kcal_h, 0)} kcal/h`], ["Requerida", `${fmt(r.total_required_kcal_h, 0)} kcal/h`]]);
+  });
+
+  addPage(ctx);
+  heading(ctx, "Equipamento selecionado", 1);
+  for (const env of environments) {
+    const result = results.find((item: any) => item.environment_id === env.id);
+    const selection = selections.find((item: any) => item.environment_id === env.id);
+    if (!selection) continue;
+    const required = Number(result?.total_required_kcal_h ?? 0);
+    const offered = Number(selection.capacity_total_kcal_h ?? 0);
+    const status = selectionStatus(required, offered);
+    heading(ctx, env.name, 3);
+    loadOfferChart(ctx, required, offered);
+    table(ctx, ["Modelo", "Qtd.", "Capacidade", "Sobra", "Status"], [[selection.model, fmt(selection.quantity), `${fmt(offered, 0)} kcal/h`, `${fmt(selection.surplus_percent)}%`, status.label]], [0.3, 0.1, 0.24, 0.16, 0.2]);
+    drawKeyGrid(ctx, [["Refrigerante", selection.refrigerant ?? selection.catalog_model?.refrigerante ?? "—"], ["Tensão", selection.catalog_model?.electrical_configuration ?? selection.catalog_performance?.voltage ?? "—"], ["Potência", `${fmt(selection.total_power_kw ?? selection.catalog_performance?.total_power_kw)} kW`], ["COP", selection.cop ? fmt(selection.cop, 2) : selection.catalog_performance?.cop ? fmt(selection.catalog_performance.cop, 2) : "—"], ["Vazão total", `${fmt(selection.air_flow_total_m3_h, 0)} m3/h`], ["Trocas/h", fmt(selection.air_changes_hour)]], 2);
+    const y = ctx.y - 78;
+    ctx.page.drawRectangle({ x: A4[0] - M - 136, y: y - 6, width: 136, height: 92, color: COLORS.soft, borderColor: COLORS.border, borderWidth: 0.5 });
+    const ok = await drawEquipmentImage(ctx, selection, A4[0] - M - 128, y + 2);
+    if (!ok) ctx.page.drawText("Foto do equipamento não cadastrada", { x: A4[0] - M - 126, y: y + 38, size: 7.5, font: ctx.fonts.regular, color: COLORS.muted });
+    ctx.y -= 34;
+  }
+}
+
+export async function buildColdProMemorialPdfBuffer({ project, environments, results, selections, products, generatedAt, generatedBy, aiAnalysis, reportType = "full" }: any): Promise<Uint8Array> {
   const pdf = await PDFDocument.create();
   const fonts = { regular: await pdf.embedFont(StandardFonts.Helvetica), bold: await pdf.embedFont(StandardFonts.HelveticaBold) };
   const ctx: Ctx = { pdf, page: pdf.addPage(A4), fonts, y: A4[1] - 76, projectName: project?.name ?? "Projeto", generatedAt };
+
+  if (reportType === "proposal_summary") {
+    await drawProposalSummary(ctx, project, environments, results, selections, products);
+    const pageCount = pdf.getPageCount();
+    pdf.getPages().forEach((page, i) => {
+      page.drawLine({ start: { x: M, y: 30 }, end: { x: A4[0] - M, y: 30 }, thickness: 0.5, color: COLORS.border });
+      page.drawText(`CN ColdPro - Resumo para proposta gerado em ${clean(generatedAt)}`, { x: M, y: 18, size: 7, font: fonts.regular, color: COLORS.muted });
+      page.drawText(`Página ${i + 1} de ${pageCount}`, { x: A4[0] - M - 70, y: 18, size: 7, font: fonts.regular, color: COLORS.muted });
+    });
+    return pdf.save();
+  }
 
   ctx.page.drawRectangle({ x: 0, y: 0, width: A4[0], height: A4[1], color: COLORS.primary });
   ctx.page.drawText("CN COLDPRO - MEMORIAL TÉCNICO", { x: M + 14, y: A4[1] - 96, size: 10, font: fonts.bold, color: rgb(0.61, 0.74, 0.84) });
@@ -429,7 +537,7 @@ export async function buildColdProMemorialPdfBuffer({ project, environments, res
     if (result) {
       heading(ctx, "2. Cálculo executado", 3);
       paragraph(ctx, "O cálculo considera as trocas térmicas pela envoltória, a retirada de calor do produto e embalagem, a entrada de ar por infiltração e as cargas internas informadas para o ambiente.", { size: 8.5, gap: 4 });
-      temperatureCurveChart(ctx, env);
+      temperatureCurveChart(ctx, env, envProducts);
       barChart(ctx, result);
       stackedLoadChart(ctx, result);
       table(ctx, ["Componente", "Carga"], [["Transmissão", result.transmission_kcal_h], ["Produto", result.product_kcal_h], ["Embalagem", result.packaging_kcal_h], ["Infiltração", result.infiltration_kcal_h], ["Pessoas", result.people_kcal_h], ["Iluminação", result.lighting_kcal_h], ["Motores", result.motors_kcal_h], ["Ventiladores", result.fans_kcal_h], ["Degelo", result.defrost_kcal_h], ["Outros", result.other_kcal_h]].map(([l, v]) => [String(l), `${fmt(v, 0)} kcal/h`]), [0.68, 0.32]);
@@ -456,15 +564,11 @@ export async function buildColdProMemorialPdfBuffer({ project, environments, res
       const ok = await drawEquipmentImage(ctx, selection, A4[0] - M - 128, imageY + 2);
       if (!ok) ctx.page.drawText("Foto do equipamento não cadastrada", { x: A4[0] - M - 126, y: imageY + 38, size: 7.5, font: fonts.regular, color: COLORS.muted });
       drawKeyGrid(ctx, [["Vazão total", `${fmt(selection.air_flow_total_m3_h, 0)} m3/h`], ["Trocas/h", fmt(selection.air_changes_hour)], ["Potência", selection.total_power_kw ? `${fmt(selection.total_power_kw)} kW` : "—"], ["COP", selection.cop ? fmt(selection.cop) : "—"]], 2);
+      drawEquipmentCatalogSpecs(ctx, selection);
     }
   }
 
-  if (aiAnalysis) {
-    addPage(ctx);
-    heading(ctx, "Laudo final de análise técnica", 1);
-    paragraph(ctx, "Análise gerada por IA a partir das premissas, cargas calculadas, propriedades térmicas dos produtos e seleção de equipamentos do memorial.", { size: 8.5, color: COLORS.muted });
-    for (const block of String(aiAnalysis).split(/\n{2,}/).filter(Boolean)) paragraph(ctx, block, { size: 9, gap: 6 });
-  }
+  drawFinalLaudo(ctx, project, environments, results, selections, aiAnalysis);
 
   const pageCount = pdf.getPageCount();
   pdf.getPages().forEach((page, i) => {

@@ -42,7 +42,7 @@ type Props = {
   advancedProcesses?: any[];
   onPushToProposal?: () => void;
   isPushing?: boolean;
-  onGeneratePdf?: (aiAnalysis?: string | null) => void;
+  onGeneratePdf?: (aiAnalysis?: string | null, reportType?: "full" | "proposal_summary") => void;
   onAnalyze?: (question: string, previousAnalysis?: string | null) => Promise<string | null>;
   isGeneratingPdf?: boolean;
   isAnalyzing?: boolean;
@@ -110,12 +110,23 @@ export function ColdProReport({
           {onGeneratePdf ? (
             <button
               type="button"
-              onClick={() => onGeneratePdf(aiAnalysis)}
+              onClick={() => onGeneratePdf(aiAnalysis, "full")}
               disabled={isGeneratingPdf}
               className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground disabled:opacity-50"
             >
               {isGeneratingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
               {isGeneratingPdf ? "Gerando PDF completo..." : "Gerar memorial PDF completo"}
+            </button>
+          ) : null}
+          {onGeneratePdf ? (
+            <button
+              type="button"
+              onClick={() => onGeneratePdf(aiAnalysis, "proposal_summary")}
+              disabled={isGeneratingPdf}
+              className="inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm hover:bg-muted disabled:opacity-50"
+            >
+              {isGeneratingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+              Gerar resumo para proposta
             </button>
           ) : null}
           {lastPdfUrl ? (
