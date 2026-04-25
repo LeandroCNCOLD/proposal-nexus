@@ -117,13 +117,20 @@ export function ColdProExtraLoadsForm({ environment, catalogFanLoadKcalH = 0, on
                 <div>
                   <ColdProField label="Motores internos" unit="kW"><ColdProInput {...num("motors_power_kw")} /></ColdProField>
                   <ColdProField label="Horas de motores" unit="h/dia"><ColdProInput {...num("motors_hours_day")} /></ColdProField>
+                  <ColdProField label="Dissipação motores"><ColdProInput {...num("motors_dissipation_factor")} /></ColdProField>
                   <ColdProField label="Ventiladores" unit="kcal/h"><ColdProInput {...num("fans_kcal_h")} /></ColdProField>
+                  <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    {MOTOR_EQUIPMENT_PRESETS.map((preset) => <button key={preset.label} type="button" onClick={() => applyMotorPreset(preset)} className="rounded-md border bg-background px-3 py-2 text-left text-xs font-medium hover:bg-muted">{preset.label} · {fmtColdPro(preset.powerKw)} kW</button>)}
+                  </div>
                   {catalogFanLoadKcalH > 0 ? <button type="button" onClick={() => set("fans_kcal_h", catalogFanLoadKcalH)} className="mb-4 rounded-md border bg-background px-3 py-2 text-xs font-medium hover:bg-muted">Usar ventiladores do catálogo ({fmtColdPro(catalogFanLoadKcalH)} kcal/h)</button> : null}
                 </div>
                 <div>
+                  <ColdProField label="Temperatura evaporação" unit="°C"><ColdProInput {...num("evaporator_temp_c")} /></ColdProField>
+                  <ColdProField label="Perdas degelo"><ColdProInput {...num("defrost_loss_factor")} /></ColdProField>
                   <ColdProField label="Degelo" unit="kcal/h"><ColdProInput {...num("defrost_kcal_h")} /></ColdProField>
+                  <button type="button" onClick={() => set("defrost_kcal_h", preview.defrost_suggestion.defrostKcalH)} className="mb-4 rounded-md border bg-background px-3 py-2 text-xs font-medium hover:bg-muted">Usar degelo calculado ({fmtColdPro(preview.defrost_suggestion.defrostKcalH)} kcal/h)</button>
                   <ColdProField label="Outras cargas" unit="kcal/h"><ColdProInput {...num("other_kcal_h")} /></ColdProField>
-                  <ColdProCalculatedInfo label="Motores e cargas adicionais" value={`${fmtColdPro(preview.motors_kcal_h + preview.fans_kcal_h + preview.defrost_kcal_h + preview.other_kcal_h)} kcal/h`} description={`Potência elétrica base ${fmtColdPro(internalPower)} kW`} />
+                  <ColdProCalculatedInfo label="Motores e cargas adicionais" value={`${fmtColdPro(preview.motors_kcal_h + preview.fans_kcal_h + preview.defrost_kcal_h + preview.other_kcal_h)} kcal/h`} description={`Potência ${fmtColdPro(internalPower)} kW · dissipação ${fmtColdPro(form?.motors_dissipation_factor ?? 1)}`} />
                 </div>
               </div>
             </ColdProFormSection>
