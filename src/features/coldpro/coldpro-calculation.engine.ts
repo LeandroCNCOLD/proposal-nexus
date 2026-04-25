@@ -123,8 +123,8 @@ function faceArea(face: ColdProConstructionFace) {
 }
 
 function faceDeltaT(face: ColdProConstructionFace, env: ColdProEnvironment) {
-  const targetTemp = face.local === "PISO" && env.floor_temp_c !== null && env.floor_temp_c !== undefined
-    ? env.floor_temp_c
+  const targetTemp = face.local === "PISO"
+    ? (face.external_temp_c ?? env.floor_temp_c ?? (env.has_floor_insulation ? env.external_temp_c : 20))
     : face.external_temp_c ?? env.external_temp_c;
   return positive(n(targetTemp) - n(env.internal_temp_c));
 }
