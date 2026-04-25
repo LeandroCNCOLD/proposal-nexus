@@ -19,6 +19,7 @@ import {
 } from "./coldpro.constants";
 import { calculateAdvancedProcess } from "@/modules/coldpro/services/advancedProcesses/advancedProcessEngine";
 import { calculateEvaporatorFrostRisk, suggestedInfiltrationFactor } from "./extra-loads-preview";
+import { calculateMotorLoadKcalH, calculateTechnicalDefrost, calculateTechnicalInfiltration } from "./thermal-calculations";
 
 const W_TO_KCAL_H = 0.859845;
 const R_INTERNAL_M2K_W = 0.12;
@@ -590,17 +591,7 @@ export function calculatePackagingLoad(product: ColdProEnvironmentProduct): numb
 }
 
 export function calculateInfiltrationLoad(env: ColdProEnvironment): number {
-  const doorArea = n(env.door_width_m) * n(env.door_height_m);
-  const openings = n(env.door_openings_per_day);
-  const factor = n(env.infiltration_factor) > 0 ? n(env.infiltration_factor) : suggestedInfiltrationFactor(env);
-
-  const deltaT = positive(n(env.external_temp_c) - n(env.internal_temp_c));
-  const airVolumeDay = doorArea * openings * factor;
-  const continuousAirM3H = n(env.volume_m3) * n(env.air_changes_per_hour) + n(env.fresh_air_m3_h) + n(env.door_infiltration_m3_h);
-
-  const hours = n(env.compressor_runtime_hours_day, 20) || 20;
-
-  return (airVolumeDay * AIR_DENSITY_KG_M3 * AIR_SPECIFIC_HEAT_KCAL_KG_C * deltaT) / hours + continuousAirM3H * AIR_DENSITY_KG_M3 * AIR_SPECIFIC_HEAT_KCAL_KG_C * deltaT;
+  return calculateTechnicalInfiltration(env).totalInfiltrationKcalH;
 }
 
 export function calculatePeopleLoad(env: ColdProEnvironment): number {
@@ -614,8 +605,7 @@ export function calculateLightingLoad(env: ColdProEnvironment): number {
 }
 
 export function calculateMotorsLoad(env: ColdProEnvironment): number {
-  const compressorHours = n(env.compressor_runtime_hours_day, 20) || 20;
-  return (kwToKcalh(n(env.motors_power_kw)) * n(env.motors_hours_day)) / compressorHours;
+  return calculateMotorLoadKcalH(env);
 }
 
 export function calculateTunnelLoad(tunnel: ColdProTunnel) {
@@ -790,12 +780,14 @@ export function calculateColdProLoad(params: {
   const advancedProcesses = (params.advancedProcesses ?? []).map(calculateAdvancedProcess);
   const advancedProcessLoad = advancedProcesses.reduce((sum, item) => sum + n(item.total_additional_kcal_h), 0);
   const infiltration = calculateInfiltrationLoad(params.env);
+  const infiltrationBreakdown = calculateTechnicalInfiltration(params.env);
   const evaporatorFrost = calculateEvaporatorFrostRisk(params.env, infiltration);
   const people = calculatePeopleLoad(params.env);
   const lighting = calculateLightingLoad(params.env);
   const motors = calculateMotorsLoad(params.env);
   const fans = n(params.env.fans_kcal_h);
-  const defrost = n(params.env.defrost_kcal_h);
+  const defrostSuggestion = calculateTechnicalDefrost(params.env, infiltrationBreakdown.iceKgDay);
+  const defrost = n(params.env.defrost_kcal_h) > 0 ? n(params.env.defrost_kcal_h) : defrostSuggestion.defrostKcalH;
   const other = n(params.env.other_kcal_h);
 
   const subtotal = transmission + product + packaging + respiration + tunnelInternalLoad + dehumidificationLoad + advancedProcessLoad + infiltration + evaporatorFrost.additional_load_kcal_h + people + lighting + motors + fans + defrost + other;
@@ -833,6 +825,8 @@ export function calculateColdProLoad(params: {
       transmission_faces: transmissionBreakdown.faces,
       tunnel: tunnelResult,
       seed_dehumidification: dehumidification,
+      infiltration_technical: infiltrationBreakdown,
+      defrost_suggestion: defrostSuggestion,
       advanced_processes: advancedProcesses,
       advanced_processes_kcal_h: round2(advancedProcessLoad),
       evaporator_frost: evaporatorFrost,

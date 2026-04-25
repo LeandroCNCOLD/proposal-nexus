@@ -264,6 +264,16 @@ export function ColdProReport({
                     <b>Total requerido:</b> {fmt(result.total_required_kcal_h)} kcal/h ·{" "}
                     {fmt(result.total_required_kw)} kW · {fmt(result.total_required_tr)} TR
                   </div>
+                  {result.calculation_breakdown?.infiltration_technical ? (
+                    <div className="mt-3 grid gap-2 rounded-md border bg-muted/20 p-3 text-xs sm:grid-cols-2 lg:grid-cols-4">
+                      {(() => { const inf: any = result.calculation_breakdown.infiltration_technical; const deg: any = result.calculation_breakdown.defrost_suggestion; return <>
+                        <div><b>Infiltração sensível:</b><br />{fmt(inf.sensibleKcalH)} kcal/h</div>
+                        <div><b>Infiltração latente:</b><br />{fmt(inf.latentKcalH)} kcal/h</div>
+                        <div><b>Gelo formado:</b><br />{fmt(inf.iceKgDay)} kg/dia</div>
+                        <div><b>Degelo sugerido:</b><br />{fmt(deg?.defrostKcalH)} kcal/h</div>
+                      </>; })()}
+                    </div>
+                  ) : null}
                   {Array.isArray(result.calculation_breakdown?.transmission_faces) && result.calculation_breakdown.transmission_faces.length ? (
                     <div className="mt-3">
                       <div className="mb-1 text-sm font-semibold">Transmissão por face</div>

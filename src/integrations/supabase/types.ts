@@ -778,12 +778,14 @@ export type Database = {
           atmospheric_pressure_kpa: number | null
           ceiling_thickness_mm: number
           chamber_layout_type: string | null
+          climate_region: string
           coldpro_project_id: string
           compressor_runtime_hours_day: number
           construction_faces: Json
           construction_load_kcal_h: number
           created_at: string
           defrost_kcal_h: number
+          defrost_loss_factor: number
           dimension_a_m: number | null
           dimension_b_m: number | null
           dimension_c_m: number | null
@@ -792,9 +794,13 @@ export type Database = {
           dimension_f_m: number | null
           door_height_m: number
           door_infiltration_m3_h: number
+          door_open_seconds_per_opening: number
           door_openings_per_day: number
+          door_operation_profile: string
+          door_protection_type: string
           door_width_m: number
           environment_type: string
+          evaporator_temp_c: number
           external_relative_humidity_percent: number | null
           external_temp_c: number
           fans_kcal_h: number
@@ -811,6 +817,7 @@ export type Database = {
           lighting_hours_day: number
           lighting_power_w: number
           module_count: number | null
+          motors_dissipation_factor: number
           motors_hours_day: number
           motors_power_kw: number
           name: string
@@ -840,12 +847,14 @@ export type Database = {
           atmospheric_pressure_kpa?: number | null
           ceiling_thickness_mm?: number
           chamber_layout_type?: string | null
+          climate_region?: string
           coldpro_project_id: string
           compressor_runtime_hours_day?: number
           construction_faces?: Json
           construction_load_kcal_h?: number
           created_at?: string
           defrost_kcal_h?: number
+          defrost_loss_factor?: number
           dimension_a_m?: number | null
           dimension_b_m?: number | null
           dimension_c_m?: number | null
@@ -854,9 +863,13 @@ export type Database = {
           dimension_f_m?: number | null
           door_height_m?: number
           door_infiltration_m3_h?: number
+          door_open_seconds_per_opening?: number
           door_openings_per_day?: number
+          door_operation_profile?: string
+          door_protection_type?: string
           door_width_m?: number
           environment_type?: string
+          evaporator_temp_c?: number
           external_relative_humidity_percent?: number | null
           external_temp_c?: number
           fans_kcal_h?: number
@@ -873,6 +886,7 @@ export type Database = {
           lighting_hours_day?: number
           lighting_power_w?: number
           module_count?: number | null
+          motors_dissipation_factor?: number
           motors_hours_day?: number
           motors_power_kw?: number
           name: string
@@ -902,12 +916,14 @@ export type Database = {
           atmospheric_pressure_kpa?: number | null
           ceiling_thickness_mm?: number
           chamber_layout_type?: string | null
+          climate_region?: string
           coldpro_project_id?: string
           compressor_runtime_hours_day?: number
           construction_faces?: Json
           construction_load_kcal_h?: number
           created_at?: string
           defrost_kcal_h?: number
+          defrost_loss_factor?: number
           dimension_a_m?: number | null
           dimension_b_m?: number | null
           dimension_c_m?: number | null
@@ -916,9 +932,13 @@ export type Database = {
           dimension_f_m?: number | null
           door_height_m?: number
           door_infiltration_m3_h?: number
+          door_open_seconds_per_opening?: number
           door_openings_per_day?: number
+          door_operation_profile?: string
+          door_protection_type?: string
           door_width_m?: number
           environment_type?: string
+          evaporator_temp_c?: number
           external_relative_humidity_percent?: number | null
           external_temp_c?: number
           fans_kcal_h?: number
@@ -935,6 +955,7 @@ export type Database = {
           lighting_hours_day?: number
           lighting_power_w?: number
           module_count?: number | null
+          motors_dissipation_factor?: number
           motors_hours_day?: number
           motors_power_kw?: number
           name?: string
