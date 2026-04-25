@@ -721,7 +721,7 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
               </div>
 
               <div className="overflow-x-auto rounded-xl border">
-                <table className="w-full min-w-[1240px] text-sm">
+                <table className="w-full min-w-[1680px] text-sm">
                   <thead className="bg-muted/50 text-sm text-muted-foreground">
                     <tr>
                       <th className="px-3 py-3 text-left font-medium">Local</th>
@@ -729,44 +729,48 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
                       <th className="px-3 py-3 text-left font-medium">Altura m</th>
                       <th className="px-3 py-3 text-left font-medium">Área total m²</th>
                       <th className="px-3 py-3 text-left font-medium">Temp. ext °C</th>
-                      <th className="px-3 py-3 text-left font-medium">Sol</th>
                       <th className="px-3 py-3 text-left font-medium">Material aplicado</th>
                       <th className="px-3 py-3 text-left font-medium">U painel</th>
                       <th className="px-3 py-3 text-left font-medium">Vidro</th>
                       <th className="px-3 py-3 text-left font-medium">Área vidro m²</th>
                       <th className="px-3 py-3 text-left font-medium">Tipo de vidro</th>
-                      <th className="px-3 py-3 text-left font-medium">Área isolada m²</th>
-                      <th className="px-3 py-3 text-left font-medium">Carga kcal/h</th>
+                      <th className="px-3 py-3 text-left font-medium">Incidência solar</th>
+                      <th className="px-3 py-3 text-left font-medium">Área opaca m²</th>
+                      <th className="px-3 py-3 text-left font-medium">ΔT °C</th>
+                      <th className="px-3 py-3 text-left font-medium">Painel W</th>
+                      <th className="px-3 py-3 text-left font-medium">Vidro W</th>
+                      <th className="px-3 py-3 text-left font-medium">Solar vidro W</th>
+                      <th className="px-3 py-3 text-left font-medium">Total W</th>
+                      <th className="px-3 py-3 text-left font-medium">kW</th>
+                      <th className="px-3 py-3 text-left font-medium">kcal/h</th>
+                      <th className="px-3 py-3 text-left font-medium">TR</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {constructionFaces.map((face, index) => {
-                      const isWall = face.local.startsWith("PAREDE");
-                      const hasGlass = Boolean(face.has_glass);
-                      const preparedFace = {
-                        ...prepareFaceForCalculation(face, Boolean(form?.has_floor_insulation)),
-                        solar_orientation: face.local === currentSolarFace ? "Sol direto" : "",
-                      };
-                      const faceLoad = calculateFaceTransmission({ ...preparedFace, external_temp_c: displayedExternalTemp(preparedFace), glass_area_m2: hasGlass ? preparedFace.glass_area_m2 : 0 }, faceCalculationEnv as any);
-                      const solarRise = toNumber((faceLoad as any).solar_equivalent_temp_rise_c);
-                      return (
+                    {transmissionPreviewRows.map(({ face, index, isWall, hasGlass, preparedFace, load }) => (
                         <tr key={face.local} className="border-t align-middle">
                           <td className="px-3 py-3 font-medium text-foreground">{face.local}</td>
                           <td className="px-3 py-3"><ColdProInput type="number" disabled={!isWall} value={isWall ? face.wall_length_m ?? "" : ""} onChange={(e) => setFace(index, "wall_length_m", numberOrNull(e.target.value) ?? 0)} /></td>
                           <td className="px-3 py-3"><ColdProInput type="number" disabled={!isWall} value={isWall ? face.wall_height_m ?? "" : ""} onChange={(e) => setFace(index, "wall_height_m", numberOrNull(e.target.value) ?? 0)} /></td>
                           <td className="px-3 py-3"><ColdProInput type="number" readOnlyValue={face.local === "TETO" || face.local === "PISO"} value={face.panel_area_m2 ?? ""} onChange={(e) => setFace(index, "panel_area_m2", numberOrNull(e.target.value) ?? 0)} /></td>
                           <td className="px-3 py-3"><ColdProInput type="number" value={displayedExternalTemp(preparedFace) ?? ""} onChange={(e) => setFace(index, "external_temp_c", numberOrNull(e.target.value))} /></td>
-                          <td className="px-3 py-3 text-sm font-medium text-muted-foreground">{solarRise > 0 ? `Sol direto +${fmtColdPro(solarRise)}°C` : "—"}</td>
                           <td className="max-w-48 px-3 py-3 text-sm text-muted-foreground">{preparedFace.material_thickness || "—"}</td>
                           <td className="px-3 py-3 tabular-nums">{fmtColdPro(preparedFace.u_value_w_m2k, 3)}</td>
-                          <td className="px-3 py-3"><Checkbox checked={hasGlass} onCheckedChange={(checked) => setFace(index, "has_glass", Boolean(checked))} /></td>
+                          <td className="px-3 py-3"><Checkbox checked={hasGlass} onCheckedChange={(checked) => setGlassEnabled(index, Boolean(checked))} /></td>
                           <td className="px-3 py-3"><ColdProInput type="number" disabled={!hasGlass} value={hasGlass ? face.glass_area_m2 ?? "" : ""} onChange={(e) => setFace(index, "glass_area_m2", numberOrNull(e.target.value) ?? 0)} /></td>
-                          <td className="px-3 py-3"><ColdProSelect disabled={!hasGlass} value={face.glass_type ?? "simple"} onChange={(e) => setFace(index, "glass_type", e.target.value)}>{GLASS_TYPE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</ColdProSelect></td>
-                          <td className="px-3 py-3 tabular-nums">{fmtColdPro(faceLoad.insulated_area_m2)}</td>
-                          <td className="px-3 py-3 tabular-nums font-medium">{fmtColdPro(faceLoad.transmission_kcal_h)}</td>
+                          <td className="px-3 py-3"><ColdProSelect disabled={!hasGlass} value={hasGlass ? face.glass_type ?? "simple" : "none"} onChange={(e) => setFace(index, "glass_type", e.target.value)}>{GLASS_TYPE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label} · U {fmtColdPro(option.u, 1)}</option>)}</ColdProSelect></td>
+                          <td className="px-3 py-3"><ColdProSelect disabled={!hasGlass} value={toNumber(face.solar_radiation_w_m2)} onChange={(e) => setFace(index, "solar_radiation_w_m2", numberOrNull(e.target.value) ?? 0)}>{SOLAR_RADIATION_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label} · {option.value} W/m²</option>)}</ColdProSelect></td>
+                          <td className="px-3 py-3 tabular-nums">{fmtColdPro(load.insulated_area_m2)}</td>
+                          <td className="px-3 py-3 tabular-nums">{fmtColdPro(load.delta_t_c)}</td>
+                          <td className="px-3 py-3 tabular-nums">{fmtColdPro((load as any).panel_transmission_w)}</td>
+                          <td className="px-3 py-3 tabular-nums">{fmtColdPro((load as any).glass_transmission_w)}</td>
+                          <td className="px-3 py-3 tabular-nums">{fmtColdPro((load as any).glass_solar_w)}</td>
+                          <td className="px-3 py-3 tabular-nums font-medium">{fmtColdPro((load as any).transmission_w)}</td>
+                          <td className="px-3 py-3 tabular-nums">{fmtColdPro((load as any).transmission_kw, 2)}</td>
+                          <td className="px-3 py-3 tabular-nums font-medium">{fmtColdPro(load.transmission_kcal_h)}</td>
+                          <td className="px-3 py-3 tabular-nums">{fmtColdPro((load as any).transmission_tr, 3)}</td>
                         </tr>
-                      );
-                    })}
+                    ))}
                   </tbody>
                 </table>
               </div>
