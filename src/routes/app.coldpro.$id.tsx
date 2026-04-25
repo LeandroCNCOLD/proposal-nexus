@@ -138,20 +138,20 @@ function ColdProProjectPage() {
   }
 
   return (
-    <div className="min-h-screen bg-muted/30">
+    <div className="min-h-screen min-w-0 bg-muted/30">
       {/* HEADER ESTILO SELECT COLD: faixa escura com identidade */}
       <div className="border-b border-sidebar-border bg-sidebar text-sidebar-foreground print:hidden">
-        <div className="mx-auto flex max-w-[1400px] items-center justify-between px-6 py-3">
-          <div className="flex items-center gap-6">
+        <div className="mx-auto flex max-w-[1400px] flex-col gap-2 px-3 py-3 sm:px-6 md:flex-row md:items-center md:justify-between">
+          <div className="flex min-w-0 items-center gap-3 sm:gap-6">
             <Link to="/app/coldpro" className="text-xs text-sidebar-foreground/70 hover:text-sidebar-foreground">
               ← Projetos
             </Link>
             <div className="h-6 w-px bg-sidebar-border" />
-            <div>
+            <div className="min-w-0">
               <div className="text-[11px] uppercase tracking-widest text-sidebar-foreground/60">
                 CN ColdPro · Cálculo térmico
               </div>
-              <div className="text-sm font-semibold">{data?.project?.name ?? "Novo projeto"}</div>
+              <div className="truncate text-sm font-semibold">{data?.project?.name ?? "Novo projeto"}</div>
             </div>
           </div>
           <div className="text-[11px] text-sidebar-foreground/70">
@@ -160,9 +160,9 @@ function ColdProProjectPage() {
         </div>
       </div>
 
-      <div className="mx-auto max-w-[1400px] grid grid-cols-1 gap-6 p-6 md:grid-cols-[260px_1fr]">
+      <div className="mx-auto grid max-w-[1400px] grid-cols-1 gap-4 p-3 sm:p-5 lg:grid-cols-[260px_minmax(0,1fr)] lg:gap-6">
         {/* Sidebar de ambientes */}
-        <aside className="space-y-4 print:hidden md:sticky md:top-4 md:self-start">
+        <aside className="space-y-4 print:hidden lg:sticky lg:top-4 lg:self-start">
           <div className="rounded-xl border bg-background p-4 shadow-sm">
             <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
               Novo ambiente
@@ -198,12 +198,12 @@ function ColdProProjectPage() {
                 Nenhum ambiente. Crie o primeiro acima.
               </div>
             ) : (
-              <div className="max-h-[420px] space-y-2 overflow-y-auto pr-1">
+              <div className="flex max-h-[420px] gap-2 overflow-x-auto pr-1 lg:block lg:space-y-2 lg:overflow-y-auto">
                 {environments.map((env: any) => (
                   <button
                     key={env.id}
                     type="button"
-                    className={`w-full rounded-lg border px-3 py-2.5 text-left text-sm transition ${
+                    className={`min-w-48 rounded-lg border px-3 py-2.5 text-left text-sm transition lg:w-full ${
                       env.id === selectedEnv?.id
                         ? "border-primary/40 bg-primary/10 shadow-sm"
                         : "border-transparent hover:bg-muted"
@@ -225,7 +225,7 @@ function ColdProProjectPage() {
         </aside>
 
         {/* Conteúdo principal */}
-        <div className="space-y-4">
+        <div className="min-w-0 space-y-4">
           {!selectedEnv ? (
             <div className="rounded-xl border border-dashed bg-background p-10 text-center text-sm text-muted-foreground">
               Crie um ambiente na barra lateral para iniciar o cálculo de carga térmica.
