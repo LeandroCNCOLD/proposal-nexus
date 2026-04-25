@@ -67,11 +67,14 @@ export function ColdProReport({
   const handlePrint = () => window.print();
   const [aiQuestion, setAiQuestion] = React.useState("");
   const [aiAnalysis, setAiAnalysis] = React.useState<string | null>(null);
+  const [aiError, setAiError] = React.useState<string | null>(null);
 
   async function runAiAnalysis(question = aiQuestion) {
     if (!onAnalyze) return;
+    setAiError(null);
     const analysis = await onAnalyze(question, aiAnalysis);
     if (analysis) setAiAnalysis(analysis);
+    else setAiError("A IA não respondeu dentro do tempo seguro. Tente uma pergunta mais objetiva ou gere o PDF sem o laudo de IA.");
   }
 
   const totals = environments.reduce(
@@ -154,9 +157,10 @@ export function ColdProReport({
               {isAnalyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageSquare className="h-4 w-4" />}
               {isAnalyzing ? "Analisando..." : "Perguntar à IA"}
             </button>
-            <button type="button" onClick={() => runAiAnalysis("Gerar uma análise técnica completa e crítica para compor o laudo final do memorial PDF, incluindo psicrometria, infiltração, formação de gelo, degelo, riscos operacionais, carga adicional recomendada e adequação da seleção dos equipamentos.")} disabled={!onAnalyze || isAnalyzing} className="rounded-md border px-4 py-2 text-sm hover:bg-muted disabled:opacity-50">Gerar laudo completo</button>
+            <button type="button" onClick={() => runAiAnalysis("Gerar laudo técnico objetivo para o memorial PDF. Inclua: conclusão executiva, premissas críticas, infiltração/umidade/gelo, degelo, comparação carga requerida x ofertada, riscos e recomendação final. Limite a resposta em até 900 palavras.")} disabled={!onAnalyze || isAnalyzing} className="rounded-md border px-4 py-2 text-sm hover:bg-muted disabled:opacity-50">Gerar laudo completo</button>
           </div>
         </div>
+        {aiError ? <div className="mt-3 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{aiError}</div> : null}
         {aiAnalysis ? <div className="prose prose-sm mt-4 max-w-none rounded-lg border bg-muted/20 p-4 text-foreground"><ReactMarkdown>{aiAnalysis}</ReactMarkdown></div> : null}
         {aiAnalysis && onGeneratePdf ? <div className="mt-3 text-xs text-muted-foreground">O próximo PDF completo usará esta análise como laudo final.</div> : null}
       </div>
