@@ -338,6 +338,7 @@ function ColdProProjectPage() {
                     projectId={id}
                     environment={selectedEnv}
                     process={advancedProcess}
+                    productCatalog={data?.productCatalog ?? []}
                     onSave={(payload) =>
                       upsertAdvancedProcess.mutate(payload, {
                         onSuccess: () => toast.success("Processo especial salvo"),
