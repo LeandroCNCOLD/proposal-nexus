@@ -10,6 +10,9 @@ type Props = { environment: any; catalogFanLoadKcalH?: number; onSave: (patch: R
 
 export function ColdProExtraLoadsForm({ environment, catalogFanLoadKcalH = 0, onSave }: Props) {
   const [form, setForm] = React.useState<any>(environment);
+  const [selectedMotorPreset, setSelectedMotorPreset] = React.useState("0");
+  const [selectedLightingPreset, setSelectedLightingPreset] = React.useState("0");
+  const [targetLux, setTargetLux] = React.useState(300);
   React.useEffect(() => setForm(environment), [environment]);
   const set = (key: string, value: unknown) => setForm((prev: any) => ({ ...prev, [key]: value }));
   const num = (key: string) => ({ type: "number" as const, value: form?.[key] ?? "", onChange: (e: React.ChangeEvent<HTMLInputElement>) => set(key, numberOrNull(e.target.value)) });
@@ -21,11 +24,19 @@ export function ColdProExtraLoadsForm({ environment, catalogFanLoadKcalH = 0, on
   const preview = calculateExtraLoadPreview(form ?? {});
   const suggestedFactor = suggestedInfiltrationFactor(form ?? {});
   const internalPower = Number(form.lighting_power_w ?? 0) / 1000 + Number(form.motors_power_kw ?? 0);
-  const addMotorPreset = (preset: (typeof MOTOR_EQUIPMENT_PRESETS)[number]) => {
+  const addMotorPreset = () => {
+    const preset = MOTOR_EQUIPMENT_PRESETS[Number(selectedMotorPreset)];
+    if (!preset) return;
     setForm((prev: any) => ({ ...prev, motors_power_kw: Number(prev?.motors_power_kw ?? 0) + preset.powerKw, motors_dissipation_factor: preset.dissipationFactor, motors_hours_day: prev?.motors_hours_day ?? 8 }));
   };
-  const addLightingPreset = (preset: (typeof LIGHTING_EQUIPMENT_PRESETS)[number]) => {
-    setForm((prev: any) => ({ ...prev, lighting_power_w: Number(prev?.lighting_power_w ?? 0) + preset.powerW, lighting_hours_day: prev?.lighting_hours_day ?? 8 }));
+  const selectedLighting = LIGHTING_EQUIPMENT_PRESETS[Number(selectedLightingPreset)] ?? LIGHTING_EQUIPMENT_PRESETS[0];
+  const lightingAreaM2 = Math.max(0, Number(form?.length_m ?? 0) * Number(form?.width_m ?? 0));
+  const utilizationFactor = 0.72;
+  const maintenanceFactor = 0.85;
+  const recommendedLightingQty = selectedLighting?.lumens ? Math.max(0, Math.ceil((lightingAreaM2 * targetLux) / (selectedLighting.lumens * utilizationFactor * maintenanceFactor))) : 0;
+  const addLightingRecommendation = () => {
+    if (!selectedLighting) return;
+    setForm((prev: any) => ({ ...prev, lighting_power_w: Number(prev?.lighting_power_w ?? 0) + recommendedLightingQty * selectedLighting.powerW, lighting_hours_day: prev?.lighting_hours_day ?? 8 }));
   };
   const save = () => onSave({ ...form, infiltration_factor: Number(form?.infiltration_factor ?? 0) > 0 ? form.infiltration_factor : suggestedFactor, defrost_kcal_h: Number(form?.defrost_kcal_h ?? 0) > 0 ? form.defrost_kcal_h : preview.defrost_suggestion.defrostKcalH });
 
