@@ -375,7 +375,7 @@ export function ColdProMemorialPdf({
                 {Array.isArray(result.calculation_breakdown?.transmission_faces) && result.calculation_breakdown.transmission_faces.length ? (
                   <>
                     <Text style={styles.h3}>Transmissão por face</Text>
-                    <Text style={styles.small}>Total: {fmt(result.calculation_breakdown?.transmission_summary?.total_w, 0)} W · {fmt(result.calculation_breakdown?.transmission_summary?.total_kw)} kW · {fmt(result.calculation_breakdown?.transmission_summary?.total_kcal_h, 0)} kcal/h · {fmt(result.calculation_breakdown?.transmission_summary?.total_tr)} TR</Text>
+                    <Text style={styles.p}>Total: {fmt(result.calculation_breakdown?.transmission_summary?.total_w, 0)} W · {fmt(result.calculation_breakdown?.transmission_summary?.total_kw)} kW · {fmt(result.calculation_breakdown?.transmission_summary?.total_kcal_h, 0)} kcal/h · {fmt(result.calculation_breakdown?.transmission_summary?.total_tr)} TR</Text>
                     <View style={styles.table}>
                       {result.calculation_breakdown.transmission_faces.map((face: any, i: number, arr: any[]) => (
                         <View key={face.local} style={i === arr.length - 1 ? styles.trLast : styles.tr}>
