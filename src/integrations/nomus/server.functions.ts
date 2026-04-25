@@ -254,9 +254,13 @@ export const nomusSyncClients = createServerFn({ method: "POST" })
         .select("last_cursor, total_synced")
         .eq("entity", "clientes")
         .maybeSingle();
-      const page = Math.max(1, Number((state as { last_cursor?: string | null } | null)?.last_cursor ?? "1") || 1);
-      const previousTotal = page === 1 ? 0 : Number((state as { total_synced?: number | null } | null)?.total_synced ?? 0) || 0;
-      const res = await listPage<Json>(NOMUS_ENDPOINTS.clientes, {}, { entity: "clientes", page, pageSize: 20, triggeredBy: userId });
+      const cursor = String((state as { last_cursor?: string | null } | null)?.last_cursor ?? "1:0");
+      const [cursorPage, cursorOffset] = cursor.includes(":") ? cursor.split(":") : [cursor, "0"];
+      const page = Math.max(1, Number(cursorPage) || 1);
+      const offset = Math.max(0, Number(cursorOffset) || 0);
+      const previousTotal = page === 1 && offset === 0 ? 0 : Number((state as { total_synced?: number | null } | null)?.total_synced ?? 0) || 0;
+      const perClick = 3;
+      const res = await listPage<Json>(NOMUS_ENDPOINTS.clientes, {}, { entity: "clientes", page, pageSize: 50, triggeredBy: userId });
       if (!res.ok) {
         await setState("clientes", { running: false, last_error: res.error });
         return { ok: false as const, error: res.error };
@@ -265,10 +269,11 @@ export const nomusSyncClients = createServerFn({ method: "POST" })
       let count = 0;
       let contactsCount = 0;
       let skipped = 0;
-      for (const raw of res.items) {
+      const batch = res.items.slice(offset, offset + perClick);
+      for (const raw of batch) {
         const summaryId = pickStr(raw, "id", "codigo", "idCliente", "idPessoa");
         const detailRes = summaryId
-          ? await getOne<Json>(NOMUS_ENDPOINTS.clientes, summaryId, { entity: "clientes", triggeredBy: userId })
+          ? await nomusFetch<Json>(`${NOMUS_ENDPOINTS.clientes}/${encodeURIComponent(summaryId)}`, { method: "GET", entity: "clientes", operation: "get", direction: "pull", triggeredBy: userId, timeoutMs: 6_000, maxAttempts: 1 })
           : { ok: false as const, error: "Cliente sem ID" };
         const full = detailRes.ok ? { ...raw, ...detailRes.data } : raw;
         const nomus_id = pickStr(full, "id", "codigo", "idCliente", "idPessoa") ?? summaryId;
@@ -325,8 +330,9 @@ export const nomusSyncClients = createServerFn({ method: "POST" })
         count += 1;
       }
 
-      const done = !res.hasMore || res.items.length === 0;
-      const nextPage = done ? null : page + 1;
+      const nextOffset = offset + batch.length;
+      const done = (!res.hasMore && nextOffset >= res.items.length) || res.items.length === 0;
+      const nextPage = done ? null : nextOffset < res.items.length ? `${page}:${nextOffset}` : `${page + 1}:0`;
       await setState("clientes", {
         running: false,
         last_synced_at: now,
