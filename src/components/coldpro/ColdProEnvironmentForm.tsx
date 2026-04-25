@@ -72,6 +72,7 @@ const GLASS_TYPE_OPTIONS = [
 ];
 
 const UNINSULATED_FLOOR_U_VALUE_W_M2K = 1.75;
+const DEFAULT_SOLAR_FACE = "TETO";
 
 const LEGACY_LAYOUTS = new Set(["industrial", "modular", "climatized_storage", "blast_freezer", "cooling_tunnel", "climatized_room"]);
 
@@ -218,6 +219,7 @@ function normalizeFaces(value: unknown, layout: ChamberLayout, wallCount: number
   const floorArea = getFloorArea(layout, length, width, geometry, faces);
   const wallLengths = getWallLengths(layout, length, width, geometry, wallCount);
   const labels = ["TETO", ...Array.from({ length: wallCount }, (_, index) => `PAREDE ${index + 1}`), "PISO"];
+  const hasSelectedSolarFace = faces.some((face: any) => String(face?.solar_orientation ?? "") === "Sol direto");
 
   return labels.map((local) => {
     const existing = faces.find((face: any) => face?.local === local || face?.local === local.replace("PAREDE ", "PAREDE 0")) ?? {};
@@ -239,7 +241,7 @@ function normalizeFaces(value: unknown, layout: ChamberLayout, wallCount: number
       transmission_w: existing.transmission_w ?? null,
       transmission_kcal_h: existing.transmission_kcal_h ?? null,
       external_temp_c: existing.external_temp_c ?? null,
-      solar_orientation: existing.solar_orientation ?? "",
+      solar_orientation: existing.solar_orientation ?? (!hasSelectedSolarFace && local === DEFAULT_SOLAR_FACE ? "Sol direto" : ""),
       color: existing.color ?? "",
       glass_area_m2: existing.glass_area_m2 ?? 0,
       has_glass: existing.has_glass ?? toNumber(existing.glass_area_m2) > 0,
