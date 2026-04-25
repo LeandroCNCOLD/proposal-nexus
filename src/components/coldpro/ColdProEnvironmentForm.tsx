@@ -66,13 +66,30 @@ const SOLAR_FACE_OPTIONS = [
 ];
 
 const GLASS_TYPE_OPTIONS = [
-  { value: "simple", label: "Vidro simples" },
-  { value: "double", label: "Vidro duplo" },
-  { value: "insulated", label: "Vidro insulado" },
+  { value: "none", label: "Sem vidro", u: 0, solarFactor: 0 },
+  { value: "simple", label: "Vidro simples", u: 5.8, solarFactor: 0.85 },
+  { value: "double", label: "Vidro duplo", u: 2.8, solarFactor: 0.75 },
+  { value: "triple", label: "Vidro triplo", u: 1.8, solarFactor: 0.65 },
+  { value: "low_e_double", label: "Vidro low-e duplo", u: 1.6, solarFactor: 0.4 },
+  { value: "heated_refrigerated", label: "Vidro frigorífico aquecido", u: 2.5, solarFactor: 0.55 },
+];
+
+const SOLAR_RADIATION_OPTIONS = [
+  { value: 0, label: "Sem sol" },
+  { value: 150, label: "Sol moderado" },
+  { value: 300, label: "Sol forte" },
+  { value: 500, label: "Sol crítico" },
+];
+
+const FLOOR_CONDITION_OPTIONS = [
+  { value: "insulated", label: "Piso isolado" },
+  { value: "soil", label: "Sem isolamento / contato com solo" },
+  { value: "lower_room", label: "Sobre ambiente inferior" },
 ];
 
 const UNINSULATED_FLOOR_U_VALUE_W_M2K = 1.75;
 const DEFAULT_SOLAR_FACE = "TETO";
+const DEFAULT_SOIL_TEMP_C = 20;
 
 const LEGACY_LAYOUTS = new Set(["industrial", "modular", "climatized_storage", "blast_freezer", "cooling_tunnel", "climatized_room"]);
 
@@ -182,7 +199,13 @@ function applyUninsulatedFloorToFace(face: any) {
 
 function prepareFaceForCalculation(face: any, hasFloorInsulation: boolean) {
   const prepared = face.local === "PISO" && !hasFloorInsulation ? applyUninsulatedFloorToFace(face) : face;
-  return { ...prepared, glass_area_m2: prepared.has_glass ? prepared.glass_area_m2 : 0 };
+  const hasGlass = Boolean(prepared.has_glass) && toNumber(prepared.glass_area_m2) > 0;
+  return {
+    ...prepared,
+    glass_area_m2: hasGlass ? prepared.glass_area_m2 : 0,
+    glass_type: hasGlass ? (prepared.glass_type ?? "simple") : "none",
+    solar_radiation_w_m2: hasGlass ? toNumber(prepared.solar_radiation_w_m2) : 0,
+  };
 }
 
 function describeLayer(layer: any) {
@@ -245,7 +268,9 @@ function normalizeFaces(value: unknown, layout: ChamberLayout, wallCount: number
       color: existing.color ?? "",
       glass_area_m2: existing.glass_area_m2 ?? 0,
       has_glass: existing.has_glass ?? toNumber(existing.glass_area_m2) > 0,
-      glass_type: existing.glass_type ?? "simple",
+      glass_type: (existing.has_glass ?? toNumber(existing.glass_area_m2) > 0) ? (existing.glass_type ?? "simple") : "none",
+      solar_radiation_w_m2: existing.solar_radiation_w_m2 ?? (!hasSelectedSolarFace && local === DEFAULT_SOLAR_FACE ? 150 : 0),
+      floor_condition: existing.floor_condition ?? (local === "PISO" ? "soil" : null),
       door_area_m2: 0,
     };
   });
