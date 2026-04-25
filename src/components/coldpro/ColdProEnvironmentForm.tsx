@@ -583,8 +583,8 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
                 <div className="rounded-xl border bg-muted/20 p-4">
                   <div className="mb-3 text-sm font-semibold">Face com sol direto</div>
                   <ColdProField label="Insolação">
-                    <ColdProSelect value={currentSolarFace === "TETO" ? "Teto" : currentSolarFace ?? "Sem sol direto"} onChange={(e) => setSolarFace(e.target.value)}>
-                      {SOLAR_FACE_OPTIONS.filter((option) => option === "Sem sol direto" || option === "Teto" || constructionFaces.some((face) => face.local === option.toUpperCase())).map((option) => <option key={option} value={option}>{option}</option>)}
+                    <ColdProSelect value={currentSolarFace ?? ""} onChange={(e) => setSolarFace(e.target.value)}>
+                      {SOLAR_FACE_OPTIONS.filter((option) => option.value === "" || constructionFaces.some((face) => face.local === option.value)).map((option) => <option key={option.value || "none"} value={option.value}>{option.label}</option>)}
                     </ColdProSelect>
                   </ColdProField>
                   <ChamberShapePreview layout={layout} />
