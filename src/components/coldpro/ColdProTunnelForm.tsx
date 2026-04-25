@@ -42,6 +42,13 @@ const defaultTunnel = (environmentId: string) => ({
   air_exposure_factor: 1,
   thermal_penetration_factor: 1,
   airflow_m3_h: 0,
+  air_delta_t_k: 6,
+  min_air_temp_c: -40,
+  max_air_temp_c: -25,
+  min_air_velocity_m_s: 1,
+  max_air_velocity_m_s: 6,
+  air_temp_step_c: 5,
+  air_velocity_step_m_s: 1,
   inlet_temp_c: 5,
   outlet_temp_c: -18,
   freezing_temp_c: -1.5,
@@ -256,16 +263,24 @@ export function ColdProTunnelForm({ environmentId, tunnel, productCatalog = [], 
         </TabsContent>
 
         <TabsContent value="ar">
-          <ColdProFormSection title="Ar, embalagem e penetração térmica" description="Fatores que reduzem convecção e penetração no núcleo." icon={<Wind className="h-4 w-4" />}>
+          <ColdProFormSection title="Ar, embalagem e penetração térmica" description="A condição informada é ponto inicial; a recomendação final sai da iteração." icon={<Wind className="h-4 w-4" />}>
             <div className="grid grid-cols-1 gap-x-10 md:grid-cols-2"><div>
-              <ColdProField label="Temp. ar" unit="°C"><ColdProInput {...num("air_temp_c")} /></ColdProField>
-              <ColdProField label="Velocidade ar" unit="m/s"><ColdProInput {...num("air_velocity_m_s")} /></ColdProField>
-              <ColdProField label="Vazão de ar" unit="m³/h"><ColdProInput {...num("airflow_m3_h")} /></ColdProField>
+              <ColdProField label="Temp. ar inicial" unit="°C"><ColdProInput {...num("air_temp_c")} /></ColdProField>
+              <ColdProField label="Velocidade inicial" unit="m/s"><ColdProInput {...num("air_velocity_m_s")} /></ColdProField>
+              <ColdProField label="ΔT do ar" unit="K"><ColdProInput {...num("air_delta_t_k")} /></ColdProField>
+              <ColdProField label="Vazão informada" unit="m³/h"><ColdProInput {...num("airflow_m3_h")} /></ColdProField>
               <ColdProField label="Coef. convecção manual"><ColdProInput {...num("convective_coefficient_manual_w_m2_k")} /></ColdProField>
             </div><div>
+              <ColdProField label="Limite temp. mínima" unit="°C"><ColdProInput {...num("min_air_temp_c")} /></ColdProField>
+              <ColdProField label="Limite temp. máxima" unit="°C"><ColdProInput {...num("max_air_temp_c")} /></ColdProField>
+              <ColdProField label="Limite velocidade mín." unit="m/s"><ColdProInput {...num("min_air_velocity_m_s")} /></ColdProField>
+              <ColdProField label="Limite velocidade máx." unit="m/s"><ColdProInput {...num("max_air_velocity_m_s")} /></ColdProField>
+              <ColdProField label="Passo temp." unit="°C"><ColdProInput {...num("air_temp_step_c")} /></ColdProField>
+              <ColdProField label="Passo velocidade" unit="m/s"><ColdProInput {...num("air_velocity_step_m_s")} /></ColdProField>
               <ColdProField label="Tipo de embalagem"><ColdProInput type="text" value={form.package_type ?? ""} onChange={(e) => set("package_type", e.target.value)} className="text-left" /></ColdProField>
               <ColdProField label="Fator exposição ao ar"><ColdProInput {...num("air_exposure_factor")} /></ColdProField>
               <ColdProField label="Fator penetração térmica"><ColdProInput {...num("thermal_penetration_factor")} /></ColdProField>
+              <ColdProValidationMessage tone="info">A vazão recomendada será recalculada por potência, densidade do ar, Cp do ar e ΔT do ar.</ColdProValidationMessage>
               <ColdProValidationMessage>{velocityWarning ? "Confira a velocidade do ar. Valores usuais ficam acima de 0 e geralmente abaixo de 10 m/s." : ""}</ColdProValidationMessage>
               <ColdProValidationMessage tone="error">{processError ? (isStatic ? "Tempo de batelada deve ser maior que zero." : "Tempo de retenção deve ser maior que zero.") : ""}</ColdProValidationMessage>
             </div></div>
