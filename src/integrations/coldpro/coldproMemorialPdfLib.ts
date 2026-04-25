@@ -188,6 +188,80 @@ function loadOfferChart(ctx: Ctx, requiredKcalH: number, offeredKcalH: number) {
   ctx.y -= 44;
 }
 
+function projectLineChart(ctx: Ctx, environments: any[], results: any[]) {
+  const points = environments.map((env: any, index: number) => ({ index, label: clean(env.name).slice(0, 10), value: Number(results.find((r: any) => r.environment_id === env.id)?.total_required_kcal_h ?? 0) })).filter((point) => point.value > 0);
+  if (points.length < 2) return;
+  ensure(ctx, 130);
+  const x0 = M + 20;
+  const y0 = ctx.y - 96;
+  const w = A4[0] - M * 2 - 40;
+  const h = 72;
+  const max = Math.max(...points.map((p) => p.value));
+  ctx.page.drawText("Linha de carga requerida por ambiente", { x: M, y: ctx.y, size: 8, font: ctx.fonts.bold, color: COLORS.primary });
+  ctx.page.drawLine({ start: { x: x0, y: y0 }, end: { x: x0 + w, y: y0 }, thickness: 0.6, color: COLORS.border });
+  ctx.page.drawLine({ start: { x: x0, y: y0 }, end: { x: x0, y: y0 + h }, thickness: 0.6, color: COLORS.border });
+  points.forEach((point, i) => {
+    const x = x0 + (points.length === 1 ? w / 2 : (i / (points.length - 1)) * w);
+    const y = y0 + (point.value / max) * h;
+    if (i > 0) {
+      const prev = points[i - 1];
+      const px = x0 + ((i - 1) / (points.length - 1)) * w;
+      const py = y0 + (prev.value / max) * h;
+      ctx.page.drawLine({ start: { x: px, y: py }, end: { x, y }, thickness: 1.4, color: COLORS.accent });
+    }
+    ctx.page.drawCircle({ x, y, size: 3.2, color: COLORS.primary });
+    ctx.page.drawText(point.label, { x: x - 14, y: y0 - 14, size: 6.5, font: ctx.fonts.regular, color: COLORS.muted });
+    ctx.page.drawText(fmt(point.value, 0), { x: x - 16, y: y + 7, size: 6.5, font: ctx.fonts.bold, color: COLORS.text });
+  });
+  ctx.y -= 122;
+}
+
+function temperatureCurveChart(ctx: Ctx, env: any) {
+  const tin = Number(env.external_temp_c ?? 0);
+  const tout = Number(env.internal_temp_c ?? 0);
+  if (!Number.isFinite(tin) || !Number.isFinite(tout) || tin === tout) return;
+  ensure(ctx, 92);
+  const x0 = M + 12;
+  const y0 = ctx.y - 70;
+  const w = A4[0] - M * 2 - 24;
+  const h = 44;
+  const points = [[0, tin], [0.35, tin - (tin - tout) * 0.45], [0.7, tin - (tin - tout) * 0.82], [1, tout]] as Array<[number, number]>;
+  const maxT = Math.max(tin, tout);
+  const minT = Math.min(tin, tout);
+  ctx.page.drawText("Curva técnica de temperatura até o setpoint", { x: M, y: ctx.y, size: 8, font: ctx.fonts.bold, color: COLORS.primary });
+  ctx.page.drawLine({ start: { x: x0, y: y0 }, end: { x: x0 + w, y: y0 }, thickness: 0.5, color: COLORS.border });
+  ctx.page.drawText(`${fmt(tin)} °C externo`, { x: x0, y: y0 + h + 4, size: 7, font: ctx.fonts.bold, color: COLORS.muted });
+  ctx.page.drawText(`${fmt(tout)} °C alvo`, { x: x0 + w - 52, y: y0 - 12, size: 7, font: ctx.fonts.bold, color: COLORS.muted });
+  points.forEach(([t, temp], i) => {
+    const x = x0 + t * w;
+    const y = y0 + ((temp - minT) / Math.max(1, maxT - minT)) * h;
+    if (i > 0) {
+      const [pt, ptemp] = points[i - 1];
+      ctx.page.drawLine({ start: { x: x0 + pt * w, y: y0 + ((ptemp - minT) / Math.max(1, maxT - minT)) * h }, end: { x, y }, thickness: 1.2, color: COLORS.accent });
+    }
+    ctx.page.drawCircle({ x, y, size: 2.6, color: COLORS.primary });
+  });
+  ctx.y -= 86;
+}
+
+function stackedLoadChart(ctx: Ctx, result: any) {
+  const rows = loadRows(result);
+  const total = rows.reduce((sum, [, value]) => sum + value, 0);
+  if (total <= 0) return;
+  ensure(ctx, 48);
+  ctx.page.drawText("Barra empilhada percentual da carga térmica", { x: M, y: ctx.y, size: 8, font: ctx.fonts.bold, color: COLORS.primary });
+  ctx.y -= 14;
+  let x = M;
+  const w = A4[0] - M * 2;
+  rows.forEach(([label, value], index) => {
+    const sw = Math.max(4, (value / total) * w);
+    ctx.page.drawRectangle({ x, y: ctx.y - 8, width: sw, height: 12, color: PIE_COLORS[index % PIE_COLORS.length] });
+    if (sw > 34) ctx.page.drawText(`${clean(label).slice(0, 8)} ${fmt((value / total) * 100, 0)}%`, { x: x + 3, y: ctx.y - 5, size: 5.6, font: ctx.fonts.bold, color: COLORS.white });
+    x += sw;
+  });
+  ctx.y -= 28;
+}
+
 function freezingCurve(ctx: Ctx, breakdown: any) {
   const hours = Math.max(0.1, Number(breakdown?.hours ?? 0));
   const above = Math.max(0, Number(breakdown?.sensible_above_kcal_h ?? 0));
@@ -323,6 +397,8 @@ export async function buildColdProMemorialPdfBuffer({ project, environments, res
   paragraph(ctx, "Tecnicamente, a carga térmica foi consolidada pelas parcelas de transmissão, produto/processo, infiltração, ocupação, iluminação, motores, ventiladores, degelo e demais cargas internas, acrescidas do fator de segurança configurado. Comercialmente, este resultado orienta a seleção de equipamentos com capacidade suficiente para atender a operação diária com margem de sobra auditável.");
   const aggregateResult = results.reduce((acc: any, result: any) => { for (const [key, value] of Object.entries(result ?? {})) if (key.endsWith("_kcal_h")) acc[key] = Number(acc[key] ?? 0) + Number(value ?? 0); return acc; }, {});
   pieChart(ctx, aggregateResult);
+  stackedLoadChart(ctx, aggregateResult);
+  projectLineChart(ctx, environments, results);
 
   heading(ctx, "Memória de cálculo por ambiente", 1);
   for (const [idx, env] of environments.entries()) {
@@ -342,7 +418,9 @@ export async function buildColdProMemorialPdfBuffer({ project, environments, res
     if (result) {
       heading(ctx, "2. Cálculo executado", 3);
       paragraph(ctx, "O cálculo considera as trocas térmicas pela envoltória, a retirada de calor do produto e embalagem, a entrada de ar por infiltração e as cargas internas informadas para o ambiente.", { size: 8.5, gap: 4 });
+      temperatureCurveChart(ctx, env);
       barChart(ctx, result);
+      stackedLoadChart(ctx, result);
       table(ctx, ["Componente", "Carga"], [["Transmissão", result.transmission_kcal_h], ["Produto", result.product_kcal_h], ["Embalagem", result.packaging_kcal_h], ["Infiltração", result.infiltration_kcal_h], ["Pessoas", result.people_kcal_h], ["Iluminação", result.lighting_kcal_h], ["Motores", result.motors_kcal_h], ["Ventiladores", result.fans_kcal_h], ["Degelo", result.defrost_kcal_h], ["Outros", result.other_kcal_h]].map(([l, v]) => [String(l), `${fmt(v, 0)} kcal/h`]), [0.68, 0.32]);
       heading(ctx, "3. Resultado do dimensionamento", 3);
       drawKpis(ctx, [["Subtotal", `${fmt(result.subtotal_kcal_h, 0)} kcal/h`], ["Segurança", `${fmt(result.safety_kcal_h, 0)} kcal/h`], ["Carga requerida", `${fmt(result.total_required_kcal_h, 0)} kcal/h`]]);

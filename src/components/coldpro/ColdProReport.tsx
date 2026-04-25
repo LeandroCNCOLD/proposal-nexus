@@ -1,5 +1,6 @@
 import * as React from "react";
-import { Download, Send, FileText, Loader2 } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import { Bot, Download, Send, FileText, Loader2, MessageSquare } from "lucide-react";
 
 function fmt(value: unknown, digits = 2) {
   return new Intl.NumberFormat("pt-BR", { maximumFractionDigits: digits }).format(Number(value ?? 0));
@@ -41,8 +42,10 @@ type Props = {
   advancedProcesses?: any[];
   onPushToProposal?: () => void;
   isPushing?: boolean;
-  onGeneratePdf?: () => void;
+  onGeneratePdf?: (aiAnalysis?: string | null) => void;
+  onAnalyze?: (question: string, previousAnalysis?: string | null) => Promise<string | null>;
   isGeneratingPdf?: boolean;
+  isAnalyzing?: boolean;
   lastPdfUrl?: string | null;
 };
 
@@ -56,10 +59,20 @@ export function ColdProReport({
   onPushToProposal,
   isPushing,
   onGeneratePdf,
+  onAnalyze,
   isGeneratingPdf,
+  isAnalyzing,
   lastPdfUrl,
 }: Props) {
   const handlePrint = () => window.print();
+  const [aiQuestion, setAiQuestion] = React.useState("");
+  const [aiAnalysis, setAiAnalysis] = React.useState<string | null>(null);
+
+  async function runAiAnalysis(question = aiQuestion) {
+    if (!onAnalyze) return;
+    const analysis = await onAnalyze(question, aiAnalysis);
+    if (analysis) setAiAnalysis(analysis);
+  }
 
   const totals = environments.reduce(
     (acc, env) => {
@@ -85,7 +98,7 @@ export function ColdProReport({
           {onGeneratePdf ? (
             <button
               type="button"
-              onClick={onGeneratePdf}
+              onClick={() => onGeneratePdf(aiAnalysis)}
               disabled={isGeneratingPdf}
               className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground disabled:opacity-50"
             >
@@ -124,6 +137,28 @@ export function ColdProReport({
             </button>
           ) : null}
         </div>
+      </div>
+
+      <div className="rounded-2xl border bg-background p-4 shadow-sm print:hidden">
+        <div className="mb-3 flex items-start gap-3">
+          <div className="rounded-lg bg-primary/10 p-2 text-primary"><Bot className="h-4 w-4" /></div>
+          <div>
+            <h3 className="text-base font-semibold">Análise técnica por IA antes do memorial</h3>
+            <p className="text-sm text-muted-foreground">Peça validações, dúvidas ou recomendações; depois gere o PDF usando esta análise como laudo final.</p>
+          </div>
+        </div>
+        <div className="flex flex-col gap-2 md:flex-row">
+          <textarea value={aiQuestion} onChange={(e) => setAiQuestion(e.target.value)} placeholder="Ex.: avalie se a sobra técnica está adequada, explique os pontos críticos de temperatura e recomende ajustes." className="min-h-20 flex-1 rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/30" />
+          <div className="flex min-w-52 flex-col gap-2">
+            <button type="button" onClick={() => runAiAnalysis()} disabled={!onAnalyze || isAnalyzing} className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground disabled:opacity-50">
+              {isAnalyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageSquare className="h-4 w-4" />}
+              {isAnalyzing ? "Analisando..." : "Perguntar à IA"}
+            </button>
+            <button type="button" onClick={() => runAiAnalysis("Gerar uma análise técnica completa para compor o laudo final do memorial PDF.")} disabled={!onAnalyze || isAnalyzing} className="rounded-md border px-4 py-2 text-sm hover:bg-muted disabled:opacity-50">Gerar laudo completo</button>
+          </div>
+        </div>
+        {aiAnalysis ? <div className="prose prose-sm mt-4 max-w-none rounded-lg border bg-muted/20 p-4 text-foreground"><ReactMarkdown>{aiAnalysis}</ReactMarkdown></div> : null}
+        {aiAnalysis && onGeneratePdf ? <div className="mt-3 text-xs text-muted-foreground">O próximo PDF completo usará esta análise como laudo final.</div> : null}
       </div>
 
       <div id="coldpro-report-print" className="min-w-0 space-y-6 rounded-2xl border bg-background p-3 sm:p-6 print:border-0 print:p-0">

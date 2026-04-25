@@ -7,6 +7,13 @@ import { buildColdProMemorialPdfBuffer } from "./coldproMemorialPdfLib";
 const inputSchema = z.object({
   projectId: z.string().uuid(),
   attachToProposal: z.boolean().optional().default(true),
+  aiAnalysis: z.string().max(20000).nullable().optional(),
+});
+
+const analysisInputSchema = z.object({
+  projectId: z.string().uuid(),
+  question: z.string().max(2000).optional().default(""),
+  previousAnalysis: z.string().max(20000).nullable().optional(),
 });
 
 function firstImagePath(model: any): string | null {
@@ -33,12 +40,14 @@ function fmt(value: unknown, digits = 1): string {
   return new Intl.NumberFormat("pt-BR", { maximumFractionDigits: digits }).format(Number.isFinite(n) ? n : 0);
 }
 
-function buildAiPrompt({ project, environments, results, selections, products }: any) {
+function buildAiPrompt({ project, environments, results, selections, products, question, previousAnalysis }: any) {
   const lines = [
     `Projeto: ${project?.name ?? "Projeto"}. Aplicação: ${project?.application_type ?? "não informada"}.`,
     `Gere um laudo técnico e comercial final, em português do Brasil, para encerrar um memorial de cálculo frigorífico. Seja objetivo, auditável e profissional.`,
     `Estruture em: Conclusão executiva, Validação das premissas, Análise de produto/mudança de estado, Comparação carga requerida x ofertada, Riscos/observações e Recomendação final.`,
     `Não invente dados ausentes; quando faltar dado, indique que deve ser validado.`,
+    question ? `Pergunta/solicitação do usuário para esta análise: ${question}` : `Faça uma análise completa e aponte pontos técnicos relevantes para validação antes da emissão do PDF.`,
+    previousAnalysis ? `Análise anterior para contexto: ${previousAnalysis}` : "",
   ];
   for (const env of environments ?? []) {
     const r = (results ?? []).find((item: any) => item.environment_id === env.id);
@@ -50,6 +59,20 @@ function buildAiPrompt({ project, environments, results, selections, products }:
     for (const p of envProducts) lines.push(`Produto ${p.product_name}: massa ${fmt(p.mass_kg_day, 0)} kg/dia, entrada ${fmt(p.inlet_temp_c)} °C, final ${fmt(p.outlet_temp_c)} °C, congelamento ${p.initial_freezing_temp_c ?? "não informado"} °C, Cp acima ${fmt(p.specific_heat_above_kcal_kg_c, 3)}, Cp abaixo ${fmt(p.specific_heat_below_kcal_kg_c, 3)}, latente ${fmt(p.latent_heat_kcal_kg, 2)} kcal/kg, água ${p.water_content_percent ?? "não informado"}%, fração congelada ${p.frozen_water_fraction ?? p.freezable_water_content_percent ?? "não informada"}.`);
   }
   return lines.join("\n").slice(0, 12000);
+}
+
+async function loadColdProAnalysisBundle(projectId: string) {
+  const supabase = supabaseAdmin;
+  const { data: project, error: pErr } = await supabase.from("coldpro_projects").select("*").eq("id", projectId).single();
+  if (pErr || !project) throw new Error(pErr?.message ?? "Projeto não encontrado");
+  const { data: environments } = await supabase.from("coldpro_environments").select("*").eq("coldpro_project_id", projectId).order("sort_order", { ascending: true });
+  const envIds = (environments ?? []).map((e: any) => e.id);
+  const [{ data: results }, { data: selections }, { data: products }] = await Promise.all([
+    envIds.length ? supabase.from("coldpro_results").select("*").in("environment_id", envIds) : Promise.resolve({ data: [] as any[] }),
+    envIds.length ? supabase.from("coldpro_equipment_selections").select("*").in("environment_id", envIds) : Promise.resolve({ data: [] as any[] }),
+    envIds.length ? supabase.from("coldpro_environment_products").select("*").in("environment_id", envIds) : Promise.resolve({ data: [] as any[] }),
+  ]);
+  return { project, environments: environments ?? [], results: results ?? [], selections: selections ?? [], products: products ?? [] };
 }
 
 async function generateAiAnalysis(input: any): Promise<string | null> {
@@ -78,6 +101,15 @@ async function generateAiAnalysis(input: any): Promise<string | null> {
     return "Laudo por IA não gerado automaticamente por indisponibilidade momentânea. O memorial técnico permanece válido com as premissas e cálculos apresentados; recomenda-se revisão técnica final pelo responsável.";
   }
 }
+
+export const analyzeColdProMemorial = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(analysisInputSchema)
+  .handler(async ({ data }) => {
+    const bundle = await loadColdProAnalysisBundle(data.projectId);
+    const analysis = await generateAiAnalysis({ ...bundle, question: data.question, previousAnalysis: data.previousAnalysis });
+    return { analysis: analysis ?? "Não foi possível gerar a análise técnica por IA neste momento." };
+  });
 
 /**
  * Gera PDF do memorial técnico do ColdPro, salva no bucket `proposal-files`
@@ -147,7 +179,7 @@ export const generateColdProMemorialPdf = createServerFn({ method: "POST" })
     }));
 
     const generatedAt = new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
-    const aiAnalysis = await generateAiAnalysis({ project, environments: environments ?? [], results: results ?? [], selections: enrichedSelections, products: products ?? [] });
+    const aiAnalysis = data.aiAnalysis?.trim() || await generateAiAnalysis({ project, environments: environments ?? [], results: results ?? [], selections: enrichedSelections, products: products ?? [] });
 
     // Render PDF para buffer sem WebAssembly, compatível com o ambiente publicado.
     const buffer = await buildColdProMemorialPdfBuffer({

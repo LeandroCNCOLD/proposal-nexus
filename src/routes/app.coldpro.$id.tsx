@@ -16,6 +16,7 @@ import {
   useAutoSelectColdProEquipment,
   usePushColdProToProposal,
   useGenerateColdProMemorialPdf,
+  useAnalyzeColdProMemorial,
 } from "@/features/coldpro/use-coldpro";
 import { ColdProEnvironmentForm } from "@/components/coldpro/ColdProEnvironmentForm";
 import { ColdProProductForm } from "@/components/coldpro/ColdProProductForm";
@@ -52,6 +53,7 @@ function ColdProProjectPage() {
   const autoSelect = useAutoSelectColdProEquipment(id);
   const pushToProposal = usePushColdProToProposal(id);
   const generatePdf = useGenerateColdProMemorialPdf(id);
+  const analyzeMemorial = useAnalyzeColdProMemorial(id);
   const [lastPdfUrl, setLastPdfUrl] = React.useState<string | null>(null);
   const qc = useQueryClient();
   const saveCatalogSel = useMutation({
@@ -160,9 +162,9 @@ function ColdProProjectPage() {
     }
   }
 
-  async function handleGeneratePdf() {
+  async function handleGeneratePdf(aiAnalysis?: string | null) {
     try {
-      const res = await generatePdf.mutateAsync(true);
+      const res = await generatePdf.mutateAsync({ attachToProposal: true, aiAnalysis });
       setLastPdfUrl(res.signedUrl ?? null);
       toast.success(
         res.attachedToProposalId
@@ -172,6 +174,16 @@ function ColdProProjectPage() {
       if (res.signedUrl) window.open(res.signedUrl, "_blank");
     } catch (e: any) {
       toast.error(e?.message ?? "Erro ao gerar PDF");
+    }
+  }
+
+  async function handleAnalyzeMemorial(question: string, previousAnalysis?: string | null) {
+    try {
+      const res = await analyzeMemorial.mutateAsync({ question, previousAnalysis });
+      return res.analysis;
+    } catch (e: any) {
+      toast.error(e?.message ?? "Erro ao gerar análise por IA");
+      return null;
     }
   }
 
@@ -557,7 +569,9 @@ function ColdProProjectPage() {
                     onPushToProposal={handlePushToProposal}
                     isPushing={pushToProposal.isPending}
                     onGeneratePdf={handleGeneratePdf}
+                    onAnalyze={handleAnalyzeMemorial}
                     isGeneratingPdf={generatePdf.isPending}
+                    isAnalyzing={analyzeMemorial.isPending}
                     lastPdfUrl={lastPdfUrl}
                   />
                 </div>
