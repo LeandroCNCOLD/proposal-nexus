@@ -119,7 +119,7 @@ function ProposalsList() {
     return { cn: m2 ? m2[1].toUpperCase() : "", client: t };
   };
 
-  // SLA — semáforo baseado em dias desde a última atividade (updated_at) e follow-up vencido.
+  // SLA — semáforo baseado no intervalo entre criação e última atualização.
   // Status fechados (ganha/perdida/cancelada) ficam em estado neutro (sem cobrança).
   type SLAState = {
     level: "ok" | "warn" | "alert" | "critical" | "neutral";
@@ -130,11 +130,12 @@ function ProposalsList() {
   const closedStatuses = new Set(["ganha", "perdida", "cancelada"]);
   const computeSLA = (p: any): SLAState => {
     const now = Date.now();
-    const lastActivity = new Date(p.updated_at ?? p.created_at).getTime();
-    const days = Math.floor((now - lastActivity) / 86_400_000);
+    const createdAt = new Date(p.created_at).getTime();
+    const updatedAt = new Date(p.updated_at ?? p.created_at).getTime();
+    const days = Math.max(0, Math.floor((updatedAt - createdAt) / 86_400_000));
 
     if (closedStatuses.has(p.status)) {
-      return { level: "neutral", label: "Encerrada", days, detail: `Última atualização há ${days}d` };
+      return { level: "neutral", label: "Encerrada", days, detail: `${days}d entre criação e última atualização` };
     }
 
     const next = p.next_followup_at ? new Date(p.next_followup_at).getTime() : null;
@@ -142,12 +143,12 @@ function ProposalsList() {
     const overdueDays = followupOverdue && next != null ? Math.floor((now - next) / 86_400_000) : 0;
 
     if (followupOverdue && overdueDays > 3) {
-      return { level: "critical", label: `Follow-up ${overdueDays}d atrasado`, days, detail: `Sem atividade há ${days}d` };
+      return { level: "critical", label: `Follow-up ${overdueDays}d atrasado`, days, detail: `${days}d entre criação e última atualização` };
     }
-    if (days > 14) return { level: "critical", label: `${days}d sem atividade`, days, detail: "SLA estourado" };
-    if (days > 7) return { level: "alert", label: `${days}d sem atividade`, days, detail: "Atenção: contatar cliente" };
+    if (days > 14) return { level: "critical", label: `${days}d inativa`, days, detail: "SLA estourado" };
+    if (days > 7) return { level: "alert", label: `${days}d inativa`, days, detail: "Atenção: contatar cliente" };
     if (days > 3 || followupOverdue) {
-      return { level: "warn", label: `${days}d sem atividade`, days, detail: followupOverdue ? `Follow-up vencido há ${overdueDays}d` : "Em risco" };
+      return { level: "warn", label: `${days}d inativa`, days, detail: followupOverdue ? `Follow-up vencido há ${overdueDays}d` : "Em risco" };
     }
     return { level: "ok", label: `${days}d`, days, detail: "Dentro do SLA" };
   };
@@ -289,13 +290,14 @@ function ProposalsList() {
               <TableHead className="text-right">Valor</TableHead>
               <TableHead>Validade</TableHead>
               <TableHead>Criada</TableHead>
+              <TableHead>Última atualização</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-12">Carregando...</TableCell></TableRow>
+              <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-12">Carregando...</TableCell></TableRow>
             ) : filtered.length === 0 ? (
-              <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-12">Nenhuma proposta encontrada.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-12">Nenhuma proposta encontrada.</TableCell></TableRow>
             ) : filtered.map((p) => {
               const parsed = parseTitle(p.title);
               const displayNumber = parsed.cn || p.number;
@@ -340,6 +342,7 @@ function ProposalsList() {
                 <TableCell className="text-right tabular-nums font-medium">{brl(Number(p.total_value ?? 0))}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">{dateBR(p.valid_until)}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">{dateBR((p as any)._nomus?.criada_em_nomus ?? (p as any)._nomus?.data_emissao ?? p.created_at)}</TableCell>
+                <TableCell className="text-sm text-muted-foreground">{dateBR(p.updated_at)}</TableCell>
               </TableRow>
               );
             })}
