@@ -90,7 +90,7 @@ export function ColdProReport({
               className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground disabled:opacity-50"
             >
               {isGeneratingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
-              {isGeneratingPdf ? "Gerando PDF..." : "Gerar memorial PDF"}
+              {isGeneratingPdf ? "Gerando PDF completo..." : "Gerar memorial PDF completo"}
             </button>
           ) : null}
           {lastPdfUrl ? (
@@ -100,7 +100,7 @@ export function ColdProReport({
               rel="noreferrer"
               className="inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm hover:bg-muted"
             >
-              <Download className="h-4 w-4" /> Baixar último PDF
+              <Download className="h-4 w-4" /> Baixar último PDF completo
             </a>
           ) : (
             <button
@@ -108,7 +108,7 @@ export function ColdProReport({
               onClick={handlePrint}
               className="inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm hover:bg-muted"
             >
-              <Download className="h-4 w-4" /> Imprimir versão simples
+              <Download className="h-4 w-4" /> Imprimir versão completa
             </button>
           )}
           {onPushToProposal ? (
