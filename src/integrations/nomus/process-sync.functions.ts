@@ -312,6 +312,9 @@ export const pullNomusProcesses = createServerFn({ method: "POST" })
       .default({}),
   )
   .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { listAll } = await import("./client");
+    const { NOMUS_ENDPOINTS } = await import("./endpoints");
     const userId = context.userId;
     const wantedTipos = (data?.tipos ?? []).map((t) => t.trim()).filter(Boolean);
     // Default reduzido: 500 processos cabem com folga em ~30s.
@@ -496,6 +499,7 @@ export const startNomusProcessSyncJob = createServerFn({ method: "POST" })
       .default({}),
   )
   .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const userId = context.userId;
     const { data: job, error } = await (supabaseAdmin as any)
       .from("nomus_process_sync_jobs")
@@ -531,6 +535,9 @@ export const processNomusProcessSyncBatch = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(z.object({ jobId: z.string().uuid(), maxPages: z.number().int().min(1).max(3).optional() }))
   .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { listPage } = await import("./client");
+    const { NOMUS_ENDPOINTS } = await import("./endpoints");
     const userId = context.userId;
     const { data: job, error: jobErr } = await (supabaseAdmin as any)
       .from("nomus_process_sync_jobs")
