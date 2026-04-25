@@ -295,7 +295,6 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, onSav
   const totalPanelArea = constructionFaces.reduce((sum, face) => sum + toNumber(face.panel_area_m2), 0);
   const totalGlassArea = constructionFaces.reduce((sum, face) => sum + toNumber(face.glass_area_m2), 0);
   const wallPanelArea = constructionFaces.filter((face) => face.local.startsWith("PAREDE")).reduce((sum, face) => sum + toNumber(face.panel_area_m2), 0);
-  const selectedGlassTypeLabel = (value: unknown) => GLASS_TYPE_OPTIONS.find((item) => item.value === value)?.label ?? "Vidro simples";
   const dimensionError = layout !== "custom_polygon" && (length <= 0 || width <= 0 || height <= 0);
   const customDimensionError = layout === "custom_polygon" && (floorArea <= 0 || height <= 0 || wallCount < 3);
   const hoursError = toNumber(form?.operation_hours_day) < 0 || toNumber(form?.operation_hours_day) > 24 || toNumber(form?.compressor_runtime_hours_day) < 0 || toNumber(form?.compressor_runtime_hours_day) > 24;
@@ -332,12 +331,6 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, onSav
       ...(updated.local === "PAREDE 2" && key === "wall_length_m" ? { width_m: numberOrNull(value), dimension_b_m: numberOrNull(value) } : {}),
       construction_faces: [...next, geometry],
     }));
-  };
-
-  const setFaceLayers = (index: number, layers: any[], uValue: number) => {
-    const next = normalizeFaces(form?.construction_faces, layout, wallCount, length, width, height, geometry);
-    next[index] = { ...next[index], layers, u_value_w_m2k: uValue };
-    set("construction_faces", [...next, geometry]);
   };
 
   const applyInsulationToFaces = (materialId = form?.insulation_material_id, wallThickness = form?.wall_thickness_mm, ceilingThickness = form?.ceiling_thickness_mm, floorThickness = form?.floor_thickness_mm, floorMaterialId = floorInsulationMaterialId) => {
