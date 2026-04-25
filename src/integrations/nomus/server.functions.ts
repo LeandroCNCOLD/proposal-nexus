@@ -705,7 +705,7 @@ export const nomusKickoffSyncProposals = createServerFn({ method: "POST" })
     let kickoffOk = false;
     let kickoffError: string | null = null;
     try {
-      const r = await fetch(`${origin}/hooks/nomus-cron`, {
+      const r = await fetch(`${origin}/api/public/hooks/nomus-cron`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${cronToken}`,
