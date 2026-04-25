@@ -6,6 +6,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { nomusFetch, listAll, listPage, getOne, testNomusConnection } from "./client";
 import {
   NOMUS_ENDPOINTS,
+  pessoaContatosPath,
   proposalSubpath,
   proposalItemDetailPath,
   proposalItemDetailFallbackPaths,
@@ -36,6 +37,95 @@ const pickNestedStr = (o: Json, nestedKey: string, ...keys: string[]): string | 
   if (!nested || typeof nested !== "object") return null;
   return pickStr(nested as Json, ...keys);
 };
+
+const pickBool = (o: Json, ...keys: string[]): boolean | null => {
+  for (const k of keys) {
+    const v = o[k];
+    if (typeof v === "boolean") return v;
+    if (typeof v === "number") return v !== 0;
+    if (typeof v === "string" && v.trim()) return /^(true|sim|s|1)$/i.test(v.trim());
+  }
+  return null;
+};
+
+const firstArrayObj = (o: Json, key: string): Json | null => {
+  const v = o[key];
+  return Array.isArray(v) && v[0] && typeof v[0] === "object" ? (v[0] as Json) : null;
+};
+
+const extractNomusList = <T,>(payload: unknown): T[] => {
+  if (!payload) return [];
+  if (Array.isArray(payload)) return payload as T[];
+  const env = payload as Json;
+  for (const k of ["items", "resultados", "data", "content", "registros", "lista", "contatos"]) {
+    const v = env[k];
+    if (Array.isArray(v)) return v as T[];
+  }
+  return [];
+};
+
+async function syncPersonContacts(args: { clientId: string; pessoaId: string; triggeredBy: string | null }) {
+  const res = await nomusFetch<unknown>(pessoaContatosPath(args.pessoaId), {
+    method: "GET",
+    entity: "contatos",
+    operation: "list-person-contacts",
+    direction: "pull",
+    triggeredBy: args.triggeredBy,
+    timeoutMs: 8_000,
+    maxAttempts: 1,
+  });
+  if (!res.ok) {
+    if (res.status === 400 || res.status === 404) return 0;
+    throw new Error(res.error);
+  }
+
+  let count = 0;
+  for (const raw of extractNomusList<Json>(res.data)) {
+    const nomus_id = pickStr(raw, "id", "codigo", "idContato", "idPessoaContato");
+    const name = pickStr(raw, "nome", "nomeContato", "contato", "razaoSocial");
+    const email = pickStr(raw, "email", "emailPrincipal");
+    const phone = pickStr(raw, "telefone", "fone", "telefonePrincipal");
+    const mobile = pickStr(raw, "celular", "telefoneCelular", "mobile");
+    if (!name && !email && !phone && !mobile) continue;
+
+    const payload = {
+      client_id: args.clientId,
+      nomus_id,
+      name: name ?? email ?? phone ?? mobile ?? "Contato Nomus",
+      role: pickStr(raw, "cargo", "funcao", "função", "departamento", "tipoContato"),
+      email,
+      phone,
+      mobile,
+      is_primary: pickBool(raw, "principal", "contatoPrincipal", "isPrimary") ?? false,
+      nomus_raw: raw as never,
+    };
+
+    let existingId: string | null = null;
+    if (nomus_id) {
+      const { data } = await supabaseAdmin
+        .from("client_contacts")
+        .select("id")
+        .eq("client_id", args.clientId)
+        .eq("nomus_id", nomus_id)
+        .maybeSingle();
+      existingId = (data as { id?: string } | null)?.id ?? null;
+    } else if (email || phone || mobile) {
+      let query = supabaseAdmin.from("client_contacts").select("id").eq("client_id", args.clientId);
+      if (email) query = query.eq("email", email);
+      else if (phone) query = query.eq("phone", phone);
+      else if (mobile) query = query.eq("mobile", mobile);
+      const { data } = await query.maybeSingle();
+      existingId = (data as { id?: string } | null)?.id ?? null;
+    }
+
+    const { error } = existingId
+      ? await supabaseAdmin.from("client_contacts").update(payload).eq("id", existingId)
+      : await supabaseAdmin.from("client_contacts").insert(payload);
+    if (error) throw new Error(error.message);
+    count += 1;
+  }
+  return count;
+}
 
 async function setState(entity: string, patch: Record<string, unknown>) {
   await supabaseAdmin.from("nomus_sync_state").upsert({
@@ -165,13 +255,14 @@ export const nomusSyncClients = createServerFn({ method: "POST" })
         .maybeSingle();
       const page = Math.max(1, Number((state as { last_cursor?: string | null } | null)?.last_cursor ?? "1") || 1);
       const previousTotal = page === 1 ? 0 : Number((state as { total_synced?: number | null } | null)?.total_synced ?? 0) || 0;
-      const res = await listPage<Json>(NOMUS_ENDPOINTS.clientes, {}, { entity: "clientes", page, pageSize: 50, triggeredBy: userId });
+      const res = await listPage<Json>(NOMUS_ENDPOINTS.clientes, {}, { entity: "clientes", page, pageSize: 20, triggeredBy: userId });
       if (!res.ok) {
         await setState("clientes", { running: false, last_error: res.error });
         return { ok: false as const, error: res.error };
       }
 
       let count = 0;
+      let contactsCount = 0;
       let skipped = 0;
       for (const raw of res.items) {
         const summaryId = pickStr(raw, "id", "codigo", "idCliente", "idPessoa");
@@ -185,7 +276,12 @@ export const nomusSyncClients = createServerFn({ method: "POST" })
           skipped += 1;
           continue;
         }
-        const { error } = await supabaseAdmin
+        const seller = firstArrayObj(full, "vendedores");
+        const representative = firstArrayObj(full, "representantes");
+        const cnae = pickStr(full, "cnaePrincipal", "classificacao", "classificação");
+        const notes = [pickStr(full, "observacoes", "observações"), cnae ? `CNAE/Classificação: ${cnae}` : null].filter(Boolean).join("\n") || null;
+
+        const { data: upserted, error } = await supabaseAdmin
           .from("clients")
           .upsert(
             {
@@ -204,21 +300,27 @@ export const nomusSyncClients = createServerFn({ method: "POST" })
               city: pickStr(full, "cidade", "municipio", "nomeCidade"),
               state: pickStr(full, "uf", "estado", "siglaEstado"),
               country: pickStr(full, "pais", "nomePais"),
-              segment: pickStr(full, "segmento", "ramo", "ramoAtividade", "segmentoMercado"),
-              region: pickStr(full, "regiao", "regiaoComercial", "territorio"),
+              segment: pickStr(full, "segmento", "ramo", "ramoAtividade", "segmentoMercado", "cnaePrincipal", "classificacao"),
+              region: pickStr(full, "regiao", "regiaoComercial", "territorio", "uf", "estado", "siglaEstado"),
               state_registration: pickStr(full, "inscricaoEstadual", "ie"),
               municipal_registration: pickStr(full, "inscricaoMunicipal", "im"),
-              nomus_seller_id: pickStr(full, "idVendedor", "vendedorId") ?? pickNestedStr(full, "vendedor", "id", "codigo"),
-              nomus_seller_name: pickStr(full, "nomeVendedor", "vendedorNome") ?? pickNestedStr(full, "vendedor", "nome", "razaoSocial"),
-              nomus_representative_id: pickStr(full, "idRepresentante", "representanteId") ?? pickNestedStr(full, "representante", "id", "codigo"),
-              nomus_representative_name: pickStr(full, "nomeRepresentante", "representanteNome") ?? pickNestedStr(full, "representante", "nome", "razaoSocial"),
+              nomus_seller_id: pickStr(full, "idVendedor", "vendedorId") ?? pickNestedStr(full, "vendedor", "id", "codigo") ?? (seller ? pickStr(seller, "id", "codigo") : null),
+              nomus_seller_name: pickStr(full, "nomeVendedor", "vendedorNome") ?? pickNestedStr(full, "vendedor", "nome", "razaoSocial") ?? (seller ? pickStr(seller, "nome", "razaoSocial") : null),
+              nomus_representative_id: pickStr(full, "idRepresentante", "representanteId") ?? pickNestedStr(full, "representante", "id", "codigo") ?? (representative ? pickStr(representative, "id", "codigo") : null),
+              nomus_representative_name: pickStr(full, "nomeRepresentante", "representanteNome") ?? pickNestedStr(full, "representante", "nome", "razaoSocial") ?? (representative ? pickStr(representative, "nome", "razaoSocial") : null),
+              notes,
+              is_active: pickBool(full, "ativo", "isActive", "ativoCliente") ?? true,
               nomus_raw: full as never,
               origin: "nomus",
               nomus_synced_at: new Date().toISOString(),
             },
             { onConflict: "nomus_id" }
-          );
+          )
+          .select("id")
+          .single();
         if (error) throw new Error(error.message);
+        const clientId = (upserted as { id?: string } | null)?.id;
+        if (clientId && nomus_id) contactsCount += await syncPersonContacts({ clientId, pessoaId: nomus_id, triggeredBy: userId });
         count += 1;
       }
 
@@ -231,7 +333,7 @@ export const nomusSyncClients = createServerFn({ method: "POST" })
         last_cursor: nextPage,
         last_error: null,
       });
-      return { ok: true as const, count, skipped, unmatched: 0, done, nextPage };
+      return { ok: true as const, count, contactsCount, skipped, unmatched: 0, done, nextPage };
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       await setState("clientes", { running: false, last_error: msg });
