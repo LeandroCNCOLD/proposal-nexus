@@ -2,13 +2,15 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState } from "react";
-import { RefreshCw, Settings2, Search, Filter as FilterIcon } from "lucide-react";
+import { Plus, RefreshCw, Settings2, Search, Filter as FilterIcon } from "lucide-react";
 import { toast } from "sonner";
 import {
   pullNomusProcesses,
   listAvailableProcessTypes,
   getUserFunnels,
   setUserFunnels,
+  updateNomusProcess,
+  createNomusProcess,
 } from "@/integrations/nomus/process-sync.functions";
 import { getFunnelData } from "@/integrations/nomus/process-enrichment.functions";
 import { PageHeader } from "@/components/PageHeader";
@@ -24,6 +26,8 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { brl } from "@/lib/format";
 import { KanbanCardRich, type EnrichedCard } from "@/components/crm/KanbanCardRich";
 
@@ -38,6 +42,18 @@ type Filters = {
   processo: string;
 };
 
+type NewProcessPayload = {
+  nome: string;
+  tipo: string;
+  etapa: string;
+  responsavel: string;
+  reportador: string;
+  prioridade?: string;
+  equipe?: string;
+  origem?: string;
+  dataHoraProgramada?: string | null;
+};
+
 const EMPTY_FILTERS: Filters = { responsavel: "", equipe: "", pessoa: "", processo: "" };
 
 function CrmPage() {
@@ -47,10 +63,13 @@ function CrmPage() {
   const getFunnels = useServerFn(getUserFunnels);
   const saveFunnels = useServerFn(setUserFunnels);
   const fetchFunnel = useServerFn(getFunnelData);
+  const updateProcess = useServerFn(updateNomusProcess);
+  const createProcess = useServerFn(createNomusProcess);
 
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState<string>(DEFAULT_FUNNEL);
   const [funnelDrawerOpen, setFunnelDrawerOpen] = useState(false);
+  const [newProcessOpen, setNewProcessOpen] = useState(false);
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
 
   const { data: typesData } = useQuery({
@@ -140,6 +159,33 @@ function CrmPage() {
       queryClient.invalidateQueries({ queryKey: ["crm"] });
     },
     onError: (e) => toast.error(`Falha na sincronização: ${e instanceof Error ? e.message : String(e)}`),
+  });
+
+  const moveMutation = useMutation({
+    mutationFn: async ({ processId, etapa }: { processId: string; etapa: string }) => {
+      const result = await updateProcess({ data: { process_id: processId, etapa } });
+      if (!result.ok) throw new Error(result.error);
+      return result;
+    },
+    onSuccess: () => {
+      toast.success("Etapa atualizada no Nomus.");
+      queryClient.invalidateQueries({ queryKey: ["crm"] });
+    },
+    onError: (e) => toast.error(`Não foi possível mover o processo: ${e instanceof Error ? e.message : String(e)}`),
+  });
+
+  const createMutation = useMutation({
+    mutationFn: async (payload: NewProcessPayload) => {
+      const result = await createProcess({ data: payload });
+      if (!result.ok) throw new Error(result.error);
+      return result;
+    },
+    onSuccess: () => {
+      toast.success("Processo criado no Nomus.");
+      setNewProcessOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["crm"] });
+    },
+    onError: (e) => toast.error(`Falha ao criar processo: ${e instanceof Error ? e.message : String(e)}`),
   });
 
   const activeFilterCount = Object.values(filtersForServer).filter(Boolean).length;
@@ -235,6 +281,24 @@ function CrmPage() {
                 />
               </SheetContent>
             </Sheet>
+            <Dialog open={newProcessOpen} onOpenChange={setNewProcessOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Plus className="mr-2 h-4 w-4" /> Novo processo
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Novo processo no Nomus</DialogTitle>
+                </DialogHeader>
+                <NewProcessForm
+                  defaultTipo={activeTab || DEFAULT_FUNNEL}
+                  stages={funnelData?.stages?.map((s: any) => s.etapa) ?? []}
+                  saving={createMutation.isPending}
+                  onSubmit={(payload: NewProcessPayload) => createMutation.mutate(payload)}
+                />
+              </DialogContent>
+            </Dialog>
             <Button
               size="sm"
               onClick={() => pullMutation.mutate()}
@@ -262,7 +326,13 @@ function CrmPage() {
           {activeFunnels.map((tipo) => (
             <TabsContent key={tipo} value={tipo} className="mt-0">
               {tipo === activeTab && (
-                <KanbanBoardRich stages={stages} loading={loadingFunnel} error={funnelError} />
+                <KanbanBoardRich
+                  stages={stages}
+                  loading={loadingFunnel}
+                  error={funnelError}
+                  moving={moveMutation.isPending}
+                  onMove={(processId: string, etapa: string) => moveMutation.mutate({ processId, etapa })}
+                />
               )}
             </TabsContent>
           ))}
@@ -278,6 +348,8 @@ function KanbanBoardRich({
   stages,
   loading,
   error,
+  moving,
+  onMove,
 }: {
   stages: Array<{
     etapa: string;
@@ -292,6 +364,8 @@ function KanbanBoardRich({
   }>;
   loading: boolean;
   error?: boolean;
+  moving?: boolean;
+  onMove?: (processId: string, etapa: string) => void;
 }) {
   if (loading) {
     return <div className="text-sm text-muted-foreground">Carregando processos…</div>;
@@ -341,7 +415,23 @@ function KanbanBoardRich({
                   Vazio
                 </div>
               ) : (
-                col.processes.map((p) => <KanbanCardRich key={p.id} card={p} />)
+                col.processes.map((p) => (
+                  <div key={p.id} className="space-y-1.5">
+                    <KanbanCardRich card={p} />
+                    {onMove && (
+                      <Select value={p.etapa ?? col.etapa} onValueChange={(value) => onMove(p.id, value)} disabled={moving}>
+                        <SelectTrigger className="h-7 text-[11px]">
+                          <SelectValue placeholder="Mover para" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {stages.map((stage) => (
+                            <SelectItem key={stage.etapa} value={stage.etapa}>{stage.etapa}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
+                ))
               )}
             </div>
           </div>
@@ -415,6 +505,109 @@ function FunnelManager({
       </div>
       <Button onClick={() => onSave(picked)}>Salvar funis ativos</Button>
     </div>
+  );
+}
+
+function NewProcessForm({
+  defaultTipo,
+  stages,
+  saving,
+  onSubmit,
+}: {
+  defaultTipo: string;
+  stages: string[];
+  saving: boolean;
+  onSubmit: (payload: NewProcessPayload) => void;
+}) {
+  const defaultEtapa = stages[0] ?? "Orçamento";
+  const [form, setForm] = useState<NewProcessPayload>({
+    nome: "",
+    tipo: defaultTipo,
+    etapa: defaultEtapa,
+    responsavel: "",
+    reportador: "",
+    prioridade: "Baixa",
+    equipe: "",
+    origem: "",
+    dataHoraProgramada: "",
+  });
+
+  useEffect(() => {
+    setForm((prev) => ({ ...prev, tipo: defaultTipo, etapa: stages[0] ?? prev.etapa }));
+  }, [defaultTipo, stages]);
+
+  const update = (key: keyof NewProcessPayload, value: string) => setForm((prev) => ({ ...prev, [key]: value }));
+
+  return (
+    <form
+      className="space-y-3"
+      onSubmit={(event) => {
+        event.preventDefault();
+        onSubmit({ ...form, dataHoraProgramada: form.dataHoraProgramada || null });
+      }}
+    >
+      <div className="space-y-2">
+        <Label>Nome</Label>
+        <Input value={form.nome} onChange={(e) => update("nome", e.target.value)} required />
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label>Tipo</Label>
+          <Input value={form.tipo} onChange={(e) => update("tipo", e.target.value)} required />
+        </div>
+        <div className="space-y-2">
+          <Label>Etapa</Label>
+          <Select value={form.etapa} onValueChange={(value) => update("etapa", value)}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {Array.from(new Set([form.etapa, ...stages].filter(Boolean))).map((stage) => (
+                <SelectItem key={stage} value={stage}>{stage}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label>Responsável</Label>
+          <Input value={form.responsavel} onChange={(e) => update("responsavel", e.target.value)} required />
+        </div>
+        <div className="space-y-2">
+          <Label>Reportador</Label>
+          <Input value={form.reportador} onChange={(e) => update("reportador", e.target.value)} required />
+        </div>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label>Prioridade</Label>
+          <Select value={form.prioridade} onValueChange={(value) => update("prioridade", value)}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Baixa">Baixa</SelectItem>
+              <SelectItem value="Média">Média</SelectItem>
+              <SelectItem value="Alta">Alta</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label>Data programada</Label>
+          <Input type="datetime-local" value={form.dataHoraProgramada ?? ""} onChange={(e) => update("dataHoraProgramada", e.target.value)} />
+        </div>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label>Equipe</Label>
+          <Input value={form.equipe ?? ""} onChange={(e) => update("equipe", e.target.value)} />
+        </div>
+        <div className="space-y-2">
+          <Label>Origem</Label>
+          <Input value={form.origem ?? ""} onChange={(e) => update("origem", e.target.value)} />
+        </div>
+      </div>
+      <Button type="submit" className="w-full" disabled={saving}>
+        {saving ? "Criando…" : "Criar processo"}
+      </Button>
+    </form>
   );
 }
 
