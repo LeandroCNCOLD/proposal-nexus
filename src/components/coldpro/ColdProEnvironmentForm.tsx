@@ -1,8 +1,6 @@
 import * as React from "react";
-import { Box, DraftingCompass, Grid3X3, Layers, Plus, Save, ShieldCheck, Thermometer, Trash2 } from "lucide-react";
+import { Box, DraftingCompass, Grid3X3, Save, ShieldCheck, Thermometer } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import {
   ColdProField,
   ColdProInput,
@@ -20,7 +18,6 @@ import {
 type Props = {
   environment: any;
   insulationMaterials: any[];
-  thermalMaterials?: any[];
   onSave: (patch: Record<string, unknown>) => void;
 };
 
@@ -245,63 +242,8 @@ function ChamberShapePreview({ layout }: { layout: ChamberLayout }) {
   );
 }
 
-function FaceLayersDialog({ face, faceIndex, thermalMaterials, onChange }: { face: any; faceIndex: number; thermalMaterials: any[]; onChange: (index: number, layers: any[], uValue: number) => void }) {
-  const layers = Array.isArray(face.layers) ? face.layers : [];
-  const uValue = calculateUValue(layers);
-  const updateLayer = (layerIndex: number, patch: Record<string, unknown>) => {
-    const next = layers.map((layer: any, index: number) => index === layerIndex ? { ...layer, ...patch } : layer);
-    onChange(faceIndex, next, calculateUValue(next));
-  };
-  const addLayer = () => {
-    const material = thermalMaterials.find((item) => item.material_name === "Painel isotérmico PUR") ?? thermalMaterials[0];
-    const next = [...layers, { material_id: material?.id ?? null, material_name: material?.material_name ?? "Material", category: material?.category ?? null, thickness_m: Number(material?.typical_thickness_mm ?? 100) / 1000, conductivity_w_mk: Number(material?.thermal_conductivity_w_mk ?? 0.022), position: layers.length }];
-    onChange(faceIndex, next, calculateUValue(next));
-  };
-  const removeLayer = (layerIndex: number) => {
-    const next = layers.filter((_: any, index: number) => index !== layerIndex).map((layer: any, index: number) => ({ ...layer, position: index }));
-    onChange(faceIndex, next, calculateUValue(next));
-  };
-
-  return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <Button type="button" variant="outline" size="sm" className="h-8 gap-1.5"><Layers className="h-3.5 w-3.5" /> {layers.length || "Camadas"}</Button>
-      </DialogTrigger>
-      <DialogContent className="max-w-3xl">
-        <DialogHeader>
-          <DialogTitle>Camadas térmicas — {face.local}</DialogTitle>
-          <DialogDescription>Monte a composição construtiva para calcular o coeficiente U desta face.</DialogDescription>
-        </DialogHeader>
-        <div className="space-y-3">
-          <ColdProCalculatedInfo label="U calculado" value={`${fmtColdPro(uValue, 3)} W/m²K`} description="Inclui resistências superficiais interna e externa." tone={uValue > 0 ? "success" : "warning"} />
-          <div className="space-y-2">
-            {layers.map((layer: any, layerIndex: number) => (
-              <div key={layerIndex} className="grid items-end gap-2 rounded-lg border p-3 md:grid-cols-[1fr_120px_120px_36px]">
-                <ColdProField label="Material">
-                  <ColdProSelect value={layer.material_id ?? layer.material_name ?? ""} onChange={(e) => {
-                    const material = thermalMaterials.find((item) => item.id === e.target.value);
-                    if (!material) return updateLayer(layerIndex, { material_name: e.target.value });
-                    updateLayer(layerIndex, { material_id: material.id, material_name: material.material_name, category: material.category, conductivity_w_mk: Number(material.thermal_conductivity_w_mk), thickness_m: Number(material.typical_thickness_mm ?? 0) > 0 ? Number(material.typical_thickness_mm) / 1000 : layer.thickness_m });
-                  }}>
-                    {thermalMaterials.map((material) => <option key={material.id} value={material.id}>{material.material_name}</option>)}
-                  </ColdProSelect>
-                </ColdProField>
-                <ColdProField label="Espessura" unit="mm"><ColdProInput type="number" value={toNumber(layer.thickness_m) * 1000 || ""} onChange={(e) => updateLayer(layerIndex, { thickness_m: toNumber(e.target.value) / 1000 })} /></ColdProField>
-                <ColdProField label="k" unit="W/mK"><ColdProInput type="number" value={layer.conductivity_w_mk ?? ""} onChange={(e) => updateLayer(layerIndex, { conductivity_w_mk: numberOrNull(e.target.value) ?? 0 })} /></ColdProField>
-                <Button type="button" variant="outline" size="icon" onClick={() => removeLayer(layerIndex)}><Trash2 className="h-4 w-4" /></Button>
-              </div>
-            ))}
-          </div>
-          <Button type="button" variant="outline" onClick={addLayer} className="gap-2"><Plus className="h-4 w-4" /> Adicionar camada</Button>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-export function ColdProEnvironmentForm({ environment, insulationMaterials, thermalMaterials = [], onSave }: Props) {
+export function ColdProEnvironmentForm({ environment, insulationMaterials, onSave }: Props) {
   const [form, setForm] = React.useState<any>(environment);
-  const [activeFaceIndex, setActiveFaceIndex] = React.useState(0);
   const [floorInsulationMaterialId, setFloorInsulationMaterialId] = React.useState<string>(environment?.insulation_material_id ?? "");
   const [soilRegion, setSoilRegion] = React.useState("");
   React.useEffect(() => setForm(environment), [environment]);
