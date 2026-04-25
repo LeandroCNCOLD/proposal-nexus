@@ -3,20 +3,23 @@ import { DoorOpen, Lightbulb, Save, ShieldPlus, Zap } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { ColdProField, ColdProInput } from "./ColdProField";
 import { ColdProCalculatedInfo, ColdProFormSection, ColdProValidationMessage, fmtColdPro, numberOrNull } from "./ColdProFormPrimitives";
+import { calculateExtraLoadPreview, suggestedInfiltrationFactor } from "@/features/coldpro/extra-loads-preview";
 
-type Props = { environment: any; onSave: (patch: Record<string, unknown>) => void };
+type Props = { environment: any; catalogFanLoadKcalH?: number; onSave: (patch: Record<string, unknown>) => void };
 
-export function ColdProExtraLoadsForm({ environment, onSave }: Props) {
+export function ColdProExtraLoadsForm({ environment, catalogFanLoadKcalH = 0, onSave }: Props) {
   const [form, setForm] = React.useState<any>(environment);
   React.useEffect(() => setForm(environment), [environment]);
   const set = (key: string, value: unknown) => setForm((prev: any) => ({ ...prev, [key]: value }));
   const num = (key: string) => ({ type: "number" as const, value: form?.[key] ?? "", onChange: (e: React.ChangeEvent<HTMLInputElement>) => set(key, numberOrNull(e.target.value)) });
 
   const hoursInvalid = [form.people_hours_day, form.lighting_hours_day, form.motors_hours_day].some((v) => Number(v ?? 0) < 0 || Number(v ?? 0) > 24);
-  const negativeInvalid = [form.door_openings_per_day, form.door_width_m, form.door_height_m, form.people_count, form.lighting_power_w, form.motors_power_kw, form.fans_kcal_h, form.defrost_kcal_h, form.other_kcal_h, form.safety_factor_percent].some((v) => Number(v ?? 0) < 0);
+  const negativeInvalid = [form.door_openings_per_day, form.door_width_m, form.door_height_m, form.infiltration_factor, form.air_changes_per_hour, form.fresh_air_m3_h, form.door_infiltration_m3_h, form.people_count, form.lighting_power_w, form.motors_power_kw, form.fans_kcal_h, form.defrost_kcal_h, form.other_kcal_h, form.safety_factor_percent].some((v) => Number(v ?? 0) < 0);
   const canSave = !hoursInvalid && !negativeInvalid;
-  const doorArea = Number(form.door_width_m ?? 0) * Number(form.door_height_m ?? 0);
+  const preview = calculateExtraLoadPreview(form ?? {});
+  const suggestedFactor = suggestedInfiltrationFactor(form ?? {});
   const internalPower = Number(form.lighting_power_w ?? 0) / 1000 + Number(form.motors_power_kw ?? 0);
+  const save = () => onSave({ ...form, infiltration_factor: Number(form?.infiltration_factor ?? 0) > 0 ? form.infiltration_factor : suggestedFactor });
 
   return (
     <div className="min-w-0 rounded-xl border bg-background p-3 shadow-sm sm:p-5">
@@ -26,8 +29,8 @@ export function ColdProExtraLoadsForm({ environment, onSave }: Props) {
           <p className="mt-1 text-sm text-muted-foreground">Renovação de ar, pessoas, iluminação, motores, ventiladores, degelo e fator de segurança.</p>
         </div>
         <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 md:w-auto md:min-w-80">
-          <ColdProCalculatedInfo label="Área da porta" value={`${fmtColdPro(doorArea)} m²`} description="Largura × altura" />
-          <ColdProCalculatedInfo label="Potência interna base" value={`${fmtColdPro(internalPower)} kW`} description="Iluminação + motores" />
+          <ColdProCalculatedInfo label="Total automático" value={`${fmtColdPro(preview.subtotal_kcal_h)} kcal/h`} description="Infiltração + internas + adicionais" />
+          <ColdProCalculatedInfo label="Com segurança" value={`${fmtColdPro(preview.total_with_safety_kcal_h)} kcal/h`} description="Total da aba + fator de segurança" tone="success" />
         </div>
       </div>
 
@@ -44,7 +47,10 @@ export function ColdProExtraLoadsForm({ environment, onSave }: Props) {
                 </div>
                 <div>
                   <ColdProField label="Fator infiltração"><ColdProInput {...num("infiltration_factor")} /></ColdProField>
-                  <ColdProCalculatedInfo label="Área de abertura" value={`${fmtColdPro(doorArea)} m²`} description="Referência visual para renovação por porta." tone={doorArea > 0 ? "info" : "warning"} />
+                  <ColdProField label="Trocas de ar" unit="vol/h"><ColdProInput {...num("air_changes_per_hour")} /></ColdProField>
+                  <ColdProField label="Ar externo contínuo" unit="m³/h"><ColdProInput {...num("fresh_air_m3_h")} /></ColdProField>
+                  <ColdProField label="Infiltração porta" unit="m³/h"><ColdProInput {...num("door_infiltration_m3_h")} /></ColdProField>
+                  <ColdProCalculatedInfo label="Carga de infiltração" value={`${fmtColdPro(preview.infiltration_kcal_h)} kcal/h`} description={`Área ${fmtColdPro(preview.doorArea)} m² · fator ${fmtColdPro(preview.infiltrationFactor)} · ar ${fmtColdPro(preview.continuousAirM3H)} m³/h`} tone={preview.infiltration_kcal_h > 0 ? "success" : "warning"} />
                 </div>
               </div>
             </ColdProFormSection>
@@ -63,6 +69,7 @@ export function ColdProExtraLoadsForm({ environment, onSave }: Props) {
                 <div>
                   <ColdProField label="Iluminação" unit="W"><ColdProInput {...num("lighting_power_w")} /></ColdProField>
                   <ColdProField label="Horas de iluminação" unit="h/dia"><ColdProInput {...num("lighting_hours_day")} /></ColdProField>
+                  <ColdProCalculatedInfo label="Carga ocupação + iluminação" value={`${fmtColdPro(preview.people_kcal_h + preview.lighting_kcal_h)} kcal/h`} description={`Pessoas ${fmtColdPro(preview.people_kcal_h)} · iluminação ${fmtColdPro(preview.lighting_kcal_h)}`} />
                 </div>
               </div>
             </ColdProFormSection>
@@ -78,11 +85,12 @@ export function ColdProExtraLoadsForm({ environment, onSave }: Props) {
                   <ColdProField label="Motores internos" unit="kW"><ColdProInput {...num("motors_power_kw")} /></ColdProField>
                   <ColdProField label="Horas de motores" unit="h/dia"><ColdProInput {...num("motors_hours_day")} /></ColdProField>
                   <ColdProField label="Ventiladores" unit="kcal/h"><ColdProInput {...num("fans_kcal_h")} /></ColdProField>
+                  {catalogFanLoadKcalH > 0 ? <button type="button" onClick={() => set("fans_kcal_h", catalogFanLoadKcalH)} className="mb-4 rounded-md border bg-background px-3 py-2 text-xs font-medium hover:bg-muted">Usar ventiladores do catálogo ({fmtColdPro(catalogFanLoadKcalH)} kcal/h)</button> : null}
                 </div>
                 <div>
                   <ColdProField label="Degelo" unit="kcal/h"><ColdProInput {...num("defrost_kcal_h")} /></ColdProField>
                   <ColdProField label="Outras cargas" unit="kcal/h"><ColdProInput {...num("other_kcal_h")} /></ColdProField>
-                  <ColdProCalculatedInfo label="Potência elétrica base" value={`${fmtColdPro(internalPower)} kW`} description="Iluminação e motores informados." />
+                  <ColdProCalculatedInfo label="Motores e cargas adicionais" value={`${fmtColdPro(preview.motors_kcal_h + preview.fans_kcal_h + preview.defrost_kcal_h + preview.other_kcal_h)} kcal/h`} description={`Potência elétrica base ${fmtColdPro(internalPower)} kW`} />
                 </div>
               </div>
             </ColdProFormSection>
@@ -95,7 +103,7 @@ export function ColdProExtraLoadsForm({ environment, onSave }: Props) {
             <ColdProFormSection title="Fator de segurança" description="Margem aplicada sobre o subtotal calculado.">
               <div className="grid grid-cols-1 gap-x-10 md:grid-cols-2">
                 <ColdProField label="Fator de segurança" unit="%"><ColdProInput {...num("safety_factor_percent")} /></ColdProField>
-                <ColdProCalculatedInfo label="Margem configurada" value={`${fmtColdPro(form?.safety_factor_percent)} %`} description="Será aplicada no resultado final." tone={Number(form?.safety_factor_percent ?? 0) >= 0 ? "success" : "warning"} />
+                <ColdProCalculatedInfo label="Carga de segurança" value={`${fmtColdPro(preview.safety_kcal_h)} kcal/h`} description={`${fmtColdPro(form?.safety_factor_percent)}% sobre ${fmtColdPro(preview.subtotal_kcal_h)} kcal/h`} tone={Number(form?.safety_factor_percent ?? 0) >= 0 ? "success" : "warning"} />
               </div>
             </ColdProFormSection>
           </AccordionContent>
@@ -108,7 +116,7 @@ export function ColdProExtraLoadsForm({ environment, onSave }: Props) {
       </div>
 
       <div className="mt-5 flex justify-end border-t pt-4">
-        <button type="button" disabled={!canSave} onClick={() => onSave(form)} className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-2 text-sm font-medium text-primary-foreground shadow-sm transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50">
+        <button type="button" disabled={!canSave} onClick={save} className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-2 text-sm font-medium text-primary-foreground shadow-sm transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50">
           <Save className="h-4 w-4" /> Salvar cargas extras
         </button>
       </div>

@@ -42,6 +42,7 @@ export type PerformancePoint = {
   evaporator_capacity_kcal_h: number | null;
   compressor_capacity_kcal_h: number | null;
   total_power_kw: number | null;
+  fan_power_kw: number | null;
   cop: number | null;
 };
 
@@ -74,6 +75,7 @@ export type SelectionCandidate = {
   };
   capacity_unit_kcal_h: number;
   total_power_kw: number | null;
+  fan_power_kw: number | null;
   cop: number | null;
   quantity: number;
   capacity_total_kcal_h: number;
@@ -264,7 +266,7 @@ export async function findEquipmentCandidates(
   const { data: points, error: pErr } = await db
     .from("coldpro_equipment_performance_points")
     .select(
-      "id, equipment_model_id, temperature_room_c, evaporation_temp_c, condensation_temp_c, evaporator_capacity_kcal_h, compressor_capacity_kcal_h, total_power_kw, cop",
+      "id, equipment_model_id, temperature_room_c, evaporation_temp_c, condensation_temp_c, evaporator_capacity_kcal_h, compressor_capacity_kcal_h, total_power_kw, fan_power_kw, cop",
     )
     .in("equipment_model_id", modelIds);
   if (pErr) throw new Error(`Erro ao buscar pontos: ${pErr.message}`);
@@ -343,6 +345,7 @@ export async function findEquipmentCandidates(
       },
       capacity_unit_kcal_h: sel.capacity,
       total_power_kw: sel.power,
+      fan_power_kw: sel.used.polynomial ? null : pts.find((point) => point.evaporation_temp_c === sel.used.t_evap && point.condensation_temp_c === sel.used.t_cond)?.fan_power_kw ?? pts.find((point) => point.fan_power_kw !== null)?.fan_power_kw ?? null,
       cop: sel.cop,
       quantity,
       capacity_total_kcal_h: totalCap,

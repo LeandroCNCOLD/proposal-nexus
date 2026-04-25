@@ -29,6 +29,7 @@ import { ColdProRealSelection } from "@/components/coldpro/ColdProRealSelection"
 import { ColdProSectionLoadSummary } from "@/components/coldpro/ColdProSectionLoadSummary";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { saveCatalogEquipmentSelection } from "@/features/coldpro/catalog-selection.functions";
+import { calculateExtraLoadPreview } from "@/features/coldpro/extra-loads-preview";
 
 export const Route = createFileRoute("/app/coldpro/$id")({ component: ColdProProjectPage });
 
@@ -74,7 +75,9 @@ function ColdProProjectPage() {
   const selection = (data?.selections ?? []).find((s: any) => s.environment_id === selectedEnv?.id);
   const environmentLoad = Number(result?.transmission_kcal_h ?? 0);
   const productLoad = Number(result?.product_kcal_h ?? 0) + Number(result?.packaging_kcal_h ?? 0) + Number(result?.calculation_breakdown?.respiration_kcal_h ?? 0) + Number(result?.tunnel_internal_load_kcal_h ?? 0);
-  const extraLoad = Number(result?.infiltration_kcal_h ?? 0) + Number(result?.people_kcal_h ?? 0) + Number(result?.lighting_kcal_h ?? 0) + Number(result?.motors_kcal_h ?? 0) + Number(result?.fans_kcal_h ?? 0) + Number(result?.defrost_kcal_h ?? 0) + Number(result?.other_kcal_h ?? 0);
+  const extraPreview = calculateExtraLoadPreview(selectedEnv ?? {});
+  const extraLoad = result ? Number(result.infiltration_kcal_h ?? 0) + Number(result.people_kcal_h ?? 0) + Number(result.lighting_kcal_h ?? 0) + Number(result.motors_kcal_h ?? 0) + Number(result.fans_kcal_h ?? 0) + Number(result.defrost_kcal_h ?? 0) + Number(result.other_kcal_h ?? 0) : extraPreview.subtotal_kcal_h;
+  const catalogFanLoadKcalH = Number(selection?.curve_metadata?.fan_power_kw ?? 0) * Number(selection?.quantity ?? 1) * 859.845;
 
   React.useEffect(() => {
     if (!selectedEnvId && environments[0]?.id) setSelectedEnvId(environments[0].id);
@@ -425,6 +428,7 @@ function ColdProProjectPage() {
                 <div className="space-y-4">
                   <ColdProExtraLoadsForm
                     environment={selectedEnv}
+                    catalogFanLoadKcalH={catalogFanLoadKcalH}
                     onSave={(patch) =>
                       updateEnv.mutate(
                         { id: selectedEnv.id, patch },
@@ -438,16 +442,17 @@ function ColdProProjectPage() {
                   <ColdProSectionLoadSummary
                     title="Prévia das cargas extras"
                     rows={[
-                      { label: "Infiltração", value: result?.infiltration_kcal_h },
-                      { label: "Pessoas", value: result?.people_kcal_h },
-                      { label: "Iluminação", value: result?.lighting_kcal_h },
-                      { label: "Motores", value: result?.motors_kcal_h },
-                      { label: "Ventiladores", value: result?.fans_kcal_h },
-                      { label: "Degelo", value: result?.defrost_kcal_h },
-                      { label: "Outras cargas", value: result?.other_kcal_h },
+                      { label: "Infiltração", value: result?.infiltration_kcal_h ?? extraPreview.infiltration_kcal_h },
+                      { label: "Pessoas", value: result?.people_kcal_h ?? extraPreview.people_kcal_h },
+                      { label: "Iluminação", value: result?.lighting_kcal_h ?? extraPreview.lighting_kcal_h },
+                      { label: "Motores", value: result?.motors_kcal_h ?? extraPreview.motors_kcal_h },
+                      { label: "Ventiladores", value: result?.fans_kcal_h ?? extraPreview.fans_kcal_h },
+                      { label: "Degelo", value: result?.defrost_kcal_h ?? extraPreview.defrost_kcal_h },
+                      { label: "Outras cargas", value: result?.other_kcal_h ?? extraPreview.other_kcal_h },
+                      { label: "Segurança", value: result?.safety_kcal_h ?? extraPreview.safety_kcal_h, muted: true },
                     ]}
-                    totalLabel="Total calculado da aba Cargas extras"
-                    total={extraLoad}
+                    totalLabel="Total calculado da aba Cargas extras + segurança"
+                    total={result ? extraLoad + Number(result.safety_kcal_h ?? 0) : extraPreview.total_with_safety_kcal_h}
                   />
                 </div>
               )}
@@ -499,7 +504,7 @@ function ColdProProjectPage() {
                           curveCondensationTempC: cand.point_used.condensation_temp_c,
                           curvePolynomialR2: cand.point_used.polynomial_r2,
                           curveInterpolated: cand.point_used.interpolated,
-                          curveMetadata: { score: cand.score, warnings: cand.warnings },
+                          curveMetadata: { score: cand.score, warnings: cand.warnings, fan_power_kw: cand.fan_power_kw },
                           notes: `Curva de rendimento · Tevap ${cand.point_used.evaporation_temp_c}°C / Tcond ${cand.point_used.condensation_temp_c}°C${cand.point_used.polynomial ? " · polinomial" : cand.point_used.interpolated ? " · interpolado" : ""}`,
                         });
                         toast.success(`${cand.model.modelo} selecionado`);
