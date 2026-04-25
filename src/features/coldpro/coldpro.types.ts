@@ -32,6 +32,8 @@ export type ColdProConstructionFace = {
   color?: string | null;
   glass_area_m2?: number | null;
   glass_type?: string | null;
+  solar_radiation_w_m2?: number | null;
+  floor_condition?: string | null;
   door_area_m2?: number | null;
 };
 
