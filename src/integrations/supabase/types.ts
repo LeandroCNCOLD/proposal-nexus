@@ -151,6 +151,7 @@ export type Database = {
           external_updated_at: string | null
           id: string
           is_active: boolean
+          last_sync_run_id: string | null
           last_synced_at: string | null
           merged_at: string | null
           merged_into_id: string | null
@@ -170,7 +171,10 @@ export type Database = {
           segment: string | null
           state: string | null
           state_registration: string | null
+          sync_error_code: string | null
+          sync_error_message: string | null
           sync_hash: string | null
+          sync_status: string
           trade_name: string | null
           updated_at: string
           website: string | null
@@ -191,6 +195,7 @@ export type Database = {
           external_updated_at?: string | null
           id?: string
           is_active?: boolean
+          last_sync_run_id?: string | null
           last_synced_at?: string | null
           merged_at?: string | null
           merged_into_id?: string | null
@@ -210,7 +215,10 @@ export type Database = {
           segment?: string | null
           state?: string | null
           state_registration?: string | null
+          sync_error_code?: string | null
+          sync_error_message?: string | null
           sync_hash?: string | null
+          sync_status?: string
           trade_name?: string | null
           updated_at?: string
           website?: string | null
@@ -231,6 +239,7 @@ export type Database = {
           external_updated_at?: string | null
           id?: string
           is_active?: boolean
+          last_sync_run_id?: string | null
           last_synced_at?: string | null
           merged_at?: string | null
           merged_into_id?: string | null
@@ -250,13 +259,24 @@ export type Database = {
           segment?: string | null
           state?: string | null
           state_registration?: string | null
+          sync_error_code?: string | null
+          sync_error_message?: string | null
           sync_hash?: string | null
+          sync_status?: string
           trade_name?: string | null
           updated_at?: string
           website?: string | null
           zip_code?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "clients_last_sync_run_id_fkey"
+            columns: ["last_sync_run_id"]
+            isOneToOne: false
+            referencedRelation: "sync_runs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       coldpro_booster_models: {
         Row: {
@@ -2614,6 +2634,7 @@ export type Database = {
           external_updated_at: string | null
           id: string
           is_active: boolean
+          last_sync_run_id: string | null
           last_synced_at: string | null
           line_id: string | null
           merged_at: string | null
@@ -2624,7 +2645,10 @@ export type Database = {
           normalized_model: string | null
           normalized_model_code: string | null
           refrigerant: string | null
+          sync_error_code: string | null
+          sync_error_message: string | null
           sync_hash: string | null
+          sync_status: string
           tags: string[] | null
           technical_notes: string | null
           updated_at: string
@@ -2649,6 +2673,7 @@ export type Database = {
           external_updated_at?: string | null
           id?: string
           is_active?: boolean
+          last_sync_run_id?: string | null
           last_synced_at?: string | null
           line_id?: string | null
           merged_at?: string | null
@@ -2659,7 +2684,10 @@ export type Database = {
           normalized_model?: string | null
           normalized_model_code?: string | null
           refrigerant?: string | null
+          sync_error_code?: string | null
+          sync_error_message?: string | null
           sync_hash?: string | null
+          sync_status?: string
           tags?: string[] | null
           technical_notes?: string | null
           updated_at?: string
@@ -2684,6 +2712,7 @@ export type Database = {
           external_updated_at?: string | null
           id?: string
           is_active?: boolean
+          last_sync_run_id?: string | null
           last_synced_at?: string | null
           line_id?: string | null
           merged_at?: string | null
@@ -2694,13 +2723,23 @@ export type Database = {
           normalized_model?: string | null
           normalized_model_code?: string | null
           refrigerant?: string | null
+          sync_error_code?: string | null
+          sync_error_message?: string | null
           sync_hash?: string | null
+          sync_status?: string
           tags?: string[] | null
           technical_notes?: string | null
           updated_at?: string
           voltage?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "equipments_last_sync_run_id_fkey"
+            columns: ["last_sync_run_id"]
+            isOneToOne: false
+            referencedRelation: "sync_runs"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "equipments_line_id_fkey"
             columns: ["line_id"]
@@ -3337,6 +3376,7 @@ export type Database = {
           impostos: Json | null
           is_active: boolean
           item_status: string | null
+          last_sync_run_id: string | null
           last_synced_at: string | null
           nomus_item_id: string | null
           nomus_product_id: string | null
@@ -3347,7 +3387,10 @@ export type Database = {
           product_code: string | null
           quantity: number | null
           raw: Json | null
+          sync_error_code: string | null
+          sync_error_message: string | null
           sync_hash: string | null
+          sync_status: string
           synced_at: string
           total: number | null
           total_with_discount: number | null
@@ -3365,6 +3408,7 @@ export type Database = {
           impostos?: Json | null
           is_active?: boolean
           item_status?: string | null
+          last_sync_run_id?: string | null
           last_synced_at?: string | null
           nomus_item_id?: string | null
           nomus_product_id?: string | null
@@ -3375,7 +3419,10 @@ export type Database = {
           product_code?: string | null
           quantity?: number | null
           raw?: Json | null
+          sync_error_code?: string | null
+          sync_error_message?: string | null
           sync_hash?: string | null
+          sync_status?: string
           synced_at?: string
           total?: number | null
           total_with_discount?: number | null
@@ -3393,6 +3440,7 @@ export type Database = {
           impostos?: Json | null
           is_active?: boolean
           item_status?: string | null
+          last_sync_run_id?: string | null
           last_synced_at?: string | null
           nomus_item_id?: string | null
           nomus_product_id?: string | null
@@ -3403,7 +3451,10 @@ export type Database = {
           product_code?: string | null
           quantity?: number | null
           raw?: Json | null
+          sync_error_code?: string | null
+          sync_error_message?: string | null
           sync_hash?: string | null
+          sync_status?: string
           synced_at?: string
           total?: number | null
           total_with_discount?: number | null
@@ -3411,6 +3462,13 @@ export type Database = {
           unit_value_with_unit?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "nomus_proposal_items_last_sync_run_id_fkey"
+            columns: ["last_sync_run_id"]
+            isOneToOne: false
+            referencedRelation: "sync_runs"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "nomus_proposal_items_nomus_proposal_id_fkey"
             columns: ["nomus_proposal_id"]
@@ -3456,6 +3514,7 @@ export type Database = {
           ipi_recolher: number | null
           is_active: boolean
           issqn_recolher: number | null
+          last_sync_run_id: string | null
           last_synced_at: string | null
           layout_pdf: string | null
           lucro_antes_impostos: number | null
@@ -3475,7 +3534,10 @@ export type Database = {
           seguros_valor: number | null
           simples_nacional_recolher: number | null
           status_nomus: string | null
+          sync_error_code: string | null
+          sync_error_message: string | null
           sync_hash: string | null
+          sync_status: string
           synced_at: string
           tabela_preco_nome: string | null
           tabela_preco_nomus_id: string | null
@@ -3525,6 +3587,7 @@ export type Database = {
           ipi_recolher?: number | null
           is_active?: boolean
           issqn_recolher?: number | null
+          last_sync_run_id?: string | null
           last_synced_at?: string | null
           layout_pdf?: string | null
           lucro_antes_impostos?: number | null
@@ -3544,7 +3607,10 @@ export type Database = {
           seguros_valor?: number | null
           simples_nacional_recolher?: number | null
           status_nomus?: string | null
+          sync_error_code?: string | null
+          sync_error_message?: string | null
           sync_hash?: string | null
+          sync_status?: string
           synced_at?: string
           tabela_preco_nome?: string | null
           tabela_preco_nomus_id?: string | null
@@ -3594,6 +3660,7 @@ export type Database = {
           ipi_recolher?: number | null
           is_active?: boolean
           issqn_recolher?: number | null
+          last_sync_run_id?: string | null
           last_synced_at?: string | null
           layout_pdf?: string | null
           lucro_antes_impostos?: number | null
@@ -3613,7 +3680,10 @@ export type Database = {
           seguros_valor?: number | null
           simples_nacional_recolher?: number | null
           status_nomus?: string | null
+          sync_error_code?: string | null
+          sync_error_message?: string | null
           sync_hash?: string | null
+          sync_status?: string
           synced_at?: string
           tabela_preco_nome?: string | null
           tabela_preco_nomus_id?: string | null
@@ -3628,7 +3698,15 @@ export type Database = {
           vendedor_nome?: string | null
           vendedor_nomus_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "nomus_proposals_last_sync_run_id_fkey"
+            columns: ["last_sync_run_id"]
+            isOneToOne: false
+            referencedRelation: "sync_runs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       nomus_receivables: {
         Row: {
@@ -3677,12 +3755,16 @@ export type Database = {
           external_updated_at: string | null
           id: string
           is_active: boolean
+          last_sync_run_id: string | null
           last_synced_at: string | null
           name: string
           nomus_id: string
           raw: Json | null
           region: string | null
+          sync_error_code: string | null
+          sync_error_message: string | null
           sync_hash: string | null
+          sync_status: string
           synced_at: string
         }
         Insert: {
@@ -3692,12 +3774,16 @@ export type Database = {
           external_updated_at?: string | null
           id?: string
           is_active?: boolean
+          last_sync_run_id?: string | null
           last_synced_at?: string | null
           name: string
           nomus_id: string
           raw?: Json | null
           region?: string | null
+          sync_error_code?: string | null
+          sync_error_message?: string | null
           sync_hash?: string | null
+          sync_status?: string
           synced_at?: string
         }
         Update: {
@@ -3707,15 +3793,27 @@ export type Database = {
           external_updated_at?: string | null
           id?: string
           is_active?: boolean
+          last_sync_run_id?: string | null
           last_synced_at?: string | null
           name?: string
           nomus_id?: string
           raw?: Json | null
           region?: string | null
+          sync_error_code?: string | null
+          sync_error_message?: string | null
           sync_hash?: string | null
+          sync_status?: string
           synced_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "nomus_representatives_last_sync_run_id_fkey"
+            columns: ["last_sync_run_id"]
+            isOneToOne: false
+            referencedRelation: "sync_runs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       nomus_sellers: {
         Row: {
@@ -3725,11 +3823,15 @@ export type Database = {
           external_updated_at: string | null
           id: string
           is_active: boolean
+          last_sync_run_id: string | null
           last_synced_at: string | null
           name: string
           nomus_id: string
           raw: Json | null
+          sync_error_code: string | null
+          sync_error_message: string | null
           sync_hash: string | null
+          sync_status: string
           synced_at: string
         }
         Insert: {
@@ -3739,11 +3841,15 @@ export type Database = {
           external_updated_at?: string | null
           id?: string
           is_active?: boolean
+          last_sync_run_id?: string | null
           last_synced_at?: string | null
           name: string
           nomus_id: string
           raw?: Json | null
+          sync_error_code?: string | null
+          sync_error_message?: string | null
           sync_hash?: string | null
+          sync_status?: string
           synced_at?: string
         }
         Update: {
@@ -3753,14 +3859,26 @@ export type Database = {
           external_updated_at?: string | null
           id?: string
           is_active?: boolean
+          last_sync_run_id?: string | null
           last_synced_at?: string | null
           name?: string
           nomus_id?: string
           raw?: Json | null
+          sync_error_code?: string | null
+          sync_error_message?: string | null
           sync_hash?: string | null
+          sync_status?: string
           synced_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "nomus_sellers_last_sync_run_id_fkey"
+            columns: ["last_sync_run_id"]
+            isOneToOne: false
+            referencedRelation: "sync_runs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       nomus_settings: {
         Row: {
@@ -3920,6 +4038,80 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      outbound_sync_queue: {
+        Row: {
+          attempts: number
+          created_at: string
+          created_by: string | null
+          entity_type: string
+          external_id: string | null
+          id: string
+          last_error_code: string | null
+          last_error_message: string | null
+          local_id: string
+          max_attempts: number
+          next_attempt_at: string | null
+          operation: string
+          payload: Json
+          processed_at: string | null
+          source_system: string
+          status: string
+          sync_run_id: string | null
+          target_system: string
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          created_by?: string | null
+          entity_type: string
+          external_id?: string | null
+          id?: string
+          last_error_code?: string | null
+          last_error_message?: string | null
+          local_id: string
+          max_attempts?: number
+          next_attempt_at?: string | null
+          operation: string
+          payload?: Json
+          processed_at?: string | null
+          source_system?: string
+          status?: string
+          sync_run_id?: string | null
+          target_system?: string
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          created_by?: string | null
+          entity_type?: string
+          external_id?: string | null
+          id?: string
+          last_error_code?: string | null
+          last_error_message?: string | null
+          local_id?: string
+          max_attempts?: number
+          next_attempt_at?: string | null
+          operation?: string
+          payload?: Json
+          processed_at?: string | null
+          source_system?: string
+          status?: string
+          sync_run_id?: string | null
+          target_system?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "outbound_sync_queue_sync_run_id_fkey"
+            columns: ["sync_run_id"]
+            isOneToOne: false
+            referencedRelation: "sync_runs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -4121,6 +4313,7 @@ export type Database = {
           external_updated_at: string | null
           id: string
           is_active: boolean
+          last_sync_run_id: string | null
           last_synced_at: string | null
           merged_at: string | null
           merged_into_id: string | null
@@ -4131,7 +4324,10 @@ export type Database = {
           position: number | null
           proposal_id: string
           quantity: number
+          sync_error_code: string | null
+          sync_error_message: string | null
           sync_hash: string | null
+          sync_status: string
           total_price: number | null
           unit_price: number
         }
@@ -4143,6 +4339,7 @@ export type Database = {
           external_updated_at?: string | null
           id?: string
           is_active?: boolean
+          last_sync_run_id?: string | null
           last_synced_at?: string | null
           merged_at?: string | null
           merged_into_id?: string | null
@@ -4153,7 +4350,10 @@ export type Database = {
           position?: number | null
           proposal_id: string
           quantity?: number
+          sync_error_code?: string | null
+          sync_error_message?: string | null
           sync_hash?: string | null
+          sync_status?: string
           total_price?: number | null
           unit_price?: number
         }
@@ -4165,6 +4365,7 @@ export type Database = {
           external_updated_at?: string | null
           id?: string
           is_active?: boolean
+          last_sync_run_id?: string | null
           last_synced_at?: string | null
           merged_at?: string | null
           merged_into_id?: string | null
@@ -4175,7 +4376,10 @@ export type Database = {
           position?: number | null
           proposal_id?: string
           quantity?: number
+          sync_error_code?: string | null
+          sync_error_message?: string | null
           sync_hash?: string | null
+          sync_status?: string
           total_price?: number | null
           unit_price?: number
         }
@@ -4185,6 +4389,13 @@ export type Database = {
             columns: ["equipment_id"]
             isOneToOne: false
             referencedRelation: "equipments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposal_items_last_sync_run_id_fkey"
+            columns: ["last_sync_run_id"]
+            isOneToOne: false
+            referencedRelation: "sync_runs"
             referencedColumns: ["id"]
           },
           {
@@ -4719,6 +4930,7 @@ export type Database = {
           external_updated_at: string | null
           id: string
           is_active: boolean
+          last_sync_run_id: string | null
           last_synced_at: string | null
           lead_origin: string | null
           loss_reason: string | null
@@ -4743,7 +4955,10 @@ export type Database = {
           sent_at: string | null
           source: Database["public"]["Enums"]["proposal_source"]
           status: Database["public"]["Enums"]["proposal_status"]
+          sync_error_code: string | null
+          sync_error_message: string | null
           sync_hash: string | null
+          sync_status: string
           technical_notes: string | null
           technical_owner_id: string | null
           temperature:
@@ -4772,6 +4987,7 @@ export type Database = {
           external_updated_at?: string | null
           id?: string
           is_active?: boolean
+          last_sync_run_id?: string | null
           last_synced_at?: string | null
           lead_origin?: string | null
           loss_reason?: string | null
@@ -4796,7 +5012,10 @@ export type Database = {
           sent_at?: string | null
           source?: Database["public"]["Enums"]["proposal_source"]
           status?: Database["public"]["Enums"]["proposal_status"]
+          sync_error_code?: string | null
+          sync_error_message?: string | null
           sync_hash?: string | null
+          sync_status?: string
           technical_notes?: string | null
           technical_owner_id?: string | null
           temperature?:
@@ -4825,6 +5044,7 @@ export type Database = {
           external_updated_at?: string | null
           id?: string
           is_active?: boolean
+          last_sync_run_id?: string | null
           last_synced_at?: string | null
           lead_origin?: string | null
           loss_reason?: string | null
@@ -4849,7 +5069,10 @@ export type Database = {
           sent_at?: string | null
           source?: Database["public"]["Enums"]["proposal_source"]
           status?: Database["public"]["Enums"]["proposal_status"]
+          sync_error_code?: string | null
+          sync_error_message?: string | null
           sync_hash?: string | null
+          sync_status?: string
           technical_notes?: string | null
           technical_owner_id?: string | null
           temperature?:
@@ -4878,6 +5101,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "proposals_last_sync_run_id_fkey"
+            columns: ["last_sync_run_id"]
+            isOneToOne: false
+            referencedRelation: "sync_runs"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "proposals_payment_term_id_fkey"
             columns: ["payment_term_id"]
             isOneToOne: false
@@ -4892,6 +5122,113 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      sync_checkpoints: {
+        Row: {
+          created_at: string
+          cursor_payload: Json
+          entity_type: string
+          error_message: string | null
+          id: string
+          last_external_id: string | null
+          last_page: number
+          last_updated_at: string | null
+          source_system: string
+          status: string
+          sync_run_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          cursor_payload?: Json
+          entity_type: string
+          error_message?: string | null
+          id?: string
+          last_external_id?: string | null
+          last_page?: number
+          last_updated_at?: string | null
+          source_system?: string
+          status?: string
+          sync_run_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          cursor_payload?: Json
+          entity_type?: string
+          error_message?: string | null
+          id?: string
+          last_external_id?: string | null
+          last_page?: number
+          last_updated_at?: string | null
+          source_system?: string
+          status?: string
+          sync_run_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sync_checkpoints_sync_run_id_fkey"
+            columns: ["sync_run_id"]
+            isOneToOne: false
+            referencedRelation: "sync_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sync_entity_policies: {
+        Row: {
+          backoff_multiplier: number
+          created_at: string
+          data_temperature: string
+          default_window_days: number | null
+          entity_type: string
+          id: string
+          is_active: boolean
+          max_attempts: number
+          max_requests_per_minute: number
+          priority: number
+          retry_after_seconds: number
+          source_system: string
+          sync_frequency: string
+          timeout_ms: number
+          updated_at: string
+        }
+        Insert: {
+          backoff_multiplier?: number
+          created_at?: string
+          data_temperature?: string
+          default_window_days?: number | null
+          entity_type: string
+          id?: string
+          is_active?: boolean
+          max_attempts?: number
+          max_requests_per_minute?: number
+          priority?: number
+          retry_after_seconds?: number
+          source_system?: string
+          sync_frequency?: string
+          timeout_ms?: number
+          updated_at?: string
+        }
+        Update: {
+          backoff_multiplier?: number
+          created_at?: string
+          data_temperature?: string
+          default_window_days?: number | null
+          entity_type?: string
+          id?: string
+          is_active?: boolean
+          max_attempts?: number
+          max_requests_per_minute?: number
+          priority?: number
+          retry_after_seconds?: number
+          source_system?: string
+          sync_frequency?: string
+          timeout_ms?: number
+          updated_at?: string
+        }
+        Relationships: []
       }
       sync_error_codes: {
         Row: {
@@ -5089,6 +5426,98 @@ export type Database = {
           reason?: string
           relationships?: Json
           status?: string
+        }
+        Relationships: []
+      }
+      sync_pending_issues: {
+        Row: {
+          created_at: string
+          details: string | null
+          entity_type: string
+          external_id: string | null
+          id: string
+          issue_type: string
+          local_id: string | null
+          payload: Json
+          resolved_at: string | null
+          resolved_by: string | null
+          severity: string
+          source_system: string
+          status: string
+          sync_run_id: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          details?: string | null
+          entity_type: string
+          external_id?: string | null
+          id?: string
+          issue_type: string
+          local_id?: string | null
+          payload?: Json
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          source_system?: string
+          status?: string
+          sync_run_id?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          details?: string | null
+          entity_type?: string
+          external_id?: string | null
+          id?: string
+          issue_type?: string
+          local_id?: string | null
+          payload?: Json
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          source_system?: string
+          status?: string
+          sync_run_id?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sync_pending_issues_sync_run_id_fkey"
+            columns: ["sync_run_id"]
+            isOneToOne: false
+            referencedRelation: "sync_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sync_protected_fields: {
+        Row: {
+          created_at: string
+          entity_type: string
+          field_name: string
+          id: string
+          is_active: boolean
+          reason: string | null
+        }
+        Insert: {
+          created_at?: string
+          entity_type: string
+          field_name: string
+          id?: string
+          is_active?: boolean
+          reason?: string | null
+        }
+        Update: {
+          created_at?: string
+          entity_type?: string
+          field_name?: string
+          id?: string
+          is_active?: boolean
+          reason?: string | null
         }
         Relationships: []
       }

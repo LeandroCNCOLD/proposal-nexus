@@ -4,8 +4,8 @@ import { getRequest } from "@tanstack/react-start/server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { nomusFetch, listAll, listPage, getOne, testNomusConnection } from "./client";
-import { hashNormalizedPayload, isValidCnpj, normalizeCnColdModelCode, normalizeDocument, normalizeEmail, normalizeModel, normalizeProposalNumber } from "@/services/sync/normalization";
-import { acquireSyncLock, finishSyncRun, logFieldChanges, logSyncRow, quarantineSyncRow, releaseSyncLock, startSyncRun, type SyncAction } from "@/services/sync/syncAuditService";
+import { DEFAULT_PROTECTED_SYNC_FIELDS, diffChangedFields, hashNormalizedPayload, isValidCnpj, normalizeCnColdModelCode, normalizeDocument, normalizeEmail, normalizeModel, normalizeProposalNumber, omitProtectedFields } from "@/services/sync/normalization";
+import { acquireSyncLock, finishSyncRun, getSyncCheckpoint, logFieldChanges, logSyncRow, quarantineSyncRow, recordPendingIssue, releaseSyncLock, startSyncRun, upsertSyncCheckpoint, writeSyncQualityReport, type SyncAction } from "@/services/sync/syncAuditService";
 import {
   NOMUS_ENDPOINTS,
   pessoaContatosPath,
@@ -16,6 +16,10 @@ import {
 
 type Json = Record<string, unknown>;
 type ProcessResult = "ok" | "skip" | "unmatched" | "no_change" | "quarantined";
+
+type SyncWindow = "incremental" | "7d" | "30d" | "custom" | "all";
+
+type ExistingRow = { id: string; nomus_id?: string | null; sync_hash?: string | null; [key: string]: unknown };
 
 const pickStr = (o: Json, ...keys: string[]): string | null => {
   for (const k of keys) {
@@ -91,6 +95,33 @@ function pickExternalUpdatedAt(raw: Json): string | null {
   return pickStr(raw, "updatedAt", "updated_at", "dataAlteracao", "dataModificacao", "dataHoraAlteracao", "alteradoEm");
 }
 
+function windowQuery(window?: SyncWindow, startDate?: string | null, endDate?: string | null) {
+  if (!window || window === "all") return {};
+  const end = endDate ? new Date(endDate) : new Date();
+  const start = startDate ? new Date(startDate) : new Date(end);
+  if (window === "7d") start.setDate(end.getDate() - 7);
+  if (window === "30d") start.setDate(end.getDate() - 30);
+  if (window === "incremental" && !startDate) return {};
+  return {
+    dataModificacaoInicial: start.toISOString().slice(0, 10),
+    dataModificacaoFinal: end.toISOString().slice(0, 10),
+  };
+}
+
+async function bulkReadByNomusId(table: string, ids: string[]) {
+  const unique = Array.from(new Set(ids.filter(Boolean)));
+  if (unique.length === 0) return new Map<string, ExistingRow>();
+  const { data, error } = await supabaseAdmin.from(table as never).select("*").in("nomus_id", unique as never);
+  if (error) throw new Error(error.message);
+  return new Map(((data as ExistingRow[] | null) ?? []).map((row) => [String(row.nomus_id), row]));
+}
+
+function buildUpdatePayload<T extends Record<string, unknown>>(previous: Record<string, unknown> | null | undefined, next: T, table: keyof typeof DEFAULT_PROTECTED_SYNC_FIELDS) {
+  const safeNext = omitProtectedFields(next, DEFAULT_PROTECTED_SYNC_FIELDS[table] ?? []);
+  const changed = diffChangedFields(previous, safeNext);
+  return { changed, payload: Object.fromEntries(changed.map((field) => [field, safeNext[field]])) as Partial<T> };
+}
+
 async function readCurrentHash(table: string, externalId: string): Promise<{ id?: string | null; sync_hash?: string | null } | null> {
   const { data } = await supabaseAdmin.from(table as never).select("id, sync_hash").eq("nomus_id", externalId).maybeSingle();
   return data as { id?: string | null; sync_hash?: string | null } | null;
@@ -158,6 +189,69 @@ async function syncPersonContacts(args: { clientId: string; pessoaId: string; tr
     count += 1;
   }
   return count;
+}
+
+async function syncSellerItem(raw: Json): Promise<ProcessResult> {
+  const nomus_id = pickStr(raw, "id", "codigo", "idVendedor");
+  const name = pickStr(raw, "nome", "razaoSocial");
+  if (!nomus_id || !name) return "skip";
+  const { error } = await supabaseAdmin.from("nomus_sellers").upsert({
+    nomus_id, name,
+    email: pickStr(raw, "email"),
+    document: pickStr(raw, "cpf", "cnpj", "documento"),
+    raw: raw as never,
+    synced_at: new Date().toISOString(),
+    last_synced_at: new Date().toISOString(),
+    sync_status: "synced",
+  } as never, { onConflict: "nomus_id" });
+  if (error) throw new Error(error.message);
+  return "ok";
+}
+
+async function syncRepresentativeItem(raw: Json): Promise<ProcessResult> {
+  const nomus_id = pickStr(raw, "id", "codigo");
+  const name = pickStr(raw, "nome", "razaoSocial");
+  if (!nomus_id || !name) return "skip";
+  const { error } = await supabaseAdmin.from("nomus_representatives").upsert({
+    nomus_id, name,
+    email: pickStr(raw, "email"),
+    document: pickStr(raw, "cnpj", "cpf"),
+    region: pickStr(raw, "regiao", "uf"),
+    raw: raw as never,
+    synced_at: new Date().toISOString(),
+    last_synced_at: new Date().toISOString(),
+    sync_status: "synced",
+  } as never, { onConflict: "nomus_id" });
+  if (error) throw new Error(error.message);
+  return "ok";
+}
+
+async function syncProductItem(raw: Json, syncRunId: string | null): Promise<ProcessResult> {
+  const nomus_id = pickStr(raw, "id", "codigo", "idProduto");
+  const model = pickStr(raw, "codigo", "modelo", "descricao");
+  if (!nomus_id || !model) {
+    await quarantineSyncRow({ syncRunId, entityType: "produtos", externalId: nomus_id, errorCode: !nomus_id ? "MISSING_EXTERNAL_ID" : "MISSING_REQUIRED_FIELD", reason: "Produto sem ID ou modelo", rawPayload: raw });
+    return "quarantined";
+  }
+  const normalizedModel = normalizeModel(model);
+  const normalizedModelCode = normalizeCnColdModelCode(model);
+  const syncHash = await hashNormalizedPayload({ nomus_id, model, normalizedModel, normalizedModelCode });
+  let { data: existing } = await supabaseAdmin.from("equipments").select("id, sync_hash").eq("nomus_id", nomus_id).maybeSingle();
+  let matchType: "exact_model" | "normalized_model" | "normalized_model_code" | "unmatched" = "exact_model";
+  if (!existing) existing = (await supabaseAdmin.from("equipments").select("id, sync_hash").eq("model", model).maybeSingle()).data;
+  if (!existing && normalizedModel) { existing = (await supabaseAdmin.from("equipments").select("id, sync_hash").eq("normalized_model", normalizedModel).maybeSingle()).data; matchType = "normalized_model"; }
+  if (!existing && normalizedModelCode) { existing = (await supabaseAdmin.from("equipments").select("id, sync_hash").eq("normalized_model_code", normalizedModelCode).maybeSingle()).data; matchType = "normalized_model_code"; }
+  if (!existing) {
+    await supabaseAdmin.from("nomus_product_equipment_links").upsert({ nomus_product_id: nomus_id, equipment_id: null, match_type: "unmatched", confidence_score: 0 }, { onConflict: "nomus_product_id" });
+    await recordPendingIssue({ syncRunId, entityType: "produtos", issueType: "unmatched_equipment", externalId: nomus_id, title: "Produto Nomus sem equipamento vinculado", payload: { model, normalizedModel, normalizedModelCode } });
+    await quarantineSyncRow({ syncRunId, entityType: "produtos", externalId: nomus_id, errorCode: "UNMATCHED_EQUIPMENT", reason: "Produto sem equipamento correspondente", rawPayload: raw, normalizedPayload: { model, normalizedModel, normalizedModelCode } });
+    return "unmatched";
+  }
+  if ((existing as { sync_hash?: string | null }).sync_hash === syncHash) return "no_change";
+  const { error } = await supabaseAdmin.from("equipments").update({ nomus_id, nomus_synced_at: new Date().toISOString(), last_synced_at: new Date().toISOString(), external_updated_at: pickExternalUpdatedAt(raw), sync_hash: syncHash, normalized_model_code: normalizedModelCode, sync_status: "synced", last_sync_run_id: syncRunId }).eq("id", (existing as { id: string }).id);
+  if (error) throw new Error(error.message);
+  await supabaseAdmin.from("nomus_product_equipment_links").upsert({ nomus_product_id: nomus_id, equipment_id: (existing as { id: string }).id, match_type: matchType, confidence_score: matchType === "exact_model" ? 1 : 0.92 }, { onConflict: "nomus_product_id" });
+  return "ok";
 }
 
 async function setState(entity: string, patch: Record<string, unknown>) {
@@ -308,7 +402,8 @@ export const nomusTestConnection = createServerFn({ method: "POST" })
 /** Pull clients from Nomus and upsert locally. */
 export const nomusSyncClients = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((input?: { window?: SyncWindow; startDate?: string | null; endDate?: string | null }) => input ?? {})
+  .handler(async ({ data, context }) => {
     const userId = (context as { userId?: string }).userId ?? null;
     const now = new Date().toISOString();
     await setState("clientes", { running: true, last_error: null });
@@ -322,11 +417,13 @@ export const nomusSyncClients = createServerFn({ method: "POST" })
         .maybeSingle();
       const cursor = String((state as { last_cursor?: string | null } | null)?.last_cursor ?? "1:0");
       const [cursorPage, cursorOffset] = cursor.includes(":") ? cursor.split(":") : [cursor, "0"];
-      const page = Math.max(1, Number(cursorPage) || 1);
+      const checkpoint = await getSyncCheckpoint("clientes");
+      const checkpointPage = Number(checkpoint?.last_page ?? 0) || 0;
+      const page = Math.max(1, checkpointPage || Number(cursorPage) || 1);
       const offset = Math.max(0, Number(cursorOffset) || 0);
       const previousTotal = page === 1 && offset === 0 ? 0 : Number((state as { total_synced?: number | null } | null)?.total_synced ?? 0) || 0;
       const perClick = 20;
-      const res = await listPage<Json>(NOMUS_ENDPOINTS.clientes, {}, { entity: "clientes", page, pageSize: perClick, triggeredBy: userId });
+      const res = await listPage<Json>(NOMUS_ENDPOINTS.clientes, windowQuery(data.window, data.startDate, data.endDate), { entity: "clientes", page, pageSize: perClick, triggeredBy: userId });
       if (!res.ok) {
         await setState("clientes", { running: false, last_error: res.error });
         return { ok: false as const, error: res.error };
@@ -339,12 +436,15 @@ export const nomusSyncClients = createServerFn({ method: "POST" })
       let quarantined = 0;
       const batch = res.items.slice(offset, offset + perClick);
       syncRunId = await startSyncRun("clientes", userId, batch.length, { lockKey: "nomus:clientes" });
+      await upsertSyncCheckpoint({ entityType: "clientes", syncRunId, lastPage: page, status: "running", cursorPayload: { window: data.window ?? "incremental", batchSize: perClick } });
       const lock = await acquireSyncLock({ entityType: "clientes", syncRunId, userId, ttlMinutes: 5 });
       if (!lock.ok) {
         await setState("clientes", { running: false, last_error: lock.error });
         return { ok: false as const, error: lock.error };
       }
       lockKey = lock.lockKey;
+      const summaryIds = batch.map((raw) => pickStr(raw, "id", "codigo", "idCliente", "idPessoa")).filter((id): id is string => Boolean(id));
+      const existingByNomusId = await bulkReadByNomusId("clients", summaryIds);
       for (const raw of batch) {
         const summaryId = pickStr(raw, "id", "codigo", "idCliente", "idPessoa");
         const detailRes = summaryId
@@ -355,6 +455,7 @@ export const nomusSyncClients = createServerFn({ method: "POST" })
         const name = pickStr(full, "nome", "razaoSocial", "nomeFantasia");
         if (!nomus_id || !name) {
           await quarantineSyncRow({ syncRunId, entityType: "clientes", externalId: nomus_id, errorCode: !nomus_id ? "MISSING_EXTERNAL_ID" : "MISSING_REQUIRED_FIELD", reason: !nomus_id ? "Cliente sem ID Nomus" : "Cliente sem nome/razão social", rawPayload: full });
+          await recordPendingIssue({ syncRunId, entityType: "clientes", issueType: !nomus_id ? "missing_external_id" : "missing_name", externalId: nomus_id, title: !nomus_id ? "Cliente Nomus sem ID" : "Cliente Nomus sem nome", payload: full });
           skipped += 1;
           quarantined += 1;
           continue;
@@ -363,6 +464,7 @@ export const nomusSyncClients = createServerFn({ method: "POST" })
         const documentDigits = normalizeDocument(document);
         if (documentDigits?.length === 14 && !isValidCnpj(documentDigits)) {
           await quarantineSyncRow({ syncRunId, entityType: "clientes", externalId: nomus_id, errorCode: "INVALID_CNPJ", reason: "Cliente com CNPJ inválido", rawPayload: full });
+          await recordPendingIssue({ syncRunId, entityType: "clientes", issueType: "invalid_cnpj", externalId: nomus_id, title: "Cliente com CNPJ inválido", payload: { nomus_id, document } });
           skipped += 1;
           quarantined += 1;
           continue;
@@ -401,26 +503,32 @@ export const nomusSyncClients = createServerFn({ method: "POST" })
           is_active: pickBool(full, "ativo", "isActive", "ativoCliente") ?? true,
         };
         const syncHash = await hashNormalizedPayload(syncPayload);
-        const current = await readCurrentHash("clients", nomus_id);
+        const current = existingByNomusId.get(nomus_id) ?? await readCurrentHash("clients", nomus_id);
         if (current?.sync_hash === syncHash) {
           await logSyncRow({ syncRunId, entityType: "clientes", externalId: nomus_id, localId: current.id, action: "skipped_no_change", status: "skipped", errorCode: "SKIPPED_NO_CHANGE", previousHash: syncHash, newHash: syncHash, rawPayload: full });
           skipped += 1;
           noChange += 1;
           continue;
         }
-        const { data: previous } = current?.id ? await supabaseAdmin.from("clients").select("*").eq("id", current.id).maybeSingle() : { data: null };
+        const previous = current?.id ? current : null;
+        const { payload: changedPayload } = buildUpdatePayload(previous, syncPayload, "clients");
         const { data: upserted, error } = await supabaseAdmin
           .from("clients")
           .upsert(
-            {
-              ...syncPayload,
+            ({
+              ...(current?.id ? changedPayload : syncPayload),
+              nomus_id,
               nomus_raw: { ...full, situacaoEstadual } as never,
               origin: "nomus",
               nomus_synced_at: new Date().toISOString(),
               last_synced_at: new Date().toISOString(),
               external_updated_at: pickExternalUpdatedAt(full),
               sync_hash: syncHash,
-            },
+              sync_status: "synced",
+              sync_error_code: null,
+              sync_error_message: null,
+              last_sync_run_id: syncRunId,
+            } as never),
             { onConflict: "nomus_id" }
           )
           .select("id")
@@ -436,6 +544,8 @@ export const nomusSyncClients = createServerFn({ method: "POST" })
       const nextOffset = offset + batch.length;
       const done = (!res.hasMore && nextOffset >= res.items.length) || res.items.length === 0;
       const nextPage = done ? null : nextOffset < res.items.length ? `${page}:${nextOffset}` : `${page + 1}:0`;
+      const lastExternalId = batch.length > 0 ? pickStr(batch[batch.length - 1], "id", "codigo", "idCliente", "idPessoa") : null;
+      await upsertSyncCheckpoint({ entityType: "clientes", syncRunId, lastPage: done ? 1 : page + 1, lastExternalId, status: done ? "completed" : "running", cursorPayload: { done, nextPage } });
       await setState("clientes", {
         running: false,
         last_synced_at: now,
@@ -448,6 +558,7 @@ export const nomusSyncClients = createServerFn({ method: "POST" })
       return { ok: true as const, count, contactsCount, skipped, unmatched: 0, done, nextPage };
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
+      await upsertSyncCheckpoint({ entityType: "clientes", syncRunId, status: "failed", errorMessage: msg });
       await setState("clientes", { running: false, last_error: msg });
       await finishSyncRun({ syncRunId, status: "error", totalErrors: 1, errorMessage: msg });
       await releaseSyncLock(lockKey);
@@ -1062,6 +1173,33 @@ export const nomusSyncProposalsFull = createServerFn({ method: "POST" })
         return "ok";
       },
     });
+  });
+
+export const nomusSyncAll = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input?: { window?: SyncWindow; startDate?: string | null; endDate?: string | null }) => input ?? {})
+  .handler(async ({ data, context }) => {
+    const userId = (context as { userId?: string }).userId ?? null;
+    const parentRunId = await startSyncRun("sync_geral", userId, 0, { lockKey: "nomus:sync_geral" });
+    await upsertSyncCheckpoint({ entityType: "sync_geral", syncRunId: parentRunId, status: "running", cursorPayload: { window: data.window ?? "incremental" } });
+    const steps: Array<{ entity: string; run: () => Promise<SyncResult> }> = [
+      { entity: "vendedores", run: () => runEntitySync({ entity: "vendedores", endpoint: NOMUS_ENDPOINTS.vendedores, triggeredBy: userId, processItem: syncSellerItem }) },
+      { entity: "representantes", run: () => runEntitySync({ entity: "representantes", endpoint: NOMUS_ENDPOINTS.representantes, triggeredBy: userId, processItem: syncRepresentativeItem }) },
+      { entity: "produtos", run: () => runEntitySync({ entity: "produtos", endpoint: NOMUS_ENDPOINTS.produtos, triggeredBy: userId, processItem: syncProductItem }) },
+    ];
+    const results: Record<string, string> = {};
+    let errors = 0;
+    for (const step of steps) {
+      const result = await step.run();
+      results[step.entity] = result.ok ? `ok:${result.count}` : `erro:${result.error}`;
+      if (!result.ok) errors += 1;
+    }
+    const clients = await nomusSyncClients({ data });
+    results.clientes = clients.ok ? `ok:${clients.count}` : `erro:${clients.error}`;
+    if (!clients.ok) errors += 1;
+    await upsertSyncCheckpoint({ entityType: "sync_geral", syncRunId: parentRunId, status: errors > 0 ? "failed" : "completed", cursorPayload: results });
+    await finishSyncRun({ syncRunId: parentRunId, status: errors > 0 ? "partial_success" : "success", totalErrors: errors, errorMessage: errors > 0 ? "Sync geral concluída com falhas parciais." : null });
+    return { ok: errors === 0, count: Object.keys(results).length, skipped: errors, unmatched: 0, results };
   });
 export const nomusSyncPedidos = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
