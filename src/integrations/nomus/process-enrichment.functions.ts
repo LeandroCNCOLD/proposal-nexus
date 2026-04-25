@@ -8,6 +8,18 @@ function normalizeName(n: string | null | undefined): string {
   return (n ?? "").trim().toLowerCase().replace(/\s+/g, " ");
 }
 
+function proposalStatusLabel(status: string | null | undefined): string | null {
+  const s = (status ?? "").trim();
+  if (!s) return null;
+  if (s === "3") return "Venda confirmada";
+  return s;
+}
+
+function shouldMoveToWonStage(status: string | null | undefined): boolean {
+  const label = normalizeName(proposalStatusLabel(status));
+  return /venda confirmada|confirmad|ganh|aprovad/.test(label);
+}
+
 const FIELD_PATTERNS: Record<string, RegExp> = {
   decisor: /decisor\s*[:：]\s*([^\n<]+)/i,
   interesse: /interesse\s*[:：]\s*([^\n<]+)/i,
@@ -82,23 +94,39 @@ export const getFunnelData = createServerFn({ method: "POST" })
     const clientNames = Array.from(new Set(processList.map((p) => normalizeName(p.pessoa)).filter(Boolean)));
 
     // 2) Propostas Nomus por nome de cliente (match automático)
-    const proposalsByClient = new Map<string, Array<{ numero: string | null; valor_total: number | null; validade: string | null; status_nomus: string | null; nomus_id: string }>>();
+    const proposalsByClient = new Map<string, Array<{ id: string; numero: string | null; valor_total: number | null; validade: string | null; status_nomus: string | null; nomus_id: string }>>();
+    const proposalIds: string[] = [];
     if (clientNames.length > 0) {
       const { data: props } = await supabase
         .from("nomus_proposals")
-        .select("nomus_id, numero, cliente_nome, valor_total, validade, status_nomus")
+        .select("id, nomus_id, numero, cliente_nome, valor_total, validade, status_nomus")
         .limit(5000);
       for (const pr of props ?? []) {
         const key = normalizeName(pr.cliente_nome);
         if (!key) continue;
+        proposalIds.push(pr.id);
         if (!proposalsByClient.has(key)) proposalsByClient.set(key, []);
         proposalsByClient.get(key)!.push({
+          id: pr.id,
           numero: pr.numero,
           valor_total: pr.valor_total,
           validade: pr.validade,
           status_nomus: pr.status_nomus,
           nomus_id: pr.nomus_id,
         });
+      }
+    }
+
+    const itemStatusByProposal = new Map<string, string>();
+    for (let i = 0; i < proposalIds.length; i += 1000) {
+      const { data: items } = await supabase
+        .from("nomus_proposal_items")
+        .select("nomus_proposal_id, item_status")
+        .in("nomus_proposal_id", proposalIds.slice(i, i + 1000));
+      for (const item of items ?? []) {
+        if (item.nomus_proposal_id && item.item_status && !itemStatusByProposal.has(item.nomus_proposal_id)) {
+          itemStatusByProposal.set(item.nomus_proposal_id, item.item_status);
+        }
       }
     }
 
@@ -148,6 +176,8 @@ export const getFunnelData = createServerFn({ method: "POST" })
       // proposta "primária" para mostrar no card: maior valor
       const sorted = [...clientProposals].sort((a, b) => (b.valor_total ?? 0) - (a.valor_total ?? 0));
       const primary = sorted[0];
+      const primaryStatus = proposalStatusLabel(primary?.status_nomus ?? itemStatusByProposal.get(primary?.id ?? ""));
+      const etapa = shouldMoveToWonStage(primaryStatus) ? "Venda confirmada" : p.etapa;
 
       const totalValue = clientProposals.reduce((s, x) => s + (x.valor_total ?? 0), 0);
 
@@ -156,7 +186,7 @@ export const getFunnelData = createServerFn({ method: "POST" })
         nomus_id: p.nomus_id,
         nome: p.nome,
         pessoa: p.pessoa,
-        etapa: p.etapa,
+        etapa,
         prioridade: p.prioridade,
         responsavel: p.responsavel,
         equipe: p.equipe,
