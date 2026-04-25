@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Document, Image, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
+import { Document, Image, Page, Path, Svg, Text, View, StyleSheet } from "@react-pdf/renderer";
 
 const COLORS = {
   primary: "#0d2438",
@@ -156,6 +156,14 @@ const styles = StyleSheet.create({
   equipmentImage: { width: 132, height: 82, objectFit: "contain" },
   twoCol: { flexDirection: "row", gap: 10, alignItems: "stretch" },
   flexGrow: { flex: 1 },
+  compactSection: { marginTop: 10, paddingTop: 8, borderTopWidth: 1, borderTopColor: COLORS.border },
+  noteBox: { backgroundColor: COLORS.bgSoft, borderLeftWidth: 3, borderLeftColor: COLORS.accent, padding: 8, borderRadius: 3, marginBottom: 8 },
+  pieWrap: { borderWidth: 1, borderColor: COLORS.border, borderRadius: 4, padding: 8, marginTop: 6, backgroundColor: "#ffffff", flexDirection: "row", gap: 10, alignItems: "center" },
+  pieLegend: { flex: 1, gap: 4 },
+  legendRow: { flexDirection: "row", alignItems: "center", gap: 5 },
+  legendSwatch: { width: 8, height: 8, borderRadius: 2 },
+  legendText: { flex: 1, fontSize: 7.5, color: COLORS.text },
+  tiny: { fontSize: 7.5, color: COLORS.muted, lineHeight: 1.35 },
 });
 
 function fmt(value: unknown, digits = 2): string {
