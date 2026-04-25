@@ -329,6 +329,68 @@ export async function syncNomusProcessesNewestFirst(options: { tipos?: string[];
   return { ok: !runError, count, done: true, error: runError ?? undefined };
 }
 
+async function syncNomusProcessesFullScan(options: { tipos?: string[]; triggeredBy?: string | null; maxPages?: number; maxItems?: number } = {}) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { listPage } = await import("./client");
+  const { NOMUS_ENDPOINTS } = await import("./endpoints");
+  const wantedTipos = (options.tipos ?? []).map((t) => t.trim()).filter(Boolean);
+  const now = new Date().toISOString();
+  const maxPages = options.maxPages ?? 50;
+  const maxItems = options.maxItems ?? 50_000;
+  const pageSize = 50;
+
+  await supabaseAdmin.from("nomus_sync_state").upsert({
+    entity: "processos",
+    running: true,
+    last_error: null,
+    updated_at: now,
+  });
+
+  let processed = 0;
+  let upserted = 0;
+  let lastPage = 0;
+  let runError: string | null = null;
+
+  try {
+    for (let page = 1; page <= maxPages && processed < maxItems; page += 1) {
+      const res = await listPage<NomusProcessRaw>(NOMUS_ENDPOINTS.processos, {}, {
+        entity: "processos",
+        page,
+        pageSize,
+        triggeredBy: options.triggeredBy ?? null,
+      });
+      if (!res.ok) throw new Error(res.error);
+      lastPage = page;
+      if (res.items.length === 0) break;
+
+      processed += res.items.length;
+      const wantedItems = wantedTipos.length
+        ? res.items.filter((p) => wantedTipos.includes((p.tipo ?? "").trim()))
+        : res.items;
+      const persisted = await persistNomusProcessBatch(wantedItems, options.triggeredBy ?? null);
+      upserted += persisted.upserted;
+
+      if (!res.hasMore || res.items.length < pageSize) break;
+    }
+  } catch (e) {
+    runError = e instanceof Error ? e.message : String(e);
+    console.error("[nomus-process-sync] full scan exception:", e);
+  } finally {
+    const finishedAt = new Date().toISOString();
+    await supabaseAdmin.from("nomus_sync_state").upsert({
+      entity: "processos",
+      last_synced_at: finishedAt,
+      total_synced: upserted,
+      last_cursor: lastPage > 0 ? `pagina:${lastPage}` : null,
+      running: false,
+      last_error: runError,
+      updated_at: finishedAt,
+    });
+  }
+
+  return { ok: !runError, count: upserted, processed, done: true, error: runError ?? undefined };
+}
+
 // ---------------- pull ----------------
 
 export const pullNomusProcesses = createServerFn({ method: "POST" })
@@ -345,7 +407,12 @@ export const pullNomusProcesses = createServerFn({ method: "POST" })
       .default({}),
   )
   .handler(async ({ data, context }) => {
-    const r = await syncNomusProcessesNewestFirst({ tipos: data?.tipos, triggeredBy: context.userId, maxPages: data?.maxPages ?? 12 });
+    const r = await syncNomusProcessesFullScan({
+      tipos: data?.tipos,
+      triggeredBy: context.userId,
+      maxPages: data?.maxPages ?? 50,
+      maxItems: data?.maxItems ?? 50_000,
+    });
     return r.ok
       ? { ok: true as const, total: r.count ?? 0, upserted: r.count ?? 0, stagesDiscovered: [] }
       : { ok: false as const, error: r.error ?? "Falha ao sincronizar processos" };
