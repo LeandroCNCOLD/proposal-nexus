@@ -525,26 +525,26 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
             </ColdProFormSection>
 
             <ColdProFormSection title="Formato, dimensões e paredes" description="Selecione o desenho da câmara para calcular volume, teto, piso e paredes com medidas diferentes." icon={<DraftingCompass className="h-4 w-4" />}>
-              <div className="grid gap-5 xl:grid-cols-[1fr_260px]">
+              <div className="grid gap-5 xl:grid-cols-[1fr_180px]">
                 <div className="space-y-5">
-                  <div className="grid gap-3 md:grid-cols-4">
+                  <div className="grid gap-2 md:grid-cols-4">
                     {CHAMBER_LAYOUTS.map((item) => (
                       <button
                         key={item.value}
                         type="button"
                         onClick={() => setLayout(item.value)}
-                        className={`rounded-lg border p-3 text-left transition hover:border-primary ${layout === item.value ? "border-primary bg-primary/10" : "bg-background"}`}
+                        className={`rounded-md border p-2 text-left transition hover:border-primary ${layout === item.value ? "border-primary bg-primary/10" : "bg-background"}`}
                       >
-                        <ChamberShapePreview layout={item.value} />
+                        <div className="hidden lg:block"><ChamberShapePreview layout={item.value} /></div>
                         <span className="block text-sm font-semibold">{item.label}</span>
                         <span className="mt-1 block text-xs text-muted-foreground">{item.description}</span>
                       </button>
                     ))}
                   </div>
 
-                      <div className="grid grid-cols-1 gap-x-10 md:grid-cols-[1.4fr_0.8fr]">
+                      <div className="grid grid-cols-1 gap-x-10 md:grid-cols-[1.5fr_0.9fr]">
                     <div>
-                          <div className="grid gap-x-10 md:grid-cols-2">
+                          <div className="grid gap-x-8 md:grid-cols-2">
                             {constructionFaces.filter((face) => face.local.startsWith("PAREDE")).map((face, faceListIndex) => {
                               const index = constructionFaces.findIndex((item) => item.local === face.local);
                               return <ColdProField key={face.local} label={`Dim. ${String.fromCharCode(65 + faceListIndex)}`} unit="m"><ColdProInput type="number" value={face.wall_length_m ?? ""} onChange={(e) => setFace(index, "wall_length_m", numberOrNull(e.target.value) ?? 0)} /></ColdProField>;
@@ -559,8 +559,8 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
                       <ColdProValidationMessage tone="error">{dimensionError || customDimensionError ? "Informe medidas válidas para volume, piso e paredes." : ""}</ColdProValidationMessage>
                     </div>
                     <div className="space-y-3">
-                      <ColdProCalculatedInfo label="Formato" value={`${wallCount} paredes`} description="As áreas finais saem da tabela de faces." />
-                      <ColdProCalculatedInfo label="Base geométrica" value={`${fmtColdPro(geometricFloorArea)} m²`} description="Referência inicial para teto e piso." tone={dimensionError || customDimensionError ? "warning" : "info"} />
+                      <ColdProCalculatedInfo label="Formato" value={`${wallCount} paredes`} description="Áreas calculadas pelas dimensões." />
+                      <ColdProCalculatedInfo label="Teto e piso" value={`${fmtColdPro(geometricFloorArea)} m²`} description="Área da planta da câmara." tone={dimensionError || customDimensionError ? "warning" : "info"} />
                     </div>
                   </div>
                 </div>
