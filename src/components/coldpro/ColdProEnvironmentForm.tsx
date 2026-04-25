@@ -179,6 +179,11 @@ function applyUninsulatedFloorToFace(face: any) {
   return { ...face, layers: [], u_value_w_m2k: UNINSULATED_FLOOR_U_VALUE_W_M2K, material_thickness: "Piso sem isolamento" };
 }
 
+function prepareFaceForCalculation(face: any, hasFloorInsulation: boolean) {
+  const prepared = face.local === "PISO" && !hasFloorInsulation ? applyUninsulatedFloorToFace(face) : face;
+  return { ...prepared, glass_area_m2: prepared.has_glass ? prepared.glass_area_m2 : 0 };
+}
+
 function describeLayer(layer: any) {
   const uValue = calculateUValue(layer?.thickness_m > 0 && layer?.conductivity_w_mk > 0 ? [layer] : []);
   return {
@@ -314,6 +319,7 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
   const height = toNumber(form?.height_m);
   const geometry = React.useMemo(() => getGeometry(form?.construction_faces), [form?.construction_faces]);
   const constructionFaces = React.useMemo(() => normalizeFaces(form?.construction_faces, layout, wallCount, length, width, height, geometry), [form?.construction_faces, layout, wallCount, length, width, height, geometry]);
+  const finalizedConstructionFaces = React.useMemo(() => constructionFaces.map((face) => prepareFaceForCalculation(face, Boolean(form?.has_floor_insulation))), [constructionFaces, form?.has_floor_insulation]);
   const insulationOptions = React.useMemo(() => {
     const legacy = insulationMaterials.map((material) => normalizeInsulationOption(material, "legacy"));
     const thermal = thermalMaterials.filter((material) => material.is_insulation).map((material) => normalizeInsulationOption(material, "thermal"));
@@ -332,15 +338,15 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
   const floorLayerInfo = describeLayer(makeInsulationLayer(selectedFloorInsulation, form?.floor_thickness_mm));
 
   const geometricFloorArea = getFloorArea(layout, length, width, geometry, constructionFaces);
-  const floorFace = constructionFaces.find((face) => face.local === "PISO");
-  const ceilingFace = constructionFaces.find((face) => face.local === "TETO");
+  const floorFace = finalizedConstructionFaces.find((face) => face.local === "PISO");
+  const ceilingFace = finalizedConstructionFaces.find((face) => face.local === "TETO");
   const floorArea = toNumber(floorFace?.panel_area_m2) || geometricFloorArea;
   const ceilingArea = toNumber(ceilingFace?.panel_area_m2) || geometricFloorArea;
   const volume = floorArea * height;
   const deltaT = toNumber(form?.external_temp_c) - toNumber(form?.internal_temp_c);
-  const totalPanelArea = constructionFaces.reduce((sum, face) => sum + toNumber(face.panel_area_m2), 0);
-  const totalGlassArea = constructionFaces.reduce((sum, face) => sum + toNumber(face.glass_area_m2), 0);
-  const wallPanelArea = constructionFaces.filter((face) => face.local.startsWith("PAREDE")).reduce((sum, face) => sum + toNumber(face.panel_area_m2), 0);
+  const totalPanelArea = finalizedConstructionFaces.reduce((sum, face) => sum + toNumber(face.panel_area_m2), 0);
+  const totalGlassArea = finalizedConstructionFaces.reduce((sum, face) => sum + toNumber(face.glass_area_m2), 0);
+  const wallPanelArea = finalizedConstructionFaces.filter((face) => face.local.startsWith("PAREDE")).reduce((sum, face) => sum + toNumber(face.panel_area_m2), 0);
   const dimensionError = layout !== "custom_polygon" && (length <= 0 || width <= 0 || height <= 0);
   const customDimensionError = layout === "custom_polygon" && (floorArea <= 0 || height <= 0 || wallCount < 3);
   const hoursError = toNumber(form?.operation_hours_day) < 0 || toNumber(form?.operation_hours_day) > 24 || toNumber(form?.compressor_runtime_hours_day) < 0 || toNumber(form?.compressor_runtime_hours_day) > 24;
