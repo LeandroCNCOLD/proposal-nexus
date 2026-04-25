@@ -245,8 +245,6 @@ const mappers: Record<EntityKey, { endpoint: string; map: Mapper }> = {
   },
 };
 
-/** Janela recente verificada automaticamente a cada execução. */
-const PROPOSALS_RECENT_PAGES = 3;
 /** Máximo de propostas novas/alteradas processadas por invocação (evita timeout). */
 const PROPOSALS_BATCH_SIZE = 20;
 
