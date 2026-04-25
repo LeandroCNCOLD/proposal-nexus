@@ -107,13 +107,16 @@ export function ColdProResultCard({ result }: { result: any }) {
         <div className="mt-5 rounded-xl border p-4">
           <h4 className="mb-3 text-sm font-semibold">Transmissão por face</h4>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-sm">
+              <table className="w-full min-w-[900px] text-sm">
               <thead className="text-xs text-muted-foreground">
                 <tr className="border-b">
                   <th className="py-2 text-left font-medium">Face</th>
-                  <th className="py-2 text-right font-medium">Área m²</th>
-                  <th className="py-2 text-right font-medium">U W/m²K</th>
+                    <th className="py-2 text-right font-medium">Área isolada m²</th>
+                    <th className="py-2 text-right font-medium">Vidro m²</th>
+                    <th className="py-2 text-right font-medium">U painel</th>
                   <th className="py-2 text-right font-medium">ΔT °C</th>
+                    <th className="py-2 text-right font-medium">Painel kcal/h</th>
+                    <th className="py-2 text-right font-medium">Vidro kcal/h</th>
                   <th className="py-2 text-right font-medium">Carga kcal/h</th>
                 </tr>
               </thead>
@@ -121,9 +124,12 @@ export function ColdProResultCard({ result }: { result: any }) {
                 {transmissionFaces.map((face: any) => (
                   <tr key={face.local} className="border-b last:border-0">
                     <td className="py-2 font-medium">{face.local}</td>
-                    <td className="py-2 text-right tabular-nums">{fmtColdPro(face.area_m2)}</td>
+                    <td className="py-2 text-right tabular-nums">{fmtColdPro(face.insulated_area_m2 ?? face.area_m2)}</td>
+                    <td className="py-2 text-right tabular-nums">{fmtColdPro(face.glass_area_m2)}</td>
                     <td className="py-2 text-right tabular-nums">{fmtColdPro(face.u_value_w_m2k, 3)}</td>
                     <td className="py-2 text-right tabular-nums">{fmtColdPro(face.delta_t_c)}</td>
+                    <td className="py-2 text-right tabular-nums">{fmtColdPro(face.panel_transmission_kcal_h ?? face.transmission_kcal_h)}</td>
+                    <td className="py-2 text-right tabular-nums">{fmtColdPro(face.glass_transmission_kcal_h)}</td>
                     <td className="py-2 text-right font-semibold tabular-nums">{fmtColdPro(face.transmission_kcal_h)}</td>
                   </tr>
                 ))}

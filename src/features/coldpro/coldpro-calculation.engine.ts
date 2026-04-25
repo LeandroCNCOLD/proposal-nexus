@@ -21,6 +21,11 @@ import {
 const W_TO_KCAL_H = 0.859845;
 const R_INTERNAL_M2K_W = 0.12;
 const R_EXTERNAL_M2K_W = 0.08;
+const GLASS_U_VALUES_W_M2K: Record<string, number> = {
+  simple: 5.7,
+  double: 2.8,
+  insulated: 1.8,
+};
 
 export function calculateConvectionCoefficient(airVelocityMS?: number | null, fallback?: number | null): number | null {
   const velocity = n(airVelocityMS);
@@ -111,18 +116,33 @@ function faceDeltaT(face: ColdProConstructionFace, env: ColdProEnvironment) {
   return positive(n(targetTemp) - n(env.internal_temp_c));
 }
 
+function glassUValue(face: ColdProConstructionFace) {
+  const key = String(face.glass_type ?? "simple").trim().toLowerCase();
+  return GLASS_U_VALUES_W_M2K[key] ?? GLASS_U_VALUES_W_M2K.simple;
+}
+
 export function calculateFaceTransmission(face: ColdProConstructionFace, env: ColdProEnvironment) {
   const layers = Array.isArray(face.layers) ? face.layers.filter((layer) => n(layer.thickness_m) > 0 && n(layer.conductivity_w_mk) > 0) : [];
   const area = faceArea(face);
+  const glassArea = Math.min(area, positive(n(face.glass_area_m2)));
+  const insulatedArea = positive(area - glassArea);
   const deltaT = faceDeltaT(face, env);
   const uValue = layers.length ? calculateUValue(layers) : n(face.u_value_w_m2k);
-  const watts = uValue * area * deltaT;
+  const panelWatts = uValue * insulatedArea * deltaT;
+  const glassU = glassArea > 0 ? glassUValue(face) : 0;
+  const glassWatts = glassU * glassArea * deltaT;
+  const watts = panelWatts + glassWatts;
   const kcalH = watts * W_TO_KCAL_H;
   return {
     local: face.local,
     area_m2: round2(area),
+    insulated_area_m2: round2(insulatedArea),
+    glass_area_m2: round2(glassArea),
     delta_t_c: round2(deltaT),
     u_value_w_m2k: round2(uValue),
+    glass_u_value_w_m2k: round2(glassU),
+    panel_transmission_kcal_h: round2(panelWatts * W_TO_KCAL_H),
+    glass_transmission_kcal_h: round2(glassWatts * W_TO_KCAL_H),
     transmission_w: round2(watts),
     transmission_kcal_h: round2(kcalH),
     layers: layers.map((layer) => ({
