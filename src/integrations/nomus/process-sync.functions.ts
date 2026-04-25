@@ -177,6 +177,9 @@ async function syncNomusProcessRecord(
   rawSummary: NomusProcessRaw,
   options: { requireDetail?: boolean; triggeredBy?: string | null } = {},
 ): Promise<{ changed: boolean; id: number }> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { getOne } = await import("./client");
+  const { NOMUS_ENDPOINTS } = await import("./endpoints");
   const id = processIdOf(rawSummary);
   if (!id) return { changed: false, id: 0 };
 
@@ -204,6 +207,9 @@ async function syncNomusProcessRecord(
 }
 
 export async function syncNomusProcessesNewestFirst(options: { tipos?: string[]; triggeredBy?: string | null } = {}) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { listPage } = await import("./client");
+  const { NOMUS_ENDPOINTS } = await import("./endpoints");
   const wantedTipos = (options.tipos ?? []).map((t) => t.trim()).filter(Boolean);
   const now = new Date().toISOString();
 
