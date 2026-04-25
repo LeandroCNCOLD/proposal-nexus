@@ -269,8 +269,8 @@ export const nomusSyncClients = createServerFn({ method: "POST" })
       const page = Math.max(1, Number(cursorPage) || 1);
       const offset = Math.max(0, Number(cursorOffset) || 0);
       const previousTotal = page === 1 && offset === 0 ? 0 : Number((state as { total_synced?: number | null } | null)?.total_synced ?? 0) || 0;
-      const perClick = 3;
-      const res = await listPage<Json>(NOMUS_ENDPOINTS.clientes, {}, { entity: "clientes", page, pageSize: 50, triggeredBy: userId });
+      const perClick = 20;
+      const res = await listPage<Json>(NOMUS_ENDPOINTS.clientes, {}, { entity: "clientes", page, pageSize: perClick, triggeredBy: userId });
       if (!res.ok) {
         await setState("clientes", { running: false, last_error: res.error });
         return { ok: false as const, error: res.error };
