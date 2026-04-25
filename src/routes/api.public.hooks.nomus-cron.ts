@@ -36,6 +36,15 @@ async function syncProposalDetail(rawSummary: Record<string, unknown>, options: 
   const mapped = mapNomusProposal(raw);
   if (!mapped) return false;
 
+  const { data: currentMirror } = await supabaseAdmin
+    .from("nomus_proposals")
+    .select("raw")
+    .eq("nomus_id", mapped.nomus_id)
+    .maybeSingle();
+  if (currentMirror && JSON.stringify((currentMirror as { raw?: unknown }).raw ?? null) === JSON.stringify(raw ?? null)) {
+    return false;
+  }
+
   // 1) Espelha em nomus_proposals (fonte fiel do payload Nomus)
   const { data: mirror } = await supabaseAdmin
     .from("nomus_proposals")
@@ -250,6 +259,9 @@ const mappers: Record<EntityKey, { endpoint: string; map: Mapper }> = {
 
 /** Máximo de propostas novas/alteradas processadas por invocação (evita timeout). */
 const PROPOSALS_BATCH_SIZE = 20;
+const PROPOSALS_FORWARD_LOOKAHEAD = 80;
+const PROPOSALS_RECENT_RECHECK = 30;
+const PROPOSALS_MAX_CONSECUTIVE_MISSES = 20;
 
 function extractItems(payload: unknown): Array<Record<string, unknown>> {
   if (Array.isArray(payload)) return payload as Array<Record<string, unknown>>;
