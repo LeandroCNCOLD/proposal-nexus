@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { listAll, listPage, getOne } from "@/integrations/nomus/client";
 import { NOMUS_ENDPOINTS } from "@/integrations/nomus/endpoints";
+import { syncNomusProcessesNewestFirst } from "@/integrations/nomus/process-sync.functions";
 import {
   mapNomusProposal,
   extractProposalItems,
@@ -14,7 +15,7 @@ import {
 // de propostas, pedidos e NF do Nomus. Token Bearer simples só
 // para autorizar a chamada.
 
-type EntityKey = "propostas" | "pedidos" | "notas_fiscais";
+type EntityKey = "propostas" | "pedidos" | "notas_fiscais" | "processos";
 
 type Mapper = (raw: Record<string, unknown>) => Promise<unknown>;
 
@@ -256,6 +257,10 @@ const mappers: Record<EntityKey, { endpoint: string; map: Mapper }> = {
         synced_at: new Date().toISOString(),
       }, { onConflict: "nomus_id" });
     },
+  },
+  processos: {
+    endpoint: NOMUS_ENDPOINTS.processos,
+    map: async () => undefined,
   },
 };
 
