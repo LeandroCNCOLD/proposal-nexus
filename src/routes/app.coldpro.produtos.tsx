@@ -262,7 +262,11 @@ function ColdProProductsPage() {
     const buffer = await file.arrayBuffer();
     const workbook = XLSX.read(buffer, { type: "array" });
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "" });
+    const rawRows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: "", blankrows: false });
+    const headerIndex = rawRows.findIndex((row) => Array.isArray(row) && row[0] === "Produto" && row[1] === "Grupo");
+    const rows = headerIndex >= 0
+      ? XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "", range: headerIndex + 1 })
+      : XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "" });
     const parsed = rows.map(rowToProduct).filter(Boolean) as ProductForm[];
     const unique = Array.from(new Map(parsed.map((product) => [keyOf(product), product])).values());
     setPreview(unique.map((product) => ({ ...product, action: existingKeys.has(keyOf(product)) ? "update" : "create" })));
