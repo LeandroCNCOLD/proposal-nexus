@@ -11,6 +11,7 @@ type Props = {
   results: any[];
   selections: any[];
   products: any[];
+  advancedProcesses?: any[];
   onPushToProposal?: () => void;
   isPushing?: boolean;
   onGeneratePdf?: () => void;
@@ -24,6 +25,7 @@ export function ColdProReport({
   results,
   selections,
   products,
+  advancedProcesses = [],
   onPushToProposal,
   isPushing,
   onGeneratePdf,
@@ -128,6 +130,7 @@ export function ColdProReport({
           const result = results.find((r: any) => r.environment_id === env.id);
           const selection = selections.find((s: any) => s.environment_id === env.id);
           const envProducts = products.filter((p: any) => p.environment_id === env.id);
+          const envAdvancedProcesses = advancedProcesses.filter((p: any) => p.environment_id === env.id);
           return (
             <section key={env.id} className="space-y-3 border-t pt-4">
               <h2 className="text-base font-semibold">
@@ -219,6 +222,21 @@ export function ColdProReport({
               ) : (
                 <div className="text-sm text-muted-foreground">Cálculo não realizado.</div>
               )}
+
+              {envAdvancedProcesses.length ? (
+                <div>
+                  <div className="mb-1 text-sm font-semibold">Processos Especiais</div>
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm md:grid-cols-3">
+                    {envAdvancedProcesses.map((item: any) => (
+                      <React.Fragment key={item.id}>
+                        <div>Tipo: <b>{item.advanced_process_type}</b></div>
+                        <div>Carga adicional: <b>{fmt(item.calculation_result?.total_additional_kcal_h)} kcal/h</b></div>
+                        <div>Status: <b>{item.calculation_result?.status ?? "—"}</b></div>
+                      </React.Fragment>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
 
               {selection ? (
                 <div>

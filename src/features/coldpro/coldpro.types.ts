@@ -8,6 +8,18 @@ export type ColdProApplicationType =
   | "seed_storage"
   | "climatized_room";
 
+export type ColdProAdvancedProcessType =
+  | "none"
+  | "seed_humidity_control"
+  | "banana_ripening"
+  | "citrus_degreening"
+  | "potato_co2_control"
+  | "controlled_atmosphere"
+  | "ethylene_application"
+  | "ethylene_removal"
+  | "co2_scrubbing"
+  | "humidity_control";
+
 export type ColdProStatus =
   | "draft"
   | "calculated"
@@ -266,6 +278,43 @@ export type ColdProInsulationMaterial = {
   conductivity_w_m_k: number;
   conductivity_kcal_h_m_c: number;
   default_thickness_mm?: number | null;
+};
+
+export type ColdProAdvancedProcess = {
+  id?: string;
+  project_id: string;
+  environment_id?: string | null;
+  advanced_process_type: ColdProAdvancedProcessType;
+  product_name?: string | null;
+  product_mass_kg?: number | null;
+  chamber_volume_m3?: number | null;
+  target_temperature_c?: number | null;
+  target_relative_humidity?: number | null;
+  process_time_h?: number | null;
+  technical_notes?: string | null;
+  external_temperature_c?: number | null;
+  external_relative_humidity?: number | null;
+  internal_temperature_c?: number | null;
+  internal_relative_humidity?: number | null;
+  air_changes_per_hour?: number | null;
+  product_initial_moisture?: number | null;
+  product_final_moisture?: number | null;
+  stabilization_time_h?: number | null;
+  ethylene_target_ppm?: number | null;
+  ethylene_exposure_time_h?: number | null;
+  ethylene_renewal_after_application?: boolean | null;
+  co2_generation_rate_m3_kg_h?: number | null;
+  co2_limit_percent?: number | null;
+  external_co2_percent?: number | null;
+  storage_time_h?: number | null;
+  o2_target_percent?: number | null;
+  co2_target_percent?: number | null;
+  respiration_rate_w_kg?: number | null;
+  purge_airflow_m3_h?: number | null;
+  scrubber_enabled?: boolean | null;
+  air_renewal_m3_h?: number | null;
+  calculation_result?: Record<string, unknown> | null;
+  calculation_breakdown?: Record<string, unknown> | null;
 };
 
 export type ColdProResult = {

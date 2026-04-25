@@ -1,170 +1,174 @@
-Implementarei a regra central: o ColdPro não “sugere” temperatura, velocidade ou vazão por preset; ele usa presets apenas como condição inicial e só apresenta a recomendação final quando ela for provada por cálculo iterativo.
+Plano para implementar o módulo "Processos Especiais / Atmosfera Controlada" no ColdPro
 
-## Objetivo
+1. Criar a nova aba no fluxo do ColdPro
+- Adicionar uma etapa no `ColdProStepper`: "Processos Especiais".
+- Inserir essa etapa entre "Produtos" e "Cargas extras", mantendo o resultado final depois.
+- Exibir a aba como camada opcional por ambiente, sem misturar os cálculos diretamente na aba Produtos.
+- Mostrar a aba de forma especialmente orientada para aplicações como sementes, maturação, desverdecimento, controle de CO₂, atmosfera controlada e controle de umidade.
 
-Na aba de túnel/processo, a recomendação final passará a seguir este fluxo:
-
+Fluxo final:
 ```text
-Entrada do usuário
-→ calcula energia específica do produto
-→ calcula potência frigorífica requerida
-→ estima tempo até núcleo na condição atual
-→ compara com tempo desejado
-→ testa combinações de Tar e velocidade dentro dos limites
-→ calcula vazão necessária para cada tentativa
-→ retorna a menor condição que atende, com memória de cálculo
+Ambiente
+→ Produtos
+→ Processos Especiais
+→ Cargas extras
+→ Resultado
 ```
 
-## Alterações no motor de cálculo
+2. Criar a tabela `coldpro_advanced_processes`
+- Criar migration para a nova tabela com os campos informados.
+- Relacionar cada processo especial a um projeto e, para uso prático dentro da tela atual, também a um ambiente do ColdPro.
+- Incluir `calculation_result` e `calculation_breakdown` em JSON para salvar memória de cálculo, resultados e alertas.
+- Ativar segurança de acesso compatível com as tabelas existentes do ColdPro.
+- Criar trigger de `updated_at` usando a função já existente `set_updated_at()`.
 
-1. Criar `optimizeProcessAirCondition()` em `coldpro-calculation.engine.ts`.
+A tabela ficará preparada para salvar:
+- tipo de processo avançado;
+- dados de produto/câmara;
+- controle de umidade;
+- etileno;
+- CO₂/purga;
+- atmosfera controlada;
+- resultado técnico e memória de cálculo.
 
-A função receberá os dados do túnel/processo:
-- tipo de processo: contínuo/girofreezer/estático/pallet;
-- tipo de arranjo: individual, bandeja, carrinho, caixa, pallet/bloco, granel;
-- propriedades do produto carregadas do catálogo ou preenchidas manualmente;
-- massa ou kg/h;
-- temperatura inicial e final do produto;
-- tempo desejado;
-- geometria/dimensão térmica e distância até o núcleo;
-- temperatura inicial do ar, velocidade inicial e ΔT do ar;
-- limites técnicos de temperatura e velocidade;
-- densidade do ar;
-- fatores de exposição ao ar e penetração térmica.
+3. Criar os tipos e funções de persistência
+- Atualizar os tipos do ColdPro para incluir:
+  - `ColdProAdvancedProcessType`;
+  - `ColdProAdvancedProcess`;
+  - resultados de umidade, etileno, CO₂, purga, respiração e atmosfera controlada.
+- Atualizar `getColdProProjectBundle()` para carregar os processos especiais do projeto/ambiente.
+- Criar server functions para:
+  - salvar/atualizar processo especial;
+  - recalcular processo especial;
+  - retornar os resultados salvos junto ao bundle do projeto.
+- Criar hooks em `use-coldpro.ts` para uso pela tela.
 
-2. Para cada tentativa, calcular:
-- energia específica `q`;
-- potência requerida `P_kW`;
-- `h_base = 10 + 10 × velocidade^0.8`;
-- `h_efetivo = h_base × fator_exposicao_ar`;
-- `k_efetivo = k_produto × fator_penetracao`;
-- tempo estimado até núcleo;
-- vazão necessária:
-
+4. Criar services separados em `src/modules/coldpro/services/advancedProcesses/`
+Criar a estrutura pedida:
 ```text
-Vazao_m3_s = P_kW / (ρ_ar × Cp_ar × ΔT_ar)
-Vazao_m3_h = Vazao_m3_s × 3600
+src/modules/coldpro/services/advancedProcesses/
+  psychrometricHumidityService.ts
+  seedHumidityControlService.ts
+  ethyleneProcessService.ts
+  co2ControlService.ts
+  controlledAtmosphereService.ts
+  advancedProcessEngine.ts
+  advancedProcessValidationService.ts
 ```
 
-3. Implementar a busca iterativa em ordem técnica:
-- primeiro validar a condição atual do usuário;
-- se não atender, reduzir a temperatura do ar passo a passo até o limite mínimo;
-- se ainda não atender, aumentar velocidade do ar passo a passo até o limite máximo;
-- para cada combinação, recalcular tempo, h efetivo, potência e vazão;
-- escolher a menor condição que atende ao tempo desejado, evitando recomendar condição mais severa que o necessário;
-- se nenhuma combinação atender, retornar status de inviabilidade/revisão técnica.
+Função de cada serviço:
+- `psychrometricHumidityService.ts`: razão de umidade do ar, pressão de saturação e diferença de umidade absoluta.
+- `seedHumidityControlService.ts`: água removida do ar, água removida do produto/semente e carga latente.
+- `ethyleneProcessService.ts`: volume teórico de etileno em m³ e litros, tempo de exposição e alertas de segurança.
+- `co2ControlService.ts`: geração de CO₂, limite máximo, vazão mínima de purga e carga térmica da purga.
+- `controlledAtmosphereService.ts`: O₂/CO₂ alvo, respiração, scrubber, renovação de ar e alertas.
+- `advancedProcessEngine.ts`: motor principal que combina os blocos conforme `advanced_process_type`.
+- `advancedProcessValidationService.ts`: valida dados insuficientes, valores perigosos e cenários tecnicamente inválidos.
 
-4. Não permitir recomendação sem cálculo.
+5. Implementar os cálculos do módulo
 
-Se faltarem dados essenciais, o resultado será “revisar aplicação” ou “sem dados suficientes”, com alerta técnico, em vez de inventar condição de ar.
-
-## Campos e limites técnicos
-
-Vou adicionar campos opcionais ao modelo de túnel para que os limites não fiquem escondidos no código:
-
-- `air_delta_t_k`: ΔT do ar usado para calcular vazão;
-- `min_air_temp_c` e `max_air_temp_c`: limites de temperatura do ar;
-- `min_air_velocity_m_s` e `max_air_velocity_m_s`: limites de velocidade;
-- `air_temp_step_c`: passo de iteração da temperatura;
-- `air_velocity_step_m_s`: passo de iteração da velocidade;
-- campos de saída/memória: condição recomendada, status, margem, quantidade de tentativas e memória de cálculo.
-
-Os valores iniciais continuarão existindo, mas serão tratados como “ponto inicial”, não como recomendação final.
-
-## Ajustes no banco/backend
-
-1. Criar migração para expandir `coldpro_tunnels` com os novos campos de limites, ΔT de ar e resultado da otimização.
-2. Atualizar a validação do salvamento do túnel para aceitar os novos campos.
-3. Manter compatibilidade com túneis já cadastrados: quando os campos novos estiverem vazios, usar valores iniciais técnicos como fallback apenas para iniciar a simulação.
-
-## Ajustes na interface
-
-Na aba “Ar e embalagem”, vou reorganizar para separar claramente:
-
-1. Condição inicial informada
-- temperatura inicial do ar;
-- velocidade inicial do ar;
-- ΔT do ar para cálculo de vazão.
-
-2. Limites técnicos de iteração
-- temperatura mínima/máxima permitida;
-- velocidade mínima/máxima permitida;
-- passo de temperatura e velocidade.
-
-3. Fatores físicos do arranjo
-- fator de exposição ao ar;
-- fator de penetração térmica;
-- embalagem/arranjo.
-
-Também vou ajustar textos para deixar claro que esses campos alimentam a otimização, e não são “presets finais”.
-
-## Resultado e memória de cálculo
-
-No card de resultado, a seção “Validação térmica do túnel” passará a mostrar:
-
-- status: adequado, insuficiente, revisar aplicação ou inviável;
-- condição inicial testada;
-- condição recomendada calculada;
-- temperatura do ar recomendada;
-- velocidade mínima recomendada;
-- vazão necessária;
-- potência frigorífica requerida;
-- tempo desejado;
-- tempo estimado;
-- margem percentual;
-- energia específica;
-- `h_base`;
-- `h_efetivo`;
-- `k_efetivo`;
-- dimensão térmica usada;
-- fator de exposição ao ar;
-- fator de penetração térmica;
-- número de tentativas testadas;
-- alertas técnicos.
-
-Também incluirei uma tabela/resumo das tentativas principais para evidenciar a prova matemática, por exemplo:
-
+Controle de umidade:
 ```text
-Tar       Velocidade      Tempo estimado      Status
--30°C     3 m/s           95 min              não atende
--35°C     3 m/s           78 min              não atende
--40°C     3 m/s           66 min              não atende
--40°C     4 m/s           58 min              atende
+W_externo = razão de umidade externa
+W_interno = razão de umidade interna desejada
+ΔW = W_externo - W_interno
+água_removida_ar_kg_h = vazão_ar_kg_h × ΔW
+Q_latente_ar_kW = água_removida_ar_kg_h × 2500 / 3600
 ```
 
-## Regras técnicas que serão aplicadas
-
-- Preset não será resultado final.
-- Toda recomendação precisa ter tentativa calculada.
-- Se o tempo estimado for maior que o desejado, o sistema tentará primeiro temperatura, depois velocidade.
-- A vazão será consequência da potência e do ΔT do ar, não um número chutado.
-- Produto em caixa, pallet, bloco ou granel continuará gerando alerta técnico por depender de embalagem, passagem real de ar e arranjo físico.
-- Se faltar densidade, condutividade, calor latente, temperatura de congelamento, dimensão térmica ou tempo desejado, o sistema não recomendará condição final.
-
-## Arquivos que serão alterados
-
-- `src/features/coldpro/coldpro-calculation.engine.ts`
-- `src/features/coldpro/coldpro.types.ts`
-- `src/features/coldpro/coldpro.functions.ts`
-- `src/components/coldpro/ColdProTunnelForm.tsx`
-- `src/components/coldpro/ColdProResultCard.tsx`
-- nova migração em `supabase/migrations/` para os novos campos do túnel
-
-## Resultado esperado
-
-Ao final, o ColdPro mostrará algo no estilo:
-
+Para sementes/produto:
 ```text
-Condição calculada para atender 60 min:
-Tar: -40°C
-Velocidade mínima: 4 m/s
-Vazão necessária: 32.500 m³/h
-Potência requerida: 85 kW
-Tempo estimado: 58 min
-Margem: 3,3%
-Status: adequado
-
-Base: 4 tentativas calculadas. A condição inicial não atendia; a temperatura foi reduzida até o limite e depois a velocidade foi elevada até encontrar a menor condição viável.
+água_removida_produto = massa_produto × (Ui - Uf) / (1 - Uf)
+água_removida_kg_h = água_removida_produto / tempo_h
+Q_latente_produto_kW = água_removida_kg_h × 2500 / 3600
 ```
 
-Assim, a recomendação deixa de ser um preset fixo e passa a ser uma conclusão comprovada pela memória de cálculo.
+Etileno:
+```text
+volume_etileno_m3 = volume_camara_m3 × ppm_etileno / 1.000.000
+volume_etileno_litros = volume_etileno_m3 × 1000
+```
+
+CO₂ / purga:
+```text
+CO2_gerado_m3_h = massa_produto_kg × taxa_co2_m3_kg_h
+CO2_maximo_m3 = volume_camara_m3 × limite_CO2_percentual / 100
+vazao_purga_m3_h = CO2_gerado_m3_h / (limite_CO2_frac - CO2_externo_frac)
+Q_purga = ρ_ar × vazao_purga_m3_s × Cp_ar × ΔT
+```
+
+Respiração:
+- Calcular carga de respiração quando houver taxa informada.
+- Somar essa carga como componente técnico separado, sem confundir com a carga básica de produto.
+
+6. Criar o componente da aba "Processos Especiais"
+- Criar `ColdProAdvancedProcessForm.tsx`.
+- Layout em blocos:
+  1. Produto e objetivo
+  2. Controle de umidade
+  3. Etileno / maturação / desverdecimento
+  4. CO₂ / respiração / purga
+  5. Atmosfera controlada
+- Incluir seletor `advanced_process_type` com as opções:
+  - `none`
+  - `seed_humidity_control`
+  - `banana_ripening`
+  - `citrus_degreening`
+  - `potato_co2_control`
+  - `controlled_atmosphere`
+  - `ethylene_application`
+  - `ethylene_removal`
+  - `co2_scrubbing`
+  - `humidity_control`
+- Pré-preencher campos úteis a partir do ambiente quando existirem, como volume da câmara, temperatura interna, umidade interna e massa do produto, mas permitir edição.
+- Mostrar prévia técnica dos resultados antes de salvar, quando os dados mínimos existirem.
+
+7. Exibir cards técnicos no resultado
+Adicionar no `ColdProResultCard` uma seção específica para "Processos Especiais", com cards para:
+- Água removida do ar kg/h
+- Água removida do produto kg/h
+- Carga latente de desumidificação kW
+- Volume teórico de etileno litros
+- CO₂ gerado m³/h
+- Vazão mínima de purga m³/h
+- Carga térmica da purga kW
+- Carga de respiração kW
+- Alertas operacionais
+
+Também exibir memória de cálculo resumida para provar de onde veio cada número.
+
+8. Somar cargas adicionais ao cálculo térmico final
+- Integrar o resultado do processo avançado no `calculateColdProEnvironment()`.
+- A carga total passará a respeitar a separação:
+```text
+Carga térmica básica
++ carga de produto
++ carga de umidade
++ carga de respiração
++ carga de purga/renovação
++ parâmetros de atmosfera
+```
+- A carga de umidade, respiração e purga aparecerá em `calculation_breakdown`, mantendo a rastreabilidade.
+- O total requerido será atualizado para incluir essas cargas quando aplicáveis.
+
+9. Alimentar relatório e memorial
+- Atualizar `ColdProReport` para incluir a seção de Processos Especiais por ambiente.
+- Mostrar resultados principais e alertas técnicos no relatório.
+- Preparar os dados para também entrarem no memorial PDF existente, se o gerador já consumir o breakdown/resultados do ColdPro.
+
+10. Alertas técnicos obrigatórios
+Adicionar alertas no cálculo e na interface:
+- Etileno é inflamável e não deve ser dosado automaticamente sem sistema de segurança.
+- CO₂ elevado oferece risco a pessoas.
+- O₂ baixo oferece risco de asfixia.
+- Atmosfera controlada exige sensores, alarmes e intertravamentos.
+- Os cálculos são estimativas de engenharia e devem ser validados conforme projeto específico.
+- Se umidade externa for menor ou igual à umidade interna alvo, não calcular remoção de umidade do ar externo.
+- Se umidade inicial do produto/semente for menor ou igual à final desejada, não calcular remoção de água do produto.
+- Se o limite de CO₂ for menor ou igual ao CO₂ externo, bloquear cálculo de purga e marcar como inviável.
+
+11. Validação final
+- Rodar verificação de tipos/build.
+- Corrigir eventuais incompatibilidades nos tipos gerados e nos componentes.
+- Conferir que a aba não quebra os fluxos existentes de Ambiente, Produtos, Cargas extras, Resultado e Seleção de equipamento.
+- Conferir que o resultado mostra as cargas separadas e que o total final inclui as cargas adicionais apenas quando houver processo especial aplicável.

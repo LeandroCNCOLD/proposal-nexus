@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { listColdProProjects, createColdProProject, getColdProProjectBundle, createColdProEnvironment, updateColdProEnvironment, upsertColdProEnvironmentProduct, upsertColdProTunnel, calculateColdProEnvironment, autoSelectColdProEquipment } from "./coldpro.functions";
+import { listColdProProjects, createColdProProject, getColdProProjectBundle, createColdProEnvironment, updateColdProEnvironment, upsertColdProEnvironmentProduct, upsertColdProTunnel, upsertColdProAdvancedProcess, calculateColdProEnvironment, autoSelectColdProEquipment } from "./coldpro.functions";
 import { pushColdProToProposal } from "./push-coldpro-to-proposal.functions";
 import { generateColdProMemorialPdf } from "@/integrations/coldpro/coldpro-memorial.functions";
 
@@ -28,6 +28,10 @@ export function useUpsertColdProProduct(projectId: string) {
 export function useUpsertColdProTunnel(projectId: string) {
   const qc = useQueryClient();
   return useMutation({ mutationFn: (data: any) => upsertColdProTunnel({ data }), onSuccess: () => qc.invalidateQueries({ queryKey: ["coldpro-project", projectId] }) });
+}
+export function useUpsertColdProAdvancedProcess(projectId: string) {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: (data: any) => upsertColdProAdvancedProcess({ data }), onSuccess: () => qc.invalidateQueries({ queryKey: ["coldpro-project", projectId] }) });
 }
 export function useCalculateColdProEnvironment(projectId: string) {
   const qc = useQueryClient();
