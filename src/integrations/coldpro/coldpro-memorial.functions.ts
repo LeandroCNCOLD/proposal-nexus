@@ -83,8 +83,10 @@ function buildAiPrompt({ project, environments, results, selections, products, q
     const s = (selections ?? []).find((item: any) => item.environment_id === env.id);
     const envProducts = (products ?? []).filter((item: any) => item.environment_id === env.id);
     lines.push(`Ambiente ${env.name}: ${fmt(env.length_m)} x ${fmt(env.width_m)} x ${fmt(env.height_m)} m, volume ${fmt(env.volume_m3)} m³, Tint ${fmt(env.internal_temp_c)} °C, Text ${fmt(env.external_temp_c)} °C.`);
-    lines.push(`Carga requerida: ${fmt(r?.total_required_kcal_h, 0)} kcal/h (${fmt(r?.total_required_kw)} kW). Parcelas: transmissão ${fmt(r?.transmission_kcal_h, 0)}, produto ${fmt(r?.product_kcal_h, 0)}, infiltração ${fmt(r?.infiltration_kcal_h, 0)}, internas ${fmt(Number(r?.people_kcal_h ?? 0) + Number(r?.lighting_kcal_h ?? 0) + Number(r?.motors_kcal_h ?? 0) + Number(r?.fans_kcal_h ?? 0), 0)} kcal/h.`);
-    if (s) lines.push(`Equipamento ofertado: ${s.quantity} x ${s.model}, capacidade total ${fmt(s.capacity_total_kcal_h, 0)} kcal/h, sobra ${fmt(s.surplus_percent)}%, COP ${s.cop ? fmt(s.cop, 2) : "não informado"}.`);
+    const audit = r?.calculation_breakdown?.thermalCalculationResult ?? r?.calculation_breakdown?.mathematical_audit;
+    lines.push(`Objeto validado thermalCalculationResult: subtotal ${fmt(audit?.subtotal_validado ?? r?.subtotal_kcal_h, 0)} kcal/h, fator segurança ${fmt(audit?.fator_segurança ?? r?.safety_factor_percent)}%, carga requerida validada ${fmt(audit?.carga_requerida_validada ?? r?.total_required_kcal_h, 0)} kcal/h, status ${audit?.status_dimensionamento ?? "pendente"}. Não recalcule estes números; apenas interprete.`);
+    lines.push(`Parcelas auditadas: transmissão ${fmt(r?.transmission_kcal_h, 0)}, produto ${fmt(r?.product_kcal_h, 0)}, infiltração ${fmt(r?.infiltration_kcal_h, 0)}, internas ${fmt(Number(r?.people_kcal_h ?? 0) + Number(r?.lighting_kcal_h ?? 0) + Number(r?.motors_kcal_h ?? 0) + Number(r?.fans_kcal_h ?? 0), 0)} kcal/h.`);
+    if (s) lines.push(`Equipamento ofertado validado: ${audit?.quantidade ?? s.quantity} x ${s.model}, capacidade unitária corrigida ${fmt(audit?.capacidade_unitaria_corrigida ?? s.capacity_unit_kcal_h, 0)} kcal/h, capacidade total corrigida ${fmt(audit?.capacidade_total_corrigida ?? s.capacity_total_kcal_h, 0)} kcal/h, sobra ${fmt(audit?.sobra_percentual ?? s.surplus_percent)}%, COP ${s.cop ? fmt(s.cop, 2) : "não informado"}.`);
     for (const p of envProducts) lines.push(`Produto ${p.product_name}: massa ${fmt(p.mass_kg_day, 0)} kg/dia, entrada ${fmt(p.inlet_temp_c)} °C, final ${fmt(p.outlet_temp_c)} °C, congelamento ${p.initial_freezing_temp_c ?? "não informado"} °C, Cp acima ${fmt(p.specific_heat_above_kcal_kg_c, 3)}, Cp abaixo ${fmt(p.specific_heat_below_kcal_kg_c, 3)}, latente ${fmt(p.latent_heat_kcal_kg, 2)} kcal/kg, água ${p.water_content_percent ?? "não informado"}%, fração congelada ${p.frozen_water_fraction ?? p.freezable_water_content_percent ?? "não informada"}.`);
   }
   return lines.join("\n").slice(0, 6000);
@@ -103,13 +105,14 @@ function buildTechnicalFallbackAnalysis({ project, environments, results, select
     const r = (results ?? []).find((item: any) => item.environment_id === env.id);
     const s = (selections ?? []).find((item: any) => item.environment_id === env.id);
     const envProducts = (products ?? []).filter((item: any) => item.environment_id === env.id);
-    const required = Number(r?.total_required_kcal_h ?? 0);
-    const offered = Number(s?.capacity_total_kcal_h ?? 0);
-    const margin = required > 0 && offered > 0 ? ((offered - required) / required) * 100 : null;
+    const audit = r?.calculation_breakdown?.thermalCalculationResult ?? r?.calculation_breakdown?.mathematical_audit;
+    const required = Number(audit?.carga_requerida_validada ?? r?.total_required_kcal_h ?? 0);
+    const offered = Number(audit?.capacidade_total_corrigida ?? s?.capacity_total_kcal_h ?? 0);
+    const margin = audit?.sobra_percentual ?? (required > 0 && offered > 0 ? ((offered - required) / required) * 100 : null);
     lines.push(
       `### ${env.name}`,
       `Dimensões: ${fmt(env.length_m)} x ${fmt(env.width_m)} x ${fmt(env.height_m)} m; volume ${fmt(env.volume_m3)} m³; regime ${fmt(env.internal_temp_c)} °C interno e ${fmt(env.external_temp_c)} °C externo.`,
-      `Carga requerida calculada: ${fmt(required, 0)} kcal/h. Principais parcelas: transmissão ${fmt(r?.transmission_kcal_h, 0)} kcal/h, produto ${fmt(r?.product_kcal_h, 0)} kcal/h, infiltração ${fmt(r?.infiltration_kcal_h, 0)} kcal/h e cargas internas ${fmt(Number(r?.people_kcal_h ?? 0) + Number(r?.lighting_kcal_h ?? 0) + Number(r?.motors_kcal_h ?? 0) + Number(r?.fans_kcal_h ?? 0), 0)} kcal/h.`,
+      `thermalCalculationResult validado: carga requerida ${fmt(required, 0)} kcal/h, capacidade total corrigida ${fmt(offered, 0)} kcal/h, sobra ${margin === null ? "—" : fmt(margin, 1)}% e status ${audit?.status_dimensionamento ?? "pendente"}.`,
     );
     if (envProducts.length) lines.push(`Produtos/processo informados: ${envProducts.map((p: any) => `${p.product_name} (${fmt(p.mass_kg_day, 0)} kg/dia)`).join(", ")}. Validar temperaturas de entrada, tempo de processo e dados de mudança de estado antes da emissão final.`);
     if (r?.calculation_breakdown?.infiltration_technical) {
