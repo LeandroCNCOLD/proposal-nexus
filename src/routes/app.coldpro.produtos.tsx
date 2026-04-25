@@ -25,11 +25,19 @@ type ProductForm = {
   name: string;
   category: string | null;
   initial_freezing_temp_c: number | null;
+  specific_heat_above_kj_kg_k: number | null;
+  specific_heat_below_kj_kg_k: number | null;
   specific_heat_above_kcal_kg_c: number;
   specific_heat_below_kcal_kg_c: number;
+  latent_heat_kj_kg: number | null;
   latent_heat_kcal_kg: number;
   density_kg_m3: number | null;
   water_content_percent: number | null;
+  protein_content_percent: number | null;
+  fat_content_percent: number | null;
+  carbohydrate_content_percent: number | null;
+  fiber_content_percent: number | null;
+  ash_content_percent: number | null;
   thermal_conductivity_unfrozen_w_m_k: number | null;
   thermal_conductivity_frozen_w_m_k: number | null;
   frozen_water_fraction: number | null;
@@ -42,6 +50,12 @@ type ProductForm = {
   respiration_rate_10c_w_kg: number | null;
   respiration_rate_15c_w_kg: number | null;
   respiration_rate_20c_w_kg: number | null;
+  respiration_rate_0c_mw_kg: number | null;
+  respiration_rate_5c_mw_kg: number | null;
+  respiration_rate_10c_mw_kg: number | null;
+  respiration_rate_15c_mw_kg: number | null;
+  respiration_rate_20c_mw_kg: number | null;
+  notes: string | null;
   source: string | null;
   source_reference: string | null;
   is_ashrae_reference: boolean;
@@ -52,11 +66,19 @@ const emptyProduct: ProductForm = {
   name: "",
   category: "",
   initial_freezing_temp_c: null,
+  specific_heat_above_kj_kg_k: null,
+  specific_heat_below_kj_kg_k: null,
   specific_heat_above_kcal_kg_c: 0,
   specific_heat_below_kcal_kg_c: 0,
+  latent_heat_kj_kg: null,
   latent_heat_kcal_kg: 0,
   density_kg_m3: null,
   water_content_percent: null,
+  protein_content_percent: null,
+  fat_content_percent: null,
+  carbohydrate_content_percent: null,
+  fiber_content_percent: null,
+  ash_content_percent: null,
   thermal_conductivity_unfrozen_w_m_k: null,
   thermal_conductivity_frozen_w_m_k: null,
   frozen_water_fraction: null,
@@ -69,6 +91,12 @@ const emptyProduct: ProductForm = {
   respiration_rate_10c_w_kg: null,
   respiration_rate_15c_w_kg: null,
   respiration_rate_20c_w_kg: null,
+  respiration_rate_0c_mw_kg: null,
+  respiration_rate_5c_mw_kg: null,
+  respiration_rate_10c_mw_kg: null,
+  respiration_rate_15c_mw_kg: null,
+  respiration_rate_20c_mw_kg: null,
+  notes: "",
   source: "ASHRAE",
   source_reference: "",
   is_ashrae_reference: true,
@@ -78,9 +106,18 @@ const emptyProduct: ProductForm = {
 const columns: Array<{ key: keyof ProductForm; label: string }> = [
   { key: "category", label: "Grupo" },
   { key: "name", label: "Produto" },
+  { key: "water_content_percent", label: "Água %" },
+  { key: "protein_content_percent", label: "Proteína %" },
+  { key: "fat_content_percent", label: "Gordura %" },
+  { key: "carbohydrate_content_percent", label: "Carb. Total %" },
+  { key: "fiber_content_percent", label: "Fibra %" },
+  { key: "ash_content_percent", label: "Cinzas %" },
   { key: "initial_freezing_temp_c", label: "Temp. cong. inicial °C" },
+  { key: "specific_heat_above_kj_kg_k", label: "Cp_AT kJ/kg·K" },
+  { key: "specific_heat_below_kj_kg_k", label: "Cp_AP kJ/kg·K" },
   { key: "specific_heat_above_kcal_kg_c", label: "Calor esp. acima kcal/kg°C" },
   { key: "specific_heat_below_kcal_kg_c", label: "Calor esp. abaixo kcal/kg°C" },
+  { key: "latent_heat_kj_kg", label: "Calor latente kJ/kg" },
   { key: "latent_heat_kcal_kg", label: "Calor latente kcal/kg" },
   { key: "density_kg_m3", label: "Densidade kg/m³" },
   { key: "water_content_percent", label: "Água %" },
@@ -96,6 +133,12 @@ const columns: Array<{ key: keyof ProductForm; label: string }> = [
   { key: "respiration_rate_10c_w_kg", label: "Resp. 10°C W/kg" },
   { key: "respiration_rate_15c_w_kg", label: "Resp. 15°C W/kg" },
   { key: "respiration_rate_20c_w_kg", label: "Resp. 20°C W/kg" },
+  { key: "respiration_rate_0c_mw_kg", label: "Resp. 0°C mW/kg" },
+  { key: "respiration_rate_5c_mw_kg", label: "Resp. 5°C mW/kg" },
+  { key: "respiration_rate_10c_mw_kg", label: "Resp. 10°C mW/kg" },
+  { key: "respiration_rate_15c_mw_kg", label: "Resp. 15°C mW/kg" },
+  { key: "respiration_rate_20c_mw_kg", label: "Resp. 20°C mW/kg" },
+  { key: "notes", label: "Observações" },
   { key: "source", label: "Fonte" },
   { key: "source_reference", label: "Referência" },
   { key: "is_ashrae_reference", label: "Referência Ashrae" },
@@ -122,13 +165,49 @@ function toBool(value: unknown) {
   return ["sim", "true", "1", "yes"].includes(normalize(value));
 }
 
+function ashraeRowToProduct(row: Record<string, unknown>): ProductForm | null {
+  const product = { ...emptyProduct };
+  product.name = String(row.Produto ?? "").trim();
+  product.category = String(row.Grupo ?? "").trim();
+  if (!product.name || !product.category || product.name.includes("▶")) return null;
+  product.water_content_percent = toNumber(row["Água %"]);
+  product.protein_content_percent = toNumber(row["Proteína %"]);
+  product.fat_content_percent = toNumber(row["Gordura %"]);
+  product.carbohydrate_content_percent = toNumber(row["Carb. Total %"]);
+  product.fiber_content_percent = toNumber(row["Fibra %"]);
+  product.ash_content_percent = toNumber(row["Cinzas %"]);
+  product.initial_freezing_temp_c = toNumber(row["Tc (°C)\nPonto Inicial\nCongelamento"]);
+  product.specific_heat_above_kj_kg_k = toNumber(row["Cp_AT (kJ/kg·K)"]);
+  product.specific_heat_below_kj_kg_k = toNumber(row["Cp_AP (kJ/kg·K)"]);
+  product.specific_heat_above_kcal_kg_c = toNumber(row["Cp_AT (kcal/kg·°C)"]) ?? 0;
+  product.specific_heat_below_kcal_kg_c = toNumber(row["Cp_AP (kcal/kg·°C)"]) ?? 0;
+  product.latent_heat_kj_kg = toNumber(row["Calor Latente\n(kJ/kg)"]);
+  product.latent_heat_kcal_kg = toNumber(row["Calor Latente\n(kcal/kg)"]) ?? 0;
+  product.thermal_conductivity_unfrozen_w_m_k = toNumber(row["Cond. Térmica\n(W/m·K)"]);
+  product.respiration_rate_0c_mw_kg = toNumber(row["0°C"]);
+  product.respiration_rate_5c_mw_kg = toNumber(row["5°C"]);
+  product.respiration_rate_10c_mw_kg = toNumber(row["10°C"]);
+  product.respiration_rate_15c_mw_kg = toNumber(row["15°C"]);
+  product.respiration_rate_20c_mw_kg = toNumber(row["20°C"]);
+  product.respiration_rate_0c_w_kg = product.respiration_rate_0c_mw_kg == null ? null : product.respiration_rate_0c_mw_kg / 1000;
+  product.respiration_rate_5c_w_kg = product.respiration_rate_5c_mw_kg == null ? null : product.respiration_rate_5c_mw_kg / 1000;
+  product.respiration_rate_10c_w_kg = product.respiration_rate_10c_mw_kg == null ? null : product.respiration_rate_10c_mw_kg / 1000;
+  product.respiration_rate_15c_w_kg = product.respiration_rate_15c_mw_kg == null ? null : product.respiration_rate_15c_mw_kg / 1000;
+  product.respiration_rate_20c_w_kg = product.respiration_rate_20c_mw_kg == null ? null : product.respiration_rate_20c_mw_kg / 1000;
+  product.notes = String(row.Observações ?? "").trim();
+  product.source_reference = "ASHRAE Refrigeration Handbook 2006 — Chapter 9: Thermal Properties of Foods (SI)";
+  product.data_confidence = "ASHRAE 2006 SI";
+  return product;
+}
+
 function rowToProduct(raw: Record<string, unknown>): ProductForm | null {
+  if ("Produto" in raw && "Grupo" in raw && "Água %" in raw) return ashraeRowToProduct(raw);
   const byLabel = new Map(columns.map((c) => [normalize(c.label), c.key]));
   const product = { ...emptyProduct };
   for (const [header, value] of Object.entries(raw)) {
     const key = byLabel.get(normalize(header)) ?? (normalize(header) as keyof ProductForm);
     if (!(key in product)) continue;
-    if (key === "name" || key === "category" || key === "source" || key === "source_reference" || key === "data_confidence") {
+    if (key === "name" || key === "category" || key === "source" || key === "source_reference" || key === "data_confidence" || key === "notes") {
       product[key] = String(value ?? "").trim() as never;
     } else if (key === "allow_phase_change" || key === "is_ashrae_reference") {
       product[key] = toBool(value) as never;
@@ -183,7 +262,15 @@ function ColdProProductsPage() {
     const buffer = await file.arrayBuffer();
     const workbook = XLSX.read(buffer, { type: "array" });
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "" });
+    const rawRows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: "", blankrows: false });
+    const headerIndex = rawRows.findIndex((row) => Array.isArray(row) && row[0] === "Produto" && row[1] === "Grupo");
+    const rows = headerIndex >= 0
+      ? rawRows.slice(headerIndex + 2).map((row) => ({
+          Produto: row[0], Grupo: row[1], "Água %": row[2], "Proteína %": row[3], "Gordura %": row[4], "Carb. Total %": row[5], "Fibra %": row[6], "Cinzas %": row[7],
+          "Tc (°C)\nPonto Inicial\nCongelamento": row[8], "Cp_AT (kJ/kg·K)": row[9], "Cp_AP (kJ/kg·K)": row[10], "Cp_AT (kcal/kg·°C)": row[11], "Cp_AP (kcal/kg·°C)": row[12],
+          "Calor Latente\n(kJ/kg)": row[13], "Calor Latente\n(kcal/kg)": row[14], "Cond. Térmica\n(W/m·K)": row[15], "0°C": row[16], "5°C": row[17], "10°C": row[18], "15°C": row[19], "20°C": row[20], Observações: row[21],
+        }))
+      : XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "" });
     const parsed = rows.map(rowToProduct).filter(Boolean) as ProductForm[];
     const unique = Array.from(new Map(parsed.map((product) => [keyOf(product), product])).values());
     setPreview(unique.map((product) => ({ ...product, action: existingKeys.has(keyOf(product)) ? "update" : "create" })));
