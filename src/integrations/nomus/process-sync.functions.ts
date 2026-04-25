@@ -6,9 +6,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { getOne, listAll, listPage, nomusFetch } from "./client";
-import { NOMUS_ENDPOINTS } from "./endpoints";
 
 // ---------------- helpers ----------------
 
@@ -64,6 +61,7 @@ type NomusProcessRaw = {
 };
 
 async function persistNomusProcessBatch(items: NomusProcessRaw[], userId: string | null) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   if (items.length === 0) {
     return { total: 0, upserted: 0, stagesDiscovered: [] as Array<{ tipo: string; etapas: string[] }>, errors: [] as string[] };
   }
