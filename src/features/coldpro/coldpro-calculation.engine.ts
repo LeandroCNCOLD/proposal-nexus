@@ -26,6 +26,10 @@ const GLASS_U_VALUES_W_M2K: Record<string, number> = {
   double: 2.8,
   insulated: 1.8,
 };
+const SOLAR_EQUIVALENT_TEMP_RISE_C: Record<string, number> = {
+  TETO: 8,
+  PAREDE: 5,
+};
 
 export function calculateConvectionCoefficient(airVelocityMS?: number | null, fallback?: number | null): number | null {
   const velocity = n(airVelocityMS);
@@ -113,7 +117,12 @@ function faceDeltaT(face: ColdProConstructionFace, env: ColdProEnvironment) {
   const targetTemp = face.local === "PISO" && env.floor_temp_c !== null && env.floor_temp_c !== undefined
     ? env.floor_temp_c
     : face.external_temp_c ?? env.external_temp_c;
-  return positive(n(targetTemp) - n(env.internal_temp_c));
+  return positive(n(targetTemp) + solarEquivalentTempRise(face) - n(env.internal_temp_c));
+}
+
+function solarEquivalentTempRise(face: ColdProConstructionFace) {
+  if (String(face.solar_orientation ?? "").trim().toLowerCase() !== "sol direto") return 0;
+  return face.local === "TETO" ? SOLAR_EQUIVALENT_TEMP_RISE_C.TETO : SOLAR_EQUIVALENT_TEMP_RISE_C.PAREDE;
 }
 
 function glassUValue(face: ColdProConstructionFace) {
@@ -139,6 +148,7 @@ export function calculateFaceTransmission(face: ColdProConstructionFace, env: Co
     insulated_area_m2: round2(insulatedArea),
     glass_area_m2: round2(glassArea),
     delta_t_c: round2(deltaT),
+    solar_equivalent_temp_rise_c: round2(solarEquivalentTempRise(face)),
     u_value_w_m2k: round2(uValue),
     glass_u_value_w_m2k: round2(glassU),
     panel_transmission_kcal_h: round2(panelWatts * W_TO_KCAL_H),
