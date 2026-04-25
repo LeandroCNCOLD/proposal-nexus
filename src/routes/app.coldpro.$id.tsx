@@ -8,6 +8,7 @@ import {
   useUpdateColdProEnvironment,
   useUpsertColdProProduct,
   useUpsertColdProTunnel,
+  useUpsertColdProAdvancedProcess,
   useCalculateColdProEnvironment,
   useAutoSelectColdProEquipment,
   usePushColdProToProposal,
@@ -16,6 +17,7 @@ import {
 import { ColdProEnvironmentForm } from "@/components/coldpro/ColdProEnvironmentForm";
 import { ColdProProductForm } from "@/components/coldpro/ColdProProductForm";
 import { ColdProTunnelForm } from "@/components/coldpro/ColdProTunnelForm";
+import { ColdProAdvancedProcessForm } from "@/components/coldpro/ColdProAdvancedProcessForm";
 import { ColdProResultCard } from "@/components/coldpro/ColdProResultCard";
 import { ColdProExtraLoadsForm } from "@/components/coldpro/ColdProExtraLoadsForm";
 import { ColdProStepper, COLDPRO_STEPS } from "@/components/coldpro/ColdProStepper";
@@ -38,6 +40,7 @@ function ColdProProjectPage() {
   const updateEnv = useUpdateColdProEnvironment(id);
   const upsertProduct = useUpsertColdProProduct(id);
   const upsertTunnel = useUpsertColdProTunnel(id);
+  const upsertAdvancedProcess = useUpsertColdProAdvancedProcess(id);
   const calculate = useCalculateColdProEnvironment(id);
   const autoSelect = useAutoSelectColdProEquipment(id);
   const pushToProposal = usePushColdProToProposal(id);
@@ -57,6 +60,7 @@ function ColdProProjectPage() {
   const allProducts = data?.products ?? [];
   const products = allProducts.filter((p: any) => p.environment_id === selectedEnv?.id);
   const tunnel = (data?.tunnels ?? []).find((t: any) => t.environment_id === selectedEnv?.id);
+  const advancedProcess = (data?.advancedProcesses ?? []).find((item: any) => item.environment_id === selectedEnv?.id);
   const result = (data?.results ?? []).find((r: any) => r.environment_id === selectedEnv?.id);
   const selection = (data?.selections ?? []).find((s: any) => s.environment_id === selectedEnv?.id);
   const environmentLoad = Number(result?.transmission_kcal_h ?? 0);
@@ -70,8 +74,9 @@ function ColdProProjectPage() {
   const completed: Record<number, boolean> = {
     0: !!selectedEnv?.length_m,
     1: products.length > 0 || !!tunnel,
-    2: !!selectedEnv?.safety_factor_percent,
-    3: !!result,
+    2: !!advancedProcess || !["seed_storage", "climatized_room"].includes(String(selectedEnv?.environment_type ?? "")),
+    3: !!selectedEnv?.safety_factor_percent,
+    4: !!result,
   };
 
   if (isLoading) return <div className="p-6 text-sm text-muted-foreground">Carregando CN ColdPro...</div>;
