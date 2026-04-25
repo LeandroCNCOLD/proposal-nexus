@@ -304,8 +304,12 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
       const nextLayout = normalizeLayout(next?.chamber_layout_type);
       const nextWallCount = wallCountForLayout(nextLayout, next?.wall_count);
       const nextGeometry = getGeometry(next?.construction_faces);
+      const normalized = normalizeFaces(next?.construction_faces, nextLayout, nextWallCount, toNumber(next?.length_m), toNumber(next?.width_m), toNumber(next?.height_m), nextGeometry);
       next.construction_faces = [
-        ...normalizeFaces(next?.construction_faces, nextLayout, nextWallCount, toNumber(next?.length_m), toNumber(next?.width_m), toNumber(next?.height_m), nextGeometry),
+        ...normalized.map((face) => {
+          if (key !== "height_m" || !face.local.startsWith("PAREDE")) return face;
+          return { ...face, wall_height_m: nextValue, panel_area_m2: toNumber(face.wall_length_m) * toNumber(nextValue) };
+        }),
         nextGeometry,
       ];
       return next;
@@ -372,7 +376,8 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
     }
     next[index] = updated;
     if (layout === "rectangular" && key === "wall_length_m") {
-      const oppositeIndex = updated.local === "PAREDE 1" ? 2 : updated.local === "PAREDE 3" ? 0 : updated.local === "PAREDE 2" ? 3 : updated.local === "PAREDE 4" ? 1 : -1;
+      const oppositeLocal = updated.local === "PAREDE 1" ? "PAREDE 3" : updated.local === "PAREDE 3" ? "PAREDE 1" : updated.local === "PAREDE 2" ? "PAREDE 4" : updated.local === "PAREDE 4" ? "PAREDE 2" : "";
+      const oppositeIndex = next.findIndex((face) => face.local === oppositeLocal);
       if (oppositeIndex >= 0 && next[oppositeIndex]) {
         next[oppositeIndex] = { ...next[oppositeIndex], wall_length_m: numberOrNull(value) ?? 0, panel_area_m2: (numberOrNull(value) ?? 0) * toNumber(next[oppositeIndex].wall_height_m) };
       }
