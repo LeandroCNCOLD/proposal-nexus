@@ -90,6 +90,8 @@ const FLOOR_CONDITION_OPTIONS = [
 const UNINSULATED_FLOOR_U_VALUE_W_M2K = 1.75;
 const DEFAULT_SOLAR_FACE = "TETO";
 const DEFAULT_SOIL_TEMP_C = 20;
+const W_TO_KCAL_H = 0.859845;
+const KCAL_H_PER_TR = 3024;
 
 const LEGACY_LAYOUTS = new Set(["industrial", "modular", "climatized_storage", "blast_freezer", "cooling_tunnel", "climatized_room"]);
 
@@ -517,12 +519,35 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
     return form?.external_temp_c;
   };
 
-  const currentSolarFace = constructionFaces.find((face) => face.solar_orientation === "Sol direto" || toNumber(face.solar_radiation_w_m2) > 0)?.local ?? DEFAULT_SOLAR_FACE;
+  const currentSolarFace = constructionFaces.find((face) => face.solar_orientation === "Sol direto" || toNumber(face.solar_radiation_w_m2) > 0)?.local ?? "";
   const solarAdjustedConstructionFaces = React.useMemo(() => finalizedConstructionFaces.map((face) => ({
     ...face,
     solar_orientation: face.local === currentSolarFace && toNumber(face.solar_radiation_w_m2) > 0 ? "Sol direto" : "",
   })), [finalizedConstructionFaces, currentSolarFace]);
   const faceCalculationEnv = { ...form, construction_faces: solarAdjustedConstructionFaces, chamber_layout_type: layout, wall_count: wallCount };
+  const transmissionPreviewRows = constructionFaces.map((face, index) => {
+    const hasGlass = Boolean(face.has_glass) && toNumber(face.glass_area_m2) > 0;
+    const preparedFace = {
+      ...prepareFaceForCalculation(face, Boolean(form?.has_floor_insulation)),
+      solar_orientation: face.local === currentSolarFace && toNumber(face.solar_radiation_w_m2) > 0 ? "Sol direto" : "",
+    };
+    const load = calculateFaceTransmission({
+      ...preparedFace,
+      external_temp_c: displayedExternalTemp(preparedFace),
+      glass_area_m2: hasGlass ? preparedFace.glass_area_m2 : 0,
+      glass_type: hasGlass ? preparedFace.glass_type : "none",
+      solar_radiation_w_m2: hasGlass ? preparedFace.solar_radiation_w_m2 : 0,
+    }, faceCalculationEnv as any);
+    return { face, index, isWall: face.local.startsWith("PAREDE"), hasGlass, preparedFace, load };
+  });
+  const transmissionTotals = transmissionPreviewRows.reduce((acc, row) => {
+    acc.w += toNumber((row.load as any).transmission_w);
+    acc.glassW += toNumber((row.load as any).glass_transmission_w) + toNumber((row.load as any).glass_solar_w);
+    return acc;
+  }, { w: 0, glassW: 0 });
+  const transmissionTotalKcalH = transmissionTotals.w * W_TO_KCAL_H;
+  const transmissionTotalKw = transmissionTotals.w / 1000;
+  const transmissionTotalTr = transmissionTotalKcalH / KCAL_H_PER_TR;
 
   return (
     <div className="rounded-xl border bg-background p-5 shadow-sm">
