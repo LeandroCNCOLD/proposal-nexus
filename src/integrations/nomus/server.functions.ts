@@ -564,19 +564,19 @@ export const nomusSyncProducts = createServerFn({ method: "POST" })
         // 2) match por model exato
         if (!existing) {
           const r = await supabaseAdmin
-            .from("equipments").select("id").eq("model", model).maybeSingle();
+            .from("equipments").select("id, sync_hash").eq("model", model).maybeSingle();
           existing = r.data;
         }
         // 3) match por modelo normalizado, sem criar equipamento duplicado
         if (!existing && normalizedModel) {
           const r = await supabaseAdmin
-            .from("equipments").select("id").eq("normalized_model", normalizedModel).maybeSingle();
+            .from("equipments").select("id, sync_hash").eq("normalized_model", normalizedModel).maybeSingle();
           existing = r.data;
           matchType = "normalized_model";
         }
         if (!existing && normalizedModelCode) {
           const r = await supabaseAdmin
-            .from("equipments").select("id").eq("normalized_model_code", normalizedModelCode).maybeSingle();
+            .from("equipments").select("id, sync_hash").eq("normalized_model_code", normalizedModelCode).maybeSingle();
           existing = r.data;
           matchType = "normalized_model_code";
         }
