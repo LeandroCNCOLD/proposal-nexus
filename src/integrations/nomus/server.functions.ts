@@ -64,6 +64,16 @@ const extractNomusList = <T,>(payload: unknown): T[] => {
   return [];
 };
 
+const cleanPayload = (input: Json): Json => Object.fromEntries(
+  Object.entries(input).filter(([, v]) => v !== null && v !== undefined && v !== "")
+);
+
+const toOptionalNumber = (value: unknown): number | null => {
+  if (value === null || value === undefined || value === "") return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+};
+
 async function syncPersonContacts(args: { clientId: string; pessoaId: string; triggeredBy: string | null }) {
   const res = await nomusFetch<unknown>(pessoaContatosPath(args.pessoaId), {
     method: "GET",
