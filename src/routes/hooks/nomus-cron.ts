@@ -245,10 +245,32 @@ const mappers: Record<EntityKey, { endpoint: string; map: Mapper }> = {
   },
 };
 
-/** Janela de propostas a importar (em meses). */
-const PROPOSALS_WINDOW_MONTHS = 36;
-/** Máximo de propostas processadas por invocação (evita timeout do Worker ~30s). */
-const PROPOSALS_BATCH_SIZE = 25;
+/** Janela recente verificada automaticamente a cada execução. */
+const PROPOSALS_RECENT_PAGES = 3;
+/** Máximo de propostas novas/alteradas processadas por invocação (evita timeout). */
+const PROPOSALS_BATCH_SIZE = 20;
+
+function extractItems(payload: unknown): Array<Record<string, unknown>> {
+  if (Array.isArray(payload)) return payload as Array<Record<string, unknown>>;
+  const env = (payload ?? {}) as Record<string, unknown>;
+  for (const k of ["items", "resultados", "data", "content", "registros", "lista"]) {
+    const v = env[k];
+    if (Array.isArray(v)) return v as Array<Record<string, unknown>>;
+  }
+  return [];
+}
+
+function parseNomusSortDate(raw: Record<string, unknown>): number {
+  const value = pickStr(raw, "dataHoraCriacao", "criadaEm", "dataCriacao", "dataHoraAbertura", "dataEmissao", "dataModificacao");
+  if (!value) return 0;
+  const iso = /^\d{4}-\d{2}-\d{2}/.test(value)
+    ? value
+    : /^\d{2}\/\d{2}\/\d{4}/.test(value)
+      ? `${value.slice(6, 10)}-${value.slice(3, 5)}-${value.slice(0, 2)}${value.length > 10 ? value.slice(10) : ""}`
+      : value;
+  const ts = new Date(iso).getTime();
+  return Number.isFinite(ts) ? ts : 0;
+}
 
 /**
  * Sync incremental de propostas — uma página por clique.
