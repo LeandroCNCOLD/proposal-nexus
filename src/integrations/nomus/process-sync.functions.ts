@@ -335,9 +335,21 @@ async function syncNomusProcessesFullScan(options: { tipos?: string[]; triggered
   const { NOMUS_ENDPOINTS } = await import("./endpoints");
   const wantedTipos = (options.tipos ?? []).map((t) => t.trim()).filter(Boolean);
   const now = new Date().toISOString();
-  const maxPages = options.maxPages ?? 50;
-  const maxItems = options.maxItems ?? 50_000;
+  const maxPages = options.maxPages ?? 3;
+  const maxItems = options.maxItems ?? 150;
   const pageSize = 50;
+  const deadlineAt = Date.now() + 22_000;
+
+  const { data: lockRow } = await supabaseAdmin
+    .from("nomus_sync_state")
+    .select("running, updated_at, total_synced")
+    .eq("entity", "processos")
+    .maybeSingle();
+  const lock = lockRow as { running?: boolean | null; updated_at?: string | null; total_synced?: number | null } | null;
+  const lockAgeMs = lock?.updated_at ? Date.now() - new Date(lock.updated_at).getTime() : Number.POSITIVE_INFINITY;
+  if (lock?.running && lockAgeMs < 60_000) {
+    return { ok: true, count: 0, processed: 0, done: false, skipped: true };
+  }
 
   await supabaseAdmin.from("nomus_sync_state").upsert({
     entity: "processos",
@@ -353,6 +365,7 @@ async function syncNomusProcessesFullScan(options: { tipos?: string[]; triggered
 
   try {
     for (let page = 1; page <= maxPages && processed < maxItems; page += 1) {
+      if (Date.now() > deadlineAt) break;
       const res = await listPage<NomusProcessRaw>(NOMUS_ENDPOINTS.processos, {}, {
         entity: "processos",
         page,
@@ -410,8 +423,8 @@ export const pullNomusProcesses = createServerFn({ method: "POST" })
     const r = await syncNomusProcessesFullScan({
       tipos: data?.tipos,
       triggeredBy: context.userId,
-      maxPages: data?.maxPages ?? 50,
-      maxItems: data?.maxItems ?? 50_000,
+      maxPages: data?.maxPages ?? 3,
+      maxItems: data?.maxItems ?? 150,
     });
     return r.ok
       ? { ok: true as const, total: r.count ?? 0, upserted: r.count ?? 0, stagesDiscovered: [] }
