@@ -551,14 +551,16 @@ export const nomusSyncProducts = createServerFn({ method: "POST" })
         const nomus_id = pickStr(raw, "id", "codigo", "idProduto");
         const model = pickStr(raw, "codigo", "modelo", "descricao");
         if (!nomus_id || !model) {
-          await logSyncRow({ syncRunId, entityType: "produtos", externalId: nomus_id, action: "skipped", status: "skipped", errorMessage: "Produto sem ID ou modelo", rawPayload: raw });
-          return "skip";
+          await quarantineSyncRow({ syncRunId, entityType: "produtos", externalId: nomus_id, errorCode: !nomus_id ? "MISSING_EXTERNAL_ID" : "MISSING_REQUIRED_FIELD", reason: "Produto sem ID ou modelo", rawPayload: raw });
+          return "quarantined";
         }
         const normalizedModel = normalizeModel(model);
+        const normalizedModelCode = normalizeCnColdModelCode(model);
+        const syncHash = await hashNormalizedPayload({ nomus_id, model, normalizedModel, normalizedModelCode });
         // 1) match por nomus_id já vinculado
         let { data: existing } = await supabaseAdmin
-          .from("equipments").select("id").eq("nomus_id", nomus_id).maybeSingle();
-        let matchType: "exact_model" | "normalized_model" | "manual" | "unmatched" = "exact_model";
+          .from("equipments").select("id, sync_hash").eq("nomus_id", nomus_id).maybeSingle();
+        let matchType: "exact_model" | "normalized_model" | "normalized_model_code" | "manual" | "unmatched" = "exact_model";
         // 2) match por model exato
         if (!existing) {
           const r = await supabaseAdmin
@@ -572,24 +574,34 @@ export const nomusSyncProducts = createServerFn({ method: "POST" })
           existing = r.data;
           matchType = "normalized_model";
         }
+        if (!existing && normalizedModelCode) {
+          const r = await supabaseAdmin
+            .from("equipments").select("id").eq("normalized_model_code", normalizedModelCode).maybeSingle();
+          existing = r.data;
+          matchType = "normalized_model_code";
+        }
         if (!existing) {
           await supabaseAdmin.from("nomus_product_equipment_links").upsert(
             { nomus_product_id: nomus_id, equipment_id: null, match_type: "unmatched", confidence_score: 0 },
             { onConflict: "nomus_product_id" },
           );
-          await logSyncRow({ syncRunId, entityType: "produtos", externalId: nomus_id, action: "skipped", status: "skipped", errorMessage: "Produto sem equipamento correspondente", rawPayload: raw });
+          await quarantineSyncRow({ syncRunId, entityType: "produtos", externalId: nomus_id, errorCode: "UNMATCHED_EQUIPMENT", reason: "Produto sem equipamento correspondente", rawPayload: raw, normalizedPayload: { model, normalizedModel, normalizedModelCode } });
           return "unmatched";
+        }
+        if ((existing as { sync_hash?: string | null }).sync_hash === syncHash) {
+          await logSyncRow({ syncRunId, entityType: "produtos", externalId: nomus_id, localId: existing.id, action: "skipped_no_change", status: "skipped", errorCode: "SKIPPED_NO_CHANGE", previousHash: syncHash, newHash: syncHash, rawPayload: raw });
+          return "no_change";
         }
         const { error } = await supabaseAdmin
           .from("equipments")
-          .update({ nomus_id, nomus_synced_at: new Date().toISOString() })
+          .update({ nomus_id, nomus_synced_at: new Date().toISOString(), last_synced_at: new Date().toISOString(), external_updated_at: pickExternalUpdatedAt(raw), sync_hash: syncHash, normalized_model_code: normalizedModelCode })
           .eq("id", existing.id);
         if (error) throw new Error(error.message);
         await supabaseAdmin.from("nomus_product_equipment_links").upsert(
           { nomus_product_id: nomus_id, equipment_id: existing.id, match_type: matchType, confidence_score: matchType === "exact_model" ? 1 : 0.92 },
           { onConflict: "nomus_product_id" },
         );
-        await logSyncRow({ syncRunId, entityType: "produtos", externalId: nomus_id, localId: existing.id, action: "updated", status: "success", rawPayload: raw });
+        await logSyncRow({ syncRunId, entityType: "produtos", externalId: nomus_id, localId: existing.id, action: "updated", status: "success", previousHash: (existing as { sync_hash?: string | null }).sync_hash, newHash: syncHash, rawPayload: raw });
         return "ok";
       },
     });
