@@ -189,18 +189,22 @@ async function runEntitySync(args: {
   entity: string;
   endpoint: string;
   triggeredBy: string | null;
-  processItem: (raw: Json, syncRunId: string | null) => Promise<"ok" | "skip" | "unmatched">;
+  processItem: (raw: Json, syncRunId: string | null, options: { dryRun: boolean }) => Promise<ProcessResult>;
   /** Query extra para o listAll (ex.: dataModificacaoInicial p/ incremental). */
   query?: Record<string, string | number | undefined>;
   /** Página máxima de itens — passado adiante para listAll. */
   pageSize?: number;
+  dryRun?: boolean;
 }): Promise<SyncResult> {
-  const { entity, endpoint, triggeredBy, processItem, query, pageSize } = args;
+  const { entity, endpoint, triggeredBy, processItem, query, pageSize, dryRun = false } = args;
   await setState(entity, { running: true, last_error: null });
   let syncRunId: string | null = null;
+  let lockKey: string | null = null;
   let count = 0;
   let skipped = 0;
   let unmatched = 0;
+  let noChange = 0;
+  let quarantined = 0;
   let errors = 0;
   try {
     const res = await listAll<Json>(endpoint, query ?? {}, { entity, triggeredBy, pageSize });
@@ -209,13 +213,23 @@ async function runEntitySync(args: {
       await setState(entity, { running: false, last_error: error });
       return { ok: false, error };
     }
-    syncRunId = await startSyncRun(entity, triggeredBy, res.items.length);
+    syncRunId = await startSyncRun(entity, triggeredBy, res.items.length, { dryRun, lockKey: `nomus:${entity}` });
+    const lock = await acquireSyncLock({ entityType: entity, syncRunId, userId: triggeredBy });
+    if (!lock.ok) {
+      await logSyncRow({ syncRunId, entityType: entity, action: "skipped", status: "skipped", errorCode: "LOCK_ALREADY_RUNNING", errorMessage: lock.error });
+      await finishSyncRun({ syncRunId, status: "partial_success", totalReceived: res.items.length, totalSkipped: res.items.length, totalErrors: 1, errorMessage: lock.error });
+      await setState(entity, { running: false, last_error: lock.error });
+      return { ok: false, error: lock.error };
+    }
+    lockKey = lock.lockKey;
     const itemErrors: string[] = [];
     for (const raw of res.items) {
       try {
-        const r = await processItem(raw, syncRunId);
+        const r = await processItem(raw, syncRunId, { dryRun });
         if (r === "ok") count += 1;
         else if (r === "unmatched") { unmatched += 1; skipped += 1; }
+        else if (r === "no_change") { noChange += 1; skipped += 1; }
+        else if (r === "quarantined") { quarantined += 1; skipped += 1; }
         else skipped += 1;
       } catch (e) {
         skipped += 1;
@@ -240,13 +254,17 @@ async function runEntitySync(args: {
       totalInserted: count,
       totalSkipped: skipped,
       totalErrors: errors,
+      totalQuarantined: quarantined,
+      totalNoChange: noChange,
       errorMessage: noteParts.length > 0 ? noteParts.join(" • ") : null,
     });
+    await releaseSyncLock(lockKey);
     return { ok: true, count, skipped, unmatched };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     await setState(entity, { running: false, last_error: msg });
     await finishSyncRun({ syncRunId, status: "error", totalInserted: count, totalSkipped: skipped, totalErrors: errors + 1, errorMessage: msg });
+    await releaseSyncLock(lockKey);
     return { ok: false, error: msg };
   }
 }
