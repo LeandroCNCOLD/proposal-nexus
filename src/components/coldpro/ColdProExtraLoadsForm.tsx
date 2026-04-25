@@ -4,7 +4,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { ColdProField, ColdProInput } from "./ColdProField";
 import { ColdProCalculatedInfo, ColdProFormSection, ColdProValidationMessage, fmtColdPro, numberOrNull } from "./ColdProFormPrimitives";
 import { calculateExtraLoadPreview, suggestedInfiltrationFactor } from "@/features/coldpro/extra-loads-preview";
-import { MOTOR_EQUIPMENT_PRESETS } from "@/features/coldpro/thermal-calculations";
+import { LIGHTING_EQUIPMENT_PRESETS, MOTOR_EQUIPMENT_PRESETS } from "@/features/coldpro/thermal-calculations";
 
 type Props = { environment: any; catalogFanLoadKcalH?: number; onSave: (patch: Record<string, unknown>) => void };
 
@@ -23,6 +23,12 @@ export function ColdProExtraLoadsForm({ environment, catalogFanLoadKcalH = 0, on
   const internalPower = Number(form.lighting_power_w ?? 0) / 1000 + Number(form.motors_power_kw ?? 0);
   const applyMotorPreset = (preset: (typeof MOTOR_EQUIPMENT_PRESETS)[number]) => {
     setForm((prev: any) => ({ ...prev, motors_power_kw: preset.powerKw, motors_dissipation_factor: preset.dissipationFactor, motors_hours_day: prev?.motors_hours_day ?? 8 }));
+  };
+  const addMotorPreset = (preset: (typeof MOTOR_EQUIPMENT_PRESETS)[number]) => {
+    setForm((prev: any) => ({ ...prev, motors_power_kw: Number(prev?.motors_power_kw ?? 0) + preset.powerKw, motors_dissipation_factor: preset.dissipationFactor, motors_hours_day: prev?.motors_hours_day ?? 8 }));
+  };
+  const addLightingPreset = (preset: (typeof LIGHTING_EQUIPMENT_PRESETS)[number]) => {
+    setForm((prev: any) => ({ ...prev, lighting_power_w: Number(prev?.lighting_power_w ?? 0) + preset.powerW, lighting_hours_day: prev?.lighting_hours_day ?? 8 }));
   };
   const save = () => onSave({ ...form, infiltration_factor: Number(form?.infiltration_factor ?? 0) > 0 ? form.infiltration_factor : suggestedFactor, defrost_kcal_h: Number(form?.defrost_kcal_h ?? 0) > 0 ? form.defrost_kcal_h : preview.defrost_suggestion.defrostKcalH });
 
