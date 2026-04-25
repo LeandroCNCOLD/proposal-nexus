@@ -10,6 +10,18 @@ const positiveNumber = finiteNumber.gt(0);
 const dayHours = finiteNumber.min(0).max(24);
 const trimmedName = z.string().trim().min(1).max(120);
 
+const constructionFaceSchema = z.object({
+  local: z.string().trim().max(40).default(""),
+  material_thickness: z.string().trim().max(80).nullable().optional(),
+  panel_area_m2: nonNegativeNumber.nullable().optional(),
+  external_temp_c: finiteNumber.nullable().optional(),
+  solar_orientation: z.string().trim().max(80).nullable().optional(),
+  color: z.string().trim().max(60).nullable().optional(),
+  glass_area_m2: nonNegativeNumber.nullable().optional(),
+  glass_type: z.string().trim().max(80).nullable().optional(),
+  door_area_m2: nonNegativeNumber.nullable().optional(),
+});
+
 export const listColdProProjects = createServerFn({ method: "GET" }).handler(async () => {
   const supabase = supabaseAdmin;
   const { data, error } = await supabase.from("coldpro_projects").select("*").order("created_at", { ascending: false });
@@ -59,12 +71,17 @@ export const updateColdProEnvironment = createServerFn({ method: "POST" })
     const supabase = supabaseAdmin;
     const patch = { ...data.patch } as any;
     if (typeof patch.name === "string") patch.name = patch.name.trim().slice(0, 120);
-    const nonNegativeKeys = ["length_m", "width_m", "height_m", "wall_thickness_mm", "ceiling_thickness_mm", "floor_thickness_mm", "operation_hours_day", "compressor_runtime_hours_day", "door_openings_per_day", "door_width_m", "door_height_m", "infiltration_factor", "people_count", "people_hours_day", "lighting_power_w", "lighting_hours_day", "motors_power_kw", "motors_hours_day", "fans_kcal_h", "defrost_kcal_h", "other_kcal_h", "safety_factor_percent"];
+    const nonNegativeKeys = ["length_m", "width_m", "height_m", "wall_thickness_mm", "ceiling_thickness_mm", "floor_thickness_mm", "operation_hours_day", "compressor_runtime_hours_day", "door_openings_per_day", "door_width_m", "door_height_m", "infiltration_factor", "people_count", "people_hours_day", "lighting_power_w", "lighting_hours_day", "motors_power_kw", "motors_hours_day", "fans_kcal_h", "defrost_kcal_h", "other_kcal_h", "safety_factor_percent", "wall_count", "module_count", "total_panel_area_m2", "total_glass_area_m2", "total_door_area_m2", "construction_load_kcal_h"];
     for (const key of nonNegativeKeys) {
       if (patch[key] !== undefined && patch[key] !== null && (!Number.isFinite(Number(patch[key])) || Number(patch[key]) < 0)) throw new Error(`Valor inválido em ${key}.`);
     }
     for (const key of ["operation_hours_day", "compressor_runtime_hours_day", "people_hours_day", "lighting_hours_day", "motors_hours_day"]) {
       if (patch[key] !== undefined && patch[key] !== null && Number(patch[key]) > 24) throw new Error(`Horas inválidas em ${key}.`);
+    }
+    if (patch.chamber_layout_type !== undefined) patch.chamber_layout_type = String(patch.chamber_layout_type ?? "industrial").trim().slice(0, 40);
+    if (patch.construction_faces !== undefined) {
+      const parsed = z.array(constructionFaceSchema).max(12).parse(patch.construction_faces);
+      patch.construction_faces = parsed;
     }
     if (patch.length_m !== undefined || patch.width_m !== undefined || patch.height_m !== undefined) {
       const { data: current } = await supabase.from("coldpro_environments").select("*").eq("id", data.id).single();
