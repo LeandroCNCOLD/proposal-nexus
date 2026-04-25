@@ -350,6 +350,25 @@ async function pullProposalsNewestFirst(): Promise<{ ok: boolean; count?: number
   let newestSeenId = maxKnownId;
 
   try {
+    const firstPage = await listPage<Record<string, unknown>>(endpoint, {}, {
+      entity: "propostas",
+      page: 1,
+      pageSize: 50,
+    });
+    if (firstPage.ok) {
+      for (const summary of firstPage.items) {
+        if (count >= PROPOSALS_BATCH_SIZE) break;
+        const changed = await syncProposalDetail(summary, { requireDetail: true });
+        if (changed) {
+          const id = Number(pickStr(summary, "id", "idProposta", "codigo") ?? 0) || 0;
+          newestSeenId = Math.max(newestSeenId, id);
+          count += 1;
+        }
+      }
+    } else {
+      console.error("[nomus-cron] erro listando página recente de propostas:", firstPage.error);
+    }
+
     let misses = 0;
     for (let id = maxKnownId + 1; id <= maxKnownId + PROPOSALS_FORWARD_LOOKAHEAD; id += 1) {
       if (count >= PROPOSALS_BATCH_SIZE || misses >= PROPOSALS_MAX_CONSECUTIVE_MISSES) break;
