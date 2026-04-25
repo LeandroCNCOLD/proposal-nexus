@@ -74,6 +74,13 @@ export type ColdProEnvironment = {
   atmospheric_pressure_kpa?: number | null;
   floor_temp_c?: number | null;
   relative_humidity_percent?: number | null;
+  air_changes_per_hour?: number | null;
+  fresh_air_m3_h?: number | null;
+  door_infiltration_m3_h?: number | null;
+  seed_mass_kg?: number | null;
+  seed_initial_moisture_percent?: number | null;
+  seed_final_moisture_percent?: number | null;
+  seed_stabilization_time_h?: number | null;
   insulation_material_id?: string | null;
   wall_thickness_mm: number;
   ceiling_thickness_mm: number;
