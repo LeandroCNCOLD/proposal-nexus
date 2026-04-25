@@ -1,5 +1,5 @@
 import * as React from "react";
-import { DoorOpen, Lightbulb, Save, ShieldPlus, Zap } from "lucide-react";
+import { DoorOpen, Lightbulb, Save, ShieldPlus, Snowflake, Zap } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { ColdProField, ColdProInput } from "./ColdProField";
 import { ColdProCalculatedInfo, ColdProFormSection, ColdProValidationMessage, fmtColdPro, numberOrNull } from "./ColdProFormPrimitives";
@@ -52,6 +52,24 @@ export function ColdProExtraLoadsForm({ environment, catalogFanLoadKcalH = 0, on
                   <ColdProField label="Infiltração porta" unit="m³/h"><ColdProInput {...num("door_infiltration_m3_h")} /></ColdProField>
                   <ColdProCalculatedInfo label="Carga de infiltração" value={`${fmtColdPro(preview.infiltration_kcal_h)} kcal/h`} description={`Área ${fmtColdPro(preview.doorArea)} m² · fator ${fmtColdPro(preview.infiltrationFactor)} · ar ${fmtColdPro(preview.continuousAirM3H)} m³/h`} tone={preview.infiltration_kcal_h > 0 ? "success" : "warning"} />
                 </div>
+              </div>
+            </ColdProFormSection>
+          </AccordionContent>
+        </AccordionItem>
+
+        <AccordionItem value="gelo" className="rounded-xl border px-4">
+          <AccordionTrigger className="hover:no-underline"><span className="inline-flex items-center gap-2"><Snowflake className="h-4 w-4 text-primary" /> Bloqueio por gelo no evaporador</span></AccordionTrigger>
+          <AccordionContent>
+            <ColdProFormSection title="Risco de gelo por abertura de portas" description="Estimativa técnica do efeito da umidade infiltrada sobre rendimento, bloqueio e carga adicional.">
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                <ColdProCalculatedInfo label="Gelo estimado" value={`${fmtColdPro(preview.evaporator_frost.frost_kg_day)} kg/dia`} description={`${fmtColdPro(preview.evaporator_frost.moisture_delta_g_m3)} g/m³ de umidade excedente`} tone={preview.evaporator_frost.frost_kg_day > 0 ? "warning" : "success"} />
+                <ColdProCalculatedInfo label="Perda de rendimento" value={`${fmtColdPro(preview.evaporator_frost.efficiency_loss_percent)}%`} description={`Carga adicional ${fmtColdPro(preview.evaporator_frost.additional_load_kcal_h)} kcal/h`} tone={preview.evaporator_frost.efficiency_loss_percent > 10 ? "warning" : "success"} />
+                <ColdProCalculatedInfo label="Degelo recomendado" value={preview.evaporator_frost.recommended_defrost_interval_h ? `${fmtColdPro(preview.evaporator_frost.recommended_defrost_interval_h)} h` : "Sem risco"} description="Intervalo preventivo estimado" />
+              </div>
+              <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
+                <ColdProCalculatedInfo label="Operação normal" value={preview.evaporator_frost.normal_block_hours ? `${fmtColdPro(preview.evaporator_frost.normal_block_hours)} h` : "Sem bloqueio"} description="Tempo estimado até bloqueio" />
+                <ColdProCalculatedInfo label="Operação arriscada" value={preview.evaporator_frost.risky_block_hours ? `${fmtColdPro(preview.evaporator_frost.risky_block_hours)} h` : "Sem bloqueio"} description="Portas/umidade acima do previsto" tone="warning" />
+                <ColdProCalculatedInfo label="Operação complexa" value={preview.evaporator_frost.complex_block_hours ? `${fmtColdPro(preview.evaporator_frost.complex_block_hours)} h` : "Sem bloqueio"} description="Alta movimentação e alta umidade" tone="warning" />
               </div>
             </ColdProFormSection>
           </AccordionContent>
