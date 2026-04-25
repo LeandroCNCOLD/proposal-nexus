@@ -180,6 +180,19 @@ function describeLayer(layer: any) {
   };
 }
 
+function normalizeInsulationOption(material: any, source: "legacy" | "thermal") {
+  const id = `${source}:${material.id}`;
+  return {
+    id,
+    source,
+    rawId: material.id,
+    name: material.name ?? material.material_name ?? "Isolante",
+    conductivity_w_m_k: material.conductivity_w_m_k ?? material.thermal_conductivity_w_mk,
+    conductivity_kcal_h_m_c: material.conductivity_kcal_h_m_c,
+    default_thickness_mm: material.default_thickness_mm ?? material.typical_thickness_mm,
+  };
+}
+
 function calculateUValue(layers: any[]) {
   const valid = layers.filter((layer) => toNumber(layer.thickness_m) > 0 && toNumber(layer.conductivity_w_mk) > 0);
   const rLayers = valid.reduce((sum, layer) => sum + toNumber(layer.thickness_m) / toNumber(layer.conductivity_w_mk), 0);
@@ -243,12 +256,17 @@ function ChamberShapePreview({ layout }: { layout: ChamberLayout }) {
   );
 }
 
-export function ColdProEnvironmentForm({ environment, insulationMaterials, onSave }: Props) {
+export function ColdProEnvironmentForm({ environment, insulationMaterials, thermalMaterials = [], onSave }: Props) {
   const [form, setForm] = React.useState<any>(environment);
   const [floorInsulationMaterialId, setFloorInsulationMaterialId] = React.useState<string>(environment?.insulation_material_id ?? "");
+  const [panelMaterialKey, setPanelMaterialKey] = React.useState<string>(environment?.insulation_material_id ? `legacy:${environment.insulation_material_id}` : "");
   const [soilRegion, setSoilRegion] = React.useState("");
   React.useEffect(() => setForm(environment), [environment]);
-  React.useEffect(() => setFloorInsulationMaterialId(environment?.insulation_material_id ?? ""), [environment]);
+  React.useEffect(() => {
+    const legacyKey = environment?.insulation_material_id ? `legacy:${environment.insulation_material_id}` : "";
+    setFloorInsulationMaterialId(legacyKey);
+    setPanelMaterialKey(legacyKey);
+  }, [environment]);
 
   const isClimatized = form?.environment_type === "climatized_room";
   const isSeed = form?.environment_type === "seed_storage";
@@ -279,8 +297,19 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, onSav
   const height = toNumber(form?.height_m);
   const geometry = React.useMemo(() => getGeometry(form?.construction_faces), [form?.construction_faces]);
   const constructionFaces = React.useMemo(() => normalizeFaces(form?.construction_faces, layout, wallCount, length, width, height, geometry), [form?.construction_faces, layout, wallCount, length, width, height, geometry]);
-  const selectedInsulation = insulationMaterials.find((item) => item.id === form?.insulation_material_id) ?? insulationMaterials[0];
-  const selectedFloorInsulation = insulationMaterials.find((item) => item.id === floorInsulationMaterialId) ?? selectedInsulation;
+  const insulationOptions = React.useMemo(() => {
+    const legacy = insulationMaterials.map((material) => normalizeInsulationOption(material, "legacy"));
+    const thermal = thermalMaterials.filter((material) => material.is_insulation).map((material) => normalizeInsulationOption(material, "thermal"));
+    const seen = new Set<string>();
+    return [...legacy, ...thermal].filter((material) => {
+      const key = material.name.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [insulationMaterials, thermalMaterials]);
+  const selectedInsulation = insulationOptions.find((item) => item.id === panelMaterialKey) ?? insulationOptions[0];
+  const selectedFloorInsulation = insulationOptions.find((item) => item.id === floorInsulationMaterialId) ?? selectedInsulation;
   const wallLayerInfo = describeLayer(makeInsulationLayer(selectedInsulation, form?.wall_thickness_mm));
   const ceilingLayerInfo = describeLayer(makeInsulationLayer(selectedInsulation, form?.ceiling_thickness_mm));
   const floorLayerInfo = describeLayer(makeInsulationLayer(selectedFloorInsulation, form?.floor_thickness_mm));
@@ -333,9 +362,9 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, onSav
     }));
   };
 
-  const applyInsulationToFaces = (materialId = form?.insulation_material_id, wallThickness = form?.wall_thickness_mm, ceilingThickness = form?.ceiling_thickness_mm, floorThickness = form?.floor_thickness_mm, floorMaterialId = floorInsulationMaterialId) => {
-    const wallMaterial = insulationMaterials.find((item) => item.id === materialId) ?? selectedInsulation;
-    const floorMaterial = insulationMaterials.find((item) => item.id === floorMaterialId) ?? wallMaterial;
+  const applyInsulationToFaces = (materialKey = panelMaterialKey, wallThickness = form?.wall_thickness_mm, ceilingThickness = form?.ceiling_thickness_mm, floorThickness = form?.floor_thickness_mm, floorMaterialKey = floorInsulationMaterialId) => {
+    const wallMaterial = insulationOptions.find((item) => item.id === materialKey) ?? selectedInsulation;
+    const floorMaterial = insulationOptions.find((item) => item.id === floorMaterialKey) ?? wallMaterial;
     const next = normalizeFaces(form?.construction_faces, layout, wallCount, length, width, height, geometry).map((face) => {
       if (face.local === "PISO" && !form?.has_floor_insulation) return { ...face, layers: [], u_value_w_m2k: null };
       if (face.local === "PISO") return applyLayerToFace(face, makeInsulationLayer(floorMaterial, floorThickness));
@@ -345,10 +374,12 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, onSav
     set("construction_faces", [...next, geometry]);
   };
 
-  const setInsulationMaterial = (materialId: string) => {
-    set("insulation_material_id", materialId);
-    if (!floorInsulationMaterialId) setFloorInsulationMaterialId(materialId);
-    applyInsulationToFaces(materialId, form?.wall_thickness_mm, form?.ceiling_thickness_mm, form?.floor_thickness_mm, floorInsulationMaterialId || materialId);
+  const setInsulationMaterial = (materialKey: string) => {
+    const material = insulationOptions.find((item) => item.id === materialKey);
+    setPanelMaterialKey(materialKey);
+    set("insulation_material_id", material?.source === "legacy" ? material.rawId : null);
+    if (!floorInsulationMaterialId) setFloorInsulationMaterialId(materialKey);
+    applyInsulationToFaces(materialKey, form?.wall_thickness_mm, form?.ceiling_thickness_mm, form?.floor_thickness_mm, floorInsulationMaterialId || materialKey);
   };
 
   const setInsulationThickness = (key: string, value: unknown) => {
@@ -504,9 +535,9 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, onSav
               <div className="grid gap-x-10 lg:grid-cols-2">
                 <div>
                   <ColdProField label="Material paredes/teto">
-                    <ColdProSelect value={form?.insulation_material_id ?? ""} onChange={(e) => setInsulationMaterial(e.target.value)}>
+                    <ColdProSelect value={panelMaterialKey} onChange={(e) => setInsulationMaterial(e.target.value)}>
                       <option value="">Selecione</option>
-                      {insulationMaterials.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+                      {insulationOptions.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
                     </ColdProSelect>
                   </ColdProField>
                   <ColdProField label="Esp. paredes" unit="mm"><ColdProSelect value={form?.wall_thickness_mm ?? ""} onChange={(e) => setInsulationThickness("wall_thickness_mm", e.target.value)}>{!INSULATION_THICKNESS_OPTIONS_MM.includes(toNumber(form?.wall_thickness_mm)) && form?.wall_thickness_mm ? <option value={form.wall_thickness_mm}>{form.wall_thickness_mm}</option> : null}{INSULATION_THICKNESS_OPTIONS_MM.map((value) => <option key={value} value={value}>{value}</option>)}</ColdProSelect></ColdProField>
@@ -524,9 +555,9 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, onSav
                     </ColdProSelect>
                   </ColdProField>
                   <ColdProField label="Material piso">
-                    <ColdProSelect disabled={!form?.has_floor_insulation} value={floorInsulationMaterialId || form?.insulation_material_id || ""} onChange={(e) => { setFloorInsulationMaterialId(e.target.value); applyInsulationToFaces(form?.insulation_material_id, form?.wall_thickness_mm, form?.ceiling_thickness_mm, form?.floor_thickness_mm, e.target.value); }}>
+                    <ColdProSelect disabled={!form?.has_floor_insulation} value={floorInsulationMaterialId || panelMaterialKey || ""} onChange={(e) => { setFloorInsulationMaterialId(e.target.value); applyInsulationToFaces(panelMaterialKey, form?.wall_thickness_mm, form?.ceiling_thickness_mm, form?.floor_thickness_mm, e.target.value); }}>
                       <option value="">Mesmo das paredes</option>
-                      {insulationMaterials.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+                      {insulationOptions.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
                     </ColdProSelect>
                   </ColdProField>
                   <ColdProField label="Esp. piso" unit="mm"><ColdProSelect disabled={!form?.has_floor_insulation} value={form?.floor_thickness_mm ?? ""} onChange={(e) => setInsulationThickness("floor_thickness_mm", e.target.value)}>{!INSULATION_THICKNESS_OPTIONS_MM.includes(toNumber(form?.floor_thickness_mm)) && form?.floor_thickness_mm ? <option value={form.floor_thickness_mm}>{form.floor_thickness_mm}</option> : null}{INSULATION_THICKNESS_OPTIONS_MM.map((value) => <option key={value} value={value}>{value}</option>)}</ColdProSelect></ColdProField>
