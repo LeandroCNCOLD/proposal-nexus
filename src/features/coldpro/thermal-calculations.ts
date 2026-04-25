@@ -1,6 +1,6 @@
 export type OperationProfile = "light" | "normal" | "intense" | "critical";
 export type DoorProtection = "none" | "pvc_curtain" | "air_curtain" | "antechamber" | "fast_door" | "antechamber_fast_door";
-export type ApplicationType = "frozen_room" | "chilled_room" | "climatized_room" | "tunnel" | "cold_room";
+export type ApplicationType = "freezer_room" | "frozen_room" | "chilled_room" | "climatized_room" | "climatized" | "tunnel" | "cold_room";
 export type ClimateRegion = "sp_capital_abcd" | "interior_sp" | "centro_oeste" | "norte_nordeste_umido" | "sul" | "custom";
 
 export const THERMAL_CONSTANTS = {
@@ -9,7 +9,7 @@ export const THERMAL_CONSTANTS = {
   conversion: { kcalPerKwH: 859.845, wattToKcalH: 0.859845, kcalHToKw: 1 / 859.845, kcalHToTR: 1 / 3024 },
   doorAirVelocityMS: { light: 0.25, normal: 0.5, intense: 0.8, critical: 1.2 } satisfies Record<OperationProfile, number>,
   doorProtectionFactor: { none: 1, pvc_curtain: 0.7, air_curtain: 0.55, antechamber: 0.45, fast_door: 0.35, antechamber_fast_door: 0.25 } satisfies Record<DoorProtection, number>,
-  internalHumidityDefault: { frozen_room: 0.85, chilled_room: 0.75, climatized_room: 0.65, tunnel: 0.85, cold_room: 0.75 } satisfies Record<ApplicationType, number>,
+  internalHumidityDefault: { freezer_room: 0.85, frozen_room: 0.85, chilled_room: 0.75, climatized_room: 0.65, climatized: 0.65, tunnel: 0.85, cold_room: 0.75 } satisfies Record<ApplicationType, number>,
   defrost: { defaultLossFactor: 1.25 },
 };
 
@@ -43,7 +43,11 @@ export function absoluteHumidityKgM3(tempC: number, relativeHumidity: number): n
 }
 
 export function applicationTypeFromEnvironment(type?: string | null): ApplicationType {
-  if (type === "tunnel" || type === "blast_freezer") return "tunnel";
+  const value = String(type ?? "cold_room");
+  if (["tunnel", "blast_freezer", "freezing_tunnel"].includes(value)) return "tunnel";
+  if (["freezer_room", "frozen_room", "freezer", "negative_room"].includes(value)) return "freezer_room";
+  if (["climatized", "climatized_room", "climate_controlled"].includes(value)) return "climatized_room";
+  if (["chilled_room", "cold_room", "positive_room"].includes(value)) return "cold_room";
   return "cold_room";
 }
 
@@ -55,7 +59,8 @@ export function calculateTechnicalInfiltration(env: any) {
   const compressorHoursDay = Math.max(1, num(env.compressor_runtime_hours_day, 20) || 20);
   const applicationType = applicationTypeFromEnvironment(env.environment_type);
   const externalRH = env.external_relative_humidity_percent !== null && env.external_relative_humidity_percent !== undefined && num(env.external_relative_humidity_percent) > 0 ? num(env.external_relative_humidity_percent) / 100 : regionDefaults.externalRH;
-  const internalRH = env.relative_humidity_percent !== null && env.relative_humidity_percent !== undefined && num(env.relative_humidity_percent) > 0 ? num(env.relative_humidity_percent) / 100 : THERMAL_CONSTANTS.internalHumidityDefault[applicationType];
+  const internalRHWasInformed = env.relative_humidity_percent !== null && env.relative_humidity_percent !== undefined && num(env.relative_humidity_percent) > 0;
+  const internalRH = internalRHWasInformed ? num(env.relative_humidity_percent) / 100 : THERMAL_CONSTANTS.internalHumidityDefault[applicationType];
   const operationProfile = String(env.door_operation_profile ?? "normal") as OperationProfile;
   const doorProtection = String(env.door_protection_type ?? "none") as DoorProtection;
   const airVelocityMS = THERMAL_CONSTANTS.doorAirVelocityMS[operationProfile] ?? THERMAL_CONSTANTS.doorAirVelocityMS.normal;
@@ -78,10 +83,20 @@ export function calculateTechnicalInfiltration(env: any) {
   return {
     regionUsed: region,
     regionDescription: regionDefaults.description,
+    applicationType,
     externalTempC: round(externalTempC),
     externalRH: round(externalRH * 100, 2),
     internalRH: round(internalRH * 100, 2),
+    internalRHSource: internalRHWasInformed ? "manual" : "automatic",
+    internalRHAdoptionNote: internalRHWasInformed ? `UR interna adotada: ${round(internalRH * 100, 2)}% (informado pelo usuário)` : `UR interna adotada: ${round(internalRH * 100, 2)}% (automático)`,
+    internalTempC: round(internalTempC),
+    doorType: env.door_type ?? env.door_model ?? "porta frigorífica",
+    doorWidthM: round(Math.max(0, num(env.door_width_m))),
+    doorHeightM: round(Math.max(0, num(env.door_height_m))),
     doorAreaM2: round(doorAreaM2),
+    doorOpeningsPerDay: round(Math.max(0, num(env.door_openings_per_day))),
+    doorOpenSecondsPerOpening: round(Math.max(0, num(env.door_open_seconds_per_opening, 60))),
+    totalDoorOpenSecondsDay: round(secondsOpenDay),
     operationProfile,
     doorProtection,
     correctionFactor,
@@ -100,7 +115,16 @@ export function calculateTechnicalInfiltration(env: any) {
     latentKcalH: round(latentKcalDay / compressorHoursDay),
     totalInfiltrationKcalH: round((sensibleKcalDay + latentKcalDay) / compressorHoursDay),
     iceKgDay: round(iceKgDay),
+    iceKgHour: round(iceKgDay / 24),
     compressorHoursDay: round(compressorHoursDay),
+    formulas: {
+      door_area: "A = largura x altura",
+      door_infiltration: "V_porta = A x velocidade_ar x tempo_total_abertura x fator_correcao",
+      psychrometric: "Delta umidade = umidade_absoluta_externa - umidade_absoluta_interna",
+      ice: "gelo_kg_dia = volume_ar_infiltrado x Delta umidade",
+      sensible: "Q_sensível = V_ar x densidade_ar x cp_ar x DeltaT / horas_compressor",
+      latent: "Q_latente = gelo_kg_dia x calor_latente_vapor_para_gelo / horas_compressor",
+    },
   };
 }
 
@@ -117,6 +141,17 @@ export function calculateMotorLoadKcalH(env: any) {
   const compressorHoursDay = Math.max(1, num(env.compressor_runtime_hours_day, 20) || 20);
   const dissipation = clamp(num(env.motors_dissipation_factor, 1), 0, 1);
   return round(Math.max(0, num(env.motors_power_kw)) * THERMAL_CONSTANTS.conversion.kcalPerKwH * Math.max(0, num(env.motors_hours_day)) / compressorHoursDay * dissipation);
+}
+
+export function calculateEvaporatorFanLoad(env: any, selection?: any | null) {
+  const manual = Math.max(0, num(env.fans_kcal_h));
+  if (manual > 0) return { fansKcalH: round(manual), source: "manual", fanPowerKw: round(manual * THERMAL_CONSTANTS.conversion.kcalHToKw, 4), airflowM3H: null, coefficientKwPer1000M3H: null };
+  const catalogPowerKw = Math.max(0, num(selection?.curve_metadata?.fan_power_kw));
+  if (catalogPowerKw > 0) return { fansKcalH: round(catalogPowerKw * THERMAL_CONSTANTS.conversion.kcalPerKwH), source: "catalog", fanPowerKw: round(catalogPowerKw, 4), airflowM3H: round(num(selection?.air_flow_total_m3_h)), coefficientKwPer1000M3H: null };
+  const airflowM3H = Math.max(0, num(selection?.air_flow_total_m3_h) || num(env.evaporator_airflow_m3_h) || num(env.airflow_m3_h));
+  const coefficient = 0.03;
+  const estimatedPowerKw = airflowM3H > 0 ? (airflowM3H / 1000) * coefficient : 0;
+  return { fansKcalH: round(estimatedPowerKw * THERMAL_CONSTANTS.conversion.kcalPerKwH), source: airflowM3H > 0 ? "airflow_estimate" : "unavailable", fanPowerKw: round(estimatedPowerKw, 4), airflowM3H: round(airflowM3H), coefficientKwPer1000M3H: coefficient };
 }
 
 export const MOTOR_EQUIPMENT_PRESETS = [

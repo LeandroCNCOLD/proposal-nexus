@@ -345,12 +345,30 @@ function drawProductThermalDetails(ctx: Ctx, products: any[], env: any) {
       ["Tempo mudança estado", phaseTimeMin ? `${fmt(phaseTimeMin / 60, 1)} h estimadas` : `${fmt((Number(b.latent_kcal_h) / Math.max(1, Number(b.total_kcal_h))) * Number(b.hours), 1)} h proporcionais`],
     ], 2);
     table(ctx, ["Etapa", "Carga produzida", "Energia"], [
-      ["Antes do congelamento", `${fmt(b.sensible_above_kcal_h, 0)} kcal/h`, `${fmt(Number(b.sensible_above_kcal_h) * Number(b.hours), 0)} kcal`],
-      ["Mudança de estado / latente", `${fmt(b.latent_kcal_h, 0)} kcal/h`, `${fmt(Number(b.latent_kcal_h) * Number(b.hours), 0)} kcal`],
-      ["Após congelamento", `${fmt(b.sensible_below_kcal_h, 0)} kcal/h`, `${fmt(Number(b.sensible_below_kcal_h) * Number(b.hours), 0)} kcal`],
+      ["Antes do congelamento", `${fmt(b.sensible_above_kcal_h, 0)} kcal/h`, `${fmt(b.sensible_above_energy_kcal, 0)} kcal`],
+      ["Mudança de estado / latente", `${fmt(b.latent_kcal_h, 0)} kcal/h`, `${fmt(b.latent_energy_kcal, 0)} kcal`],
+      ["Após congelamento", `${fmt(b.sensible_below_kcal_h, 0)} kcal/h`, `${fmt(b.sensible_below_energy_kcal, 0)} kcal`],
+      ["Total validado", `${fmt(b.total_kcal_h, 0)} kcal/h`, `${fmt(b.total_energy_kcal, 0)} kcal | ${fmt(b.specific_energy_kcal_kg)} kcal/kg`],
     ], [0.46, 0.27, 0.27]);
     freezingCurve(ctx, b);
   }
+}
+
+function drawAuditMemory(ctx: Ctx, result: any) {
+  const inf = result.calculation_breakdown?.infiltration_technical;
+  const deg = result.calculation_breakdown?.defrost_suggestion;
+  const fan = result.calculation_breakdown?.evaporator_fans;
+  const motors = result.calculation_breakdown?.motors;
+  const alerts = result.calculation_breakdown?.validation_alerts ?? [];
+  if (inf) {
+    heading(ctx, "Memória de cálculo de infiltração", 3);
+    table(ctx, ["Premissa / fórmula", "Valor"], [["Tipo de porta", inf.doorType], ["Dimensões da porta", `${fmt(inf.doorWidthM)} x ${fmt(inf.doorHeightM)} m | A = ${fmt(inf.doorAreaM2)} m2`], ["Aberturas e tempo", `${fmt(inf.doorOpeningsPerDay, 0)}/dia x ${fmt(inf.doorOpenSecondsPerOpening, 0)} s = ${fmt(inf.totalDoorOpenSecondsDay, 0)} s/dia`], ["Perfil operacional", `${inf.operationProfile} | velocidade ${fmt(inf.airVelocityMS)} m/s`], ["Proteção / fator", `${inf.doorProtection} | fator ${fmt(inf.correctionFactor)}`], ["V_porta = A x v x t x fator", `${fmt(inf.doorInfiltrationM3Day, 0)} m3/dia`], ["Infiltração contínua", `${fmt(inf.continuousInfiltrationM3Day, 0)} m3/dia`], ["Volume total infiltrado", `${fmt(inf.totalInfiltrationM3Day, 0)} m3/dia`]], [0.5, 0.5]);
+    heading(ctx, "Memória psicrométrica, gelo e infiltração", 3);
+    table(ctx, ["Item", "Valor"], [["Temperatura externa / UR externa", `${fmt(inf.externalTempC)} °C / ${fmt(inf.externalRH)}%`], ["Temperatura interna / UR interna", `${fmt(inf.internalTempC)} °C / ${fmt(inf.internalRH)}% (${inf.internalRHSource === "manual" ? "informado pelo usuário" : "automático"})`], ["UR interna adotada", inf.internalRHAdoptionNote], ["Umidade absoluta externa", `${fmt(inf.externalAbsoluteHumidityKgM3, 6)} kg/m3`], ["Umidade absoluta interna", `${fmt(inf.internalAbsoluteHumidityKgM3, 6)} kg/m3`], ["Delta umidade considerado", `${fmt(inf.deltaHumidityKgM3, 6)} kg/m3 (${fmt(inf.deltaHumidityGM3)} g/m3)`], ["Q_sensível", `${fmt(inf.sensibleKcalH, 0)} kcal/h`], ["Q_latente", `${fmt(inf.latentKcalH, 0)} kcal/h`], ["Q_total infiltração", `${fmt(inf.totalInfiltrationKcalH, 0)} kcal/h`], ["Gelo no evaporador", `${fmt(inf.iceKgDay)} kg/dia | ${fmt(inf.iceKgHour)} kg/h`]], [0.5, 0.5]);
+  }
+  if (deg) table(ctx, ["Cálculo de degelo obrigatório", "Valor"], [["Fórmula", "gelo_kg_dia x (Cp_gelo x |T_evap| + 80) x fator_perdas"], ["Cp gelo / fator perdas", `0,50 kcal/kg°C / ${fmt(deg.lossFactor)}x`], ["Temperatura evaporação", `${fmt(deg.evapTempC)} °C`], ["Energia por kg", `${fmt(deg.energyPerKg)} kcal/kg`], ["Energia diária de degelo", `${fmt(deg.energyKcalDay, 0)} kcal/dia`], ["Carga térmica equivalente", `${fmt(deg.defrostKcalH, 0)} kcal/h`]], [0.5, 0.5]);
+  if (fan || motors) table(ctx, ["Cargas internas auditáveis", "Valor"], [["Ventiladores", `${fmt(fan?.fansKcalH, 0)} kcal/h (${fan?.source ?? "—"})${fan?.airflowM3H ? ` | vazão ${fmt(fan.airflowM3H, 0)} m3/h` : ""}`], ["Motores", `${fmt(motors?.power_kw)} kW x ${fmt(motors?.hours_day)} h/dia x dissipação ${fmt(Number(motors?.dissipation_factor ?? 0) * 100, 0)}%`], ["Regra dissipação motores", motors?.dissipation_rule ?? "interno 100%; parcial 30-70%; externo 0%"]], [0.5, 0.5]);
+  if (alerts.length) table(ctx, ["Validações automáticas", "Mensagem"], alerts.map((a: any) => [`${String(a.level).toUpperCase()} - ${a.code}`, a.message]), [0.34, 0.66]);
 }
 
 function pieChart(ctx: Ctx, result: any) {
@@ -529,7 +547,8 @@ export async function buildColdProMemorialPdfBuffer({ project, environments, res
     ctx.page.drawText(`${idx + 1}. ${clean(env.name)}`, { x: M + 8, y: ctx.y - 15, size: 10, font: fonts.bold, color: COLORS.white });
     ctx.y -= 32;
     heading(ctx, "1. Premissas de cálculo do ambiente", 3);
-    drawKeyGrid(ctx, [["Solicitado", env.name], ["Tipo", env.environment_type], ["Dimensões", `${fmt(env.length_m)} x ${fmt(env.width_m)} x ${fmt(env.height_m)} m`], ["Volume", `${fmt(env.volume_m3)} m3`], ["Temp. requerida", `${fmt(env.internal_temp_c)} °C`], ["Condição externa", `${fmt(env.external_temp_c)} °C`], ["UR interna", `${fmt(env.relative_humidity_percent)}%`], ["Painel", `${fmt(env.wall_thickness_mm)} mm`], ["Portas", `${fmt(env.door_openings_per_day)}/dia`], ["Compressor", `${fmt(env.compressor_runtime_hours_day)} h/dia`]], 2);
+    const infPremise = result?.calculation_breakdown?.infiltration_technical;
+    drawKeyGrid(ctx, [["Solicitado", env.name], ["Tipo", env.environment_type], ["Dimensões", `${fmt(env.length_m)} x ${fmt(env.width_m)} x ${fmt(env.height_m)} m`], ["Volume", `${fmt(env.volume_m3)} m3`], ["Temp. requerida", `${fmt(env.internal_temp_c)} °C`], ["Condição externa", `${fmt(infPremise?.externalTempC ?? env.external_temp_c)} °C`], ["UR interna", infPremise ? `${fmt(infPremise.internalRH)}% (${infPremise.internalRHSource === "manual" ? "manual" : "automática"})` : "automática se não informada"], ["Painel", `${fmt(env.wall_thickness_mm)} mm`], ["Portas", `${fmt(env.door_openings_per_day)}/dia`], ["Compressor", `${fmt(env.compressor_runtime_hours_day)} h/dia`]], 2);
     if (envProducts.length) {
       table(ctx, ["Produto", "kg/dia", "T entrada", "T final", "Tempo"], envProducts.map((p: any) => [p.product_name, fmt(p.mass_kg_day), `${fmt(p.inlet_temp_c)} °C`, `${fmt(p.outlet_temp_c)} °C`, `${fmt(p.process_time_h)} h`]), [0.36, 0.16, 0.16, 0.16, 0.16]);
       drawProductThermalDetails(ctx, envProducts, env);
@@ -541,12 +560,10 @@ export async function buildColdProMemorialPdfBuffer({ project, environments, res
       barChart(ctx, result);
       stackedLoadChart(ctx, result);
       table(ctx, ["Componente", "Carga"], [["Transmissão", result.transmission_kcal_h], ["Produto", result.product_kcal_h], ["Embalagem", result.packaging_kcal_h], ["Infiltração", result.infiltration_kcal_h], ["Pessoas", result.people_kcal_h], ["Iluminação", result.lighting_kcal_h], ["Motores", result.motors_kcal_h], ["Ventiladores", result.fans_kcal_h], ["Degelo", result.defrost_kcal_h], ["Outros", result.other_kcal_h]].map(([l, v]) => [String(l), `${fmt(v, 0)} kcal/h`]), [0.68, 0.32]);
-      const inf = result.calculation_breakdown?.infiltration_technical;
-      const deg = result.calculation_breakdown?.defrost_suggestion;
-      if (inf) table(ctx, ["Memória técnica de infiltração, umidade e gelo", "Valor"], [["Região / UR externa", `${inf.regionDescription ?? inf.regionUsed} / ${fmt(inf.externalRH)}%`], ["UR interna adotada", `${fmt(inf.internalRH)}%`], ["Ar por porta", `${fmt(inf.doorInfiltrationM3Day, 0)} m³/dia`], ["Ar contínuo", `${fmt(inf.continuousInfiltrationM3Day, 0)} m³/dia`], ["Carga sensível", `${fmt(inf.sensibleKcalH, 0)} kcal/h`], ["Carga latente", `${fmt(inf.latentKcalH, 0)} kcal/h`], ["Δ umidade", `${fmt(inf.deltaHumidityGM3)} g/m³`], ["Gelo formado", `${fmt(inf.iceKgDay)} kg/dia`], ["Degelo sugerido", `${fmt(deg?.defrostKcalH, 0)} kcal/h`]], [0.58, 0.42]);
+      drawAuditMemory(ctx, result);
       heading(ctx, "3. Resultado do dimensionamento", 3);
       drawKpis(ctx, [["Subtotal", `${fmt(result.subtotal_kcal_h, 0)} kcal/h`], ["Segurança", `${fmt(result.safety_kcal_h, 0)} kcal/h`], ["Carga requerida", `${fmt(result.total_required_kcal_h, 0)} kcal/h`]]);
-      paragraph(ctx, `Resultado final: ${fmt(result.total_required_kcal_h, 0)} kcal/h - ${fmt(result.total_required_kw)} kW - ${fmt(result.total_required_tr)} TR.`, { bold: true, gap: 2 });
+      paragraph(ctx, `Resultado final auditável: transmissão + produto + embalagem + respiração + infiltração sensível/latente + degelo + motores + iluminação + pessoas + ventiladores + outros + segurança = ${fmt(result.total_required_kcal_h, 0)} kcal/h - ${fmt(result.total_required_kw)} kW - ${fmt(result.total_required_tr)} TR.`, { bold: true, gap: 2 });
     }
     if (selection) {
       heading(ctx, "Equipamento selecionado", 3);
