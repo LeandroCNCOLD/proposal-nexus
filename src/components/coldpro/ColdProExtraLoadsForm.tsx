@@ -30,10 +30,18 @@ export function ColdProExtraLoadsForm({ environment, catalogFanLoadKcalH = 0, on
     setForm((prev: any) => ({ ...prev, motors_power_kw: Number(prev?.motors_power_kw ?? 0) + preset.powerKw, motors_dissipation_factor: preset.dissipationFactor, motors_hours_day: prev?.motors_hours_day ?? 8 }));
   };
   const selectedLighting = LIGHTING_EQUIPMENT_PRESETS[Number(selectedLightingPreset)] ?? LIGHTING_EQUIPMENT_PRESETS[0];
-  const lightingAreaM2 = Math.max(0, Number(form?.length_m ?? 0) * Number(form?.width_m ?? 0));
+  const lengthM = Number(form?.length_m ?? 0);
+  const widthM = Number(form?.width_m ?? 0);
+  const heightM = Number(form?.height_m ?? 0);
+  const volumeM3 = Number(form?.volume_m3 ?? 0);
+  const lightingAreaM2 = Math.max(0, lengthM * widthM || (heightM > 0 ? volumeM3 / heightM : 0));
   const utilizationFactor = 0.72;
   const maintenanceFactor = 0.85;
   const recommendedLightingQty = selectedLighting?.lumens ? Math.max(0, Math.ceil((lightingAreaM2 * targetLux) / (selectedLighting.lumens * utilizationFactor * maintenanceFactor))) : 0;
+  const addOneLightingFixture = () => {
+    if (!selectedLighting) return;
+    setForm((prev: any) => ({ ...prev, lighting_power_w: Number(prev?.lighting_power_w ?? 0) + selectedLighting.powerW, lighting_hours_day: prev?.lighting_hours_day ?? 8 }));
+  };
   const addLightingRecommendation = () => {
     if (!selectedLighting) return;
     setForm((prev: any) => ({ ...prev, lighting_power_w: Number(prev?.lighting_power_w ?? 0) + recommendedLightingQty * selectedLighting.powerW, lighting_hours_day: prev?.lighting_hours_day ?? 8 }));
