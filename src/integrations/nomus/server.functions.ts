@@ -158,7 +158,7 @@ export const nomusSyncClients = createServerFn({ method: "POST" })
         .eq("entity", "clientes")
         .maybeSingle();
       const page = Math.max(1, Number((state as { last_cursor?: string | null } | null)?.last_cursor ?? "1") || 1);
-      const previousTotal = Number((state as { total_synced?: number | null } | null)?.total_synced ?? 0) || 0;
+      const previousTotal = page === 1 ? 0 : Number((state as { total_synced?: number | null } | null)?.total_synced ?? 0) || 0;
       const res = await listPage<Json>(NOMUS_ENDPOINTS.clientes, {}, { entity: "clientes", page, pageSize: 50, triggeredBy: userId });
       if (!res.ok) {
         await setState("clientes", { running: false, last_error: res.error });
@@ -199,7 +199,7 @@ export const nomusSyncClients = createServerFn({ method: "POST" })
       await setState("clientes", {
         running: false,
         last_synced_at: now,
-        total_synced: done ? previousTotal + count : previousTotal + count,
+        total_synced: previousTotal + count,
         last_cursor: nextPage,
         last_error: null,
       });
