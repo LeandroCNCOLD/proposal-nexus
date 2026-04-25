@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Box, Grid3X3, Ruler, Save, ShieldCheck, Thermometer } from "lucide-react";
+import { Box, DraftingCompass, Grid3X3, Ruler, Save, ShieldCheck, Thermometer } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   ColdProField,
@@ -21,25 +21,13 @@ type Props = {
   onSave: (patch: Record<string, unknown>) => void;
 };
 
-const CONSTRUCTION_FACE_LABELS = ["TETO", "PAREDE 1", "PAREDE 02", "PAREDE 03", "PAREDE 04", "PISO"];
+type ChamberLayout = "rectangular" | "l_shape" | "triangular" | "custom_polygon";
 
-function normalizeFaces(value: unknown) {
-  const faces = Array.isArray(value) ? value : [];
-  return CONSTRUCTION_FACE_LABELS.map((local) => {
-    const existing = faces.find((face: any) => face?.local === local) ?? {};
-    return {
-      local,
-      material_thickness: existing.material_thickness ?? "",
-      panel_area_m2: existing.panel_area_m2 ?? 0,
-      external_temp_c: existing.external_temp_c ?? null,
-      solar_orientation: existing.solar_orientation ?? "",
-      color: existing.color ?? "",
-      glass_area_m2: existing.glass_area_m2 ?? 0,
-      glass_type: existing.glass_type ?? "",
-      door_area_m2: existing.door_area_m2 ?? 0,
-    };
-  });
-}
+type Geometry = {
+  local: "__GEOMETRY__";
+  cutout_length_m?: number | null;
+  cutout_width_m?: number | null;
+};
 
 const APPLICATIONS = [
   { value: "cold_room", label: "Câmara resfriados" },
@@ -50,6 +38,119 @@ const APPLICATIONS = [
   { value: "seed_storage", label: "Câmara de sementes" },
   { value: "climatized_room", label: "Ambiente climatizado" },
 ];
+
+const CHAMBER_LAYOUTS: Array<{ value: ChamberLayout; label: string; description: string; walls: number }> = [
+  { value: "rectangular", label: "Retangular", description: "4 paredes, teto e piso", walls: 4 },
+  { value: "l_shape", label: "Formato em L", description: "6 paredes com recorte", walls: 6 },
+  { value: "triangular", label: "Triangular", description: "3 paredes com medidas distintas", walls: 3 },
+  { value: "custom_polygon", label: "Personalizada", description: "Quantidade manual de paredes", walls: 4 },
+];
+
+const LEGACY_LAYOUTS = new Set(["industrial", "modular", "climatized_storage", "blast_freezer", "cooling_tunnel", "climatized_room"]);
+
+function toNumber(value: unknown) {
+  const parsed = Number(value ?? 0);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function normalizeLayout(value: unknown): ChamberLayout {
+  const current = String(value ?? "rectangular");
+  if (current === "l_shape" || current === "triangular" || current === "custom_polygon" || current === "rectangular") return current;
+  if (LEGACY_LAYOUTS.has(current)) return "rectangular";
+  return "rectangular";
+}
+
+function wallCountForLayout(layout: ChamberLayout, manualCount: unknown) {
+  if (layout === "custom_polygon") return Math.max(3, Math.min(12, Math.round(toNumber(manualCount) || 4)));
+  return CHAMBER_LAYOUTS.find((item) => item.value === layout)?.walls ?? 4;
+}
+
+function getGeometry(value: unknown): Geometry {
+  const faces = Array.isArray(value) ? value : [];
+  const existing = faces.find((face: any) => face?.local === "__GEOMETRY__") ?? {};
+  return {
+    local: "__GEOMETRY__",
+    cutout_length_m: existing.cutout_length_m ?? null,
+    cutout_width_m: existing.cutout_width_m ?? null,
+  };
+}
+
+function getFloorArea(layout: ChamberLayout, length: number, width: number, geometry: Geometry, constructionFaces?: any[]) {
+  if (layout === "triangular") return Math.max(0, (length * width) / 2);
+  if (layout === "l_shape") {
+    const cutoutLength = Math.min(length, Math.max(0, toNumber(geometry.cutout_length_m)));
+    const cutoutWidth = Math.min(width, Math.max(0, toNumber(geometry.cutout_width_m)));
+    return Math.max(0, (length * width) - (cutoutLength * cutoutWidth));
+  }
+  if (layout === "custom_polygon") {
+    const ceiling = constructionFaces?.find((face: any) => face?.local === "TETO");
+    return Math.max(0, toNumber(ceiling?.panel_area_m2) || (length * width));
+  }
+  return Math.max(0, length * width);
+}
+
+function getWallLengths(layout: ChamberLayout, length: number, width: number, geometry: Geometry, count: number) {
+  if (layout === "triangular") return [length, width, Math.hypot(length, width)];
+  if (layout === "l_shape") {
+    const cutoutLength = Math.min(length, Math.max(0, toNumber(geometry.cutout_length_m)));
+    const cutoutWidth = Math.min(width, Math.max(0, toNumber(geometry.cutout_width_m)));
+    return [length, Math.max(0, width - cutoutWidth), cutoutLength, cutoutWidth, Math.max(0, length - cutoutLength), width];
+  }
+  if (layout === "rectangular") return [length, width, length, width];
+  return Array.from({ length: count }, () => 0);
+}
+
+function normalizeFaces(value: unknown, layout: ChamberLayout, wallCount: number, length: number, width: number, height: number, geometry: Geometry) {
+  const faces = Array.isArray(value) ? value : [];
+  const floorArea = getFloorArea(layout, length, width, geometry, faces);
+  const wallLengths = getWallLengths(layout, length, width, geometry, wallCount);
+  const labels = ["TETO", ...Array.from({ length: wallCount }, (_, index) => `PAREDE ${index + 1}`), "PISO"];
+
+  return labels.map((local) => {
+    const existing = faces.find((face: any) => face?.local === local || face?.local === local.replace("PAREDE ", "PAREDE 0")) ?? {};
+    const wallIndex = local.startsWith("PAREDE") ? Number(local.replace("PAREDE", "").trim()) - 1 : -1;
+    const wallLength = wallIndex >= 0 ? (toNumber(existing.wall_length_m) || wallLengths[wallIndex] || 0) : null;
+    const wallHeight = wallIndex >= 0 ? (toNumber(existing.wall_height_m) || height || 0) : null;
+    const calculatedArea = wallIndex >= 0 ? toNumber(wallLength) * toNumber(wallHeight) : floorArea;
+
+    return {
+      local,
+      wall_length_m: wallLength,
+      wall_height_m: wallHeight,
+      material_thickness: existing.material_thickness ?? "",
+      panel_area_m2: existing.panel_area_m2 ?? calculatedArea,
+      external_temp_c: existing.external_temp_c ?? null,
+      solar_orientation: existing.solar_orientation ?? "",
+      color: existing.color ?? "",
+      glass_area_m2: existing.glass_area_m2 ?? 0,
+      glass_type: existing.glass_type ?? "",
+      door_area_m2: existing.door_area_m2 ?? 0,
+    };
+  });
+}
+
+function ChamberShapePreview({ layout }: { layout: ChamberLayout }) {
+  const points = {
+    rectangular: "25,25 135,25 135,95 25,95",
+    l_shape: "25,25 135,25 135,58 92,58 92,95 25,95",
+    triangular: "25,95 135,95 25,25",
+    custom_polygon: "55,25 125,38 135,82 92,98 35,82 25,42",
+  }[layout];
+
+  return (
+    <div className="rounded-lg border bg-muted/20 p-3">
+      <svg viewBox="0 0 160 120" role="img" aria-label="Formato da câmara" className="h-28 w-full">
+        <polygon points={points} className="fill-primary/10 stroke-primary" strokeWidth="4" />
+        <g className="fill-primary text-[10px] font-semibold">
+          <circle cx="25" cy="25" r="3" />
+          <circle cx="135" cy="25" r="3" />
+          <circle cx="135" cy="95" r="3" />
+          <circle cx="25" cy="95" r="3" />
+        </g>
+      </svg>
+    </div>
+  );
+}
 
 export function ColdProEnvironmentForm({ environment, insulationMaterials, onSave }: Props) {
   const [form, setForm] = React.useState<any>(environment);
@@ -66,41 +167,70 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, onSav
     onChange: (e: React.ChangeEvent<HTMLInputElement>) => set(key, numberOrNull(e.target.value)),
   });
 
-  const constructionFaces = React.useMemo(() => normalizeFaces(form?.construction_faces), [form?.construction_faces]);
-  const setFace = (index: number, key: string, value: unknown) => {
-    const next = normalizeFaces(form?.construction_faces);
-    next[index] = { ...next[index], [key]: value };
-    set("construction_faces", next);
+  const layout = normalizeLayout(form?.chamber_layout_type);
+  const wallCount = wallCountForLayout(layout, form?.wall_count);
+  const length = toNumber(form?.length_m);
+  const width = toNumber(form?.width_m);
+  const height = toNumber(form?.height_m);
+  const geometry = React.useMemo(() => getGeometry(form?.construction_faces), [form?.construction_faces]);
+  const constructionFaces = React.useMemo(() => normalizeFaces(form?.construction_faces, layout, wallCount, length, width, height, geometry), [form?.construction_faces, layout, wallCount, length, width, height, geometry]);
+
+  const floorArea = getFloorArea(layout, length, width, geometry, constructionFaces);
+  const volume = floorArea * height;
+  const deltaT = toNumber(form?.external_temp_c) - toNumber(form?.internal_temp_c);
+  const totalPanelArea = constructionFaces.reduce((sum, face) => sum + toNumber(face.panel_area_m2), 0);
+  const totalGlassArea = constructionFaces.reduce((sum, face) => sum + toNumber(face.glass_area_m2), 0);
+  const totalDoorArea = constructionFaces.reduce((sum, face) => sum + toNumber(face.door_area_m2), 0);
+  const wallPanelArea = constructionFaces.filter((face) => face.local.startsWith("PAREDE")).reduce((sum, face) => sum + toNumber(face.panel_area_m2), 0);
+  const dimensionError = layout !== "custom_polygon" && (length <= 0 || width <= 0 || height <= 0);
+  const customDimensionError = layout === "custom_polygon" && (floorArea <= 0 || height <= 0 || wallCount < 3);
+  const hoursError = toNumber(form?.operation_hours_day) < 0 || toNumber(form?.operation_hours_day) > 24 || toNumber(form?.compressor_runtime_hours_day) < 0 || toNumber(form?.compressor_runtime_hours_day) > 24;
+  const safetyError = toNumber(form?.safety_factor_percent) < 0;
+  const canSave = !dimensionError && !customDimensionError && !hoursError && !safetyError && String(form?.name ?? "").trim().length > 0;
+
+  const setGeometry = (key: keyof Omit<Geometry, "local">, value: unknown) => {
+    const nextGeometry = { ...geometry, [key]: value };
+    set("construction_faces", [...constructionFaces, nextGeometry]);
   };
 
-  const volume = React.useMemo(() => Number(form?.length_m ?? 0) * Number(form?.width_m ?? 0) * Number(form?.height_m ?? 0), [form?.length_m, form?.width_m, form?.height_m]);
-  const deltaT = Number(form?.external_temp_c ?? 0) - Number(form?.internal_temp_c ?? 0);
-  const totalPanelArea = constructionFaces.reduce((sum, face) => sum + Number(face.panel_area_m2 ?? 0), 0);
-  const totalGlassArea = constructionFaces.reduce((sum, face) => sum + Number(face.glass_area_m2 ?? 0), 0);
-  const totalDoorArea = constructionFaces.reduce((sum, face) => sum + Number(face.door_area_m2 ?? 0), 0);
-  const dimensionError = ["length_m", "width_m", "height_m"].some((key) => Number(form?.[key] ?? 0) <= 0);
-  const hoursError = Number(form?.operation_hours_day ?? 0) < 0 || Number(form?.operation_hours_day ?? 0) > 24 || Number(form?.compressor_runtime_hours_day ?? 0) < 0 || Number(form?.compressor_runtime_hours_day ?? 0) > 24;
-  const safetyError = Number(form?.safety_factor_percent ?? 0) < 0;
-  const canSave = !dimensionError && !hoursError && !safetyError && String(form?.name ?? "").trim().length > 0;
+  const setLayout = (nextLayout: ChamberLayout) => {
+    const nextWallCount = wallCountForLayout(nextLayout, form?.wall_count);
+    const nextGeometry = getGeometry(form?.construction_faces);
+    setForm((prev: any) => ({
+      ...prev,
+      chamber_layout_type: nextLayout,
+      wall_count: nextWallCount,
+      construction_faces: [...normalizeFaces(prev?.construction_faces, nextLayout, nextWallCount, toNumber(prev?.length_m), toNumber(prev?.width_m), toNumber(prev?.height_m), nextGeometry), nextGeometry],
+    }));
+  };
+
+  const setFace = (index: number, key: string, value: unknown) => {
+    const next = normalizeFaces(form?.construction_faces, layout, wallCount, length, width, height, geometry);
+    const updated = { ...next[index], [key]: value };
+    if ((key === "wall_length_m" || key === "wall_height_m") && updated.local.startsWith("PAREDE")) {
+      updated.panel_area_m2 = toNumber(updated.wall_length_m) * toNumber(updated.wall_height_m);
+    }
+    next[index] = updated;
+    set("construction_faces", [...next, geometry]);
+  };
 
   return (
     <div className="rounded-xl border bg-background p-5 shadow-sm">
       <div className="mb-5 flex flex-col gap-3 border-b pb-4 md:flex-row md:items-start md:justify-between">
         <div>
           <h2 className="text-lg font-semibold">Ambiente</h2>
-          <p className="mt-1 text-sm text-muted-foreground">Dimensões, temperatura, umidade e isolamento do espaço refrigerado.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Dimensões, geometria da câmara, temperatura, umidade e isolamento do espaço refrigerado.</p>
         </div>
         <div className="grid grid-cols-2 gap-2 md:min-w-80">
-          <ColdProCalculatedInfo label="Volume" value={`${fmtColdPro(volume)} m³`} description="Calculado pelas dimensões internas" />
-          <ColdProCalculatedInfo label="ΔT" value={`${fmtColdPro(deltaT)} °C`} description="Externa menos interna" tone={deltaT > 0 ? "info" : "warning"} />
+          <ColdProCalculatedInfo label="Volume" value={`${fmtColdPro(volume)} m³`} description="Área de piso × altura" />
+          <ColdProCalculatedInfo label="Área de piso" value={`${fmtColdPro(floorArea)} m²`} description="Conforme o formato escolhido" />
         </div>
       </div>
 
       <Tabs defaultValue="gerais" className="w-full">
         <TabsList className="mb-4 flex h-auto w-full flex-wrap justify-start gap-1 p-1">
           <TabsTrigger value="gerais">Dados gerais</TabsTrigger>
-          <TabsTrigger value="dimensoes">Dimensões</TabsTrigger>
-          <TabsTrigger value="construcao">Paredes e painéis</TabsTrigger>
+          <TabsTrigger value="dimensoes">Dimensões e painéis</TabsTrigger>
           <TabsTrigger value="condicoes">Condições</TabsTrigger>
           <TabsTrigger value="isolamento">Isolamento</TabsTrigger>
         </TabsList>
@@ -133,89 +263,114 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, onSav
         </TabsContent>
 
         <TabsContent value="dimensoes">
-          <ColdProFormSection title="Dimensões internas" description="Use medidas internas úteis da câmara para o cálculo de transmissão." icon={<Ruler className="h-4 w-4" />}>
-            <div className="grid grid-cols-1 gap-x-10 md:grid-cols-2">
-              <div>
-                <ColdProField label="Comprimento" unit="m"><ColdProInput {...num("length_m")} /></ColdProField>
-                <ColdProField label="Largura" unit="m"><ColdProInput {...num("width_m")} /></ColdProField>
-                <ColdProField label="Altura" unit="m"><ColdProInput {...num("height_m")} /></ColdProField>
-                <ColdProValidationMessage tone="error">{dimensionError ? "Comprimento, largura e altura devem ser maiores que zero." : ""}</ColdProValidationMessage>
-              </div>
-              <div className="space-y-3">
-                <ColdProCalculatedInfo label="Volume interno calculado" value={`${fmtColdPro(volume)} m³`} description="Atualiza automaticamente ao alterar as dimensões." tone={dimensionError ? "warning" : "success"} />
-                <ColdProCalculatedInfo label="Área aproximada de troca" value={`${fmtColdPro(2 * ((Number(form?.length_m ?? 0) * Number(form?.width_m ?? 0)) + (Number(form?.length_m ?? 0) * Number(form?.height_m ?? 0)) + (Number(form?.width_m ?? 0) * Number(form?.height_m ?? 0))))} m²`} description="Referência visual para transmissão térmica." />
-              </div>
-            </div>
-          </ColdProFormSection>
-        </TabsContent>
+          <div className="space-y-5">
+            <ColdProFormSection title="Formato, dimensões e paredes" description="Selecione o desenho da câmara para calcular volume, teto, piso e paredes com medidas diferentes." icon={<DraftingCompass className="h-4 w-4" />}>
+              <div className="grid gap-5 xl:grid-cols-[1fr_260px]">
+                <div className="space-y-5">
+                  <div className="grid gap-3 md:grid-cols-4">
+                    {CHAMBER_LAYOUTS.map((item) => (
+                      <button
+                        key={item.value}
+                        type="button"
+                        onClick={() => setLayout(item.value)}
+                        className={`rounded-lg border p-3 text-left transition hover:border-primary ${layout === item.value ? "border-primary bg-primary/10" : "bg-background"}`}
+                      >
+                        <span className="block text-sm font-semibold">{item.label}</span>
+                        <span className="mt-1 block text-xs text-muted-foreground">{item.description}</span>
+                      </button>
+                    ))}
+                  </div>
 
-
-
-        <TabsContent value="construcao">
-          <ColdProFormSection title="Paredes, módulos e aberturas" description="Dados construtivos para dimensionar painéis, vidro, portas e faces da câmara." icon={<Grid3X3 className="h-4 w-4" />}>
-            <div className="grid grid-cols-1 gap-x-10 md:grid-cols-2">
-              <div>
-                <ColdProField label="Tipo/layout da câmara">
-                  <ColdProSelect value={form?.chamber_layout_type ?? "industrial"} onChange={(e) => set("chamber_layout_type", e.target.value)}>
-                    <option value="industrial">Câmara industrial</option>
-                    <option value="modular">Câmara modular</option>
-                    <option value="climatized_storage">Armazém climatizado</option>
-                    <option value="blast_freezer">Túnel de congelamento</option>
-                    <option value="cooling_tunnel">Túnel de resfriamento</option>
-                    <option value="climatized_room">Climatização</option>
-                  </ColdProSelect>
-                </ColdProField>
-                <ColdProField label="Quantidade de paredes" unit="un"><ColdProInput {...num("wall_count")} /></ColdProField>
-                <ColdProField label="Módulos/paredes" unit="un"><ColdProInput {...num("module_count")} /></ColdProField>
+                  <div className="grid grid-cols-1 gap-x-10 md:grid-cols-2">
+                    <div>
+                      <ColdProField label="Comprimento maior" unit="m"><ColdProInput {...num("length_m")} /></ColdProField>
+                      <ColdProField label="Largura maior" unit="m"><ColdProInput {...num("width_m")} /></ColdProField>
+                      <ColdProField label="Altura" unit="m"><ColdProInput {...num("height_m")} /></ColdProField>
+                      {layout === "custom_polygon" ? (
+                        <ColdProField label="Quantidade de paredes" unit="un">
+                          <ColdProInput type="number" value={wallCount} onChange={(e) => set("wall_count", numberOrNull(e.target.value) ?? 4)} />
+                        </ColdProField>
+                      ) : null}
+                      {layout === "l_shape" ? (
+                        <div className="grid grid-cols-2 gap-3">
+                          <ColdProField label="Recorte comprimento" unit="m"><ColdProInput type="number" value={geometry.cutout_length_m ?? ""} onChange={(e) => setGeometry("cutout_length_m", numberOrNull(e.target.value))} /></ColdProField>
+                          <ColdProField label="Recorte largura" unit="m"><ColdProInput type="number" value={geometry.cutout_width_m ?? ""} onChange={(e) => setGeometry("cutout_width_m", numberOrNull(e.target.value))} /></ColdProField>
+                        </div>
+                      ) : null}
+                      <ColdProValidationMessage tone="error">{dimensionError || customDimensionError ? "Informe medidas válidas para volume, piso e paredes." : ""}</ColdProValidationMessage>
+                    </div>
+                    <div className="space-y-3">
+                      <ColdProCalculatedInfo label="Volume interno" value={`${fmtColdPro(volume)} m³`} description="Calculado pela geometria da câmara." tone={dimensionError || customDimensionError ? "warning" : "success"} />
+                      <ColdProCalculatedInfo label="Área de piso/teto" value={`${fmtColdPro(floorArea)} m²`} description="Usada também como base para teto e piso." />
+                      <ColdProCalculatedInfo label="Área de paredes" value={`${fmtColdPro(wallPanelArea)} m²`} description={`${wallCount} paredes informadas`} />
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <ChamberShapePreview layout={layout} />
+                  <ColdProFieldHint>Em câmaras não retangulares, ajuste cada parede abaixo. A área do painel da parede é recalculada por comprimento × altura.</ColdProFieldHint>
+                </div>
               </div>
-              <div className="space-y-3">
+            </ColdProFormSection>
+
+            <ColdProFormSection title="Paredes, painéis e aberturas" description="Complete cada face da câmara com material, orientação solar, vidros e portas." icon={<Grid3X3 className="h-4 w-4" />}>
+              <div className="mb-4 grid gap-3 md:grid-cols-4">
+                <ColdProCalculatedInfo label="Total de painéis" value={`${fmtColdPro(totalPanelArea)} m²`} tone={totalPanelArea > 0 ? "success" : "warning"} />
+                <ColdProCalculatedInfo label="Paredes" value={`${fmtColdPro(wallPanelArea)} m²`} />
+                <ColdProCalculatedInfo label="Vidro" value={`${fmtColdPro(totalGlassArea)} m²`} />
+                <ColdProCalculatedInfo label="Portas" value={`${fmtColdPro(totalDoorArea)} m²`} />
+              </div>
+              <div className="mb-4 grid gap-x-10 md:grid-cols-2">
                 <ColdProField label="Insolação face oeste">
                   <ColdProSelect value={form?.west_face_insolation ? "sim" : "nao"} onChange={(e) => set("west_face_insolation", e.target.value === "sim")}>
                     <option value="nao">Não</option>
                     <option value="sim">Sim</option>
                   </ColdProSelect>
                 </ColdProField>
-                <ColdProCalculatedInfo label="Total de painéis" value={`${fmtColdPro(totalPanelArea)} m²`} description="Soma das áreas informadas por face." tone={totalPanelArea > 0 ? "success" : "warning"} />
-                <div className="grid grid-cols-2 gap-2">
-                  <ColdProCalculatedInfo label="Vidro" value={`${fmtColdPro(totalGlassArea)} m²`} />
-                  <ColdProCalculatedInfo label="Portas" value={`${fmtColdPro(totalDoorArea)} m²`} />
-                </div>
+                <ColdProField label="Módulos/painéis" unit="un"><ColdProInput {...num("module_count")} /></ColdProField>
               </div>
-            </div>
 
-            <div className="mt-6 overflow-x-auto rounded-xl border">
-              <table className="w-full min-w-[980px] text-sm">
-                <thead className="bg-muted/50 text-xs text-muted-foreground">
-                  <tr>
-                    <th className="px-3 py-2 text-left font-medium">Local</th>
-                    <th className="px-3 py-2 text-left font-medium">Material / espessura</th>
-                    <th className="px-3 py-2 text-left font-medium">Área painel m²</th>
-                    <th className="px-3 py-2 text-left font-medium">Temp. ext °C</th>
-                    <th className="px-3 py-2 text-left font-medium">Orientação solar</th>
-                    <th className="px-3 py-2 text-left font-medium">Cor</th>
-                    <th className="px-3 py-2 text-left font-medium">Área vidro m²</th>
-                    <th className="px-3 py-2 text-left font-medium">Tipo de vidro</th>
-                    <th className="px-3 py-2 text-left font-medium">Área porta m²</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {constructionFaces.map((face, index) => (
-                    <tr key={face.local} className="border-t">
-                      <td className="px-3 py-2 font-medium text-foreground">{face.local}</td>
-                      <td className="px-3 py-2"><ColdProInput value={face.material_thickness ?? ""} onChange={(e) => setFace(index, "material_thickness", e.target.value)} className="text-left" /></td>
-                      <td className="px-3 py-2"><ColdProInput type="number" value={face.panel_area_m2 ?? ""} onChange={(e) => setFace(index, "panel_area_m2", numberOrNull(e.target.value) ?? 0)} /></td>
-                      <td className="px-3 py-2"><ColdProInput type="number" value={face.external_temp_c ?? ""} onChange={(e) => setFace(index, "external_temp_c", numberOrNull(e.target.value))} /></td>
-                      <td className="px-3 py-2"><ColdProInput value={face.solar_orientation ?? ""} onChange={(e) => setFace(index, "solar_orientation", e.target.value)} className="text-left" /></td>
-                      <td className="px-3 py-2"><ColdProInput value={face.color ?? ""} onChange={(e) => setFace(index, "color", e.target.value)} className="text-left" /></td>
-                      <td className="px-3 py-2"><ColdProInput type="number" value={face.glass_area_m2 ?? ""} onChange={(e) => setFace(index, "glass_area_m2", numberOrNull(e.target.value) ?? 0)} /></td>
-                      <td className="px-3 py-2"><ColdProInput value={face.glass_type ?? ""} onChange={(e) => setFace(index, "glass_type", e.target.value)} className="text-left" /></td>
-                      <td className="px-3 py-2"><ColdProInput type="number" value={face.door_area_m2 ?? ""} onChange={(e) => setFace(index, "door_area_m2", numberOrNull(e.target.value) ?? 0)} /></td>
+              <div className="overflow-x-auto rounded-xl border">
+                <table className="w-full min-w-[1160px] text-sm">
+                  <thead className="bg-muted/50 text-xs text-muted-foreground">
+                    <tr>
+                      <th className="px-3 py-2 text-left font-medium">Local</th>
+                      <th className="px-3 py-2 text-left font-medium">Comp. m</th>
+                      <th className="px-3 py-2 text-left font-medium">Altura m</th>
+                      <th className="px-3 py-2 text-left font-medium">Material / espessura</th>
+                      <th className="px-3 py-2 text-left font-medium">Área painel m²</th>
+                      <th className="px-3 py-2 text-left font-medium">Temp. ext °C</th>
+                      <th className="px-3 py-2 text-left font-medium">Orientação solar</th>
+                      <th className="px-3 py-2 text-left font-medium">Cor</th>
+                      <th className="px-3 py-2 text-left font-medium">Área vidro m²</th>
+                      <th className="px-3 py-2 text-left font-medium">Tipo de vidro</th>
+                      <th className="px-3 py-2 text-left font-medium">Área porta m²</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </ColdProFormSection>
+                  </thead>
+                  <tbody>
+                    {constructionFaces.map((face, index) => {
+                      const isWall = face.local.startsWith("PAREDE");
+                      return (
+                        <tr key={face.local} className="border-t">
+                          <td className="px-3 py-2 font-medium text-foreground">{face.local}</td>
+                          <td className="px-3 py-2"><ColdProInput type="number" disabled={!isWall} value={isWall ? face.wall_length_m ?? "" : ""} onChange={(e) => setFace(index, "wall_length_m", numberOrNull(e.target.value) ?? 0)} /></td>
+                          <td className="px-3 py-2"><ColdProInput type="number" disabled={!isWall} value={isWall ? face.wall_height_m ?? "" : ""} onChange={(e) => setFace(index, "wall_height_m", numberOrNull(e.target.value) ?? 0)} /></td>
+                          <td className="px-3 py-2"><ColdProInput value={face.material_thickness ?? ""} onChange={(e) => setFace(index, "material_thickness", e.target.value)} className="text-left" /></td>
+                          <td className="px-3 py-2"><ColdProInput type="number" value={face.panel_area_m2 ?? ""} onChange={(e) => setFace(index, "panel_area_m2", numberOrNull(e.target.value) ?? 0)} /></td>
+                          <td className="px-3 py-2"><ColdProInput type="number" value={face.external_temp_c ?? ""} onChange={(e) => setFace(index, "external_temp_c", numberOrNull(e.target.value))} /></td>
+                          <td className="px-3 py-2"><ColdProInput value={face.solar_orientation ?? ""} onChange={(e) => setFace(index, "solar_orientation", e.target.value)} className="text-left" /></td>
+                          <td className="px-3 py-2"><ColdProInput value={face.color ?? ""} onChange={(e) => setFace(index, "color", e.target.value)} className="text-left" /></td>
+                          <td className="px-3 py-2"><ColdProInput type="number" value={face.glass_area_m2 ?? ""} onChange={(e) => setFace(index, "glass_area_m2", numberOrNull(e.target.value) ?? 0)} /></td>
+                          <td className="px-3 py-2"><ColdProInput value={face.glass_type ?? ""} onChange={(e) => setFace(index, "glass_type", e.target.value)} className="text-left" /></td>
+                          <td className="px-3 py-2"><ColdProInput type="number" value={face.door_area_m2 ?? ""} onChange={(e) => setFace(index, "door_area_m2", numberOrNull(e.target.value) ?? 0)} /></td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </ColdProFormSection>
+          </div>
         </TabsContent>
 
         <TabsContent value="condicoes">
@@ -266,7 +421,7 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, onSav
       </Tabs>
 
       <div className="mt-5 flex justify-end border-t pt-4">
-        <button type="button" disabled={!canSave} onClick={() => onSave({ ...form, name: String(form?.name ?? "").trim(), volume_m3: volume, construction_faces: constructionFaces, total_panel_area_m2: totalPanelArea, total_glass_area_m2: totalGlassArea, total_door_area_m2: totalDoorArea })} className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-2 text-sm font-medium text-primary-foreground shadow-sm transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50">
+        <button type="button" disabled={!canSave} onClick={() => onSave({ ...form, name: String(form?.name ?? "").trim(), chamber_layout_type: layout, wall_count: wallCount, volume_m3: volume, construction_faces: [...constructionFaces, geometry], total_panel_area_m2: totalPanelArea, total_glass_area_m2: totalGlassArea, total_door_area_m2: totalDoorArea })} className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-2 text-sm font-medium text-primary-foreground shadow-sm transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50">
           <Save className="h-4 w-4" /> Salvar ambiente
         </button>
       </div>
