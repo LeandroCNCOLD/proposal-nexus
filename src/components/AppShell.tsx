@@ -1,7 +1,7 @@
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import {
   LayoutDashboard, FileText, Users, Building2, Wrench, Swords,
-  Sparkles, FileBarChart, FileCheck2, FolderUp, Settings, LogOut,
+  FileBarChart, FileCheck2, FolderUp, Settings, LogOut,
   Search, Bell, Snowflake, ChevronDown, CheckSquare, PlugZap, Database,
   LayoutTemplate, Kanban, Thermometer, PackageSearch,
 } from "lucide-react";
@@ -48,7 +48,6 @@ const NAV = [
     { to: "/app/coldpro/catalogo", label: "Catálogo ColdPro", icon: Database },
   ]},
   { group: "Inteligência", items: [
-    { to: "/app/seletor", label: "Seletor Técnico", icon: Sparkles },
     { to: "/app/competitiva", label: "Head-to-Head", icon: Swords },
     { to: "/app/documentos", label: "Documentos & IA", icon: FolderUp },
     { to: "/app/relatorios", label: "Relatórios", icon: FileBarChart },
