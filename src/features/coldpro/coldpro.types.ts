@@ -17,6 +17,10 @@ export type ColdProStatus =
 
 export type ColdProConstructionFace = {
   local: string;
+  wall_length_m?: number | null;
+  wall_height_m?: number | null;
+  cutout_length_m?: number | null;
+  cutout_width_m?: number | null;
   material_thickness?: string | null;
   panel_area_m2?: number | null;
   external_temp_c?: number | null;

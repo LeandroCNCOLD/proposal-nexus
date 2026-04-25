@@ -12,6 +12,10 @@ const trimmedName = z.string().trim().min(1).max(120);
 
 const constructionFaceSchema = z.object({
   local: z.string().trim().max(40).default(""),
+  wall_length_m: nonNegativeNumber.nullable().optional(),
+  wall_height_m: nonNegativeNumber.nullable().optional(),
+  cutout_length_m: nonNegativeNumber.nullable().optional(),
+  cutout_width_m: nonNegativeNumber.nullable().optional(),
   material_thickness: z.string().trim().max(80).nullable().optional(),
   panel_area_m2: nonNegativeNumber.nullable().optional(),
   external_temp_c: finiteNumber.nullable().optional(),
