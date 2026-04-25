@@ -392,6 +392,44 @@ async function drawEquipmentImage(ctx: Ctx, selection: any, x: number, y: number
   return true;
 }
 
+function drawEquipmentCatalogSpecs(ctx: Ctx, selection: any) {
+  const model = selection?.catalog_model ?? {};
+  const compressor = selection?.catalog_compressor ?? {};
+  const condenser = selection?.catalog_condenser ?? {};
+  const evaporator = selection?.catalog_evaporator ?? {};
+  const perf = selection?.catalog_performance ?? {};
+  const voltage = model.electrical_configuration ?? perf.voltage ?? "—";
+  const compressorName = [compressor.copeland, compressor.bitzer, compressor.danfoss_bock, compressor.dorin].filter(Boolean).join(" / ") || "—";
+  heading(ctx, "Especificações técnicas e comerciais do equipamento", 2);
+  table(ctx, ["4.1 Informações gerais", "Valor"], [["Modelo", selection?.model ?? model.modelo], ["Série / linha", model.linha ?? model.designacao_hp], ["Tipo / gabinete", model.tipo_gabinete ?? model.gabinete], ["Aplicação", model.application_type ?? "Câmaras frigoríficas"], ["Refrigerante", selection?.refrigerant ?? model.refrigerante], ["Fabricante", "CN ColdPro"]], [0.42, 0.58]);
+  table(ctx, ["4.2 Elétrica / performance", "Valor"], [["Tensão / fase / frequência", `${voltage} | ${model.phase_count ?? "—"}F | ${model.frequency_hz ?? "—"} Hz`], ["Corrente nominal estimada", perf.estimated_current_a ? `${fmt(perf.estimated_current_a)} A` : "—"], ["Corrente compressor / ventiladores", `${perf.compressor_current_a ? fmt(perf.compressor_current_a) : "—"} A / ${perf.fan_current_a ? fmt(perf.fan_current_a) : "—"} A`], ["Potência total", `${fmt(selection?.total_power_kw ?? perf.total_power_kw)} kW`], ["COP", perf.cop ? fmt(perf.cop, 2) : selection?.cop ? fmt(selection.cop, 2) : "—"], ["Capacidade na curva", `${fmt(perf.evaporator_capacity_kcal_h ?? selection?.capacity_unit_kcal_h, 0)} kcal/h`]], [0.42, 0.58]);
+  table(ctx, ["4.3 Sistemas principais", "Valor"], [["Compressor", compressorName], ["Evaporador", evaporator.evaporator_model ?? "—"], ["Condensador", condenser.condenser_model ?? "—"], ["Vazão evaporador", evaporator.airflow_m3_h ? `${fmt(evaporator.airflow_m3_h, 0)} m3/h` : `${fmt(selection?.air_flow_unit_m3_h, 0)} m3/h`], ["Vazão condensador", condenser.airflow_m3_h ? `${fmt(condenser.airflow_m3_h, 0)} m3/h` : "—"], ["Degelo", model.tipo_degelo ?? evaporator.reheating ?? "—"]], [0.42, 0.58]);
+  table(ctx, ["4.4 Construção / operação", "Valor"], [["Área troca evaporador", evaporator.estimated_exchange_area_m2 ? `${fmt(evaporator.estimated_exchange_area_m2)} m2` : "—"], ["Volume interno evaporador", evaporator.corrected_internal_volume_l ? `${fmt(evaporator.corrected_internal_volume_l)} L` : evaporator.internal_volume_l ? `${fmt(evaporator.internal_volume_l)} L` : "—"], ["Volume interno condensador", condenser.corrected_internal_volume_l ? `${fmt(condenser.corrected_internal_volume_l)} L` : condenser.internal_volume_l ? `${fmt(condenser.internal_volume_l)} L` : "—"], ["Carga estimada refrigerante", evaporator.estimated_refrigerant_charge_kg || condenser.estimated_refrigerant_charge_kg ? `${fmt(Number(evaporator.estimated_refrigerant_charge_kg ?? 0) + Number(condenser.estimated_refrigerant_charge_kg ?? 0))} kg` : "—"], ["Condição da curva", `${fmt(perf.temperature_room_c)} °C sala / evap. ${fmt(perf.evaporation_temp_c)} °C / cond. ${fmt(perf.condensation_temp_c)} °C`], ["Garantia / assistência", "Conforme proposta comercial CN ColdPro"]], [0.42, 0.58]);
+}
+
+function drawFinalLaudo(ctx: Ctx, project: any, environments: any[], results: any[], selections: any[], aiAnalysis?: string | null) {
+  addPage(ctx);
+  heading(ctx, "Laudo final de análise técnica", 1);
+  paragraph(ctx, "LAUDO TÉCNICO E COMERCIAL DE ENGENHARIA FRIGORÍFICA", { size: 10, bold: true, gap: 4 });
+  drawKeyGrid(ctx, [["Projeto", project?.name ?? "—"], ["Aplicação", project?.application_type ?? "—"], ["Responsável técnico", "Engenharia CN ColdPro"], ["Revisão", String(project?.revision ?? 0)]], 2);
+  environments.forEach((env: any) => {
+    const r = results.find((item: any) => item.environment_id === env.id);
+    const s = selections.find((item: any) => item.environment_id === env.id);
+    const required = Number(r?.total_required_kcal_h ?? 0);
+    const offered = Number(s?.capacity_total_kcal_h ?? 0);
+    const status = selectionStatus(required, offered);
+    heading(ctx, env.name, 3);
+    paragraph(ctx, `1. Conclusão executiva: ambiente com carga requerida de ${fmt(required, 0)} kcal/h e capacidade ofertada de ${fmt(offered, 0)} kcal/h. Status: ${status.label}.`, { size: 8.5, bold: true, gap: 3 });
+    paragraph(ctx, `2. Validação das premissas: dimensões ${fmt(env.length_m)} x ${fmt(env.width_m)} x ${fmt(env.height_m)} m, volume ${fmt(env.volume_m3)} m3, regime ${fmt(env.internal_temp_c)} °C interno e ${fmt(env.external_temp_c)} °C externo.`, { size: 8.2, gap: 3 });
+    paragraph(ctx, `3. Análise de produto e mudança de estado: a parcela de produto representa ${fmt(r?.product_kcal_h, 0)} kcal/h; validar massa diária, temperatura de entrada, temperatura final, embalagem e tempo de processo.`, { size: 8.2, gap: 3 });
+    paragraph(ctx, `4. Comparação requerida x oferecida: ${status.note}`, { size: 8.2, gap: 3 });
+    paragraph(ctx, `5. Riscos e observações: revisar infiltração, abertura de portas, umidade externa, degelo, carga de ventiladores e operação real do compressor.`, { size: 8.2, gap: 3 });
+    paragraph(ctx, `6. Recomendação final: ${offered < required ? "selecionar equipamento maior ou múltiplas unidades." : ((offered - required) / Math.max(1, required)) * 100 > 50 ? "avaliar alternativa menor/modulante para evitar superdimensionamento." : "seleção tecnicamente aplicável, sujeita à validação das premissas de campo."}`, { size: 8.2, gap: 5 });
+  });
+  if (aiAnalysis) paragraph(ctx, `Análise complementar: ${aiAnalysis}`, { size: 8, gap: 4 });
+  paragraph(ctx, "Rodapé técnico: Engenheiro responsável: Engenharia CN ColdPro | Data: " + ctx.generatedAt + " | Status: emissão preliminar auditável.", { size: 7.5, color: COLORS.muted });
+}
+
 export async function buildColdProMemorialPdfBuffer({ project, environments, results, selections, products, generatedAt, generatedBy, aiAnalysis }: any): Promise<Uint8Array> {
   const pdf = await PDFDocument.create();
   const fonts = { regular: await pdf.embedFont(StandardFonts.Helvetica), bold: await pdf.embedFont(StandardFonts.HelveticaBold) };
