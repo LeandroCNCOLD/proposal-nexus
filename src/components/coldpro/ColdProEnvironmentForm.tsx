@@ -1,6 +1,8 @@
 import * as React from "react";
-import { Box, DraftingCompass, Grid3X3, Save, ShieldCheck, Thermometer } from "lucide-react";
+import { Box, DraftingCompass, Grid3X3, Layers, Plus, Save, ShieldCheck, Thermometer, Trash2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import {
   ColdProField,
   ColdProInput,
@@ -18,6 +20,7 @@ import {
 type Props = {
   environment: any;
   insulationMaterials: any[];
+  thermalMaterials?: any[];
   onSave: (patch: Record<string, unknown>) => void;
 };
 
@@ -100,6 +103,13 @@ function getWallLengths(layout: ChamberLayout, length: number, width: number, ge
   return Array.from({ length: count }, () => 0);
 }
 
+function calculateUValue(layers: any[]) {
+  const valid = layers.filter((layer) => toNumber(layer.thickness_m) > 0 && toNumber(layer.conductivity_w_mk) > 0);
+  const rLayers = valid.reduce((sum, layer) => sum + toNumber(layer.thickness_m) / toNumber(layer.conductivity_w_mk), 0);
+  const rTotal = 0.12 + rLayers + 0.08;
+  return rTotal > 0 ? 1 / rTotal : 0;
+}
+
 function normalizeFaces(value: unknown, layout: ChamberLayout, wallCount: number, length: number, width: number, height: number, geometry: Geometry) {
   const faces = Array.isArray(value) ? value : [];
   const floorArea = getFloorArea(layout, length, width, geometry, faces);
@@ -119,6 +129,10 @@ function normalizeFaces(value: unknown, layout: ChamberLayout, wallCount: number
       wall_height_m: wallHeight,
       material_thickness: existing.material_thickness ?? "",
       panel_area_m2: existing.panel_area_m2 ?? calculatedArea,
+      layers: Array.isArray(existing.layers) ? existing.layers : [],
+      u_value_w_m2k: existing.u_value_w_m2k ?? null,
+      transmission_w: existing.transmission_w ?? null,
+      transmission_kcal_h: existing.transmission_kcal_h ?? null,
       external_temp_c: existing.external_temp_c ?? null,
       solar_orientation: existing.solar_orientation ?? "",
       color: existing.color ?? "",
