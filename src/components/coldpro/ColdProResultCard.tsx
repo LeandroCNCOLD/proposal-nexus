@@ -63,6 +63,7 @@ export function ColdProResultCard({ result }: { result: any }) {
   const transmissionFaces = Array.isArray(result.calculation_breakdown?.transmission_faces) ? result.calculation_breakdown.transmission_faces : [];
   const transmissionSummary = result.calculation_breakdown?.transmission_summary ?? {};
   const tunnel = result.calculation_breakdown?.tunnel;
+  const productBreakdown = Array.isArray(result.calculation_breakdown?.products) ? result.calculation_breakdown.products : [];
   const bars = [
     { label: "Ambiente", value: result.transmission_kcal_h },
     { label: "Produtos", value: productTotal },
@@ -150,6 +151,30 @@ export function ColdProResultCard({ result }: { result: any }) {
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      ) : null}
+
+      {productBreakdown.length ? (
+        <div className="mt-5 rounded-xl border p-4">
+          <h4 className="mb-3 border-b pb-3 text-sm font-semibold">Base da carga de produto</h4>
+          <div className="space-y-3">
+            {productBreakdown.map((product: any, index: number) => (
+              <div key={`${product.product_name}-${index}`} className="rounded-lg bg-muted/30 p-3 text-sm">
+                <div className="mb-2 font-semibold">{product.product_name}</div>
+                <div className="grid grid-cols-2 gap-x-6 gap-y-1 md:grid-cols-4">
+                  <div>Modo: <b>{product.product_load_mode}</b></div>
+                  <div>Massa/dia: <b>{fmtColdPro(product.mass_kg_day)} kg</b></div>
+                  <div>Equivalente: <b>{fmtColdPro(product.hourly_movement_kg)} kg/h</b></div>
+                  <div>Tempo: <b>{fmtColdPro(product.recovery_time_h)} h</b></div>
+                  <div>Energia: <b>{fmtColdPro(product.total_energy_kcal)} kcal</b></div>
+                  <div>Carga: <b>{fmtColdPro(product.total_kcal_h)} kcal/h</b></div>
+                  <div>Giro: <b>{fmtColdPro(product.daily_turnover_percent)}%</b></div>
+                  <div>Estoque: <b>{fmtColdPro(product.stored_mass_kg)} kg</b></div>
+                </div>
+                {Array.isArray(product.warnings) && product.warnings.length ? <div className="mt-2 text-xs text-muted-foreground">{product.warnings.join(" ")}</div> : null}
+              </div>
+            ))}
           </div>
         </div>
       ) : null}
