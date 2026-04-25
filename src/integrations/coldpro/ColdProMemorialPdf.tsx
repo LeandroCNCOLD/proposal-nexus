@@ -189,6 +189,48 @@ function loadRows(result: any): Array<[string, number]> {
   return rows.filter(([, value]) => value > 0);
 }
 
+const PIE_COLORS = [COLORS.accent, COLORS.primary, "#4b9f86", "#d68b2d", "#8b5fbf", "#c54f5f", "#64748b", "#2f7aa3", "#7c8c2f", "#a15c38"];
+
+function polarToCartesian(cx: number, cy: number, radius: number, angleInDegrees: number) {
+  const angleInRadians = ((angleInDegrees - 90) * Math.PI) / 180;
+  return { x: cx + radius * Math.cos(angleInRadians), y: cy + radius * Math.sin(angleInRadians) };
+}
+
+function describeArc(cx: number, cy: number, radius: number, startAngle: number, endAngle: number) {
+  const start = polarToCartesian(cx, cy, radius, endAngle);
+  const end = polarToCartesian(cx, cy, radius, startAngle);
+  const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
+  return `M ${cx} ${cy} L ${start.x} ${start.y} A ${radius} ${radius} 0 ${largeArcFlag} 0 ${end.x} ${end.y} Z`;
+}
+
+function LoadPieChart({ result }: { result: any }) {
+  const rows = loadRows(result);
+  const total = rows.reduce((sum, [, value]) => sum + value, 0);
+  if (!rows.length || total <= 0) return null;
+  let angle = 0;
+  return (
+    <View style={styles.pieWrap}>
+      <Svg width={120} height={120} viewBox="0 0 120 120">
+        {rows.map(([label, value], index) => {
+          const slice = (value / total) * 360;
+          const path = describeArc(60, 60, 52, angle, angle + slice);
+          angle += slice;
+          return <Path key={label} d={path} fill={PIE_COLORS[index % PIE_COLORS.length]} />;
+        })}
+      </Svg>
+      <View style={styles.pieLegend}>
+        {rows.map(([label, value], index) => (
+          <View key={label} style={styles.legendRow}>
+            <View style={[styles.legendSwatch, { backgroundColor: PIE_COLORS[index % PIE_COLORS.length] }]} />
+            <Text style={styles.legendText}>{label}</Text>
+            <Text style={[styles.legendText, { textAlign: "right", flex: 0.9 }]}>{fmt((value / total) * 100, 1)}%</Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
 function LoadChart({ result }: { result: any }) {
   const rows = loadRows(result);
   const max = Math.max(1, ...rows.map(([, value]) => value));
