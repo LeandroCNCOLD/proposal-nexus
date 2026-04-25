@@ -766,6 +766,27 @@ export function calculateTunnelLoad(tunnel: ColdProTunnel) {
   };
 }
 
+function buildColdProValidationAlerts(env: ColdProEnvironment, products: any[], infiltration: any, defrostKcalH: number, fanLoad: any) {
+  const alerts: Array<{ level: "error" | "warning" | "info"; code: string; message: string }> = [];
+  if (env.relative_humidity_percent !== null && env.relative_humidity_percent !== undefined && n(env.relative_humidity_percent) <= 0) {
+    alerts.push({ level: "error", code: "internal_rh_zero", message: "UR interna igual a 0% é fisicamente inválida; use valor manual real ou deixe em branco para adotar a premissa automática." });
+  }
+  if (infiltration.doorAreaM2 > 0 && infiltration.doorOpeningsPerDay > 0 && infiltration.totalInfiltrationM3Day <= 0) {
+    alerts.push({ level: "warning", code: "door_without_infiltration", message: "Há porta e aberturas informadas, mas a infiltração calculada ficou zerada; revisar dimensões, tempo aberta e perfil operacional." });
+  }
+  if (n(env.internal_temp_c) < 0 && defrostKcalH <= 0) {
+    alerts.push({ level: "warning", code: "negative_room_without_defrost", message: "Câmara negativa com degelo equivalente zerado; revisar umidade, infiltração e premissas de degelo." });
+  }
+  for (const product of products) {
+    if (Math.abs(n(product.energy_consistency_delta_kcal)) > 1) alerts.push({ level: "error", code: "product_energy_inconsistent", message: `Carga de produto inconsistente em ${product.product_name}: soma das etapas difere do total.` });
+  }
+  if (n(env.motors_power_kw) > 0 && (env.motors_dissipation_factor === null || env.motors_dissipation_factor === undefined || n(env.motors_dissipation_factor) < 0 || n(env.motors_dissipation_factor) > 1)) {
+    alerts.push({ level: "warning", code: "motor_dissipation_invalid", message: "Motor informado sem fator de dissipação válido; use 100% interno, 30-70% parcial ou 0% externo." });
+  }
+  if (fanLoad.source === "unavailable") alerts.push({ level: "warning", code: "fans_unavailable", message: "Ventiladores do evaporador não calculados por falta de potência, seleção ou vazão de ar." });
+  return alerts;
+}
+
 export function calculateColdProLoad(params: {
   env: ColdProEnvironment;
   products: ColdProEnvironmentProduct[];
