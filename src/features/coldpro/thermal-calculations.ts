@@ -120,14 +120,16 @@ export function calculateMotorLoadKcalH(env: any) {
 }
 
 export const MOTOR_EQUIPMENT_PRESETS = [
-  { label: "Empilhadeira elétrica", powerKw: 4.5, dissipationFactor: 1 },
+  { label: "Empilhadeira elétrica", powerKw: 2.5, dissipationFactor: 1 },
   { label: "Transpaleteira elétrica", powerKw: 1.5, dissipationFactor: 1 },
   { label: "Paleteira manual elétrica", powerKw: 0.8, dissipationFactor: 1 },
+  { label: "Carregador de bateria interno", powerKw: 1.2, dissipationFactor: 1 },
   { label: "Esteira transportadora", powerKw: 0.75, dissipationFactor: 1 },
   { label: "Agitador / misturador", powerKw: 2.2, dissipationFactor: 1 },
   { label: "Bomba interna", powerKw: 1.1, dissipationFactor: 1 },
   { label: "Bomba de glicol interna", powerKw: 3, dissipationFactor: 1 },
   { label: "Ventilador auxiliar", powerKw: 0.55, dissipationFactor: 1 },
+  { label: "Resistência de dreno interna", powerKw: 0.3, dissipationFactor: 1 },
   { label: "Porta rápida motorizada", powerKw: 0.75, dissipationFactor: 0.35 },
   { label: "Motor parcialmente externo", powerKw: 2.2, dissipationFactor: 0.5 },
   { label: "Motor externo", powerKw: 2.2, dissipationFactor: 0 },
