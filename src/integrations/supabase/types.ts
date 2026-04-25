@@ -475,6 +475,7 @@ export type Database = {
       }
       coldpro_environments: {
         Row: {
+          atmospheric_pressure_kpa: number | null
           ceiling_thickness_mm: number
           chamber_layout_type: string | null
           coldpro_project_id: string
@@ -483,10 +484,17 @@ export type Database = {
           construction_load_kcal_h: number
           created_at: string
           defrost_kcal_h: number
+          dimension_a_m: number | null
+          dimension_b_m: number | null
+          dimension_c_m: number | null
+          dimension_d_m: number | null
+          dimension_e_m: number | null
+          dimension_f_m: number | null
           door_height_m: number
           door_openings_per_day: number
           door_width_m: number
           environment_type: string
+          external_relative_humidity_percent: number | null
           external_temp_c: number
           fans_kcal_h: number
           floor_temp_c: number | null
@@ -522,6 +530,7 @@ export type Database = {
           width_m: number
         }
         Insert: {
+          atmospheric_pressure_kpa?: number | null
           ceiling_thickness_mm?: number
           chamber_layout_type?: string | null
           coldpro_project_id: string
@@ -530,10 +539,17 @@ export type Database = {
           construction_load_kcal_h?: number
           created_at?: string
           defrost_kcal_h?: number
+          dimension_a_m?: number | null
+          dimension_b_m?: number | null
+          dimension_c_m?: number | null
+          dimension_d_m?: number | null
+          dimension_e_m?: number | null
+          dimension_f_m?: number | null
           door_height_m?: number
           door_openings_per_day?: number
           door_width_m?: number
           environment_type?: string
+          external_relative_humidity_percent?: number | null
           external_temp_c?: number
           fans_kcal_h?: number
           floor_temp_c?: number | null
@@ -569,6 +585,7 @@ export type Database = {
           width_m?: number
         }
         Update: {
+          atmospheric_pressure_kpa?: number | null
           ceiling_thickness_mm?: number
           chamber_layout_type?: string | null
           coldpro_project_id?: string
@@ -577,10 +594,17 @@ export type Database = {
           construction_load_kcal_h?: number
           created_at?: string
           defrost_kcal_h?: number
+          dimension_a_m?: number | null
+          dimension_b_m?: number | null
+          dimension_c_m?: number | null
+          dimension_d_m?: number | null
+          dimension_e_m?: number | null
+          dimension_f_m?: number | null
           door_height_m?: number
           door_openings_per_day?: number
           door_width_m?: number
           environment_type?: string
+          external_relative_humidity_percent?: number | null
           external_temp_c?: number
           fans_kcal_h?: number
           floor_temp_c?: number | null
