@@ -592,14 +592,16 @@ export async function buildColdProMemorialPdfBuffer({ project, environments, res
     if (selection) {
       heading(ctx, "Equipamento selecionado", 3);
       if (result) {
-        const offered = Number(selection.capacity_total_kcal_h ?? 0);
-        const required = Number(result.total_required_kcal_h ?? 0);
-        const margin = required > 0 ? ((offered - required) / required) * 100 : 0;
+        const audit = result.calculation_breakdown?.thermalCalculationResult ?? result.calculation_breakdown?.mathematical_audit;
+        const offered = Number(audit?.capacidade_total_corrigida ?? selection.capacity_total_kcal_h ?? 0);
+        const required = Number(audit?.carga_requerida_validada ?? result.total_required_kcal_h ?? 0);
+        const margin = Number(audit?.sobra_percentual ?? (required > 0 ? ((offered - required) / required) * 100 : 0));
         loadOfferChart(ctx, required, offered);
         paragraph(ctx, `Comparativo da câmara: carga requerida de ${fmt(required, 0)} kcal/h versus carga ofertada de ${fmt(offered, 0)} kcal/h. Margem operacional calculada: ${fmt(margin, 1)}%.`, { size: 8.5, bold: true, gap: 4 });
       }
       ensure(ctx, 96);
       table(ctx, ["Modelo", "Qtd.", "Cap. unit.", "Cap. total", "Sobra"], [[selection.model, fmt(selection.quantity), `${fmt(selection.capacity_unit_kcal_h, 0)} kcal/h`, `${fmt(selection.capacity_total_kcal_h, 0)} kcal/h`, `${fmt(selection.surplus_percent)}%`]], [0.34, 0.1, 0.18, 0.2, 0.18]);
+      if (result) drawDimensioningAudit(ctx, result, selection);
       const imageY = ctx.y - 84;
       ctx.page.drawRectangle({ x: A4[0] - M - 136, y: imageY - 6, width: 136, height: 92, color: COLORS.soft, borderColor: COLORS.border, borderWidth: 0.5 });
       const ok = await drawEquipmentImage(ctx, selection, A4[0] - M - 128, imageY + 2);
