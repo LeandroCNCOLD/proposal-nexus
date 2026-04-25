@@ -256,7 +256,7 @@ function ChamberShapePreview({ layout }: { layout: ChamberLayout }) {
   );
 }
 
-export function ColdProEnvironmentForm({ environment, insulationMaterials, onSave }: Props) {
+export function ColdProEnvironmentForm({ environment, insulationMaterials, thermalMaterials = [], onSave }: Props) {
   const [form, setForm] = React.useState<any>(environment);
   const [floorInsulationMaterialId, setFloorInsulationMaterialId] = React.useState<string>(environment?.insulation_material_id ?? "");
   const [panelMaterialKey, setPanelMaterialKey] = React.useState<string>(environment?.insulation_material_id ? `legacy:${environment.insulation_material_id}` : "");
@@ -297,8 +297,19 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, onSav
   const height = toNumber(form?.height_m);
   const geometry = React.useMemo(() => getGeometry(form?.construction_faces), [form?.construction_faces]);
   const constructionFaces = React.useMemo(() => normalizeFaces(form?.construction_faces, layout, wallCount, length, width, height, geometry), [form?.construction_faces, layout, wallCount, length, width, height, geometry]);
-  const selectedInsulation = insulationMaterials.find((item) => item.id === form?.insulation_material_id) ?? insulationMaterials[0];
-  const selectedFloorInsulation = insulationMaterials.find((item) => item.id === floorInsulationMaterialId) ?? selectedInsulation;
+  const insulationOptions = React.useMemo(() => {
+    const legacy = insulationMaterials.map((material) => normalizeInsulationOption(material, "legacy"));
+    const thermal = thermalMaterials.filter((material) => material.is_insulation).map((material) => normalizeInsulationOption(material, "thermal"));
+    const seen = new Set<string>();
+    return [...legacy, ...thermal].filter((material) => {
+      const key = material.name.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [insulationMaterials, thermalMaterials]);
+  const selectedInsulation = insulationOptions.find((item) => item.id === panelMaterialKey) ?? insulationOptions[0];
+  const selectedFloorInsulation = insulationOptions.find((item) => item.id === floorInsulationMaterialId) ?? selectedInsulation;
   const wallLayerInfo = describeLayer(makeInsulationLayer(selectedInsulation, form?.wall_thickness_mm));
   const ceilingLayerInfo = describeLayer(makeInsulationLayer(selectedInsulation, form?.ceiling_thickness_mm));
   const floorLayerInfo = describeLayer(makeInsulationLayer(selectedFloorInsulation, form?.floor_thickness_mm));
