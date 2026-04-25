@@ -188,6 +188,15 @@ function LoadChart({ result }: { result: any }) {
   return <View style={styles.chartBox}>{rows.map(([label, value]) => <View key={label} style={styles.chartRow}><Text style={styles.chartLabel}>{label}</Text><View style={styles.chartTrack}><View style={[styles.chartBar, { width: `${Math.max(3, (value / max) * 100)}%` }]} /></View><Text style={styles.chartValue}>{fmt(value, 0)} kcal/h</Text></View>)}</View>;
 }
 
+function TemperatureChart({ env }: { env: any }) {
+  const internal = Number(env?.internal_temp_c ?? 0);
+  const external = Number(env?.external_temp_c ?? 0);
+  const min = Math.min(internal, external, -40);
+  const max = Math.max(internal, external, 45);
+  const scale = (value: number) => `${Math.max(3, ((value - min) / Math.max(1, max - min)) * 100)}%`;
+  return <View style={styles.chartBox}><View style={styles.chartRow}><Text style={styles.chartLabel}>T interna</Text><View style={styles.chartTrack}><View style={[styles.chartBar, { width: scale(internal), backgroundColor: COLORS.primary }]} /></View><Text style={styles.chartValue}>{fmt(internal)} °C</Text></View><View style={styles.chartRow}><Text style={styles.chartLabel}>T externa</Text><View style={styles.chartTrack}><View style={[styles.chartBar, { width: scale(external), backgroundColor: COLORS.accent }]} /></View><Text style={styles.chartValue}>{fmt(external)} °C</Text></View></View>;
+}
+
 type Props = {
   project: any;
   environments: any[];
@@ -353,6 +362,7 @@ export function ColdProMemorialPdf({
               <Text style={styles.pill}>Compressor: {fmt(env.compressor_runtime_hours_day)} h/dia</Text>
               <Text style={styles.pill}>Aberturas porta: {fmt(env.door_openings_per_day)}/dia</Text>
             </View>
+            <TemperatureChart env={env} />
 
             {envProducts.length > 0 && (
               <>
