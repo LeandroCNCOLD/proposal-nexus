@@ -191,6 +191,69 @@ async function syncPersonContacts(args: { clientId: string; pessoaId: string; tr
   return count;
 }
 
+async function syncSellerItem(raw: Json): Promise<ProcessResult> {
+  const nomus_id = pickStr(raw, "id", "codigo", "idVendedor");
+  const name = pickStr(raw, "nome", "razaoSocial");
+  if (!nomus_id || !name) return "skip";
+  const { error } = await supabaseAdmin.from("nomus_sellers").upsert({
+    nomus_id, name,
+    email: pickStr(raw, "email"),
+    document: pickStr(raw, "cpf", "cnpj", "documento"),
+    raw: raw as never,
+    synced_at: new Date().toISOString(),
+    last_synced_at: new Date().toISOString(),
+    sync_status: "synced",
+  } as never, { onConflict: "nomus_id" });
+  if (error) throw new Error(error.message);
+  return "ok";
+}
+
+async function syncRepresentativeItem(raw: Json): Promise<ProcessResult> {
+  const nomus_id = pickStr(raw, "id", "codigo");
+  const name = pickStr(raw, "nome", "razaoSocial");
+  if (!nomus_id || !name) return "skip";
+  const { error } = await supabaseAdmin.from("nomus_representatives").upsert({
+    nomus_id, name,
+    email: pickStr(raw, "email"),
+    document: pickStr(raw, "cnpj", "cpf"),
+    region: pickStr(raw, "regiao", "uf"),
+    raw: raw as never,
+    synced_at: new Date().toISOString(),
+    last_synced_at: new Date().toISOString(),
+    sync_status: "synced",
+  } as never, { onConflict: "nomus_id" });
+  if (error) throw new Error(error.message);
+  return "ok";
+}
+
+async function syncProductItem(raw: Json, syncRunId: string | null): Promise<ProcessResult> {
+  const nomus_id = pickStr(raw, "id", "codigo", "idProduto");
+  const model = pickStr(raw, "codigo", "modelo", "descricao");
+  if (!nomus_id || !model) {
+    await quarantineSyncRow({ syncRunId, entityType: "produtos", externalId: nomus_id, errorCode: !nomus_id ? "MISSING_EXTERNAL_ID" : "MISSING_REQUIRED_FIELD", reason: "Produto sem ID ou modelo", rawPayload: raw });
+    return "quarantined";
+  }
+  const normalizedModel = normalizeModel(model);
+  const normalizedModelCode = normalizeCnColdModelCode(model);
+  const syncHash = await hashNormalizedPayload({ nomus_id, model, normalizedModel, normalizedModelCode });
+  let { data: existing } = await supabaseAdmin.from("equipments").select("id, sync_hash").eq("nomus_id", nomus_id).maybeSingle();
+  let matchType: "exact_model" | "normalized_model" | "normalized_model_code" | "unmatched" = "exact_model";
+  if (!existing) existing = (await supabaseAdmin.from("equipments").select("id, sync_hash").eq("model", model).maybeSingle()).data;
+  if (!existing && normalizedModel) { existing = (await supabaseAdmin.from("equipments").select("id, sync_hash").eq("normalized_model", normalizedModel).maybeSingle()).data; matchType = "normalized_model"; }
+  if (!existing && normalizedModelCode) { existing = (await supabaseAdmin.from("equipments").select("id, sync_hash").eq("normalized_model_code", normalizedModelCode).maybeSingle()).data; matchType = "normalized_model_code"; }
+  if (!existing) {
+    await supabaseAdmin.from("nomus_product_equipment_links").upsert({ nomus_product_id: nomus_id, equipment_id: null, match_type: "unmatched", confidence_score: 0 }, { onConflict: "nomus_product_id" });
+    await recordPendingIssue({ syncRunId, entityType: "produtos", issueType: "unmatched_equipment", externalId: nomus_id, title: "Produto Nomus sem equipamento vinculado", payload: { model, normalizedModel, normalizedModelCode } });
+    await quarantineSyncRow({ syncRunId, entityType: "produtos", externalId: nomus_id, errorCode: "UNMATCHED_EQUIPMENT", reason: "Produto sem equipamento correspondente", rawPayload: raw, normalizedPayload: { model, normalizedModel, normalizedModelCode } });
+    return "unmatched";
+  }
+  if ((existing as { sync_hash?: string | null }).sync_hash === syncHash) return "no_change";
+  const { error } = await supabaseAdmin.from("equipments").update({ nomus_id, nomus_synced_at: new Date().toISOString(), last_synced_at: new Date().toISOString(), external_updated_at: pickExternalUpdatedAt(raw), sync_hash: syncHash, normalized_model_code: normalizedModelCode, sync_status: "synced", last_sync_run_id: syncRunId }).eq("id", (existing as { id: string }).id);
+  if (error) throw new Error(error.message);
+  await supabaseAdmin.from("nomus_product_equipment_links").upsert({ nomus_product_id: nomus_id, equipment_id: (existing as { id: string }).id, match_type: matchType, confidence_score: matchType === "exact_model" ? 1 : 0.92 }, { onConflict: "nomus_product_id" });
+  return "ok";
+}
+
 async function setState(entity: string, patch: Record<string, unknown>) {
   await supabaseAdmin.from("nomus_sync_state").upsert({
     entity,
