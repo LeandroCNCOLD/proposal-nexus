@@ -33,8 +33,9 @@ const defaultTunnel = (environmentId: string) => ({
   other_internal_kw: 0,
 });
 
-export function ColdProTunnelForm({ environmentId, tunnel, onSave }: { environmentId: string; tunnel?: any; onSave: (data: any) => void }) {
+export function ColdProTunnelForm({ environmentId, tunnel, productCatalog = [], onSave }: { environmentId: string; tunnel?: any; productCatalog?: any[]; onSave: (data: any) => void }) {
   const [form, setForm] = React.useState<any>(defaultTunnel(environmentId));
+  const [selectedGroup, setSelectedGroup] = React.useState("");
 
   React.useEffect(() => setForm((prev: any) => ({ ...prev, ...(tunnel ?? {}), environment_id: environmentId })), [environmentId, tunnel?.id]);
 
@@ -47,6 +48,41 @@ export function ColdProTunnelForm({ environmentId, tunnel, onSave }: { environme
   const velocityWarning = Number(form.air_velocity_m_s ?? 0) <= 0 || Number(form.air_velocity_m_s ?? 0) > 10;
   const requiredError = String(form.product_name ?? "").trim().length === 0;
   const canSave = !processError && !requiredError;
+  const groups = React.useMemo(() => Array.from(new Set(productCatalog.map((p) => p.category).filter(Boolean))).sort((a, b) => String(a).localeCompare(String(b), "pt-BR")), [productCatalog]);
+  const filteredProducts = React.useMemo(() => productCatalog.filter((p) => !selectedGroup || p.category === selectedGroup), [productCatalog, selectedGroup]);
+  const applyProduct = (id: string) => {
+    const p = productCatalog.find((item) => item.id === id);
+    if (!p) return;
+    setForm((prev: any) => ({
+      ...prev,
+      product_id: p.id,
+      product_name: p.name,
+      freezing_temp_c: p.initial_freezing_temp_c ?? prev.freezing_temp_c,
+      density_kg_m3: p.density_kg_m3 ?? prev.density_kg_m3,
+      specific_heat_above_kj_kg_k: p.specific_heat_above_kj_kg_k ?? null,
+      specific_heat_below_kj_kg_k: p.specific_heat_below_kj_kg_k ?? null,
+      specific_heat_above_kcal_kg_c: Number(p.specific_heat_above_kcal_kg_c ?? prev.specific_heat_above_kcal_kg_c),
+      specific_heat_below_kcal_kg_c: Number(p.specific_heat_below_kcal_kg_c ?? prev.specific_heat_below_kcal_kg_c),
+      latent_heat_kj_kg: p.latent_heat_kj_kg ?? null,
+      latent_heat_kcal_kg: Number(p.latent_heat_kcal_kg ?? prev.latent_heat_kcal_kg),
+      thermal_conductivity_unfrozen_w_m_k: p.thermal_conductivity_unfrozen_w_m_k ?? null,
+      thermal_conductivity_frozen_w_m_k: p.thermal_conductivity_frozen_w_m_k ?? prev.thermal_conductivity_frozen_w_m_k,
+      water_content_percent: p.water_content_percent ?? null,
+      protein_content_percent: p.protein_content_percent ?? null,
+      fat_content_percent: p.fat_content_percent ?? null,
+      carbohydrate_content_percent: p.carbohydrate_content_percent ?? null,
+      fiber_content_percent: p.fiber_content_percent ?? null,
+      ash_content_percent: p.ash_content_percent ?? null,
+      frozen_water_fraction: p.frozen_water_fraction ?? null,
+      freezable_water_content_percent: p.freezable_water_content_percent ?? null,
+      respiration_rate_0c_mw_kg: p.respiration_rate_0c_mw_kg ?? null,
+      respiration_rate_5c_mw_kg: p.respiration_rate_5c_mw_kg ?? null,
+      respiration_rate_10c_mw_kg: p.respiration_rate_10c_mw_kg ?? null,
+      respiration_rate_15c_mw_kg: p.respiration_rate_15c_mw_kg ?? null,
+      respiration_rate_20c_mw_kg: p.respiration_rate_20c_mw_kg ?? null,
+      notes: p.notes ?? null,
+    }));
+  };
 
   return (
     <div className="rounded-xl border bg-background p-5 shadow-sm">
