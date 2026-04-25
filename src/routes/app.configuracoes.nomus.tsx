@@ -148,9 +148,44 @@ function NomusPage() {
               {testing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlugZap className="mr-2 h-4 w-4" />}
               Testar conexão
             </Button>
+            <select
+              className="h-9 rounded-md border bg-background px-2 text-sm"
+              value={syncWindow}
+              onChange={(event) => setSyncWindow(event.target.value as "7d" | "30d" | "all")}
+            >
+              <option value="7d">Últimos 7 dias</option>
+              <option value="30d">Últimos 30 dias</option>
+              <option value="all">Tudo</option>
+            </select>
+            <Button
+              onClick={() => runSync("sync_geral", "Sync geral", () => syncAll({ data: { window: syncWindow } }) as Promise<SyncFnResult>)}
+              disabled={syncing === "sync_geral"}
+            >
+              {syncing === "sync_geral" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+              Sync geral
+            </Button>
           </div>
         }
       />
+
+      <div className="mb-6 grid gap-3 md:grid-cols-4">
+        <div className="rounded-xl border bg-card p-4 shadow-[var(--shadow-sm)]">
+          <div className="text-xs text-muted-foreground">Última sync OK</div>
+          <div className="mt-1 text-lg font-semibold">{state.filter((s) => s.last_synced_at && !s.last_error).length}</div>
+        </div>
+        <div className="rounded-xl border bg-card p-4 shadow-[var(--shadow-sm)]">
+          <div className="text-xs text-muted-foreground">Rodando agora</div>
+          <div className="mt-1 text-lg font-semibold">{state.filter((s) => s.running).length}</div>
+        </div>
+        <div className="rounded-xl border bg-card p-4 shadow-[var(--shadow-sm)]">
+          <div className="text-xs text-muted-foreground">Pendências abertas</div>
+          <div className="mt-1 text-lg font-semibold">{pendingIssues.length}</div>
+        </div>
+        <div className="rounded-xl border bg-card p-4 shadow-[var(--shadow-sm)]">
+          <div className="text-xs text-muted-foreground">Checkpoints</div>
+          <div className="mt-1 text-lg font-semibold">{checkpoints.length}</div>
+        </div>
+      </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Settings */}
