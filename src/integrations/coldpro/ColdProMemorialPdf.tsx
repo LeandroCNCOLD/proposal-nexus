@@ -384,6 +384,7 @@ export function ColdProMemorialPdf({
             {result && (
               <>
                 <Text style={styles.h3}>Decomposição da carga térmica</Text>
+                <LoadChart result={result} />
                 <View style={styles.table}>
                   {[
                     ["Transmissão (paredes/teto/piso)", result.transmission_kcal_h],
@@ -447,6 +448,8 @@ export function ColdProMemorialPdf({
             {selection && (
               <>
                 <Text style={styles.h3}>Equipamento selecionado</Text>
+                <View style={styles.twoCol}>
+                  <View style={styles.flexGrow}>
                 <View style={styles.table}>
                   <View style={styles.tr}>
                     <Text style={[styles.th, { flex: 2 }]}>Modelo</Text>
@@ -461,6 +464,11 @@ export function ColdProMemorialPdf({
                     <Text style={[styles.td, styles.tdRight]}>{fmt(selection.capacity_unit_kcal_h, 0)} kcal/h</Text>
                     <Text style={[styles.td, styles.tdRight]}>{fmt(selection.capacity_total_kcal_h, 0)} kcal/h</Text>
                     <Text style={[styles.td, styles.tdRight, { borderRightWidth: 0 }]}>{fmt(selection.surplus_percent)}%</Text>
+                  </View>
+                </View>
+                  </View>
+                  <View style={styles.imageWrap}>
+                    {selection.equipment_image_url ? <Image src={selection.equipment_image_url} style={styles.equipmentImage} /> : <Text style={[styles.p, { color: COLORS.muted, textAlign: "center" }]}>Foto do equipamento não cadastrada</Text>}
                   </View>
                 </View>
                 <View style={[styles.pillRow, { marginTop: 6 }]}>
