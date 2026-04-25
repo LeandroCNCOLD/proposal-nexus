@@ -23,6 +23,8 @@ export type NomusFetchOptions = {
   /** "pull" | "push" | "test" */
   direction?: "pull" | "push" | "test";
   triggeredBy?: string | null;
+  retryAfterSeconds?: number;
+  backoffMultiplier?: number;
 };
 
 const DEBUG = String(process.env.NOMUS_DEBUG ?? "").toLowerCase() === "true";
@@ -179,6 +181,8 @@ export async function nomusFetch<T = unknown>(
 
   const maxAttempts = opts.maxAttempts ?? 3;
   const timeoutMs = opts.timeoutMs ?? REQUEST_TIMEOUT_MS;
+  const retryAfterSeconds = opts.retryAfterSeconds ?? 2;
+  const backoffMultiplier = opts.backoffMultiplier ?? 2;
   let attempt = 0;
   let lastErr: string | null = null;
   let lastStatus = 0;
@@ -205,7 +209,7 @@ export async function nomusFetch<T = unknown>(
 
       if (res.status === 429) {
         const retryHeader = res.headers.get("tempoAteLiberar") || res.headers.get("retry-after");
-        const wait = Math.min(Number(retryHeader) || 2 * attempt, 15) * 1000;
+        const wait = Math.min(Number(retryHeader) || retryAfterSeconds * Math.pow(backoffMultiplier, attempt - 1), 60) * 1000;
         lastErr = `Nomus limitou as requisições (429). Tente novamente em alguns segundos.`;
         await logCall({
           entity, operation, direction,
@@ -242,7 +246,7 @@ export async function nomusFetch<T = unknown>(
         });
         if (DEBUG) console.error(`[nomus] error response:`, parsed);
         if (res.status >= 500 && attempt < maxAttempts) {
-          await new Promise((r) => setTimeout(r, 500 * attempt));
+          await new Promise((r) => setTimeout(r, retryAfterSeconds * Math.pow(backoffMultiplier, attempt - 1) * 1000));
           continue;
         }
         return { ok: false, error: lastErr, status: res.status };
@@ -273,7 +277,7 @@ export async function nomusFetch<T = unknown>(
       });
       if (DEBUG) console.error(`[nomus] network error:`, lastErr);
       if (attempt < maxAttempts) {
-        await new Promise((r) => setTimeout(r, 500 * attempt));
+        await new Promise((r) => setTimeout(r, retryAfterSeconds * Math.pow(backoffMultiplier, attempt - 1) * 1000));
         continue;
       }
     }
