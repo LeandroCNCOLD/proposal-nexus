@@ -447,17 +447,7 @@ export function ColdProMemorialPdf({
               <Text style={styles.envHeaderMeta}>{env.environment_type}</Text>
             </View>
 
-            <Text style={styles.h3}>Dados do ambiente</Text>
-            <View style={styles.pillRow}>
-              <Text style={styles.pill}>Dim.: {fmt(env.length_m)} × {fmt(env.width_m)} × {fmt(env.height_m)} m</Text>
-              <Text style={styles.pill}>Volume: {fmt(env.volume_m3)} m³</Text>
-              <Text style={styles.pill}>T int: {fmt(env.internal_temp_c)} °C</Text>
-              <Text style={styles.pill}>T ext: {fmt(env.external_temp_c)} °C</Text>
-              <Text style={styles.pill}>UR: {fmt(env.relative_humidity_percent)}%</Text>
-              <Text style={styles.pill}>Painel: {fmt(env.wall_thickness_mm)} mm</Text>
-              <Text style={styles.pill}>Compressor: {fmt(env.compressor_runtime_hours_day)} h/dia</Text>
-              <Text style={styles.pill}>Aberturas porta: {fmt(env.door_openings_per_day)}/dia</Text>
-            </View>
+            <EnvironmentPremises env={env} products={envProducts} />
             <TemperatureChart env={env} />
 
             {envProducts.length > 0 && (
@@ -489,7 +479,12 @@ export function ColdProMemorialPdf({
 
             {result && (
               <>
-                <Text style={styles.h3}>Decomposição da carga térmica</Text>
+                <Text style={styles.h3}>2. Cálculo executado</Text>
+                <Text style={styles.calculationText}>
+                  O cálculo considera as trocas térmicas pela envoltória, a retirada de calor do produto e embalagem,
+                  a entrada de ar por infiltração, as cargas internas de pessoas, iluminação, motores, ventiladores,
+                  degelo e demais fontes informadas para o ambiente.
+                </Text>
                 <LoadChart result={result} />
                 <View style={styles.table}>
                   {[
@@ -531,7 +526,8 @@ export function ColdProMemorialPdf({
                   </>
                 ) : null}
 
-                <View style={[styles.kpiRow, { marginTop: 8 }]}>
+                <Text style={styles.h3}>3. Resultado do dimensionamento</Text>
+                <View style={[styles.kpiRow, { marginTop: 8 }]}> 
                   <View style={styles.kpiBox}>
                     <Text style={styles.kpiLabel}>Subtotal</Text>
                     <Text style={styles.kpiValue}>{fmt(result.subtotal_kcal_h, 0)}</Text>
