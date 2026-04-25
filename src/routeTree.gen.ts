@@ -13,7 +13,6 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppIndexRouteImport } from './routes/app.index'
-import { Route as HooksNomusCronRouteImport } from './routes/hooks/nomus-cron'
 import { Route as AppTarefasRouteImport } from './routes/app.tarefas'
 import { Route as AppSeletorRouteImport } from './routes/app.seletor'
 import { Route as AppRelatoriosRouteImport } from './routes/app.relatorios'
@@ -46,6 +45,7 @@ import { Route as ApiPublicNomusTabelaPrecoProbeRouteImport } from './routes/api
 import { Route as ApiPublicNomusTabelaPrecoDeepProbeRouteImport } from './routes/api.public.nomus.tabela-preco-deep-probe'
 import { Route as ApiPublicNomusProdutoProbeRouteImport } from './routes/api.public.nomus.produto-probe'
 import { Route as ApiPublicNomusExhaustiveProbeRouteImport } from './routes/api.public.nomus.exhaustive-probe'
+import { Route as ApiPublicHooksNomusCronRouteImport } from './routes/api.public.hooks.nomus-cron'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -66,11 +66,6 @@ const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AppRoute,
-} as any)
-const HooksNomusCronRoute = HooksNomusCronRouteImport.update({
-  id: '/hooks/nomus-cron',
-  path: '/hooks/nomus-cron',
-  getParentRoute: () => rootRouteImport,
 } as any)
 const AppTarefasRoute = AppTarefasRouteImport.update({
   id: '/tarefas',
@@ -240,6 +235,11 @@ const ApiPublicNomusExhaustiveProbeRoute =
     path: '/api/public/nomus/exhaustive-probe',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksNomusCronRoute = ApiPublicHooksNomusCronRouteImport.update({
+  id: '/api/public/hooks/nomus-cron',
+  path: '/api/public/hooks/nomus-cron',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -256,7 +256,6 @@ export interface FileRoutesByFullPath {
   '/app/relatorios': typeof AppRelatoriosRoute
   '/app/seletor': typeof AppSeletorRoute
   '/app/tarefas': typeof AppTarefasRoute
-  '/hooks/nomus-cron': typeof HooksNomusCronRoute
   '/app/': typeof AppIndexRoute
   '/api/nomus/test': typeof ApiNomusTestRoute
   '/app/coldpro/$id': typeof AppColdproIdRoute
@@ -270,6 +269,7 @@ export interface FileRoutesByFullPath {
   '/app/coldpro/': typeof AppColdproIndexRoute
   '/app/configuracoes/': typeof AppConfiguracoesIndexRoute
   '/app/propostas/': typeof AppPropostasIndexRoute
+  '/api/public/hooks/nomus-cron': typeof ApiPublicHooksNomusCronRoute
   '/api/public/nomus/exhaustive-probe': typeof ApiPublicNomusExhaustiveProbeRoute
   '/api/public/nomus/produto-probe': typeof ApiPublicNomusProdutoProbeRoute
   '/api/public/nomus/tabela-preco-deep-probe': typeof ApiPublicNomusTabelaPrecoDeepProbeRoute
@@ -293,7 +293,6 @@ export interface FileRoutesByTo {
   '/app/relatorios': typeof AppRelatoriosRoute
   '/app/seletor': typeof AppSeletorRoute
   '/app/tarefas': typeof AppTarefasRoute
-  '/hooks/nomus-cron': typeof HooksNomusCronRoute
   '/app': typeof AppIndexRoute
   '/api/nomus/test': typeof ApiNomusTestRoute
   '/app/coldpro/$id': typeof AppColdproIdRoute
@@ -306,6 +305,7 @@ export interface FileRoutesByTo {
   '/app/coldpro': typeof AppColdproIndexRoute
   '/app/configuracoes': typeof AppConfiguracoesIndexRoute
   '/app/propostas': typeof AppPropostasIndexRoute
+  '/api/public/hooks/nomus-cron': typeof ApiPublicHooksNomusCronRoute
   '/api/public/nomus/exhaustive-probe': typeof ApiPublicNomusExhaustiveProbeRoute
   '/api/public/nomus/produto-probe': typeof ApiPublicNomusProdutoProbeRoute
   '/api/public/nomus/tabela-preco-deep-probe': typeof ApiPublicNomusTabelaPrecoDeepProbeRoute
@@ -332,7 +332,6 @@ export interface FileRoutesById {
   '/app/relatorios': typeof AppRelatoriosRoute
   '/app/seletor': typeof AppSeletorRoute
   '/app/tarefas': typeof AppTarefasRoute
-  '/hooks/nomus-cron': typeof HooksNomusCronRoute
   '/app/': typeof AppIndexRoute
   '/api/nomus/test': typeof ApiNomusTestRoute
   '/app/coldpro/$id': typeof AppColdproIdRoute
@@ -346,6 +345,7 @@ export interface FileRoutesById {
   '/app/coldpro/': typeof AppColdproIndexRoute
   '/app/configuracoes/': typeof AppConfiguracoesIndexRoute
   '/app/propostas/': typeof AppPropostasIndexRoute
+  '/api/public/hooks/nomus-cron': typeof ApiPublicHooksNomusCronRoute
   '/api/public/nomus/exhaustive-probe': typeof ApiPublicNomusExhaustiveProbeRoute
   '/api/public/nomus/produto-probe': typeof ApiPublicNomusProdutoProbeRoute
   '/api/public/nomus/tabela-preco-deep-probe': typeof ApiPublicNomusTabelaPrecoDeepProbeRoute
@@ -373,7 +373,6 @@ export interface FileRouteTypes {
     | '/app/relatorios'
     | '/app/seletor'
     | '/app/tarefas'
-    | '/hooks/nomus-cron'
     | '/app/'
     | '/api/nomus/test'
     | '/app/coldpro/$id'
@@ -387,6 +386,7 @@ export interface FileRouteTypes {
     | '/app/coldpro/'
     | '/app/configuracoes/'
     | '/app/propostas/'
+    | '/api/public/hooks/nomus-cron'
     | '/api/public/nomus/exhaustive-probe'
     | '/api/public/nomus/produto-probe'
     | '/api/public/nomus/tabela-preco-deep-probe'
@@ -410,7 +410,6 @@ export interface FileRouteTypes {
     | '/app/relatorios'
     | '/app/seletor'
     | '/app/tarefas'
-    | '/hooks/nomus-cron'
     | '/app'
     | '/api/nomus/test'
     | '/app/coldpro/$id'
@@ -423,6 +422,7 @@ export interface FileRouteTypes {
     | '/app/coldpro'
     | '/app/configuracoes'
     | '/app/propostas'
+    | '/api/public/hooks/nomus-cron'
     | '/api/public/nomus/exhaustive-probe'
     | '/api/public/nomus/produto-probe'
     | '/api/public/nomus/tabela-preco-deep-probe'
@@ -448,7 +448,6 @@ export interface FileRouteTypes {
     | '/app/relatorios'
     | '/app/seletor'
     | '/app/tarefas'
-    | '/hooks/nomus-cron'
     | '/app/'
     | '/api/nomus/test'
     | '/app/coldpro/$id'
@@ -462,6 +461,7 @@ export interface FileRouteTypes {
     | '/app/coldpro/'
     | '/app/configuracoes/'
     | '/app/propostas/'
+    | '/api/public/hooks/nomus-cron'
     | '/api/public/nomus/exhaustive-probe'
     | '/api/public/nomus/produto-probe'
     | '/api/public/nomus/tabela-preco-deep-probe'
@@ -477,8 +477,8 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
-  HooksNomusCronRoute: typeof HooksNomusCronRoute
   ApiNomusTestRoute: typeof ApiNomusTestRoute
+  ApiPublicHooksNomusCronRoute: typeof ApiPublicHooksNomusCronRoute
   ApiPublicNomusExhaustiveProbeRoute: typeof ApiPublicNomusExhaustiveProbeRoute
   ApiPublicNomusProdutoProbeRoute: typeof ApiPublicNomusProdutoProbeRoute
   ApiPublicNomusTabelaPrecoDeepProbeRoute: typeof ApiPublicNomusTabelaPrecoDeepProbeRoute
@@ -514,13 +514,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/app/'
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
-    }
-    '/hooks/nomus-cron': {
-      id: '/hooks/nomus-cron'
-      path: '/hooks/nomus-cron'
-      fullPath: '/hooks/nomus-cron'
-      preLoaderRoute: typeof HooksNomusCronRouteImport
-      parentRoute: typeof rootRouteImport
     }
     '/app/tarefas': {
       id: '/app/tarefas'
@@ -746,6 +739,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicNomusExhaustiveProbeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/nomus-cron': {
+      id: '/api/public/hooks/nomus-cron'
+      path: '/api/public/hooks/nomus-cron'
+      fullPath: '/api/public/hooks/nomus-cron'
+      preLoaderRoute: typeof ApiPublicHooksNomusCronRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -857,8 +857,8 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
-  HooksNomusCronRoute: HooksNomusCronRoute,
   ApiNomusTestRoute: ApiNomusTestRoute,
+  ApiPublicHooksNomusCronRoute: ApiPublicHooksNomusCronRoute,
   ApiPublicNomusExhaustiveProbeRoute: ApiPublicNomusExhaustiveProbeRoute,
   ApiPublicNomusProdutoProbeRoute: ApiPublicNomusProdutoProbeRoute,
   ApiPublicNomusTabelaPrecoDeepProbeRoute:
