@@ -359,6 +359,89 @@ export const nomusSyncClients = createServerFn({ method: "POST" })
     }
   });
 
+export const nomusCreateClient = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: Json) => input)
+  .handler(async ({ data, context }) => {
+    const userId = (context as { userId?: string }).userId ?? null;
+    const name = pickStr(data, "name", "nome", "razaoSocial");
+    if (!name) return { ok: false as const, error: "Informe o nome/razão social do cliente." };
+
+    const payload = cleanPayload({
+      nome: name,
+      razaoSocial: pickStr(data, "razaoSocial", "legal_name") ?? name,
+      nomeFantasia: pickStr(data, "trade_name", "nomeFantasia"),
+      cnpj: pickStr(data, "cnpj", "document"),
+      cpf: pickStr(data, "cpf"),
+      inscricaoEstadual: pickStr(data, "state_registration", "inscricaoEstadual"),
+      situacaoEstadual: pickStr(data, "state_registration_status", "situacaoEstadual"),
+      inscricaoMunicipal: pickStr(data, "municipal_registration", "inscricaoMunicipal"),
+      tipoPessoa: toOptionalNumber(data.tipoPessoa),
+      tipoContribuinteICMS: toOptionalNumber(data.tipoContribuinteICMS),
+      crt: toOptionalNumber(data.crt),
+      email: pickStr(data, "email"),
+      telefone: pickStr(data, "phone", "telefone"),
+      site: pickStr(data, "website", "site"),
+      cep: pickStr(data, "zip_code", "cep"),
+      endereco: pickStr(data, "address", "endereco"),
+      numero: pickStr(data, "address_number", "numero"),
+      complemento: pickStr(data, "address_complement", "complemento"),
+      bairro: pickStr(data, "district", "bairro"),
+      municipio: pickStr(data, "city", "municipio"),
+      uf: pickStr(data, "state", "uf"),
+      pais: pickStr(data, "country", "pais") ?? "BRASIL",
+      codigoIBGEMunicipio: pickStr(data, "codigoIBGEMunicipio"),
+      cnaePrincipal: pickStr(data, "segment", "cnaePrincipal"),
+      classificacao: pickStr(data, "classification", "classificacao"),
+      regiao: pickStr(data, "region", "regiao"),
+      observacoes: pickStr(data, "notes", "observacoes"),
+      ativo: true,
+    });
+
+    const res = await nomusFetch<Json>(NOMUS_ENDPOINTS.clientes, {
+      method: "POST",
+      body: payload,
+      entity: "clientes",
+      operation: "create",
+      direction: "push",
+      triggeredBy: userId,
+      timeoutMs: 12_000,
+      maxAttempts: 1,
+    });
+    if (!res.ok) return { ok: false as const, error: res.error };
+
+    const nomus_id = pickStr(res.data, "id", "codigo", "idCliente", "idPessoa") ?? pickStr(payload, "codigo");
+    const localPayload = {
+      nomus_id,
+      name,
+      trade_name: pickStr(data, "trade_name", "nomeFantasia"),
+      document: pickStr(data, "cnpj", "document") ?? pickStr(data, "cpf"),
+      email: pickStr(data, "email"),
+      phone: pickStr(data, "phone", "telefone"),
+      website: pickStr(data, "website", "site"),
+      zip_code: pickStr(data, "zip_code", "cep"),
+      address: pickStr(data, "address", "endereco"),
+      address_number: pickStr(data, "address_number", "numero"),
+      address_complement: pickStr(data, "address_complement", "complemento"),
+      district: pickStr(data, "district", "bairro"),
+      city: pickStr(data, "city", "municipio"),
+      state: pickStr(data, "state", "uf"),
+      country: pickStr(data, "country", "pais") ?? "BRASIL",
+      segment: pickStr(data, "segment", "cnaePrincipal"),
+      region: pickStr(data, "region", "regiao"),
+      state_registration: pickStr(data, "state_registration", "inscricaoEstadual"),
+      municipal_registration: pickStr(data, "municipal_registration", "inscricaoMunicipal"),
+      notes: pickStr(data, "notes", "observacoes"),
+      origin: "nomus",
+      created_by: userId,
+      nomus_raw: { ...payload, ...(res.data as Json) } as never,
+      nomus_synced_at: new Date().toISOString(),
+    };
+    const { error } = await supabaseAdmin.from("clients").upsert(localPayload, nomus_id ? { onConflict: "nomus_id" } : undefined);
+    if (error) return { ok: false as const, error: error.message };
+    return { ok: true as const, nomus_id };
+  });
+
 /** Pull products and map to equipments via nomus_id. NÃO cria equipments automaticamente. */
 export const nomusSyncProducts = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
