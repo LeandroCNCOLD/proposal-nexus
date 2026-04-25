@@ -389,9 +389,10 @@ export function calculateTunnelLoad(tunnel: ColdProTunnel) {
   const tin = n(tunnel.inlet_temp_c);
   const tout = n(tunnel.outlet_temp_c);
   const tfreeze = tunnel.freezing_temp_c;
-  const cpAbove = n(tunnel.specific_heat_above_kcal_kg_c);
-  const cpBelow = n(tunnel.specific_heat_below_kcal_kg_c);
-  const latent = n(tunnel.latent_heat_kcal_kg);
+  const cpAbove = thermalValueKcal(tunnel.specific_heat_above_kcal_kg_c, tunnel.specific_heat_above_kj_kg_k);
+  const cpBelow = thermalValueKcal(tunnel.specific_heat_below_kcal_kg_c, tunnel.specific_heat_below_kj_kg_k);
+  const latent = thermalValueKcal(tunnel.latent_heat_kcal_kg, tunnel.latent_heat_kj_kg);
+  const frozenFraction = waterFreezeFraction(tunnel);
   const thicknessM = n(tunnel.product_thickness_mm) / 1000;
   const convectiveCoefficient = calculateConvectionCoefficient(tunnel.air_velocity_m_s, tunnel.convective_coefficient_w_m2_k);
   const estimatedFreezingTimeMin = estimateFreezingTimePlankMin({
@@ -411,7 +412,7 @@ export function calculateTunnelLoad(tunnel: ColdProTunnel) {
 
   if (tunnel.tunnel_type === "blast_freezer" && tfreeze !== null && tfreeze !== undefined && tin > tfreeze && tout < tfreeze) {
     sensibleAbove = massHour * cpAbove * positive(tin - tfreeze);
-    latentLoad = massHour * latent;
+    latentLoad = massHour * latent * frozenFraction;
     sensibleBelow = massHour * cpBelow * positive(tfreeze - tout);
   } else {
     const cp = tin >= 0 && tout >= 0 ? cpAbove : cpBelow || cpAbove;
@@ -430,6 +431,18 @@ export function calculateTunnelLoad(tunnel: ColdProTunnel) {
     sensible_above_kcal_h: round2(sensibleAbove),
     latent_kcal_h: round2(latentLoad),
     sensible_below_kcal_h: round2(sensibleBelow),
+    cp_above_kcal_kg_c: round2(cpAbove),
+    cp_below_kcal_kg_c: round2(cpBelow),
+    latent_heat_kcal_kg: round2(latent),
+    frozen_water_fraction: round2(frozenFraction),
+    composition_percent: {
+      water: tunnel.water_content_percent ?? null,
+      protein: tunnel.protein_content_percent ?? null,
+      fat: tunnel.fat_content_percent ?? null,
+      carbohydrate: tunnel.carbohydrate_content_percent ?? null,
+      fiber: tunnel.fiber_content_percent ?? null,
+      ash: tunnel.ash_content_percent ?? null,
+    },
     packaging_kcal_h: round2(packaging),
     internal_loads_kcal_h: round2(internalLoads),
     total_kcal_h: round2(total),
