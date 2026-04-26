@@ -1041,21 +1041,27 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
 
           <ColdProFormSection title="Etapa 3 — Massa e tempo de processo" description={isStatic ? "Batelada usa massa total do lote e tempo de batelada." : "Contínuo usa kg/h e tempo de retenção."} icon={isStatic ? <Warehouse className="h-4 w-4" /> : <Wind className="h-4 w-4" />}>
             {!isStatic ? <div className="grid grid-cols-1 gap-x-10 xl:grid-cols-2"><div>
+              <ColdProField label="Como deseja calcular a massa contínua?"><ColdProSelect value={continuousMassMode} onChange={(e) => { set(tunnelType === "fluidized_bed" ? "mass_flow_mode" : "continuous_mass_mode", e.target.value); }}>{continuousModeOptions(tunnelType).map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</ColdProSelect></ColdProField>
               <ColdProField label="Unidade do peso">
                 <ColdProSelect value={weightUnit} onChange={(e) => setWeightUnit(e.target.value as WeightUnit)}>
                   {Object.entries(WEIGHT_UNITS).map(([key, item]) => <option key={key} value={key}>{item.label}</option>)}
                 </ColdProSelect>
               </ColdProField>
               <ColdProField label="Peso unitário" helpKey="unitWeightKg" unit={WEIGHT_UNITS[weightUnit].label}><ColdProInput {...weightNum("unit_weight_kg", weightUnit)} /></ColdProField>
+              {continuousMassMode === "calculated_by_units_per_hour" ? <ColdProField label="Unidades por hora"><ColdProInput {...num("units_per_hour")} /></ColdProField> : null}
+              {continuousMassMode === "calculated_by_belt_loading" ? <><ColdProField label="Unidades por fileira"><ColdProInput {...num("units_per_row")} /></ColdProField><ColdProField label="Fileiras por metro"><ColdProInput {...num("rows_per_meter")} /></ColdProField><ColdProField label="Velocidade esteira" unit="m/min"><ColdProInput {...num("belt_speed_m_min")} /></ColdProField></> : null}
+              {continuousMassMode === "calculated_by_trays" ? <><ColdProField label="Unidades por bandeja"><ColdProInput {...num("units_per_tray")} /></ColdProField><ColdProField label="Bandejas por hora"><ColdProInput {...num("trays_per_hour")} /></ColdProField><ColdProField label="Peso da bandeja" unit="kg"><ColdProInput {...num("tray_weight_kg")} /></ColdProField></> : null}
+              {continuousMassMode === "calculated_by_feed_rate" ? <ColdProField label="Taxa de alimentação" unit="kg/h"><ColdProInput {...num("feed_rate_kg_h")} /></ColdProField> : null}
             </div><div>
-              <ColdProField label="Unidades/ciclo" helpKey="unitsPerCycle"><ColdProInput {...num("units_per_cycle")} /></ColdProField>
+              {continuousMassMode === "calculated_by_units" ? <ColdProField label="Unidades/ciclo" helpKey="unitsPerCycle"><ColdProInput {...num("units_per_cycle")} /></ColdProField> : null}
               <ColdProField label="Escala dos ciclos">
                 <ColdProSelect value={cycleUnit} onChange={(e) => setCycleUnit(e.target.value as CycleUnit)}>
                   {Object.entries(CYCLE_UNITS).map(([key, item]) => <option key={key} value={key}>{item.label}</option>)}
                 </ColdProSelect>
               </ColdProField>
-              <ColdProField label="Ciclos" helpKey="cyclesPerHour" unit={CYCLE_UNITS[cycleUnit].label}><ColdProInput {...cyclesNum(cycleUnit)} /></ColdProField>
-              <ColdProField label="Massa direta" helpKey="massKgHour" unit="kg/h"><ColdProInput {...num("mass_kg_hour")} /></ColdProField>
+              {continuousMassMode === "calculated_by_units" ? <ColdProField label="Ciclos" helpKey="cyclesPerHour" unit={CYCLE_UNITS[cycleUnit].label}><ColdProInput {...cyclesNum(cycleUnit)} /></ColdProField> : null}
+              {continuousMassMode === "direct_mass_flow" ? <ColdProField label="Massa direta" helpKey="massKgHour" unit="kg/h"><ColdProInput {...num("mass_kg_hour")} /></ColdProField> : null}
+              {tunnelType === "fluidized_bed" ? <><ColdProField label="Diâmetro partícula" unit={DIMENSION_UNITS[continuousUnit].label}><ColdProInput {...dimensionNum("equivalent_particle_diameter_m", continuousUnit)} /></ColdProField><ColdProField label="Altura da camada" unit={DIMENSION_UNITS[continuousUnit].label}><ColdProInput {...dimensionNum("bulk_layer_height_m", continuousUnit)} /></ColdProField><ColdProField label="Largura leito" unit={DIMENSION_UNITS[continuousUnit].label}><ColdProInput {...dimensionNum("bed_width_m", continuousUnit)} /></ColdProField><ColdProField label="Comprimento leito" unit={DIMENSION_UNITS[continuousUnit].label}><ColdProInput {...dimensionNum("bed_length_m", continuousUnit)} /></ColdProField><ColdProField label="Velocidade superficial" unit="m/s"><ColdProInput {...num("superficial_air_velocity_m_s")} /></ColdProField></> : null}
               <ColdProField label="Escala do tempo">
                 <ColdProSelect value={retentionUnit} onChange={(e) => setRetentionUnit(e.target.value as RetentionUnit)}>
                   {Object.entries(RETENTION_UNITS).map(([key, item]) => <option key={key} value={key}>{item.label}</option>)}
@@ -1063,8 +1069,9 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
               </ColdProField>
               <ColdProField label="Tempo retenção" helpKey="retentionTime" unit={RETENTION_UNITS[retentionUnit].label}><ColdProInput {...retentionNum(retentionUnit)} /></ColdProField>
               {physicalModel === "continuous_spiral" ? <ColdProField label="Fator turbulência girofreezer"><ColdProInput {...num("spiral_turbulence_factor")} /></ColdProField> : null}
+              <ColdProCalculatedInfo label="Massa usada no motor" value={`${fmtColdPro(massHour)} kg/h`} description={continuousMassMode === "direct_mass_flow" ? "kg/h informado" : continuousMassMode === "calculated_by_belt_loading" ? "fileiras × esteira × peso" : continuousMassMode === "calculated_by_trays" ? "bandejas/h × massa da bandeja" : "cadência calculada"} tone={massHour > 0 ? "success" : "warning"} />
             </div></div> : <div className="grid grid-cols-1 gap-x-10 xl:grid-cols-2"><div>
-              <ColdProField label="Como deseja informar a massa da batelada?" helpKey="staticMassMode"><ColdProSelect value={staticMassMode} onChange={(e) => set("static_mass_mode", e.target.value)}><option value="direct_pallet_mass">Informar massa do pallet/lote diretamente</option><option value="calculated_pallet_composition">Calcular pela formação do pallet/lote</option></ColdProSelect></ColdProField>
+              <ColdProField label="Como deseja informar a massa da batelada?" helpKey="staticMassMode"><ColdProSelect value={staticMassMode} onChange={(e) => set("static_mass_mode", e.target.value)}>{staticModeOptions(tunnelType).map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</ColdProSelect></ColdProField>
               <ColdProField label="Escala das medidas do bloco/carga" helpKey="measurementScale"><ColdProSelect value={staticUnit} onChange={(e) => setStaticUnit(e.target.value as DimensionUnit)}>{Object.entries(DIMENSION_UNITS).map(([key, item]) => <option key={key} value={key}>{item.label}</option>)}</ColdProSelect></ColdProField>
               <ColdProField label={tunnelType === "static_cart" ? "Comprimento carrinho/carga" : "Comprimento pallet/bloco"} helpKey="palletLength" unit={DIMENSION_UNITS[staticUnit].label}><ColdProInput {...dimensionNum("pallet_length_m", staticUnit)} /></ColdProField>
               <ColdProField label={tunnelType === "static_cart" ? "Largura carrinho/carga" : "Largura pallet/bloco"} helpKey="palletWidth" unit={DIMENSION_UNITS[staticUnit].label}><ColdProInput {...dimensionNum("pallet_width_m", staticUnit)} /></ColdProField>
