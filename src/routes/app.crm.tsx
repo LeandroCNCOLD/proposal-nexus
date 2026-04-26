@@ -359,7 +359,7 @@ function KanbanBoardRich({
   }
 
   return (
-    <div className="flex gap-3 overflow-x-auto pb-4">
+    <div className="flex gap-4 overflow-x-auto pb-4">
       {stages.map((col) => {
         const accent = col.is_won
           ? "border-t-emerald-500"
@@ -369,29 +369,29 @@ function KanbanBoardRich({
         return (
           <div
             key={col.etapa}
-            className={`flex w-[290px] shrink-0 flex-col rounded-md border border-border border-t-2 ${accent} bg-muted/20`}
+            className={`flex w-[360px] shrink-0 flex-col rounded-md border border-border border-t-2 ${accent} bg-muted/20`}
           >
-            <div className="border-b border-border bg-card px-3 py-2">
+            <div className="border-b border-border bg-card px-4 py-3">
               <div className="flex items-center justify-between gap-2">
-                <h3 className="truncate text-[13px] font-semibold uppercase tracking-wide text-foreground">
+                <h3 className="truncate text-sm font-semibold uppercase tracking-wide text-foreground">
                   {col.etapa}
                 </h3>
-                <Badge variant="secondary" className="h-5 px-1.5 text-[10px] font-semibold">
+                <Badge variant="secondary" className="h-6 px-2 text-xs font-semibold">
                   {col.count}
                 </Badge>
               </div>
-              <p className="mt-1 text-[12px] font-bold text-emerald-700 dark:text-emerald-400">
+              <p className="mt-1.5 text-sm font-bold text-emerald-700 dark:text-emerald-400">
                 {brl(col.totalValue)}
               </p>
-              <p className="text-[10px] text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 {col.proposalCount > 0
                   ? `${col.proposalCount} proposta${col.proposalCount > 1 ? "s" : ""} · ticket ${brl(col.avgTicket)}`
                   : "sem propostas vinculadas"}
               </p>
             </div>
-            <div className="flex max-h-[calc(100vh-260px)] flex-col gap-2 overflow-y-auto p-2">
+            <div className="flex max-h-[calc(100vh-260px)] flex-col gap-3 overflow-y-auto p-3">
               {col.processes.length === 0 ? (
-                <div className="rounded-md border border-dashed border-border/50 p-4 text-center text-[11px] text-muted-foreground">
+                <div className="rounded-md border border-dashed border-border/50 p-4 text-center text-sm text-muted-foreground">
                   Vazio
                 </div>
               ) : (
