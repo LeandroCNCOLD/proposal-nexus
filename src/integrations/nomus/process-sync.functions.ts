@@ -464,14 +464,14 @@ export const pullNomusProcesses = createServerFn({ method: "POST" })
         status: "queued",
         tipos,
         max_items: data?.maxItems ?? 5_000,
-        page_size: 10,
+        page_size: 50,
         current_page: 1,
       })
       .select("*")
       .single()).data;
 
     if (!job?.id) return { ok: false as const, error: "Não foi possível iniciar a sincronização do funil." };
-    const batch = await processNomusProcessSyncBatch({ data: { jobId: job.id, maxPages: data?.maxPages ?? 1 } });
+    const batch = await processNomusProcessSyncBatch({ data: { jobId: job.id, maxPages: data?.maxPages ?? 3 } });
     if (!batch.ok) return { ok: false as const, error: batch.error ?? "Falha ao sincronizar processos" };
     return {
       ok: true as const,
@@ -510,7 +510,7 @@ export const startNomusProcessSyncJob = createServerFn({ method: "POST" })
         status: "queued",
         tipos: (data?.tipos ?? []).map((t) => t.trim()).filter(Boolean),
         max_items: data?.maxItems ?? 5000,
-        page_size: 10,
+        page_size: 50,
         current_page: 1,
       })
       .select("*")
