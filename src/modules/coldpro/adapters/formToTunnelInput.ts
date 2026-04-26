@@ -23,6 +23,10 @@ export function formToTunnelInput(form: any, environment: any) {
   const packagingMassKgBatch = safeNumber(form?.packaging_mass_kg_batch);
   const packagingMassKgH = isStatic && safeNumber(form?.batch_time_h) > 0 && packagingMassKgBatch > 0 ? packagingMassKgBatch / safeNumber(form?.batch_time_h) : safeNumber(form?.packaging_mass_kg_hour);
   const normalAirTempC = airTempSource === "environment" ? safeNumber(environment?.internal_temp_c) : safeNumber(form?.air_temp_c);
+  const airflowSource = form?.airflow_source ?? "manual_velocity";
+  const informedAirFlowM3H = airflowSource === "airflow_by_fans"
+    ? safeNumber(form?.fan_airflow_m3_h ?? form?.informed_air_flow_m3_h ?? form?.airflow_m3_h)
+    : safeNumber(form?.informed_air_flow_m3_h ?? form?.airflow_m3_h);
   const normalInput = {
     airTempC: normalAirTempC,
     airVelocityMS: safeNumber(form?.air_velocity_m_s),
@@ -30,7 +34,7 @@ export function formToTunnelInput(form: any, environment: any) {
     manualConvectiveCoefficientWM2K: safeNumber(form?.convective_coefficient_manual_w_m2_k),
     airExposureFactor: safeNumber(form?.air_exposure_factor, 1),
     thermalPenetrationFactor: safeNumber(form?.thermal_penetration_factor, 1),
-    informedAirFlowM3H: safeNumber(form?.informed_air_flow_m3_h ?? form?.airflow_m3_h),
+    informedAirFlowM3H,
     packageType: form?.package_type ?? null,
   };
 
@@ -45,7 +49,7 @@ export function formToTunnelInput(form: any, environment: any) {
     productGeometry: form?.product_geometry ?? "slab",
     surfaceExposureModel: form?.surface_exposure_model ?? "fully_exposed",
     thermalModelForPallet: form?.thermal_model_for_pallet ?? (form?.tunnel_type === "static_pallet" && form?.arrangement_type === "palletized_boxes" ? "hybrid" : null),
-    airflowSource: form?.airflow_source ?? "manual_velocity",
+    airflowSource,
     fanAirflowM3H: safeNumber(form?.fan_airflow_m3_h),
     tunnelCrossSectionWidthM: safeNumber(form?.tunnel_cross_section_width_m),
     tunnelCrossSectionHeightM: safeNumber(form?.tunnel_cross_section_height_m),
