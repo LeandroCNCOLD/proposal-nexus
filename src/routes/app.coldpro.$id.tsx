@@ -1,6 +1,6 @@
 import * as React from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, ArrowRight, Pencil, Plus, Snowflake, Thermometer, Trash2, Wind, Warehouse } from "lucide-react";
+import { ArrowLeft, ArrowRight, Loader2, Pencil, Plus, Snowflake, Sparkles, Thermometer, Trash2, Wind, Warehouse } from "lucide-react";
 import { toast } from "sonner";
 import {
   useColdProProjectBundle,
@@ -68,6 +68,7 @@ function ColdProProjectPage() {
   const [editingProductId, setEditingProductId] = React.useState<string | null>(null);
   const [autoMinQuantity, setAutoMinQuantity] = React.useState("1");
   const [autoEquipmentKind, setAutoEquipmentKind] = React.useState<"ALL" | "plugin" | "biblock" | "split">("ALL");
+  const [tunnelExpertAnalysis, setTunnelExpertAnalysis] = React.useState<string | null>(null);
 
   const environments = data?.environments ?? [];
   const selectedEnv = environments.find((env: any) => env.id === selectedEnvId) ?? environments[0];
@@ -88,6 +89,7 @@ function ColdProProjectPage() {
   }, [selectedEnvId, environments]);
 
   React.useEffect(() => setProjectNameDraft(data?.project?.name ?? ""), [data?.project?.name]);
+  React.useEffect(() => setTunnelExpertAnalysis(null), [selectedEnv?.id]);
 
   const completed: Record<number, boolean> = {
     0: !!selectedEnv?.length_m,
@@ -139,7 +141,19 @@ function ColdProProjectPage() {
     try {
       await calculate.mutateAsync(selectedEnv.id);
       toast.success("Carga térmica calculada");
-      setStepIndex(3);
+      setStepIndex(4);
+      if (["blast_freezer", "cooling_tunnel"].includes(String(selectedEnv.environment_type))) {
+        try {
+          await autoSelect.mutateAsync({ environmentId: selectedEnv.id, minQuantity: 1, equipmentKind: null });
+          toast.success("Melhor equipamento CN Cold pré-selecionado");
+        } catch (selectionError: any) {
+          toast.warning(selectionError?.message ?? "Cálculo concluído, mas nenhum equipamento foi pré-selecionado.");
+        }
+        const analysis = await handleAnalyzeMemorial(
+          `Analise tecnicamente o túnel ${selectedEnv.name} após o cálculo e a pré-seleção de equipamento. Atue como especialista em túnel de congelamento/resfriamento: valide carga térmica, temperatura interna, temperatura de evaporação, vazão/velocidade de ar quando disponíveis, tempo estimado de processo, margem da seleção, COP e eficiência. Dê insights práticos sobre melhorar desempenho, reduzir tempo de congelamento, ajustar temperatura do túnel, aumentar ou reduzir porte do equipamento e riscos técnicos. Seja criterioso e não invente dados ausentes.`,
+        );
+        if (analysis) setTunnelExpertAnalysis(analysis);
+      }
     } catch (e: any) {
       toast.error(e?.message ?? "Erro no cálculo");
     }
