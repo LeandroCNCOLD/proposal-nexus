@@ -548,20 +548,18 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
         <TabsContent value="modelo">
           <ColdProFormSection title="Modelo físico aplicado" description="Escolha se o produto será tratado como unidade individual ou bloco térmico equivalente." icon={<Settings className="h-4 w-4" />}>
             <div className="grid grid-cols-1 gap-x-10 md:grid-cols-2">
-              <ColdProField label="Modelo físico">
-                <ColdProSelect value={processType} onChange={(e) => setProcessType(e.target.value)}>
-                  <option value="continuous_individual_freezing">Túnel contínuo individual</option>
-                  <option value="continuous_girofreezer">Girofreezer contínuo</option>
-                  <option value="static_cart_freezing">Estático em carrinho</option>
-                  <option value="static_pallet_freezing">Estático em pallet/bloco</option>
+              <ColdProField label="Tipo de túnel">
+                <ColdProSelect value={tunnelType} onChange={(e) => setTunnelType(e.target.value)}>
+                  {Object.entries(TUNNEL_TYPES).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
                 </ColdProSelect>
               </ColdProField>
               <ColdProField label="Tipo de arranjo">
                 <ColdProSelect value={form.arrangement_type} onChange={(e) => setArrangementType(e.target.value)}>
-                  {Object.entries(ARRANGEMENT_DEFAULTS).map(([key, item]) => <option key={key} value={key}>{item.label}</option>)}
+                  {arrangementOptions.map((key) => <option key={key} value={key}>{ARRANGEMENT_DEFAULTS[key]?.label ?? key}</option>)}
                 </ColdProSelect>
               </ColdProField>
-              <ColdProField label="Tipo de túnel"><ColdProSelect value={form.tunnel_type} onChange={(e) => set("tunnel_type", e.target.value)}><option value="blast_freezer">Congelamento</option><option value="cooling_tunnel">Resfriamento</option></ColdProSelect></ColdProField>
+              <ColdProField label="Geometria do produto"><ColdProSelect value={form.product_geometry ?? "slab"} onChange={(e) => set("product_geometry", e.target.value)}>{Object.entries(GEOMETRIES).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</ColdProSelect></ColdProField>
+              <ColdProField label="Modelo de exposição"><ColdProSelect value={form.surface_exposure_model ?? "fully_exposed"} onChange={(e) => set("surface_exposure_model", e.target.value)}>{Object.entries(EXPOSURE_MODELS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</ColdProSelect></ColdProField>
               <ColdProField label="Status físico"><ColdProInput readOnly value={tunnelResult.physicalModelLabel} /></ColdProField>
             </div>
             {staticWarning ? <ColdProValidationMessage tone="warning">Congelamento de caixa, pallet ou bloco depende da embalagem, arranjo, vazão e passagem real de ar. Use como estimativa conservadora.</ColdProValidationMessage> : null}
