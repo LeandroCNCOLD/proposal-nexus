@@ -71,7 +71,10 @@ const defaultTunnel = (environmentId: string) => ({
   air_exposure_factor: 1,
   thermal_penetration_factor: 1,
   airflow_m3_h: 0,
+  air_flow_m3_h: 0,
   air_delta_t_k: 6,
+  suggested_air_approach_k: 8,
+  suggested_air_temp_c: null,
   min_air_temp_c: -40,
   max_air_temp_c: -25,
   min_air_velocity_m_s: 1,
@@ -536,6 +539,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
               <ColdProField label="Temp. ar inicial" unit="°C"><ColdProInput {...num("air_temp_c")} /></ColdProField>
               <ColdProField label="Velocidade inicial" unit="m/s"><ColdProInput {...num("air_velocity_m_s")} /></ColdProField>
               <ColdProField label="ΔT do ar" unit="K"><ColdProInput {...num("air_delta_t_k")} /></ColdProField>
+              <ColdProField label="Approach ar sugerido" unit="K"><ColdProInput {...num("suggested_air_approach_k")} /></ColdProField>
               <ColdProField label="Vazão informada" unit="m³/h"><ColdProInput {...num("airflow_m3_h")} /></ColdProField>
               <ColdProField label="Coef. convecção manual"><ColdProInput {...num("convective_coefficient_manual_w_m2_k")} /></ColdProField>
             </div><div>
