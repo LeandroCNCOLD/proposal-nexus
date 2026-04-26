@@ -165,6 +165,9 @@ export function calculateTunnelEngine(input: any) {
   const totalKW = productLoadKW + packagingLoadKW + internalLoadKW;
   const totalKcalH = kwToKcalH(totalKW);
   const totalTR = kwToTr(totalKW);
+  const airFlowM3H = airDeltaTK > 0 && airDensityKgM3 > 0
+    ? (totalKW * 3600) / (airDensityKgM3 * cpAirKJkgK * airDeltaTK)
+    : 0;
 
   const estimatedTimeMin = canEstimateFreezingTime(input, distanceToCoreM, h.hEffectiveWM2K, kEffectiveWMK)
     ? calculatePlankFreezingTimeMin({
@@ -218,6 +221,10 @@ export function calculateTunnelEngine(input: any) {
       airExposureFactor: input?.airExposureFactor ?? null,
       h,
       airTempC: input?.airTempC ?? null,
+      airFlowM3H,
+      requiredAirTempC,
+      airDeltaTK,
+      comparison: requiredAirTempComparisonC,
     },
     productEnergy: energy,
     loads: {
