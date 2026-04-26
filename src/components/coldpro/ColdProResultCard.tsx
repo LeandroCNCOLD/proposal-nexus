@@ -2,11 +2,15 @@ import * as React from "react";
 import { BarChart3, Calculator, ChevronDown, Droplets, Gauge, Snowflake } from "lucide-react";
 import { fmtColdPro } from "./ColdProFormPrimitives";
 import { normalizeColdProEnvironmentResult } from "@/modules/coldpro/core/environmentResultNormalizer";
-import { LoadDistributionPieChart } from "@/modules/coldpro/components/results/LoadDistributionPieChart";
-import { LoadBreakdownBarChart } from "@/modules/coldpro/components/results/LoadBreakdownBarChart";
-import { EquipmentCapacityChart } from "@/modules/coldpro/components/results/EquipmentCapacityChart";
+import { InteractiveLoadPieChart } from "@/modules/coldpro/components/charts/InteractiveLoadPieChart";
+import { LoadRankingBarChart } from "@/modules/coldpro/components/charts/LoadRankingBarChart";
+import { LoadWaterfallChart } from "@/modules/coldpro/components/charts/LoadWaterfallChart";
+import { EquipmentCapacityGauge } from "@/modules/coldpro/components/charts/EquipmentCapacityGauge";
+import { CapacityComparisonChart } from "@/modules/coldpro/components/charts/CapacityComparisonChart";
+import { ThermalProfileLineChart } from "@/modules/coldpro/components/charts/ThermalProfileLineChart";
+import { SimulationMatrixChart } from "@/modules/coldpro/components/charts/SimulationMatrixChart";
+import { environmentGroupedRows, environmentLoadRows } from "@/modules/coldpro/components/charts/chartData";
 import { TunnelValidationCharts } from "@/modules/coldpro/components/results/TunnelValidationCharts";
-import { TemperatureProfileLineChart } from "@/modules/coldpro/components/results/TemperatureProfileLineChart";
 import { ResultConsistencyAudit } from "@/modules/coldpro/components/results/ResultConsistencyAudit";
 import { ColdProAIInsightPanel } from "@/modules/coldpro/components/results/ColdProAIInsightPanel";
 
@@ -94,6 +98,8 @@ export function ColdProResultCard({ result, selection, environment, products = [
   const breakdownAdvancedProcesses = Array.isArray(breakdown.advanced_processes) ? breakdown.advanced_processes : [];
   const seed = breakdown.seed_dehumidification;
   const frost = normalized.iceAndDefrost;
+  const detailedRows = environmentLoadRows(normalized);
+  const groupedRows = environmentGroupedRows(normalized);
 
   return (
     <div className="min-w-0 rounded-xl border bg-background p-3 shadow-sm sm:p-5">
@@ -124,8 +130,8 @@ export function ColdProResultCard({ result, selection, environment, products = [
 
       {showCharts ? (
         <section className="mt-5 grid grid-cols-1 gap-4 xl:grid-cols-2">
-          <LoadDistributionPieChart normalized={normalized} />
-          <LoadBreakdownBarChart normalized={normalized} />
+          <InteractiveLoadPieChart title="Distribuição da carga térmica" subtitle="Percentual por origem da carga do ambiente." data={detailedRows} total={normalized.summary.requiredKcalH} />
+          <LoadRankingBarChart title="Maiores componentes da carga" subtitle="Ranking técnico do que mais pesa no dimensionamento." data={detailedRows} total={normalized.summary.requiredKcalH} />
         </section>
       ) : null}
 
@@ -134,8 +140,11 @@ export function ColdProResultCard({ result, selection, environment, products = [
       {!compact ? (
         <>
           <section className="mt-5 grid grid-cols-1 gap-4 xl:grid-cols-2">
-            <EquipmentCapacityChart normalized={normalized} />
-            <TemperatureProfileLineChart normalized={normalized} />
+            <LoadWaterfallChart title="Formação da carga requerida" subtitle="Subtotal técnico + segurança até a carga final." components={groupedRows.filter((item) => item.name !== "Segurança")} subtotal={normalized.summary.subtotalKcalH} safety={normalized.summary.safetyKcalH} total={normalized.summary.requiredKcalH} />
+            <EquipmentCapacityGauge title="Sobra técnica do equipamento" requiredKcalH={normalized.equipment.requiredCapacityKcalH || normalized.summary.requiredKcalH} selectedCapacityKcalH={normalized.equipment.totalCapacityKcalH} surplusPercent={normalized.equipment.surplusPercent} />
+            <CapacityComparisonChart title="Carga requerida x capacidade selecionada" requiredKcalH={normalized.summary.requiredKcalH} capacityKcalH={normalized.equipment.totalCapacityKcalH} surplusPercent={normalized.equipment.surplusPercent} />
+            <ThermalProfileLineChart title="Perfil térmico do produto" normalized={normalized} />
+            <SimulationMatrixChart title="Matriz de simulação operacional" normalized={normalized} />
           </section>
           <section className="mt-5"><TunnelValidationCharts normalized={normalized} /></section>
 
