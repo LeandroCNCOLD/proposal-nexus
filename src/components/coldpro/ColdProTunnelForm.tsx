@@ -470,10 +470,16 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
                 <ul className="list-disc space-y-1 pl-5">{giroResult.errors.map((error, index) => <li key={`${error}-${index}`}>{error}</li>)}</ul>
               </div>
             ) : null}
-            {giroResult.warnings.length > 0 ? (
+            {tunnelResult.warnings.length > 0 ? (
               <div className="mt-4 rounded-lg border border-warning/20 bg-warning/10 p-3 text-sm text-warning">
                 <div className="mb-2 flex items-center gap-2 font-semibold"><AlertTriangle className="h-4 w-4" /> Alertas técnicos:</div>
-                <ul className="list-disc space-y-1 pl-5">{giroResult.warnings.map((warning, index) => <li key={`${warning}-${index}`}>{warning}</li>)}</ul>
+                <ul className="list-disc space-y-1 pl-5">{tunnelResult.warnings.map((warning: string, index: number) => <li key={`${warning}-${index}`}>{warning}</li>)}</ul>
+              </div>
+            ) : null}
+            {tunnelResult.missingFields.length > 0 ? (
+              <div className="mt-4 rounded-lg border border-warning/20 bg-warning/10 p-3 text-sm text-warning">
+                <div className="mb-2 flex items-center gap-2 font-semibold"><AlertTriangle className="h-4 w-4" /> Dados necessários para cálculo completo:</div>
+                <ul className="list-disc space-y-1 pl-5">{tunnelResult.missingFields.map((field: string, index: number) => <li key={`${field}-${index}`}>{field}</li>)}</ul>
               </div>
             ) : null}
           </ColdProFormSection>
