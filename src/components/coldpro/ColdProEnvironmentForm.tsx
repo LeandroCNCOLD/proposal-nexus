@@ -662,13 +662,13 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
                            <div className="grid gap-x-8 lg:grid-cols-2">
                             {constructionFaces.filter((face) => face.local.startsWith("PAREDE")).map((face, faceListIndex) => {
                               const index = constructionFaces.findIndex((item) => item.local === face.local);
-                              return <ColdProField key={face.local} label={`Dim. ${String.fromCharCode(65 + faceListIndex)}`} unit="m"><ColdProInput type="number" step="0.0001" value={face.wall_length_m ?? ""} onChange={(e) => setFace(index, "wall_length_m", numberOrNull(e.target.value) ?? 0)} /></ColdProField>;
+                              return <ColdProField key={face.local} label={`Dim. ${String.fromCharCode(65 + faceListIndex)}`} unit="m"><ColdProInput type="number" step="0.0001" value={face.wall_length_m ?? ""} onChange={(e) => setFace(index, "wall_length_m", numberOrNull(e.target.value))} /></ColdProField>;
                             })}
                             <ColdProField label="Altura" unit="m"><ColdProInput type="number" step="0.0001" value={form?.height_m ?? ""} onChange={(e) => setDimension("height_m", e.target.value)} /></ColdProField>
                           </div>
                       {layout === "custom_polygon" ? (
                         <ColdProField label="Quantidade de paredes" unit="un">
-                          <ColdProInput type="number" step="0.0001" value={wallCount} onChange={(e) => set("wall_count", numberOrNull(e.target.value) ?? 4)} />
+                          <ColdProInput type="number" step="0.0001" value={wallCount} onChange={(e) => set("wall_count", numberOrNull(e.target.value))} />
                         </ColdProField>
                       ) : null}
                       <ColdProValidationMessage tone="error">{dimensionError || customDimensionError ? "Informe medidas válidas para volume, piso e paredes." : ""}</ColdProValidationMessage>
