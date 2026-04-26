@@ -443,14 +443,14 @@ export const pullNomusProcesses = createServerFn({ method: "POST" })
         status: "queued",
         tipos,
         max_items: data?.maxItems ?? 5_000,
-        page_size: 50,
+        page_size: 10,
         current_page: 1,
       })
       .select("*")
       .single()).data;
 
     if (!job?.id) return { ok: false as const, error: "Não foi possível iniciar a sincronização do funil." };
-    const batch = await processNomusProcessSyncBatch({ data: { jobId: job.id, maxPages: data?.maxPages ?? 2 } });
+    const batch = await processNomusProcessSyncBatch({ data: { jobId: job.id, maxPages: data?.maxPages ?? 1 } });
     if (!batch.ok) return { ok: false as const, error: batch.error ?? "Falha ao sincronizar processos" };
     return {
       ok: true as const,
@@ -463,7 +463,7 @@ export const pullNomusProcesses = createServerFn({ method: "POST" })
       cumulativeUpserted: batch.job?.upserted_items ?? 0,
       done: batch.done,
       job: batch.job,
-      warning: batch.warning,
+      warning: "warning" in batch ? batch.warning : undefined,
       stagesDiscovered: [],
     };
   });
@@ -547,27 +547,32 @@ export const processNomusProcessSyncBatch = createServerFn({ method: "POST" })
     const tipos: string[] = Array.isArray(job.tipos) ? job.tipos : [];
 
     try {
+      const failSoft = async (message: string) => {
+        const { data: updated } = await (supabaseAdmin as any)
+          .from("nomus_process_sync_jobs")
+          .update({
+            status: "running",
+            current_page: currentPage,
+            processed_items: processed,
+            upserted_items: upserted,
+            stages_discovered: stagesCount,
+            last_error: `${message}. Clique novamente para tentar continuar da página ${currentPage}.`,
+          })
+          .eq("id", job.id)
+          .select("*")
+          .single();
+        return { ok: true as const, job: updated, done: false as const, warning: message, scanned: batchScanned, matched: batchMatched, persisted: batchPersisted };
+      };
+
       for (let i = 0; i < maxPages && processed < Number(job.max_items); i += 1) {
+        if (Date.now() - new Date(now).getTime() > 6_000) return failSoft("Tempo seguro do lote atingido");
         const page = await listPage<NomusProcessRaw>(
           NOMUS_ENDPOINTS.processos,
           {},
-          { entity: "processos", pageSize: Number(job.page_size ?? 10), page: currentPage, timeoutMs: 12_000, maxAttempts: 2, triggeredBy: userId },
+          { entity: "processos", pageSize: Number(job.page_size ?? 10), page: currentPage, timeoutMs: 4_000, maxAttempts: 1, triggeredBy: userId },
         );
         if (!page.ok) {
-          const { data: updated } = await (supabaseAdmin as any)
-            .from("nomus_process_sync_jobs")
-            .update({
-              status: "running",
-              current_page: currentPage,
-              processed_items: processed,
-              upserted_items: upserted,
-              stages_discovered: stagesCount,
-              last_error: `${page.error}. A página ${currentPage} não respondeu; clique novamente para continuar.`,
-            })
-            .eq("id", job.id)
-            .select("*")
-            .single();
-          return { ok: true as const, job: updated, done: false as const, warning: page.error };
+          return failSoft(page.error);
         }
 
         const wantedItems = tipos.length
