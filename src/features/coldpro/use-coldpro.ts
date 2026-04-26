@@ -51,7 +51,13 @@ export function useCalculateColdProEnvironment(projectId: string) {
 }
 export function useAutoSelectColdProEquipment(projectId: string) {
   const qc = useQueryClient();
-  return useMutation({ mutationFn: (environmentId: string) => autoSelectColdProEquipment({ data: { environmentId } }), onSuccess: () => qc.invalidateQueries({ queryKey: ["coldpro-project", projectId] }) });
+  return useMutation({
+    mutationFn: (input: string | { environmentId: string; minQuantity?: number; equipmentKind?: "plugin" | "biblock" | "split" | null }) => {
+      const payload = typeof input === "string" ? { environmentId: input } : input;
+      return autoSelectColdProEquipment({ data: payload });
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["coldpro-project", projectId] }),
+  });
 }
 export function usePushColdProToProposal(projectId: string) {
   const qc = useQueryClient();

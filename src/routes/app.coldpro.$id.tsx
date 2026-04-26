@@ -66,6 +66,8 @@ function ColdProProjectPage() {
   const [editingProjectName, setEditingProjectName] = React.useState(false);
   const [projectNameDraft, setProjectNameDraft] = React.useState("");
   const [editingProductId, setEditingProductId] = React.useState<string | null>(null);
+  const [autoMinQuantity, setAutoMinQuantity] = React.useState("1");
+  const [autoEquipmentKind, setAutoEquipmentKind] = React.useState<"ALL" | "plugin" | "biblock" | "split">("ALL");
 
   const environments = data?.environments ?? [];
   const selectedEnv = environments.find((env: any) => env.id === selectedEnvId) ?? environments[0];
@@ -146,7 +148,11 @@ function ColdProProjectPage() {
   async function handleAutoSelect() {
     if (!selectedEnv) return;
     try {
-      await autoSelect.mutateAsync(selectedEnv.id);
+      await autoSelect.mutateAsync({
+        environmentId: selectedEnv.id,
+        minQuantity: Math.max(1, Math.ceil(Number(autoMinQuantity || 1))),
+        equipmentKind: autoEquipmentKind === "ALL" ? null : autoEquipmentKind,
+      });
       toast.success("Equipamento selecionado");
     } catch (e: any) {
       toast.error(e?.message ?? "Erro ao selecionar equipamento");
@@ -534,6 +540,32 @@ function ColdProProjectPage() {
                     <p className="mb-3 text-sm text-muted-foreground">
                       Seleciona automaticamente o melhor modelo usando a curva de rendimento, COP, potência e sobra técnica.
                     </p>
+                    <div className="mb-4 grid gap-3 sm:grid-cols-2">
+                      <label className="text-sm font-medium">
+                        Qtd. mínima de equipamentos
+                        <input
+                          type="number"
+                          min={1}
+                          step={1}
+                          value={autoMinQuantity}
+                          onChange={(event) => setAutoMinQuantity(event.target.value)}
+                          className="mt-1 h-10 w-full rounded-md border bg-background px-3 text-right text-sm"
+                        />
+                      </label>
+                      <label className="text-sm font-medium">
+                        Tipo de equipamento
+                        <select
+                          value={autoEquipmentKind}
+                          onChange={(event) => setAutoEquipmentKind(event.target.value as any)}
+                          className="mt-1 h-10 w-full rounded-md border bg-background px-3 text-sm"
+                        >
+                          <option value="ALL">Todos</option>
+                          <option value="plugin">Plug-in</option>
+                          <option value="biblock">Bi-bloco</option>
+                          <option value="split">Split</option>
+                        </select>
+                      </label>
+                    </div>
                     <button
                       type="button"
                       className="rounded-md border bg-background px-4 py-2 text-sm hover:bg-muted"

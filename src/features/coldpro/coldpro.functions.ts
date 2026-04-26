@@ -275,7 +275,11 @@ export const calculateColdProEnvironment = createServerFn({ method: "POST" })
 
 export const autoSelectColdProEquipment = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(z.object({ environmentId: z.string().uuid() }))
+  .inputValidator(z.object({
+    environmentId: z.string().uuid(),
+    minQuantity: z.number().int().positive().optional(),
+    equipmentKind: z.enum(["plugin", "biblock", "split"]).nullable().optional(),
+  }))
   .handler(async ({ data }) => {
     const supabase = supabaseAdmin;
     const { data: env, error: envError } = await supabase.from("coldpro_environments").select("*").eq("id", data.environmentId).single();
@@ -289,6 +293,8 @@ export const autoSelectColdProEquipment = createServerFn({ method: "POST" })
       condensation_temp_c: Math.max(40, Math.round(Number(env.external_temp_c ?? 35) + 10)),
       application: suggestApplication(Number(env.internal_temp_c)),
       refrigerant: null,
+      equipment_kind: data.equipmentKind ?? null,
+      min_quantity: data.minQuantity ?? 1,
       volume_m3: Number(env.volume_m3 ?? 0),
     }, supabase);
     const best = candidates[0];
