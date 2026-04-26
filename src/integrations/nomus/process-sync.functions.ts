@@ -424,15 +424,43 @@ export const pullNomusProcesses = createServerFn({ method: "POST" })
       .default({}),
   )
   .handler(async ({ data, context }) => {
-    const r = await syncNomusProcessesFullScan({
-      tipos: data?.tipos,
-      triggeredBy: context.userId,
-      maxPages: data?.maxPages ?? 50,
-      maxItems: data?.maxItems ?? 5_000,
-    });
-    return r.ok
-      ? { ok: true as const, total: r.processed ?? 0, upserted: r.count ?? 0, stagesDiscovered: [] }
-      : { ok: false as const, error: r.error ?? "Falha ao sincronizar processos" };
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const userId = context.userId;
+    const tipos = (data?.tipos ?? []).map((t) => t.trim()).filter(Boolean);
+    const { data: existingJob } = await (supabaseAdmin as any)
+      .from("nomus_process_sync_jobs")
+      .select("*")
+      .eq("requested_by", userId)
+      .in("status", ["queued", "running"])
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const job = existingJob ?? (await (supabaseAdmin as any)
+      .from("nomus_process_sync_jobs")
+      .insert({
+        requested_by: userId,
+        status: "queued",
+        tipos,
+        max_items: data?.maxItems ?? 5_000,
+        page_size: 50,
+        current_page: 1,
+      })
+      .select("*")
+      .single()).data;
+
+    if (!job?.id) return { ok: false as const, error: "Não foi possível iniciar a sincronização do funil." };
+    const batch = await processNomusProcessSyncBatch({ data: { jobId: job.id, maxPages: data?.maxPages ?? 2 } });
+    if (!batch.ok) return { ok: false as const, error: batch.error ?? "Falha ao sincronizar processos" };
+    return {
+      ok: true as const,
+      total: batch.job?.processed_items ?? 0,
+      upserted: batch.job?.upserted_items ?? 0,
+      done: batch.done,
+      job: batch.job,
+      warning: batch.warning,
+      stagesDiscovered: [],
+    };
   });
 
 export const startNomusProcessSyncJob = createServerFn({ method: "POST" })
@@ -515,9 +543,24 @@ export const processNomusProcessSyncBatch = createServerFn({ method: "POST" })
         const page = await listPage<NomusProcessRaw>(
           NOMUS_ENDPOINTS.processos,
           {},
-          { entity: "processos", pageSize: Number(job.page_size ?? 10), page: currentPage, triggeredBy: userId },
+          { entity: "processos", pageSize: Number(job.page_size ?? 10), page: currentPage, timeoutMs: 12_000, maxAttempts: 2, triggeredBy: userId },
         );
-        if (!page.ok) throw new Error(page.error);
+        if (!page.ok) {
+          const { data: updated } = await (supabaseAdmin as any)
+            .from("nomus_process_sync_jobs")
+            .update({
+              status: "running",
+              current_page: currentPage,
+              processed_items: processed,
+              upserted_items: upserted,
+              stages_discovered: stagesCount,
+              last_error: `${page.error}. A página ${currentPage} não respondeu; clique novamente para continuar.`,
+            })
+            .eq("id", job.id)
+            .select("*")
+            .single();
+          return { ok: true as const, job: updated, done: false as const, warning: page.error };
+        }
 
         const wantedItems = tipos.length
           ? page.items.filter((p) => tipos.includes((p.tipo ?? "").trim()))
