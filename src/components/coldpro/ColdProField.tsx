@@ -41,16 +41,37 @@ export function ColdProField({ label, unit, htmlFor, children, className, help, 
 export function ColdProInput(
   props: React.InputHTMLAttributes<HTMLInputElement> & { readOnlyValue?: boolean },
 ) {
-  const { className, readOnlyValue, onFocus, onMouseUp, onKeyDown, type, step, inputMode, ...rest } = props;
+  const { className, readOnlyValue, onFocus, onBlur, onChange, onMouseUp, onKeyDown, type, step, inputMode, value, ...rest } = props;
   const isNumeric = type === "number";
+  const [isEditing, setIsEditing] = React.useState(false);
+  const [draftValue, setDraftValue] = React.useState(() => formatNumericInputValue(value));
+  const displayValue = isNumeric ? (isEditing ? draftValue : formatNumericInputValue(value)) : value;
+
+  React.useEffect(() => {
+    if (isNumeric && !isEditing) setDraftValue(formatNumericInputValue(value));
+  }, [isNumeric, isEditing, value]);
+
   return (
     <input
       {...rest}
+      value={displayValue}
       type={isNumeric ? "text" : type}
       inputMode={isNumeric ? "decimal" : inputMode}
       data-coldpro-numeric={isNumeric ? "true" : undefined}
       onFocus={(event) => {
+        if (isNumeric) {
+          setIsEditing(true);
+          setDraftValue(String(event.currentTarget.value ?? ""));
+        }
         onFocus?.(event);
+      }}
+      onBlur={(event) => {
+        if (isNumeric) setIsEditing(false);
+        onBlur?.(event);
+      }}
+      onChange={(event) => {
+        if (isNumeric) setDraftValue(event.currentTarget.value);
+        onChange?.(event);
       }}
       onMouseUp={(event) => {
         onMouseUp?.(event);
@@ -71,6 +92,15 @@ export function ColdProInput(
       )}
     />
   );
+}
+
+function formatNumericInputValue(value: unknown) {
+  if (value === null || value === undefined || value === "") return "";
+  if (typeof value === "string") return value;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return "";
+  const rounded = Math.round((parsed + Number.EPSILON) * 10000) / 10000;
+  return Object.is(rounded, -0) ? "0" : String(rounded);
 }
 
 export function ColdProSelect(
