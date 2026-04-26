@@ -230,6 +230,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
   const [form, setForm] = React.useState<any>(defaultTunnel(environmentId));
   const [selectedGroup, setSelectedGroup] = React.useState("");
   const [productSearch, setProductSearch] = React.useState("");
+  const [showProductSuggestions, setShowProductSuggestions] = React.useState(false);
   const [continuousUnit, setContinuousUnit] = React.useState<DimensionUnit>("m");
   const [staticUnit, setStaticUnit] = React.useState<DimensionUnit>("m");
   const [weightUnit, setWeightUnit] = React.useState<WeightUnit>("kg");
@@ -398,6 +399,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
   };
   const groups = React.useMemo(() => Array.from(new Set(productCatalog.map((p) => p.category).filter(Boolean))).sort((a, b) => String(a).localeCompare(String(b), "pt-BR")), [productCatalog]);
   const filteredProducts = React.useMemo(() => filterAndRankColdProProducts(productCatalog, productSearch, selectedGroup), [productCatalog, productSearch, selectedGroup]);
+  const productSuggestions = React.useMemo(() => filteredProducts.slice(0, 8), [filteredProducts]);
 
   const setProcessType = (value: string) => {
     const tunnel = legacyTunnelType(value);
@@ -507,6 +509,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
     }));
     setSelectedGroup(p.category ?? "");
     setProductSearch(p.name ?? "");
+    setShowProductSuggestions(false);
   };
 
   const save = () => onSave({
@@ -815,8 +818,13 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
               <ColdProField label="Pesquisar produto">
                 <div className="relative">
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <ColdProInput type="search" value={productSearch} onChange={(e) => setProductSearch(e.target.value)} placeholder="Digite mesmo com erro" className="pl-9 text-left" list="coldpro-tunnel-product-catalog" autoComplete="off" />
-                  <datalist id="coldpro-tunnel-product-catalog">{filteredProducts.slice(0, 20).map((p) => <option key={p.id} value={p.name} />)}</datalist>
+                  <ColdProInput type="search" value={productSearch} onFocus={() => setShowProductSuggestions(true)} onBlur={() => window.setTimeout(() => setShowProductSuggestions(false), 120)} onChange={(e) => { setProductSearch(e.target.value); setShowProductSuggestions(true); }} placeholder="Digite mesmo com erro: ex. pao" className="pl-9 text-left" autoComplete="off" />
+                  {showProductSuggestions && productSearch.trim() ? <div className="absolute left-0 right-0 top-[calc(100%+0.25rem)] z-30 max-h-64 overflow-auto rounded-md border bg-popover p-1 text-popover-foreground shadow-lg">
+                    {productSuggestions.length ? productSuggestions.map((p) => <button key={p.id} type="button" className="flex w-full flex-col rounded-sm px-3 py-2 text-left text-sm transition hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground" onMouseDown={(event) => { event.preventDefault(); applyProduct(p.id); }}>
+                      <span className="font-medium">{p.name}</span>
+                      {p.category ? <span className="text-xs text-muted-foreground">{p.category}</span> : null}
+                    </button>) : <div className="px-3 py-2 text-sm text-muted-foreground">Nenhum produto encontrado</div>}
+                  </div> : null}
                 </div>
               </ColdProField>
               <ColdProField label="Grupo ASHRAE"><ColdProSelect value={selectedGroup} onChange={(e) => { setSelectedGroup(e.target.value); setProductSearch(""); set("product_id", null); }}><option value="">Seleção manual</option>{groups.map((group) => <option key={group} value={group}>{group}</option>)}</ColdProSelect></ColdProField>
