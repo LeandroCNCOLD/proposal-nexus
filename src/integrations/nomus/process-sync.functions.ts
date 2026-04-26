@@ -296,7 +296,7 @@ export async function syncNomusProcessesNewestFirst(options: { tipos?: string[];
   let newestSeenId = maxKnownId;
   let runError: string | null = null;
 
-  const wants = (raw: NomusProcessRaw) => wantedTipos.length === 0 || wantedTipos.includes((raw.tipo ?? "").trim());
+  const wants = (raw: NomusProcessRaw) => tipoMatches(raw.tipo, wantedTipos);
 
   try {
     const recentListPages = options.maxPages ?? PROCESS_RECENT_LIST_PAGES;
@@ -404,9 +404,7 @@ async function syncNomusProcessesFullScan(options: { tipos?: string[]; triggered
       if (res.items.length === 0) break;
 
       processed += res.items.length;
-      const wantedItems = wantedTipos.length
-        ? res.items.filter((p) => wantedTipos.includes((p.tipo ?? "").trim()))
-        : res.items;
+      const wantedItems = res.items.filter((p) => tipoMatches(p.tipo, wantedTipos));
       const persisted = await persistNomusProcessBatch(wantedItems, options.triggeredBy ?? null);
       upserted += persisted.upserted;
 
