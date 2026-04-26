@@ -182,7 +182,7 @@ export function calculateTunnelEngine(input: any) {
     : null;
   const availableTimeMin = isStatic ? positiveNumber(input?.batchTimeH) * 60 : positiveNumber(input?.retentionTimeMin);
 
-  const missingFields = unique([...validation.missingFields, ...requiredPositiveFields(input, isStatic, staticMassKg, characteristicDimensionM)]);
+  const missingFields = unique([...validation.missingFields, ...requiredPositiveFields(input, isStatic, staticMassKg, characteristicDimensionM, energy.crossesFreezingPoint)]);
   const warnings = unique([...validation.warnings, ...engineWarnings]);
   const invalidFields = unique(validation.invalidFields);
 
@@ -221,9 +221,11 @@ export function calculateTunnelEngine(input: any) {
       h,
       airTempC: input?.airTempC ?? null,
       airFlowM3H,
-      requiredAirTempC,
+      suggestedAirTempC,
+      suggestedAirApproachK,
       airDeltaTK,
-      comparison: requiredAirTempComparisonC,
+      airDensityKgM3,
+      comparison: suggestedAirTempComparisonC,
     },
     productEnergy: energy,
     loads: {
@@ -303,7 +305,9 @@ export function calculateTunnelEngine(input: any) {
     totalKcalH,
     totalTR,
     airFlowM3H,
-    requiredAirTempC,
+    suggestedAirTempC,
+    suggestedAirApproachK,
+    airDeltaTK,
     missingFields,
     warnings,
     invalidFields,
