@@ -789,15 +789,15 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
               <ColdProField label="Tempo retenção" helpKey="retentionTime" unit={RETENTION_UNITS[retentionUnit].label}><ColdProInput {...retentionNum(retentionUnit)} /></ColdProField>
               {physicalModel === "continuous_spiral" ? <ColdProField label="Fator turbulência girofreezer"><ColdProInput {...num("spiral_turbulence_factor")} /></ColdProField> : null}
             </div></div> : <div className="grid grid-cols-1 gap-x-10 md:grid-cols-2"><div>
-              <ColdProField label="Escala das medidas do bloco/carga"><ColdProSelect value={staticUnit} onChange={(e) => setStaticUnit(e.target.value as DimensionUnit)}>{Object.entries(DIMENSION_UNITS).map(([key, item]) => <option key={key} value={key}>{item.label}</option>)}</ColdProSelect></ColdProField>
-              <ColdProField label={tunnelType === "static_cart" ? "Comprimento carrinho/carga" : "Comprimento pallet/bloco"} unit={DIMENSION_UNITS[staticUnit].label}><ColdProInput {...dimensionNum("pallet_length_m", staticUnit)} /></ColdProField>
-              <ColdProField label={tunnelType === "static_cart" ? "Largura carrinho/carga" : "Largura pallet/bloco"} unit={DIMENSION_UNITS[staticUnit].label}><ColdProInput {...dimensionNum("pallet_width_m", staticUnit)} /></ColdProField>
-              <ColdProField label={tunnelType === "static_cart" ? "Altura carrinho/carga" : "Altura da carga"} unit={DIMENSION_UNITS[staticUnit].label}><ColdProInput {...dimensionNum("pallet_height_m", staticUnit)} /></ColdProField>
-              <ColdProField label="Massa por pallet/lote" unit="kg"><ColdProInput {...num("pallet_mass_kg")} /></ColdProField>
+              <ColdProField label="Escala das medidas do bloco/carga" helpKey="measurementScale"><ColdProSelect value={staticUnit} onChange={(e) => setStaticUnit(e.target.value as DimensionUnit)}>{Object.entries(DIMENSION_UNITS).map(([key, item]) => <option key={key} value={key}>{item.label}</option>)}</ColdProSelect></ColdProField>
+              <ColdProField label={tunnelType === "static_cart" ? "Comprimento carrinho/carga" : "Comprimento pallet/bloco"} helpKey="palletLength" unit={DIMENSION_UNITS[staticUnit].label}><ColdProInput {...dimensionNum("pallet_length_m", staticUnit)} /></ColdProField>
+              <ColdProField label={tunnelType === "static_cart" ? "Largura carrinho/carga" : "Largura pallet/bloco"} helpKey="palletWidth" unit={DIMENSION_UNITS[staticUnit].label}><ColdProInput {...dimensionNum("pallet_width_m", staticUnit)} /></ColdProField>
+              <ColdProField label={tunnelType === "static_cart" ? "Altura carrinho/carga" : "Altura da carga"} helpKey="palletHeight" unit={DIMENSION_UNITS[staticUnit].label}><ColdProInput {...dimensionNum("pallet_height_m", staticUnit)} /></ColdProField>
+              <ColdProField label="Massa por pallet/lote" helpKey="palletMassKg" unit="kg"><ColdProInput {...num("pallet_mass_kg")} /></ColdProField>
             </div><div>
-              <ColdProField label="Número de pallets/lotes"><ColdProInput {...num("number_of_pallets")} /></ColdProField>
-              <ColdProField label="Tempo de batelada" unit="h"><ColdProInput {...num("batch_time_h")} /></ColdProField>
-              {physicalModel === "static_block" ? <ColdProField label="Fator exposição bloco"><ColdProInput {...num("block_exposure_factor")} /></ColdProField> : null}
+              <ColdProField label="Número de pallets/lotes" helpKey="numberOfPallets"><ColdProInput {...num("number_of_pallets")} /></ColdProField>
+              <ColdProField label="Tempo de batelada" helpKey="batchTime" unit="h"><ColdProInput {...num("batch_time_h")} /></ColdProField>
+              {physicalModel === "static_block" ? <ColdProField label="Fator exposição bloco" helpKey="blockExposureFactor"><ColdProInput {...num("block_exposure_factor")} /></ColdProField> : null}
               {tunnelType === "static_cart" ? <><ColdProField label="Número de camadas"><ColdProInput {...num("layers_count")} /></ColdProField><ColdProField label="Número de caixas"><ColdProInput {...num("boxes_count")} /></ColdProField><ColdProField label="Espaçamento bandejas" unit={DIMENSION_UNITS[staticUnit].label}><ColdProInput {...dimensionNum("tray_spacing_m", staticUnit)} /></ColdProField></> : null}
               <ColdProCalculatedInfo label="Massa total da batelada" value={`${fmtColdPro(staticMass)} kg`} description="massa por pallet/lote × quantidade" tone={staticMass > 0 ? "success" : "warning"} />
             </div></div>}
