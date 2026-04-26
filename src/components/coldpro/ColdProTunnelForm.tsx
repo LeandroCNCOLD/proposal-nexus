@@ -236,7 +236,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
   const tunnelType = String(form.tunnel_type ?? legacyTunnelType(processType));
   const arrangementOptions = ARRANGEMENTS_BY_TUNNEL[tunnelType] ?? ARRANGEMENTS_BY_TUNNEL.continuous_belt;
   const physicalModel = String(form.physical_model ?? physicalModelFromProcess(processType));
-  const isStatic = isStaticTunnel(processType, form.operation_mode);
+  const isStatic = ["static_cart", "static_pallet", "blast_freezer"].includes(tunnelType) || isStaticTunnel(processType, form.operation_mode);
   const modelTab = isStatic ? "estatico" : "continuo";
   const unitWeight = Number(form.unit_weight_kg ?? 0) || Number(form.product_unit_weight_kg ?? 0);
   const throughput = Number(form.units_per_cycle ?? 0) * unitWeight * Number(form.cycles_per_hour ?? 0);
@@ -337,10 +337,19 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
   const filteredProducts = React.useMemo(() => productCatalog.filter((p) => !selectedGroup || p.category === selectedGroup), [productCatalog, selectedGroup]);
 
   const setProcessType = (value: string) => {
+    const tunnel = legacyTunnelType(value);
+    const arrangement = defaultArrangement(tunnel);
+    const defaults = ARRANGEMENT_DEFAULTS[arrangement];
+    const nextIsStatic = isStaticProcess(tunnel);
+    setForm((prev: any) => ({ ...prev, process_type: value, tunnel_type: tunnel, physical_model: physicalModelFromProcess(tunnel), operation_mode: nextIsStatic ? "batch" : "continuous", tunnel_mode: nextIsStatic ? "static" : "continuous", arrangement_type: arrangement, air_exposure_factor: defaults.air, thermal_penetration_factor: defaults.penetration }));
+    setActiveTab(nextIsStatic ? "estatico" : "continuo");
+  };
+
+  const setTunnelType = (value: string) => {
     const arrangement = defaultArrangement(value);
     const defaults = ARRANGEMENT_DEFAULTS[arrangement];
     const nextIsStatic = isStaticProcess(value);
-    setForm((prev: any) => ({ ...prev, process_type: value, physical_model: physicalModelFromProcess(value), operation_mode: nextIsStatic ? "batch" : "continuous", tunnel_mode: nextIsStatic ? "static" : "continuous", arrangement_type: arrangement, air_exposure_factor: defaults.air, thermal_penetration_factor: defaults.penetration }));
+    setForm((prev: any) => ({ ...prev, tunnel_type: value, process_type: value, physical_model: physicalModelFromProcess(value), operation_mode: nextIsStatic ? "batch" : "continuous", tunnel_mode: nextIsStatic ? "static" : "continuous", arrangement_type: arrangement, air_exposure_factor: defaults.air, thermal_penetration_factor: defaults.penetration }));
     setActiveTab(nextIsStatic ? "estatico" : "continuo");
   };
 
