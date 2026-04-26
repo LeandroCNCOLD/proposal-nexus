@@ -7,6 +7,18 @@ export function formToTunnelInput(form: any, environment: any) {
   const thermal = normalizeThermalProperties(form);
   const airTempSource = form?.air_temp_source ?? "environment";
   const packagingSpecificHeatKJkgK = safeNumber(form?.packaging_specific_heat_kj_kg_k);
+  const approved = form?.thermal_condition_approved === true;
+  const normalAirTempC = airTempSource === "environment" ? safeNumber(environment?.internal_temp_c) : safeNumber(form?.air_temp_c);
+  const normalInput = {
+    airTempC: normalAirTempC,
+    airVelocityMS: approved ? safeNumber(form?.approved_air_velocity_m_s, normalInput.airVelocityMS) : normalInput.airVelocityMS,
+    airDeltaTK: approved ? safeNumber(form?.approved_air_delta_t_k, normalInput.airDeltaTK) : normalInput.airDeltaTK,
+    manualConvectiveCoefficientWM2K: approved ? safeNumber(form?.approved_convective_coefficient_w_m2_k, normalInput.manualConvectiveCoefficientWM2K) : normalInput.manualConvectiveCoefficientWM2K,
+    airExposureFactor: approved ? safeNumber(form?.approved_air_exposure_factor, normalInput.airExposureFactor) : normalInput.airExposureFactor,
+    thermalPenetrationFactor: approved ? safeNumber(form?.approved_thermal_penetration_factor, normalInput.thermalPenetrationFactor) : normalInput.thermalPenetrationFactor,
+    informedAirFlowM3H: safeNumber(form?.informed_air_flow_m3_h ?? form?.airflow_m3_h),
+    packageType: form?.package_type ?? null,
+  };
 
   return {
     physicalModel: form?.physical_model,
@@ -30,16 +42,16 @@ export function formToTunnelInput(form: any, environment: any) {
     palletWidthM: safeNumber(form?.pallet_width_m),
     palletHeightM: safeNumber(form?.pallet_height_m),
     airTempSource,
-    airTempC: airTempSource === "environment" ? safeNumber(environment?.internal_temp_c) : safeNumber(form?.air_temp_c),
-    airVelocityMS: safeNumber(form?.air_velocity_m_s),
-    manualConvectiveCoefficientWM2K: safeNumber(form?.convective_coefficient_manual_w_m2_k),
-    airDeltaTK: safeNumber(form?.air_delta_t_k, 6),
+    airTempC: approved ? safeNumber(form?.approved_air_temp_c, normalInput.airTempC) : normalInput.airTempC,
+    airVelocityMS: approved ? safeNumber(form?.approved_air_velocity_m_s, normalInput.airVelocityMS) : normalInput.airVelocityMS,
+    manualConvectiveCoefficientWM2K: approved ? safeNumber(form?.approved_convective_coefficient_w_m2_k, normalInput.manualConvectiveCoefficientWM2K) : normalInput.manualConvectiveCoefficientWM2K,
+    airDeltaTK: approved ? safeNumber(form?.approved_air_delta_t_k, normalInput.airDeltaTK) : normalInput.airDeltaTK,
     airDensityKgM3: safeNumber(form?.air_density_kg_m3, 1.2),
     spiralTurbulenceFactor: safeNumber(form?.spiral_turbulence_factor, 1.8),
     blockExposureFactor: safeNumber(form?.block_exposure_factor, 0.7),
     suggestedAirApproachK: safeNumber(form?.suggested_air_approach_k, 8),
-    airExposureFactor: safeNumber(form?.air_exposure_factor, 1),
-    thermalPenetrationFactor: safeNumber(form?.thermal_penetration_factor, 1),
+    airExposureFactor: approved ? safeNumber(form?.approved_air_exposure_factor, normalInput.airExposureFactor) : normalInput.airExposureFactor,
+    thermalPenetrationFactor: approved ? safeNumber(form?.approved_thermal_penetration_factor, normalInput.thermalPenetrationFactor) : normalInput.thermalPenetrationFactor,
     initialTempC: safeNumber(form?.inlet_temp_c),
     finalTempC: safeNumber(form?.outlet_temp_c),
     freezingPointC: safeNumber(form?.freezing_temp_c, -1.5),
@@ -58,5 +70,21 @@ export function formToTunnelInput(form: any, environment: any) {
     internalFansKW: safeNumber(form?.internal_fans_kw),
     otherInternalKW: safeNumber(form?.other_internal_kw),
     allowPhaseChange: true,
+    packageType: approved ? (form?.approved_packaging_type ?? normalInput.packageType) : normalInput.packageType,
+    informedAirFlowM3H: approved ? safeNumber(form?.approved_air_flow_m3_h, normalInput.informedAirFlowM3H) : normalInput.informedAirFlowM3H,
+    thermalConditionApproved: approved,
+    approvedAirTempC: safeNumber(form?.approved_air_temp_c),
+    approvedAirVelocityMS: safeNumber(form?.approved_air_velocity_m_s),
+    approvedAirDeltaTK: safeNumber(form?.approved_air_delta_t_k),
+    approvedAirFlowM3H: safeNumber(form?.approved_air_flow_m3_h),
+    approvedConvectiveCoefficientWM2K: safeNumber(form?.approved_convective_coefficient_w_m2_k),
+    approvedProcessStatus: form?.approved_process_status,
+    approvedEstimatedTimeMin: safeNumber(form?.approved_estimated_time_min),
+    approvedTotalKW: safeNumber(form?.approved_total_kw),
+    approvedTotalKcalH: safeNumber(form?.approved_total_kcal_h),
+    approvedTotalTR: safeNumber(form?.approved_total_tr),
+    initialScenarioInput: {
+      ...normalInput,
+    },
   };
 }
