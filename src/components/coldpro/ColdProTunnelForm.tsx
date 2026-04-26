@@ -309,6 +309,31 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
     setForm((prev: any) => ({ ...prev, arrangement_type: value, air_exposure_factor: defaults.air, thermal_penetration_factor: defaults.penetration }));
   };
 
+  const approveThermalCondition = () => {
+    if (adjustedScenario.status !== "adequate") {
+      window.alert("Condição térmica ainda não atende o tempo de processo. Ajuste temperatura, velocidade ou tempo de batelada/retenção.");
+      return;
+    }
+    setForm((prev: any) => ({
+      ...prev,
+      approved_air_temp_c: adjustedScenario.airTempC,
+      approved_air_velocity_m_s: adjustedScenario.airVelocityMS,
+      approved_air_delta_t_k: adjustedScenario.airDeltaTK,
+      approved_air_flow_m3_h: adjustedScenario.informedAirFlowM3H ?? adjustedScenario.airFlowM3H,
+      approved_convective_coefficient_w_m2_k: adjustedScenario.hEffectiveWM2K,
+      approved_packaging_type: prev.package_type ?? "",
+      approved_air_exposure_factor: Number(prev.air_exposure_factor ?? 1),
+      approved_thermal_penetration_factor: Number(prev.thermal_penetration_factor ?? 1),
+      approved_process_status: adjustedScenario.status,
+      approved_estimated_time_min: adjustedScenario.estimatedTimeMin,
+      approved_total_kw: adjustedScenario.totalKW,
+      approved_total_kcal_h: adjustedScenario.totalKcalH,
+      approved_total_tr: adjustedScenario.totalTR,
+      thermal_condition_approved: true,
+      thermal_condition_approved_at: new Date().toISOString(),
+    }));
+  };
+
   const applyProduct = (id: string) => {
     const p = productCatalog.find((item) => item.id === id);
     if (!p) return;
