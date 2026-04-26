@@ -15,7 +15,7 @@ const inputSchema = z.object({
 
 const analysisInputSchema = z.object({
   projectId: z.string().uuid(),
-  question: z.string().max(2000).optional().default(""),
+  question: z.string().max(12000).optional().default(""),
   previousAnalysis: z.string().max(20000).nullable().optional(),
 });
 
