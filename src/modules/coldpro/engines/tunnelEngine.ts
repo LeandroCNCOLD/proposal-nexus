@@ -3,13 +3,14 @@ import { kwToKcalH, kwToTr } from "../core/units";
 import { validateTunnelInput } from "../core/validators";
 import { calculatePlankFreezingTimeMin } from "../physics/freezingTime";
 import { calculateConvectiveCoefficient } from "../physics/heatTransfer";
+import { calculateAirflowThroughFreeArea, calculateCharacteristicDimension, calculateExposureFactor } from "../physics/tunnelGeometry";
 import {
   calculateBatchProductLoadKW,
   calculateContinuousProductLoadKW,
   calculateProductSpecificEnergy,
 } from "../physics/productThermal";
 
-export type TunnelPhysicalModel = "continuous_individual" | "continuous_spiral" | "static_cart" | "static_block";
+export type TunnelPhysicalModel = "continuous_individual" | "continuous_spiral" | "static_cart" | "static_block" | "fluidized_bed" | "blast_freezer";
 export type TunnelScenarioStatus = "adequate" | "insufficient" | "missing_data" | "invalid_input";
 
 export type TunnelThermalScenario = {
@@ -70,6 +71,20 @@ const MODEL_META: Record<TunnelPhysicalModel, {
     geometryAssumption: "Menor dimensão válida do pallet/bloco como dimensão crítica.",
     convectionAssumption: "Convecção estimada com redução por baixa exposição; manual prevalece sem redução.",
   },
+  fluidized_bed: {
+    label: "Leito fluidizado / IQF",
+    mode: "continuous",
+    physicalDescription: "Produto pequeno ou particulado com ar atravessando a camada fluidizada.",
+    geometryAssumption: "Diâmetro equivalente da partícula ou menor dimensão do produto.",
+    convectionAssumption: "Convecção estimada pela velocidade real na seção livre; manual prevalece.",
+  },
+  blast_freezer: {
+    label: "Câmara/túnel de ar forçado",
+    mode: "static",
+    physicalDescription: "Carga em caixas, racks ou contentores com ar forçado.",
+    geometryAssumption: "Geometria informada da embalagem/carga como dimensão crítica.",
+    convectionAssumption: "Convecção estimada pela velocidade real do ar; manual prevalece.",
+  },
 };
 
 function toNumber(value: unknown, fallback = 0): number {
@@ -102,6 +117,13 @@ function getSmallestValidDimension(values: unknown[]): number {
 function normalizePhysicalModel(input: any): TunnelPhysicalModel {
   const processType = input?.processType ?? input?.process_type;
   const operationMode = input?.operationMode ?? input?.operation_mode;
+  const tunnelType = String(input?.tunnelType ?? input?.tunnel_type ?? "").toLowerCase().trim();
+  if (tunnelType === "fluidized_bed") return "fluidized_bed";
+  if (tunnelType === "blast_freezer") return "blast_freezer";
+  if (tunnelType === "spiral_girofreezer") return "continuous_spiral";
+  if (tunnelType === "static_cart") return "static_cart";
+  if (tunnelType === "static_pallet") return "static_block";
+  if (tunnelType === "continuous_belt") return "continuous_individual";
   if (isStaticTunnel(processType, operationMode)) return processType === "static_cart_freezing" ? "static_cart" : "static_block";
 
   const raw = String(input?.physicalModel ?? input?.tunnelPhysicalModel ?? input?.physical_model ?? input?.processType ?? input?.process_type ?? input?.tunnelMode ?? input?.tunnel_mode ?? "").toLowerCase().trim();
@@ -121,13 +143,15 @@ function isStaticTunnel(processType: unknown, operationMode: unknown) {
   return processType === "static_cart_freezing" || processType === "static_pallet_freezing" || operationMode === "batch";
 }
 
-function requiredPositiveFields(input: any, isStatic: boolean, staticMassKg: number, characteristicDimensionM: number, crossesFreezing: boolean): string[] {
+function requiredPositiveFields(input: any, isStatic: boolean, staticMassKg: number, characteristicDimensionM: number, crossesFreezing: boolean, airVelocityUsedMS: number): string[] {
   const commonNumericFields = ["initialTempC", "finalTempC", "freezingPointC"];
   const commonPositiveFields = ["cpAboveKJkgK"];
   const freezingPositiveFields = crossesFreezing ? ["cpBelowKJkgK", "latentHeatKJkg", "frozenWaterFraction"] : [];
   const missingNumericFields = commonNumericFields.filter((field) => !isProvided(input?.[field]) || !Number.isFinite(Number(input?.[field])));
   const missingPositiveFields = [...commonPositiveFields, ...freezingPositiveFields].filter((field) => !isProvided(input?.[field]) || toNumber(input?.[field], 0) <= 0);
-  const hasHInput = positiveNumber(input?.manualConvectiveCoefficientWM2K) > 0 || positiveNumber(input?.airVelocityMS) > 0;
+  const hasHInput = positiveNumber(input?.manualConvectiveCoefficientWM2K) > 0 || airVelocityUsedMS > 0;
+  const geometry = String(input?.productGeometry ?? input?.product_geometry ?? "slab");
+  const airflowSource = String(input?.airflowSource ?? input?.airflow_source ?? "manual_velocity");
 
   const continuousFields = [
     positiveNumber(input?.directMassKgH) <= 0 && positiveNumber(input?.unitWeightKg) * positiveNumber(input?.unitsPerCycle) * positiveNumber(input?.cyclesPerHour) <= 0 ? "massa usada" : "",
@@ -144,6 +168,21 @@ function requiredPositiveFields(input: any, isStatic: boolean, staticMassKg: num
     ...missingNumericFields,
     ...missingPositiveFields,
     ...(isStatic ? staticFields : continuousFields),
+    airflowSource === "airflow_by_fans" && positiveNumber(input?.fanAirflowM3H ?? input?.fan_airflow_m3_h) <= 0 ? "fan_airflow_m3_h" : "",
+    airflowSource === "airflow_by_fans" && positiveNumber(input?.tunnelCrossSectionWidthM ?? input?.tunnel_cross_section_width_m) <= 0 ? "tunnel_cross_section_width_m" : "",
+    airflowSource === "airflow_by_fans" && positiveNumber(input?.tunnelCrossSectionHeightM ?? input?.tunnel_cross_section_height_m) <= 0 ? "tunnel_cross_section_height_m" : "",
+    geometry === "slab" && positiveNumber(input?.productThicknessM ?? input?.product_thickness_m) <= 0 ? "product_thickness_m" : "",
+    geometry === "rectangular_prism" && positiveNumber(input?.productLengthM ?? input?.product_length_m) <= 0 ? "product_length_m" : "",
+    geometry === "rectangular_prism" && positiveNumber(input?.productWidthM ?? input?.product_width_m) <= 0 ? "product_width_m" : "",
+    geometry === "rectangular_prism" && positiveNumber(input?.productHeightM ?? input?.product_height_m) <= 0 ? "product_height_m" : "",
+    geometry === "cube" && positiveNumber(input?.productSideM ?? input?.product_side_m) <= 0 ? "product_side_m" : "",
+    geometry === "cylinder" && positiveNumber(input?.productDiameterM ?? input?.product_diameter_m) <= 0 ? "product_diameter_m" : "",
+    geometry === "cylinder" && positiveNumber(input?.productLengthM ?? input?.product_length_m) <= 0 ? "product_length_m" : "",
+    geometry === "sphere" && positiveNumber(input?.productDiameterM ?? input?.product_diameter_m) <= 0 ? "product_diameter_m" : "",
+    geometry === "packed_box" && positiveNumber(input?.boxLengthM ?? input?.box_length_m) <= 0 ? "box_length_m" : "",
+    geometry === "packed_box" && positiveNumber(input?.boxWidthM ?? input?.box_width_m) <= 0 ? "box_width_m" : "",
+    geometry === "packed_box" && positiveNumber(input?.boxHeightM ?? input?.box_height_m) <= 0 ? "box_height_m" : "",
+    geometry === "irregular" && positiveNumber(input?.characteristicDimensionM ?? input?.characteristic_dimension_m) <= 0 ? "characteristic_dimension_m" : "",
     !hasHInput && (isStatic || positiveNumber(input?.airVelocityMS) <= 0) ? "velocidade do ar ou coeficiente convectivo manual" : "",
   ];
 }
@@ -161,12 +200,12 @@ function canEstimateFreezingTime(input: any, distanceToCoreM: number, hEffective
   );
 }
 
-function calculateModelH(input: any, physicalModel: TunnelPhysicalModel) {
+function calculateModelH(input: any, physicalModel: TunnelPhysicalModel, airVelocityUsedMS: number, exposureFactor: number) {
   const manual = positiveNumber(input?.manualConvectiveCoefficientWM2K);
   const baseH = calculateConvectiveCoefficient({
-    airVelocityMS: input?.airVelocityMS,
+    airVelocityMS: airVelocityUsedMS,
     manualCoefficientWM2K: input?.manualConvectiveCoefficientWM2K,
-    airExposureFactor: input?.airExposureFactor,
+    airExposureFactor: 1,
   });
   if (manual > 0 || baseH.source !== "velocity_estimated") return baseH;
 
@@ -177,7 +216,7 @@ function calculateModelH(input: any, physicalModel: TunnelPhysicalModel) {
 
   return {
     ...baseH,
-    hEffectiveWM2K: toNumber(baseH.hBaseWM2K, 0) * airExposureFactor * modelFactor,
+    hEffectiveWM2K: toNumber(baseH.hBaseWM2K, 0) * exposureFactor * airExposureFactor * modelFactor,
   };
 }
 
@@ -216,11 +255,15 @@ function calculateTunnelCore(input: any) {
   const suggestedAirTempComparisonC = informedAirTempC === null ? null : informedAirTempC - suggestedAirTempC;
   const informedAirFlowM3H = nullableNumber(input?.informedAirFlowM3H ?? input?.airflow_m3_h);
 
-  const characteristicDimensionM = isStatic
+  const geometry = calculateCharacteristicDimension(input);
+  const fallbackCharacteristicDimensionM = isStatic
     ? getSmallestValidDimension([input?.palletLengthM, input?.palletWidthM, input?.palletHeightM])
     : positiveNumber(input?.productThicknessM);
-  const distanceToCoreM = characteristicDimensionM > 0 ? characteristicDimensionM / 2 : 0;
-  const h = calculateModelH(input, physicalModel);
+  const characteristicDimensionM = geometry.characteristicDimensionM || fallbackCharacteristicDimensionM;
+  const distanceToCoreM = geometry.distanceToCoreM || (characteristicDimensionM > 0 ? characteristicDimensionM / 2 : 0);
+  const airflow = calculateAirflowThroughFreeArea(input);
+  const exposure = calculateExposureFactor(input);
+  const h = calculateModelH(input, physicalModel, airflow.airVelocityUsedMS, exposure.exposureFactor);
 
   const frozenConductivityWMK = positiveNumber(input?.frozenConductivityWMK);
   const thermalPenetrationFactor = positiveNumber(input?.thermalPenetrationFactor);
@@ -310,12 +353,13 @@ function calculateTunnelCore(input: any) {
   ];
   const invalidFields = unique([
     ...validation.invalidFields,
+    ...airflow.invalidFields,
     isProvided(input?.thermalPenetrationFactor) && toNumber(input?.thermalPenetrationFactor) <= 0 ? "thermalPenetrationFactor" : "",
     isProvided(input?.airExposureFactor) && toNumber(input?.airExposureFactor) <= 0 ? "airExposureFactor" : "",
   ]);
   const missingFields = unique([
     ...validation.missingFields,
-    ...requiredPositiveFields(input, isStatic, staticMassKg, characteristicDimensionM, energy.crossesFreezingPoint),
+    ...requiredPositiveFields(input, isStatic, staticMassKg, characteristicDimensionM, energy.crossesFreezingPoint, airflow.airVelocityUsedMS),
     ...freezingTimeMissingFields,
   ]);
   const warnings = unique([...validation.warnings, ...engineWarnings]);
@@ -332,7 +376,7 @@ function calculateTunnelCore(input: any) {
 
   const scenario: TunnelThermalScenario = {
     airTempC: nullableNumber(input?.airTempC),
-    airVelocityMS: nullableNumber(input?.airVelocityMS),
+    airVelocityMS: nullableNumber(airflow.airVelocityUsedMS),
     airDeltaTK,
     airFlowM3H,
     informedAirFlowM3H,
@@ -364,9 +408,11 @@ function calculateTunnelCore(input: any) {
     mass: isStatic
       ? { mode: "batch", numberOfPallets, palletMassKg, staticMassKg, calculatedMassKgH, usedMassKgH: null, batchTimeH: input?.batchTimeH ?? null }
       : { mode: "continuous", calculatedMassKgH, directMassKgH, usedMassKgH, retentionTimeMin: input?.retentionTimeMin ?? null },
-    geometry: { characteristicDimensionM, distanceToCoreM, productThicknessM: input?.productThicknessM ?? null, palletLengthM: input?.palletLengthM ?? null, palletWidthM: input?.palletWidthM ?? null, palletHeightM: input?.palletHeightM ?? null },
+    geometry: { tunnelType: input?.tunnelType ?? input?.tunnel_type ?? null, arrangementType: input?.arrangementType ?? input?.arrangement_type ?? null, productGeometry: input?.productGeometry ?? input?.product_geometry ?? null, surfaceExposureModel: exposure.surfaceExposureModel, characteristicDimensionM, distanceToCoreM, geometrySource: geometry.source, productThicknessM: input?.productThicknessM ?? null, palletLengthM: input?.palletLengthM ?? null, palletWidthM: input?.palletWidthM ?? null, palletHeightM: input?.palletHeightM ?? null },
     productEnergy: productEnergyBreakdown,
-    convection: { source: h.source, hBaseWM2K: h.hBaseWM2K, hEffectiveWM2K: h.hEffectiveWM2K, airVelocityMS: input?.airVelocityMS ?? null, airExposureFactor: input?.airExposureFactor ?? null, spiralTurbulenceFactor, blockExposureFactor },
+    convection: { source: h.source, hBaseWM2K: h.hBaseWM2K, hEffectiveWM2K: h.hEffectiveWM2K, airVelocityMS: airflow.airVelocityUsedMS, airExposureFactor: input?.airExposureFactor ?? null, exposureFactor: exposure.exposureFactor, spiralTurbulenceFactor, blockExposureFactor },
+    airflow: { airflowSource: airflow.airflowSource, fanAirflowM3H: airflow.fanAirflowM3H, grossAreaM2: airflow.grossAreaM2, freeAreaM2: airflow.freeAreaM2, blockageFactor: airflow.blockageFactor, calculatedAirVelocityMS: airflow.calculatedAirVelocityMS, airVelocityUsedMS: airflow.airVelocityUsedMS },
+    heatTransfer: { hBaseWM2K: h.hBaseWM2K, exposureFactor: exposure.exposureFactor, airExposureFactor: input?.airExposureFactor ?? null, hEffectiveWM2K: h.hEffectiveWM2K, hSource: h.source },
     air: { airTempC: input?.airTempC ?? null, airDeltaTK, airDensityKgM3, airFlowM3H, informedAirFlowM3H, airFlowMethod, suggestedAirTempC, suggestedAirMethod, suggestedAirApproachK, comparison: suggestedAirTempComparisonC },
     scenarios: { adjustedScenario: scenario },
     loads: { productLoadKW, packagingLoadKW, internalLoadKW, totalKW, totalKcalH, totalTR },
@@ -377,7 +423,7 @@ function calculateTunnelCore(input: any) {
   const formulasUsed = {
     physicalModel: "normalized processType/tunnelMode/operationMode",
     calculatedMassKgH: "unitWeightKg × unitsPerCycle × cyclesPerHour",
-    h: "manualCoefficientWM2K || (10 + 10 × airVelocityMS^0.8) × airExposureFactor × modelFactor",
+    h: "manualCoefficientWM2K || (10 + 10 × airVelocityUsedMS^0.8) × exposureFactor × airExposureFactor × modelFactor",
     kEffectiveWMK: "frozenConductivityWMK × thermalPenetrationFactor",
     continuousProductLoadKW: "massKgH × specificEnergyKJkg / 3600",
     batchProductLoadKW: "massKg × specificEnergyKJkg / (timeH × 3600)",
@@ -410,6 +456,7 @@ function calculateTunnelCore(input: any) {
     availableTimeMin,
     airFlowM3H,
     informedAirFlowM3H,
+    airflow,
     airFlowMethod,
     suggestedAirTempC,
     suggestedAirMethod,
