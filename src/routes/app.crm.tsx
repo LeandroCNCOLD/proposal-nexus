@@ -155,7 +155,7 @@ function CrmPage() {
       return result;
     },
     onSuccess: (r) => {
-      toast.success(`Funil "${activeTab}" sincronizado: ${r.upserted ?? 0} processos atualizados.`);
+      toast.success(`Funil "${activeTab}" sincronizado: ${r.total ?? 0} processos lidos, ${r.upserted ?? 0} atualizados.`);
       queryClient.invalidateQueries({ queryKey: ["crm"] });
     },
     onError: (e) => toast.error(`Falha na sincronização: ${e instanceof Error ? e.message : String(e)}`),
