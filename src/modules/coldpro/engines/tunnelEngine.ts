@@ -95,6 +95,12 @@ export function calculateTunnelEngine(input: any) {
   const palletMassKg = positiveNumber(input?.palletMassKg ?? input?.pallet_mass_kg);
   const numberOfPallets = Math.max(1, positiveNumber(input?.numberOfPallets ?? input?.number_of_pallets) || 1);
   const staticMassKg = positiveNumber(input?.staticMassKg) || (palletMassKg * numberOfPallets);
+  const airDeltaTK = positiveNumber(input?.airDeltaTK) || 6;
+  const airDensityKgM3 = positiveNumber(input?.airDensityKgM3) || 1.2;
+  const cpAirKJkgK = 1.005;
+  const requiredAirTempC = toNumber(input?.finalTempC, 0) - airDeltaTK;
+  const informedAirTempC = isProvided(input?.airTempC) ? toNumber(input?.airTempC, 0) : null;
+  const requiredAirTempComparisonC = informedAirTempC === null ? null : informedAirTempC - requiredAirTempC;
 
   const engineWarnings: string[] = [];
   if (!isStatic && directMassKgH > 0 && calculatedMassKgH > 0) {
@@ -102,6 +108,9 @@ export function calculateTunnelEngine(input: any) {
     if (massDifferencePercent > 15) {
       engineWarnings.push(`Massa direta difere da massa por cadência em ${massDifferencePercent.toFixed(1)}%.`);
     }
+  }
+  if (requiredAirTempComparisonC !== null && requiredAirTempComparisonC > 5) {
+    engineWarnings.push("Temperatura do ar insuficiente para atingir a temperatura final do produto");
   }
 
   const characteristicDimensionM = isStatic
