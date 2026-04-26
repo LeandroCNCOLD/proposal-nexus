@@ -33,10 +33,8 @@ function getSmallestValidDimension(values: unknown[]): number {
 }
 
 function requiredPositiveFields(input: any, isStatic: boolean): string[] {
-  const commonFields = [
-    "initialTempC",
-    "finalTempC",
-    "freezingPointC",
+  const requiredNumericFields = ["initialTempC", "finalTempC", "freezingPointC"];
+  const commonPositiveFields = [
     "cpAboveKJkgK",
     "cpBelowKJkgK",
     "latentHeatKJkg",
@@ -47,7 +45,10 @@ function requiredPositiveFields(input: any, isStatic: boolean): string[] {
     ? ["staticMassKg", "batchTimeH", "palletLengthM", "palletWidthM", "palletHeightM"]
     : ["productThicknessM", "retentionTimeMin"];
 
-  return [...commonFields, ...processFields].filter((field) => !isProvided(input?.[field]) || toNumber(input?.[field], 0) <= 0);
+  const missingNumericFields = requiredNumericFields.filter((field) => !isProvided(input?.[field]) || !Number.isFinite(Number(input?.[field])));
+  const missingPositiveFields = [...commonPositiveFields, ...processFields].filter((field) => !isProvided(input?.[field]) || toNumber(input?.[field], 0) <= 0);
+
+  return [...missingNumericFields, ...missingPositiveFields];
 }
 
 function canEstimateFreezingTime(input: any, distanceToCoreM: number, hEffectiveWM2K: number | null, kEffectiveWMK: number): boolean {
