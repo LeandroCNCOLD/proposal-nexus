@@ -3,7 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 import { Loader2, Sparkles, Wind, Gauge, Zap, AlertTriangle, CheckCircle2, ChevronRight, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   findEquipmentCandidates,
@@ -96,16 +95,18 @@ export function ColdProRealSelection({ environment, result, onSelect, isSelectin
             <ColdProInput readOnly value={String(tInt)} />
           </ColdProField>
           <ColdProField label="Temperatura de evaporação" unit="°C">
-            <Input
+            <ColdProInput
               type="number"
+              step="0.0001"
               value={tEvap}
               onChange={(e) => setTEvap(e.target.value)}
               className="h-8 border-0 border-b border-input bg-background text-right shadow-none focus-visible:ring-0 focus-visible:border-primary"
             />
           </ColdProField>
           <ColdProField label="Temperatura de condensação" unit="°C">
-            <Input
+            <ColdProInput
               type="number"
+              step="0.0001"
               value={tCond}
               onChange={(e) => setTCond(e.target.value)}
               className="h-8 border-0 border-b border-input bg-background text-right shadow-none focus-visible:ring-0 focus-visible:border-primary"
@@ -151,10 +152,9 @@ export function ColdProRealSelection({ environment, result, onSelect, isSelectin
             </Select>
           </ColdProField>
           <ColdProField label="Qtd. mínima de equipamentos">
-            <Input
+            <ColdProInput
               type="number"
-              min={1}
-              step={1}
+              step="0.0001"
               value={minQuantity}
               onChange={(e) => setMinQuantity(e.target.value)}
               className="h-8 border-0 border-b border-input bg-background text-right shadow-none focus-visible:border-primary focus-visible:ring-0"
