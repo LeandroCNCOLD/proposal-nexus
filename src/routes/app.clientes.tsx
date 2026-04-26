@@ -24,6 +24,19 @@ const emptyClientForm = {
   codigoIBGEMunicipio: "", segment: "", classification: "", region: "", notes: "",
 };
 
+const firstText = (...values: unknown[]) => {
+  for (const value of values) {
+    if (value === null || value === undefined) continue;
+    const text = String(value).trim();
+    if (text) return text;
+  }
+  return "";
+};
+
+const clientRaw = (client: any) => (client.nomus_raw && typeof client.nomus_raw === "object" ? client.nomus_raw : {});
+
+const primaryContact = (client: any) => (client.client_contacts ?? []).find((it: any) => it.is_primary) ?? client.client_contacts?.[0];
+
 function ClientsPage() {
   const { user } = useAuth();
   const qc = useQueryClient();
@@ -132,28 +145,42 @@ function ClientsPage() {
           <TableHeader><TableRow><TableHead>Nome</TableHead><TableHead>Segmento</TableHead><TableHead>Região</TableHead><TableHead>Vendedor / Rep.</TableHead><TableHead>Contato</TableHead><TableHead>Cidade/UF</TableHead></TableRow></TableHeader>
           <TableBody>
             {data.length === 0 ? <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-12">Nenhum cliente cadastrado.</TableCell></TableRow> :
-              data.map((c) => (
-                <TableRow key={c.id} className="cursor-pointer" onClick={() => setSelectedClient(c)}>
-                  <TableCell className="min-w-[220px] font-medium">
-                    <div>{c.name}</div>
-                    {c.trade_name && <div className="text-xs font-normal text-muted-foreground">{c.trade_name}</div>}
-                  </TableCell>
-                  <TableCell className="text-sm">{c.segment ?? "—"}</TableCell>
-                  <TableCell className="text-sm">{c.region ?? "—"}</TableCell>
-                  <TableCell className="min-w-[190px] text-sm">
-                    <div>{c.nomus_seller_name ?? "—"}</div>
-                    {c.nomus_representative_name && <div className="text-xs text-muted-foreground">Rep.: {c.nomus_representative_name}</div>}
-                  </TableCell>
-                  <TableCell className="min-w-[210px] text-sm">
-                    {(() => {
-                      const contact = (c.client_contacts ?? []).find((it) => it.is_primary) ?? c.client_contacts?.[0];
-                      if (!contact) return "—";
-                      return <><div>{contact.name}</div><div className="text-xs text-muted-foreground">{contact.email || contact.phone || contact.mobile || "—"}</div></>;
-                    })()}
-                  </TableCell>
-                  <TableCell className="text-sm whitespace-nowrap">{[c.city, c.state].filter(Boolean).join(" / ") || "—"}</TableCell>
-                </TableRow>
-              ))}
+              data.map((c) => {
+                const raw = clientRaw(c);
+                const contact = primaryContact(c);
+                const segment = firstText(c.segment, raw.segmento, raw.ramo, raw.ramoAtividade, raw.segmentoMercado, raw.cnaePrincipal, raw.classificacao);
+                const region = firstText(c.region, raw.regiao, raw.regiaoComercial, raw.territorio, c.state, raw.uf, raw.estado, raw.siglaEstado);
+                const seller = firstText(c.nomus_seller_name, raw.nomeVendedor, raw.vendedorNome, raw.vendedor?.nome, raw.vendedores?.[0]?.nome, raw.vendedores?.[0]?.razaoSocial);
+                const representative = firstText(c.nomus_representative_name, raw.nomeRepresentante, raw.representanteNome, raw.representante?.nome);
+                const city = firstText(c.city, raw.municipio, raw.cidade);
+                const state = firstText(c.state, raw.uf, raw.estado, raw.siglaEstado);
+                const contactName = firstText(contact?.name, raw.nomeContato, raw.contato, raw.contatos?.[0]?.nome);
+                const contactInfo = firstText(contact?.email, contact?.phone, contact?.mobile, c.email, raw.email, raw.telefone, raw.celular, raw.contatos?.[0]?.email, raw.contatos?.[0]?.telefone);
+
+                return (
+                  <TableRow key={c.id} className="cursor-pointer" onClick={() => setSelectedClient(c)}>
+                    <TableCell className="min-w-[220px] font-medium">
+                      <div>{c.name}</div>
+                      <div className="text-xs font-normal text-muted-foreground">
+                        {firstText(c.trade_name, raw.nomeFantasia, c.document, raw.cnpj, raw.cpf) || "Sem nome fantasia/documento"}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      <div>{segment || "—"}</div>
+                      {firstText(c.classification, raw.classificacao) && <div className="text-xs text-muted-foreground">{firstText(c.classification, raw.classificacao)}</div>}
+                    </TableCell>
+                    <TableCell className="text-sm">{region || "—"}</TableCell>
+                    <TableCell className="min-w-[190px] text-sm">
+                      <div>{seller || "—"}</div>
+                      {representative && <div className="text-xs text-muted-foreground">Rep.: {representative}</div>}
+                    </TableCell>
+                    <TableCell className="min-w-[210px] text-sm">
+                      {contactName || contactInfo ? <><div>{contactName || "Contato principal"}</div><div className="text-xs text-muted-foreground">{contactInfo || "—"}</div></> : "—"}
+                    </TableCell>
+                    <TableCell className="text-sm whitespace-nowrap">{[city, state].filter(Boolean).join(" / ") || "—"}</TableCell>
+                  </TableRow>
+                );
+              })}
           </TableBody>
         </Table>
       </div>
