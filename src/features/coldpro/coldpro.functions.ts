@@ -59,6 +59,34 @@ function stripUiMaterialKey(value: unknown) {
   return value.includes(":") ? value.split(":").pop() : value;
 }
 
+const catalogThermalKeys = [
+  "initial_freezing_temp_c", "specific_heat_above_kj_kg_k", "specific_heat_below_kj_kg_k", "specific_heat_above_kcal_kg_c", "specific_heat_below_kcal_kg_c", "latent_heat_kj_kg", "latent_heat_kcal_kg", "density_kg_m3", "water_content_percent", "protein_content_percent", "fat_content_percent", "carbohydrate_content_percent", "fiber_content_percent", "ash_content_percent", "thermal_conductivity_unfrozen_w_m_k", "thermal_conductivity_frozen_w_m_k", "frozen_water_fraction", "freezable_water_content_percent", "characteristic_thickness_m", "default_convective_coefficient_w_m2_k", "allow_phase_change", "respiration_rate_0c_w_kg", "respiration_rate_5c_w_kg", "respiration_rate_10c_w_kg", "respiration_rate_15c_w_kg", "respiration_rate_20c_w_kg", "respiration_rate_0c_mw_kg", "respiration_rate_5c_mw_kg", "respiration_rate_10c_mw_kg", "respiration_rate_15c_mw_kg", "respiration_rate_20c_mw_kg", "notes",
+];
+
+function applyCatalogThermal(payload: any, catalog: any) {
+  if (!catalog) return payload;
+  const next = { ...payload, product_id: catalog.id, product_name: catalog.name };
+  for (const key of catalogThermalKeys) if (catalog[key] !== undefined) next[key] = catalog[key];
+  next.thermal_conductivity_unfrozen_w_m_k = catalog.thermal_conductivity_unfrozen_w_m_k ?? catalog.thermal_conductivity_w_m_k ?? next.thermal_conductivity_unfrozen_w_m_k;
+  next.freezing_temp_c = catalog.initial_freezing_temp_c ?? next.freezing_temp_c;
+  next.ashrae_density_kg_m3 = catalog.density_kg_m3 ?? next.ashrae_density_kg_m3;
+  return next;
+}
+
+async function applyCatalogThermalById(supabase: typeof supabaseAdmin, payload: any) {
+  if (!payload.product_id) return payload;
+  const { data: catalog } = await supabase.from("coldpro_products").select("*").eq("id", payload.product_id).maybeSingle();
+  return applyCatalogThermal(payload, catalog);
+}
+
+async function enrichRowsWithCatalog(supabase: typeof supabaseAdmin, rows: any[] = []) {
+  const ids = Array.from(new Set(rows.map((row) => row?.product_id).filter(Boolean)));
+  if (!ids.length) return rows;
+  const { data: catalogRows } = await supabase.from("coldpro_products").select("*").in("id", ids);
+  const byId = new Map((catalogRows ?? []).map((row: any) => [row.id, row]));
+  return rows.map((row) => applyCatalogThermal(row, byId.get(row?.product_id)));
+}
+
 export const listColdProProjects = createServerFn({ method: "GET" }).middleware([requireSupabaseAuth]).handler(async () => {
   const supabase = supabaseAdmin;
   const { data, error } = await supabase.from("coldpro_projects").select("*").order("created_at", { ascending: false });
