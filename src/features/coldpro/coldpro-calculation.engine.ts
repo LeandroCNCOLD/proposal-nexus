@@ -20,6 +20,8 @@ import {
 import { calculateAdvancedProcess } from "./advancedProcesses/advancedProcessEngine";
 import { calculateEvaporatorFrostRisk, suggestedInfiltrationFactor } from "./extra-loads-preview";
 import { calculateEvaporatorFanLoad, calculateMotorLoadKcalH, calculateTechnicalDefrost, calculateTechnicalInfiltration } from "./thermal-calculations";
+import { databaseToTunnelInput } from "@/modules/coldpro/adapters/databaseToTunnelInput";
+import { calculateTunnelEngine } from "@/modules/coldpro/engines/tunnelEngine";
 
 const W_TO_KCAL_H = 0.859845;
 const R_INTERNAL_M2K_W = 0.12;
@@ -740,143 +742,64 @@ export function calculateMotorsLoad(env: ColdProEnvironment): number {
 }
 
 export function calculateTunnelLoad(tunnel: ColdProTunnel, env?: ColdProEnvironment) {
+  const tunnelInput = databaseToTunnelInput(tunnel, env ?? {});
+  const tunnelResult = calculateTunnelEngine(tunnelInput);
   const processType = String(tunnel.process_type ?? (tunnel.operation_mode === "batch" ? "static_pallet_freezing" : "continuous_individual_freezing"));
-  const isStatic = processType === "static_cart_freezing" || processType === "static_pallet_freezing" || tunnel.operation_mode === "batch";
+  const isStatic = tunnelResult.isStatic;
   const arrangementType = String(tunnel.arrangement_type ?? (isStatic ? "pallet_block" : "individual_exposed"));
   const arrangementDefaults = tunnelArrangementDefaults(arrangementType);
-  const airExposureFactor = n(tunnel.air_exposure_factor, arrangementDefaults.airExposure) || arrangementDefaults.airExposure;
-  const penetrationFactor = n(tunnel.thermal_penetration_factor, arrangementDefaults.penetration) || arrangementDefaults.penetration;
-  const unitWeight = n(tunnel.unit_weight_kg) || n(tunnel.product_unit_weight_kg);
-  const massHour = isStatic
-    ? 0
-    : n(tunnel.mass_kg_hour) > 0
-      ? n(tunnel.mass_kg_hour)
-      : unitWeight * n(tunnel.units_per_cycle) * n(tunnel.cycles_per_hour);
-  const staticMass = n(tunnel.pallet_mass_kg) * Math.max(1, n(tunnel.number_of_pallets, 1));
-  const batchTimeH = n(tunnel.batch_time_h) || n(tunnel.process_time_min) / 60;
-  const tin = n(tunnel.inlet_temp_c);
-  const tout = n(tunnel.outlet_temp_c);
-  const tfreeze = tunnel.freezing_temp_c;
-  const cpAbove = thermalValueKcal(tunnel.specific_heat_above_kcal_kg_c, tunnel.specific_heat_above_kj_kg_k);
-  const cpBelow = thermalValueKcal(tunnel.specific_heat_below_kcal_kg_c, tunnel.specific_heat_below_kj_kg_k);
-  const latent = thermalValueKcal(tunnel.latent_heat_kcal_kg, tunnel.latent_heat_kj_kg);
-  const frozenFraction = waterFreezeFraction(tunnel);
-  const hasEnvironmentAirTemp = env?.internal_temp_c !== null && env?.internal_temp_c !== undefined && Number.isFinite(Number(env.internal_temp_c));
-  const airTempC = hasEnvironmentAirTemp ? n(env?.internal_temp_c) : n(tunnel.air_temp_c);
-  const productThicknessM = n(tunnel.product_thickness_m) || n(tunnel.product_thickness_mm) / 1000;
-  const blockDimensions = [n(tunnel.pallet_length_m), n(tunnel.pallet_width_m), n(tunnel.pallet_height_m)].filter((value) => value > 0);
-  const blockCharacteristicM = blockDimensions.length ? Math.min(...blockDimensions) : 0;
-  const characteristicDimensionM = isStatic ? blockCharacteristicM : productThicknessM;
-  const distanceToCoreM = characteristicDimensionM > 0 ? characteristicDimensionM / 2 : 0;
-  const baseConvectiveCoefficient = calculateConvectionCoefficient(tunnel.air_velocity_m_s, tunnel.convective_coefficient_manual_w_m2_k ?? tunnel.convective_coefficient_w_m2_k);
-  const convectiveCoefficient = baseConvectiveCoefficient ? round2(baseConvectiveCoefficient * airExposureFactor) : null;
-  const effectiveConductivity = n(tunnel.thermal_conductivity_frozen_w_m_k) > 0 ? n(tunnel.thermal_conductivity_frozen_w_m_k) * penetrationFactor : 0;
-  const estimatedFreezingTimeMin = estimateFreezingTimePlankMin({
-    thicknessM: characteristicDimensionM,
-    distanceToCoreM,
-    densityKgM3: tunnel.density_kg_m3,
-    thermalConductivityFrozenWMK: tunnel.thermal_conductivity_frozen_w_m_k,
-    effectiveConductivityWMK: effectiveConductivity,
-    freezingTempC: tunnel.freezing_temp_c,
-    latentHeatKcalKg: tunnel.latent_heat_kcal_kg,
-    airTempC,
-    airVelocityMS: tunnel.air_velocity_m_s,
-    convectiveCoefficientWM2K: convectiveCoefficient,
-  });
-
-  let sensibleAbove = 0;
-  let latentLoad = 0;
-  let sensibleBelow = 0;
-  const calculationMass = isStatic ? staticMass : massHour;
-
-  if (tunnel.tunnel_type === "blast_freezer" && tfreeze !== null && tfreeze !== undefined && tin > tfreeze && tout < tfreeze) {
-    sensibleAbove = calculationMass * cpAbove * positive(tin - tfreeze);
-    latentLoad = calculationMass * latent * frozenFraction;
-    sensibleBelow = calculationMass * cpBelow * positive(tfreeze - tout);
-  } else {
-    const cp = tin >= 0 && tout >= 0 ? cpAbove : cpBelow || cpAbove;
-    sensibleAbove = calculationMass * cp * Math.abs(tin - tout);
-  }
-
-  const timeDivisor = isStatic && batchTimeH > 0 ? batchTimeH : 1;
-  const productHourly = (sensibleAbove + latentLoad + sensibleBelow) / timeDivisor;
-  const qSpecificKjKg = calculationMass > 0 ? ((sensibleAbove + latentLoad + sensibleBelow) / calculationMass) * KCAL_TO_KJ : 0;
-  const packaging = n(tunnel.packaging_mass_kg_hour) * n(tunnel.packaging_specific_heat_kcal_kg_c) * Math.abs(tin - tout);
-  const internalLoads = kwToKcalh(n(tunnel.belt_motor_kw) + n(tunnel.internal_fans_kw) + n(tunnel.other_internal_kw));
-  const total = productHourly + packaging + internalLoads;
-  const thermalProcess = calculateTunnelThermalProcess({
-    usedMassKgH: calculationMass,
-    tin,
-    tout,
-    tfreeze: n(tfreeze),
-    cpAboveKjKgK: cpAbove * KCAL_TO_KJ,
-    cpBelowKjKgK: cpBelow * KCAL_TO_KJ,
-    latentHeatKjKg: latent * KCAL_TO_KJ,
-    frozenFraction,
-    packagingMassKgH: n(tunnel.packaging_mass_kg_hour),
-    packagingCpKjKgK: n(tunnel.packaging_specific_heat_kcal_kg_c) * KCAL_TO_KJ,
-    deltaTAirK: n((tunnel as any).air_delta_t_k, 6),
-  });
-  const availableTimeMin = isStatic ? batchTimeH * 60 : n(tunnel.process_time_min);
-  const optimization = optimizeProcessAirCondition({
-    processType,
-    arrangementType,
-    operationMode: isStatic ? "batch" : "continuous",
-    qSpecificKjKg,
-    massKgHour: massHour,
-    batchMassKg: staticMass,
-    batchTimeH,
-    desiredTimeMin: availableTimeMin,
-    initialAirTempC: airTempC,
-    initialAirVelocityMS: n(tunnel.air_velocity_m_s),
-    minAirTempC: n((tunnel as any).min_air_temp_c, -40),
-    maxAirTempC: n((tunnel as any).max_air_temp_c, -25),
-    minAirVelocityMS: n((tunnel as any).min_air_velocity_m_s, 1),
-    maxAirVelocityMS: n((tunnel as any).max_air_velocity_m_s, 6),
-    airTempStepC: n((tunnel as any).air_temp_step_c, 5),
-    airVelocityStepMS: n((tunnel as any).air_velocity_step_m_s, 1),
-    airDeltaTK: n((tunnel as any).air_delta_t_k, 6),
-    airExposureFactor,
-    thermalPenetrationFactor: penetrationFactor,
-    distanceToCoreM,
-    densityKgM3: tunnel.density_kg_m3,
-    thermalConductivityFrozenWMK: tunnel.thermal_conductivity_frozen_w_m_k,
-    freezingTempC: tunnel.freezing_temp_c,
-    latentHeatKcalKg: tunnel.latent_heat_kcal_kg,
-    frozenWaterFraction: frozenFraction,
-  });
-  const retentionMargin = estimatedFreezingTimeMin && availableTimeMin > 0 ? availableTimeMin / estimatedFreezingTimeMin : null;
-  const retentionStatus = optimization.status === "adequado" ? "Adequado por otimização" : !retentionMargin ? "Sem dados suficientes" : retentionMargin < 1 ? "Insuficiente" : retentionMargin < 1.1 ? "Adequado com baixa margem" : "Adequado";
-  const warnings = [arrangementDefaults.warning, !estimatedFreezingTimeMin ? "Tempo até núcleo não estimado por falta de densidade, condutividade congelada, calor latente, temperatura de congelamento ou dimensão térmica." : null, ...optimization.warnings].filter(Boolean);
+  const productKcalH = tunnelResult.productLoadKW * 859.845;
+  const packagingKcalH = tunnelResult.packagingLoadKW * 859.845;
+  const internalLoadsKcalH = tunnelResult.internalLoadKW * 859.845;
+  const energy = tunnelResult.energy ?? {};
+  const airTempSource = tunnelInput.airTempSource === "environment" ? "environment_internal_temp" : "tunnel";
+  const retentionMargin = tunnelResult.estimatedTimeMin && tunnelResult.availableTimeMin > 0
+    ? tunnelResult.availableTimeMin / tunnelResult.estimatedTimeMin
+    : null;
 
   return {
     process_type: processType,
     arrangement_type: arrangementType,
     arrangement_label: arrangementDefaults.label,
     calculation_model: isStatic ? "static_equivalent_block" : "continuous_individual_unit",
-    mass_kg_hour: round2(massHour),
-    static_mass_kg: round2(staticMass),
-    batch_time_h: round2(batchTimeH),
-    total_energy_kcal: round2(sensibleAbove + latentLoad + sensibleBelow),
-    q_specific_kj_kg: round2(qSpecificKjKg),
-    q_specific_above_kj_kg: round2(thermalProcess.qSpecificAboveKjKg),
-    q_specific_latent_kj_kg: round2(thermalProcess.qSpecificLatentKjKg),
-    q_specific_below_kj_kg: round2(thermalProcess.qSpecificBelowKjKg),
-    q_specific_total_kj_kg: round2(thermalProcess.qSpecificTotalKjKg),
-    sensible_above_kcal_h: round2(sensibleAbove / timeDivisor),
-    latent_kcal_h: round2(latentLoad / timeDivisor),
-    sensible_below_kcal_h: round2(sensibleBelow / timeDivisor),
-    product_load_kw: round2(thermalProcess.productLoadKw),
-    packaging_load_kw: round2(thermalProcess.packagingLoadKw),
-    total_process_load_kw: round2(thermalProcess.totalProcessLoadKw),
-    total_process_load_kcal_h: round2(thermalProcess.totalProcessLoadKcalH),
-    total_process_load_tr: round2(thermalProcess.totalProcessLoadTr),
-    required_airflow_m3_h: thermalProcess.requiredAirflowM3H ? round2(thermalProcess.requiredAirflowM3H) : null,
-    required_airflow_m3_s: thermalProcess.requiredAirflowM3S ? round2(thermalProcess.requiredAirflowM3S) : null,
-    cp_above_kcal_kg_c: round2(cpAbove),
-    cp_below_kcal_kg_c: round2(cpBelow),
-    latent_heat_kcal_kg: round2(latent),
-    frozen_water_fraction: round2(frozenFraction),
+    mass_kg_hour: round2(tunnelResult.usedMassKgH),
+    calculated_mass_kg_h: round2(tunnelResult.calculatedMassKgH),
+    used_mass_kg_h: round2(tunnelResult.usedMassKgH),
+    static_mass_kg: round2(tunnelResult.staticMassKg),
+    batch_time_h: round2(n(tunnelInput.batchTimeH)),
+    total_energy_kcal: round2((energy.totalKJkg ?? 0) / KCAL_TO_KJ * (isStatic ? tunnelResult.staticMassKg : tunnelResult.usedMassKgH)),
+    q_specific_kj_kg: round2(energy.totalKJkg ?? 0),
+    q_specific_above_kj_kg: round2(energy.sensibleAboveKJkg ?? 0),
+    q_specific_latent_kj_kg: round2(energy.latentKJkg ?? 0),
+    q_specific_below_kj_kg: round2(energy.sensibleBelowKJkg ?? 0),
+    q_specific_total_kj_kg: round2(energy.totalKJkg ?? 0),
+    sensible_above_kcal_h: round2(((energy.sensibleAboveKJkg ?? 0) / Math.max(energy.totalKJkg ?? 0, 1)) * productKcalH),
+    latent_kcal_h: round2(((energy.latentKJkg ?? 0) / Math.max(energy.totalKJkg ?? 0, 1)) * productKcalH),
+    sensible_below_kcal_h: round2(((energy.sensibleBelowKJkg ?? 0) / Math.max(energy.totalKJkg ?? 0, 1)) * productKcalH),
+    product_kcal_h: round2(productKcalH),
+    product_load_kw: round2(tunnelResult.productLoadKW),
+    tunnel_product_load_kw: round2(tunnelResult.productLoadKW),
+    packaging_kcal_h: round2(packagingKcalH),
+    packaging_load_kw: round2(tunnelResult.packagingLoadKW),
+    tunnel_packaging_load_kw: round2(tunnelResult.packagingLoadKW),
+    internal_loads_kcal_h: round2(internalLoadsKcalH),
+    tunnel_internal_load_kcal_h: round2(internalLoadsKcalH),
+    tunnel_internal_load_kw: round2(tunnelResult.internalLoadKW),
+    total_process_load_kw: round2(tunnelResult.productLoadKW + tunnelResult.packagingLoadKW),
+    total_process_load_kcal_h: round2(productKcalH + packagingKcalH),
+    total_process_load_tr: round2(kcalhToTr(productKcalH + packagingKcalH)),
+    total_kcal_h: round2(tunnelResult.totalKcalH),
+    total_kw: round2(tunnelResult.totalKW),
+    total_tr: round2(tunnelResult.totalTR),
+    tunnel_total_load_kw: round2(tunnelResult.totalKW),
+    tunnel_total_load_kcal_h: round2(tunnelResult.totalKcalH),
+    tunnel_total_load_tr: round2(tunnelResult.totalTR),
+    required_airflow_m3_h: calculateRecommendedAirFlowM3H(tunnelResult.totalKW, n((tunnel as any).air_delta_t_k, 6)),
+    required_airflow_m3_s: calculateRecommendedAirFlowM3H(tunnelResult.totalKW, n((tunnel as any).air_delta_t_k, 6)) / 3600,
+    cp_above_kcal_kg_c: round2(n(tunnelInput.cpAboveKJkgK) / KCAL_TO_KJ),
+    cp_below_kcal_kg_c: round2(n(tunnelInput.cpBelowKJkgK) / KCAL_TO_KJ),
+    latent_heat_kcal_kg: round2(n(tunnelInput.latentHeatKJkg) / KCAL_TO_KJ),
+    frozen_water_fraction: round2(n(tunnelInput.frozenWaterFraction)),
     composition_percent: {
       water: tunnel.water_content_percent ?? null,
       protein: tunnel.protein_content_percent ?? null,
@@ -885,39 +808,43 @@ export function calculateTunnelLoad(tunnel: ColdProTunnel, env?: ColdProEnvironm
       fiber: tunnel.fiber_content_percent ?? null,
       ash: tunnel.ash_content_percent ?? null,
     },
-    packaging_kcal_h: round2(packaging),
-    internal_loads_kcal_h: round2(internalLoads),
-    total_kcal_h: round2(total),
-    total_kw: round2(kcalhToKw(total)),
-    total_tr: round2(kcalhToTr(total)),
-    air_temperature_c: airTempC,
-    air_temperature_source: hasEnvironmentAirTemp ? "environment_internal_temp" : "tunnel",
-    air_velocity_m_s: n(tunnel.air_velocity_m_s),
+    air_temperature_c: tunnelInput.airTempC,
+    air_temperature_source: airTempSource,
+    air_temp_source: tunnelInput.airTempSource ?? "environment",
+    air_velocity_m_s: n(tunnelInput.airVelocityMS),
     airflow_m3_h: n(tunnel.airflow_m3_h),
-    process_time_min: availableTimeMin,
-    base_convective_coefficient_w_m2_k: baseConvectiveCoefficient,
-    air_exposure_factor: round2(airExposureFactor),
-    thermal_penetration_factor: round2(penetrationFactor),
-    effective_thermal_conductivity_w_m_k: round2(effectiveConductivity),
-    convective_coefficient_w_m2_k: convectiveCoefficient,
-    convective_coefficient_effective_w_m2_k: convectiveCoefficient,
-    h_effective_w_m2_k: convectiveCoefficient,
-    k_effective_w_m_k: round2(effectiveConductivity),
-    thermal_characteristic_dimension_m: round2(characteristicDimensionM),
-    distance_to_core_m: round2(distanceToCoreM),
-    estimated_freezing_time_min: estimatedFreezingTimeMin,
+    process_time_min: tunnelResult.availableTimeMin,
+    base_convective_coefficient_w_m2_k: tunnelResult.h.hBaseWM2K ?? null,
+    air_exposure_factor: round2(n(tunnelInput.airExposureFactor)),
+    thermal_penetration_factor: round2(n(tunnelInput.thermalPenetrationFactor)),
+    effective_thermal_conductivity_w_m_k: round2(tunnelResult.kEffectiveWMK),
+    convective_coefficient_w_m2_k: tunnelResult.h.hEffectiveWM2K,
+    convective_coefficient_effective_w_m2_k: tunnelResult.h.hEffectiveWM2K,
+    h_effective_w_m2_k: tunnelResult.h.hEffectiveWM2K,
+    h_source: tunnelResult.h.source,
+    k_effective_w_m_k: round2(tunnelResult.kEffectiveWMK),
+    thermal_characteristic_dimension_m: round2(tunnelResult.characteristicDimensionM),
+    distance_to_core_m: round2(tunnelResult.distanceToCoreM),
+    estimated_freezing_time_min: tunnelResult.estimatedTimeMin,
     retention_margin: retentionMargin ? round2(retentionMargin) : null,
-    retention_status: retentionStatus,
-    technical_status: retentionStatus,
-    warnings,
-    recommended_air_temp_c: optimization.recommendation?.air_temp_c ?? null,
-    recommended_air_velocity_m_s: optimization.recommendation?.air_velocity_m_s ?? null,
-    recommended_airflow_m3_h: optimization.recommendation?.airflow_m3_h ?? calculateRecommendedAirFlowM3H(kcalhToKw(total), n((tunnel as any).air_delta_t_k, 6)),
-    optimization_status: optimization.status,
-    optimization_margin_percent: optimization.recommendation?.margin_percent ?? null,
-    optimization_attempts_count: optimization.attempts_count,
-    optimization_attempts: optimization.attempts,
-    optimization_memory: optimization.memory,
+    retention_status: tunnelResult.status,
+    technical_status: tunnelResult.status,
+    process_status: tunnelResult.status,
+    missing_fields: tunnelResult.missingFields,
+    warnings: tunnelResult.warnings,
+    calculation_breakdown: tunnelResult.calculationBreakdown,
+    calculation_log: tunnelResult.calculationLog,
+    recommended_air_temp_c: null,
+    recommended_air_velocity_m_s: null,
+    recommended_airflow_m3_h: calculateRecommendedAirFlowM3H(tunnelResult.totalKW, n((tunnel as any).air_delta_t_k, 6)),
+    optimization_status: tunnelResult.status === "adequate" ? "adequado" : "revisar aplicação",
+    optimization_margin_percent: null,
+    optimization_attempts_count: 0,
+    optimization_attempts: [],
+    optimization_memory: {
+      source: "calculateTunnelEngine",
+      note: "Cálculo consolidado de túnel usa o mesmo motor modular do preview.",
+    },
   };
 }
 
