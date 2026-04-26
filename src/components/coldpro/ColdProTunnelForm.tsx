@@ -494,13 +494,12 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
         </div>
       </div>
 
-      <Tabs defaultValue="modelo" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="mb-4 flex h-auto w-full flex-wrap justify-start gap-1 p-1">
           <TabsTrigger value="modelo">Modelo físico</TabsTrigger>
           <TabsTrigger value="produto">Produto</TabsTrigger>
-          <TabsTrigger value="continuo">Contínuo</TabsTrigger>
-          <TabsTrigger value="estatico">Estático</TabsTrigger>
-          <TabsTrigger value="ar">Ar e embalagem</TabsTrigger>
+          <TabsTrigger value={modelTab}>{isStatic ? "Estático" : "Contínuo"}</TabsTrigger>
+          <TabsTrigger value="ar">Ar, embalagem e penetração</TabsTrigger>
           <TabsTrigger value="cargas">Cargas internas</TabsTrigger>
         </TabsList>
 
