@@ -178,6 +178,25 @@ function kcalFromThermal(kcal?: unknown, kj?: unknown) {
   return positiveValue(kcal) || positiveValue(kj) / 4.1868;
 }
 
+function simulationDraftFromTunnel(source: any) {
+  return {
+    air_temp_c: source?.air_temp_c ?? -35,
+    airflow_source: source?.airflow_source ?? "manual_velocity",
+    air_velocity_m_s: source?.air_velocity_m_s ?? 3,
+    fan_airflow_m3_h: source?.fan_airflow_m3_h ?? source?.informed_air_flow_m3_h ?? source?.airflow_m3_h ?? 0,
+    tunnel_cross_section_width_m: source?.tunnel_cross_section_width_m ?? 0,
+    tunnel_cross_section_height_m: source?.tunnel_cross_section_height_m ?? 0,
+    blockage_factor: source?.blockage_factor ?? 0,
+    air_delta_t_k: source?.air_delta_t_k ?? 6,
+    informed_air_flow_m3_h: source?.informed_air_flow_m3_h ?? source?.airflow_m3_h ?? 0,
+    convective_coefficient_manual_w_m2_k: source?.convective_coefficient_manual_w_m2_k ?? null,
+    package_type: source?.package_type ?? "",
+    air_exposure_factor: source?.air_exposure_factor ?? 1,
+    thermal_penetration_factor: source?.thermal_penetration_factor ?? 1,
+    suggested_air_approach_k: source?.suggested_air_approach_k ?? 8,
+  };
+}
+
 const DENSITY_SOURCE_LABEL = {
   manual: "manual",
   calculated_from_geometry: "geometria + peso",
@@ -201,11 +220,18 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
   const [cycleUnit, setCycleUnit] = React.useState<CycleUnit>("h");
   const [retentionUnit, setRetentionUnit] = React.useState<RetentionUnit>("min");
   const [activeTab, setActiveTab] = React.useState("modelo");
+  const [simulation, setSimulation] = React.useState<any>(() => simulationDraftFromTunnel(defaultTunnel(environmentId)));
 
-  React.useEffect(() => setForm((prev: any) => ({ ...prev, ...(tunnel ?? {}), environment_id: environmentId })), [environmentId, tunnel?.id]);
+  React.useEffect(() => {
+    const next = { ...defaultTunnel(environmentId), ...(tunnel ?? {}), environment_id: environmentId };
+    setForm(next);
+    setSimulation(simulationDraftFromTunnel(next));
+  }, [environmentId, tunnel?.id]);
 
   const set = (key: string, value: unknown) => setForm((prev: any) => ({ ...prev, [key]: value }));
   const num = (key: string) => ({ type: "number" as const, value: form?.[key] ?? "", onChange: (e: React.ChangeEvent<HTMLInputElement>) => set(key, numberOrNull(e.target.value)) });
+  const setSim = (key: string, value: unknown) => setSimulation((prev: any) => ({ ...prev, [key]: value }));
+  const simNum = (key: string) => ({ type: "number" as const, value: simulation?.[key] ?? "", onChange: (e: React.ChangeEvent<HTMLInputElement>) => setSim(key, numberOrNull(e.target.value)) });
   const dimensionValueM = (key: string) => key === "product_thickness_m" ? (Number(form.product_thickness_m ?? 0) || Number(form.product_thickness_mm ?? 0) / 1000) : Number(form?.[key] ?? 0);
   const dimensionNum = (key: string, unit: DimensionUnit) => {
     const unitConfig = DIMENSION_UNITS[unit];
