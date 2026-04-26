@@ -362,7 +362,7 @@ function calculateTunnelCore(input: any) {
   ]);
   const missingFields = unique([
     ...validation.missingFields,
-    ...requiredPositiveFields(input, isStatic, staticMassKg, characteristicDimensionM, energy.crossesFreezingPoint, airflow.airVelocityUsedMS),
+    ...requiredPositiveFields(input, isStatic, staticMassKg, characteristicDimensionM, energy.crossesFreezingPoint, airVelocityUsedMS),
     ...freezingTimeMissingFields,
   ]);
   const warnings = unique([...validation.warnings, ...engineWarnings]);
