@@ -91,7 +91,7 @@ export function ColdProResultCard({ result, selection, environment, products = [
   const breakdown = result.calculation_breakdown ?? {};
   const transmissionFaces = Array.isArray(breakdown.transmission_faces) ? breakdown.transmission_faces : [];
   const productBreakdown = Array.isArray(breakdown.products) ? breakdown.products : [];
-  const advancedProcesses = Array.isArray(breakdown.advanced_processes) ? breakdown.advanced_processes : [];
+  const breakdownAdvancedProcesses = Array.isArray(breakdown.advanced_processes) ? breakdown.advanced_processes : [];
   const seed = breakdown.seed_dehumidification;
   const frost = normalized.iceAndDefrost;
 
@@ -184,10 +184,10 @@ export function ColdProResultCard({ result, selection, environment, products = [
           </Details>
         ) : null}
 
-        {advancedProcesses.length ? (
+        {breakdownAdvancedProcesses.length ? (
           <Details title="Processos especiais" defaultOpen={showTables}>
             <div className="space-y-3">
-              {advancedProcesses.map((item: any, index: number) => <div key={`${item.advanced_process_type}-${index}`} className="rounded-lg bg-muted/30 p-3 text-sm"><b>{item.advanced_process_type}</b> · {item.status}</div>)}
+              {breakdownAdvancedProcesses.map((item: any, index: number) => <div key={`${item.advanced_process_type}-${index}`} className="rounded-lg bg-muted/30 p-3 text-sm"><b>{item.advanced_process_type}</b> · {item.status}</div>)}
             </div>
           </Details>
         ) : null}
