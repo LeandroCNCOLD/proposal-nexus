@@ -113,6 +113,10 @@ function isStaticProcess(processType: string) {
   return processType === "static_cart_freezing" || processType === "static_pallet_freezing";
 }
 
+function isStaticTunnel(processType: string, operationMode: unknown) {
+  return processType === "static_cart_freezing" || processType === "static_pallet_freezing" || operationMode === "batch";
+}
+
 function physicalModelFromProcess(processType: string) {
   if (processType === "continuous_girofreezer") return "continuous_spiral";
   if (processType === "static_cart_freezing") return "static_cart";
@@ -198,14 +202,14 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
   };
   const processType = String(form.process_type ?? "continuous_individual_freezing");
   const physicalModel = String(form.physical_model ?? physicalModelFromProcess(processType));
-  const isStatic = physicalModel === "static_cart" || physicalModel === "static_block" || isStaticProcess(processType);
+  const isStatic = isStaticTunnel(processType, form.operation_mode);
   const unitWeight = Number(form.unit_weight_kg ?? 0) || Number(form.product_unit_weight_kg ?? 0);
   const throughput = Number(form.units_per_cycle ?? 0) * unitWeight * Number(form.cycles_per_hour ?? 0);
   const massHour = Number(form.mass_kg_hour ?? 0) || throughput;
   const staticMass = Number(form.pallet_mass_kg ?? 0) * Math.max(1, Number(form.number_of_pallets ?? 1));
   const blockDims = [Number(form.pallet_length_m ?? 0), Number(form.pallet_width_m ?? 0), Number(form.pallet_height_m ?? 0)].filter((v) => v > 0);
   const productThicknessM = dimensionValueM("product_thickness_m");
-  const characteristic = physicalModel === "static_block" ? (blockDims.length ? Math.min(...blockDims) : 0) : productThicknessM;
+  const characteristic = isStatic ? (blockDims.length ? Math.min(...blockDims) : 0) : productThicknessM;
   const deltaT = Number(form.inlet_temp_c ?? 0) - Number(form.outlet_temp_c ?? 0);
   const processError = isStatic ? Number(form.batch_time_h ?? 0) <= 0 : Number(form.process_time_min ?? 0) <= 0;
   const velocityWarning = Number(form.air_velocity_m_s ?? 0) <= 0 || Number(form.air_velocity_m_s ?? 0) > 10;
