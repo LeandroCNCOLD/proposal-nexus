@@ -167,7 +167,7 @@ function ClientsPage() {
                     </TableCell>
                     <TableCell className="text-sm">
                       <div>{segment || "—"}</div>
-                      {firstText(c.classification, raw.classificacao) && <div className="text-xs text-muted-foreground">{firstText(c.classification, raw.classificacao)}</div>}
+                      {firstText(raw.classificacao) && <div className="text-xs text-muted-foreground">{firstText(raw.classificacao)}</div>}
                     </TableCell>
                     <TableCell className="text-sm">{region || "—"}</TableCell>
                     <TableCell className="min-w-[190px] text-sm">
