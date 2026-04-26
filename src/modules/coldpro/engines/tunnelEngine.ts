@@ -71,6 +71,20 @@ const MODEL_META: Record<TunnelPhysicalModel, {
     geometryAssumption: "Menor dimensão válida do pallet/bloco como dimensão crítica.",
     convectionAssumption: "Convecção estimada com redução por baixa exposição; manual prevalece sem redução.",
   },
+  fluidized_bed: {
+    label: "Leito fluidizado / IQF",
+    mode: "continuous",
+    physicalDescription: "Produto pequeno ou particulado com ar atravessando a camada fluidizada.",
+    geometryAssumption: "Diâmetro equivalente da partícula ou menor dimensão do produto.",
+    convectionAssumption: "Convecção estimada pela velocidade real na seção livre; manual prevalece.",
+  },
+  blast_freezer: {
+    label: "Câmara/túnel de ar forçado",
+    mode: "static",
+    physicalDescription: "Carga em caixas, racks ou contentores com ar forçado.",
+    geometryAssumption: "Geometria informada da embalagem/carga como dimensão crítica.",
+    convectionAssumption: "Convecção estimada pela velocidade real do ar; manual prevalece.",
+  },
 };
 
 function toNumber(value: unknown, fallback = 0): number {
