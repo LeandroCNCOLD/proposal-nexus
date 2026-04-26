@@ -7,6 +7,24 @@ function isStaticTunnel(processType: unknown, operationMode: unknown) {
   return processType === "static_cart_freezing" || processType === "static_pallet_freezing" || operationMode === "batch";
 }
 
+function calculateStaticMass(source: any, isStatic: boolean) {
+  const staticMassMode = source?.static_mass_mode ?? "direct_pallet_mass";
+  const numberOfPallets = safeNumber(source?.number_of_pallets, 1) || 1;
+  const unitWeightKg = safeNumber(source?.unit_weight_kg ?? source?.product_unit_weight_kg);
+  const unitsPerBox = safeNumber(source?.units_per_box);
+  const boxesPerLayer = safeNumber(source?.boxes_per_layer);
+  const numberOfLayers = safeNumber(source?.number_of_layers);
+  const totalUnitsPerPallet = safeNumber(source?.total_units_per_pallet);
+  const unitsPerPallet = staticMassMode === "calculated_pallet_composition" ? (totalUnitsPerPallet > 0 ? totalUnitsPerPallet : unitsPerBox * boxesPerLayer * numberOfLayers) : safeNumber(source?.units_per_pallet);
+  const productMassPerPalletKg = staticMassMode === "calculated_pallet_composition" ? unitsPerPallet * unitWeightKg : safeNumber(source?.product_mass_per_pallet_kg);
+  const packagingMassPerPalletKg = staticMassMode === "calculated_pallet_composition" ? safeNumber(source?.box_packaging_weight_kg) + safeNumber(source?.pallet_base_weight_kg) : safeNumber(source?.packaging_mass_per_pallet_kg);
+  const calculatedPalletMassKg = staticMassMode === "calculated_pallet_composition" ? productMassPerPalletKg + packagingMassPerPalletKg : safeNumber(source?.calculated_pallet_mass_kg);
+  const palletMassKg = staticMassMode === "calculated_pallet_composition" ? calculatedPalletMassKg : safeNumber(source?.pallet_mass_kg);
+  const savedStaticMassKg = safeNumber(source?.static_mass_kg ?? source?.staticMassKg);
+  const staticMassKg = isStatic ? savedStaticMassKg || (staticMassMode === "calculated_pallet_composition" ? calculatedPalletMassKg * numberOfPallets : palletMassKg * numberOfPallets) : savedStaticMassKg || palletMassKg * Math.max(1, numberOfPallets || 1);
+  return { staticMassMode, numberOfPallets, unitWeightKg, unitsPerBox, boxesPerLayer, numberOfLayers, totalUnitsPerPallet, unitsPerPallet, productMassPerPalletKg, packagingMassPerPalletKg, calculatedPalletMassKg, palletMassKg, staticMassKg };
+}
+
 export function databaseToTunnelInput(tunnel: any, environment: any) {
   const thermal = normalizeThermalProperties(tunnel);
   const airTempSource = tunnel?.air_temp_source ?? "environment";
@@ -16,9 +34,10 @@ export function databaseToTunnelInput(tunnel: any, environment: any) {
   const processType = tunnel?.process_type;
   const operationMode = tunnel?.operation_mode;
   const isStatic = isStaticTunnel(processType, operationMode);
-  const numberOfPallets = safeNumber(tunnel?.number_of_pallets);
-  const palletMassKg = safeNumber(tunnel?.pallet_mass_kg);
-  const staticMassKg = isStatic ? palletMassKg * numberOfPallets : safeNumber(tunnel?.static_mass_kg) || safeNumber(tunnel?.staticMassKg) || palletMassKg * Math.max(1, numberOfPallets || 1);
+  const mass = calculateStaticMass(tunnel, isStatic);
+  const numberOfPallets = mass.numberOfPallets;
+  const palletMassKg = mass.palletMassKg;
+  const staticMassKg = mass.staticMassKg;
   const packagingMassKgBatch = safeNumber(tunnel?.packaging_mass_kg_batch);
   const packagingMassKgH = isStatic && safeNumber(tunnel?.batch_time_h) > 0 && packagingMassKgBatch > 0 ? packagingMassKgBatch / safeNumber(tunnel?.batch_time_h) : safeNumber(tunnel?.packaging_mass_kg_hour);
   const normalAirTempC = airTempSource === "environment" ? safeNumber(environment?.internal_temp_c) : safeNumber(tunnel?.air_temp_c);
@@ -50,7 +69,16 @@ export function databaseToTunnelInput(tunnel: any, environment: any) {
     tunnelCrossSectionHeightM: safeNumber(tunnel?.tunnel_cross_section_height_m),
     blockageFactor: safeNumber(tunnel?.blockage_factor),
     blockageFactorInputMode: tunnel?.blockage_factor_input_mode ?? "decimal",
-    unitWeightKg: safeNumber(tunnel?.unit_weight_kg ?? tunnel?.product_unit_weight_kg),
+    unitWeightKg: mass.unitWeightKg,
+    staticMassMode: mass.staticMassMode,
+    unitsPerBox: mass.unitsPerBox,
+    boxesPerLayer: mass.boxesPerLayer,
+    numberOfLayers: mass.numberOfLayers,
+    totalUnitsPerPallet: mass.totalUnitsPerPallet,
+    unitsPerPallet: mass.unitsPerPallet,
+    productMassPerPalletKg: mass.productMassPerPalletKg,
+    packagingMassPerPalletKg: mass.packagingMassPerPalletKg,
+    calculatedPalletMassKg: mass.calculatedPalletMassKg,
     unitsPerCycle: safeNumber(tunnel?.units_per_cycle),
     cyclesPerHour: safeNumber(tunnel?.cycles_per_hour),
     directMassKgH: safeNumber(tunnel?.mass_kg_hour),
