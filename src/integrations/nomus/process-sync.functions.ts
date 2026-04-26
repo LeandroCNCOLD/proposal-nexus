@@ -443,7 +443,7 @@ export const pullNomusProcesses = createServerFn({ method: "POST" })
         status: "queued",
         tipos,
         max_items: data?.maxItems ?? 5_000,
-        page_size: 50,
+        page_size: 10,
         current_page: 1,
       })
       .select("*")
@@ -463,7 +463,7 @@ export const pullNomusProcesses = createServerFn({ method: "POST" })
       cumulativeUpserted: batch.job?.upserted_items ?? 0,
       done: batch.done,
       job: batch.job,
-      warning: batch.warning,
+      warning: "warning" in batch ? batch.warning : undefined,
       stagesDiscovered: [],
     };
   });
