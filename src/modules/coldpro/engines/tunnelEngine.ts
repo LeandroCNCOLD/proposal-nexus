@@ -252,9 +252,17 @@ function calculateTunnelCore(input: any) {
   };
   const validation = validateTunnelInput(validationInput);
 
-  const calculatedMassKgH = positiveNumber(input?.unitWeightKg) * positiveNumber(input?.unitsPerCycle) * positiveNumber(input?.cyclesPerHour);
+  const continuousMassMode = String(input?.continuousMassMode ?? input?.continuous_mass_mode ?? input?.massFlowMode ?? input?.mass_flow_mode ?? "direct_mass_flow");
+  const unitWeightKg = positiveNumber(input?.unitWeightKg);
+  const massByCycleKgH = unitWeightKg * positiveNumber(input?.unitsPerCycle) * positiveNumber(input?.cyclesPerHour);
+  const massByTrayKgH = (unitWeightKg * positiveNumber(input?.unitsPerTray) + positiveNumber(input?.trayWeightKg)) * positiveNumber(input?.traysPerHour);
+  const massByUnitsHourKgH = unitWeightKg * positiveNumber(input?.unitsPerHour);
+  const beltUnitsPerHour = positiveNumber(input?.unitsPerRow) * positiveNumber(input?.rowsPerMeter) * positiveNumber(input?.beltSpeedMMin) * 60;
+  const massByBeltKgH = beltUnitsPerHour * unitWeightKg;
+  const massByFeedRateKgH = positiveNumber(input?.feedRateKgH);
+  const calculatedMassKgH = continuousMassMode === "calculated_by_trays" ? massByTrayKgH : continuousMassMode === "calculated_by_units_per_hour" ? massByUnitsHourKgH : continuousMassMode === "calculated_by_belt_loading" ? massByBeltKgH : continuousMassMode === "calculated_by_feed_rate" ? massByFeedRateKgH : massByCycleKgH;
   const directMassKgH = positiveNumber(input?.directMassKgH);
-  const usedMassKgH = tunnelMode.operationRegime === "batch" ? 0 : directMassKgH > 0 ? directMassKgH : calculatedMassKgH;
+  const usedMassKgH = tunnelMode.operationRegime === "batch" ? 0 : continuousMassMode === "direct_mass_flow" && directMassKgH > 0 ? directMassKgH : calculatedMassKgH;
   const staticMass = resolveStaticMass(input);
   const palletMassKg = staticMass.palletMassKg;
   const numberOfPallets = staticMass.numberOfPallets;
