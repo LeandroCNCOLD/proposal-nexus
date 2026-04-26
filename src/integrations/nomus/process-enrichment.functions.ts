@@ -94,7 +94,8 @@ export const getFunnelData = createServerFn({ method: "POST" })
         "id, nomus_id, nome, pessoa, tipo, etapa, prioridade, responsavel, equipe, proximo_contato, data_criacao, descricao",
       )
       .eq("tipo", data.tipo)
-      .limit(2000);
+      .order("data_criacao", { ascending: false })
+      .limit(10000);
     const f = data.filters ?? {};
     if (f.responsavel) q = q.ilike("responsavel", `%${f.responsavel}%`);
     if (f.equipe) q = q.ilike("equipe", `%${f.equipe}%`);
