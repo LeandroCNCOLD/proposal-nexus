@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Package, Save, Snowflake, Thermometer, Weight } from "lucide-react";
+import { Package, Save, Search, Snowflake, Thermometer, Weight } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { ColdProField, ColdProInput, ColdProSelect } from "./ColdProField";
 import { ColdProCalculatedInfo, ColdProFormSection, ColdProValidationMessage, fmtColdPro, numberOrNull } from "./ColdProFormPrimitives";
@@ -64,6 +64,7 @@ const initialForm = (environmentId: string) => ({
 
 export function ColdProProductForm({ environmentId, product, productCatalog = [], saving = false, onSave }: Props) {
   const [selectedGroup, setSelectedGroup] = React.useState("");
+  const [productSearch, setProductSearch] = React.useState("");
   const [form, setForm] = React.useState(initialForm(environmentId));
 
   React.useEffect(() => {
@@ -73,11 +74,27 @@ export function ColdProProductForm({ environmentId, product, productCatalog = []
   const set = (key: string, value: unknown) => setForm((prev) => ({ ...prev, [key]: value }));
   const num = (key: keyof ReturnType<typeof initialForm>) => ({ type: "number" as const, value: typeof form[key] === "boolean" ? "" : (form[key] ?? ""), onChange: (e: React.ChangeEvent<HTMLInputElement>) => set(key, numberOrNull(e.target.value)) });
 
+  const normalizeSearch = (value: unknown) => String(value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+  const productInitials = (value: unknown) => normalizeSearch(value).split(/[^a-z0-9]+/).filter(Boolean).map((word) => word[0]).join("");
   const groups = React.useMemo(() => Array.from(new Set(productCatalog.map((p) => p.category).filter(Boolean))).sort((a, b) => String(a).localeCompare(String(b), "pt-BR")), [productCatalog]);
-  const filteredProducts = React.useMemo(() => productCatalog.filter((p) => !selectedGroup || p.category === selectedGroup), [productCatalog, selectedGroup]);
+  const filteredProducts = React.useMemo(() => {
+    const query = normalizeSearch(productSearch);
+    return productCatalog
+      .filter((p) => !selectedGroup || p.category === selectedGroup)
+      .filter((p) => !query || normalizeSearch(p.name).includes(query) || normalizeSearch(p.category).includes(query) || productInitials(p.name).startsWith(query))
+      .sort((a, b) => {
+        if (!query) return String(a.name).localeCompare(String(b.name), "pt-BR");
+        const aName = normalizeSearch(a.name);
+        const bName = normalizeSearch(b.name);
+        const aScore = aName.startsWith(query) ? 0 : productInitials(a.name).startsWith(query) ? 1 : aName.includes(query) ? 2 : 3;
+        const bScore = bName.startsWith(query) ? 0 : productInitials(b.name).startsWith(query) ? 1 : bName.includes(query) ? 2 : 3;
+        return aScore - bScore || String(a.name).localeCompare(String(b.name), "pt-BR");
+      });
+  }, [productCatalog, productSearch, selectedGroup]);
 
   const applyGroup = (group: string) => {
     setSelectedGroup(group);
+    setProductSearch("");
     setForm((prev) => ({ ...prev, product_id: null, product_name: group ? "" : "Produto genérico" }));
   };
 
@@ -121,6 +138,8 @@ export function ColdProProductForm({ environmentId, product, productCatalog = []
       respiration_rate_20c_mw_kg: p.respiration_rate_20c_mw_kg ?? null,
       notes: p.notes ?? null,
     }));
+    setSelectedGroup(p.category ?? "");
+    setProductSearch(p.name ?? "");
   };
 
   const mode = String(form.product_load_mode ?? "daily_intake");
