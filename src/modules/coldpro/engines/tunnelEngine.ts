@@ -439,8 +439,8 @@ function calculateTunnelCore(input: any) {
       convectionAssumption: modelMeta.convectionAssumption,
     },
     mass: tunnelMode.operationRegime === "batch"
-      ? { mode: "batch", staticMassMode: input?.staticMassMode ?? input?.static_mass_mode ?? "direct_pallet_mass", numberOfPallets, palletMassKg, calculatedPalletMassKg, unitsPerPallet: input?.unitsPerPallet ?? input?.units_per_pallet ?? null, productMassPerPalletKg: input?.productMassPerPalletKg ?? input?.product_mass_per_pallet_kg ?? null, packagingMassPerPalletKg: input?.packagingMassPerPalletKg ?? input?.packaging_mass_per_pallet_kg ?? null, staticMassKg, calculatedMassKgH, usedMassKgH: null, batchTimeH: input?.batchTimeH ?? null }
-      : { mode: "continuous", calculatedMassKgH, directMassKgH, usedMassKgH, retentionTimeMin: input?.retentionTimeMin ?? null },
+      ? { mode: "batch", staticMassMode: input?.staticMassMode ?? input?.static_mass_mode ?? "direct_pallet_mass", numberOfPallets, numberOfCarts: staticMass.numberOfCarts, palletMassKg, calculatedPalletMassKg, calculatedCartMassKg: staticMass.calculatedCartMassKg, calculatedBatchMassKg: staticMass.calculatedBatchMassKg, unitsPerPallet: input?.unitsPerPallet ?? input?.units_per_pallet ?? null, productMassPerPalletKg: input?.productMassPerPalletKg ?? input?.product_mass_per_pallet_kg ?? null, packagingMassPerPalletKg: input?.packagingMassPerPalletKg ?? input?.packaging_mass_per_pallet_kg ?? null, staticMassKg, calculatedMassKgH: null, usedMassKgH: null, batchTimeH: input?.batchTimeH ?? null }
+      : { mode: "continuous", continuousMassMode, calculatedMassKgH, directMassKgH, usedMassKgH, beltUnitsPerHour, retentionTimeMin: input?.retentionTimeMin ?? null },
     geometry: { tunnelType: tunnelMode.tunnelType, arrangementType: tunnelMode.arrangementType, productGeometry: input?.productGeometry ?? input?.product_geometry ?? null, surfaceExposureModel: exposure.surfaceExposureModel, thermalModelForPallet: geometry.thermalModelForPallet ?? input?.thermalModelForPallet ?? input?.thermal_model_for_pallet ?? null, characteristicDimensionM, distanceToCoreM, geometrySource: geometry.source },
     productEnergy: productEnergyBreakdown,
     convection: { source: h.source, hBaseWM2K: h.hBaseWM2K, hEffectiveWM2K: h.hEffectiveWM2K, airVelocityMS: airflow.airVelocityUsedMS, airExposureFactor: input?.airExposureFactor ?? null, exposureFactor: exposure.exposureFactor, spiralTurbulenceFactor, blockExposureFactor },
@@ -455,7 +455,7 @@ function calculateTunnelCore(input: any) {
 
   const formulasUsed = {
     physicalModel: "normalized processType/tunnelMode/operationMode",
-    calculatedMassKgH: "unitWeightKg × unitsPerCycle × cyclesPerHour",
+    calculatedMassKgH: "conforme modo: unidade×ciclo, bandeja×hora, unidade×hora, carregamento da esteira ou taxa de alimentação",
     h: "manualCoefficientWM2K || (10 + 10 × airVelocityUsedMS^0.8) × exposureFactor × airExposureFactor",
     kEffectiveWMK: "frozenConductivityWMK × thermalPenetrationFactor",
     continuousProductLoadKW: "massKgH × specificEnergyKJkg / 3600",
