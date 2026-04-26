@@ -515,9 +515,24 @@ export const processNomusProcessSyncBatch = createServerFn({ method: "POST" })
         const page = await listPage<NomusProcessRaw>(
           NOMUS_ENDPOINTS.processos,
           {},
-          { entity: "processos", pageSize: Number(job.page_size ?? 10), page: currentPage, triggeredBy: userId },
+          { entity: "processos", pageSize: Number(job.page_size ?? 10), page: currentPage, timeoutMs: 12_000, maxAttempts: 2, triggeredBy: userId },
         );
-        if (!page.ok) throw new Error(page.error);
+        if (!page.ok) {
+          const { data: updated } = await (supabaseAdmin as any)
+            .from("nomus_process_sync_jobs")
+            .update({
+              status: "running",
+              current_page: currentPage,
+              processed_items: processed,
+              upserted_items: upserted,
+              stages_discovered: stagesCount,
+              last_error: `${page.error}. A página ${currentPage} não respondeu; clique novamente para continuar.`,
+            })
+            .eq("id", job.id)
+            .select("*")
+            .single();
+          return { ok: true as const, job: updated, done: false as const, warning: page.error };
+        }
 
         const wantedItems = tipos.length
           ? page.items.filter((p) => tipos.includes((p.tipo ?? "").trim()))
