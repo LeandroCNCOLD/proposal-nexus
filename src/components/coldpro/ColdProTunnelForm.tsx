@@ -1,8 +1,9 @@
 import * as React from "react";
-import { Fan, Package, Save, Settings, Wind, Warehouse } from "lucide-react";
+import { AlertTriangle, Fan, Package, Save, Settings, Wind, Warehouse } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ColdProField, ColdProInput, ColdProSelect } from "./ColdProField";
 import { ColdProCalculatedInfo, ColdProFormSection, ColdProValidationMessage, fmtColdPro, numberOrNull } from "./ColdProFormPrimitives";
+import { calculateContinuousGirofreezer } from "@/modules/coldpro/services/continuousGirofreezerService";
 
 const ARRANGEMENT_DEFAULTS: Record<string, { air: number; penetration: number; label: string }> = {
   individual_exposed: { air: 1, penetration: 1, label: "Produto individual exposto" },
@@ -104,6 +105,10 @@ function defaultArrangement(processType: string) {
   if (processType === "static_pallet_freezing") return "pallet_block";
   if (processType === "continuous_girofreezer") return "tray_layer";
   return "individual_exposed";
+}
+
+function fmtMaybe(value: number | null | undefined, digits = 2, suffix = "") {
+  return value === null || value === undefined ? "—" : `${fmtColdPro(value, digits)}${suffix}`;
 }
 
 export function ColdProTunnelForm({ environmentId, tunnel, productCatalog = [], onSave }: { environmentId: string; tunnel?: any; productCatalog?: any[]; onSave: (data: any) => void }) {
