@@ -771,22 +771,22 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
                   {Object.entries(WEIGHT_UNITS).map(([key, item]) => <option key={key} value={key}>{item.label}</option>)}
                 </ColdProSelect>
               </ColdProField>
-              <ColdProField label="Peso unitário" unit={WEIGHT_UNITS[weightUnit].label}><ColdProInput {...weightNum("unit_weight_kg", weightUnit)} /></ColdProField>
+              <ColdProField label="Peso unitário" helpKey="unitWeightKg" unit={WEIGHT_UNITS[weightUnit].label}><ColdProInput {...weightNum("unit_weight_kg", weightUnit)} /></ColdProField>
             </div><div>
-              <ColdProField label="Unidades/ciclo"><ColdProInput {...num("units_per_cycle")} /></ColdProField>
+              <ColdProField label="Unidades/ciclo" helpKey="unitsPerCycle"><ColdProInput {...num("units_per_cycle")} /></ColdProField>
               <ColdProField label="Escala dos ciclos">
                 <ColdProSelect value={cycleUnit} onChange={(e) => setCycleUnit(e.target.value as CycleUnit)}>
                   {Object.entries(CYCLE_UNITS).map(([key, item]) => <option key={key} value={key}>{item.label}</option>)}
                 </ColdProSelect>
               </ColdProField>
-              <ColdProField label="Ciclos" unit={CYCLE_UNITS[cycleUnit].label}><ColdProInput {...cyclesNum(cycleUnit)} /></ColdProField>
-              <ColdProField label="Massa direta" unit="kg/h"><ColdProInput {...num("mass_kg_hour")} /></ColdProField>
+              <ColdProField label="Ciclos" helpKey="cyclesPerHour" unit={CYCLE_UNITS[cycleUnit].label}><ColdProInput {...cyclesNum(cycleUnit)} /></ColdProField>
+              <ColdProField label="Massa direta" helpKey="massKgHour" unit="kg/h"><ColdProInput {...num("mass_kg_hour")} /></ColdProField>
               <ColdProField label="Escala do tempo">
                 <ColdProSelect value={retentionUnit} onChange={(e) => setRetentionUnit(e.target.value as RetentionUnit)}>
                   {Object.entries(RETENTION_UNITS).map(([key, item]) => <option key={key} value={key}>{item.label}</option>)}
                 </ColdProSelect>
               </ColdProField>
-              <ColdProField label="Tempo retenção" unit={RETENTION_UNITS[retentionUnit].label}><ColdProInput {...retentionNum(retentionUnit)} /></ColdProField>
+              <ColdProField label="Tempo retenção" helpKey="retentionTime" unit={RETENTION_UNITS[retentionUnit].label}><ColdProInput {...retentionNum(retentionUnit)} /></ColdProField>
               {physicalModel === "continuous_spiral" ? <ColdProField label="Fator turbulência girofreezer"><ColdProInput {...num("spiral_turbulence_factor")} /></ColdProField> : null}
             </div></div> : <div className="grid grid-cols-1 gap-x-10 md:grid-cols-2"><div>
               <ColdProField label="Escala das medidas do bloco/carga"><ColdProSelect value={staticUnit} onChange={(e) => setStaticUnit(e.target.value as DimensionUnit)}>{Object.entries(DIMENSION_UNITS).map(([key, item]) => <option key={key} value={key}>{item.label}</option>)}</ColdProSelect></ColdProField>
