@@ -1,6 +1,6 @@
 import * as React from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, ArrowRight, Loader2, Pencil, Plus, Snowflake, Sparkles, Thermometer, Trash2, Wind, Warehouse } from "lucide-react";
+import { ArrowLeft, ArrowRight, FileText, Loader2, Pencil, Plus, Snowflake, Sparkles, Thermometer, Trash2, Wind, Warehouse } from "lucide-react";
 import { toast } from "sonner";
 import {
   useColdProProjectBundle,
@@ -70,6 +70,7 @@ function ColdProProjectPage() {
   const [autoMinQuantity, setAutoMinQuantity] = React.useState("1");
   const [autoEquipmentKind, setAutoEquipmentKind] = React.useState<"ALL" | "plugin" | "biblock" | "split">("ALL");
   const [tunnelExpertAnalysis, setTunnelExpertAnalysis] = React.useState<string | null>(null);
+  const [showProjectReport, setShowProjectReport] = React.useState(false);
 
   const environments = data?.environments ?? [];
   const selectedEnv = environments.find((env: any) => env.id === selectedEnvId) ?? environments[0];
@@ -245,7 +246,7 @@ function ColdProProjectPage() {
               </div>
           </div>
           <div className="text-[11px] text-sidebar-foreground/70">
-            Etapa {stepIndex + 1} / {COLDPRO_STEPS.length} — {COLDPRO_STEPS[stepIndex].title}
+            {showProjectReport ? "Relatório Geral do Projeto" : `Etapa ${stepIndex + 1} / ${COLDPRO_STEPS.length} — ${COLDPRO_STEPS[stepIndex].title}`}
           </div>
         </div>
       </div>
@@ -283,6 +284,16 @@ function ColdProProjectPage() {
             <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
               Ambientes do projeto
             </h2>
+            <button
+              type="button"
+              onClick={() => setShowProjectReport(true)}
+              disabled={environments.length === 0}
+              className={`mb-3 inline-flex w-full items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition disabled:opacity-50 ${
+                showProjectReport ? "border-primary/40 bg-primary/10 text-primary" : "hover:bg-muted"
+              }`}
+            >
+              <FileText className="h-4 w-4" /> Gerar relatório geral
+            </button>
             {environments.length === 0 ? (
               <div className="text-xs text-muted-foreground">
                 Nenhum ambiente. Crie o primeiro acima.
@@ -299,6 +310,7 @@ function ColdProProjectPage() {
                         : "border-transparent hover:bg-muted"
                     }`}
                     onClick={() => {
+                      setShowProjectReport(false);
                       setSelectedEnvId(env.id);
                       setStepIndex(0);
                     }}
@@ -316,7 +328,36 @@ function ColdProProjectPage() {
 
         {/* Conteúdo principal */}
         <div className="min-w-0 space-y-4">
-          {!selectedEnv ? (
+          {showProjectReport && environments.length > 0 ? (
+            <div className="space-y-6">
+              <ColdProProjectResultDashboard
+                project={data?.project}
+                environments={environments}
+                results={data?.results ?? []}
+                selections={data?.selections ?? []}
+                products={allProducts}
+                advancedProcesses={data?.advancedProcesses ?? []}
+                onAnalyze={handleAnalyzeMemorial}
+                isAnalyzing={analyzeMemorial.isPending}
+              />
+
+              <ColdProReport
+                project={data?.project}
+                environments={environments}
+                results={data?.results ?? []}
+                selections={data?.selections ?? []}
+                products={allProducts}
+                advancedProcesses={data?.advancedProcesses ?? []}
+                onPushToProposal={handlePushToProposal}
+                isPushing={pushToProposal.isPending}
+                onGeneratePdf={handleGeneratePdf}
+                onAnalyze={handleAnalyzeMemorial}
+                isGeneratingPdf={generatePdf.isPending}
+                isAnalyzing={analyzeMemorial.isPending}
+                lastPdfUrl={lastPdfUrl}
+              />
+            </div>
+          ) : !selectedEnv ? (
             <div className="rounded-xl border border-dashed bg-background p-10 text-center text-sm text-muted-foreground">
               Crie um ambiente na barra lateral para iniciar o cálculo de carga térmica.
             </div>
@@ -653,32 +694,6 @@ function ColdProProjectPage() {
                     </div>
                   ) : null}
 
-                  <ColdProProjectResultDashboard
-                    project={data?.project}
-                    environments={environments}
-                    results={data?.results ?? []}
-                    selections={data?.selections ?? []}
-                    products={allProducts}
-                    advancedProcesses={data?.advancedProcesses ?? []}
-                    onAnalyze={handleAnalyzeMemorial}
-                    isAnalyzing={analyzeMemorial.isPending}
-                  />
-
-                  <ColdProReport
-                    project={data?.project}
-                    environments={environments}
-                    results={data?.results ?? []}
-                    selections={data?.selections ?? []}
-                    products={allProducts}
-                    advancedProcesses={data?.advancedProcesses ?? []}
-                    onPushToProposal={handlePushToProposal}
-                    isPushing={pushToProposal.isPending}
-                    onGeneratePdf={handleGeneratePdf}
-                    onAnalyze={handleAnalyzeMemorial}
-                    isGeneratingPdf={generatePdf.isPending}
-                    isAnalyzing={analyzeMemorial.isPending}
-                    lastPdfUrl={lastPdfUrl}
-                  />
                 </div>
               )}
 
