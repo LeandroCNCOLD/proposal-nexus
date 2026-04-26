@@ -202,7 +202,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
   const staticMass = Number(form.pallet_mass_kg ?? 0) * Math.max(1, Number(form.number_of_pallets ?? 1));
   const blockDims = [Number(form.pallet_length_m ?? 0), Number(form.pallet_width_m ?? 0), Number(form.pallet_height_m ?? 0)].filter((v) => v > 0);
   const productThicknessM = dimensionValueM("product_thickness_m");
-  const characteristic = isStatic ? (blockDims.length ? Math.min(...blockDims) : 0) : productThicknessM;
+  const characteristic = physicalModel === "static_block" ? (blockDims.length ? Math.min(...blockDims) : 0) : productThicknessM;
   const deltaT = Number(form.inlet_temp_c ?? 0) - Number(form.outlet_temp_c ?? 0);
   const processError = isStatic ? Number(form.batch_time_h ?? 0) <= 0 : Number(form.process_time_min ?? 0) <= 0;
   const velocityWarning = Number(form.air_velocity_m_s ?? 0) <= 0 || Number(form.air_velocity_m_s ?? 0) > 10;
@@ -448,7 +448,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
         <TabsContent value="modelo">
           <ColdProFormSection title="Modelo físico aplicado" description="Escolha se o produto será tratado como unidade individual ou bloco térmico equivalente." icon={<Settings className="h-4 w-4" />}>
             <div className="grid grid-cols-1 gap-x-10 md:grid-cols-2">
-              <ColdProField label="Tipo de processo">
+              <ColdProField label="Modelo físico">
                 <ColdProSelect value={processType} onChange={(e) => setProcessType(e.target.value)}>
                   <option value="continuous_individual_freezing">Túnel contínuo individual</option>
                   <option value="continuous_girofreezer">Girofreezer contínuo</option>
@@ -462,7 +462,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
                 </ColdProSelect>
               </ColdProField>
               <ColdProField label="Tipo de túnel"><ColdProSelect value={form.tunnel_type} onChange={(e) => set("tunnel_type", e.target.value)}><option value="blast_freezer">Congelamento</option><option value="cooling_tunnel">Resfriamento</option></ColdProSelect></ColdProField>
-              <ColdProField label="Status físico"><ColdProInput readOnly value={isStatic ? "Massa agrupada / núcleo do bloco" : "Unidade individual / retenção"} /></ColdProField>
+              <ColdProField label="Status físico"><ColdProInput readOnly value={tunnelResult.physicalModelLabel} /></ColdProField>
             </div>
             {staticWarning ? <ColdProValidationMessage tone="warning">Congelamento de caixa, pallet ou bloco depende da embalagem, arranjo, vazão e passagem real de ar. Use como estimativa conservadora.</ColdProValidationMessage> : null}
           </ColdProFormSection>
