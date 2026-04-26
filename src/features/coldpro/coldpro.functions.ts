@@ -218,7 +218,7 @@ export const upsertColdProEnvironmentProduct = createServerFn({ method: "POST" }
   }))
   .handler(async ({ data }) => {
     const supabase = supabaseAdmin;
-    const payload = { ...data } as any;
+    const payload = await applyCatalogThermalById(supabase, { ...data } as any);
     const { data: row, error } = payload.id
       ? await supabase.from("coldpro_environment_products").update(payload).eq("id", payload.id).select("*").single()
       : await supabase.from("coldpro_environment_products").insert(payload).select("*").single();
@@ -243,7 +243,8 @@ export const upsertColdProTunnel = createServerFn({ method: "POST" })
   }))
   .handler(async ({ data }) => {
     const supabase = supabaseAdmin;
-    const { data: row, error } = await supabase.from("coldpro_tunnels").upsert(data as any, { onConflict: "id" }).select("*").single();
+    const payload = await applyCatalogThermalById(supabase, data as any);
+    const { data: row, error } = await supabase.from("coldpro_tunnels").upsert(payload as any, { onConflict: "id" }).select("*").single();
     if (error) throw new Error(error.message);
     return row;
   });
@@ -268,8 +269,10 @@ export const calculateColdProEnvironment = createServerFn({ method: "POST" })
     const supabase = supabaseAdmin;
     const { data: env, error: envError } = await supabase.from("coldpro_environments").select("*").eq("id", data.environmentId).single();
     if (envError) throw new Error(envError.message);
-    const { data: products } = await supabase.from("coldpro_environment_products").select("*").eq("environment_id", data.environmentId);
-    const { data: tunnel } = await supabase.from("coldpro_tunnels").select("*").eq("environment_id", data.environmentId).maybeSingle();
+    const { data: rawProducts } = await supabase.from("coldpro_environment_products").select("*").eq("environment_id", data.environmentId);
+    const products = await enrichRowsWithCatalog(supabase, rawProducts ?? []);
+    const { data: rawTunnel } = await supabase.from("coldpro_tunnels").select("*").eq("environment_id", data.environmentId).maybeSingle();
+    const tunnel = rawTunnel ? (await enrichRowsWithCatalog(supabase, [rawTunnel]))[0] : null;
     const { data: advancedProcesses } = await supabase.from("coldpro_advanced_processes").select("*").eq("environment_id", data.environmentId);
     const { data: selections } = await supabase.from("coldpro_equipment_selections").select("*").eq("environment_id", data.environmentId).order("created_at", { ascending: false }).limit(1);
     let insulation = null;
