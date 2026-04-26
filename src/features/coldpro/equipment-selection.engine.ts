@@ -301,11 +301,12 @@ export async function findEquipmentCandidates(
 ): Promise<SelectionCandidate[]> {
   const surplusMin = input.surplus_target_min ?? 5;
   const surplusMax = input.surplus_target_max ?? 25;
+  const minQuantity = Math.max(1, Math.ceil(Number(input.min_quantity ?? 1)));
 
   // 1) filtra modelos elegíveis
   let modelsQuery = db
     .from("coldpro_equipment_models")
-    .select("id, modelo, linha, refrigerante, designacao_hp, gabinete")
+    .select("id, modelo, linha, refrigerante, designacao_hp, gabinete, tipo_gabinete, plugin_image_path, split_image_path, biblock_image_path")
     .eq("active", true);
 
   if (input.application) modelsQuery = modelsQuery.eq("linha", input.application);
@@ -315,7 +316,8 @@ export async function findEquipmentCandidates(
   if (mErr) throw new Error(`Erro ao buscar modelos: ${mErr.message}`);
   if (!models || models.length === 0) return [];
 
-  const modelRows = (models ?? []) as EquipmentModelRow[];
+  const modelRows = ((models ?? []) as EquipmentModelRow[]).filter((model) => matchesEquipmentKind(model, input.equipment_kind));
+  if (modelRows.length === 0) return [];
   const modelIds = modelRows.map((m) => m.id);
 
   // 2) busca pontos de performance (em batch)
@@ -356,7 +358,7 @@ export async function findEquipmentCandidates(
     const sel = selectCapacityForModel(pts, input);
     if (!sel || sel.capacity <= 0) continue;
 
-    const quantity = Math.max(1, Math.ceil(input.required_kcal_h / sel.capacity));
+    const quantity = Math.max(minQuantity, Math.ceil(input.required_kcal_h / sel.capacity));
     const totalCap = sel.capacity * quantity;
     const surplusKcal = totalCap - input.required_kcal_h;
     const surplusPct = (surplusKcal / input.required_kcal_h) * 100;
