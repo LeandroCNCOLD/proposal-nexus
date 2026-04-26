@@ -9,6 +9,8 @@ export function formToTunnelInput(form: any, environment: any) {
   const packagingSpecificHeatKJkgK = safeNumber(form?.packaging_specific_heat_kj_kg_k);
   const approved = false;
   const thermalConditionApproved = form?.thermal_condition_approved === true;
+  const physicalModel = form?.physical_model;
+  const isStaticBlock = physicalModel === "static_block" || form?.process_type === "static_pallet_freezing";
   const normalAirTempC = airTempSource === "environment" ? safeNumber(environment?.internal_temp_c) : safeNumber(form?.air_temp_c);
   const normalInput = {
     airTempC: normalAirTempC,
@@ -22,8 +24,8 @@ export function formToTunnelInput(form: any, environment: any) {
   };
 
   return {
-    physicalModel: form?.physical_model,
-    tunnelPhysicalModel: form?.physical_model,
+    physicalModel,
+    tunnelPhysicalModel: physicalModel,
     processType: form?.process_type,
     operationMode: form?.operation_mode,
     tunnelMode: form?.tunnel_mode ?? (form?.operation_mode === "batch" ? "static" : "continuous"),
@@ -36,9 +38,9 @@ export function formToTunnelInput(form: any, environment: any) {
     staticMassKg: safeNumber(form?.static_mass_kg) || safeNumber(form?.staticMassKg) || safeNumber(form?.pallet_mass_kg) * Math.max(1, safeNumber(form?.number_of_pallets, 1)),
     batchTimeH: safeNumber(form?.batch_time_h),
     retentionTimeMin: safeNumber(form?.process_time_min),
-    productLengthM: safeNumber(form?.product_length_m),
-    productWidthM: safeNumber(form?.product_width_m),
-    productThicknessM: safeNumber(form?.product_thickness_m),
+    productLengthM: isStaticBlock ? 0 : safeNumber(form?.product_length_m),
+    productWidthM: isStaticBlock ? 0 : safeNumber(form?.product_width_m),
+    productThicknessM: isStaticBlock ? 0 : safeNumber(form?.product_thickness_m),
     palletLengthM: safeNumber(form?.pallet_length_m),
     palletWidthM: safeNumber(form?.pallet_width_m),
     palletHeightM: safeNumber(form?.pallet_height_m),
