@@ -761,8 +761,8 @@ export function calculateTunnelLoad(tunnel: ColdProTunnel, env?: ColdProEnvironm
   const cpBelow = thermalValueKcal(tunnel.specific_heat_below_kcal_kg_c, tunnel.specific_heat_below_kj_kg_k);
   const latent = thermalValueKcal(tunnel.latent_heat_kcal_kg, tunnel.latent_heat_kj_kg);
   const frozenFraction = waterFreezeFraction(tunnel);
-  const hasTunnelAirTemp = tunnel.air_temp_c !== null && tunnel.air_temp_c !== undefined && Number.isFinite(Number(tunnel.air_temp_c));
-  const airTempC = hasTunnelAirTemp ? n(tunnel.air_temp_c) : n(env?.internal_temp_c);
+  const hasEnvironmentAirTemp = env?.internal_temp_c !== null && env?.internal_temp_c !== undefined && Number.isFinite(Number(env.internal_temp_c));
+  const airTempC = hasEnvironmentAirTemp ? n(env?.internal_temp_c) : n(tunnel.air_temp_c);
   const productThicknessM = n(tunnel.product_thickness_m) || n(tunnel.product_thickness_mm) / 1000;
   const blockDimensions = [n(tunnel.pallet_length_m), n(tunnel.pallet_width_m), n(tunnel.pallet_height_m)].filter((value) => value > 0);
   const blockCharacteristicM = blockDimensions.length ? Math.min(...blockDimensions) : 0;
@@ -891,7 +891,7 @@ export function calculateTunnelLoad(tunnel: ColdProTunnel, env?: ColdProEnvironm
     total_kw: round2(kcalhToKw(total)),
     total_tr: round2(kcalhToTr(total)),
     air_temperature_c: airTempC,
-    air_temperature_source: hasTunnelAirTemp ? "tunnel" : "environment_internal_temp",
+    air_temperature_source: hasEnvironmentAirTemp ? "environment_internal_temp" : "tunnel",
     air_velocity_m_s: n(tunnel.air_velocity_m_s),
     airflow_m3_h: n(tunnel.airflow_m3_h),
     process_time_min: availableTimeMin,
