@@ -268,6 +268,25 @@ function suggestedStaticArrangementFields(tunnelType: string, arrangementType: s
   return {};
 }
 
+function defaultMassModeForTunnel(tunnelType: string) {
+  if (tunnelType === "static_cart") return "direct_cart_mass";
+  if (tunnelType === "blast_freezer") return "direct_batch_mass";
+  if (tunnelType === "fluidized_bed") return "direct_mass_flow";
+  return "direct_pallet_mass";
+}
+
+function staticModeOptions(tunnelType: string) {
+  if (tunnelType === "static_cart") return [{ value: "direct_cart_mass", label: "Informar massa do carrinho/rack diretamente" }, { value: "calculated_cart_composition", label: "Calcular pela formação do carrinho/rack" }];
+  if (tunnelType === "blast_freezer") return [{ value: "direct_batch_mass", label: "Informar massa do lote diretamente" }, { value: "calculated_batch_composition", label: "Calcular pela formação da batelada" }];
+  return [{ value: "direct_pallet_mass", label: "Informar massa do pallet/lote diretamente" }, { value: "calculated_pallet_composition", label: "Calcular pela formação do pallet/lote" }];
+}
+
+function continuousModeOptions(tunnelType: string) {
+  if (tunnelType === "spiral_girofreezer") return [{ value: "direct_mass_flow", label: "Informar kg/h diretamente" }, { value: "calculated_by_units", label: "Calcular por unidades/ciclo" }, { value: "calculated_by_trays", label: "Calcular por bandejas/h" }];
+  if (tunnelType === "fluidized_bed") return [{ value: "direct_mass_flow", label: "Informar kg/h diretamente" }, { value: "calculated_by_feed_rate", label: "Usar taxa de alimentação" }];
+  return [{ value: "direct_mass_flow", label: "Informar kg/h diretamente" }, { value: "calculated_by_units_per_hour", label: "Calcular por unidades/h" }, { value: "calculated_by_belt_loading", label: "Calcular por carregamento da esteira" }];
+}
+
 function simulationDraftFromTunnel(source: any) {
   return {
     air_temp_c: source?.air_temp_c ?? -35,
