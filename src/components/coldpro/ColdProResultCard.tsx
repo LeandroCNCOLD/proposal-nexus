@@ -99,8 +99,8 @@ export function ColdProResultCard({ result, selection, environment, products = [
     <div className="min-w-0 rounded-xl border bg-background p-3 shadow-sm sm:p-5">
       <div className="mb-5 flex flex-col gap-3 border-b pb-4 md:flex-row md:items-start md:justify-between">
         <div>
-          <h3 className="text-lg font-semibold">Resultado do cálculo</h3>
-          <p className="mt-1 text-sm text-muted-foreground">Dashboard técnico da carga térmica, consistência, túnel, equipamento e laudo orientado por dados.</p>
+          <h3 className="text-lg font-semibold">Resultado do ambiente atual — {environment?.name ?? "Ambiente selecionado"}</h3>
+          <p className="mt-1 text-sm text-muted-foreground">Usa somente cálculo, produtos, processos e equipamento do ambiente selecionado.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Toggle checked={compact} onChange={setCompact} label="Visualização resumida" />
