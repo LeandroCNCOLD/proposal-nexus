@@ -26,7 +26,7 @@ function calculateStaticMass(source: any, isStatic: boolean) {
   const calculatedBatchMassKg = unitWeightKg * (unitsPerBox * safeNumber(source?.boxes_per_batch) || totalUnitsPerPallet || safeNumber(source?.units_per_pallet)) + safeNumber(source?.packaging_weight_kg);
   const savedStaticMassKg = safeNumber(source?.static_mass_kg ?? source?.staticMassKg);
   const resolvedStaticMassKg = staticMassMode === "calculated_cart_composition" ? calculatedCartMassKg * numberOfCarts : staticMassMode === "direct_cart_mass" ? palletMassKg * numberOfCarts : staticMassMode === "calculated_batch_composition" ? calculatedBatchMassKg : staticMassMode === "direct_batch_mass" ? safeNumber(source?.direct_batch_mass_kg ?? source?.static_mass_kg) : staticMassMode === "calculated_pallet_composition" ? calculatedPalletMassKg * numberOfPallets : palletMassKg * numberOfPallets;
-  const staticMassKg = isStatic ? savedStaticMassKg || resolvedStaticMassKg : savedStaticMassKg || resolvedStaticMassKg;
+  const staticMassKg = isStatic ? resolvedStaticMassKg : savedStaticMassKg || resolvedStaticMassKg;
   return { staticMassMode, numberOfPallets, numberOfCarts, unitWeightKg, unitsPerBox, boxesPerLayer, numberOfLayers, totalUnitsPerPallet, unitsPerPallet, productMassPerPalletKg, packagingMassPerPalletKg, calculatedPalletMassKg, calculatedCartMassKg, calculatedBatchMassKg, palletMassKg, staticMassKg };
 }
 
@@ -88,6 +88,7 @@ export function databaseToTunnelInput(tunnel: any, environment: any) {
     calculatedPalletMassKg: mass.calculatedPalletMassKg,
     calculatedCartMassKg: mass.calculatedCartMassKg,
     calculatedBatchMassKg: mass.calculatedBatchMassKg,
+    directBatchMassKg: safeNumber(tunnel?.direct_batch_mass_kg),
     unitsPerTray: safeNumber(tunnel?.units_per_tray),
     traysPerCart: safeNumber(tunnel?.trays_per_cart),
     numberOfCarts: mass.numberOfCarts,
