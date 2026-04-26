@@ -54,7 +54,20 @@ export const saveCatalogEquipmentSelection = createServerFn({ method: "POST" })
       curve_condensation_temp_c: data.curveCondensationTempC ?? null,
       curve_polynomial_r2: data.curvePolynomialR2 ?? null,
       curve_interpolated: data.curveInterpolated,
-      curve_metadata: data.curveMetadata ?? {},
+      curve_metadata: {
+        ...(data.curveMetadata ?? {}),
+        capacidade_corrigida_kcal_h: data.capacityUnitKcalH,
+        capacidade_total_corrigida_kcal_h: data.capacityTotalKcalH,
+        fonte_curva: data.selectionMethod,
+        modelo: data.modelName,
+        quantidade: data.quantity,
+        refrigerante: data.refrigerant ?? null,
+        potencia_eletrica_kw: data.totalPowerKw ?? null,
+        cop: data.cop ?? null,
+        vazao_m3_h: data.airFlowTotalM3H,
+        versao_calculo: "coldpro-validation-v1",
+        data_curva: new Date().toISOString(),
+      },
       notes: data.notes ?? "Selecionado pelo catálogo por curva de rendimento",
     } as any;
 

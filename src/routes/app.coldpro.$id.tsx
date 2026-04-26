@@ -518,7 +518,7 @@ function ColdProProjectPage() {
                           curveCondensationTempC: cand.point_used.condensation_temp_c,
                           curvePolynomialR2: cand.point_used.polynomial_r2,
                           curveInterpolated: cand.point_used.interpolated,
-                          curveMetadata: { score: cand.score, warnings: cand.warnings, fan_power_kw: cand.fan_power_kw },
+                          curveMetadata: { score: cand.score, warnings: cand.warnings, fan_power_kw: cand.fan_power_kw, capacity_nominal_kcal_h: cand.capacity_nominal_kcal_h, capacidade_corrigida_kcal_h: cand.capacity_unit_kcal_h, capacidade_total_corrigida_kcal_h: cand.capacity_total_kcal_h, fonte_curva: cand.curve_source, modelo: cand.model.modelo, quantidade: cand.quantity, temperatura_interna_c: cand.point_used.temperature_room_c, tevap_c: cand.point_used.evaporation_temp_c, tcond_c: cand.point_used.condensation_temp_c, refrigerante: cand.refrigerant, potencia_eletrica_kw: cand.total_power_kw, cop: cand.cop, vazao_m3_h: cand.air_flow_total_m3_h, versao_calculo: "coldpro-validation-v1", data_curva: new Date().toISOString() },
                           notes: `Curva de rendimento · Tevap ${cand.point_used.evaporation_temp_c}°C / Tcond ${cand.point_used.condensation_temp_c}°C${cand.point_used.polynomial ? " · polinomial" : cand.point_used.interpolated ? " · interpolado" : ""}`,
                         });
                         toast.success(`${cand.model.modelo} selecionado`);

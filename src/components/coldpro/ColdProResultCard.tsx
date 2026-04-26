@@ -67,6 +67,7 @@ export function ColdProResultCard({ result }: { result: any }) {
   const evaporatorFrost = result.calculation_breakdown?.evaporator_frost;
   const advancedProcesses = Array.isArray(result.calculation_breakdown?.advanced_processes) ? result.calculation_breakdown.advanced_processes : [];
   const productBreakdown = Array.isArray(result.calculation_breakdown?.products) ? result.calculation_breakdown.products : [];
+  const audit = result.calculation_breakdown?.thermalCalculationResult ?? result.calculation_breakdown?.mathematical_audit;
   const bars = [
     { label: "Ambiente", value: result.transmission_kcal_h },
     { label: "Produtos", value: productTotal },
@@ -91,6 +92,21 @@ export function ColdProResultCard({ result }: { result: any }) {
         <Kpi label="Potência" value={result.total_required_kw} unit="kW" icon={<Gauge className="h-4 w-4" />} />
         <Kpi label="Capacidade" value={result.total_required_tr} unit="TR" icon={<Snowflake className="h-4 w-4" />} />
       </div>
+
+      {audit ? (
+        <div className="mt-4 rounded-xl border bg-muted/20 p-4 text-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <b>Status do dimensionamento: {audit.status_dimensionamento}</b>
+            <span className="rounded-md bg-primary/10 px-2 py-1 text-xs font-semibold text-primary">Emissão: {audit.emissao_permitida}</span>
+          </div>
+          <div className="mt-2 grid gap-2 md:grid-cols-3">
+            <span>Subtotal validado: <b>{fmtColdPro(audit.subtotal_validado)} kcal/h</b></span>
+            <span>Carga requerida validada: <b>{fmtColdPro(audit.carga_requerida_validada)} kcal/h</b></span>
+            <span>Sobra validada: <b>{fmtColdPro(audit.sobra_percentual)}%</b></span>
+          </div>
+          {audit.bloqueios?.length ? <div className="mt-2 text-xs text-destructive">Memorial final bloqueado: {audit.bloqueios.map((b: any) => b.message).join(" ")}</div> : null}
+        </div>
+      ) : null}
 
       <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-[0.9fr_1.1fr]">
         <div className="rounded-xl border p-4">

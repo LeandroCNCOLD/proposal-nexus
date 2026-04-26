@@ -356,6 +356,19 @@ export function ColdProReport({
                       <div>COP: <b>{selection.cop ? fmt(selection.cop) : "—"}</b></div>
                     </div>
                   </div>
+                  {result?.calculation_breakdown?.thermalCalculationResult ? (
+                    <div className="mt-3 rounded-md border bg-muted/20 p-3 text-xs">
+                      {(() => { const audit: any = result.calculation_breakdown.thermalCalculationResult; return <>
+                        <div className="font-semibold">Auditoria matemática do dimensionamento — {audit.status_dimensionamento} · emissão {audit.emissao_permitida}</div>
+                        <div className="mt-1 grid gap-1 md:grid-cols-3">
+                          <span>Cap. unitária corrigida: <b>{fmt(audit.capacidade_unitaria_corrigida)} kcal/h</b></span>
+                          <span>Cap. total corrigida: <b>{fmt(audit.capacidade_total_corrigida)} kcal/h</b></span>
+                          <span>Sobra validada: <b>{fmt(audit.sobra_percentual)}%</b></span>
+                        </div>
+                        {audit.bloqueios?.length ? <div className="mt-1 text-destructive">Bloqueios: {audit.bloqueios.map((b: any) => b.message).join(" ")}</div> : null}
+                      </>; })()}
+                    </div>
+                  ) : null}
                   {selection.notes ? <div className="mt-2 text-xs text-muted-foreground">{selection.notes}</div> : null}
                 </div>
               ) : null}
