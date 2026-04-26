@@ -313,9 +313,16 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
   const tunnelResult = baseResult;
   const initialScenario = baseResult.adjustedScenario;
   const adjustedScenario = simulationResult.adjustedScenario;
+  const baseFanAirflowM3H = Number(tunnelResult.fanAirflowM3H ?? tunnelResult.informedAirFlowM3H ?? 0) || tunnelResult.airFlowM3H;
+  const simulatedFanAirflowM3H = Number(simulationResult.fanAirflowM3H ?? simulationResult.informedAirFlowM3H ?? 0) || simulationResult.airFlowM3H;
+  const deltaFanAirflowM3H = simulatedFanAirflowM3H - baseFanAirflowM3H;
+  const productSourceKcalH = positiveValue(product?.total_load_kcal_h, product?.product_load_kcal_h, product?.total_kcal_h, product?.load_kcal_h);
+  const loadDifferenceKcalH = productSourceKcalH > 0 ? tunnelResult.totalKcalH - productSourceKcalH : 0;
+  const loadDifferencePercent = productSourceKcalH > 0 ? Math.abs(loadDifferenceKcalH) / productSourceKcalH * 100 : 0;
+  const loadStableTimeChanged = initialScenario.totalKW > 0 && Math.abs(adjustedScenario.totalKW - initialScenario.totalKW) / initialScenario.totalKW < 0.02 && initialScenario.estimatedTimeMin && adjustedScenario.estimatedTimeMin && Math.abs(adjustedScenario.estimatedTimeMin - initialScenario.estimatedTimeMin) / initialScenario.estimatedTimeMin > 0.05;
   const scenarioDelta = {
     time: adjustedScenario.estimatedTimeMin !== null && initialScenario.estimatedTimeMin !== null ? adjustedScenario.estimatedTimeMin - initialScenario.estimatedTimeMin : null,
-    airflow: adjustedScenario.airFlowM3H - initialScenario.airFlowM3H,
+    airflow: deltaFanAirflowM3H,
     h: adjustedScenario.hEffectiveWM2K !== null && initialScenario.hEffectiveWM2K !== null ? adjustedScenario.hEffectiveWM2K - initialScenario.hEffectiveWM2K : null,
     statusChanged: adjustedScenario.status !== initialScenario.status,
   };
