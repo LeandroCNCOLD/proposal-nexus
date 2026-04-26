@@ -294,8 +294,11 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
   const frozenConductivityWmK = positiveValue(form.thermal_conductivity_frozen_w_m_k, thermodynamicProduct?.thermal_conductivity_frozen_w_m_k, thermodynamicProduct?.thermal_conductivity_w_m_k);
   const frozenWaterFraction = positiveValue(form.frozen_water_fraction, thermodynamicProduct?.frozen_water_fraction, Number(thermodynamicProduct?.freezable_water_content_percent ?? 0) / 100, Number(thermodynamicProduct?.water_content_percent ?? 0) / 100, 0.9);
   const tunnelInput = formToTunnelInput(form, environment ?? {});
-  const tunnelResult = calculateTunnelEngine(tunnelInput);
-  const initialScenario = tunnelResult.initialScenario;
+  const baseResult = calculateTunnelEngine(tunnelInput);
+  const simulationForm = { ...form, ...simulation, initial_scenario_input: tunnelInput.initialScenarioInput, thermal_condition_approved: false };
+  const simulationInput = formToTunnelInput(simulationForm, environment ?? {});
+  const tunnelResult = calculateTunnelEngine(simulationInput);
+  const initialScenario = baseResult.adjustedScenario;
   const adjustedScenario = tunnelResult.adjustedScenario;
   const scenarioDelta = {
     time: adjustedScenario.estimatedTimeMin !== null && initialScenario.estimatedTimeMin !== null ? adjustedScenario.estimatedTimeMin - initialScenario.estimatedTimeMin : null,
@@ -384,6 +387,8 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
     setForm((prev: any) => ({ ...prev, arrangement_type: value, air_exposure_factor: defaults.air, thermal_penetration_factor: defaults.penetration }));
   };
 
+  const resetSimulation = () => setSimulation(simulationDraftFromTunnel(form));
+
   const approveThermalCondition = () => {
     if (adjustedScenario.status !== "adequate") {
       window.alert("Condição térmica ainda não atende o tempo de processo. Ajuste temperatura, velocidade ou tempo de batelada/retenção.");
@@ -391,14 +396,15 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
     }
     setForm((prev: any) => ({
       ...prev,
+      ...simulation,
       approved_air_temp_c: adjustedScenario.airTempC,
       approved_air_velocity_m_s: adjustedScenario.airVelocityMS,
       approved_air_delta_t_k: adjustedScenario.airDeltaTK,
       approved_air_flow_m3_h: adjustedScenario.informedAirFlowM3H ?? adjustedScenario.airFlowM3H,
       approved_convective_coefficient_w_m2_k: adjustedScenario.hEffectiveWM2K,
       approved_packaging_type: prev.package_type ?? "",
-      approved_air_exposure_factor: Number(prev.air_exposure_factor ?? 1),
-      approved_thermal_penetration_factor: Number(prev.thermal_penetration_factor ?? 1),
+      approved_air_exposure_factor: Number(simulation.air_exposure_factor ?? 1),
+      approved_thermal_penetration_factor: Number(simulation.thermal_penetration_factor ?? 1),
       approved_process_status: adjustedScenario.status,
       approved_estimated_time_min: adjustedScenario.estimatedTimeMin,
       approved_total_kw: adjustedScenario.totalKW,
