@@ -2736,7 +2736,9 @@ export type Database = {
           air_temp_step_c: number
           air_velocity_m_s: number
           air_velocity_step_m_s: number
+          air_velocity_used_m_s: number | null
           airflow_m3_h: number
+          airflow_source: string | null
           approved_air_delta_t_k: number | null
           approved_air_exposure_factor: number | null
           approved_air_flow_m3_h: number | null
@@ -2755,12 +2757,19 @@ export type Database = {
           batch_time_h: number
           belt_motor_kw: number
           block_exposure_factor: number | null
+          blockage_factor: number | null
+          box_height_m: number | null
+          box_length_m: number | null
+          box_width_m: number | null
           boxes_count: number
+          bulk_layer_height_m: number | null
+          calculated_air_velocity_m_s: number | null
           calculated_mass_kg_h: number | null
           calculation_breakdown: Json | null
           calculation_log: Json | null
           calculation_warnings: Json | null
           carbohydrate_content_percent: number | null
+          characteristic_dimension_m: number | null
           convective_coefficient_effective_w_m2_k: number | null
           convective_coefficient_manual_w_m2_k: number | null
           convective_coefficient_w_m2_k: number | null
@@ -2769,12 +2778,17 @@ export type Database = {
           density_kg_m3: number | null
           distance_to_core_m: number | null
           environment_id: string
+          equivalent_diameter_m: number | null
+          equivalent_particle_diameter_m: number | null
           estimated_freezing_time_min: number | null
+          fan_airflow_m3_h: number | null
           fat_content_percent: number | null
           fiber_content_percent: number | null
+          free_air_area_m2: number | null
           freezable_water_content_percent: number | null
           freezing_temp_c: number | null
           frozen_water_fraction: number | null
+          gross_air_area_m2: number | null
           id: string
           informed_air_flow_m3_h: number | null
           inlet_temp_c: number
@@ -2808,9 +2822,13 @@ export type Database = {
           process_status: string | null
           process_time_min: number
           process_type: string
+          product_diameter_m: number | null
+          product_geometry: string | null
+          product_height_m: number | null
           product_id: string | null
           product_length_m: number
           product_name: string
+          product_side_m: number | null
           product_thickness_m: number
           product_thickness_mm: number
           product_unit_weight_kg: number
@@ -2833,6 +2851,7 @@ export type Database = {
           suggested_air_approach_k: number | null
           suggested_air_method: string | null
           suggested_air_temp_c: number | null
+          surface_exposure_model: string | null
           thermal_characteristic_dimension_m: number | null
           thermal_condition_approved: boolean | null
           thermal_condition_approved_at: string | null
@@ -2840,6 +2859,8 @@ export type Database = {
           thermal_conductivity_unfrozen_w_m_k: number | null
           thermal_penetration_factor: number | null
           tray_spacing_m: number
+          tunnel_cross_section_height_m: number | null
+          tunnel_cross_section_width_m: number | null
           tunnel_internal_load_kw: number | null
           tunnel_packaging_load_kw: number | null
           tunnel_product_load_kw: number | null
@@ -2862,7 +2883,9 @@ export type Database = {
           air_temp_step_c?: number
           air_velocity_m_s?: number
           air_velocity_step_m_s?: number
+          air_velocity_used_m_s?: number | null
           airflow_m3_h?: number
+          airflow_source?: string | null
           approved_air_delta_t_k?: number | null
           approved_air_exposure_factor?: number | null
           approved_air_flow_m3_h?: number | null
@@ -2881,12 +2904,19 @@ export type Database = {
           batch_time_h?: number
           belt_motor_kw?: number
           block_exposure_factor?: number | null
+          blockage_factor?: number | null
+          box_height_m?: number | null
+          box_length_m?: number | null
+          box_width_m?: number | null
           boxes_count?: number
+          bulk_layer_height_m?: number | null
+          calculated_air_velocity_m_s?: number | null
           calculated_mass_kg_h?: number | null
           calculation_breakdown?: Json | null
           calculation_log?: Json | null
           calculation_warnings?: Json | null
           carbohydrate_content_percent?: number | null
+          characteristic_dimension_m?: number | null
           convective_coefficient_effective_w_m2_k?: number | null
           convective_coefficient_manual_w_m2_k?: number | null
           convective_coefficient_w_m2_k?: number | null
@@ -2895,12 +2925,17 @@ export type Database = {
           density_kg_m3?: number | null
           distance_to_core_m?: number | null
           environment_id: string
+          equivalent_diameter_m?: number | null
+          equivalent_particle_diameter_m?: number | null
           estimated_freezing_time_min?: number | null
+          fan_airflow_m3_h?: number | null
           fat_content_percent?: number | null
           fiber_content_percent?: number | null
+          free_air_area_m2?: number | null
           freezable_water_content_percent?: number | null
           freezing_temp_c?: number | null
           frozen_water_fraction?: number | null
+          gross_air_area_m2?: number | null
           id?: string
           informed_air_flow_m3_h?: number | null
           inlet_temp_c?: number
@@ -2934,9 +2969,13 @@ export type Database = {
           process_status?: string | null
           process_time_min?: number
           process_type?: string
+          product_diameter_m?: number | null
+          product_geometry?: string | null
+          product_height_m?: number | null
           product_id?: string | null
           product_length_m?: number
           product_name?: string
+          product_side_m?: number | null
           product_thickness_m?: number
           product_thickness_mm?: number
           product_unit_weight_kg?: number
@@ -2959,6 +2998,7 @@ export type Database = {
           suggested_air_approach_k?: number | null
           suggested_air_method?: string | null
           suggested_air_temp_c?: number | null
+          surface_exposure_model?: string | null
           thermal_characteristic_dimension_m?: number | null
           thermal_condition_approved?: boolean | null
           thermal_condition_approved_at?: string | null
@@ -2966,6 +3006,8 @@ export type Database = {
           thermal_conductivity_unfrozen_w_m_k?: number | null
           thermal_penetration_factor?: number | null
           tray_spacing_m?: number
+          tunnel_cross_section_height_m?: number | null
+          tunnel_cross_section_width_m?: number | null
           tunnel_internal_load_kw?: number | null
           tunnel_packaging_load_kw?: number | null
           tunnel_product_load_kw?: number | null
@@ -2988,7 +3030,9 @@ export type Database = {
           air_temp_step_c?: number
           air_velocity_m_s?: number
           air_velocity_step_m_s?: number
+          air_velocity_used_m_s?: number | null
           airflow_m3_h?: number
+          airflow_source?: string | null
           approved_air_delta_t_k?: number | null
           approved_air_exposure_factor?: number | null
           approved_air_flow_m3_h?: number | null
@@ -3007,12 +3051,19 @@ export type Database = {
           batch_time_h?: number
           belt_motor_kw?: number
           block_exposure_factor?: number | null
+          blockage_factor?: number | null
+          box_height_m?: number | null
+          box_length_m?: number | null
+          box_width_m?: number | null
           boxes_count?: number
+          bulk_layer_height_m?: number | null
+          calculated_air_velocity_m_s?: number | null
           calculated_mass_kg_h?: number | null
           calculation_breakdown?: Json | null
           calculation_log?: Json | null
           calculation_warnings?: Json | null
           carbohydrate_content_percent?: number | null
+          characteristic_dimension_m?: number | null
           convective_coefficient_effective_w_m2_k?: number | null
           convective_coefficient_manual_w_m2_k?: number | null
           convective_coefficient_w_m2_k?: number | null
@@ -3021,12 +3072,17 @@ export type Database = {
           density_kg_m3?: number | null
           distance_to_core_m?: number | null
           environment_id?: string
+          equivalent_diameter_m?: number | null
+          equivalent_particle_diameter_m?: number | null
           estimated_freezing_time_min?: number | null
+          fan_airflow_m3_h?: number | null
           fat_content_percent?: number | null
           fiber_content_percent?: number | null
+          free_air_area_m2?: number | null
           freezable_water_content_percent?: number | null
           freezing_temp_c?: number | null
           frozen_water_fraction?: number | null
+          gross_air_area_m2?: number | null
           id?: string
           informed_air_flow_m3_h?: number | null
           inlet_temp_c?: number
@@ -3060,9 +3116,13 @@ export type Database = {
           process_status?: string | null
           process_time_min?: number
           process_type?: string
+          product_diameter_m?: number | null
+          product_geometry?: string | null
+          product_height_m?: number | null
           product_id?: string | null
           product_length_m?: number
           product_name?: string
+          product_side_m?: number | null
           product_thickness_m?: number
           product_thickness_mm?: number
           product_unit_weight_kg?: number
@@ -3085,6 +3145,7 @@ export type Database = {
           suggested_air_approach_k?: number | null
           suggested_air_method?: string | null
           suggested_air_temp_c?: number | null
+          surface_exposure_model?: string | null
           thermal_characteristic_dimension_m?: number | null
           thermal_condition_approved?: boolean | null
           thermal_condition_approved_at?: string | null
@@ -3092,6 +3153,8 @@ export type Database = {
           thermal_conductivity_unfrozen_w_m_k?: number | null
           thermal_penetration_factor?: number | null
           tray_spacing_m?: number
+          tunnel_cross_section_height_m?: number | null
+          tunnel_cross_section_width_m?: number | null
           tunnel_internal_load_kw?: number | null
           tunnel_packaging_load_kw?: number | null
           tunnel_product_load_kw?: number | null
