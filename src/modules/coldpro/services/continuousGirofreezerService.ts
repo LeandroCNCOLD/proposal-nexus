@@ -23,10 +23,56 @@ export interface ContinuousGirofreezerInput {
   productDensityKgM3?: number;
   frozenConductivityWmK?: number;
   freezingPointC?: number;
+  initialTempC?: number;
+  finalTempC?: number;
+  cpAboveKjKgK?: number;
+  cpBelowKjKgK?: number;
   latentHeatKjKg?: number;
   frozenWaterFraction?: number;
+  packagingMassKgH?: number;
+  packagingCpKjKgK?: number;
+  deltaTAirK?: number;
+  airDensityKgM3?: number;
   airExposureFactor?: number;
   thermalPenetrationFactor?: number;
+}
+
+export interface ProductThermalInput {
+  initialTempC: number;
+  finalTempC: number;
+  freezingPointC: number;
+  cpAboveKjKgK: number;
+  cpBelowKjKgK: number;
+  latentHeatKjKg: number;
+  frozenWaterFraction: number;
+  packagingMassKgH?: number;
+  packagingCpKjKgK?: number;
+}
+
+export interface AirProcessInput {
+  airTemperatureC: number;
+  airVelocityMs: number;
+  deltaTAirK: number;
+  airDensityKgM3?: number;
+  airExposureFactor?: number;
+  thermalPenetrationFactor?: number;
+  frozenConductivityWmK?: number;
+}
+
+export interface ProductThermalResult {
+  qSpecificAboveKjKg: number;
+  qSpecificLatentKjKg: number;
+  qSpecificBelowKjKg: number;
+  qSpecificTotalKjKg: number;
+  productLoadKw: number;
+  productLoadKcalH: number;
+  productLoadTr: number;
+  packagingLoadKw: number;
+  totalProcessLoadKw: number;
+  totalProcessLoadKcalH: number;
+  totalProcessLoadTr: number;
+  requiredAirflowM3H: number | null;
+  requiredAirflowM3S: number | null;
 }
 
 export interface ContinuousGirofreezerResult {
@@ -63,6 +109,7 @@ export interface ContinuousGirofreezerResult {
     retentionMargin: number | null;
     processStatus: "adequate" | "insufficient" | "missing_data" | "invalid_input";
   };
+  thermal: ProductThermalResult;
   warnings: string[];
   errors: string[];
 }
