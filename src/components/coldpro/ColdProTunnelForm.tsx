@@ -80,6 +80,7 @@ const defaultTunnel = (environmentId: string) => ({
   outlet_temp_c: -18,
   freezing_temp_c: -1.5,
   density_kg_m3: 0,
+  ashrae_density_kg_m3: 0,
   thermal_conductivity_frozen_w_m_k: 0,
   convective_coefficient_w_m2_k: 0,
   convective_coefficient_manual_w_m2_k: null,
@@ -110,6 +111,20 @@ function defaultArrangement(processType: string) {
 function fmtMaybe(value: number | null | undefined, digits = 2, suffix = "") {
   return value === null || value === undefined ? "—" : `${fmtColdPro(value, digits)}${suffix}`;
 }
+
+const DENSITY_SOURCE_LABEL = {
+  manual: "manual",
+  calculated_from_geometry: "geometria + peso",
+  ashrae: "tabela ASHRAE/produto",
+  default_estimated: "padrão estimado",
+} as const;
+
+const DENSITY_STATUS_LABEL = {
+  valid: "aceitável",
+  warning: "alerta",
+  critical: "crítico",
+  missing: "faltam dados",
+} as const;
 
 export function ColdProTunnelForm({ environmentId, tunnel, productCatalog = [], onSave }: { environmentId: string; tunnel?: any; productCatalog?: any[]; onSave: (data: any) => void }) {
   const [form, setForm] = React.useState<any>(defaultTunnel(environmentId));
@@ -165,6 +180,9 @@ export function ColdProTunnelForm({ environmentId, tunnel, productCatalog = [], 
   const requiredError = String(form.product_name ?? "").trim().length === 0;
   const staticWarning = isStatic || ["boxed_product", "pallet_block", "bulk_static"].includes(String(form.arrangement_type));
   const canSave = !processError && !requiredError;
+  const ashraeDensityKgM3 = Number(form.ashrae_density_kg_m3 ?? 0);
+  const densityFieldKgM3 = Number(form.density_kg_m3 ?? 0);
+  const manualDensityKgM3 = densityFieldKgM3 > 0 && (!ashraeDensityKgM3 || Math.abs(densityFieldKgM3 - ashraeDensityKgM3) > 0.0001) ? densityFieldKgM3 : 0;
   const giroResult = calculateContinuousGirofreezer({
     dimensionScale: "m",
     productLength: Number(form.product_length_m ?? 0),
@@ -180,7 +198,8 @@ export function ColdProTunnelForm({ environmentId, tunnel, productCatalog = [], 
     retentionTime: Number(form.process_time_min ?? 0),
     airTemperatureC: Number(form.air_temp_c ?? 0),
     airVelocityMs: Number(form.air_velocity_m_s ?? 0),
-    productDensityKgM3: Number(form.density_kg_m3 ?? 0),
+    manualDensityKgM3,
+    ashraeDensityKgM3,
     frozenConductivityWmK: Number(form.thermal_conductivity_frozen_w_m_k ?? 0),
     freezingPointC: Number(form.freezing_temp_c ?? 0),
     latentHeatKjKg: Number(form.latent_heat_kcal_kg ?? 0) * 4.1868,
@@ -218,6 +237,7 @@ export function ColdProTunnelForm({ environmentId, tunnel, productCatalog = [], 
       product_name: p.name,
       freezing_temp_c: p.initial_freezing_temp_c ?? prev.freezing_temp_c,
       density_kg_m3: p.density_kg_m3 ?? prev.density_kg_m3,
+      ashrae_density_kg_m3: p.density_kg_m3 ?? prev.ashrae_density_kg_m3 ?? 0,
       specific_heat_above_kj_kg_k: p.specific_heat_above_kj_kg_k ?? null,
       specific_heat_below_kj_kg_k: p.specific_heat_below_kj_kg_k ?? null,
       specific_heat_above_kcal_kg_c: Number(p.specific_heat_above_kcal_kg_c ?? prev.specific_heat_above_kcal_kg_c),
@@ -360,7 +380,10 @@ export function ColdProTunnelForm({ environmentId, tunnel, productCatalog = [], 
               <ColdProCalculatedInfo label="Massa direta" value={fmtMaybe(giroResult.mass.directMassKgH, 2, " kg/h")} description="prioritária quando informada" tone={giroResult.mass.directMassKgH ? "success" : "info"} />
               <ColdProCalculatedInfo label="Massa dentro do túnel" value={`${fmtColdPro(giroResult.mass.massInsideTunnelKg)} kg`} description="kg/h × tempo de retenção" tone={giroResult.mass.massInsideTunnelKg > 0 ? "info" : "warning"} />
               <ColdProCalculatedInfo label="Distância até o núcleo" value={`${fmtColdPro(giroResult.dimensionsM.distanceToCoreM * 1000, 1)} mm`} description="espessura ÷ 2" tone={giroResult.dimensionsM.distanceToCoreM > 0 ? "info" : "warning"} />
-              <ColdProCalculatedInfo label="Densidade implícita" value={`${fmtColdPro(giroResult.physics.implicitDensityKgM3, 1)} kg/m³`} description="peso unitário ÷ volume" tone={giroResult.physics.implicitDensityKgM3 >= 200 && giroResult.physics.implicitDensityKgM3 <= 2000 ? "success" : "warning"} />
+              <ColdProCalculatedInfo label="Volume unitário" value={`${fmtColdPro(giroResult.dimensionsM.volumeM3, 6)} m³`} description="comprimento × largura × espessura" tone={giroResult.dimensionsM.volumeM3 > 0 ? "info" : "warning"} />
+              <ColdProCalculatedInfo label="Densidade calculada" value={fmtMaybe(giroResult.physics.densityCalculatedKgM3, 3, " kg/m³")} description="peso unitário ÷ volume" tone={giroResult.physics.densityValidationStatus === "valid" ? "success" : "warning"} />
+              <ColdProCalculatedInfo label="Densidade usada" value={`${fmtColdPro(giroResult.physics.densityUsedKgM3, 1)} kg/m³`} description={`Origem: ${DENSITY_SOURCE_LABEL[giroResult.physics.densitySource]}`} tone={giroResult.physics.densitySource === "default_estimated" ? "warning" : "info"} />
+              <ColdProCalculatedInfo label="Status da densidade" value={DENSITY_STATUS_LABEL[giroResult.physics.densityValidationStatus]} description={giroResult.physics.densityValidationMessage} tone={giroResult.physics.densityValidationStatus === "valid" ? "success" : "warning"} />
               <ColdProCalculatedInfo label="h efetivo" value={fmtMaybe(giroResult.physics.hEffectiveWm2K, 2, " W/m²K")} description="convecção × exposição" tone={giroResult.physics.hEffectiveWm2K ? "info" : "warning"} />
               <ColdProCalculatedInfo label="k efetivo" value={fmtMaybe(giroResult.physics.kEffectiveWmK, 3, " W/mK")} description="condutividade × penetração" tone={giroResult.physics.kEffectiveWmK ? "info" : "warning"} />
               <ColdProCalculatedInfo label="Tempo estimado" value={fmtMaybe(giroResult.physics.estimatedFreezingTimeMin, 1, " min")} description="estimativa até o núcleo" tone={giroResult.physics.estimatedFreezingTimeMin ? "info" : "warning"} />
