@@ -178,6 +178,25 @@ function kcalFromThermal(kcal?: unknown, kj?: unknown) {
   return positiveValue(kcal) || positiveValue(kj) / 4.1868;
 }
 
+function simulationDraftFromTunnel(source: any) {
+  return {
+    air_temp_c: source?.air_temp_c ?? -35,
+    airflow_source: source?.airflow_source ?? "manual_velocity",
+    air_velocity_m_s: source?.air_velocity_m_s ?? 3,
+    fan_airflow_m3_h: source?.fan_airflow_m3_h ?? source?.informed_air_flow_m3_h ?? source?.airflow_m3_h ?? 0,
+    tunnel_cross_section_width_m: source?.tunnel_cross_section_width_m ?? 0,
+    tunnel_cross_section_height_m: source?.tunnel_cross_section_height_m ?? 0,
+    blockage_factor: source?.blockage_factor ?? 0,
+    air_delta_t_k: source?.air_delta_t_k ?? 6,
+    informed_air_flow_m3_h: source?.informed_air_flow_m3_h ?? source?.airflow_m3_h ?? 0,
+    convective_coefficient_manual_w_m2_k: source?.convective_coefficient_manual_w_m2_k ?? null,
+    package_type: source?.package_type ?? "",
+    air_exposure_factor: source?.air_exposure_factor ?? 1,
+    thermal_penetration_factor: source?.thermal_penetration_factor ?? 1,
+    suggested_air_approach_k: source?.suggested_air_approach_k ?? 8,
+  };
+}
+
 const DENSITY_SOURCE_LABEL = {
   manual: "manual",
   calculated_from_geometry: "geometria + peso",
@@ -201,11 +220,18 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
   const [cycleUnit, setCycleUnit] = React.useState<CycleUnit>("h");
   const [retentionUnit, setRetentionUnit] = React.useState<RetentionUnit>("min");
   const [activeTab, setActiveTab] = React.useState("modelo");
+  const [simulation, setSimulation] = React.useState<any>(() => simulationDraftFromTunnel(defaultTunnel(environmentId)));
 
-  React.useEffect(() => setForm((prev: any) => ({ ...prev, ...(tunnel ?? {}), environment_id: environmentId })), [environmentId, tunnel?.id]);
+  React.useEffect(() => {
+    const next = { ...defaultTunnel(environmentId), ...(tunnel ?? {}), environment_id: environmentId };
+    setForm(next);
+    setSimulation(simulationDraftFromTunnel(next));
+  }, [environmentId, tunnel?.id]);
 
   const set = (key: string, value: unknown) => setForm((prev: any) => ({ ...prev, [key]: value }));
   const num = (key: string) => ({ type: "number" as const, value: form?.[key] ?? "", onChange: (e: React.ChangeEvent<HTMLInputElement>) => set(key, numberOrNull(e.target.value)) });
+  const setSim = (key: string, value: unknown) => setSimulation((prev: any) => ({ ...prev, [key]: value }));
+  const simNum = (key: string) => ({ type: "number" as const, value: simulation?.[key] ?? "", onChange: (e: React.ChangeEvent<HTMLInputElement>) => setSim(key, numberOrNull(e.target.value)) });
   const dimensionValueM = (key: string) => key === "product_thickness_m" ? (Number(form.product_thickness_m ?? 0) || Number(form.product_thickness_mm ?? 0) / 1000) : Number(form?.[key] ?? 0);
   const dimensionNum = (key: string, unit: DimensionUnit) => {
     const unitConfig = DIMENSION_UNITS[unit];
@@ -268,9 +294,13 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
   const frozenConductivityWmK = positiveValue(form.thermal_conductivity_frozen_w_m_k, thermodynamicProduct?.thermal_conductivity_frozen_w_m_k, thermodynamicProduct?.thermal_conductivity_w_m_k);
   const frozenWaterFraction = positiveValue(form.frozen_water_fraction, thermodynamicProduct?.frozen_water_fraction, Number(thermodynamicProduct?.freezable_water_content_percent ?? 0) / 100, Number(thermodynamicProduct?.water_content_percent ?? 0) / 100, 0.9);
   const tunnelInput = formToTunnelInput(form, environment ?? {});
-  const tunnelResult = calculateTunnelEngine(tunnelInput);
-  const initialScenario = tunnelResult.initialScenario;
-  const adjustedScenario = tunnelResult.adjustedScenario;
+  const baseResult = calculateTunnelEngine(tunnelInput);
+  const simulationForm = { ...form, ...simulation, initial_scenario_input: tunnelInput.initialScenarioInput, thermal_condition_approved: false };
+  const simulationInput = formToTunnelInput(simulationForm, environment ?? {});
+  const simulationResult = calculateTunnelEngine(simulationInput);
+  const tunnelResult = baseResult;
+  const initialScenario = baseResult.adjustedScenario;
+  const adjustedScenario = simulationResult.adjustedScenario;
   const scenarioDelta = {
     time: adjustedScenario.estimatedTimeMin !== null && initialScenario.estimatedTimeMin !== null ? adjustedScenario.estimatedTimeMin - initialScenario.estimatedTimeMin : null,
     airflow: adjustedScenario.airFlowM3H - initialScenario.airFlowM3H,
@@ -358,6 +388,8 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
     setForm((prev: any) => ({ ...prev, arrangement_type: value, air_exposure_factor: defaults.air, thermal_penetration_factor: defaults.penetration }));
   };
 
+  const resetSimulation = () => setSimulation(simulationDraftFromTunnel(form));
+
   const approveThermalCondition = () => {
     if (adjustedScenario.status !== "adequate") {
       window.alert("Condição térmica ainda não atende o tempo de processo. Ajuste temperatura, velocidade ou tempo de batelada/retenção.");
@@ -365,14 +397,19 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
     }
     setForm((prev: any) => ({
       ...prev,
+      ...simulation,
+      calculated_air_velocity_m_s: simulationResult.calculatedAirVelocityMS ?? null,
+      air_velocity_used_m_s: simulationResult.airVelocityUsedMS ?? null,
+      gross_air_area_m2: simulationResult.grossAirAreaM2 ?? null,
+      free_air_area_m2: simulationResult.freeAirAreaM2 ?? null,
       approved_air_temp_c: adjustedScenario.airTempC,
       approved_air_velocity_m_s: adjustedScenario.airVelocityMS,
       approved_air_delta_t_k: adjustedScenario.airDeltaTK,
       approved_air_flow_m3_h: adjustedScenario.informedAirFlowM3H ?? adjustedScenario.airFlowM3H,
       approved_convective_coefficient_w_m2_k: adjustedScenario.hEffectiveWM2K,
       approved_packaging_type: prev.package_type ?? "",
-      approved_air_exposure_factor: Number(prev.air_exposure_factor ?? 1),
-      approved_thermal_penetration_factor: Number(prev.thermal_penetration_factor ?? 1),
+      approved_air_exposure_factor: Number(simulation.air_exposure_factor ?? 1),
+      approved_thermal_penetration_factor: Number(simulation.thermal_penetration_factor ?? 1),
       approved_process_status: adjustedScenario.status,
       approved_estimated_time_min: adjustedScenario.estimatedTimeMin,
       approved_total_kw: adjustedScenario.totalKW,
@@ -705,26 +742,26 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
         <TabsContent value="ar">
           <ColdProFormSection title="Ar, embalagem e penetração térmica" description="Ajuste, simule e aprove a condição térmica final usada no cálculo." icon={<Wind className="h-4 w-4" />}>
             <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-5">
-              <ColdProCalculatedInfo label="Inicial · Carga" value={`${fmtColdPro(initialScenario.totalKW, 2)} kW`} description={`${fmtColdPro(initialScenario.totalKcalH, 0)} kcal/h`} tone="info" />
-              <ColdProCalculatedInfo label="Inicial · Tempo" value={fmtMaybe(initialScenario.estimatedTimeMin, 1, " min")} description={`${fmtColdPro(initialScenario.availableTimeMin, 1)} min disponíveis`} tone={initialScenario.status === "adequate" ? "success" : "warning"} />
-              <ColdProCalculatedInfo label="Inicial · Vazão" value={`${fmtColdPro(initialScenario.airFlowM3H, 0)} m³/h`} description="estimada pelo motor" tone="info" />
-              <ColdProCalculatedInfo label="Inicial · Temp. sugerida" value={`${fmtColdPro(initialScenario.suggestedAirTempC, 1)} °C`} description="final - approach" tone="info" />
-              <ColdProCalculatedInfo label="Inicial · Status" value={statusLabel[initialScenario.status] ?? initialScenario.status} description="referência do motor" tone={initialScenario.status === "adequate" ? "success" : "warning"} />
+              <ColdProCalculatedInfo label="Projeto · Carga" value={`${fmtColdPro(initialScenario.totalKW, 2)} kW`} description={`${fmtColdPro(initialScenario.totalKcalH, 0)} kcal/h`} tone="info" />
+              <ColdProCalculatedInfo label="Projeto · Tempo" value={fmtMaybe(initialScenario.estimatedTimeMin, 1, " min")} description={`${fmtColdPro(initialScenario.availableTimeMin, 1)} min disponíveis`} tone={initialScenario.status === "adequate" ? "success" : "warning"} />
+              <ColdProCalculatedInfo label="Projeto · Vazão" value={`${fmtColdPro(initialScenario.airFlowM3H, 0)} m³/h`} description="estimada pelo motor" tone="info" />
+              <ColdProCalculatedInfo label="Projeto · Temp. sugerida" value={`${fmtColdPro(initialScenario.suggestedAirTempC, 1)} °C`} description="final - approach" tone="info" />
+              <ColdProCalculatedInfo label="Projeto · Status" value={statusLabel[initialScenario.status] ?? initialScenario.status} description="referência do motor" tone={initialScenario.status === "adequate" ? "success" : "warning"} />
             </div>
 
             <div className="mt-5 grid grid-cols-1 gap-x-10 md:grid-cols-2"><div>
-              <ColdProField label="Temp. ar ajustada" unit="°C"><ColdProInput {...num("air_temp_c")} /></ColdProField>
-              <ColdProField label="Fonte da velocidade"><ColdProSelect value={form.airflow_source ?? "manual_velocity"} onChange={(e) => set("airflow_source", e.target.value)}><option value="manual_velocity">Velocidade manual</option><option value="airflow_by_fans">Vazão por ventiladores</option></ColdProSelect></ColdProField>
-              {form.airflow_source !== "airflow_by_fans" ? <ColdProField label="Velocidade ajustada" unit="m/s"><ColdProInput {...num("air_velocity_m_s")} /></ColdProField> : null}
-              {form.airflow_source === "airflow_by_fans" ? <><ColdProField label="Vazão dos ventiladores" unit="m³/h"><ColdProInput {...num("fan_airflow_m3_h")} /></ColdProField><ColdProField label="Largura seção túnel" unit="m"><ColdProInput {...num("tunnel_cross_section_width_m")} /></ColdProField><ColdProField label="Altura seção túnel" unit="m"><ColdProInput {...num("tunnel_cross_section_height_m")} /></ColdProField><ColdProField label="Fator de bloqueio"><ColdProInput {...num("blockage_factor")} /></ColdProField></> : null}
-              <ColdProField label="ΔT do ar" unit="K"><ColdProInput {...num("air_delta_t_k")} /></ColdProField>
-              <ColdProField label="Approach ar sugerido" unit="K"><ColdProInput {...num("suggested_air_approach_k")} /></ColdProField>
-              <ColdProField label="Vazão informada" unit="m³/h"><ColdProInput {...num("informed_air_flow_m3_h")} /></ColdProField>
-              <ColdProField label="Coef. convecção manual"><ColdProInput {...num("convective_coefficient_manual_w_m2_k")} /></ColdProField>
+              <ColdProField label="Temp. ar simulada" unit="°C"><ColdProInput {...simNum("air_temp_c")} /></ColdProField>
+              <ColdProField label="Fonte da velocidade"><ColdProSelect value={simulation.airflow_source ?? "manual_velocity"} onChange={(e) => setSim("airflow_source", e.target.value)}><option value="manual_velocity">Velocidade manual</option><option value="airflow_by_fans">Vazão por ventiladores</option></ColdProSelect></ColdProField>
+              {simulation.airflow_source !== "airflow_by_fans" ? <ColdProField label="Velocidade simulada" unit="m/s"><ColdProInput {...simNum("air_velocity_m_s")} /></ColdProField> : null}
+              {simulation.airflow_source === "airflow_by_fans" ? <><ColdProField label="Vazão dos ventiladores" unit="m³/h"><ColdProInput {...simNum("fan_airflow_m3_h")} /></ColdProField><ColdProField label="Largura seção túnel" unit="m"><ColdProInput {...simNum("tunnel_cross_section_width_m")} /></ColdProField><ColdProField label="Altura seção túnel" unit="m"><ColdProInput {...simNum("tunnel_cross_section_height_m")} /></ColdProField><ColdProField label="Fator de bloqueio"><ColdProInput {...simNum("blockage_factor")} /></ColdProField></> : null}
+              <ColdProField label="ΔT do ar" unit="K"><ColdProInput {...simNum("air_delta_t_k")} /></ColdProField>
+              <ColdProField label="Approach ar sugerido" unit="K"><ColdProInput {...simNum("suggested_air_approach_k")} /></ColdProField>
+              <ColdProField label="Vazão informada" unit="m³/h"><ColdProInput {...simNum("informed_air_flow_m3_h")} /></ColdProField>
+              <ColdProField label="Coef. convecção manual"><ColdProInput {...simNum("convective_coefficient_manual_w_m2_k")} /></ColdProField>
             </div><div>
-              <ColdProField label="Tipo de embalagem"><ColdProInput type="text" value={form.package_type ?? ""} onChange={(e) => set("package_type", e.target.value)} className="text-left" /></ColdProField>
-              <ColdProField label="Fator exposição ao ar"><ColdProInput {...num("air_exposure_factor")} /></ColdProField>
-              <ColdProField label="Fator penetração térmica"><ColdProInput {...num("thermal_penetration_factor")} /></ColdProField>
+              <ColdProField label="Tipo de embalagem"><ColdProInput type="text" value={simulation.package_type ?? ""} onChange={(e) => setSim("package_type", e.target.value)} className="text-left" /></ColdProField>
+              <ColdProField label="Fator exposição ao ar"><ColdProInput {...simNum("air_exposure_factor")} /></ColdProField>
+              <ColdProField label="Fator penetração térmica"><ColdProInput {...simNum("thermal_penetration_factor")} /></ColdProField>
               <ColdProField label="Limite velocidade mín." unit="m/s"><ColdProInput {...num("min_air_velocity_m_s")} /></ColdProField>
               <ColdProField label="Limite velocidade máx." unit="m/s"><ColdProInput {...num("max_air_velocity_m_s")} /></ColdProField>
               <ColdProValidationMessage>{velocityWarning ? "Confira a velocidade do ar. Valores usuais ficam acima de 0 e geralmente abaixo de 10 m/s." : ""}</ColdProValidationMessage>
@@ -749,7 +786,10 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
             {adjustedScenario.warnings.length > 0 ? <div className="mt-4 rounded-lg border border-warning/20 bg-warning/10 p-3 text-sm text-warning"><div className="mb-2 flex items-center gap-2 font-semibold"><AlertTriangle className="h-4 w-4" /> Alertas do cenário ajustado:</div><ul className="list-disc space-y-1 pl-5">{adjustedScenario.warnings.map((warning: string, index: number) => <li key={`${warning}-${index}`}>{warning}</li>)}</ul></div> : null}
             <div className="mt-5 flex flex-col gap-3 rounded-lg border bg-muted/30 p-4 md:flex-row md:items-center md:justify-between">
               <ColdProCalculatedInfo label="Condição térmica" value={form.thermal_condition_approved ? "Aprovada" : "Não aprovada"} description={form.thermal_condition_approved_at ? new Date(form.thermal_condition_approved_at).toLocaleString("pt-BR") : "aguardando aprovação"} tone={form.thermal_condition_approved ? "success" : "warning"} />
-              <button type="button" className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-5 py-2 text-sm font-medium text-primary-foreground shadow-sm transition hover:bg-primary/90" onClick={approveThermalCondition}>Aprovar condição térmica</button>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <button type="button" className="inline-flex items-center justify-center gap-2 rounded-md border border-input bg-background px-5 py-2 text-sm font-medium shadow-sm transition hover:bg-muted" onClick={resetSimulation}>Restaurar simulação</button>
+                <button type="button" className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-5 py-2 text-sm font-medium text-primary-foreground shadow-sm transition hover:bg-primary/90" onClick={approveThermalCondition}>Aplicar simulação aprovada</button>
+              </div>
             </div>
           </ColdProFormSection>
         </TabsContent>
