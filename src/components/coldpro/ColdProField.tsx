@@ -41,20 +41,23 @@ export function ColdProField({ label, unit, htmlFor, children, className, help, 
 export function ColdProInput(
   props: React.InputHTMLAttributes<HTMLInputElement> & { readOnlyValue?: boolean },
 ) {
-  const { className, readOnlyValue, onFocus, onMouseUp, type, ...rest } = props;
+  const { className, readOnlyValue, onFocus, onMouseUp, onKeyDown, type, step, inputMode, ...rest } = props;
+  const isNumeric = type === "number";
   return (
     <input
       {...rest}
-      type={type}
+      type={isNumeric ? "text" : type}
+      inputMode={isNumeric ? "decimal" : inputMode}
+      data-coldpro-numeric={isNumeric ? "true" : undefined}
       onFocus={(event) => {
         onFocus?.(event);
-        if (!event.defaultPrevented && type === "number" && !readOnlyValue) {
-          event.currentTarget.select();
-        }
       }}
       onMouseUp={(event) => {
         onMouseUp?.(event);
-        if (!event.defaultPrevented && type === "number" && !readOnlyValue) {
+      }}
+      onKeyDown={(event) => {
+        onKeyDown?.(event);
+        if (!event.defaultPrevented && isNumeric && (event.key === "ArrowUp" || event.key === "ArrowDown")) {
           event.preventDefault();
         }
       }}
