@@ -7,7 +7,8 @@ export function formToTunnelInput(form: any, environment: any) {
   const thermal = normalizeThermalProperties(form);
   const airTempSource = form?.air_temp_source ?? "environment";
   const packagingSpecificHeatKJkgK = safeNumber(form?.packaging_specific_heat_kj_kg_k);
-  const approved = form?.thermal_condition_approved === true;
+  const approved = false;
+  const thermalConditionApproved = form?.thermal_condition_approved === true;
   const normalAirTempC = airTempSource === "environment" ? safeNumber(environment?.internal_temp_c) : safeNumber(form?.air_temp_c);
   const normalInput = {
     airTempC: normalAirTempC,
@@ -72,7 +73,7 @@ export function formToTunnelInput(form: any, environment: any) {
     allowPhaseChange: true,
     packageType: approved ? (form?.approved_packaging_type ?? normalInput.packageType) : normalInput.packageType,
     informedAirFlowM3H: approved ? safeNumber(form?.approved_air_flow_m3_h, normalInput.informedAirFlowM3H) : normalInput.informedAirFlowM3H,
-    thermalConditionApproved: approved,
+    thermalConditionApproved,
     approvedAirTempC: safeNumber(form?.approved_air_temp_c),
     approvedAirVelocityMS: safeNumber(form?.approved_air_velocity_m_s),
     approvedAirDeltaTK: safeNumber(form?.approved_air_delta_t_k),

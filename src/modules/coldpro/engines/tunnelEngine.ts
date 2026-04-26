@@ -456,7 +456,7 @@ function buildApprovedScenario(input: any): TunnelThermalScenario | null {
 export function calculateTunnelEngine(input: any) {
   const adjusted = calculateTunnelCore(input);
   const initialInput = input?.initialScenarioInput ?? input?.initial_scenario_input ?? input;
-  const initial = initialInput === input ? adjusted : calculateTunnelCore({ ...initialInput, initialScenarioInput: undefined, initial_scenario_input: undefined });
+  const initial = initialInput === input ? adjusted : calculateTunnelCore({ ...input, ...initialInput, initialScenarioInput: undefined, initial_scenario_input: undefined, thermalConditionApproved: false, thermal_condition_approved: false });
   const approvedScenario = buildApprovedScenario(input);
 
   const calculationBreakdown = {
