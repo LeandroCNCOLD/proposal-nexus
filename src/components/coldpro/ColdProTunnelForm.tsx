@@ -1,5 +1,5 @@
 import * as React from "react";
-import { AlertTriangle, Calculator, Fan, Package, Save, Settings, Thermometer, Wind, Warehouse } from "lucide-react";
+import { AlertTriangle, Calculator, Fan, Package, Save, Search, Settings, Thermometer, Wind, Warehouse } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ColdProField, ColdProInput, ColdProSelect } from "./ColdProField";
 import { ColdProCalculatedInfo, ColdProFormSection, ColdProValidationMessage, fmtColdPro, numberOrNull } from "./ColdProFormPrimitives";
@@ -228,6 +228,7 @@ const DENSITY_STATUS_LABEL = {
 export function ColdProTunnelForm({ environmentId, environment, product, tunnel, productCatalog = [], onSave }: { environmentId: string; environment?: any; product?: any | null; tunnel?: any; productCatalog?: any[]; onSave: (data: any) => void }) {
   const [form, setForm] = React.useState<any>(defaultTunnel(environmentId));
   const [selectedGroup, setSelectedGroup] = React.useState("");
+  const [productSearch, setProductSearch] = React.useState("");
   const [continuousUnit, setContinuousUnit] = React.useState<DimensionUnit>("m");
   const [staticUnit, setStaticUnit] = React.useState<DimensionUnit>("m");
   const [weightUnit, setWeightUnit] = React.useState<WeightUnit>("kg");
@@ -392,8 +393,23 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
     requiredAirflowM3H: null,
     requiredAirflowM3S: null,
   };
+  const normalizeSearch = (value: unknown) => String(value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+  const productInitials = (value: unknown) => normalizeSearch(value).split(/[^a-z0-9]+/).filter(Boolean).map((word) => word[0]).join("");
   const groups = React.useMemo(() => Array.from(new Set(productCatalog.map((p) => p.category).filter(Boolean))).sort((a, b) => String(a).localeCompare(String(b), "pt-BR")), [productCatalog]);
-  const filteredProducts = React.useMemo(() => productCatalog.filter((p) => !selectedGroup || p.category === selectedGroup), [productCatalog, selectedGroup]);
+  const filteredProducts = React.useMemo(() => {
+    const query = normalizeSearch(productSearch);
+    return productCatalog
+      .filter((p) => !selectedGroup || p.category === selectedGroup)
+      .filter((p) => !query || normalizeSearch(p.name).includes(query) || normalizeSearch(p.category).includes(query) || productInitials(p.name).startsWith(query))
+      .sort((a, b) => {
+        if (!query) return String(a.name).localeCompare(String(b.name), "pt-BR");
+        const aName = normalizeSearch(a.name);
+        const bName = normalizeSearch(b.name);
+        const aScore = aName.startsWith(query) ? 0 : productInitials(a.name).startsWith(query) ? 1 : aName.includes(query) ? 2 : 3;
+        const bScore = bName.startsWith(query) ? 0 : productInitials(b.name).startsWith(query) ? 1 : bName.includes(query) ? 2 : 3;
+        return aScore - bScore || String(a.name).localeCompare(String(b.name), "pt-BR");
+      });
+  }, [productCatalog, productSearch, selectedGroup]);
 
   const setProcessType = (value: string) => {
     const tunnel = legacyTunnelType(value);
