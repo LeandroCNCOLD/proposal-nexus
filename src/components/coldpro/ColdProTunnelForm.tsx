@@ -680,8 +680,6 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
           <TabsTrigger value="modelo">Modelo físico</TabsTrigger>
           <TabsTrigger value="produto">Produto</TabsTrigger>
           <TabsTrigger value={modelTab}>{isStatic ? "Estático" : "Contínuo"}</TabsTrigger>
-          <TabsTrigger value="ar">Ar, embalagem e penetração</TabsTrigger>
-          <TabsTrigger value="cargas">Cargas internas</TabsTrigger>
         </TabsList>
 
         <TabsContent value="modelo">
@@ -772,6 +770,12 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
             </div></div>
             {physicalModel === "continuous_spiral" ? <ColdProValidationMessage>Girofreezer usa alta convecção: o h calculado recebe fator de turbulência; coeficiente manual não é multiplicado.</ColdProValidationMessage> : null}
             {tunnelResultCards}
+            <div className="mt-6 border-t pt-5">
+              <ColdProFormSection title="Ar, embalagem, penetração e cargas internas" description="Use como simulador de preenchimento sem sobrescrever o projeto até aplicar a simulação." icon={<Fan className="h-4 w-4" />}>
+                {thermalSimulationFields}
+                <div className="mt-5 border-t pt-5">{internalLoadFields}</div>
+              </ColdProFormSection>
+            </div>
             {giroResult.errors.length > 0 ? (
               <div className="mt-4 rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
                 <div className="mb-2 flex items-center gap-2 font-semibold"><AlertTriangle className="h-4 w-4" /> Erros de preenchimento:</div>
@@ -789,7 +793,9 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
                   {Object.entries(DIMENSION_UNITS).map(([key, item]) => <option key={key} value={key}>{item.label}</option>)}
                 </ColdProSelect>
               </ColdProField>
-              {tunnelType === "static_pallet" ? <><ColdProField label="Comprimento pallet/bloco" unit={DIMENSION_UNITS[staticUnit].label}><ColdProInput {...dimensionNum("pallet_length_m", staticUnit)} /></ColdProField><ColdProField label="Largura pallet/bloco" unit={DIMENSION_UNITS[staticUnit].label}><ColdProInput {...dimensionNum("pallet_width_m", staticUnit)} /></ColdProField><ColdProField label="Altura da carga" unit={DIMENSION_UNITS[staticUnit].label}><ColdProInput {...dimensionNum("pallet_height_m", staticUnit)} /></ColdProField></> : null}
+              <ColdProField label={tunnelType === "static_cart" ? "Comprimento carrinho/carga" : "Comprimento pallet/bloco"} unit={DIMENSION_UNITS[staticUnit].label}><ColdProInput {...dimensionNum("pallet_length_m", staticUnit)} /></ColdProField>
+              <ColdProField label={tunnelType === "static_cart" ? "Largura carrinho/carga" : "Largura pallet/bloco"} unit={DIMENSION_UNITS[staticUnit].label}><ColdProInput {...dimensionNum("pallet_width_m", staticUnit)} /></ColdProField>
+              <ColdProField label={tunnelType === "static_cart" ? "Altura carrinho/carga" : "Altura da carga"} unit={DIMENSION_UNITS[staticUnit].label}><ColdProInput {...dimensionNum("pallet_height_m", staticUnit)} /></ColdProField>
               {tunnelType === "static_cart" ? <><ColdProField label="Número de camadas"><ColdProInput {...num("layers_count")} /></ColdProField><ColdProField label="Espaçamento bandejas" unit={DIMENSION_UNITS[staticUnit].label}><ColdProInput {...dimensionNum("tray_spacing_m", staticUnit)} /></ColdProField></> : null}
               <ColdProField label="Massa por pallet/lote" unit="kg"><ColdProInput {...num("pallet_mass_kg")} /></ColdProField>
             </div><div>
@@ -802,6 +808,12 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
             {physicalModel === "static_cart" ? <ColdProValidationMessage>Estático em carrinho trata o produto como bandejas/rack expostos e usa a espessura do produto como dimensão crítica.</ColdProValidationMessage> : null}
             {physicalModel === "static_block" ? <ColdProValidationMessage tone="warning">Estático em pallet/bloco usa a menor dimensão do bloco e aplica redução de exposição; é uma estimativa conservadora.</ColdProValidationMessage> : null}
             {tunnelResultCards}
+            <div className="mt-6 border-t pt-5">
+              <ColdProFormSection title="Ar, embalagem, penetração e cargas internas" description="Use como simulador de preenchimento sem sobrescrever o projeto até aplicar a simulação." icon={<Fan className="h-4 w-4" />}>
+                {thermalSimulationFields}
+                <div className="mt-5 border-t pt-5">{internalLoadFields}</div>
+              </ColdProFormSection>
+            </div>
           </ColdProFormSection>
         </TabsContent>
 
