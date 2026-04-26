@@ -711,13 +711,6 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
                   {Object.entries(TUNNEL_TYPES).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
                 </ColdProSelect>
               </ColdProField>
-              <ColdProField label="Tipo de arranjo">
-                <ColdProSelect value={form.arrangement_type} onChange={(e) => setArrangementType(e.target.value)}>
-                  {arrangementOptions.map((key) => <option key={key} value={key}>{ARRANGEMENT_DEFAULTS[key]?.label ?? key}</option>)}
-                </ColdProSelect>
-              </ColdProField>
-              <ColdProField label="Geometria do produto"><ColdProSelect value={form.product_geometry ?? "slab"} onChange={(e) => set("product_geometry", e.target.value)}>{Object.entries(GEOMETRIES).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</ColdProSelect></ColdProField>
-              <ColdProField label="Modelo de exposição"><ColdProSelect value={form.surface_exposure_model ?? "fully_exposed"} onChange={(e) => set("surface_exposure_model", e.target.value)}>{Object.entries(EXPOSURE_MODELS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</ColdProSelect></ColdProField>
               <ColdProField label="Status físico"><ColdProInput readOnly value={tunnelResult.physicalModelLabel} /></ColdProField>
             </div>
             {staticWarning ? <ColdProValidationMessage tone="warning">Congelamento de caixa, pallet ou bloco depende da embalagem, arranjo, vazão e passagem real de ar. Use como estimativa conservadora.</ColdProValidationMessage> : null}
@@ -741,17 +734,6 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
               <ColdProField label="Condutividade congelado"><ColdProInput {...num("thermal_conductivity_frozen_w_m_k")} /></ColdProField>
               <ColdProField label="Água" unit="%"><ColdProInput {...num("water_content_percent")} /></ColdProField>
             </div></div>
-            <div className="mt-5 grid grid-cols-1 gap-x-10 md:grid-cols-2">
-              <ColdProField label="Escala da geometria"><ColdProSelect value={continuousUnit} onChange={(e) => setContinuousUnit(e.target.value as DimensionUnit)}>{Object.entries(DIMENSION_UNITS).map(([key, item]) => <option key={key} value={key}>{item.label}</option>)}</ColdProSelect></ColdProField>
-              {form.product_geometry === "slab" ? <><ColdProField label="Comprimento produto" unit={DIMENSION_UNITS[continuousUnit].label}><ColdProInput {...dimensionNum("product_length_m", continuousUnit)} /></ColdProField><ColdProField label="Largura produto" unit={DIMENSION_UNITS[continuousUnit].label}><ColdProInput {...dimensionNum("product_width_m", continuousUnit)} /></ColdProField><ColdProField label="Espessura produto" unit={DIMENSION_UNITS[continuousUnit].label}><ColdProInput {...dimensionNum("product_thickness_m", continuousUnit)} /></ColdProField></> : null}
-              {form.product_geometry === "rectangular_prism" ? <><ColdProField label="Comprimento produto" unit={DIMENSION_UNITS[continuousUnit].label}><ColdProInput {...dimensionNum("product_length_m", continuousUnit)} /></ColdProField><ColdProField label="Largura produto" unit={DIMENSION_UNITS[continuousUnit].label}><ColdProInput {...dimensionNum("product_width_m", continuousUnit)} /></ColdProField><ColdProField label="Altura produto" unit={DIMENSION_UNITS[continuousUnit].label}><ColdProInput {...dimensionNum("product_height_m", continuousUnit)} /></ColdProField></> : null}
-              {form.product_geometry === "cube" ? <ColdProField label="Lado do cubo" unit={DIMENSION_UNITS[continuousUnit].label}><ColdProInput {...dimensionNum("product_side_m", continuousUnit)} /></ColdProField> : null}
-              {form.product_geometry === "cylinder" ? <><ColdProField label="Diâmetro produto" unit={DIMENSION_UNITS[continuousUnit].label}><ColdProInput {...dimensionNum("product_diameter_m", continuousUnit)} /></ColdProField><ColdProField label="Comprimento produto" unit={DIMENSION_UNITS[continuousUnit].label}><ColdProInput {...dimensionNum("product_length_m", continuousUnit)} /></ColdProField></> : null}
-              {form.product_geometry === "sphere" ? <ColdProField label="Diâmetro produto" unit={DIMENSION_UNITS[continuousUnit].label}><ColdProInput {...dimensionNum("product_diameter_m", continuousUnit)} /></ColdProField> : null}
-              {form.product_geometry === "packed_box" ? <><ColdProField label="Comprimento caixa" unit={DIMENSION_UNITS[continuousUnit].label}><ColdProInput {...dimensionNum("box_length_m", continuousUnit)} /></ColdProField><ColdProField label="Largura caixa" unit={DIMENSION_UNITS[continuousUnit].label}><ColdProInput {...dimensionNum("box_width_m", continuousUnit)} /></ColdProField><ColdProField label="Altura caixa" unit={DIMENSION_UNITS[continuousUnit].label}><ColdProInput {...dimensionNum("box_height_m", continuousUnit)} /></ColdProField></> : null}
-              {form.product_geometry === "bulk" ? <><ColdProField label="Altura da camada" unit={DIMENSION_UNITS[continuousUnit].label}><ColdProInput {...dimensionNum("bulk_layer_height_m", continuousUnit)} /></ColdProField><ColdProField label="Diâmetro equivalente partícula" unit={DIMENSION_UNITS[continuousUnit].label}><ColdProInput {...dimensionNum("equivalent_particle_diameter_m", continuousUnit)} /></ColdProField></> : null}
-              {form.product_geometry === "irregular" ? <><ColdProField label="Diâmetro equivalente" unit={DIMENSION_UNITS[continuousUnit].label}><ColdProInput {...dimensionNum("equivalent_diameter_m", continuousUnit)} /></ColdProField><ColdProField label="Dimensão característica manual" unit={DIMENSION_UNITS[continuousUnit].label}><ColdProInput {...dimensionNum("characteristic_dimension_m", continuousUnit)} /></ColdProField></> : null}
-            </div>
             <ColdProValidationMessage tone="error">{requiredError ? "Informe o produto do túnel." : ""}</ColdProValidationMessage>
           </ColdProFormSection>
         </TabsContent>
