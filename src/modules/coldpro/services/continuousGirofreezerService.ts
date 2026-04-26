@@ -178,6 +178,61 @@ function calculatePlankFreezingTimeMin(params: {
   return timeSeconds / 60;
 }
 
+export function calculateProductThermalLoad(params: {
+  usedMassKgH: number;
+  product: ProductThermalInput;
+  air?: AirProcessInput;
+}): ProductThermalResult {
+  const { usedMassKgH, product, air } = params;
+  const crossesFreezing = product.initialTempC > product.freezingPointC && product.finalTempC < product.freezingPointC;
+
+  let qSpecificAboveKjKg = 0;
+  let qSpecificLatentKjKg = 0;
+  let qSpecificBelowKjKg = 0;
+
+  if (crossesFreezing) {
+    qSpecificAboveKjKg = product.cpAboveKjKgK * Math.max(product.initialTempC - product.freezingPointC, 0);
+    qSpecificLatentKjKg = product.latentHeatKjKg * Math.max(product.frozenWaterFraction, 0);
+    qSpecificBelowKjKg = product.cpBelowKjKgK * Math.max(product.freezingPointC - product.finalTempC, 0);
+  } else {
+    const cp = product.finalTempC < product.freezingPointC ? product.cpBelowKjKgK : product.cpAboveKjKgK;
+    qSpecificAboveKjKg = cp * Math.abs(product.initialTempC - product.finalTempC);
+  }
+
+  const qSpecificTotalKjKg = qSpecificAboveKjKg + qSpecificLatentKjKg + qSpecificBelowKjKg;
+  const productLoadKw = Math.max(0, usedMassKgH) * qSpecificTotalKjKg / 3600;
+  const packagingMassKgH = product.packagingMassKgH ?? 0;
+  const packagingCpKjKgK = product.packagingCpKjKgK ?? 0;
+  const packagingLoadKw = packagingMassKgH > 0 && packagingCpKjKgK > 0
+    ? packagingMassKgH * packagingCpKjKgK * Math.abs(product.initialTempC - product.finalTempC) / 3600
+    : 0;
+  const totalProcessLoadKw = productLoadKw + packagingLoadKw;
+
+  let requiredAirflowM3S: number | null = null;
+  let requiredAirflowM3H: number | null = null;
+  if (air && air.deltaTAirK > 0) {
+    const airDensity = air.airDensityKgM3 ?? 1.2;
+    requiredAirflowM3S = totalProcessLoadKw / (airDensity * 1.005 * air.deltaTAirK);
+    requiredAirflowM3H = requiredAirflowM3S * 3600;
+  }
+
+  return {
+    qSpecificAboveKjKg,
+    qSpecificLatentKjKg,
+    qSpecificBelowKjKg,
+    qSpecificTotalKjKg,
+    productLoadKw,
+    productLoadKcalH: productLoadKw * 860,
+    productLoadTr: productLoadKw / 3.517,
+    packagingLoadKw,
+    totalProcessLoadKw,
+    totalProcessLoadKcalH: totalProcessLoadKw * 860,
+    totalProcessLoadTr: totalProcessLoadKw / 3.517,
+    requiredAirflowM3H,
+    requiredAirflowM3S,
+  };
+}
+
 export function calculateImplicitDensityKgM3(params: {
   lengthM: number;
   widthM: number;
