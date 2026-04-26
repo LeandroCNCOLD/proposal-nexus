@@ -678,7 +678,9 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
 
             <div className="mt-5 grid grid-cols-1 gap-x-10 md:grid-cols-2"><div>
               <ColdProField label="Temp. ar ajustada" unit="°C"><ColdProInput {...num("air_temp_c")} /></ColdProField>
-              <ColdProField label="Velocidade ajustada" unit="m/s"><ColdProInput {...num("air_velocity_m_s")} /></ColdProField>
+              <ColdProField label="Fonte da velocidade"><ColdProSelect value={form.airflow_source ?? "manual_velocity"} onChange={(e) => set("airflow_source", e.target.value)}><option value="manual_velocity">Velocidade manual</option><option value="airflow_by_fans">Vazão por ventiladores</option></ColdProSelect></ColdProField>
+              {form.airflow_source !== "airflow_by_fans" ? <ColdProField label="Velocidade ajustada" unit="m/s"><ColdProInput {...num("air_velocity_m_s")} /></ColdProField> : null}
+              {form.airflow_source === "airflow_by_fans" ? <><ColdProField label="Vazão dos ventiladores" unit="m³/h"><ColdProInput {...num("fan_airflow_m3_h")} /></ColdProField><ColdProField label="Largura seção túnel" unit="m"><ColdProInput {...num("tunnel_cross_section_width_m")} /></ColdProField><ColdProField label="Altura seção túnel" unit="m"><ColdProInput {...num("tunnel_cross_section_height_m")} /></ColdProField><ColdProField label="Fator de bloqueio"><ColdProInput {...num("blockage_factor")} /></ColdProField></> : null}
               <ColdProField label="ΔT do ar" unit="K"><ColdProInput {...num("air_delta_t_k")} /></ColdProField>
               <ColdProField label="Approach ar sugerido" unit="K"><ColdProInput {...num("suggested_air_approach_k")} /></ColdProField>
               <ColdProField label="Vazão informada" unit="m³/h"><ColdProInput {...num("informed_air_flow_m3_h")} /></ColdProField>
