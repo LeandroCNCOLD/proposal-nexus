@@ -6,6 +6,7 @@ import { ColdProCalculatedInfo, ColdProFormSection, ColdProValidationMessage, fm
 import { formToTunnelInput } from "@/modules/coldpro/adapters/formToTunnelInput";
 import { calculateTunnelEngine } from "@/modules/coldpro/engines/tunnelEngine";
 import { calculateContinuousGirofreezer } from "@/modules/coldpro/services/continuousGirofreezerService";
+import { filterAndRankColdProProducts } from "@/modules/coldpro/core/productSearch";
 
 const ARRANGEMENT_DEFAULTS: Record<string, { air: number; penetration: number; label: string }> = {
   individual_units: { air: 1, penetration: 1, label: "Produto individual sobre esteira" }, single_layer_blocks: { air: 0.8, penetration: 0.85, label: "Blocos em camada única" }, trays: { air: 0.65, penetration: 0.75, label: "Bandejas" }, stacked_packages: { air: 0.45, penetration: 0.55, label: "Pacotes empilhados" }, packaged_units: { air: 0.55, penetration: 0.65, label: "Produto embalado" }, trays_on_racks: { air: 0.65, penetration: 0.75, label: "Bandejas em racks/carrinhos" }, boxes_on_cart: { air: 0.35, penetration: 0.45, label: "Caixas em carrinho" }, hanging_product: { air: 0.8, penetration: 0.85, label: "Produto suspenso" }, palletized_boxes: { air: 0.35, penetration: 0.45, label: "Caixas paletizadas" }, palletized_blocks: { air: 0.25, penetration: 0.35, label: "Blocos paletizados" }, bulk_on_pallet: { air: 0.2, penetration: 0.3, label: "Produto a granel sobre pallet" }, loose_particles: { air: 0.9, penetration: 0.95, label: "Partículas soltas" }, small_individual_units: { air: 0.9, penetration: 0.95, label: "Unidades pequenas individuais" }, boxes: { air: 0.35, penetration: 0.45, label: "Caixas" }, racks: { air: 0.65, penetration: 0.75, label: "Racks" }, bulk_container: { air: 0.4, penetration: 0.5, label: "Contentores" },
@@ -395,23 +396,8 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
     requiredAirflowM3H: null,
     requiredAirflowM3S: null,
   };
-  const normalizeSearch = (value: unknown) => String(value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-  const productInitials = (value: unknown) => normalizeSearch(value).split(/[^a-z0-9]+/).filter(Boolean).map((word) => word[0]).join("");
   const groups = React.useMemo(() => Array.from(new Set(productCatalog.map((p) => p.category).filter(Boolean))).sort((a, b) => String(a).localeCompare(String(b), "pt-BR")), [productCatalog]);
-  const filteredProducts = React.useMemo(() => {
-    const query = normalizeSearch(productSearch);
-    return productCatalog
-      .filter((p) => !selectedGroup || p.category === selectedGroup)
-      .filter((p) => !query || normalizeSearch(p.name).includes(query) || normalizeSearch(p.category).includes(query) || productInitials(p.name).startsWith(query))
-      .sort((a, b) => {
-        if (!query) return String(a.name).localeCompare(String(b.name), "pt-BR");
-        const aName = normalizeSearch(a.name);
-        const bName = normalizeSearch(b.name);
-        const aScore = aName.startsWith(query) ? 0 : productInitials(a.name).startsWith(query) ? 1 : aName.includes(query) ? 2 : 3;
-        const bScore = bName.startsWith(query) ? 0 : productInitials(b.name).startsWith(query) ? 1 : bName.includes(query) ? 2 : 3;
-        return aScore - bScore || String(a.name).localeCompare(String(b.name), "pt-BR");
-      });
-  }, [productCatalog, productSearch, selectedGroup]);
+  const filteredProducts = React.useMemo(() => filterAndRankColdProProducts(productCatalog, productSearch, selectedGroup), [productCatalog, productSearch, selectedGroup]);
 
   const setProcessType = (value: string) => {
     const tunnel = legacyTunnelType(value);
@@ -829,7 +815,8 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
               <ColdProField label="Pesquisar produto">
                 <div className="relative">
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <ColdProInput type="search" value={productSearch} onChange={(e) => setProductSearch(e.target.value)} placeholder="Digite o nome ou iniciais" className="pl-9 text-left" />
+                  <ColdProInput type="search" value={productSearch} onChange={(e) => setProductSearch(e.target.value)} placeholder="Digite mesmo com erro" className="pl-9 text-left" list="coldpro-tunnel-product-catalog" autoComplete="off" />
+                  <datalist id="coldpro-tunnel-product-catalog">{filteredProducts.slice(0, 20).map((p) => <option key={p.id} value={p.name} />)}</datalist>
                 </div>
               </ColdProField>
               <ColdProField label="Grupo ASHRAE"><ColdProSelect value={selectedGroup} onChange={(e) => { setSelectedGroup(e.target.value); setProductSearch(""); set("product_id", null); }}><option value="">Seleção manual</option>{groups.map((group) => <option key={group} value={group}>{group}</option>)}</ColdProSelect></ColdProField>
