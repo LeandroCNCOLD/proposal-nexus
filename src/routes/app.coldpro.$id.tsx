@@ -357,6 +357,7 @@ function ColdProProjectPage() {
                   {["blast_freezer", "cooling_tunnel"].includes(selectedEnv.environment_type) ? (
                     <ColdProTunnelForm
                       environmentId={selectedEnv.id}
+                      environment={selectedEnv}
                       tunnel={tunnel}
                       productCatalog={data?.productCatalog ?? []}
                       onSave={(payload) =>

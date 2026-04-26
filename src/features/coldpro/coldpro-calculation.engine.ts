@@ -739,7 +739,7 @@ export function calculateMotorsLoad(env: ColdProEnvironment): number {
   return calculateMotorLoadKcalH(env);
 }
 
-export function calculateTunnelLoad(tunnel: ColdProTunnel) {
+export function calculateTunnelLoad(tunnel: ColdProTunnel, env?: ColdProEnvironment) {
   const processType = String(tunnel.process_type ?? (tunnel.operation_mode === "batch" ? "static_pallet_freezing" : "continuous_individual_freezing"));
   const isStatic = processType === "static_cart_freezing" || processType === "static_pallet_freezing" || tunnel.operation_mode === "batch";
   const arrangementType = String(tunnel.arrangement_type ?? (isStatic ? "pallet_block" : "individual_exposed"));
@@ -761,6 +761,8 @@ export function calculateTunnelLoad(tunnel: ColdProTunnel) {
   const cpBelow = thermalValueKcal(tunnel.specific_heat_below_kcal_kg_c, tunnel.specific_heat_below_kj_kg_k);
   const latent = thermalValueKcal(tunnel.latent_heat_kcal_kg, tunnel.latent_heat_kj_kg);
   const frozenFraction = waterFreezeFraction(tunnel);
+  const hasEnvironmentAirTemp = env?.internal_temp_c !== null && env?.internal_temp_c !== undefined && Number.isFinite(Number(env.internal_temp_c));
+  const airTempC = hasEnvironmentAirTemp ? n(env?.internal_temp_c) : n(tunnel.air_temp_c);
   const productThicknessM = n(tunnel.product_thickness_m) || n(tunnel.product_thickness_mm) / 1000;
   const blockDimensions = [n(tunnel.pallet_length_m), n(tunnel.pallet_width_m), n(tunnel.pallet_height_m)].filter((value) => value > 0);
   const blockCharacteristicM = blockDimensions.length ? Math.min(...blockDimensions) : 0;
@@ -777,7 +779,7 @@ export function calculateTunnelLoad(tunnel: ColdProTunnel) {
     effectiveConductivityWMK: effectiveConductivity,
     freezingTempC: tunnel.freezing_temp_c,
     latentHeatKcalKg: tunnel.latent_heat_kcal_kg,
-    airTempC: tunnel.air_temp_c,
+    airTempC,
     airVelocityMS: tunnel.air_velocity_m_s,
     convectiveCoefficientWM2K: convectiveCoefficient,
   });
@@ -825,7 +827,7 @@ export function calculateTunnelLoad(tunnel: ColdProTunnel) {
     batchMassKg: staticMass,
     batchTimeH,
     desiredTimeMin: availableTimeMin,
-    initialAirTempC: n(tunnel.air_temp_c),
+    initialAirTempC: airTempC,
     initialAirVelocityMS: n(tunnel.air_velocity_m_s),
     minAirTempC: n((tunnel as any).min_air_temp_c, -40),
     maxAirTempC: n((tunnel as any).max_air_temp_c, -25),
@@ -888,7 +890,8 @@ export function calculateTunnelLoad(tunnel: ColdProTunnel) {
     total_kcal_h: round2(total),
     total_kw: round2(kcalhToKw(total)),
     total_tr: round2(kcalhToTr(total)),
-    air_temperature_c: n(tunnel.air_temp_c),
+    air_temperature_c: airTempC,
+    air_temperature_source: hasEnvironmentAirTemp ? "environment_internal_temp" : "tunnel",
     air_velocity_m_s: n(tunnel.air_velocity_m_s),
     airflow_m3_h: n(tunnel.airflow_m3_h),
     process_time_min: availableTimeMin,
@@ -953,7 +956,7 @@ export function calculateColdProLoad(params: {
   const product = productBreakdown.reduce((acc, item) => acc + item.total_kcal_h, 0);
   const packaging = params.products.reduce((acc, item) => acc + calculatePackagingLoad(item), 0);
   const respiration = params.products.reduce((acc, item) => acc + calculateProductRespirationLoad(item, n(params.env.internal_temp_c)), 0);
-  const tunnelResult = params.tunnel ? calculateTunnelLoad(params.tunnel) : null;
+  const tunnelResult = params.tunnel ? calculateTunnelLoad(params.tunnel, params.env) : null;
   const tunnelInternalLoad = tunnelResult?.total_kcal_h ?? 0;
   const dehumidification = calculateSeedDehumidificationLoad(params.env);
   const dehumidificationLoad = dehumidification.total_kcal_h;
