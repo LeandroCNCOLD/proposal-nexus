@@ -787,7 +787,7 @@ export function calculateTunnelLoad(tunnel: ColdProTunnel, env?: ColdProEnvironm
     tunnel_internal_load_kw: round2(tunnelResult.internalLoadKW),
     total_process_load_kw: round2(tunnelResult.productLoadKW + tunnelResult.packagingLoadKW),
     total_process_load_kcal_h: round2(productKcalH + packagingKcalH),
-    total_process_load_tr: round2(kwToTr(tunnelResult.productLoadKW + tunnelResult.packagingLoadKW)),
+    total_process_load_tr: round2(kcalhToTr(productKcalH + packagingKcalH)),
     total_kcal_h: round2(tunnelResult.totalKcalH),
     total_kw: round2(tunnelResult.totalKW),
     total_tr: round2(tunnelResult.totalTR),
