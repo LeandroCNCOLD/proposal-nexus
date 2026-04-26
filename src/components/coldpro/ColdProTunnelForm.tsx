@@ -262,6 +262,14 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
     const valueMin = Number(form.process_time_min ?? 0);
     return { type: "number" as const, step: unitConfig.step, value: Number.isFinite(valueMin) && valueMin !== 0 ? valueMin / unitConfig.toMinutes : form.process_time_min === 0 ? 0 : "", onChange: (e: React.ChangeEvent<HTMLInputElement>) => set("process_time_min", numberOrNull(e.target.value) === null ? null : Number(e.target.value) * unitConfig.toMinutes) };
   };
+  const blockagePercentNum = (key: string) => {
+    const value = Number(form?.[key] ?? 0);
+    return { type: "number" as const, min: 0, max: 95, step: "0.1", value: Number.isFinite(value) && value !== 0 ? value * 100 : form?.[key] === 0 ? 0 : "", onChange: (e: React.ChangeEvent<HTMLInputElement>) => set(key, numberOrNull(e.target.value) === null ? null : Math.min(Math.max(Number(e.target.value), 0), 95) / 100) };
+  };
+  const simBlockagePercentNum = (key: string) => {
+    const value = Number(simulation?.[key] ?? 0);
+    return { type: "number" as const, min: 0, max: 95, step: "0.1", value: Number.isFinite(value) && value !== 0 ? value * 100 : simulation?.[key] === 0 ? 0 : "", onChange: (e: React.ChangeEvent<HTMLInputElement>) => setSim(key, numberOrNull(e.target.value) === null ? null : Math.min(Math.max(Number(e.target.value), 0), 95) / 100) };
+  };
   const processType = String(form.process_type ?? "continuous_individual_freezing");
   const tunnelType = String(form.tunnel_type ?? legacyTunnelType(processType));
   const arrangementOptions = ARRANGEMENTS_BY_TUNNEL[tunnelType] ?? ARRANGEMENTS_BY_TUNNEL.continuous_belt;
