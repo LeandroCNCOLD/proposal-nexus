@@ -322,6 +322,26 @@ export function calculateContinuousGirofreezer(input: ContinuousGirofreezerInput
   const massSource = directMassKgH ? "direct" : "calculated";
   const massInsideTunnelKg = usedMassKgH * (retentionTimeMin / 60);
   const massDifferencePercent = directMassKgH && calculatedMassKgH > 0 ? percentDifference(directMassKgH, calculatedMassKgH) : null;
+  const thermal = calculateProductThermalLoad({
+    usedMassKgH,
+    product: {
+      initialTempC: input.initialTempC ?? 0,
+      finalTempC: input.finalTempC ?? 0,
+      freezingPointC: input.freezingPointC ?? 0,
+      cpAboveKjKgK: input.cpAboveKjKgK ?? 0,
+      cpBelowKjKgK: input.cpBelowKjKgK ?? 0,
+      latentHeatKjKg: input.latentHeatKjKg ?? 0,
+      frozenWaterFraction: input.frozenWaterFraction ?? 0,
+      packagingMassKgH: input.packagingMassKgH ?? 0,
+      packagingCpKjKgK: input.packagingCpKjKgK ?? 0,
+    },
+    air: {
+      airTemperatureC: input.airTemperatureC ?? 0,
+      airVelocityMs: input.airVelocityMs ?? 0,
+      deltaTAirK: input.deltaTAirK ?? 5,
+      airDensityKgM3: input.airDensityKgM3 ?? 1.2,
+    },
+  });
   const implicitDensityKgM3 = densityResult.densityKgM3 ?? 0;
   const manualDensityKgM3 = input.manualDensityKgM3 && input.manualDensityKgM3 > 0 ? input.manualDensityKgM3 : input.productDensityKgM3 && input.productDensityKgM3 > 0 ? input.productDensityKgM3 : 0;
   const ashraeDensityKgM3 = input.ashraeDensityKgM3 && input.ashraeDensityKgM3 > 0 ? input.ashraeDensityKgM3 : 0;
@@ -372,6 +392,7 @@ export function calculateContinuousGirofreezer(input: ContinuousGirofreezerInput
     dimensionsM: { lengthM, widthM, thicknessM, volumeM3, characteristicDimensionM, distanceToCoreM },
     mass: { unitWeightKg, cyclesPerHour, calculatedMassKgH, directMassKgH, usedMassKgH, massSource, massInsideTunnelKg, massDifferencePercent },
     physics: { implicitDensityKgM3, densityCalculatedKgM3: densityResult.densityKgM3, densityUsedKgM3, densitySource, densityValidationStatus: densityResult.status, densityValidationMessage: densityResult.message, hBaseWm2K, hEffectiveWm2K, kEffectiveWmK, estimatedFreezingTimeMin, retentionTimeMin, retentionMargin, processStatus },
+    thermal,
     warnings,
     errors,
   };
