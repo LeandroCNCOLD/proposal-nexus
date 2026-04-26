@@ -2812,6 +2812,8 @@ export type Database = {
           specific_heat_above_kj_kg_k: number | null
           specific_heat_below_kcal_kg_c: number
           specific_heat_below_kj_kg_k: number | null
+          suggested_air_approach_k: number | null
+          suggested_air_temp_c: number | null
           thermal_characteristic_dimension_m: number | null
           thermal_conductivity_frozen_w_m_k: number | null
           thermal_conductivity_unfrozen_w_m_k: number | null
@@ -2915,6 +2917,8 @@ export type Database = {
           specific_heat_above_kj_kg_k?: number | null
           specific_heat_below_kcal_kg_c?: number
           specific_heat_below_kj_kg_k?: number | null
+          suggested_air_approach_k?: number | null
+          suggested_air_temp_c?: number | null
           thermal_characteristic_dimension_m?: number | null
           thermal_conductivity_frozen_w_m_k?: number | null
           thermal_conductivity_unfrozen_w_m_k?: number | null
@@ -3018,6 +3022,8 @@ export type Database = {
           specific_heat_above_kj_kg_k?: number | null
           specific_heat_below_kcal_kg_c?: number
           specific_heat_below_kj_kg_k?: number | null
+          suggested_air_approach_k?: number | null
+          suggested_air_temp_c?: number | null
           thermal_characteristic_dimension_m?: number | null
           thermal_conductivity_frozen_w_m_k?: number | null
           thermal_conductivity_unfrozen_w_m_k?: number | null
