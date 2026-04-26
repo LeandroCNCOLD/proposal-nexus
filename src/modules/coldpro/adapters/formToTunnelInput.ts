@@ -11,11 +11,11 @@ export function formToTunnelInput(form: any, environment: any) {
   const normalAirTempC = airTempSource === "environment" ? safeNumber(environment?.internal_temp_c) : safeNumber(form?.air_temp_c);
   const normalInput = {
     airTempC: normalAirTempC,
-    airVelocityMS: approved ? safeNumber(form?.approved_air_velocity_m_s, normalInput.airVelocityMS) : normalInput.airVelocityMS,
-    airDeltaTK: approved ? safeNumber(form?.approved_air_delta_t_k, normalInput.airDeltaTK) : normalInput.airDeltaTK,
-    manualConvectiveCoefficientWM2K: approved ? safeNumber(form?.approved_convective_coefficient_w_m2_k, normalInput.manualConvectiveCoefficientWM2K) : normalInput.manualConvectiveCoefficientWM2K,
-    airExposureFactor: approved ? safeNumber(form?.approved_air_exposure_factor, normalInput.airExposureFactor) : normalInput.airExposureFactor,
-    thermalPenetrationFactor: approved ? safeNumber(form?.approved_thermal_penetration_factor, normalInput.thermalPenetrationFactor) : normalInput.thermalPenetrationFactor,
+    airVelocityMS: safeNumber(form?.air_velocity_m_s),
+    airDeltaTK: safeNumber(form?.air_delta_t_k, 6),
+    manualConvectiveCoefficientWM2K: safeNumber(form?.convective_coefficient_manual_w_m2_k),
+    airExposureFactor: safeNumber(form?.air_exposure_factor, 1),
+    thermalPenetrationFactor: safeNumber(form?.thermal_penetration_factor, 1),
     informedAirFlowM3H: safeNumber(form?.informed_air_flow_m3_h ?? form?.airflow_m3_h),
     packageType: form?.package_type ?? null,
   };
