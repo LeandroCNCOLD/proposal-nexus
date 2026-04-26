@@ -11,10 +11,13 @@ export function databaseToTunnelInput(tunnel: any, environment: any) {
   return {
     processType: tunnel?.process_type,
     operationMode: tunnel?.operation_mode,
+    tunnelMode: tunnel?.tunnel_mode ?? (tunnel?.operation_mode === "batch" ? "static" : "continuous"),
     unitWeightKg: safeNumber(tunnel?.unit_weight_kg ?? tunnel?.product_unit_weight_kg),
     unitsPerCycle: safeNumber(tunnel?.units_per_cycle),
     cyclesPerHour: safeNumber(tunnel?.cycles_per_hour),
     directMassKgH: safeNumber(tunnel?.mass_kg_hour),
+    palletMassKg: safeNumber(tunnel?.pallet_mass_kg),
+    numberOfPallets: safeNumber(tunnel?.number_of_pallets, 1),
     staticMassKg: safeNumber(tunnel?.pallet_mass_kg) * Math.max(1, safeNumber(tunnel?.number_of_pallets, 1)),
     batchTimeH: safeNumber(tunnel?.batch_time_h),
     retentionTimeMin: safeNumber(tunnel?.process_time_min),
