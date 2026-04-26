@@ -26,6 +26,7 @@ import { ColdProResultCard } from "@/components/coldpro/ColdProResultCard";
 import { ColdProExtraLoadsForm } from "@/components/coldpro/ColdProExtraLoadsForm";
 import { ColdProStepper, COLDPRO_STEPS } from "@/components/coldpro/ColdProStepper";
 import { ColdProReport } from "@/components/coldpro/ColdProReport";
+import { ColdProProjectResultDashboard } from "@/modules/coldpro/components/results/ColdProProjectResultDashboard";
 import { ColdProRealSelection } from "@/components/coldpro/ColdProRealSelection";
 import { ColdProSectionLoadSummary } from "@/components/coldpro/ColdProSectionLoadSummary";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -510,7 +511,7 @@ function ColdProProjectPage() {
                       {calculate.isPending ? "Calculando..." : "Calcular carga térmica"}
                     </button>
                   </div>
-                  <ColdProResultCard result={result} selection={selection} environment={selectedEnv} products={products} onAnalyze={handleAnalyzeMemorial} isAnalyzing={analyzeMemorial.isPending} />
+                  <ColdProResultCard result={result} selection={selection} environment={selectedEnv} products={products} advancedProcesses={data?.advancedProcesses ?? []} onAnalyze={handleAnalyzeMemorial} isAnalyzing={analyzeMemorial.isPending} />
 
                   {/* Seleção por curva real do catálogo */}
                   <ColdProRealSelection
@@ -651,6 +652,17 @@ function ColdProProjectPage() {
                       )}
                     </div>
                   ) : null}
+
+                  <ColdProProjectResultDashboard
+                    project={data?.project}
+                    environments={environments}
+                    results={data?.results ?? []}
+                    selections={data?.selections ?? []}
+                    products={allProducts}
+                    advancedProcesses={data?.advancedProcesses ?? []}
+                    onAnalyze={handleAnalyzeMemorial}
+                    isAnalyzing={analyzeMemorial.isPending}
+                  />
 
                   <ColdProReport
                     project={data?.project}
