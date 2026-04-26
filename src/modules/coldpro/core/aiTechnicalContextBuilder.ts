@@ -3,6 +3,11 @@ import type { ColdProEnvironmentNormalizedResult } from "./environmentResultNorm
 import type { ColdProProjectConsolidatedResult } from "./projectResultConsolidator";
 
 function baseEnvironmentContext(normalizedResult: ColdProNormalizedResult | ColdProEnvironmentNormalizedResult) {
+  const distribution = Object.entries(normalizedResult.groupedLoads)
+    .map(([key, value]) => ({ key, value: Number(value ?? 0), percent: normalizedResult.summary.requiredKcalH > 0 ? (Number(value ?? 0) / normalizedResult.summary.requiredKcalH) * 100 : 0 }))
+    .filter((item) => item.value > 0)
+    .sort((a, b) => b.value - a.value);
+  const largest = distribution[0] ?? null;
   return {
     summary: normalizedResult.summary,
     loadDistribution: normalizedResult.loadDistribution,
@@ -11,6 +16,12 @@ function baseEnvironmentContext(normalizedResult: ColdProNormalizedResult | Cold
     equipment: normalizedResult.equipment,
     consistencyAudit: normalizedResult.consistencyAudit,
     iceAndDefrost: normalizedResult.iceAndDefrost,
+    chartSummary: {
+      largestComponent: largest,
+      distributionByCategory: distribution,
+      equipmentSurplusStatus: normalizedResult.equipment.surplusPercent < 0 ? "subdimensionado" : normalizedResult.equipment.surplusPercent < 5 ? "atenção" : normalizedResult.equipment.surplusPercent <= 20 ? "adequado" : normalizedResult.equipment.surplusPercent <= 30 ? "alto" : "possível superdimensionamento",
+      warnings: normalizedResult.consistencyAudit.warnings,
+    },
     requiredChecks: [
       "verificar fechamento matemático",
       "verificar maiores cargas",
@@ -42,6 +53,11 @@ export function buildColdProEnvironmentAIContext(normalizedResult: ColdProEnviro
 }
 
 export function buildColdProProjectAIContext(consolidatedResult: ColdProProjectConsolidatedResult) {
+  const groupedDistribution = Object.entries(consolidatedResult.groupedLoads)
+    .map(([key, value]) => ({ key, value: Number(value ?? 0), percent: consolidatedResult.summary.requiredKcalH > 0 ? (Number(value ?? 0) / consolidatedResult.summary.requiredKcalH) * 100 : 0 }))
+    .filter((item) => item.value > 0)
+    .sort((a, b) => b.value - a.value);
+  const dominantEnvironment = consolidatedResult.ranking[0] ?? null;
   return {
     scope: "project",
     project: consolidatedResult.project,
@@ -49,6 +65,13 @@ export function buildColdProProjectAIContext(consolidatedResult: ColdProProjectC
     groupedLoads: consolidatedResult.groupedLoads,
     ranking: consolidatedResult.ranking,
     consistencyAudit: consolidatedResult.consistencyAudit,
+    chartSummary: {
+      dominantEnvironment,
+      largestGlobalCategory: groupedDistribution[0] ?? null,
+      distributionByCategory: groupedDistribution,
+      equipmentSurplusStatus: consolidatedResult.summary.equipmentSurplusPercent < 0 ? "subdimensionado" : consolidatedResult.summary.equipmentSurplusPercent < 5 ? "atenção" : consolidatedResult.summary.equipmentSurplusPercent <= 20 ? "adequado" : consolidatedResult.summary.equipmentSurplusPercent <= 30 ? "alto" : "possível superdimensionamento",
+      warnings: consolidatedResult.consistencyAudit.warnings,
+    },
     environmentSummaries: consolidatedResult.environmentResults.map((item) => ({
       environment: item.environment,
       summary: item.summary,
