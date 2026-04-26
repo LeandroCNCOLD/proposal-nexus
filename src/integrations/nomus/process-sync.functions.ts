@@ -197,6 +197,29 @@ const PROCESS_FORWARD_LOOKAHEAD = 6;
 const PROCESS_RECENT_RECHECK = 4;
 const PROCESS_MAX_CONSECUTIVE_MISSES = 3;
 
+function normalizeTipo(value: string | null | undefined): string {
+  return (value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .replace(/\s+/g, " ");
+}
+
+function tipoMatches(rawTipo: string | null | undefined, wantedTipos: string[]): boolean {
+  if (wantedTipos.length === 0) return true;
+  const actual = normalizeTipo(rawTipo);
+  if (!actual) return false;
+  return wantedTipos.some((wanted) => {
+    const target = normalizeTipo(wanted);
+    if (!target) return false;
+    if (actual === target) return true;
+    const targetWords = target.split(" ").filter(Boolean);
+    return targetWords.length > 0 && targetWords.every((word) => actual.includes(word));
+  });
+}
+
 function processIdOf(raw: NomusProcessRaw): number {
   return Number(raw.id ?? 0) || 0;
 }
