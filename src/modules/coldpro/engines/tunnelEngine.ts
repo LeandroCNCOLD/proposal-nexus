@@ -405,19 +405,22 @@ function calculateTunnelCore(input: any) {
 
   const calculationBreakdown = {
     model: {
+      tunnelType: tunnelMode.tunnelType,
+      arrangementType: tunnelMode.arrangementType,
+      operationRegime: tunnelMode.operationRegime,
       physicalModel,
       physicalModelLabel: modelMeta.label,
       physicalDescription: modelMeta.physicalDescription,
       geometryAssumption: modelMeta.geometryAssumption,
       convectionAssumption: modelMeta.convectionAssumption,
     },
-    mass: isStatic
+    mass: tunnelMode.operationRegime === "batch"
       ? { mode: "batch", numberOfPallets, palletMassKg, staticMassKg, calculatedMassKgH, usedMassKgH: null, batchTimeH: input?.batchTimeH ?? null }
       : { mode: "continuous", calculatedMassKgH, directMassKgH, usedMassKgH, retentionTimeMin: input?.retentionTimeMin ?? null },
-    geometry: { tunnelType: input?.tunnelType ?? input?.tunnel_type ?? null, arrangementType: input?.arrangementType ?? input?.arrangement_type ?? null, productGeometry: input?.productGeometry ?? input?.product_geometry ?? null, surfaceExposureModel: exposure.surfaceExposureModel, characteristicDimensionM, distanceToCoreM, geometrySource: geometry.source, productThicknessM: input?.productThicknessM ?? null, palletLengthM: input?.palletLengthM ?? null, palletWidthM: input?.palletWidthM ?? null, palletHeightM: input?.palletHeightM ?? null },
+    geometry: { tunnelType: tunnelMode.tunnelType, arrangementType: tunnelMode.arrangementType, productGeometry: input?.productGeometry ?? input?.product_geometry ?? null, surfaceExposureModel: exposure.surfaceExposureModel, characteristicDimensionM, distanceToCoreM, geometrySource: geometry.source },
     productEnergy: productEnergyBreakdown,
     convection: { source: h.source, hBaseWM2K: h.hBaseWM2K, hEffectiveWM2K: h.hEffectiveWM2K, airVelocityMS: airflow.airVelocityUsedMS, airExposureFactor: input?.airExposureFactor ?? null, exposureFactor: exposure.exposureFactor, spiralTurbulenceFactor, blockExposureFactor },
-    airflow: { airflowSource: airflow.airflowSource, fanAirflowM3H: airflow.fanAirflowM3H, grossAreaM2: airflow.grossAreaM2, freeAreaM2: airflow.freeAreaM2, blockageFactor: airflow.blockageFactor, calculatedAirVelocityMS: airflow.calculatedAirVelocityMS, airVelocityUsedMS: airflow.airVelocityUsedMS },
+    airflow: { airflowSource: airflow.airflowSource, fanAirflowM3H: airflow.fanAirflowM3H, grossAirAreaM2: airflow.grossAreaM2, freeAirAreaM2: airflow.freeAreaM2, blockageFactor: airflow.blockageFactor, calculatedAirVelocityMS: airflow.calculatedAirVelocityMS, airVelocityUsedMS: airflow.airVelocityUsedMS },
     heatTransfer: { hBaseWM2K: h.hBaseWM2K, exposureFactor: exposure.exposureFactor, airExposureFactor: input?.airExposureFactor ?? null, hEffectiveWM2K: h.hEffectiveWM2K, hSource: h.source },
     air: { airTempC: input?.airTempC ?? null, airDeltaTK, airDensityKgM3, airFlowM3H, informedAirFlowM3H, airFlowMethod, suggestedAirTempC, suggestedAirMethod, suggestedAirApproachK, comparison: suggestedAirTempComparisonC },
     scenarios: { adjustedScenario: scenario },
