@@ -10,10 +10,13 @@ export type ProductGeometry =
   | "bulk"
   | "irregular";
 
+export type ThermalModelForPallet = "box_limited" | "pallet_block_limited" | "hybrid";
+
 type GeometryResult = {
   characteristicDimensionM: number | null;
   distanceToCoreM: number | null;
   source: string;
+  thermalModelForPallet?: ThermalModelForPallet | null;
   warnings: string[];
   missingFields: string[];
 };
@@ -28,12 +31,24 @@ function smallest(values: unknown[]): number | null {
   return valid.length > 0 ? Math.min(...valid) : null;
 }
 
-function result(characteristicDimensionM: number | null, source: string, missingFields: string[] = [], distanceToCoreM: number | null = characteristicDimensionM ? characteristicDimensionM / 2 : null): GeometryResult {
-  return { characteristicDimensionM, distanceToCoreM, source, warnings: [], missingFields };
+function result(characteristicDimensionM: number | null, source: string, missingFields: string[] = [], distanceToCoreM: number | null = characteristicDimensionM ? characteristicDimensionM / 2 : null, warnings: string[] = [], thermalModelForPallet: ThermalModelForPallet | null = null): GeometryResult {
+  return { characteristicDimensionM, distanceToCoreM, source, thermalModelForPallet, warnings, missingFields };
 }
 
 export function calculateCharacteristicDimension(input: any): GeometryResult {
   let geometry = input?.productGeometry ?? input?.product_geometry;
+  const tunnelType = String(input?.tunnelType ?? input?.tunnel_type ?? "");
+  const arrangementType = String(input?.arrangementType ?? input?.arrangement_type ?? "");
+  const isPalletizedBox = tunnelType === "static_pallet" && arrangementType === "palletized_boxes";
+  const thermalModelForPallet = (input?.thermalModelForPallet ?? input?.thermal_model_for_pallet ?? (isPalletizedBox ? "hybrid" : null)) as ThermalModelForPallet | null;
+
+  if (isPalletizedBox && geometry === "packed_box") {
+    const boxDim = smallest([input?.boxLengthM ?? input?.box_length_m, input?.boxWidthM ?? input?.box_width_m, input?.boxHeightM ?? input?.box_height_m]);
+    const palletDim = smallest([input?.palletLengthM ?? input?.pallet_length_m, input?.palletWidthM ?? input?.pallet_width_m, input?.palletHeightM ?? input?.pallet_height_m]);
+    if (thermalModelForPallet === "pallet_block_limited") return result(palletDim, "smallest_pallet_block_dimension", palletDim ? [] : ["dimensões do pallet/bloco"], palletDim ? palletDim / 2 : null, ["Modelo conservador: pallet tratado como bloco térmico compacto."], thermalModelForPallet);
+    if (thermalModelForPallet === "hybrid") return result(boxDim, "hybrid_box_dimension_with_pallet_exposure", boxDim ? [] : ["dimensões da caixa"], boxDim ? boxDim / 2 : null, ["Modelo híbrido: dimensão térmica da caixa com penalização de exposição por paletização."], thermalModelForPallet);
+    return result(boxDim, "smallest_box_dimension_pallet_box_limited", boxDim ? [] : ["dimensões da caixa"], boxDim ? boxDim / 2 : null, [], thermalModelForPallet);
+  }
   if (!geometry) {
     if (positive(input?.productThicknessM ?? input?.product_thickness_m) > 0) geometry = "slab";
     else if (input?.isStatic && smallest([input?.palletLengthM, input?.palletWidthM, input?.palletHeightM])) {
