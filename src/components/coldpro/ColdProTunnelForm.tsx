@@ -253,9 +253,14 @@ export function ColdProTunnelForm({ environmentId, tunnel, productCatalog = [], 
         <TabsContent value="continuo">
           <ColdProFormSection title="Contínuo / girofreezer" description="Produto individualizado ou camada fina exposta ao ar." icon={<Wind className="h-4 w-4" />}>
             <div className="grid grid-cols-1 gap-x-10 md:grid-cols-2"><div>
-              <ColdProField label="Comprimento produto" unit="m"><ColdProInput {...num("product_length_m")} /></ColdProField>
-              <ColdProField label="Largura produto" unit="m"><ColdProInput {...num("product_width_m")} /></ColdProField>
-              <ColdProField label="Espessura produto" unit="m"><ColdProInput {...num("product_thickness_m")} /></ColdProField>
+              <ColdProField label="Escala das medidas">
+                <ColdProSelect value={continuousUnit} onChange={(e) => setContinuousUnit(e.target.value as DimensionUnit)}>
+                  {Object.entries(DIMENSION_UNITS).map(([key, item]) => <option key={key} value={key}>{item.label}</option>)}
+                </ColdProSelect>
+              </ColdProField>
+              <ColdProField label="Comprimento produto" unit={DIMENSION_UNITS[continuousUnit].label}><ColdProInput {...dimensionNum("product_length_m", continuousUnit)} /></ColdProField>
+              <ColdProField label="Largura produto" unit={DIMENSION_UNITS[continuousUnit].label}><ColdProInput {...dimensionNum("product_width_m", continuousUnit)} /></ColdProField>
+              <ColdProField label="Espessura produto" unit={DIMENSION_UNITS[continuousUnit].label}><ColdProInput {...dimensionNum("product_thickness_m", continuousUnit)} /></ColdProField>
               <ColdProField label="Peso unitário" unit="kg"><ColdProInput {...num("unit_weight_kg")} /></ColdProField>
             </div><div>
               <ColdProField label="Unidades/ciclo"><ColdProInput {...num("units_per_cycle")} /></ColdProField>
@@ -270,9 +275,14 @@ export function ColdProTunnelForm({ environmentId, tunnel, productCatalog = [], 
         <TabsContent value="estatico">
           <ColdProFormSection title="Estático / carrinho / pallet" description="Massa agrupada tratada como bloco térmico equivalente." icon={<Warehouse className="h-4 w-4" />}>
             <div className="grid grid-cols-1 gap-x-10 md:grid-cols-2"><div>
-              <ColdProField label="Comprimento pallet/bloco" unit="m"><ColdProInput {...num("pallet_length_m")} /></ColdProField>
-              <ColdProField label="Largura pallet/bloco" unit="m"><ColdProInput {...num("pallet_width_m")} /></ColdProField>
-              <ColdProField label="Altura da carga" unit="m"><ColdProInput {...num("pallet_height_m")} /></ColdProField>
+              <ColdProField label="Escala das medidas">
+                <ColdProSelect value={staticUnit} onChange={(e) => setStaticUnit(e.target.value as DimensionUnit)}>
+                  {Object.entries(DIMENSION_UNITS).map(([key, item]) => <option key={key} value={key}>{item.label}</option>)}
+                </ColdProSelect>
+              </ColdProField>
+              <ColdProField label="Comprimento pallet/bloco" unit={DIMENSION_UNITS[staticUnit].label}><ColdProInput {...dimensionNum("pallet_length_m", staticUnit)} /></ColdProField>
+              <ColdProField label="Largura pallet/bloco" unit={DIMENSION_UNITS[staticUnit].label}><ColdProInput {...dimensionNum("pallet_width_m", staticUnit)} /></ColdProField>
+              <ColdProField label="Altura da carga" unit={DIMENSION_UNITS[staticUnit].label}><ColdProInput {...dimensionNum("pallet_height_m", staticUnit)} /></ColdProField>
               <ColdProField label="Massa por pallet/lote" unit="kg"><ColdProInput {...num("pallet_mass_kg")} /></ColdProField>
             </div><div>
               <ColdProField label="Número de pallets/lotes"><ColdProInput {...num("number_of_pallets")} /></ColdProField>
