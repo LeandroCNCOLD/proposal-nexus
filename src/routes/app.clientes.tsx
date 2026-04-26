@@ -167,9 +167,9 @@ function ClientsPage() {
 
       <div className="overflow-x-auto rounded-xl border bg-card shadow-[var(--shadow-sm)]">
         <Table>
-          <TableHeader><TableRow><TableHead>Nome</TableHead><TableHead>Segmento</TableHead><TableHead>Região</TableHead><TableHead>Vendedor / Rep.</TableHead><TableHead>Contato</TableHead><TableHead>Cidade/UF</TableHead></TableRow></TableHeader>
+          <TableHeader><TableRow><TableHead>Nome</TableHead><TableHead>Segmento</TableHead><TableHead>Região</TableHead><TableHead>Vendedor / Rep.</TableHead><TableHead>Contato</TableHead><TableHead>WhatsApp</TableHead><TableHead>Cidade/UF</TableHead></TableRow></TableHeader>
           <TableBody>
-            {data.length === 0 ? <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-12">Nenhum cliente cadastrado.</TableCell></TableRow> :
+            {data.length === 0 ? <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-12">Nenhum cliente cadastrado.</TableCell></TableRow> :
               data.map((c) => {
                 const raw = clientRaw(c);
                 const contact = primaryContact(c);
@@ -207,10 +207,10 @@ function ClientsPage() {
                           <div>{contactName || "Contato principal"}</div>
                           {email && <div className="text-xs text-muted-foreground">E-mail: {email}</div>}
                           {phone && <div className="text-xs text-muted-foreground">Tel.: {phone}</div>}
-                          {whatsapp && <div className="text-xs text-muted-foreground">WhatsApp: {whatsapp}</div>}
                         </>
                       ) : "—"}
                     </TableCell>
+                    <TableCell className="min-w-[150px] text-sm whitespace-nowrap">{whatsapp || "—"}</TableCell>
                     <TableCell className="text-sm whitespace-nowrap">{[city, state].filter(Boolean).join(" / ") || "—"}</TableCell>
                   </TableRow>
                 );
