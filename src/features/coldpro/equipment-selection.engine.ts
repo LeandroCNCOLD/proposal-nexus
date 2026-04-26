@@ -28,6 +28,8 @@ export type SelectionInput = {
   condensation_temp_c: number;
   application?: "HT" | "MT" | "LT" | null;
   refrigerant?: string | null;
+  equipment_kind?: "plugin" | "biblock" | "split" | null;
+  min_quantity?: number | null;
   volume_m3?: number | null;
   surplus_target_min?: number; // % default 5
   surplus_target_max?: number; // % default 25
@@ -61,6 +63,10 @@ export type SelectionCandidate = {
     refrigerante: string | null;
     designacao_hp: string | null;
     gabinete: string | null;
+    tipo_gabinete?: string | null;
+    plugin_image_path?: string | null;
+    split_image_path?: string | null;
+    biblock_image_path?: string | null;
   };
   evaporator_airflow_m3_h: number | null;
   refrigerant: string | null;
@@ -112,6 +118,21 @@ function isPhysicallyPlausibleCapacity(points: PerformancePoint[], capacity: num
   const min = Math.min(...capacities);
   const max = Math.max(...capacities);
   return capacity >= min * 0.8 && capacity <= max * 1.05;
+}
+
+function normalizeText(value: unknown): string {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function matchesEquipmentKind(model: EquipmentModelRow, kind?: SelectionInput["equipment_kind"]): boolean {
+  if (!kind) return true;
+  const text = normalizeText([model.tipo_gabinete, model.gabinete, model.modelo].join(" "));
+  if (kind === "plugin") return Boolean(model.plugin_image_path) || /plug\s*-?\s*in|plugin/.test(text);
+  if (kind === "split") return Boolean(model.split_image_path) || text.includes("split");
+  return Boolean(model.biblock_image_path) || /bi\s*-?\s*bloco|biblock|bibloc|biboco/.test(text);
 }
 
 function nearestPerformancePoint(points: PerformancePoint[], input: SelectionInput): PerformancePoint | null {
