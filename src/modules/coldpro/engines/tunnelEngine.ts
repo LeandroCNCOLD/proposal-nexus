@@ -456,6 +456,7 @@ function calculateTunnelCore(input: any) {
     availableTimeMin,
     airFlowM3H,
     informedAirFlowM3H,
+    airflow,
     airFlowMethod,
     suggestedAirTempC,
     suggestedAirMethod,
