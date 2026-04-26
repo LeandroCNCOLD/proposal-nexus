@@ -3,13 +3,22 @@ import { safeNumber } from "../core/units";
 
 const KCAL_TO_KJ = 4.1868;
 
+function isStaticTunnel(processType: unknown, operationMode: unknown) {
+  return processType === "static_cart_freezing" || processType === "static_pallet_freezing" || operationMode === "batch";
+}
+
 export function databaseToTunnelInput(tunnel: any, environment: any) {
   const thermal = normalizeThermalProperties(tunnel);
   const airTempSource = tunnel?.air_temp_source ?? "environment";
   const packagingSpecificHeatKJkgK = safeNumber(tunnel?.packaging_specific_heat_kj_kg_k);
   const approved = tunnel?.thermal_condition_approved === true;
   const physicalModel = tunnel?.physical_model;
-  const isStaticBlock = physicalModel === "static_block" || tunnel?.process_type === "static_pallet_freezing";
+  const processType = tunnel?.process_type;
+  const operationMode = tunnel?.operation_mode;
+  const isStatic = isStaticTunnel(processType, operationMode);
+  const numberOfPallets = safeNumber(tunnel?.number_of_pallets);
+  const palletMassKg = safeNumber(tunnel?.pallet_mass_kg);
+  const staticMassKg = isStatic ? palletMassKg * numberOfPallets : safeNumber(tunnel?.static_mass_kg) || safeNumber(tunnel?.staticMassKg) || palletMassKg * Math.max(1, numberOfPallets || 1);
   const normalAirTempC = airTempSource === "environment" ? safeNumber(environment?.internal_temp_c) : safeNumber(tunnel?.air_temp_c);
   const normalInput = {
     airTempC: normalAirTempC,
@@ -25,21 +34,21 @@ export function databaseToTunnelInput(tunnel: any, environment: any) {
   return {
     physicalModel,
     tunnelPhysicalModel: physicalModel,
-    processType: tunnel?.process_type,
-    operationMode: tunnel?.operation_mode,
-    tunnelMode: tunnel?.tunnel_mode ?? (tunnel?.operation_mode === "batch" ? "static" : "continuous"),
+    processType,
+    operationMode,
+    tunnelMode: tunnel?.tunnel_mode ?? (isStatic ? "static" : "continuous"),
     unitWeightKg: safeNumber(tunnel?.unit_weight_kg ?? tunnel?.product_unit_weight_kg),
     unitsPerCycle: safeNumber(tunnel?.units_per_cycle),
     cyclesPerHour: safeNumber(tunnel?.cycles_per_hour),
     directMassKgH: safeNumber(tunnel?.mass_kg_hour),
-    palletMassKg: safeNumber(tunnel?.pallet_mass_kg),
-    numberOfPallets: safeNumber(tunnel?.number_of_pallets, 1),
-    staticMassKg: safeNumber(tunnel?.static_mass_kg) || safeNumber(tunnel?.staticMassKg) || safeNumber(tunnel?.pallet_mass_kg) * Math.max(1, safeNumber(tunnel?.number_of_pallets, 1)),
+    palletMassKg,
+    numberOfPallets,
+    staticMassKg,
     batchTimeH: safeNumber(tunnel?.batch_time_h),
     retentionTimeMin: safeNumber(tunnel?.process_time_min),
-    productLengthM: isStaticBlock ? 0 : safeNumber(tunnel?.product_length_m),
-    productWidthM: isStaticBlock ? 0 : safeNumber(tunnel?.product_width_m),
-    productThicknessM: isStaticBlock ? 0 : safeNumber(tunnel?.product_thickness_m),
+    productLengthM: isStatic ? 0 : safeNumber(tunnel?.product_length_m),
+    productWidthM: isStatic ? 0 : safeNumber(tunnel?.product_width_m),
+    productThicknessM: isStatic ? 0 : safeNumber(tunnel?.product_thickness_m),
     palletLengthM: safeNumber(tunnel?.pallet_length_m),
     palletWidthM: safeNumber(tunnel?.pallet_width_m),
     palletHeightM: safeNumber(tunnel?.pallet_height_m),
