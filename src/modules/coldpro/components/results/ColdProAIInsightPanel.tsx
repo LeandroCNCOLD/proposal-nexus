@@ -1,8 +1,8 @@
 import * as React from "react";
 import ReactMarkdown from "react-markdown";
 import { Bot, Loader2, Sparkles } from "lucide-react";
-import type { ColdProNormalizedResult } from "../../core/resultNormalizer";
-import { buildColdProAIContext } from "../../core/aiTechnicalContextBuilder";
+import type { ColdProEnvironmentNormalizedResult } from "../../core/environmentResultNormalizer";
+import { compactColdProAIQuestion } from "../../core/aiTechnicalContextBuilder";
 
 const ACTIONS = [
   ["Auditar dimensionamento", "Audite o dimensionamento, fechamento matemático, divergências críticas e severidade dos achados."],
@@ -15,7 +15,7 @@ const ACTIONS = [
 ] as const;
 
 type Props = {
-  normalized: ColdProNormalizedResult;
+  normalized: ColdProEnvironmentNormalizedResult;
   onAnalyze?: (question: string, previousAnalysis?: string | null) => Promise<string | null>;
   isAnalyzing?: boolean;
 };
@@ -32,8 +32,8 @@ export function ColdProAIInsightPanel({ normalized, onAnalyze, isAnalyzing }: Pr
       setError("Há divergências críticas. Revise antes de emitir laudo final.");
       return;
     }
-    const context = buildColdProAIContext(normalized);
-    const response = await onAnalyze(JSON.stringify({ action: label, instruction, technicalContext: context }, null, 2), analysis);
+    const question = compactColdProAIQuestion(label, `${instruction} Ambiente: ${normalized.environment?.name ?? "selecionado"}. Carga requerida ${normalized.summary.requiredKcalH} kcal/h. Produto direto ${normalized.loadDistribution.productKcalH} kcal/h. Túnel/processo ${normalized.loadDistribution.tunnelProcessKcalH} kcal/h. Alertas: ${normalized.consistencyAudit.warnings.slice(0, 4).join(" | ") || "sem alertas"}.`, "environment");
+    const response = await onAnalyze(question, analysis);
     if (response) setAnalysis(response);
     else setError("A IA não retornou análise para este contexto.");
   }
