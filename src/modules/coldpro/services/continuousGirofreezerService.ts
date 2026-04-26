@@ -23,10 +23,56 @@ export interface ContinuousGirofreezerInput {
   productDensityKgM3?: number;
   frozenConductivityWmK?: number;
   freezingPointC?: number;
+  initialTempC?: number;
+  finalTempC?: number;
+  cpAboveKjKgK?: number;
+  cpBelowKjKgK?: number;
   latentHeatKjKg?: number;
   frozenWaterFraction?: number;
+  packagingMassKgH?: number;
+  packagingCpKjKgK?: number;
+  deltaTAirK?: number;
+  airDensityKgM3?: number;
   airExposureFactor?: number;
   thermalPenetrationFactor?: number;
+}
+
+export interface ProductThermalInput {
+  initialTempC: number;
+  finalTempC: number;
+  freezingPointC: number;
+  cpAboveKjKgK: number;
+  cpBelowKjKgK: number;
+  latentHeatKjKg: number;
+  frozenWaterFraction: number;
+  packagingMassKgH?: number;
+  packagingCpKjKgK?: number;
+}
+
+export interface AirProcessInput {
+  airTemperatureC: number;
+  airVelocityMs: number;
+  deltaTAirK: number;
+  airDensityKgM3?: number;
+  airExposureFactor?: number;
+  thermalPenetrationFactor?: number;
+  frozenConductivityWmK?: number;
+}
+
+export interface ProductThermalResult {
+  qSpecificAboveKjKg: number;
+  qSpecificLatentKjKg: number;
+  qSpecificBelowKjKg: number;
+  qSpecificTotalKjKg: number;
+  productLoadKw: number;
+  productLoadKcalH: number;
+  productLoadTr: number;
+  packagingLoadKw: number;
+  totalProcessLoadKw: number;
+  totalProcessLoadKcalH: number;
+  totalProcessLoadTr: number;
+  requiredAirflowM3H: number | null;
+  requiredAirflowM3S: number | null;
 }
 
 export interface ContinuousGirofreezerResult {
@@ -63,6 +109,7 @@ export interface ContinuousGirofreezerResult {
     retentionMargin: number | null;
     processStatus: "adequate" | "insufficient" | "missing_data" | "invalid_input";
   };
+  thermal: ProductThermalResult;
   warnings: string[];
   errors: string[];
 }
@@ -129,6 +176,61 @@ function calculatePlankFreezingTimeMin(params: {
       Math.pow(params.distanceToCoreM, 2) / (2 * params.kEffectiveWmK));
 
   return timeSeconds / 60;
+}
+
+export function calculateProductThermalLoad(params: {
+  usedMassKgH: number;
+  product: ProductThermalInput;
+  air?: AirProcessInput;
+}): ProductThermalResult {
+  const { usedMassKgH, product, air } = params;
+  const crossesFreezing = product.initialTempC > product.freezingPointC && product.finalTempC < product.freezingPointC;
+
+  let qSpecificAboveKjKg = 0;
+  let qSpecificLatentKjKg = 0;
+  let qSpecificBelowKjKg = 0;
+
+  if (crossesFreezing) {
+    qSpecificAboveKjKg = product.cpAboveKjKgK * Math.max(product.initialTempC - product.freezingPointC, 0);
+    qSpecificLatentKjKg = product.latentHeatKjKg * Math.max(product.frozenWaterFraction, 0);
+    qSpecificBelowKjKg = product.cpBelowKjKgK * Math.max(product.freezingPointC - product.finalTempC, 0);
+  } else {
+    const cp = product.finalTempC < product.freezingPointC ? product.cpBelowKjKgK : product.cpAboveKjKgK;
+    qSpecificAboveKjKg = cp * Math.abs(product.initialTempC - product.finalTempC);
+  }
+
+  const qSpecificTotalKjKg = qSpecificAboveKjKg + qSpecificLatentKjKg + qSpecificBelowKjKg;
+  const productLoadKw = Math.max(0, usedMassKgH) * qSpecificTotalKjKg / 3600;
+  const packagingMassKgH = product.packagingMassKgH ?? 0;
+  const packagingCpKjKgK = product.packagingCpKjKgK ?? 0;
+  const packagingLoadKw = packagingMassKgH > 0 && packagingCpKjKgK > 0
+    ? packagingMassKgH * packagingCpKjKgK * Math.abs(product.initialTempC - product.finalTempC) / 3600
+    : 0;
+  const totalProcessLoadKw = productLoadKw + packagingLoadKw;
+
+  let requiredAirflowM3S: number | null = null;
+  let requiredAirflowM3H: number | null = null;
+  if (air && air.deltaTAirK > 0) {
+    const airDensity = air.airDensityKgM3 ?? 1.2;
+    requiredAirflowM3S = totalProcessLoadKw / (airDensity * 1.005 * air.deltaTAirK);
+    requiredAirflowM3H = requiredAirflowM3S * 3600;
+  }
+
+  return {
+    qSpecificAboveKjKg,
+    qSpecificLatentKjKg,
+    qSpecificBelowKjKg,
+    qSpecificTotalKjKg,
+    productLoadKw,
+    productLoadKcalH: productLoadKw * 860,
+    productLoadTr: productLoadKw / 3.517,
+    packagingLoadKw,
+    totalProcessLoadKw,
+    totalProcessLoadKcalH: totalProcessLoadKw * 860,
+    totalProcessLoadTr: totalProcessLoadKw / 3.517,
+    requiredAirflowM3H,
+    requiredAirflowM3S,
+  };
 }
 
 export function calculateImplicitDensityKgM3(params: {
@@ -220,6 +322,26 @@ export function calculateContinuousGirofreezer(input: ContinuousGirofreezerInput
   const massSource = directMassKgH ? "direct" : "calculated";
   const massInsideTunnelKg = usedMassKgH * (retentionTimeMin / 60);
   const massDifferencePercent = directMassKgH && calculatedMassKgH > 0 ? percentDifference(directMassKgH, calculatedMassKgH) : null;
+  const thermal = calculateProductThermalLoad({
+    usedMassKgH,
+    product: {
+      initialTempC: input.initialTempC ?? 0,
+      finalTempC: input.finalTempC ?? 0,
+      freezingPointC: input.freezingPointC ?? 0,
+      cpAboveKjKgK: input.cpAboveKjKgK ?? 0,
+      cpBelowKjKgK: input.cpBelowKjKgK ?? 0,
+      latentHeatKjKg: input.latentHeatKjKg ?? 0,
+      frozenWaterFraction: input.frozenWaterFraction ?? 0,
+      packagingMassKgH: input.packagingMassKgH ?? 0,
+      packagingCpKjKgK: input.packagingCpKjKgK ?? 0,
+    },
+    air: {
+      airTemperatureC: input.airTemperatureC ?? 0,
+      airVelocityMs: input.airVelocityMs ?? 0,
+      deltaTAirK: input.deltaTAirK ?? 5,
+      airDensityKgM3: input.airDensityKgM3 ?? 1.2,
+    },
+  });
   const implicitDensityKgM3 = densityResult.densityKgM3 ?? 0;
   const manualDensityKgM3 = input.manualDensityKgM3 && input.manualDensityKgM3 > 0 ? input.manualDensityKgM3 : input.productDensityKgM3 && input.productDensityKgM3 > 0 ? input.productDensityKgM3 : 0;
   const ashraeDensityKgM3 = input.ashraeDensityKgM3 && input.ashraeDensityKgM3 > 0 ? input.ashraeDensityKgM3 : 0;
@@ -270,6 +392,7 @@ export function calculateContinuousGirofreezer(input: ContinuousGirofreezerInput
     dimensionsM: { lengthM, widthM, thicknessM, volumeM3, characteristicDimensionM, distanceToCoreM },
     mass: { unitWeightKg, cyclesPerHour, calculatedMassKgH, directMassKgH, usedMassKgH, massSource, massInsideTunnelKg, massDifferencePercent },
     physics: { implicitDensityKgM3, densityCalculatedKgM3: densityResult.densityKgM3, densityUsedKgM3, densitySource, densityValidationStatus: densityResult.status, densityValidationMessage: densityResult.message, hBaseWm2K, hEffectiveWm2K, kEffectiveWmK, estimatedFreezingTimeMin, retentionTimeMin, retentionMargin, processStatus },
+    thermal,
     warnings,
     errors,
   };

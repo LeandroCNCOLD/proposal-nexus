@@ -20,6 +20,7 @@ import {
 import { calculateAdvancedProcess } from "./advancedProcesses/advancedProcessEngine";
 import { calculateEvaporatorFrostRisk, suggestedInfiltrationFactor } from "./extra-loads-preview";
 import { calculateEvaporatorFanLoad, calculateMotorLoadKcalH, calculateTechnicalDefrost, calculateTechnicalInfiltration } from "./thermal-calculations";
+import { calculateProductThermalLoad } from "@/modules/coldpro/services/continuousGirofreezerService";
 
 const W_TO_KCAL_H = 0.859845;
 const R_INTERNAL_M2K_W = 0.12;
@@ -777,6 +778,26 @@ export function calculateTunnelLoad(tunnel: ColdProTunnel) {
   const packaging = n(tunnel.packaging_mass_kg_hour) * n(tunnel.packaging_specific_heat_kcal_kg_c) * Math.abs(tin - tout);
   const internalLoads = kwToKcalh(n(tunnel.belt_motor_kw) + n(tunnel.internal_fans_kw) + n(tunnel.other_internal_kw));
   const total = productHourly + packaging + internalLoads;
+  const thermalProcess = calculateProductThermalLoad({
+    usedMassKgH: calculationMass,
+    product: {
+      initialTempC: tin,
+      finalTempC: tout,
+      freezingPointC: n(tfreeze),
+      cpAboveKjKgK: cpAbove * KCAL_TO_KJ,
+      cpBelowKjKgK: cpBelow * KCAL_TO_KJ,
+      latentHeatKjKg: latent * KCAL_TO_KJ,
+      frozenWaterFraction: frozenFraction,
+      packagingMassKgH: n(tunnel.packaging_mass_kg_hour),
+      packagingCpKjKgK: n(tunnel.packaging_specific_heat_kcal_kg_c) * KCAL_TO_KJ,
+    },
+    air: {
+      airTemperatureC: n(tunnel.air_temp_c),
+      airVelocityMs: n(tunnel.air_velocity_m_s),
+      deltaTAirK: n((tunnel as any).air_delta_t_k, 6),
+      airDensityKgM3: AIR_DENSITY_KG_M3,
+    },
+  });
   const availableTimeMin = isStatic ? batchTimeH * 60 : n(tunnel.process_time_min);
   const optimization = optimizeProcessAirCondition({
     processType,
@@ -819,9 +840,20 @@ export function calculateTunnelLoad(tunnel: ColdProTunnel) {
     batch_time_h: round2(batchTimeH),
     total_energy_kcal: round2(sensibleAbove + latentLoad + sensibleBelow),
     q_specific_kj_kg: round2(qSpecificKjKg),
+    q_specific_above_kj_kg: round2(thermalProcess.qSpecificAboveKjKg),
+    q_specific_latent_kj_kg: round2(thermalProcess.qSpecificLatentKjKg),
+    q_specific_below_kj_kg: round2(thermalProcess.qSpecificBelowKjKg),
+    q_specific_total_kj_kg: round2(thermalProcess.qSpecificTotalKjKg),
     sensible_above_kcal_h: round2(sensibleAbove / timeDivisor),
     latent_kcal_h: round2(latentLoad / timeDivisor),
     sensible_below_kcal_h: round2(sensibleBelow / timeDivisor),
+    product_load_kw: round2(thermalProcess.productLoadKw),
+    packaging_load_kw: round2(thermalProcess.packagingLoadKw),
+    total_process_load_kw: round2(thermalProcess.totalProcessLoadKw),
+    total_process_load_kcal_h: round2(thermalProcess.totalProcessLoadKcalH),
+    total_process_load_tr: round2(thermalProcess.totalProcessLoadTr),
+    required_airflow_m3_h: thermalProcess.requiredAirflowM3H ? round2(thermalProcess.requiredAirflowM3H) : null,
+    required_airflow_m3_s: thermalProcess.requiredAirflowM3S ? round2(thermalProcess.requiredAirflowM3S) : null,
     cp_above_kcal_kg_c: round2(cpAbove),
     cp_below_kcal_kg_c: round2(cpBelow),
     latent_heat_kcal_kg: round2(latent),
@@ -839,6 +871,7 @@ export function calculateTunnelLoad(tunnel: ColdProTunnel) {
     total_kcal_h: round2(total),
     total_kw: round2(kcalhToKw(total)),
     total_tr: round2(kcalhToTr(total)),
+    air_temperature_c: n(tunnel.air_temp_c),
     air_velocity_m_s: n(tunnel.air_velocity_m_s),
     airflow_m3_h: n(tunnel.airflow_m3_h),
     process_time_min: availableTimeMin,
@@ -848,6 +881,8 @@ export function calculateTunnelLoad(tunnel: ColdProTunnel) {
     effective_thermal_conductivity_w_m_k: round2(effectiveConductivity),
     convective_coefficient_w_m2_k: convectiveCoefficient,
     convective_coefficient_effective_w_m2_k: convectiveCoefficient,
+    h_effective_w_m2_k: convectiveCoefficient,
+    k_effective_w_m_k: round2(effectiveConductivity),
     thermal_characteristic_dimension_m: round2(characteristicDimensionM),
     distance_to_core_m: round2(distanceToCoreM),
     estimated_freezing_time_min: estimatedFreezingTimeMin,
