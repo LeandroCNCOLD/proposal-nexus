@@ -778,6 +778,26 @@ export function calculateTunnelLoad(tunnel: ColdProTunnel) {
   const packaging = n(tunnel.packaging_mass_kg_hour) * n(tunnel.packaging_specific_heat_kcal_kg_c) * Math.abs(tin - tout);
   const internalLoads = kwToKcalh(n(tunnel.belt_motor_kw) + n(tunnel.internal_fans_kw) + n(tunnel.other_internal_kw));
   const total = productHourly + packaging + internalLoads;
+  const thermalProcess = calculateProductThermalLoad({
+    usedMassKgH: calculationMass,
+    product: {
+      initialTempC: tin,
+      finalTempC: tout,
+      freezingPointC: n(tfreeze),
+      cpAboveKjKgK: cpAbove * KCAL_TO_KJ,
+      cpBelowKjKgK: cpBelow * KCAL_TO_KJ,
+      latentHeatKjKg: latent * KCAL_TO_KJ,
+      frozenWaterFraction: frozenFraction,
+      packagingMassKgH: n(tunnel.packaging_mass_kg_hour),
+      packagingCpKjKgK: n(tunnel.packaging_specific_heat_kcal_kg_c) * KCAL_TO_KJ,
+    },
+    air: {
+      airTemperatureC: n(tunnel.air_temp_c),
+      airVelocityMs: n(tunnel.air_velocity_m_s),
+      deltaTAirK: n((tunnel as any).air_delta_t_k, 6),
+      airDensityKgM3: AIR_DENSITY_KG_M3,
+    },
+  });
   const availableTimeMin = isStatic ? batchTimeH * 60 : n(tunnel.process_time_min);
   const optimization = optimizeProcessAirCondition({
     processType,
