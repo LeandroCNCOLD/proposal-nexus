@@ -1,2 +1,0 @@
-import { COLDPRO_CONSTANTS } from "../core/constants";
-export const AIR_PROPERTIES = { densityKgM3: COLDPRO_CONSTANTS.DEFAULT_AIR_DENSITY_KG_M3, cpKJkgK: COLDPRO_CONSTANTS.CP_AIR_KJ_KG_K };
