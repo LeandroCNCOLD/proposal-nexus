@@ -145,7 +145,7 @@ export function ColdProExtraLoadsForm({ environment, catalogFanLoadKcalH = 0, on
                       {LIGHTING_EQUIPMENT_PRESETS.map((preset, index) => <option key={preset.label} value={index}>{preset.label} · {fmtColdPro(preset.powerW)} W · {fmtColdPro(preset.lumens, 0)} lm</option>)}
                     </select>
                   </ColdProField>
-                  <ColdProField label="Iluminância alvo" unit="lux"><ColdProInput type="number" value={targetLux} onChange={(e) => setTargetLux(Number(e.target.value || 0))} /></ColdProField>
+                  <ColdProField label="Iluminância alvo" unit="lux"><ColdProInput type="number" step="0.0001" value={targetLux} onChange={(e) => setTargetLux(Number(e.target.value || 0))} /></ColdProField>
                   <ColdProField label="Potência de iluminação calculada" unit="W"><ColdProInput {...num("lighting_power_w")} /></ColdProField>
                   <ColdProField label="Horas de iluminação" unit="h/dia"><ColdProInput {...num("lighting_hours_day")} /></ColdProField>
                   <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
