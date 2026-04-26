@@ -510,7 +510,7 @@ function ColdProProjectPage() {
                       {calculate.isPending ? "Calculando..." : "Calcular carga térmica"}
                     </button>
                   </div>
-                  <ColdProResultCard result={result} />
+                  <ColdProResultCard result={result} selection={selection} environment={selectedEnv} products={products} onAnalyze={handleAnalyzeMemorial} isAnalyzing={analyzeMemorial.isPending} />
 
                   {/* Seleção por curva real do catálogo */}
                   <ColdProRealSelection

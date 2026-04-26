@@ -3,6 +3,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { buildColdProMemorialPdfBuffer } from "./coldproMemorialPdfLib";
+import { normalizeColdProResult } from "@/modules/coldpro/core/resultNormalizer";
+import { buildColdProAIContext, buildColdProAISystemPrompt } from "@/modules/coldpro/core/aiTechnicalContextBuilder";
 
 const inputSchema = z.object({
   projectId: z.string().uuid(),
@@ -69,27 +71,27 @@ function latestRowsByEnvironment<T extends { environment_id?: string | null }>(r
 }
 
 function buildAiPrompt({ project, environments, results, selections, products, question, previousAnalysis }: any) {
-  const lines = [
-    `Projeto: ${project?.name ?? "Projeto"}. Aplicação: ${project?.application_type ?? "não informada"}.`,
-    `Atue como um agente de IA especialista em engenharia frigorífica industrial, psicrometria, formação de gelo, degelo, seleção de evaporadores/condensadores e auditoria de carga térmica.`,
-    `Gere um laudo técnico e comercial final, em português do Brasil, para encerrar um memorial de cálculo frigorífico. Seja objetivo, auditável, profissional e crítico quando houver risco técnico.`,
-    `Estruture em: Conclusão executiva, Validação das premissas, Análise psicrométrica/infiltração/umidade/gelo, Análise de produto/mudança de estado, Comparação carga requerida x ofertada, Riscos/observações e Recomendação final.`,
-    `Não invente dados ausentes; quando faltar dado, indique que deve ser validado.`,
-    question ? `Pergunta/solicitação do usuário para esta análise: ${question}` : `Faça uma análise completa e aponte pontos técnicos relevantes para validação antes da emissão do PDF.`,
-    previousAnalysis ? `Análise anterior para contexto: ${previousAnalysis}` : "",
-  ];
-  for (const env of environments ?? []) {
-    const r = (results ?? []).find((item: any) => item.environment_id === env.id);
-    const s = (selections ?? []).find((item: any) => item.environment_id === env.id);
+  const normalizedEnvironments = (environments ?? []).map((env: any) => {
+    const result = (results ?? []).find((item: any) => item.environment_id === env.id);
+    const selection = (selections ?? []).find((item: any) => item.environment_id === env.id);
     const envProducts = (products ?? []).filter((item: any) => item.environment_id === env.id);
-    lines.push(`Ambiente ${env.name}: ${fmt(env.length_m)} x ${fmt(env.width_m)} x ${fmt(env.height_m)} m, volume ${fmt(env.volume_m3)} m³, Tint ${fmt(env.internal_temp_c)} °C, Text ${fmt(env.external_temp_c)} °C.`);
-    const audit = r?.calculation_breakdown?.thermalCalculationResult ?? r?.calculation_breakdown?.mathematical_audit;
-    lines.push(`Objeto validado thermalCalculationResult: subtotal ${fmt(audit?.subtotal_validado ?? r?.subtotal_kcal_h, 0)} kcal/h, fator segurança ${fmt(audit?.fator_segurança ?? r?.safety_factor_percent)}%, carga requerida validada ${fmt(audit?.carga_requerida_validada ?? r?.total_required_kcal_h, 0)} kcal/h, status ${audit?.status_dimensionamento ?? "pendente"}. Não recalcule estes números; apenas interprete.`);
-    lines.push(`Parcelas auditadas: transmissão ${fmt(r?.transmission_kcal_h, 0)}, produto ${fmt(r?.product_kcal_h, 0)}, infiltração ${fmt(r?.infiltration_kcal_h, 0)}, internas ${fmt(Number(r?.people_kcal_h ?? 0) + Number(r?.lighting_kcal_h ?? 0) + Number(r?.motors_kcal_h ?? 0) + Number(r?.fans_kcal_h ?? 0), 0)} kcal/h.`);
-    if (s) lines.push(`Equipamento ofertado validado: ${audit?.quantidade ?? s.quantity} x ${s.model}, capacidade unitária corrigida ${fmt(audit?.capacidade_unitaria_corrigida ?? s.capacity_unit_kcal_h, 0)} kcal/h, capacidade total corrigida ${fmt(audit?.capacidade_total_corrigida ?? s.capacity_total_kcal_h, 0)} kcal/h, sobra ${fmt(audit?.sobra_percentual ?? s.surplus_percent)}%, COP ${s.cop ? fmt(s.cop, 2) : "não informado"}.`);
-    for (const p of envProducts) lines.push(`Produto ${p.product_name}: massa ${fmt(p.mass_kg_day, 0)} kg/dia, entrada ${fmt(p.inlet_temp_c)} °C, final ${fmt(p.outlet_temp_c)} °C, congelamento ${p.initial_freezing_temp_c ?? "não informado"} °C, Cp acima ${fmt(p.specific_heat_above_kcal_kg_c, 3)}, Cp abaixo ${fmt(p.specific_heat_below_kcal_kg_c, 3)}, latente ${fmt(p.latent_heat_kcal_kg, 2)} kcal/kg, água ${p.water_content_percent ?? "não informado"}%, fração congelada ${p.frozen_water_fraction ?? p.freezable_water_content_percent ?? "não informada"}.`);
-  }
-  return lines.join("\n").slice(0, 6000);
+    return {
+      environment: { id: env.id, name: env.name, type: env.environment_type, volumeM3: env.volume_m3, internalTempC: env.internal_temp_c, externalTempC: env.external_temp_c },
+      normalizedResult: normalizeColdProResult(result, selection, env, envProducts),
+      products: envProducts.map((p: any) => ({ name: p.product_name, massKgDay: p.mass_kg_day, inletTempC: p.inlet_temp_c, outletTempC: p.outlet_temp_c, processTimeH: p.process_time_h })),
+    };
+  });
+  const payload = {
+    project: { name: project?.name ?? "Projeto", applicationType: project?.application_type ?? "não informada" },
+    request: question || "Faça uma análise completa e aponte pontos técnicos relevantes para validação antes da emissão do PDF.",
+    previousAnalysis: previousAnalysis || undefined,
+    environments: normalizedEnvironments.map((item: any) => ({
+      environment: item.environment,
+      aiContext: buildColdProAIContext(item.normalizedResult),
+      products: item.products,
+    })),
+  };
+  return JSON.stringify(payload, null, 2).slice(0, 12000);
 }
 
 function buildTechnicalFallbackAnalysis({ project, environments, results, selections, products, question }: any): string {
@@ -154,7 +156,7 @@ async function generateAiAnalysis(input: any): Promise<string | null> {
         max_tokens: 900,
         temperature: 0.2,
         messages: [
-          { role: "system", content: "Você é um agente técnico sênior de engenharia frigorífica. Responda como consultor especialista, com análise crítica, base técnica, recomendações práticas e sem inventar dados. Seja direto, auditável e conciso para evitar respostas longas demais." },
+          { role: "system", content: buildColdProAISystemPrompt() },
           { role: "user", content: buildAiPrompt(input) },
         ],
       }),

@@ -1,6 +1,9 @@
 import * as React from "react";
 import ReactMarkdown from "react-markdown";
-import { Bot, Download, Send, FileText, Loader2, MessageSquare } from "lucide-react";
+import { Bot, Download, Send, FileText, Loader2, MessageSquare, AlertTriangle } from "lucide-react";
+import { normalizeColdProResult } from "@/modules/coldpro/core/resultNormalizer";
+import { EquipmentCapacityChart } from "@/modules/coldpro/components/results/EquipmentCapacityChart";
+import { ResultConsistencyAudit } from "@/modules/coldpro/components/results/ResultConsistencyAudit";
 
 function fmt(value: unknown, digits = 2) {
   return new Intl.NumberFormat("pt-BR", { maximumFractionDigits: digits }).format(Number(value ?? 0));
@@ -17,7 +20,8 @@ function loadRows(result: any): Array<[string, number]> {
     ["Motores", Number(result?.motors_kcal_h ?? 0)],
     ["Ventiladores", Number(result?.fans_kcal_h ?? 0)],
     ["Degelo", Number(result?.defrost_kcal_h ?? 0)],
-    ["Outros", Number(result?.other_kcal_h ?? 0) + Number(result?.tunnel_internal_load_kcal_h ?? 0)],
+    ["Túnel/processo", Number(result?.tunnel_internal_load_kcal_h ?? 0)],
+    ["Outros", Number(result?.other_kcal_h ?? 0)],
   ];
   return rows.filter(([, value]) => value > 0);
 }
@@ -217,6 +221,7 @@ export function ColdProReport({
           const selection = selections.find((s: any) => s.environment_id === env.id);
           const envProducts = products.filter((p: any) => p.environment_id === env.id);
           const envAdvancedProcesses = advancedProcesses.filter((p: any) => p.environment_id === env.id);
+          const normalized = normalizeColdProResult(result, selection, env, envProducts);
           return (
             <section key={env.id} className="space-y-3 border-t pt-4">
               <h2 className="text-base font-semibold">
@@ -272,7 +277,8 @@ export function ColdProReport({
                   </div>
                   <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm md:grid-cols-3">
                     <div>Transmissão: <b>{fmt(result.transmission_kcal_h)} kcal/h</b></div>
-                    <div>Produto: <b>{fmt(result.product_kcal_h)} kcal/h</b></div>
+                    <div>Produto direto: <b>{fmt(result.product_kcal_h)} kcal/h</b></div>
+                    <div>Túnel/processo: <b>{fmt(result.tunnel_internal_load_kcal_h)} kcal/h</b></div>
                     <div>Embalagem: <b>{fmt(result.packaging_kcal_h)} kcal/h</b></div>
                     <div>Infiltração: <b>{fmt(result.infiltration_kcal_h)} kcal/h</b></div>
                     <div>Pessoas: <b>{fmt(result.people_kcal_h)} kcal/h</b></div>
@@ -288,6 +294,16 @@ export function ColdProReport({
                     <b>Total requerido:</b> {fmt(result.total_required_kcal_h)} kcal/h ·{" "}
                     {fmt(result.total_required_kw)} kW · {fmt(result.total_required_tr)} TR
                   </div>
+                  <div className="mt-3 grid gap-3 lg:grid-cols-2">
+                    <ResultConsistencyAudit normalized={normalized} />
+                    <EquipmentCapacityChart normalized={normalized} />
+                  </div>
+                  {normalized.loadDistribution.productKcalH === 0 && normalized.loadDistribution.tunnelProcessKcalH > 0 ? (
+                    <div className="mt-3 flex gap-2 rounded-md border bg-muted/20 p-3 text-sm">
+                      <AlertTriangle className="mt-0.5 h-4 w-4 text-primary" />
+                      <span>Produto direto está zerado, porém há carga classificada como túnel/processo. O memorial considera esta carga como produto/processo de congelamento e recomenda revisar a classificação para evitar interpretação incorreta.</span>
+                    </div>
+                  ) : null}
                   {result.calculation_breakdown?.infiltration_technical ? (
                     <div className="mt-3 grid gap-2 rounded-md border bg-muted/20 p-3 text-xs sm:grid-cols-2 lg:grid-cols-4">
                       {(() => { const inf: any = result.calculation_breakdown.infiltration_technical; const deg: any = result.calculation_breakdown.defrost_suggestion; return <>
