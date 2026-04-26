@@ -254,6 +254,7 @@ export type ColdProTunnel = {
   optimization_memory?: Record<string, unknown> | null;
   airflow_m3_h?: number;
   air_temp_c: number;
+  air_temp_source?: "environment" | "manual";
   air_velocity_m_s: number;
   process_time_min: number;
   specific_heat_above_kj_kg_k?: number | null;
@@ -276,6 +277,19 @@ export type ColdProTunnel = {
   belt_motor_kw: number;
   internal_fans_kw: number;
   other_internal_kw: number;
+  calculated_mass_kg_h?: number | null;
+  used_mass_kg_h?: number | null;
+  tunnel_product_load_kw?: number | null;
+  tunnel_packaging_load_kw?: number | null;
+  tunnel_internal_load_kw?: number | null;
+  tunnel_total_load_kw?: number | null;
+  tunnel_total_load_kcal_h?: number | null;
+  tunnel_total_load_tr?: number | null;
+  process_status?: string | null;
+  calculation_warnings?: string[] | null;
+  missing_fields?: string[] | null;
+  calculation_breakdown?: Record<string, unknown> | null;
+  calculation_log?: Record<string, unknown> | null;
 };
 
 export type ColdProInsulationMaterial = {
