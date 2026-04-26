@@ -461,10 +461,10 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
     tunnel_cross_section_width_m: Number(form.tunnel_cross_section_width_m ?? 0) || null,
     tunnel_cross_section_height_m: Number(form.tunnel_cross_section_height_m ?? 0) || null,
     blockage_factor: Number(form.blockage_factor ?? 0),
-    calculated_air_velocity_m_s: tunnelResult.airflow?.calculatedAirVelocityMS ?? null,
-    air_velocity_used_m_s: tunnelResult.airflow?.airVelocityUsedMS ?? null,
-    gross_air_area_m2: tunnelResult.airflow?.grossAreaM2 ?? null,
-    free_air_area_m2: tunnelResult.airflow?.freeAreaM2 ?? null,
+    calculated_air_velocity_m_s: tunnelResult.calculatedAirVelocityMS ?? null,
+    air_velocity_used_m_s: tunnelResult.airVelocityUsedMS ?? null,
+    gross_air_area_m2: tunnelResult.grossAirAreaM2 ?? null,
+    free_air_area_m2: tunnelResult.freeAirAreaM2 ?? null,
     product_geometry: form.product_geometry ?? null,
     surface_exposure_model: form.surface_exposure_model ?? null,
     product_height_m: Number(form.product_height_m ?? 0) || null,
@@ -529,12 +529,12 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
         <ColdProCalculatedInfo label="Carga total em kcal/h" value={`${fmtColdPro(tunnelResult.totalKcalH, 0)} kcal/h`} description="carga total convertida" tone="info" />
         <ColdProCalculatedInfo label="Carga total em TR" value={`${fmtColdPro(tunnelResult.totalTR, 2)} TR`} description="carga total convertida" tone="info" />
         <ColdProCalculatedInfo label="Vazão de ar estimada" value={`${fmtColdPro(tunnelResult.airFlowM3H, 0)} m³/h`} description="por balanço térmico" tone={tunnelResult.airFlowM3H > 0 ? "info" : "warning"} />
-        <ColdProCalculatedInfo label="Vazão de ar informada" value={`${fmtColdPro(tunnelResult.airflow?.fanAirflowM3H ?? 0, 0)} m³/h`} description="ventiladores" tone="info" />
-        <ColdProCalculatedInfo label="Área bruta de passagem" value={`${fmtColdPro(tunnelResult.airflow?.grossAreaM2 ?? 0, 2)} m²`} description="largura × altura" tone="info" />
-        <ColdProCalculatedInfo label="Fator de bloqueio" value={`${fmtColdPro((tunnelResult.airflow?.blockageFactor ?? 0) * 100, 1)}%`} description="produto/esteira/embalagem" tone="info" />
-        <ColdProCalculatedInfo label="Área livre estimada" value={`${fmtColdPro(tunnelResult.airflow?.freeAreaM2 ?? 0, 2)} m²`} description="área bruta × livre" tone={(tunnelResult.airflow?.freeAreaM2 ?? 0) > 0 ? "info" : "warning"} />
-        <ColdProCalculatedInfo label="Velocidade calculada no produto" value={`${fmtColdPro(tunnelResult.airflow?.calculatedAirVelocityMS ?? 0, 2)} m/s`} description="vazão ÷ área livre" tone="info" />
-        <ColdProCalculatedInfo label="Velocidade usada no cálculo" value={`${fmtColdPro(tunnelResult.airflow?.airVelocityUsedMS ?? 0, 2)} m/s`} description={tunnelResult.airflow?.airflowSource ?? "manual_velocity"} tone={(tunnelResult.airflow?.airVelocityUsedMS ?? 0) > 0 ? "success" : "warning"} />
+        <ColdProCalculatedInfo label="Vazão de ar informada" value={`${fmtColdPro(tunnelResult.fanAirflowM3H ?? 0, 0)} m³/h`} description="ventiladores" tone="info" />
+        <ColdProCalculatedInfo label="Área bruta de passagem" value={`${fmtColdPro(tunnelResult.grossAirAreaM2 ?? 0, 2)} m²`} description="largura × altura" tone="info" />
+        <ColdProCalculatedInfo label="Fator de bloqueio" value={`${fmtColdPro((tunnelResult.blockageFactor ?? 0) * 100, 1)}%`} description="produto/esteira/embalagem" tone="info" />
+        <ColdProCalculatedInfo label="Área livre estimada" value={`${fmtColdPro(tunnelResult.freeAirAreaM2 ?? 0, 2)} m²`} description="área bruta × livre" tone={(tunnelResult.freeAirAreaM2 ?? 0) > 0 ? "info" : "warning"} />
+        <ColdProCalculatedInfo label="Velocidade calculada no produto" value={`${fmtColdPro(tunnelResult.calculatedAirVelocityMS ?? 0, 2)} m/s`} description="vazão ÷ área livre" tone="info" />
+        <ColdProCalculatedInfo label="Velocidade usada no cálculo" value={`${fmtColdPro(tunnelResult.airVelocityUsedMS ?? 0, 2)} m/s`} description={tunnelResult.airflowSource ?? "manual_velocity"} tone={(tunnelResult.airVelocityUsedMS ?? 0) > 0 ? "success" : "warning"} />
         <ColdProCalculatedInfo label="Temperatura de ar sugerida" value={`${fmtColdPro(tunnelResult.suggestedAirTempC, 1)} °C`} description="temperatura final - approach" tone="info" />
         <ColdProCalculatedInfo label="Temperatura de ar informada" value={`${fmtColdPro(Number(tunnelInput.airTempC ?? 0), 1)} °C`} description="valor real usado no cálculo" tone="info" />
         <ColdProCalculatedInfo label="Diferença do ar" value={fmtMaybe(tunnelResult.calculationBreakdown.air.comparison as number | null, 1, " °C")} description="informada - sugerida" tone={Number(tunnelResult.calculationBreakdown.air.comparison ?? 0) > 5 ? "warning" : "info"} />
