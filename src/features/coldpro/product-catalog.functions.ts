@@ -123,7 +123,7 @@ export const importColdProCatalogProducts = createServerFn({ method: "POST" })
     const { data: existing, error: existingError } = await supabaseAdmin
       .from("coldpro_products")
       .select("id, name, category");
-    if (existingError) throw new Error(existingError.message);
+    if (existingError) throw new Error(readableSupabaseError(existingError));
 
     const existingByKey = new Map(
       (existing ?? []).map((row) => [`${normalizeKey(row.category)}::${normalizeKey(row.name)}`, row.id]),
@@ -137,7 +137,7 @@ export const importColdProCatalogProducts = createServerFn({ method: "POST" })
       const payload = toDbPayload(product);
       if (id) {
         const { error } = await supabaseAdmin.from("coldpro_products").update(payload as never).eq("id", id);
-        if (error) throw new Error(`Falha ao atualizar ${product.name}: ${error.message}`);
+        if (error) throw new Error(`Falha ao atualizar ${product.name}: ${readableSupabaseError(error)}`);
         updated++;
       } else {
         const { data: inserted, error } = await supabaseAdmin
@@ -145,7 +145,7 @@ export const importColdProCatalogProducts = createServerFn({ method: "POST" })
           .insert(payload as never)
           .select("id")
           .single();
-        if (error) throw new Error(`Falha ao inserir ${product.name}: ${error.message}`);
+        if (error) throw new Error(`Falha ao inserir ${product.name}: ${readableSupabaseError(error)}`);
         existingByKey.set(key, inserted.id);
         created++;
       }
