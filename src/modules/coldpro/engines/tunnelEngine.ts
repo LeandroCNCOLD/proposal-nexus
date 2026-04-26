@@ -159,7 +159,6 @@ function requiredPositiveFields(input: any, isStatic: boolean, staticMassKg: num
   const continuousFields = [
     positiveNumber(input?.directMassKgH) <= 0 && positiveNumber(input?.unitWeightKg) * positiveNumber(input?.unitsPerCycle) * positiveNumber(input?.cyclesPerHour) <= 0 ? "massa usada" : "",
     positiveNumber(input?.retentionTimeMin) <= 0 ? "tempo de retenção" : "",
-    positiveNumber(input?.productThicknessM) <= 0 ? "espessura do produto" : "",
   ];
   const staticFields = [
     staticMassKg <= 0 ? "massa total da batelada" : "",
@@ -422,7 +421,7 @@ function calculateTunnelCore(input: any) {
   const formulasUsed = {
     physicalModel: "normalized processType/tunnelMode/operationMode",
     calculatedMassKgH: "unitWeightKg × unitsPerCycle × cyclesPerHour",
-    h: "manualCoefficientWM2K || (10 + 10 × airVelocityUsedMS^0.8) × exposureFactor × airExposureFactor × modelFactor",
+    h: "manualCoefficientWM2K || (10 + 10 × airVelocityUsedMS^0.8) × exposureFactor × airExposureFactor",
     kEffectiveWMK: "frozenConductivityWMK × thermalPenetrationFactor",
     continuousProductLoadKW: "massKgH × specificEnergyKJkg / 3600",
     batchProductLoadKW: "massKg × specificEnergyKJkg / (timeH × 3600)",
