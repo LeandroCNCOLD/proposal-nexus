@@ -4,6 +4,12 @@ import { AlertTriangle, Bot, Building2, Calculator, Gauge, Loader2, Snowflake, S
 import { consolidateColdProProjectResult } from "../../core/projectResultConsolidator";
 import { buildColdProProjectAIContext, compactColdProAIQuestion } from "../../core/aiTechnicalContextBuilder";
 import { fmtColdProChart } from "./chartUtils";
+import { ProjectEnvironmentPieChart } from "../charts/ProjectEnvironmentPieChart";
+import { ProjectStackedLoadChart } from "../charts/ProjectStackedLoadChart";
+import { InteractiveLoadPieChart } from "../charts/InteractiveLoadPieChart";
+import { LoadRankingBarChart } from "../charts/LoadRankingBarChart";
+import { CapacityComparisonChart } from "../charts/CapacityComparisonChart";
+import { projectEnvironmentRows, projectGroupedRows } from "../charts/chartData";
 
 type Props = {
   project: any;
@@ -40,6 +46,8 @@ export function ColdProProjectResultDashboard(props: Props) {
   const [analysis, setAnalysis] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const max = Math.max(1, ...consolidated.ranking.map((item) => item.requiredKcalH));
+  const environmentRows = projectEnvironmentRows(consolidated);
+  const groupedRows = projectGroupedRows(consolidated);
 
   async function run(label: string, instruction: string) {
     if (!props.onAnalyze) return;
@@ -67,6 +75,14 @@ export function ColdProProjectResultDashboard(props: Props) {
         <Kpi label="Potência total" value={consolidated.summary.requiredKW} unit="kW" icon={<Gauge className="h-4 w-4" />} />
         <Kpi label="Capacidade" value={consolidated.summary.requiredTR} unit="TR" icon={<Snowflake className="h-4 w-4" />} />
         <Kpi label="Capacidade selecionada" value={consolidated.summary.totalSelectedCapacityKcalH} unit="kcal/h" icon={<Building2 className="h-4 w-4" />} />
+      </div>
+
+      <div className="mt-5 grid gap-4 xl:grid-cols-2">
+        <ProjectEnvironmentPieChart title="Participação dos ambientes na carga total" subtitle="Quanto cada ambiente representa no projeto consolidado." data={environmentRows} />
+        <InteractiveLoadPieChart title="Distribuição global por categoria" subtitle="Soma consolidada das categorias de todos os ambientes." data={groupedRows} total={consolidated.summary.requiredKcalH} />
+        <ProjectStackedLoadChart title="Composição de carga por ambiente" subtitle="Compara quais ambientes são dominados por produto, infiltração, transmissão ou segurança." consolidated={consolidated} />
+        <CapacityComparisonChart title="Capacidade instalada x carga total" requiredKcalH={consolidated.summary.requiredKcalH} capacityKcalH={consolidated.summary.totalSelectedCapacityKcalH} surplusPercent={consolidated.summary.equipmentSurplusPercent} />
+        <LoadRankingBarChart title="Ranking de ambientes por carga" subtitle="Ambientes mais pesados no dimensionamento geral." data={environmentRows} total={consolidated.summary.requiredKcalH} />
       </div>
 
       <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
