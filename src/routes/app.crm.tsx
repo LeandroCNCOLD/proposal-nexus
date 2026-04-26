@@ -9,7 +9,6 @@ import {
   listAvailableProcessTypes,
   getUserFunnels,
   setUserFunnels,
-  updateNomusProcess,
   createNomusProcess,
 } from "@/integrations/nomus/process-sync.functions";
 import { getFunnelData } from "@/integrations/nomus/process-enrichment.functions";
@@ -63,7 +62,6 @@ function CrmPage() {
   const getFunnels = useServerFn(getUserFunnels);
   const saveFunnels = useServerFn(setUserFunnels);
   const fetchFunnel = useServerFn(getFunnelData);
-  const updateProcess = useServerFn(updateNomusProcess);
   const createProcess = useServerFn(createNomusProcess);
 
   const [search, setSearch] = useState("");
@@ -159,19 +157,6 @@ function CrmPage() {
       queryClient.invalidateQueries({ queryKey: ["crm"] });
     },
     onError: (e) => toast.error(`Falha na sincronização: ${e instanceof Error ? e.message : String(e)}`),
-  });
-
-  const moveMutation = useMutation({
-    mutationFn: async ({ processId, etapa }: { processId: string; etapa: string }) => {
-      const result = await updateProcess({ data: { process_id: processId, etapa } });
-      if (!result.ok) throw new Error(result.error);
-      return result;
-    },
-    onSuccess: () => {
-      toast.success("Etapa atualizada no Nomus.");
-      queryClient.invalidateQueries({ queryKey: ["crm"] });
-    },
-    onError: (e) => toast.error(`Não foi possível mover o processo: ${e instanceof Error ? e.message : String(e)}`),
   });
 
   const createMutation = useMutation({
@@ -330,8 +315,6 @@ function CrmPage() {
                   stages={stages}
                   loading={loadingFunnel}
                   error={funnelError}
-                  moving={moveMutation.isPending}
-                  onMove={(processId: string, etapa: string) => moveMutation.mutate({ processId, etapa })}
                 />
               )}
             </TabsContent>
@@ -348,8 +331,6 @@ function KanbanBoardRich({
   stages,
   loading,
   error,
-  moving,
-  onMove,
 }: {
   stages: Array<{
     etapa: string;
@@ -364,8 +345,6 @@ function KanbanBoardRich({
   }>;
   loading: boolean;
   error?: boolean;
-  moving?: boolean;
-  onMove?: (processId: string, etapa: string) => void;
 }) {
   if (loading) {
     return <div className="text-sm text-muted-foreground">Carregando processos…</div>;
@@ -415,23 +394,7 @@ function KanbanBoardRich({
                   Vazio
                 </div>
               ) : (
-                col.processes.map((p) => (
-                  <div key={p.id} className="space-y-1.5">
-                    <KanbanCardRich card={p} />
-                    {onMove && (
-                      <Select value={p.etapa ?? col.etapa} onValueChange={(value) => onMove(p.id, value)} disabled={moving}>
-                        <SelectTrigger className="h-7 text-[11px]">
-                          <SelectValue placeholder="Mover para" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {stages.map((stage) => (
-                            <SelectItem key={stage.etapa} value={stage.etapa}>{stage.etapa}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                  </div>
-                ))
+                col.processes.map((p) => <KanbanCardRich key={p.id} card={p} />)
               )}
             </div>
           </div>
