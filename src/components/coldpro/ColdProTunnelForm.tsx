@@ -575,7 +575,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
     const arrangement = defaultArrangement(value);
     const defaults = ARRANGEMENT_DEFAULTS[arrangement];
     const nextIsStatic = isStaticProcess(value);
-    setForm((prev: any) => ({ ...prev, tunnel_type: value, process_type: value, physical_model: physicalModelFromProcess(value), operation_mode: nextIsStatic ? "batch" : "continuous", tunnel_mode: nextIsStatic ? "static" : "continuous", arrangement_type: arrangement, static_mass_mode: nextIsStatic ? (prev.static_mass_mode ?? "direct_pallet_mass") : prev.static_mass_mode, air_exposure_factor: defaults.air, thermal_penetration_factor: defaults.penetration, ...suggestedStaticArrangementFields(value, arrangement) }));
+    setForm((prev: any) => ({ ...prev, tunnel_type: value, process_type: value, physical_model: physicalModelFromProcess(value), operation_mode: nextIsStatic ? "batch" : "continuous", tunnel_mode: nextIsStatic ? "static" : "continuous", arrangement_type: arrangement, static_mass_mode: nextIsStatic ? defaultMassModeForTunnel(value) : prev.static_mass_mode, continuous_mass_mode: !nextIsStatic ? "direct_mass_flow" : prev.continuous_mass_mode, mass_flow_mode: value === "fluidized_bed" ? "direct_mass_flow" : prev.mass_flow_mode, air_exposure_factor: defaults.air, thermal_penetration_factor: defaults.penetration, ...suggestedStaticArrangementFields(value, arrangement) }));
     setActiveTab(nextIsStatic ? "estatico" : "continuo");
   };
 
