@@ -152,7 +152,7 @@ function defaultArrangement(processType: string) {
   if (processType === "static_cart_freezing") return "cart_rack";
   if (processType === "static_pallet_freezing") return "pallet_block";
   if (processType === "continuous_girofreezer") return "tray_layer";
-  return "individual_exposed";
+  return "individual_units";
 }
 
 function legacyTunnelType(processType: string) {
