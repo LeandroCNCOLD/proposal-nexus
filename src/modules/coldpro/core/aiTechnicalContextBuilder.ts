@@ -1,6 +1,8 @@
 import type { ColdProNormalizedResult } from "./resultNormalizer";
+import type { ColdProEnvironmentNormalizedResult } from "./environmentResultNormalizer";
+import type { ColdProProjectConsolidatedResult } from "./projectResultConsolidator";
 
-export function buildColdProAIContext(normalizedResult: ColdProNormalizedResult) {
+function baseEnvironmentContext(normalizedResult: ColdProNormalizedResult | ColdProEnvironmentNormalizedResult) {
   return {
     summary: normalizedResult.summary,
     loadDistribution: normalizedResult.loadDistribution,
@@ -29,6 +31,43 @@ export function buildColdProAIContext(normalizedResult: ColdProNormalizedResult)
       "Produto direto zerado com túnel/processo maior que zero significa produto calculado como processo especial.",
     ],
   };
+}
+
+export function buildColdProAIContext(normalizedResult: ColdProNormalizedResult) {
+  return baseEnvironmentContext(normalizedResult);
+}
+
+export function buildColdProEnvironmentAIContext(normalizedResult: ColdProEnvironmentNormalizedResult) {
+  return { scope: "environment", environment: normalizedResult.environment, ...baseEnvironmentContext(normalizedResult) };
+}
+
+export function buildColdProProjectAIContext(consolidatedResult: ColdProProjectConsolidatedResult) {
+  return {
+    scope: "project",
+    project: consolidatedResult.project,
+    summary: consolidatedResult.summary,
+    groupedLoads: consolidatedResult.groupedLoads,
+    ranking: consolidatedResult.ranking,
+    consistencyAudit: consolidatedResult.consistencyAudit,
+    environmentSummaries: consolidatedResult.environmentResults.map((item) => ({
+      environment: item.environment,
+      summary: item.summary,
+      groupedLoads: item.groupedLoads,
+      equipment: item.equipment,
+      consistencyAudit: item.consistencyAudit,
+    })),
+    requiredChecks: [
+      "verificar totais consolidados do projeto",
+      "comparar ambientes por carga requerida",
+      "identificar ambientes com divergência crítica",
+      "não atribuir carga global a um ambiente individual",
+      "preservar a regra produto direto zerado com túnel/processo maior que zero",
+    ],
+  };
+}
+
+export function compactColdProAIQuestion(action: string, instruction: string, scope: "environment" | "project") {
+  return `${scope === "environment" ? "ESCOPO_AMBIENTE" : "ESCOPO_PROJETO"} | ${action}: ${instruction}`.slice(0, 1900);
 }
 
 export function buildColdProAISystemPrompt() {
