@@ -426,6 +426,31 @@ function waterFreezeFraction(item: Pick<ColdProEnvironmentProduct | ColdProTunne
   return 1;
 }
 
+function calculateTunnelThermalProcess(params: {
+  usedMassKgH: number;
+  tin: number;
+  tout: number;
+  tfreeze: number;
+  cpAboveKjKgK: number;
+  cpBelowKjKgK: number;
+  latentHeatKjKg: number;
+  frozenFraction: number;
+  packagingMassKgH: number;
+  packagingCpKjKgK: number;
+  deltaTAirK: number;
+}) {
+  const crossesFreezing = params.tin > params.tfreeze && params.tout < params.tfreeze;
+  const qSpecificAboveKjKg = crossesFreezing ? params.cpAboveKjKgK * positive(params.tin - params.tfreeze) : (params.tout < params.tfreeze ? params.cpBelowKjKgK : params.cpAboveKjKgK) * Math.abs(params.tin - params.tout);
+  const qSpecificLatentKjKg = crossesFreezing ? params.latentHeatKjKg * positive(params.frozenFraction) : 0;
+  const qSpecificBelowKjKg = crossesFreezing ? params.cpBelowKjKgK * positive(params.tfreeze - params.tout) : 0;
+  const qSpecificTotalKjKg = qSpecificAboveKjKg + qSpecificLatentKjKg + qSpecificBelowKjKg;
+  const productLoadKw = positive(params.usedMassKgH) * qSpecificTotalKjKg / 3600;
+  const packagingLoadKw = params.packagingMassKgH > 0 && params.packagingCpKjKgK > 0 ? params.packagingMassKgH * params.packagingCpKjKgK * Math.abs(params.tin - params.tout) / 3600 : 0;
+  const totalProcessLoadKw = productLoadKw + packagingLoadKw;
+  const requiredAirflowM3S = params.deltaTAirK > 0 ? totalProcessLoadKw / (AIR_DENSITY_KG_M3 * 1.005 * params.deltaTAirK) : null;
+  return { qSpecificAboveKjKg, qSpecificLatentKjKg, qSpecificBelowKjKg, qSpecificTotalKjKg, productLoadKw, packagingLoadKw, totalProcessLoadKw, totalProcessLoadKcalH: totalProcessLoadKw * 860, totalProcessLoadTr: totalProcessLoadKw / 3.517, requiredAirflowM3S, requiredAirflowM3H: requiredAirflowM3S === null ? null : requiredAirflowM3S * 3600 };
+}
+
 export function calculateVolume(env: Pick<ColdProEnvironment, "length_m" | "width_m" | "height_m">): number {
   return positive(n(env.length_m) * n(env.width_m) * n(env.height_m));
 }
