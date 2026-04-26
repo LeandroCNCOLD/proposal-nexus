@@ -86,8 +86,7 @@ export function calculateTunnelEngine(input: any) {
   const isStatic = isStaticTunnel(input, processType);
   const mode = isStatic ? "static" : "continuous";
 
-  const calculatedMassKgH =
-    positiveNumber(input?.unitWeightKg) * positiveNumber(input?.unitsPerCycle) * positiveNumber(input?.cyclesPerHour);
+  const calculatedMassKgH = positiveNumber(input?.unitWeightKg) * positiveNumber(input?.unitsPerCycle) * positiveNumber(input?.cyclesPerHour);
   const directMassKgH = positiveNumber(input?.directMassKgH);
   const usedMassKgH = !isStatic && directMassKgH > 0 ? directMassKgH : calculatedMassKgH;
   const palletMassKg = positiveNumber(input?.palletMassKg ?? input?.pallet_mass_kg);
@@ -151,6 +150,14 @@ export function calculateTunnelEngine(input: any) {
         specificEnergyKJkg: energy.totalKJkg,
       });
 
+  const productEnergyBreakdown = {
+    sensibleAboveKJkg: energy.sensibleAboveKJkg,
+    latentKJkg: energy.latentKJkg,
+    sensibleBelowKJkg: energy.sensibleBelowKJkg,
+    totalKJkg: energy.totalKJkg,
+    crossesFreezing: energy.crossesFreezingPoint,
+  };
+
   const packagingMassKgH = positiveNumber(input?.packagingMassKgH);
   const packagingCpKJkgK = positiveNumber(input?.packagingCpKJkgK);
   const packagingLoadKW = packagingMassKgH > 0 && packagingCpKJkgK > 0
@@ -198,11 +205,12 @@ export function calculateTunnelEngine(input: any) {
 
   const calculationBreakdown = {
     mass: {
-      mode: isStatic ? "static" : "continuous",
-      staticMassKg,
+      mode,
       calculatedMassKgH,
-      directMassKgH,
       usedMassKgH,
+      staticMassKg,
+      palletMassKg,
+      numberOfPallets,
       batchTimeH: input?.batchTimeH ?? null,
       retentionTimeMin: input?.retentionTimeMin ?? null,
     },
@@ -215,19 +223,18 @@ export function calculateTunnelEngine(input: any) {
       productThicknessM: input?.productThicknessM ?? null,
     },
     air: {
-      airVelocityMS: input?.airVelocityMS ?? null,
-      manualConvectiveCoefficientWM2K: input?.manualConvectiveCoefficientWM2K ?? null,
-      airExposureFactor: input?.airExposureFactor ?? null,
-      h,
       airTempC: input?.airTempC ?? null,
+      airDeltaTK,
+      airDensityKgM3,
       airFlowM3H,
       suggestedAirTempC,
       suggestedAirApproachK,
-      airDeltaTK,
-      airDensityKgM3,
+      hSource: h.source,
+      hBaseWM2K: h.hBaseWM2K,
+      hEffectiveWM2K: h.hEffectiveWM2K,
       comparison: suggestedAirTempComparisonC,
     },
-    productEnergy: energy,
+    productEnergy: productEnergyBreakdown,
     loads: {
       productLoadKW,
       packagingLoadKW,
@@ -259,6 +266,8 @@ export function calculateTunnelEngine(input: any) {
     packagingLoadKW: "packagingMassKgH × packagingCpKJkgK × abs(initialTempC - finalTempC) / 3600",
     internalLoadKW: "beltMotorKW + internalFansKW + otherInternalKW",
     totalKW: "productLoadKW + packagingLoadKW + internalLoadKW",
+    airFlowM3H: "totalKW × 3600 / (airDensityKgM3 × 1.005 × airDeltaTK)",
+    suggestedAirTempC: "finalTempC - suggestedAirApproachK",
     plankFreezingTime: "Plank equation using density, latent heat, core distance, h and effective k",
   };
 
@@ -285,6 +294,7 @@ export function calculateTunnelEngine(input: any) {
   });
 
   return {
+    mode,
     processType,
     isStatic,
     calculatedMassKgH,
