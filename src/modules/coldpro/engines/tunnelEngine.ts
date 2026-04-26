@@ -255,11 +255,15 @@ function calculateTunnelCore(input: any) {
   const suggestedAirTempComparisonC = informedAirTempC === null ? null : informedAirTempC - suggestedAirTempC;
   const informedAirFlowM3H = nullableNumber(input?.informedAirFlowM3H ?? input?.airflow_m3_h);
 
-  const characteristicDimensionM = isStatic
+  const geometry = calculateCharacteristicDimension(input);
+  const fallbackCharacteristicDimensionM = isStatic
     ? getSmallestValidDimension([input?.palletLengthM, input?.palletWidthM, input?.palletHeightM])
     : positiveNumber(input?.productThicknessM);
-  const distanceToCoreM = characteristicDimensionM > 0 ? characteristicDimensionM / 2 : 0;
-  const h = calculateModelH(input, physicalModel);
+  const characteristicDimensionM = geometry.characteristicDimensionM || fallbackCharacteristicDimensionM;
+  const distanceToCoreM = geometry.distanceToCoreM || (characteristicDimensionM > 0 ? characteristicDimensionM / 2 : 0);
+  const airflow = calculateAirflowThroughFreeArea(input);
+  const exposure = calculateExposureFactor(input);
+  const h = calculateModelH(input, physicalModel, airflow.airVelocityUsedMS, exposure.exposureFactor);
 
   const frozenConductivityWMK = positiveNumber(input?.frozenConductivityWMK);
   const thermalPenetrationFactor = positiveNumber(input?.thermalPenetrationFactor);
