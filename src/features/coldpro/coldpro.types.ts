@@ -248,11 +248,14 @@ export type ColdProTunnel = {
   air_velocity_step_m_s?: number;
   recommended_air_temp_c?: number | null;
   recommended_air_velocity_m_s?: number | null;
+  suggested_air_temp_c?: number | null;
+  suggested_air_approach_k?: number | null;
   optimization_status?: string | null;
   optimization_margin_percent?: number | null;
   optimization_attempts_count?: number | null;
   optimization_memory?: Record<string, unknown> | null;
   airflow_m3_h?: number;
+  air_flow_m3_h?: number | null;
   air_temp_c: number;
   air_temp_source?: "environment" | "manual";
   air_velocity_m_s: number;
