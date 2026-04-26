@@ -224,11 +224,11 @@ function calculateModelH(input: any, physicalModel: TunnelPhysicalModel, airVelo
 
 function calculateTunnelCore(input: any) {
   const processType = input?.processType ?? input?.process_type ?? null;
-  const operationMode = input?.operationMode ?? input?.operation_mode ?? null;
+  const tunnelMode = resolveTunnelMode(input);
   const physicalModel = normalizePhysicalModel(input);
   const modelMeta = MODEL_META[physicalModel];
-  const mode = modelMeta.mode;
-  const isStatic = isStaticTunnel(processType, operationMode);
+  const mode = tunnelMode.operationRegime;
+  const isStatic = tunnelMode.isStatic;
   const spiralTurbulenceFactor = positiveNumber(input?.spiralTurbulenceFactor) || 1.8;
   const blockExposureFactor = positiveNumber(input?.blockExposureFactor) || 0.7;
 
@@ -242,10 +242,10 @@ function calculateTunnelCore(input: any) {
 
   const calculatedMassKgH = positiveNumber(input?.unitWeightKg) * positiveNumber(input?.unitsPerCycle) * positiveNumber(input?.cyclesPerHour);
   const directMassKgH = positiveNumber(input?.directMassKgH);
-  const usedMassKgH = isStatic ? 0 : directMassKgH > 0 ? directMassKgH : calculatedMassKgH;
+  const usedMassKgH = tunnelMode.operationRegime === "batch" ? 0 : directMassKgH > 0 ? directMassKgH : calculatedMassKgH;
   const palletMassKg = positiveNumber(input?.palletMassKg ?? input?.pallet_mass_kg);
   const numberOfPallets = positiveNumber(input?.numberOfPallets ?? input?.number_of_pallets);
-  const staticMassKg = isStatic ? palletMassKg * numberOfPallets : positiveNumber(input?.staticMassKg ?? input?.static_mass_kg) || palletMassKg * Math.max(1, numberOfPallets || 1);
+  const staticMassKg = tunnelMode.operationRegime === "batch" ? positiveNumber(input?.staticMassKg ?? input?.static_mass_kg) || palletMassKg * numberOfPallets : positiveNumber(input?.staticMassKg ?? input?.static_mass_kg) || palletMassKg * Math.max(1, numberOfPallets || 1);
   const airDeltaTK = positiveNumber(input?.airDeltaTK) || 6;
   const airDensityKgM3 = positiveNumber(input?.airDensityKgM3) || 1.2;
   const suggestedAirApproachK = positiveNumber(input?.suggestedAirApproachK) || 8;
@@ -257,13 +257,13 @@ function calculateTunnelCore(input: any) {
   const suggestedAirTempComparisonC = informedAirTempC === null ? null : informedAirTempC - suggestedAirTempC;
   const informedAirFlowM3H = nullableNumber(input?.informedAirFlowM3H ?? input?.airflow_m3_h);
 
-  const geometry = calculateCharacteristicDimension(input);
+  const geometry = calculateCharacteristicDimension({ ...input, isStatic: tunnelMode.isStatic });
   const fallbackCharacteristicDimensionM = isStatic
     ? getSmallestValidDimension([input?.palletLengthM, input?.palletWidthM, input?.palletHeightM])
     : positiveNumber(input?.productThicknessM);
   const characteristicDimensionM = geometry.characteristicDimensionM || fallbackCharacteristicDimensionM;
   const distanceToCoreM = geometry.distanceToCoreM || (characteristicDimensionM > 0 ? characteristicDimensionM / 2 : 0);
-  const airflow = calculateAirflowThroughFreeArea(input);
+  const airflow = calculateAirflowModel(input);
   const exposure = calculateExposureFactor(input);
   const h = calculateModelH(input, physicalModel, airflow.airVelocityUsedMS, exposure.exposureFactor);
 
