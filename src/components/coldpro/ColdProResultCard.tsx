@@ -1,7 +1,7 @@
 import * as React from "react";
 import { BarChart3, Calculator, ChevronDown, Droplets, Gauge, Snowflake } from "lucide-react";
 import { fmtColdPro } from "./ColdProFormPrimitives";
-import { normalizeColdProResult } from "@/modules/coldpro/core/resultNormalizer";
+import { normalizeColdProEnvironmentResult } from "@/modules/coldpro/core/environmentResultNormalizer";
 import { LoadDistributionPieChart } from "@/modules/coldpro/components/results/LoadDistributionPieChart";
 import { LoadBreakdownBarChart } from "@/modules/coldpro/components/results/LoadBreakdownBarChart";
 import { EquipmentCapacityChart } from "@/modules/coldpro/components/results/EquipmentCapacityChart";
@@ -73,11 +73,12 @@ type Props = {
   selection?: any | null;
   environment?: any | null;
   products?: any[];
+  advancedProcesses?: any[];
   onAnalyze?: (question: string, previousAnalysis?: string | null) => Promise<string | null>;
   isAnalyzing?: boolean;
 };
 
-export function ColdProResultCard({ result, selection, environment, products = [], onAnalyze, isAnalyzing }: Props) {
+export function ColdProResultCard({ result, selection, environment, products = [], advancedProcesses = [], onAnalyze, isAnalyzing }: Props) {
   const [compact, setCompact] = React.useState(false);
   const [showAudit, setShowAudit] = React.useState(true);
   const [showCharts, setShowCharts] = React.useState(true);
@@ -86,11 +87,11 @@ export function ColdProResultCard({ result, selection, environment, products = [
 
   if (!result) return <div className="rounded-xl border border-dashed bg-background p-6 text-sm text-muted-foreground">Nenhum cálculo realizado. Preencha as etapas anteriores e clique em calcular carga térmica.</div>;
 
-  const normalized = normalizeColdProResult(result, selection, environment, products);
+  const normalized = normalizeColdProEnvironmentResult({ environment, result, selection, products, advancedProcesses });
   const breakdown = result.calculation_breakdown ?? {};
   const transmissionFaces = Array.isArray(breakdown.transmission_faces) ? breakdown.transmission_faces : [];
   const productBreakdown = Array.isArray(breakdown.products) ? breakdown.products : [];
-  const advancedProcesses = Array.isArray(breakdown.advanced_processes) ? breakdown.advanced_processes : [];
+  const breakdownAdvancedProcesses = Array.isArray(breakdown.advanced_processes) ? breakdown.advanced_processes : [];
   const seed = breakdown.seed_dehumidification;
   const frost = normalized.iceAndDefrost;
 
@@ -98,8 +99,8 @@ export function ColdProResultCard({ result, selection, environment, products = [
     <div className="min-w-0 rounded-xl border bg-background p-3 shadow-sm sm:p-5">
       <div className="mb-5 flex flex-col gap-3 border-b pb-4 md:flex-row md:items-start md:justify-between">
         <div>
-          <h3 className="text-lg font-semibold">Resultado do cálculo</h3>
-          <p className="mt-1 text-sm text-muted-foreground">Dashboard técnico da carga térmica, consistência, túnel, equipamento e laudo orientado por dados.</p>
+          <h3 className="text-lg font-semibold">Resultado do ambiente atual — {environment?.name ?? "Ambiente selecionado"}</h3>
+          <p className="mt-1 text-sm text-muted-foreground">Usa somente cálculo, produtos, processos e equipamento do ambiente selecionado.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Toggle checked={compact} onChange={setCompact} label="Visualização resumida" />
@@ -183,10 +184,10 @@ export function ColdProResultCard({ result, selection, environment, products = [
           </Details>
         ) : null}
 
-        {advancedProcesses.length ? (
+        {breakdownAdvancedProcesses.length ? (
           <Details title="Processos especiais" defaultOpen={showTables}>
             <div className="space-y-3">
-              {advancedProcesses.map((item: any, index: number) => <div key={`${item.advanced_process_type}-${index}`} className="rounded-lg bg-muted/30 p-3 text-sm"><b>{item.advanced_process_type}</b> · {item.status}</div>)}
+              {breakdownAdvancedProcesses.map((item: any, index: number) => <div key={`${item.advanced_process_type}-${index}`} className="rounded-lg bg-muted/30 p-3 text-sm"><b>{item.advanced_process_type}</b> · {item.status}</div>)}
             </div>
           </Details>
         ) : null}
