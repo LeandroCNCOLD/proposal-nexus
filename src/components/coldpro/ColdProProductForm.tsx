@@ -152,12 +152,30 @@ export function ColdProProductForm({ environmentId, product, productCatalog = []
   const modeError = mode === "storage_turnover" ? Number(form.stored_mass_kg ?? 0) <= 0 || Number(form.daily_turnover_percent ?? 0) <= 0 : mode === "hourly_intake" ? hourlyReference <= 0 : mode === "room_pull_down_or_freezing" ? Number(form.freezing_batch_mass_kg ?? 0) <= 0 || Number(form.freezing_batch_time_h ?? 0) <= 0 : dailyMovement <= 0 || recoveryHours <= 0;
   const negativeError = [form.mass_kg_day, form.mass_kg_hour, form.packaging_mass_kg_day, form.stored_mass_kg, form.daily_turnover_percent, form.daily_movement_kg, form.hourly_movement_kg, form.freezing_batch_mass_kg].some((v) => Number(v ?? 0) < 0);
   const canSave = !requiredError && !modeError && !negativeError;
+  const selectedCatalogProduct = productCatalog.find((item) => item.id === form.product_id) ?? null;
+  const catalogLocked = Boolean(selectedCatalogProduct);
+  const lockedNum = (key: keyof ReturnType<typeof initialForm>) => ({ ...num(key), readOnly: catalogLocked, readOnlyValue: catalogLocked, title: catalogLocked ? "Propriedade técnica carregada do catálogo; edite no cadastro de produtos." : undefined });
 
   const save = () => {
     if (saving) return;
     const movement_basis = mode === "storage_turnover" ? "calculated_from_stock" : mode === "hourly_intake" ? "manual_hourly" : mode === "room_pull_down_or_freezing" ? "batch_recovery" : "manual_daily";
     onSave({
       ...form,
+      ...(selectedCatalogProduct ? {
+        product_name: selectedCatalogProduct.name,
+        specific_heat_above_kj_kg_k: selectedCatalogProduct.specific_heat_above_kj_kg_k ?? null,
+        specific_heat_below_kj_kg_k: selectedCatalogProduct.specific_heat_below_kj_kg_k ?? null,
+        specific_heat_above_kcal_kg_c: Number(selectedCatalogProduct.specific_heat_above_kcal_kg_c ?? form.specific_heat_above_kcal_kg_c),
+        specific_heat_below_kcal_kg_c: Number(selectedCatalogProduct.specific_heat_below_kcal_kg_c ?? form.specific_heat_below_kcal_kg_c),
+        latent_heat_kj_kg: selectedCatalogProduct.latent_heat_kj_kg ?? null,
+        latent_heat_kcal_kg: Number(selectedCatalogProduct.latent_heat_kcal_kg ?? form.latent_heat_kcal_kg),
+        initial_freezing_temp_c: selectedCatalogProduct.initial_freezing_temp_c ?? form.initial_freezing_temp_c,
+        density_kg_m3: selectedCatalogProduct.density_kg_m3 ?? null,
+        thermal_conductivity_frozen_w_m_k: selectedCatalogProduct.thermal_conductivity_frozen_w_m_k ?? null,
+        thermal_conductivity_unfrozen_w_m_k: selectedCatalogProduct.thermal_conductivity_unfrozen_w_m_k ?? selectedCatalogProduct.thermal_conductivity_w_m_k ?? null,
+        frozen_water_fraction: selectedCatalogProduct.frozen_water_fraction ?? null,
+        freezable_water_content_percent: selectedCatalogProduct.freezable_water_content_percent ?? null,
+      } : {}),
       product_name: String(form.product_name ?? "").trim(),
       movement_basis,
       is_freezing_inside_storage_room: mode === "room_pull_down_or_freezing",
