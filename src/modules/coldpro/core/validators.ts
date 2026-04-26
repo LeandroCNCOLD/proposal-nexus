@@ -1,37 +1,51 @@
 import { safeNumber } from "./units";
-import type { TunnelCalculationInput } from "./calculationTypes";
 
-export function validateTunnelInput(input: TunnelCalculationInput) {
+function isProvided(value: unknown): boolean {
+  return value !== null && value !== undefined && value !== "";
+}
+
+function validateRange(params: {
+  field: string;
+  value: unknown;
+  min: number;
+  max: number;
+  unit: string;
+  warnings: string[];
+  invalidFields: string[];
+}) {
+  if (!isProvided(params.value)) return;
+  const value = safeNumber(params.value, Number.NaN);
+  if (!Number.isFinite(value)) {
+    params.invalidFields.push(params.field);
+    params.warnings.push(`${params.field} não é numérico.`);
+    return;
+  }
+  if (value < params.min || value > params.max) {
+    params.invalidFields.push(params.field);
+    params.warnings.push(`${params.field} fora da faixa técnica ${params.min} a ${params.max} ${params.unit}.`);
+  }
+}
+
+export function validateTunnelInput(input: any): { missingFields: string[]; warnings: string[]; invalidFields: string[] } {
   const missingFields: string[] = [];
   const warnings: string[] = [];
-  const criticalFields: string[] = [];
-  const requirePositive = (field: keyof TunnelCalculationInput, label = String(field)) => {
-    if (safeNumber(input[field], 0) <= 0) missingFields.push(label);
+  const invalidFields: string[] = [];
+
+  validateRange({ field: "cpAboveKJkgK", value: input?.cpAboveKJkgK, min: 0.5, max: 5, unit: "kJ/kg.K", warnings, invalidFields });
+  validateRange({ field: "cpBelowKJkgK", value: input?.cpBelowKJkgK, min: 0.5, max: 5, unit: "kJ/kg.K", warnings, invalidFields });
+  validateRange({ field: "latentHeatKJkg", value: input?.latentHeatKJkg, min: 50, max: 450, unit: "kJ/kg", warnings, invalidFields });
+  validateRange({ field: "densityKgM3", value: input?.densityKgM3, min: 100, max: 1800, unit: "kg/m³", warnings, invalidFields });
+  validateRange({ field: "frozenWaterFraction", value: input?.frozenWaterFraction, min: 0, max: 1, unit: "", warnings, invalidFields });
+  validateRange({ field: "frozenConductivityWMK", value: input?.frozenConductivityWMK, min: 0.02, max: 3, unit: "W/m.K", warnings, invalidFields });
+
+  const manualCoefficient = safeNumber(input?.manualCoefficientWM2K ?? input?.manualConvectiveCoefficientWM2K, 0);
+  if (manualCoefficient <= 0) {
+    validateRange({ field: "airVelocityMS", value: input?.airVelocityMS, min: 0.1, max: 15, unit: "m/s", warnings, invalidFields });
+  }
+
+  return {
+    missingFields: Array.from(new Set(missingFields)),
+    warnings: Array.from(new Set(warnings)),
+    invalidFields: Array.from(new Set(invalidFields)),
   };
-
-  requirePositive("initialTempC");
-  requirePositive("finalTempC");
-  requirePositive("cpAboveKJkgK");
-  requirePositive("densityKgM3");
-  requirePositive("frozenConductivityWMK");
-  if (input.allowPhaseChange !== false) requirePositive("latentHeatKJkg");
-  if (input.allowPhaseChange !== false) requirePositive("cpBelowKJkgK");
-  if (safeNumber(input.freezingPointC, Number.NaN) !== safeNumber(input.freezingPointC, Number.NaN)) missingFields.push("freezingPointC");
-
-  const cpValues = [input.cpAboveKJkgK, input.cpBelowKJkgK].map((value) => safeNumber(value, 0)).filter((value) => value > 0);
-  for (const cp of cpValues) if (cp < 0.5 || cp > 5) criticalFields.push("Cp fora da faixa técnica 0,5 a 5 kJ/kg.K");
-  const latent = safeNumber(input.latentHeatKJkg, 0);
-  if (latent > 0 && (latent < 50 || latent > 450)) criticalFields.push("calor latente fora da faixa técnica 50 a 450 kJ/kg");
-  const density = safeNumber(input.densityKgM3, 0);
-  if (density > 0 && (density < 100 || density > 1800)) criticalFields.push("densidade fora da faixa técnica 100 a 1800 kg/m³");
-  const velocity = safeNumber(input.airVelocityMS, 0);
-  const manualH = safeNumber(input.manualConvectiveCoefficientWM2K ?? input.convective_coefficient_manual_w_m2_k, 0);
-  if (manualH <= 0 && velocity > 0 && (velocity < 0.1 || velocity > 15)) criticalFields.push("velocidade do ar fora da faixa técnica 0,1 a 15 m/s");
-  const fraction = safeNumber(input.frozenWaterFraction, 0);
-  if (fraction < 0 || fraction > 1) criticalFields.push("fração congelável fora da faixa 0 a 1");
-  const conductivity = safeNumber(input.frozenConductivityWMK, 0);
-  if (conductivity > 0 && (conductivity < 0.02 || conductivity > 3)) criticalFields.push("condutividade congelada fora da faixa 0,02 a 3 W/m.K");
-  if (criticalFields.length) warnings.push(...criticalFields);
-
-  return { missingFields: Array.from(new Set(missingFields)), warnings: Array.from(new Set(warnings)), isInvalid: criticalFields.length > 0 };
 }

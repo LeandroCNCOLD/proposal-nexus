@@ -16,8 +16,3 @@ export function kcalHToKw(kcalH: number): number {
 export function kwToTr(kw: number): number {
   return safeNumber(kw) / COLDPRO_CONSTANTS.KW_PER_TR;
 }
-
-export function roundColdPro(value: number, digits = 2): number {
-  const factor = 10 ** digits;
-  return Math.round(safeNumber(value) * factor) / factor;
-}

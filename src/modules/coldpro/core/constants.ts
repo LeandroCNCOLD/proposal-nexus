@@ -10,5 +10,3 @@ export const COLDPRO_CONSTANTS = {
   R_INTERNAL_M2K_W: 0.12,
   R_EXTERNAL_M2K_W: 0.08,
 };
-
-export const KCAL_TO_KJ = 4.1868;
