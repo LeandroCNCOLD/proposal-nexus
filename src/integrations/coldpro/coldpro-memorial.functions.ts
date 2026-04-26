@@ -3,8 +3,9 @@ import { createServerFn } from "@tanstack/react-start";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { buildColdProMemorialPdfBuffer } from "./coldproMemorialPdfLib";
-import { normalizeColdProResult } from "@/modules/coldpro/core/resultNormalizer";
-import { buildColdProAIContext, buildColdProAISystemPrompt } from "@/modules/coldpro/core/aiTechnicalContextBuilder";
+import { normalizeColdProEnvironmentResult } from "@/modules/coldpro/core/environmentResultNormalizer";
+import { consolidateColdProProjectResult } from "@/modules/coldpro/core/projectResultConsolidator";
+import { buildColdProEnvironmentAIContext, buildColdProProjectAIContext, buildColdProAISystemPrompt } from "@/modules/coldpro/core/aiTechnicalContextBuilder";
 
 const inputSchema = z.object({
   projectId: z.string().uuid(),
@@ -71,25 +72,20 @@ function latestRowsByEnvironment<T extends { environment_id?: string | null }>(r
 }
 
 function buildAiPrompt({ project, environments, results, selections, products, question, previousAnalysis }: any) {
+  const consolidated = consolidateColdProProjectResult({ project, environments, results, selections, products, advancedProcesses: [] });
   const normalizedEnvironments = (environments ?? []).map((env: any) => {
     const result = (results ?? []).find((item: any) => item.environment_id === env.id);
     const selection = (selections ?? []).find((item: any) => item.environment_id === env.id);
     const envProducts = (products ?? []).filter((item: any) => item.environment_id === env.id);
-    return {
-      environment: { id: env.id, name: env.name, type: env.environment_type, volumeM3: env.volume_m3, internalTempC: env.internal_temp_c, externalTempC: env.external_temp_c },
-      normalizedResult: normalizeColdProResult(result, selection, env, envProducts),
-      products: envProducts.map((p: any) => ({ name: p.product_name, massKgDay: p.mass_kg_day, inletTempC: p.inlet_temp_c, outletTempC: p.outlet_temp_c, processTimeH: p.process_time_h })),
-    };
+    const normalizedResult = normalizeColdProEnvironmentResult({ environment: env, result, selection, products: envProducts });
+    return { environment: normalizedResult.environment, aiContext: buildColdProEnvironmentAIContext(normalizedResult) };
   });
   const payload = {
     project: { name: project?.name ?? "Projeto", applicationType: project?.application_type ?? "não informada" },
     request: question || "Faça uma análise completa e aponte pontos técnicos relevantes para validação antes da emissão do PDF.",
     previousAnalysis: previousAnalysis || undefined,
-    environments: normalizedEnvironments.map((item: any) => ({
-      environment: item.environment,
-      aiContext: buildColdProAIContext(item.normalizedResult),
-      products: item.products,
-    })),
+    projectContext: buildColdProProjectAIContext(consolidated),
+    environments: normalizedEnvironments,
   };
   return JSON.stringify(payload, null, 2).slice(0, 12000);
 }
