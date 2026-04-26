@@ -6,8 +6,9 @@ type Props = { title: string; normalized: ColdProNormalizedResult };
 
 export function SimulationMatrixChart({ title, normalized }: Props) {
   const t = normalized.tunnelValidation;
-  const hasData = t.airVelocityMS > 0 && t.airTempC != null && (t.coreTimeMin > 0 || t.powerKW > 0);
-  const data = hasData ? [{ velocity: t.airVelocityMS, temp: t.airTempC, time: t.coreTimeMin || t.powerKW, status: t.status }] : [];
+  const airTempC = normalized.temperatureProfile.airTempC;
+  const hasData = t.airVelocityMS > 0 && airTempC != null && (t.coreTimeMin > 0 || t.powerKW > 0);
+  const data = hasData ? [{ velocity: t.airVelocityMS, temp: airTempC, time: t.coreTimeMin || t.powerKW, status: t.status }] : [];
   return (
     <section className="rounded-xl border bg-background p-4">
       <div className="mb-3"><h4 className="text-sm font-semibold">{title}</h4><p className="text-xs text-muted-foreground">Temperatura do ar x velocidade do ar no ponto calculado.</p></div>
