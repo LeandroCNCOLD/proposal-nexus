@@ -176,7 +176,7 @@ export function ColdProProductForm({ environmentId, product, productCatalog = []
         frozen_water_fraction: selectedCatalogProduct.frozen_water_fraction ?? null,
         freezable_water_content_percent: selectedCatalogProduct.freezable_water_content_percent ?? null,
       } : {}),
-      product_name: String(form.product_name ?? "").trim(),
+      product_name: String(selectedCatalogProduct?.name ?? form.product_name ?? "").trim(),
       movement_basis,
       is_freezing_inside_storage_room: mode === "room_pull_down_or_freezing",
       daily_movement_kg: mode === "storage_turnover" ? stockMovement : dailyMovement,
@@ -250,22 +250,23 @@ export function ColdProProductForm({ environmentId, product, productCatalog = []
         <AccordionItem value="temperaturas" className="rounded-xl border px-4">
           <AccordionTrigger className="hover:no-underline"><span className="inline-flex items-center gap-2"><Thermometer className="h-4 w-4 text-primary" /> Temperaturas e propriedades térmicas</span></AccordionTrigger>
           <AccordionContent>
-            <ColdProFormSection title="Dados térmicos" description="Temperaturas do produto e propriedades carregadas do catálogo ou ajustadas manualmente.">
+            <ColdProFormSection title="Dados térmicos" description={catalogLocked ? "Propriedades técnicas carregadas do catálogo e bloqueadas para preservar a base oficial." : "Temperaturas do produto e propriedades ajustadas manualmente."}>
               <div className="grid grid-cols-1 gap-x-10 md:grid-cols-2"><div>
                 <ColdProField label="Temp. entrada produto" unit="°C"><ColdProInput {...num("inlet_temp_c")} /></ColdProField>
                 <ColdProField label="Temp. final produto" unit="°C"><ColdProInput {...num("outlet_temp_c")} /></ColdProField>
-                <ColdProField label="Temp. congelamento" unit="°C"><ColdProInput {...num("initial_freezing_temp_c")} /></ColdProField>
-                <ColdProField label="Densidade" unit="kg/m³"><ColdProInput {...num("density_kg_m3")} /></ColdProField>
-                <ColdProField label="Água" unit="%"><ColdProInput {...num("water_content_percent")} /></ColdProField>
-                <ColdProField label="Proteína" unit="%"><ColdProInput {...num("protein_content_percent")} /></ColdProField>
+                <ColdProField label="Temp. congelamento" unit="°C"><ColdProInput {...lockedNum("initial_freezing_temp_c")} /></ColdProField>
+                <ColdProField label="Densidade" unit="kg/m³"><ColdProInput {...lockedNum("density_kg_m3")} /></ColdProField>
+                <ColdProField label="Água" unit="%"><ColdProInput {...lockedNum("water_content_percent")} /></ColdProField>
+                <ColdProField label="Proteína" unit="%"><ColdProInput {...lockedNum("protein_content_percent")} /></ColdProField>
               </div><div>
-                <ColdProField label="Cp acima"><ColdProInput {...num("specific_heat_above_kcal_kg_c")} /></ColdProField>
-                <ColdProField label="Cp abaixo"><ColdProInput {...num("specific_heat_below_kcal_kg_c")} /></ColdProField>
-                <ColdProField label="Calor latente"><ColdProInput {...num("latent_heat_kcal_kg")} /></ColdProField>
-                <ColdProField label="Calor latente" unit="kJ/kg"><ColdProInput {...num("latent_heat_kj_kg")} /></ColdProField>
-                <ColdProField label="Condutividade congelado"><ColdProInput {...num("thermal_conductivity_frozen_w_m_k")} /></ColdProField>
-                <ColdProField label="Fração água congelável"><ColdProInput {...num("frozen_water_fraction")} /></ColdProField>
+                <ColdProField label="Cp acima"><ColdProInput {...lockedNum("specific_heat_above_kcal_kg_c")} /></ColdProField>
+                <ColdProField label="Cp abaixo"><ColdProInput {...lockedNum("specific_heat_below_kcal_kg_c")} /></ColdProField>
+                <ColdProField label="Calor latente"><ColdProInput {...lockedNum("latent_heat_kcal_kg")} /></ColdProField>
+                <ColdProField label="Calor latente" unit="kJ/kg"><ColdProInput {...lockedNum("latent_heat_kj_kg")} /></ColdProField>
+                <ColdProField label="Condutividade congelado"><ColdProInput {...lockedNum("thermal_conductivity_frozen_w_m_k")} /></ColdProField>
+                <ColdProField label="Fração água congelável"><ColdProInput {...lockedNum("frozen_water_fraction")} /></ColdProField>
               </div></div>
+              {catalogLocked ? <ColdProValidationMessage>Dados térmicos bloqueados por virem do catálogo oficial. Para alterar, edite o cadastro técnico do produto.</ColdProValidationMessage> : null}
               {deltaT < 0 ? <ColdProValidationMessage>Temperatura final maior que a entrada. Confira se é aquecimento intencional.</ColdProValidationMessage> : null}
             </ColdProFormSection>
           </AccordionContent>
