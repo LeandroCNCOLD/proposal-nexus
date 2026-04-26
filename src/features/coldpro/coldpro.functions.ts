@@ -6,10 +6,19 @@ import { calculateColdProLoad } from "./coldpro-calculation.engine";
 import { calculateAdvancedProcess } from "./advancedProcesses/advancedProcessEngine";
 import { findEquipmentCandidates, suggestApplication, suggestEvaporationTemp } from "./equipment-selection.engine";
 
-const finiteNumber = z.number().finite();
+const finiteNumber = z.coerce.number().finite();
 const nonNegativeNumber = finiteNumber.min(0);
 const positiveNumber = finiteNumber.gt(0);
 const dayHours = finiteNumber.min(0).max(24);
+
+function normalizePatchNumbers(patch: Record<string, unknown>) {
+  for (const [key, value] of Object.entries(patch)) {
+    if (typeof value !== "string") continue;
+    const text = value.trim().replace(",", ".");
+    if (!/^[+-]?\d+(?:\.\d{0,4})?$/.test(text)) continue;
+    patch[key] = Number(text);
+  }
+}
 const trimmedName = z.string().trim().min(1).max(120);
 const advancedProcessType = z.enum(["none", "seed_humidity_control", "banana_ripening", "citrus_degreening", "potato_co2_control", "controlled_atmosphere", "ethylene_application", "ethylene_removal", "co2_scrubbing", "humidity_control"]);
 
@@ -163,6 +172,7 @@ export const updateColdProEnvironment = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const supabase = supabaseAdmin;
     const patch = { ...data.patch } as any;
+    normalizePatchNumbers(patch);
     if (typeof patch.name === "string") patch.name = patch.name.trim().slice(0, 120);
     const nonNegativeKeys = ["length_m", "width_m", "height_m", "wall_thickness_mm", "ceiling_thickness_mm", "floor_thickness_mm", "operation_hours_day", "compressor_runtime_hours_day", "door_openings_per_day", "door_width_m", "door_height_m", "infiltration_factor", "door_open_seconds_per_opening", "people_count", "people_hours_day", "lighting_power_w", "lighting_hours_day", "motors_power_kw", "motors_hours_day", "motors_dissipation_factor", "fans_kcal_h", "defrost_kcal_h", "defrost_loss_factor", "other_kcal_h", "safety_factor_percent", "wall_count", "module_count", "total_panel_area_m2", "total_glass_area_m2", "total_door_area_m2", "construction_load_kcal_h", "external_relative_humidity_percent", "atmospheric_pressure_kpa", "air_changes_per_hour", "fresh_air_m3_h", "door_infiltration_m3_h", "seed_mass_kg", "seed_initial_moisture_percent", "seed_final_moisture_percent", "seed_stabilization_time_h", "dimension_a_m", "dimension_b_m", "dimension_c_m", "dimension_d_m", "dimension_e_m", "dimension_f_m"];
     for (const key of nonNegativeKeys) {
