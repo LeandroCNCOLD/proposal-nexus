@@ -159,7 +159,6 @@ function requiredPositiveFields(input: any, isStatic: boolean, staticMassKg: num
   const continuousFields = [
     positiveNumber(input?.directMassKgH) <= 0 && positiveNumber(input?.unitWeightKg) * positiveNumber(input?.unitsPerCycle) * positiveNumber(input?.cyclesPerHour) <= 0 ? "massa usada" : "",
     positiveNumber(input?.retentionTimeMin) <= 0 ? "tempo de retenção" : "",
-    positiveNumber(input?.productThicknessM) <= 0 ? "espessura do produto" : "",
   ];
   const staticFields = [
     staticMassKg <= 0 ? "massa total da batelada" : "",
@@ -203,23 +202,13 @@ function canEstimateFreezingTime(input: any, distanceToCoreM: number, hEffective
   );
 }
 
-function calculateModelH(input: any, physicalModel: TunnelPhysicalModel, airVelocityUsedMS: number, exposureFactor: number) {
-  const h = calculateConvectiveCoefficient({
+function calculateModelH(input: any, _physicalModel: TunnelPhysicalModel, airVelocityUsedMS: number, exposureFactor: number) {
+  return calculateConvectiveCoefficient({
     airVelocityMS: airVelocityUsedMS,
     manualCoefficientWM2K: input?.manualConvectiveCoefficientWM2K,
     airExposureFactor: input?.airExposureFactor,
     exposureFactor,
   });
-  if (h.source !== "velocity_estimated") return h;
-
-  const spiralTurbulenceFactor = positiveNumber(input?.spiralTurbulenceFactor) || 1.8;
-  const blockExposureFactor = positiveNumber(input?.blockExposureFactor) || 0.7;
-  const modelFactor = physicalModel === "continuous_spiral" ? spiralTurbulenceFactor : physicalModel === "static_block" ? blockExposureFactor : 1;
-
-  return {
-    ...h,
-    hEffectiveWM2K: toNumber(h.hEffectiveWM2K, 0) * modelFactor,
-  };
 }
 
 function calculateTunnelCore(input: any) {
@@ -432,7 +421,7 @@ function calculateTunnelCore(input: any) {
   const formulasUsed = {
     physicalModel: "normalized processType/tunnelMode/operationMode",
     calculatedMassKgH: "unitWeightKg × unitsPerCycle × cyclesPerHour",
-    h: "manualCoefficientWM2K || (10 + 10 × airVelocityUsedMS^0.8) × exposureFactor × airExposureFactor × modelFactor",
+    h: "manualCoefficientWM2K || (10 + 10 × airVelocityUsedMS^0.8) × exposureFactor × airExposureFactor",
     kEffectiveWMK: "frozenConductivityWMK × thermalPenetrationFactor",
     continuousProductLoadKW: "massKgH × specificEnergyKJkg / 3600",
     batchProductLoadKW: "massKg × specificEnergyKJkg / (timeH × 3600)",
