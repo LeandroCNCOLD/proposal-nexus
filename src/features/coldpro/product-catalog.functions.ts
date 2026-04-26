@@ -80,11 +80,11 @@ export const listColdProProductCatalog = createServerFn({ method: "GET" }).middl
       .select("*")
       .order("category", { ascending: true, nullsFirst: false })
       .order("name", { ascending: true });
-    if (error) throw new Error(readableSupabaseError(error));
-    return data ?? [];
+    if (error) return { ok: false, products: [], error: readableSupabaseError(error) };
+    return { ok: true, products: data ?? [], error: null };
   } catch (error) {
     console.error("[coldpro-products] list failed", readableSupabaseError(error));
-    throw new Error(readableSupabaseError(error));
+    return { ok: false, products: [], error: readableSupabaseError(error) };
   }
 });
 
