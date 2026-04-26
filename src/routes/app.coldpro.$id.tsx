@@ -358,6 +358,7 @@ function ColdProProjectPage() {
                     <ColdProTunnelForm
                       environmentId={selectedEnv.id}
                       environment={selectedEnv}
+                      product={products[0] ?? null}
                       tunnel={tunnel}
                       productCatalog={data?.productCatalog ?? []}
                       onSave={(payload) =>
