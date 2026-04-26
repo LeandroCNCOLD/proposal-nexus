@@ -2,8 +2,14 @@ import * as React from "react";
 import ReactMarkdown from "react-markdown";
 import { Bot, Download, Send, FileText, Loader2, MessageSquare, AlertTriangle } from "lucide-react";
 import { normalizeColdProResult } from "@/modules/coldpro/core/resultNormalizer";
-import { EquipmentCapacityChart } from "@/modules/coldpro/components/results/EquipmentCapacityChart";
 import { ResultConsistencyAudit } from "@/modules/coldpro/components/results/ResultConsistencyAudit";
+import { consolidateColdProProjectResult } from "@/modules/coldpro/core/projectResultConsolidator";
+import { InteractiveLoadPieChart } from "@/modules/coldpro/components/charts/InteractiveLoadPieChart";
+import { LoadRankingBarChart } from "@/modules/coldpro/components/charts/LoadRankingBarChart";
+import { CapacityComparisonChart } from "@/modules/coldpro/components/charts/CapacityComparisonChart";
+import { ProjectEnvironmentPieChart } from "@/modules/coldpro/components/charts/ProjectEnvironmentPieChart";
+import { ProjectStackedLoadChart } from "@/modules/coldpro/components/charts/ProjectStackedLoadChart";
+import { environmentLoadRows, projectEnvironmentRows, projectGroupedRows } from "@/modules/coldpro/components/charts/chartData";
 
 function fmt(value: unknown, digits = 2) {
   return new Intl.NumberFormat("pt-BR", { maximumFractionDigits: digits }).format(Number(value ?? 0));
@@ -100,6 +106,7 @@ export function ColdProReport({
     },
     { kcal: 0, kw: 0, tr: 0 },
   );
+  const consolidated = consolidateColdProProjectResult({ project, environments, results, selections, products, advancedProcesses });
 
   return (
     <div className="space-y-4">
