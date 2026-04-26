@@ -418,7 +418,7 @@ async function pullEntity(name: EntityKey): Promise<{ ok: boolean; count?: numbe
   if (name === "propostas") return pullProposalsNewestFirst();
   if (name === "processos") {
     const { syncNomusProcessesNewestFirst } = await import("@/integrations/nomus/process-sync.functions");
-    return syncNomusProcessesNewestFirst();
+    return syncNomusProcessesNewestFirst(supabaseAdmin);
   }
   const { endpoint, map } = mappers[name];
   const res = await listAll<Record<string, unknown>>(endpoint, {}, { entity: name });
