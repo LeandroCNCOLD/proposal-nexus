@@ -126,7 +126,7 @@ const DENSITY_STATUS_LABEL = {
   missing: "faltam dados",
 } as const;
 
-export function ColdProTunnelForm({ environmentId, environment, tunnel, productCatalog = [], onSave }: { environmentId: string; environment?: any; tunnel?: any; productCatalog?: any[]; onSave: (data: any) => void }) {
+export function ColdProTunnelForm({ environmentId, environment, product, tunnel, productCatalog = [], onSave }: { environmentId: string; environment?: any; product?: any | null; tunnel?: any; productCatalog?: any[]; onSave: (data: any) => void }) {
   const [form, setForm] = React.useState<any>(defaultTunnel(environmentId));
   const [selectedGroup, setSelectedGroup] = React.useState("");
   const [continuousUnit, setContinuousUnit] = React.useState<DimensionUnit>("m");
@@ -182,8 +182,17 @@ export function ColdProTunnelForm({ environmentId, environment, tunnel, productC
   const canSave = !processError && !requiredError;
   const ashraeDensityKgM3 = Number(form.ashrae_density_kg_m3 ?? 0);
   const densityFieldKgM3 = Number(form.density_kg_m3 ?? 0);
-  const manualDensityKgM3 = densityFieldKgM3 > 0 && (!ashraeDensityKgM3 || Math.abs(densityFieldKgM3 - ashraeDensityKgM3) > 0.0001) ? densityFieldKgM3 : 0;
+  const useEnvironmentProduct = !!product && (!tunnel?.id || !form.product_id);
+  const thermodynamicProduct = useEnvironmentProduct ? product : null;
+  const productDensityKgM3 = Number(thermodynamicProduct?.density_kg_m3 ?? 0);
+  const manualDensityKgM3 = densityFieldKgM3 > 0 && (!ashraeDensityKgM3 || Math.abs(densityFieldKgM3 - ashraeDensityKgM3) > 0.0001) ? densityFieldKgM3 : productDensityKgM3;
   const airTemperatureC = Number(environment?.internal_temp_c ?? form.air_temp_c ?? 0);
+  const freezingPointC = thermodynamicProduct?.initial_freezing_temp_c ?? form.freezing_temp_c ?? 0;
+  const cpAboveKcalKgC = Number(thermodynamicProduct?.specific_heat_above_kcal_kg_c ?? form.specific_heat_above_kcal_kg_c ?? 0);
+  const cpBelowKcalKgC = Number(thermodynamicProduct?.specific_heat_below_kcal_kg_c ?? form.specific_heat_below_kcal_kg_c ?? 0);
+  const latentHeatKcalKg = Number(thermodynamicProduct?.latent_heat_kcal_kg ?? form.latent_heat_kcal_kg ?? 0);
+  const frozenConductivityWmK = Number(thermodynamicProduct?.thermal_conductivity_frozen_w_m_k ?? form.thermal_conductivity_frozen_w_m_k ?? 0);
+  const frozenWaterFraction = Number(thermodynamicProduct?.frozen_water_fraction ?? form.frozen_water_fraction ?? 0);
   const giroResult = calculateContinuousGirofreezer({
     dimensionScale: "m",
     productLength: Number(form.product_length_m ?? 0),
@@ -203,14 +212,14 @@ export function ColdProTunnelForm({ environmentId, environment, tunnel, productC
     maxAirVelocityMs: Number(form.max_air_velocity_m_s ?? 6),
     initialTempC: Number(form.inlet_temp_c ?? 0),
     finalTempC: Number(form.outlet_temp_c ?? 0),
-    cpAboveKjKgK: Number(form.specific_heat_above_kcal_kg_c ?? 0) * 4.1868,
-    cpBelowKjKgK: Number(form.specific_heat_below_kcal_kg_c ?? 0) * 4.1868,
+    cpAboveKjKgK: cpAboveKcalKgC * 4.1868,
+    cpBelowKjKgK: cpBelowKcalKgC * 4.1868,
     manualDensityKgM3,
     ashraeDensityKgM3,
-    frozenConductivityWmK: Number(form.thermal_conductivity_frozen_w_m_k ?? 0),
-    freezingPointC: Number(form.freezing_temp_c ?? 0),
-    latentHeatKjKg: Number(form.latent_heat_kcal_kg ?? 0) * 4.1868,
-    frozenWaterFraction: Number(form.frozen_water_fraction ?? 0),
+    frozenConductivityWmK,
+    freezingPointC: Number(freezingPointC),
+    latentHeatKjKg: latentHeatKcalKg * 4.1868,
+    frozenWaterFraction,
     packagingMassKgH: Number(form.packaging_mass_kg_hour ?? 0),
     packagingCpKjKgK: Number(form.packaging_specific_heat_kcal_kg_c ?? 0) * 4.1868,
     deltaTAirK: Number(form.air_delta_t_k ?? 5),
@@ -296,6 +305,13 @@ export function ColdProTunnelForm({ environmentId, environment, tunnel, productC
     product_thickness_mm: productThicknessM * 1000,
     product_unit_weight_kg: Number(form.product_unit_weight_kg ?? 0) || Number(form.unit_weight_kg ?? 0),
     air_temp_c: airTemperatureC,
+    density_kg_m3: manualDensityKgM3 || densityFieldKgM3,
+    freezing_temp_c: freezingPointC,
+    specific_heat_above_kcal_kg_c: cpAboveKcalKgC,
+    specific_heat_below_kcal_kg_c: cpBelowKcalKgC,
+    latent_heat_kcal_kg: latentHeatKcalKg,
+    thermal_conductivity_frozen_w_m_k: frozenConductivityWmK,
+    frozen_water_fraction: frozenWaterFraction,
     mass_kg_hour: isStatic ? 0 : massHour,
     thermal_characteristic_dimension_m: characteristic || null,
     distance_to_core_m: characteristic > 0 ? characteristic / 2 : null,
