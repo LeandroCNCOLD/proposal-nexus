@@ -430,7 +430,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
   const buildAirflowPreset = React.useCallback((source: any = form) => {
     const presetVelocity = recommendedTunnelAirVelocity(tunnelType, isStatic);
     const requiredAirflow = positiveValue(tunnelResult.airFlowM3H, thermalResult.requiredAirflowM3H, source?.informed_air_flow_m3_h, source?.airflow_m3_h);
-    const fanAirflowM3H = Math.max(requiredAirflow, positiveValue(source?.fan_airflow_m3_h));
+    const fanAirflowM3H = requiredAirflow;
     const blockageFactor = positiveValue(source?.blockage_factor) || recommendedBlockageFactor(tunnelType, source?.arrangement_type ?? form.arrangement_type);
     const freeAreaM2 = fanAirflowM3H > 0 ? fanAirflowM3H / 3600 / presetVelocity : 0;
     const grossAreaM2 = freeAreaM2 > 0 ? freeAreaM2 / Math.max(0.05, 1 - blockageFactor) : 0;
@@ -458,6 +458,12 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
   const applyAirflowPreset = React.useCallback(() => {
     setForm((prev: any) => ({ ...prev, ...buildAirflowPreset(prev) }));
   }, [buildAirflowPreset]);
+
+  const requiredAirflowM3H = tunnelResult.airFlowM3H;
+  const informedFanAirflowM3H = positiveValue(form.fan_airflow_m3_h);
+  const airflowDeltaM3H = informedFanAirflowM3H - requiredAirflowM3H;
+  const airflowDeltaPercent = requiredAirflowM3H > 0 ? Math.abs(airflowDeltaM3H) / requiredAirflowM3H * 100 : 0;
+  const showAirflowMismatch = form.airflow_source === "airflow_by_fans" && requiredAirflowM3H > 0 && informedFanAirflowM3H > 0 && airflowDeltaPercent > 5;
 
   React.useEffect(() => {
     const presetKey = `${environmentId}:${tunnel?.id ?? "new"}`;
