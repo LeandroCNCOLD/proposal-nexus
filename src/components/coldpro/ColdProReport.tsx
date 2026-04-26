@@ -2,8 +2,14 @@ import * as React from "react";
 import ReactMarkdown from "react-markdown";
 import { Bot, Download, Send, FileText, Loader2, MessageSquare, AlertTriangle } from "lucide-react";
 import { normalizeColdProResult } from "@/modules/coldpro/core/resultNormalizer";
-import { EquipmentCapacityChart } from "@/modules/coldpro/components/results/EquipmentCapacityChart";
 import { ResultConsistencyAudit } from "@/modules/coldpro/components/results/ResultConsistencyAudit";
+import { consolidateColdProProjectResult } from "@/modules/coldpro/core/projectResultConsolidator";
+import { InteractiveLoadPieChart } from "@/modules/coldpro/components/charts/InteractiveLoadPieChart";
+import { LoadRankingBarChart } from "@/modules/coldpro/components/charts/LoadRankingBarChart";
+import { CapacityComparisonChart } from "@/modules/coldpro/components/charts/CapacityComparisonChart";
+import { ProjectEnvironmentPieChart } from "@/modules/coldpro/components/charts/ProjectEnvironmentPieChart";
+import { ProjectStackedLoadChart } from "@/modules/coldpro/components/charts/ProjectStackedLoadChart";
+import { environmentLoadRows, projectEnvironmentRows, projectGroupedRows } from "@/modules/coldpro/components/charts/chartData";
 
 function fmt(value: unknown, digits = 2) {
   return new Intl.NumberFormat("pt-BR", { maximumFractionDigits: digits }).format(Number(value ?? 0));
@@ -100,6 +106,7 @@ export function ColdProReport({
     },
     { kcal: 0, kw: 0, tr: 0 },
   );
+  const consolidated = consolidateColdProProjectResult({ project, environments, results, selections, products, advancedProcesses });
 
   return (
     <div className="space-y-4">
@@ -214,6 +221,12 @@ export function ColdProReport({
               <div className="text-xl font-bold">{fmt(totals.tr)} TR</div>
             </div>
           </div>
+          <div className="mt-4 grid gap-3 xl:grid-cols-2 print:grid-cols-1">
+            <ProjectEnvironmentPieChart title="Participação dos ambientes na carga total" data={projectEnvironmentRows(consolidated)} />
+            <ProjectStackedLoadChart title="Composição de carga por ambiente" consolidated={consolidated} />
+            <InteractiveLoadPieChart title="Distribuição global por categoria" data={projectGroupedRows(consolidated)} total={consolidated.summary.requiredKcalH} />
+            <CapacityComparisonChart title="Capacidade instalada x carga total" requiredKcalH={consolidated.summary.requiredKcalH} capacityKcalH={consolidated.summary.totalSelectedCapacityKcalH} surplusPercent={consolidated.summary.equipmentSurplusPercent} />
+          </div>
         </section>
 
         {environments.map((env: any, idx: number) => {
@@ -296,7 +309,9 @@ export function ColdProReport({
                   </div>
                   <div className="mt-3 grid gap-3 lg:grid-cols-2">
                     <ResultConsistencyAudit normalized={normalized} />
-                    <EquipmentCapacityChart normalized={normalized} />
+                    <InteractiveLoadPieChart title="Distribuição da carga térmica" data={environmentLoadRows(normalized)} total={normalized.summary.requiredKcalH} />
+                    <LoadRankingBarChart title="Maiores componentes da carga" data={environmentLoadRows(normalized)} total={normalized.summary.requiredKcalH} />
+                    <CapacityComparisonChart title="Carga requerida x capacidade selecionada" requiredKcalH={normalized.summary.requiredKcalH} capacityKcalH={normalized.equipment.totalCapacityKcalH} surplusPercent={normalized.equipment.surplusPercent} />
                   </div>
                   {normalized.loadDistribution.productKcalH === 0 && normalized.loadDistribution.tunnelProcessKcalH > 0 ? (
                     <div className="mt-3 flex gap-2 rounded-md border bg-muted/20 p-3 text-sm">

@@ -1,181 +1,100 @@
-## Plano ajustado — separar ambiente atual x resultado geral primeiro
+Plano para modernizar os gráficos do ColdPro sem alterar fórmulas de cálculo térmico nem módulos fora do ColdPro.
 
-Você está correto: antes de evoluir os gráficos e a IA, a estrutura precisa garantir que cada bloco está lendo o escopo correto. Vou reorganizar o ColdPro para separar claramente o Resultado do Ambiente Atual do Resultado Geral do Projeto.
+1. Criar base comum de gráficos ColdPro
+- Usar Recharts, que já está instalado no projeto.
+- Criar utilitários compartilhados para:
+  - conversão kcal/h, kW e TR;
+  - cálculo de percentuais;
+  - formatação de tooltip;
+  - agrupamento de fatias pequenas em “Outras menores”;
+  - status técnico da sobra do equipamento.
+- Manter cores usando tokens do tema existente (`--chart-*`, `--primary`, `--muted`, `--destructive`), sem cores fixas fora do design system.
 
-### Objetivo principal
-Evitar qualquer mistura entre:
-- dados do ambiente selecionado;
-- dados consolidados do projeto inteiro;
-- dados usados pela IA;
-- dados usados por gráficos, auditoria e memorial.
+2. Criar os novos componentes de gráficos do ambiente
+Serão criados em `src/modules/coldpro/components/charts/`:
+- `InteractiveLoadPieChart.tsx`
+  - donut interativo com tooltip em kcal/h, kW, TR e percentual;
+  - card lateral da fatia selecionada;
+  - total no centro;
+  - oculta valores zerados e agrupa fatias pequenas.
+- `LoadRankingBarChart.tsx`
+  - barras horizontais ordenadas;
+  - alternância de unidade: kcal/h, kW e TR;
+  - top 8 por padrão e botão “mostrar todos”.
+- `LoadWaterfallChart.tsx`
+  - cascata simulada com barras empilhadas/invisíveis: componentes, subtotal, segurança e total requerido.
+- `EquipmentCapacityGauge.tsx`
+  - gauge técnico da sobra: subdimensionado, atenção, adequado, alto, possível superdimensionamento.
+- `CapacityComparisonChart.tsx`
+  - comparação carga requerida x capacidade selecionada/instalada.
+- `ThermalProfileLineChart.tsx`
+  - perfil térmico do produto/túnel quando houver dados suficientes.
+- `SimulationMatrixChart.tsx`
+  - matriz/scatter de simulação operacional quando houver dados; caso contrário, mostra estado vazio técnico.
 
-A aba Resultado passará a ter dois blocos independentes:
+3. Aplicar na aba Resultado do Ambiente
+- Substituir os gráficos atuais de distribuição e barras simples em `ColdProResultCard.tsx`.
+- Layout sugerido:
+  - KPIs no topo;
+  - donut + barras ordenadas;
+  - cascata + gauge;
+  - comparativo de capacidade;
+  - perfil térmico e matriz de simulação quando aplicável;
+  - auditoria e IA logo abaixo.
+- A aba Resultado continuará mostrando somente o ambiente selecionado.
 
-```text
-Resultado
-├─ Resultado do ambiente atual
-│  ├─ cálculo do ambiente selecionado
-│  ├─ seleção de equipamento desse ambiente
-│  ├─ auditoria desse ambiente
-│  └─ IA desse ambiente
-│
-└─ Resultado Geral do Projeto
-   ├─ consolidação de todos os ambientes
-   ├─ totais globais
-   ├─ comparativo entre ambientes
-   ├─ auditoria consolidada
-   └─ IA geral do projeto
-```
+4. Criar gráficos do Resultado Geral do Projeto
+Criar também:
+- `ProjectEnvironmentPieChart.tsx`
+  - participação de cada ambiente na carga total;
+  - clique destaca ambiente e mostra resumo;
+  - botão para abrir ambiente se for viável com callback.
+- `ProjectStackedLoadChart.tsx`
+  - barras empilhadas por ambiente com transmissão, produto/processo, infiltração/umidade, internas, degelo/gelo e segurança.
+- Reutilizar `InteractiveLoadPieChart`, `LoadRankingBarChart` e `CapacityComparisonChart` no escopo global.
 
-## Etapa 1 — Separar os normalizadores
+5. Aplicar no Relatório Geral do Projeto
+- Atualizar `ColdProProjectResultDashboard.tsx` para usar:
+  - pizza por ambiente;
+  - barras empilhadas por ambiente;
+  - distribuição global por categoria;
+  - ranking de ambientes por carga;
+  - capacidade instalada x carga total.
+- Manter o relatório geral separado do Resultado do Ambiente, acessado pelo botão “Gerar relatório geral” em “Ambientes do projeto”.
 
-### 1. Criar/renomear normalizador do ambiente
-Criar `src/modules/coldpro/core/environmentResultNormalizer.ts`.
+6. Aplicar também nos relatórios impressos/PDF
+- Atualizar `ColdProReport.tsx` para incluir visualizações melhores no relatório consolidado impresso.
+- Como impressão/PDF pode não capturar toda interação, os gráficos interativos serão renderizados de forma estática segura no print:
+  - distribuição por ambiente;
+  - composição por ambiente;
+  - distribuição por categoria;
+  - comparativo capacidade x carga;
+  - gráficos por ambiente dentro de cada seção.
+- Preservar tabelas e dados técnicos existentes, apenas melhorar a apresentação visual.
 
-Ele será responsável exclusivamente por um ambiente:
-- `environment`
-- `result` daquele ambiente
-- `selection` daquele ambiente
-- `products` daquele ambiente
-- `advancedProcesses` daquele ambiente
+7. Melhorar contexto da IA com resumo dos gráficos
+- Atualizar `aiTechnicalContextBuilder.ts` para incluir:
+  - maior componente de carga;
+  - percentual do maior componente;
+  - distribuição por categoria;
+  - status da sobra técnica;
+  - divergências da auditoria;
+  - ambiente dominante no consolidado geral.
+- Garantir que a IA diferencie carga de produto direto de carga túnel/processo, sem dizer que produto está zerado quando há carga relevante no processo.
 
-Função:
-```ts
-normalizeColdProEnvironmentResult({ environment, result, selection, products, advancedProcesses })
-```
+8. Ajustar normalizadores somente para visualização
+- Atualizar `environmentResultNormalizer.ts`, `projectResultConsolidator.ts` e/ou `resultNormalizer.ts` apenas para expor dados de gráfico de forma estruturada.
+- Não alterar fórmulas de cálculo térmico.
+- Não mexer em CRM, Nomus, propostas, sincronização ou módulos fora do ColdPro.
 
-Esse normalizador substituirá o uso genérico atual de `normalizeColdProResult` para deixar explícito que o resultado é por ambiente.
+9. Validação
+- Rodar verificação TypeScript equivalente ao typecheck do projeto.
+- Rodar build de produção.
+- Conferir que:
+  - não há categorias zeradas nos gráficos;
+  - tooltips mostram kcal/h, kW, TR e percentual;
+  - Resultado do Ambiente não mistura dados do projeto geral;
+  - Resultado Geral mostra os ambientes consolidados;
+  - relatórios impressos/PDF exibem gráficos/tabelas sem quebrar layout.
 
-### 2. Criar consolidador do projeto
-Criar `src/modules/coldpro/core/projectResultConsolidator.ts`.
-
-Função:
-```ts
-consolidateColdProProjectResult({ project, environments, results, selections, products, advancedProcesses })
-```
-
-Ele vai:
-- normalizar cada ambiente individualmente;
-- somar carga requerida, kW, TR, segurança, subtotal e capacidade selecionada;
-- montar ranking de ambientes por carga;
-- consolidar distribuição global por grupo;
-- consolidar alertas críticos;
-- indicar se o projeto tem divergência crítica em qualquer ambiente.
-
-## Etapa 2 — Reorganizar a aba Resultado
-
-Atualizar `src/routes/app.coldpro.$id.tsx` e componentes ColdPro para exibir dois blocos separados:
-
-### Bloco A — Resultado do ambiente atual
-Este bloco deve usar somente:
-- `selectedEnv`
-- `result` do `selectedEnv`
-- `selection` do `selectedEnv`
-- `products` filtrados pelo `selectedEnv.id`
-- `advancedProcesses` filtrados pelo `selectedEnv.id`
-
-Título sugerido:
-`Resultado do ambiente atual — {nome do ambiente}`
-
-### Bloco B — Resultado Geral do Projeto
-Este bloco deve usar todos os ambientes do projeto.
-
-Título sugerido:
-`Resultado Geral do Projeto`
-
-Esse bloco ficará abaixo do resultado do ambiente e será visualmente identificado como consolidado.
-
-## Etapa 3 — Separar componentes por escopo
-
-### Ambiente atual
-Manter/adaptar `ColdProResultCard.tsx` como componente de ambiente, ou criar:
-```text
-ColdProEnvironmentResultDashboard.tsx
-```
-
-Responsável por:
-- resumo do ambiente;
-- carga do ambiente;
-- seleção de equipamento do ambiente;
-- auditoria do ambiente;
-- IA do ambiente;
-- tabelas técnicas do ambiente.
-
-### Resultado geral
-Criar:
-```text
-ColdProProjectResultDashboard.tsx
-```
-
-Responsável por:
-- resumo consolidado do projeto;
-- totais globais;
-- ranking de ambientes;
-- capacidade total selecionada;
-- alertas globais;
-- IA geral do projeto;
-- acesso ao memorial consolidado.
-
-## Etapa 4 — Separar a IA por escopo
-
-Atualizar `aiTechnicalContextBuilder.ts` para dois contextos:
-
-```ts
-buildColdProEnvironmentAIContext(normalizedEnvironmentResult)
-buildColdProProjectAIContext(consolidatedProjectResult)
-```
-
-Regras:
-- IA do ambiente não pode analisar totais globais como se fossem daquele ambiente.
-- IA geral não pode dizer que um ambiente tem erro usando soma de outro ambiente.
-- A regra crítica continua:
-  - se `productKcalH = 0` e `tunnelProcessKcalH > 0`, não afirmar ausência de carga de produto;
-  - classificar como produto/processo especial de túnel.
-
-## Etapa 5 — Ajustar memorial/relatório
-
-Atualizar `ColdProReport.tsx` para deixar claro:
-
-1. Resumo Geral do Projeto
-   - totais consolidados;
-   - ranking por ambiente;
-   - status global.
-
-2. Memorial por Ambiente
-   - cada ambiente com seus próprios dados;
-   - auditoria individual;
-   - equipamento individual;
-   - alerta de túnel/processo quando aplicável.
-
-Assim o relatório não mistura carga global com carga de ambiente.
-
-## Etapa 6 — Revalidar gráficos existentes depois da separação
-
-Os gráficos já criados serão mantidos, mas conectados ao normalizador correto:
-- gráficos do ambiente atual usam `environmentResultNormalizer`;
-- gráficos globais usam `projectResultConsolidator`.
-
-Se algum gráfico estiver lendo array global dentro do bloco do ambiente, será corrigido.
-
-## Etapa 7 — Validação final
-
-Rodar:
-```text
-bunx tsc --noEmit
-bun run build
-```
-
-Critérios de aceite desta etapa:
-- Resultado do ambiente atual mostra apenas dados do ambiente selecionado.
-- Resultado Geral do Projeto mostra apenas dados consolidados.
-- Existe `environmentResultNormalizer`.
-- Existe `projectResultConsolidator`.
-- IA do ambiente recebe somente contexto do ambiente.
-- IA geral recebe contexto consolidado.
-- O alerta de produto direto zerado com túnel/processo permanece correto.
-- Build e typecheck passam.
-
-## Depois desta etapa
-Com a separação validada, a próxima evolução será refinar os gráficos e a IA em dois níveis:
-- gráficos/IA do ambiente;
-- gráficos/IA do projeto consolidado.
+Critério final: dashboard de Resultado do Ambiente e Resultado Geral ficam mais profissionais, interativos e tecnicamente úteis, com gráficos adequados para distribuição, ranking, formação da carga, sobra técnica e capacidade requerida versus instalada.

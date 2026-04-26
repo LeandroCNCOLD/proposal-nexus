@@ -4,6 +4,12 @@ import { AlertTriangle, Bot, Building2, Calculator, Gauge, Loader2, Snowflake, S
 import { consolidateColdProProjectResult } from "../../core/projectResultConsolidator";
 import { buildColdProProjectAIContext, compactColdProAIQuestion } from "../../core/aiTechnicalContextBuilder";
 import { fmtColdProChart } from "./chartUtils";
+import { ProjectEnvironmentPieChart } from "../charts/ProjectEnvironmentPieChart";
+import { ProjectStackedLoadChart } from "../charts/ProjectStackedLoadChart";
+import { InteractiveLoadPieChart } from "../charts/InteractiveLoadPieChart";
+import { LoadRankingBarChart } from "../charts/LoadRankingBarChart";
+import { CapacityComparisonChart } from "../charts/CapacityComparisonChart";
+import { projectEnvironmentRows, projectGroupedRows } from "../charts/chartData";
 
 type Props = {
   project: any;
@@ -39,7 +45,8 @@ export function ColdProProjectResultDashboard(props: Props) {
   const consolidated = consolidateColdProProjectResult(props);
   const [analysis, setAnalysis] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
-  const max = Math.max(1, ...consolidated.ranking.map((item) => item.requiredKcalH));
+  const environmentRows = projectEnvironmentRows(consolidated);
+  const groupedRows = projectGroupedRows(consolidated);
 
   async function run(label: string, instruction: string) {
     if (!props.onAnalyze) return;
@@ -69,23 +76,15 @@ export function ColdProProjectResultDashboard(props: Props) {
         <Kpi label="Capacidade selecionada" value={consolidated.summary.totalSelectedCapacityKcalH} unit="kcal/h" icon={<Building2 className="h-4 w-4" />} />
       </div>
 
-      <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <div className="rounded-xl border p-4">
-          <h4 className="mb-3 text-sm font-semibold">Ranking de ambientes por carga</h4>
-          <div className="space-y-3">
-            {consolidated.ranking.map((item) => (
-              <div key={item.environmentId ?? item.name} className="space-y-1.5">
-                <div className="flex items-center justify-between gap-3 text-sm">
-                  <span className="font-medium">{item.position}. {item.name}</span>
-                  <b className="tabular-nums">{fmtColdProChart(item.requiredKcalH, 0)} kcal/h</b>
-                </div>
-                <div className="h-2 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary" style={{ width: `${Math.max(3, (item.requiredKcalH / max) * 100)}%` }} /></div>
-                <div className="text-xs text-muted-foreground">Capacidade selecionada: {fmtColdProChart(item.selectedCapacityKcalH, 0)} kcal/h · Sobra: {fmtColdProChart(item.surplusPercent, 1)}%</div>
-              </div>
-            ))}
-          </div>
-        </div>
+      <div className="mt-5 grid gap-4 xl:grid-cols-2">
+        <ProjectEnvironmentPieChart title="Participação dos ambientes na carga total" subtitle="Quanto cada ambiente representa no projeto consolidado." data={environmentRows} />
+        <InteractiveLoadPieChart title="Distribuição global por categoria" subtitle="Soma consolidada das categorias de todos os ambientes." data={groupedRows} total={consolidated.summary.requiredKcalH} />
+        <ProjectStackedLoadChart title="Composição de carga por ambiente" subtitle="Compara quais ambientes são dominados por produto, infiltração, transmissão ou segurança." consolidated={consolidated} />
+        <CapacityComparisonChart title="Capacidade instalada x carga total" requiredKcalH={consolidated.summary.requiredKcalH} capacityKcalH={consolidated.summary.totalSelectedCapacityKcalH} surplusPercent={consolidated.summary.equipmentSurplusPercent} />
+        <LoadRankingBarChart title="Ranking de ambientes por carga" subtitle="Ambientes mais pesados no dimensionamento geral." data={environmentRows} total={consolidated.summary.requiredKcalH} />
+      </div>
 
+      <div className="mt-5 grid gap-4">
         <div className="rounded-xl border p-4">
           <h4 className="mb-3 text-sm font-semibold">Auditoria global</h4>
           {consolidated.consistencyAudit.hasCriticalDivergence ? (
