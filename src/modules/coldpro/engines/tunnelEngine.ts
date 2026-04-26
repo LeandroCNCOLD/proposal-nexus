@@ -303,6 +303,8 @@ export function calculateTunnelEngine(input: any) {
     totalKW,
     totalKcalH,
     totalTR,
+    airFlowM3H,
+    requiredAirTempC,
     missingFields,
     warnings,
     invalidFields,
