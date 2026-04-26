@@ -739,18 +739,18 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
       <div className="space-y-5">
           <ColdProFormSection title="Etapa 1 — Tipo de processo" description="Defina o túnel, o arranjo e o regime antes de informar massa e ar." icon={<Settings className="h-4 w-4" />}>
             <div className="grid grid-cols-1 gap-x-10 md:grid-cols-2">
-              <ColdProField label="Tipo de túnel">
+              <ColdProField label="Tipo de túnel" helpKey="tunnelType">
                 <ColdProSelect value={tunnelType} onChange={(e) => setTunnelType(e.target.value)}>
                   {Object.entries(TUNNEL_TYPES).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
                 </ColdProSelect>
               </ColdProField>
-              <ColdProField label="Tipo de arranjo">
+              <ColdProField label="Tipo de arranjo" helpKey="arrangementType">
                 <ColdProSelect value={form.arrangement_type} onChange={(e) => setArrangementType(e.target.value)}>
                   {arrangementOptions.map((key) => <option key={key} value={key}>{ARRANGEMENT_DEFAULTS[key]?.label ?? key}</option>)}
                 </ColdProSelect>
               </ColdProField>
-              <ColdProField label="Regime calculado"><ColdProInput readOnly value={isStatic ? "Batelada / estático" : "Contínuo"} /></ColdProField>
-              <ColdProField label="Modelo físico aplicado"><ColdProInput readOnly value={tunnelResult.physicalModelLabel} /></ColdProField>
+              <ColdProField label="Regime calculado" helpKey="operationRegime"><ColdProInput readOnly value={isStatic ? "Batelada / estático" : "Contínuo"} /></ColdProField>
+              <ColdProField label="Modelo físico aplicado" helpKey="physicalModel"><ColdProInput readOnly value={tunnelResult.physicalModelLabel} /></ColdProField>
             </div>
             {staticWarning ? <ColdProValidationMessage tone="warning">Congelamento de caixa, pallet ou bloco depende da embalagem, arranjo, vazão e passagem real de ar. Use como estimativa conservadora.</ColdProValidationMessage> : null}
           </ColdProFormSection>
