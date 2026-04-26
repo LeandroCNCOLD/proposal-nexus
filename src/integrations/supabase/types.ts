@@ -2731,6 +2731,7 @@ export type Database = {
           air_delta_t_k: number
           air_exposure_factor: number | null
           air_temp_c: number
+          air_temp_source: string | null
           air_temp_step_c: number
           air_velocity_m_s: number
           air_velocity_step_m_s: number
@@ -2740,6 +2741,10 @@ export type Database = {
           batch_time_h: number
           belt_motor_kw: number
           boxes_count: number
+          calculated_mass_kg_h: number | null
+          calculation_breakdown: Json | null
+          calculation_log: Json | null
+          calculation_warnings: Json | null
           carbohydrate_content_percent: number | null
           convective_coefficient_effective_w_m2_k: number | null
           convective_coefficient_manual_w_m2_k: number | null
@@ -2766,6 +2771,7 @@ export type Database = {
           max_air_velocity_m_s: number
           min_air_temp_c: number
           min_air_velocity_m_s: number
+          missing_fields: Json | null
           notes: string | null
           number_of_pallets: number
           operation_mode: string
@@ -2782,6 +2788,7 @@ export type Database = {
           pallet_length_m: number
           pallet_mass_kg: number
           pallet_width_m: number
+          process_status: string | null
           process_time_min: number
           process_type: string
           product_id: string | null
@@ -2810,16 +2817,24 @@ export type Database = {
           thermal_conductivity_unfrozen_w_m_k: number | null
           thermal_penetration_factor: number | null
           tray_spacing_m: number
+          tunnel_internal_load_kw: number | null
+          tunnel_packaging_load_kw: number | null
+          tunnel_product_load_kw: number | null
+          tunnel_total_load_kcal_h: number | null
+          tunnel_total_load_kw: number | null
+          tunnel_total_load_tr: number | null
           tunnel_type: string
           unit_weight_kg: number
           units_per_cycle: number
           updated_at: string
+          used_mass_kg_h: number | null
           water_content_percent: number | null
         }
         Insert: {
           air_delta_t_k?: number
           air_exposure_factor?: number | null
           air_temp_c?: number
+          air_temp_source?: string | null
           air_temp_step_c?: number
           air_velocity_m_s?: number
           air_velocity_step_m_s?: number
@@ -2829,6 +2844,10 @@ export type Database = {
           batch_time_h?: number
           belt_motor_kw?: number
           boxes_count?: number
+          calculated_mass_kg_h?: number | null
+          calculation_breakdown?: Json | null
+          calculation_log?: Json | null
+          calculation_warnings?: Json | null
           carbohydrate_content_percent?: number | null
           convective_coefficient_effective_w_m2_k?: number | null
           convective_coefficient_manual_w_m2_k?: number | null
@@ -2855,6 +2874,7 @@ export type Database = {
           max_air_velocity_m_s?: number
           min_air_temp_c?: number
           min_air_velocity_m_s?: number
+          missing_fields?: Json | null
           notes?: string | null
           number_of_pallets?: number
           operation_mode?: string
@@ -2871,6 +2891,7 @@ export type Database = {
           pallet_length_m?: number
           pallet_mass_kg?: number
           pallet_width_m?: number
+          process_status?: string | null
           process_time_min?: number
           process_type?: string
           product_id?: string | null
@@ -2899,16 +2920,24 @@ export type Database = {
           thermal_conductivity_unfrozen_w_m_k?: number | null
           thermal_penetration_factor?: number | null
           tray_spacing_m?: number
+          tunnel_internal_load_kw?: number | null
+          tunnel_packaging_load_kw?: number | null
+          tunnel_product_load_kw?: number | null
+          tunnel_total_load_kcal_h?: number | null
+          tunnel_total_load_kw?: number | null
+          tunnel_total_load_tr?: number | null
           tunnel_type?: string
           unit_weight_kg?: number
           units_per_cycle?: number
           updated_at?: string
+          used_mass_kg_h?: number | null
           water_content_percent?: number | null
         }
         Update: {
           air_delta_t_k?: number
           air_exposure_factor?: number | null
           air_temp_c?: number
+          air_temp_source?: string | null
           air_temp_step_c?: number
           air_velocity_m_s?: number
           air_velocity_step_m_s?: number
@@ -2918,6 +2947,10 @@ export type Database = {
           batch_time_h?: number
           belt_motor_kw?: number
           boxes_count?: number
+          calculated_mass_kg_h?: number | null
+          calculation_breakdown?: Json | null
+          calculation_log?: Json | null
+          calculation_warnings?: Json | null
           carbohydrate_content_percent?: number | null
           convective_coefficient_effective_w_m2_k?: number | null
           convective_coefficient_manual_w_m2_k?: number | null
@@ -2944,6 +2977,7 @@ export type Database = {
           max_air_velocity_m_s?: number
           min_air_temp_c?: number
           min_air_velocity_m_s?: number
+          missing_fields?: Json | null
           notes?: string | null
           number_of_pallets?: number
           operation_mode?: string
@@ -2960,6 +2994,7 @@ export type Database = {
           pallet_length_m?: number
           pallet_mass_kg?: number
           pallet_width_m?: number
+          process_status?: string | null
           process_time_min?: number
           process_type?: string
           product_id?: string | null
@@ -2988,10 +3023,17 @@ export type Database = {
           thermal_conductivity_unfrozen_w_m_k?: number | null
           thermal_penetration_factor?: number | null
           tray_spacing_m?: number
+          tunnel_internal_load_kw?: number | null
+          tunnel_packaging_load_kw?: number | null
+          tunnel_product_load_kw?: number | null
+          tunnel_total_load_kcal_h?: number | null
+          tunnel_total_load_kw?: number | null
+          tunnel_total_load_tr?: number | null
           tunnel_type?: string
           unit_weight_kg?: number
           units_per_cycle?: number
           updated_at?: string
+          used_mass_kg_h?: number | null
           water_content_percent?: number | null
         }
         Relationships: [
