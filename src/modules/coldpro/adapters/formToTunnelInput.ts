@@ -10,6 +10,7 @@ function isStaticTunnel(processType: unknown, operationMode: unknown) {
 function calculateStaticMass(source: any, isStatic: boolean) {
   const staticMassMode = source?.static_mass_mode ?? "direct_pallet_mass";
   const numberOfPallets = safeNumber(source?.number_of_pallets, 1) || 1;
+  const numberOfCarts = safeNumber(source?.number_of_carts, 1) || 1;
   const unitWeightKg = safeNumber(source?.unit_weight_kg ?? source?.product_unit_weight_kg);
   const unitsPerBox = safeNumber(source?.units_per_box);
   const boxesPerLayer = safeNumber(source?.boxes_per_layer);
@@ -22,9 +23,13 @@ function calculateStaticMass(source: any, isStatic: boolean) {
   const packagingMassPerPalletKg = staticMassMode === "calculated_pallet_composition" ? safeNumber(source?.box_packaging_weight_kg) + safeNumber(source?.pallet_base_weight_kg) : safeNumber(source?.packaging_mass_per_pallet_kg);
   const calculatedPalletMassKg = staticMassMode === "calculated_pallet_composition" ? productMassPerPalletKg + packagingMassPerPalletKg : safeNumber(source?.calculated_pallet_mass_kg);
   const palletMassKg = staticMassMode === "calculated_pallet_composition" ? calculatedPalletMassKg : safeNumber(source?.pallet_mass_kg);
+  const unitsPerCart = safeNumber(source?.units_per_tray) * safeNumber(source?.trays_per_cart);
+  const calculatedCartMassKg = unitsPerCart * unitWeightKg + safeNumber(source?.tray_packaging_weight_kg) + safeNumber(source?.cart_structure_weight_kg);
+  const calculatedBatchMassKg = unitWeightKg * (unitsPerBox * safeNumber(source?.boxes_per_batch) || totalUnitsPerPallet || safeNumber(source?.units_per_pallet)) + safeNumber(source?.packaging_weight_kg);
   const savedStaticMassKg = safeNumber(source?.static_mass_kg ?? source?.staticMassKg);
-  const staticMassKg = isStatic ? (staticMassMode === "calculated_pallet_composition" ? calculatedPalletMassKg * numberOfPallets : palletMassKg * numberOfPallets) : savedStaticMassKg || palletMassKg * Math.max(1, numberOfPallets || 1);
-  return { staticMassMode, numberOfPallets, unitWeightKg, unitsPerBox, boxesPerLayer, numberOfLayers, totalUnitsPerPallet, unitsPerPallet, productMassPerPalletKg, packagingMassPerPalletKg, calculatedPalletMassKg, palletMassKg, staticMassKg };
+  const resolvedStaticMassKg = staticMassMode === "calculated_cart_composition" ? calculatedCartMassKg * numberOfCarts : staticMassMode === "direct_cart_mass" ? palletMassKg * numberOfCarts : staticMassMode === "calculated_batch_composition" ? calculatedBatchMassKg : staticMassMode === "direct_batch_mass" ? safeNumber(source?.direct_batch_mass_kg ?? source?.static_mass_kg) : staticMassMode === "calculated_pallet_composition" ? calculatedPalletMassKg * numberOfPallets : palletMassKg * numberOfPallets;
+  const staticMassKg = isStatic ? (savedStaticMassKg || resolvedStaticMassKg) : savedStaticMassKg || resolvedStaticMassKg;
+  return { staticMassMode, numberOfPallets, numberOfCarts, unitWeightKg, unitsPerBox, boxesPerLayer, numberOfLayers, totalUnitsPerPallet, unitsPerPallet, productMassPerPalletKg, packagingMassPerPalletKg, calculatedPalletMassKg, calculatedCartMassKg, calculatedBatchMassKg, palletMassKg, staticMassKg };
 }
 
 export function formToTunnelInput(form: any, environment: any) {
