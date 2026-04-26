@@ -7,11 +7,11 @@ export function toKW(kcalH: number) {
 }
 
 export const CHART_COLORS = [
-  "hsl(var(--primary))",
-  "hsl(var(--accent-foreground))",
-  "hsl(var(--muted-foreground))",
-  "hsl(var(--secondary-foreground))",
-  "hsl(var(--foreground))",
-  "hsl(var(--destructive))",
-  "hsl(var(--ring))",
+  "var(--chart-1)",
+  "var(--chart-2)",
+  "var(--chart-3)",
+  "var(--chart-4)",
+  "var(--chart-5)",
+  "var(--destructive)",
+  "var(--ring)",
 ];

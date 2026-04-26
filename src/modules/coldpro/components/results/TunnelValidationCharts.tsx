@@ -15,7 +15,7 @@ function MiniBar({ title, data, unit }: { title: string; data: { name: string; v
               <XAxis dataKey="name" fontSize={11} />
               <YAxis fontSize={11} />
               <Tooltip formatter={(value: number) => [`${fmtColdProChart(value, 2)} ${unit}`, title]} />
-              <Bar dataKey="value" fill="hsl(var(--primary))" radius={[5, 5, 0, 0]} />
+              <Bar dataKey="value" fill="var(--primary)" radius={[5, 5, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>

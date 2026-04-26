@@ -34,8 +34,8 @@ export function EquipmentCapacityChart({ normalized }: { normalized: ColdProNorm
               <XAxis dataKey="name" fontSize={11} />
               <YAxis tickFormatter={(value) => fmtColdProChart(value, 0)} fontSize={11} />
               <Tooltip formatter={(value: number) => [`${fmtColdProChart(value, 0)} kcal/h`, "Capacidade"]} />
-              <ReferenceLine y={normalized.summary.requiredKcalH} stroke="hsl(var(--destructive))" strokeDasharray="4 4" />
-              <Bar dataKey="value" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} />
+              <ReferenceLine y={normalized.summary.requiredKcalH} stroke="var(--destructive)" strokeDasharray="4 4" />
+              <Bar dataKey="value" fill="var(--primary)" radius={[6, 6, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>

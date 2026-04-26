@@ -25,7 +25,7 @@ export function TemperatureProfileLineChart({ normalized }: { normalized: ColdPr
             <XAxis dataKey="name" fontSize={11} />
             <YAxis unit="°C" fontSize={11} />
             <Tooltip formatter={(value: number) => [`${fmtColdProChart(value, 1)} °C`, "Temperatura"]} labelFormatter={(_, payload) => payload?.[0]?.payload ? `${payload[0].payload.name} · ${payload[0].payload.min} min` : ""} />
-            <Line type="monotone" dataKey="temp" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 4 }} />
+            <Line type="monotone" dataKey="temp" stroke="var(--primary)" strokeWidth={2} dot={{ r: 4 }} />
           </LineChart>
         </ResponsiveContainer>
       </div>
