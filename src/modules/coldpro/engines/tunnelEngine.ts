@@ -117,6 +117,13 @@ function getSmallestValidDimension(values: unknown[]): number {
 function normalizePhysicalModel(input: any): TunnelPhysicalModel {
   const processType = input?.processType ?? input?.process_type;
   const operationMode = input?.operationMode ?? input?.operation_mode;
+  const tunnelType = String(input?.tunnelType ?? input?.tunnel_type ?? "").toLowerCase().trim();
+  if (tunnelType === "fluidized_bed") return "fluidized_bed";
+  if (tunnelType === "blast_freezer") return "blast_freezer";
+  if (tunnelType === "spiral_girofreezer") return "continuous_spiral";
+  if (tunnelType === "static_cart") return "static_cart";
+  if (tunnelType === "static_pallet") return "static_block";
+  if (tunnelType === "continuous_belt") return "continuous_individual";
   if (isStaticTunnel(processType, operationMode)) return processType === "static_cart_freezing" ? "static_cart" : "static_block";
 
   const raw = String(input?.physicalModel ?? input?.tunnelPhysicalModel ?? input?.physical_model ?? input?.processType ?? input?.process_type ?? input?.tunnelMode ?? input?.tunnel_mode ?? "").toLowerCase().trim();
@@ -136,13 +143,15 @@ function isStaticTunnel(processType: unknown, operationMode: unknown) {
   return processType === "static_cart_freezing" || processType === "static_pallet_freezing" || operationMode === "batch";
 }
 
-function requiredPositiveFields(input: any, isStatic: boolean, staticMassKg: number, characteristicDimensionM: number, crossesFreezing: boolean): string[] {
+function requiredPositiveFields(input: any, isStatic: boolean, staticMassKg: number, characteristicDimensionM: number, crossesFreezing: boolean, airVelocityUsedMS: number): string[] {
   const commonNumericFields = ["initialTempC", "finalTempC", "freezingPointC"];
   const commonPositiveFields = ["cpAboveKJkgK"];
   const freezingPositiveFields = crossesFreezing ? ["cpBelowKJkgK", "latentHeatKJkg", "frozenWaterFraction"] : [];
   const missingNumericFields = commonNumericFields.filter((field) => !isProvided(input?.[field]) || !Number.isFinite(Number(input?.[field])));
   const missingPositiveFields = [...commonPositiveFields, ...freezingPositiveFields].filter((field) => !isProvided(input?.[field]) || toNumber(input?.[field], 0) <= 0);
-  const hasHInput = positiveNumber(input?.manualConvectiveCoefficientWM2K) > 0 || positiveNumber(input?.airVelocityMS) > 0;
+  const hasHInput = positiveNumber(input?.manualConvectiveCoefficientWM2K) > 0 || airVelocityUsedMS > 0;
+  const geometry = String(input?.productGeometry ?? input?.product_geometry ?? "slab");
+  const airflowSource = String(input?.airflowSource ?? input?.airflow_source ?? "manual_velocity");
 
   const continuousFields = [
     positiveNumber(input?.directMassKgH) <= 0 && positiveNumber(input?.unitWeightKg) * positiveNumber(input?.unitsPerCycle) * positiveNumber(input?.cyclesPerHour) <= 0 ? "massa usada" : "",
@@ -159,6 +168,21 @@ function requiredPositiveFields(input: any, isStatic: boolean, staticMassKg: num
     ...missingNumericFields,
     ...missingPositiveFields,
     ...(isStatic ? staticFields : continuousFields),
+    airflowSource === "airflow_by_fans" && positiveNumber(input?.fanAirflowM3H ?? input?.fan_airflow_m3_h) <= 0 ? "fan_airflow_m3_h" : "",
+    airflowSource === "airflow_by_fans" && positiveNumber(input?.tunnelCrossSectionWidthM ?? input?.tunnel_cross_section_width_m) <= 0 ? "tunnel_cross_section_width_m" : "",
+    airflowSource === "airflow_by_fans" && positiveNumber(input?.tunnelCrossSectionHeightM ?? input?.tunnel_cross_section_height_m) <= 0 ? "tunnel_cross_section_height_m" : "",
+    geometry === "slab" && positiveNumber(input?.productThicknessM ?? input?.product_thickness_m) <= 0 ? "product_thickness_m" : "",
+    geometry === "rectangular_prism" && positiveNumber(input?.productLengthM ?? input?.product_length_m) <= 0 ? "product_length_m" : "",
+    geometry === "rectangular_prism" && positiveNumber(input?.productWidthM ?? input?.product_width_m) <= 0 ? "product_width_m" : "",
+    geometry === "rectangular_prism" && positiveNumber(input?.productHeightM ?? input?.product_height_m) <= 0 ? "product_height_m" : "",
+    geometry === "cube" && positiveNumber(input?.productSideM ?? input?.product_side_m) <= 0 ? "product_side_m" : "",
+    geometry === "cylinder" && positiveNumber(input?.productDiameterM ?? input?.product_diameter_m) <= 0 ? "product_diameter_m" : "",
+    geometry === "cylinder" && positiveNumber(input?.productLengthM ?? input?.product_length_m) <= 0 ? "product_length_m" : "",
+    geometry === "sphere" && positiveNumber(input?.productDiameterM ?? input?.product_diameter_m) <= 0 ? "product_diameter_m" : "",
+    geometry === "packed_box" && positiveNumber(input?.boxLengthM ?? input?.box_length_m) <= 0 ? "box_length_m" : "",
+    geometry === "packed_box" && positiveNumber(input?.boxWidthM ?? input?.box_width_m) <= 0 ? "box_width_m" : "",
+    geometry === "packed_box" && positiveNumber(input?.boxHeightM ?? input?.box_height_m) <= 0 ? "box_height_m" : "",
+    geometry === "irregular" && positiveNumber(input?.characteristicDimensionM ?? input?.characteristic_dimension_m) <= 0 ? "characteristic_dimension_m" : "",
     !hasHInput && (isStatic || positiveNumber(input?.airVelocityMS) <= 0) ? "velocidade do ar ou coeficiente convectivo manual" : "",
   ];
 }
