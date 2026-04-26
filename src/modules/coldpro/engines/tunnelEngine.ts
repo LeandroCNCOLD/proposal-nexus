@@ -246,9 +246,11 @@ function calculateTunnelCore(input: any) {
   const calculatedMassKgH = positiveNumber(input?.unitWeightKg) * positiveNumber(input?.unitsPerCycle) * positiveNumber(input?.cyclesPerHour);
   const directMassKgH = positiveNumber(input?.directMassKgH);
   const usedMassKgH = tunnelMode.operationRegime === "batch" ? 0 : directMassKgH > 0 ? directMassKgH : calculatedMassKgH;
-  const palletMassKg = positiveNumber(input?.palletMassKg ?? input?.pallet_mass_kg);
-  const numberOfPallets = positiveNumber(input?.numberOfPallets ?? input?.number_of_pallets);
-  const staticMassKg = tunnelMode.operationRegime === "batch" ? positiveNumber(input?.staticMassKg ?? input?.static_mass_kg) || palletMassKg * numberOfPallets : positiveNumber(input?.staticMassKg ?? input?.static_mass_kg) || palletMassKg * Math.max(1, numberOfPallets || 1);
+  const staticMass = resolveStaticMass(input);
+  const palletMassKg = staticMass.palletMassKg;
+  const numberOfPallets = staticMass.numberOfPallets;
+  const calculatedPalletMassKg = staticMass.calculatedPalletMassKg;
+  const staticMassKg = tunnelMode.operationRegime === "batch" ? staticMass.staticMassKg : positiveNumber(input?.staticMassKg ?? input?.static_mass_kg) || palletMassKg * Math.max(1, numberOfPallets || 1);
   const airDeltaTK = positiveNumber(input?.airDeltaTK) || 6;
   const airDensityKgM3 = positiveNumber(input?.airDensityKgM3) || 1.2;
   const suggestedAirApproachK = positiveNumber(input?.suggestedAirApproachK) || 8;
@@ -351,12 +353,13 @@ function calculateTunnelCore(input: any) {
   const freezingTimeMissingFields = [
     positiveNumber(input?.densityKgM3) <= 0 ? "densidade do produto" : "",
     energy.crossesFreezingPoint && positiveNumber(input?.latentHeatKJkg) <= 0 ? "calor latente" : "",
-    energy.crossesFreezingPoint && positiveNumber(input?.frozenWaterFraction) <= 0 ? "fração de água congelável" : "",
+    energy.crossesFreezingPoint && positiveNumber(input?.frozenWaterFraction) <= 0 ? "fração congelável" : "",
     !isProvided(input?.freezingPointC) ? "temperatura de congelamento" : "",
     !isProvided(input?.airTempC) ? "temperatura do ar" : "",
-    distanceToCoreM <= 0 ? "distância até o núcleo" : "",
+    distanceToCoreM <= 0 ? "dimensão crítica para tempo até o núcleo" : "",
     toNumber(h.hEffectiveWM2K, 0) <= 0 ? "coeficiente convectivo efetivo" : "",
-    kEffectiveWMK <= 0 ? "condutividade efetiva" : "",
+    positiveNumber(input?.frozenConductivityWMK) <= 0 ? "condutividade congelada" : "",
+    positiveNumber(input?.thermalPenetrationFactor) <= 0 ? "fator de penetração térmica" : "",
   ];
   const invalidFields = unique([
     ...validation.invalidFields,
@@ -419,7 +422,7 @@ function calculateTunnelCore(input: any) {
       convectionAssumption: modelMeta.convectionAssumption,
     },
     mass: tunnelMode.operationRegime === "batch"
-      ? { mode: "batch", numberOfPallets, palletMassKg, staticMassKg, calculatedMassKgH, usedMassKgH: null, batchTimeH: input?.batchTimeH ?? null }
+      ? { mode: "batch", staticMassMode: input?.staticMassMode ?? input?.static_mass_mode ?? "direct_pallet_mass", numberOfPallets, palletMassKg, calculatedPalletMassKg, unitsPerPallet: input?.unitsPerPallet ?? input?.units_per_pallet ?? null, productMassPerPalletKg: input?.productMassPerPalletKg ?? input?.product_mass_per_pallet_kg ?? null, packagingMassPerPalletKg: input?.packagingMassPerPalletKg ?? input?.packaging_mass_per_pallet_kg ?? null, staticMassKg, calculatedMassKgH, usedMassKgH: null, batchTimeH: input?.batchTimeH ?? null }
       : { mode: "continuous", calculatedMassKgH, directMassKgH, usedMassKgH, retentionTimeMin: input?.retentionTimeMin ?? null },
     geometry: { tunnelType: tunnelMode.tunnelType, arrangementType: tunnelMode.arrangementType, productGeometry: input?.productGeometry ?? input?.product_geometry ?? null, surfaceExposureModel: exposure.surfaceExposureModel, thermalModelForPallet: geometry.thermalModelForPallet ?? input?.thermalModelForPallet ?? input?.thermal_model_for_pallet ?? null, characteristicDimensionM, distanceToCoreM, geometrySource: geometry.source },
     productEnergy: productEnergyBreakdown,
