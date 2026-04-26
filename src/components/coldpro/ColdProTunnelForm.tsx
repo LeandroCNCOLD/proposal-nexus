@@ -179,6 +179,31 @@ function positiveValue(...values: unknown[]) {
   return 0;
 }
 
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
+}
+
+function roundPreset(value: number, digits = 4) {
+  const factor = 10 ** digits;
+  return Math.round(value * factor) / factor;
+}
+
+function recommendedTunnelAirVelocity(tunnelType: string, isStatic: boolean) {
+  if (tunnelType === "fluidized_bed") return 4.5;
+  if (tunnelType === "spiral_girofreezer") return 3.5;
+  if (tunnelType === "static_pallet" || tunnelType === "blast_freezer") return 2;
+  if (isStatic) return 2.5;
+  return 3;
+}
+
+function recommendedBlockageFactor(tunnelType: string, arrangementType: unknown) {
+  const arrangement = String(arrangementType ?? "");
+  if (tunnelType === "fluidized_bed") return 0.12;
+  if (arrangement.includes("pallet") || arrangement.includes("block") || arrangement.includes("boxes")) return 0.3;
+  if (arrangement.includes("tray") || arrangement.includes("rack")) return 0.22;
+  return 0.18;
+}
+
 function kcalFromThermal(kcal?: unknown, kj?: unknown) {
   return positiveValue(kcal) || positiveValue(kj) / 4.1868;
 }
