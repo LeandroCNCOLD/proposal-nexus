@@ -14,11 +14,29 @@ const ARRANGEMENT_DEFAULTS: Record<string, { air: number; penetration: number; l
 };
 
 type DimensionUnit = "m" | "cm" | "mm";
+type WeightUnit = "kg" | "g";
+type CycleUnit = "h" | "min";
+type RetentionUnit = "min" | "h";
 
 const DIMENSION_UNITS: Record<DimensionUnit, { label: string; toMeters: number; step: string }> = {
   m: { label: "m", toMeters: 1, step: "0.001" },
   cm: { label: "cm", toMeters: 0.01, step: "0.1" },
   mm: { label: "mm", toMeters: 0.001, step: "1" },
+};
+
+const WEIGHT_UNITS: Record<WeightUnit, { label: string; toKg: number; step: string }> = {
+  kg: { label: "kg", toKg: 1, step: "0.001" },
+  g: { label: "g", toKg: 0.001, step: "1" },
+};
+
+const CYCLE_UNITS: Record<CycleUnit, { label: string; toCyclesPerHour: number; step: string }> = {
+  h: { label: "ciclos/h", toCyclesPerHour: 1, step: "0.1" },
+  min: { label: "ciclos/min", toCyclesPerHour: 60, step: "0.1" },
+};
+
+const RETENTION_UNITS: Record<RetentionUnit, { label: string; toMinutes: number; step: string }> = {
+  min: { label: "min", toMinutes: 1, step: "1" },
+  h: { label: "h", toMinutes: 60, step: "0.1" },
 };
 
 const defaultTunnel = (environmentId: string) => ({
@@ -93,6 +111,9 @@ export function ColdProTunnelForm({ environmentId, tunnel, productCatalog = [], 
   const [selectedGroup, setSelectedGroup] = React.useState("");
   const [continuousUnit, setContinuousUnit] = React.useState<DimensionUnit>("m");
   const [staticUnit, setStaticUnit] = React.useState<DimensionUnit>("m");
+  const [weightUnit, setWeightUnit] = React.useState<WeightUnit>("kg");
+  const [cycleUnit, setCycleUnit] = React.useState<CycleUnit>("h");
+  const [retentionUnit, setRetentionUnit] = React.useState<RetentionUnit>("min");
 
   React.useEffect(() => setForm((prev: any) => ({ ...prev, ...(tunnel ?? {}), environment_id: environmentId })), [environmentId, tunnel?.id]);
 
