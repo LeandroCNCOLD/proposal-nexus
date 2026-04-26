@@ -44,7 +44,7 @@ const RETENTION_UNITS: Record<RetentionUnit, { label: string; toMinutes: number;
 
 const defaultTunnel = (environmentId: string) => ({
   environment_id: environmentId,
-  tunnel_type: "blast_freezer",
+  tunnel_type: "continuous_belt",
   arrangement_type: "individual_units",
   product_geometry: "slab",
   surface_exposure_model: "fully_exposed",
@@ -354,7 +354,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
   };
 
   const setArrangementType = (value: string) => {
-    const defaults = ARRANGEMENT_DEFAULTS[value] ?? ARRANGEMENT_DEFAULTS.individual_exposed;
+    const defaults = ARRANGEMENT_DEFAULTS[value] ?? ARRANGEMENT_DEFAULTS.individual_units;
     setForm((prev: any) => ({ ...prev, arrangement_type: value, air_exposure_factor: defaults.air, thermal_penetration_factor: defaults.penetration }));
   };
 
@@ -421,6 +421,8 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
   const save = () => onSave({
     ...form,
     physical_model: tunnelResult.physicalModel,
+    tunnel_type: tunnelResult.tunnelType,
+    arrangement_type: tunnelResult.arrangementType,
     spiral_turbulence_factor: Number(form.spiral_turbulence_factor ?? 1.8),
     block_exposure_factor: Number(form.block_exposure_factor ?? 0.7),
     staticMassKg: tunnelResult.staticMassKg ?? null,
