@@ -515,6 +515,8 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
       respiration_rate_20c_mw_kg: p.respiration_rate_20c_mw_kg ?? null,
       notes: p.notes ?? null,
     }));
+    setSelectedGroup(p.category ?? "");
+    setProductSearch(p.name ?? "");
   };
 
   const save = () => onSave({
@@ -800,8 +802,14 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
 
           <ColdProFormSection title="Etapa 2 — Produto e geometria" description="Separe a dimensão da unidade/caixa da dimensão do pallet, carrinho ou bloco." icon={<Package className="h-4 w-4" />}>
             <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(18rem,0.85fr)_minmax(0,1.45fr)]"><div className="min-w-0 rounded-lg border bg-muted/20 p-3 sm:p-4">
-              <ColdProField label="Grupo ASHRAE"><ColdProSelect value={selectedGroup} onChange={(e) => { setSelectedGroup(e.target.value); set("product_id", null); }}><option value="">Seleção manual</option>{groups.map((group) => <option key={group} value={group}>{group}</option>)}</ColdProSelect></ColdProField>
-              <ColdProField label="Produto ASHRAE"><ColdProSelect value={form.product_id ?? ""} disabled={!selectedGroup} onChange={(e) => applyProduct(e.target.value)}><option value="">{selectedGroup ? "Selecione o produto" : "Selecione primeiro o grupo"}</option>{filteredProducts.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</ColdProSelect></ColdProField>
+              <ColdProField label="Pesquisar produto">
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <ColdProInput type="search" value={productSearch} onChange={(e) => setProductSearch(e.target.value)} placeholder="Digite o nome ou iniciais" className="pl-9 text-left" />
+                </div>
+              </ColdProField>
+              <ColdProField label="Grupo ASHRAE"><ColdProSelect value={selectedGroup} onChange={(e) => { setSelectedGroup(e.target.value); setProductSearch(""); set("product_id", null); }}><option value="">Seleção manual</option>{groups.map((group) => <option key={group} value={group}>{group}</option>)}</ColdProSelect></ColdProField>
+              <ColdProField label="Produto ASHRAE"><ColdProSelect value={form.product_id ?? ""} disabled={filteredProducts.length === 0} onChange={(e) => applyProduct(e.target.value)}><option value="">{filteredProducts.length ? "Selecione o produto" : "Nenhum produto encontrado"}</option>{filteredProducts.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</ColdProSelect></ColdProField>
               <ColdProField label="Produto"><ColdProInput type="text" value={form.product_name ?? ""} onChange={(e) => set("product_name", e.target.value)} className="text-left" /></ColdProField>
             </div><div className="min-w-0 rounded-lg border bg-muted/20 p-3 sm:p-4">{productGeometryFields}</div></div>
             <ColdProValidationMessage tone="error">{requiredError ? "Informe o produto do túnel." : ""}</ColdProValidationMessage>
