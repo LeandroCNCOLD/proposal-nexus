@@ -34,6 +34,8 @@ export function ColdProRealSelection({ environment, result, onSelect, isSelectin
   const [tCond, setTCond] = useState<string>(String(Math.max(40, Math.round(tExt + 10))));
   const [application, setApplication] = useState<"HT" | "MT" | "LT" | "AUTO">("AUTO");
   const [refrigerant, setRefrigerant] = useState<string>("ALL");
+  const [equipmentKind, setEquipmentKind] = useState<"ALL" | "plugin" | "biblock" | "split">("ALL");
+  const [minQuantity, setMinQuantity] = useState<string>("1");
   const [enabled, setEnabled] = useState(false);
 
   const requiredKcal = Number(result?.total_required_kcal_h ?? 0);
@@ -46,9 +48,11 @@ export function ColdProRealSelection({ environment, result, onSelect, isSelectin
       condensation_temp_c: Number(tCond || tExt + 10),
       application: application === "AUTO" ? suggestApplication(tInt) : application,
       refrigerant: refrigerant === "ALL" ? null : refrigerant,
+      equipment_kind: equipmentKind === "ALL" ? null : equipmentKind,
+      min_quantity: Math.max(1, Math.ceil(Number(minQuantity || 1))),
       volume_m3: Number(environment?.volume_m3 ?? 0),
     }),
-    [requiredKcal, tInt, tExt, tEvap, tCond, application, refrigerant, environment?.volume_m3],
+    [requiredKcal, tInt, tExt, tEvap, tCond, application, refrigerant, equipmentKind, minQuantity, environment?.volume_m3],
   );
 
   const refrigerantsQuery = useQuery({
@@ -132,6 +136,29 @@ export function ColdProRealSelection({ environment, result, onSelect, isSelectin
                 ))}
               </SelectContent>
             </Select>
+          </ColdProField>
+          <ColdProField label="Tipo de equipamento">
+            <Select value={equipmentKind} onValueChange={(v) => setEquipmentKind(v as any)}>
+              <SelectTrigger className="h-8 border-0 border-b border-input bg-background shadow-none focus:ring-0">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">Todos</SelectItem>
+                <SelectItem value="plugin">Plug-in</SelectItem>
+                <SelectItem value="biblock">Bi-bloco</SelectItem>
+                <SelectItem value="split">Split</SelectItem>
+              </SelectContent>
+            </Select>
+          </ColdProField>
+          <ColdProField label="Qtd. mínima de equipamentos">
+            <Input
+              type="number"
+              min={1}
+              step={1}
+              value={minQuantity}
+              onChange={(e) => setMinQuantity(e.target.value)}
+              className="h-8 border-0 border-b border-input bg-background text-right shadow-none focus-visible:border-primary focus-visible:ring-0"
+            />
           </ColdProField>
         </div>
 
