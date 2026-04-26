@@ -424,15 +424,43 @@ export const pullNomusProcesses = createServerFn({ method: "POST" })
       .default({}),
   )
   .handler(async ({ data, context }) => {
-    const r = await syncNomusProcessesFullScan({
-      tipos: data?.tipos,
-      triggeredBy: context.userId,
-      maxPages: data?.maxPages ?? 50,
-      maxItems: data?.maxItems ?? 5_000,
-    });
-    return r.ok
-      ? { ok: true as const, total: r.processed ?? 0, upserted: r.count ?? 0, stagesDiscovered: [] }
-      : { ok: false as const, error: r.error ?? "Falha ao sincronizar processos" };
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const userId = context.userId;
+    const tipos = (data?.tipos ?? []).map((t) => t.trim()).filter(Boolean);
+    const { data: existingJob } = await (supabaseAdmin as any)
+      .from("nomus_process_sync_jobs")
+      .select("*")
+      .eq("requested_by", userId)
+      .in("status", ["queued", "running"])
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const job = existingJob ?? (await (supabaseAdmin as any)
+      .from("nomus_process_sync_jobs")
+      .insert({
+        requested_by: userId,
+        status: "queued",
+        tipos,
+        max_items: data?.maxItems ?? 5_000,
+        page_size: 50,
+        current_page: 1,
+      })
+      .select("*")
+      .single()).data;
+
+    if (!job?.id) return { ok: false as const, error: "Não foi possível iniciar a sincronização do funil." };
+    const batch = await processNomusProcessSyncBatch({ data: { jobId: job.id, maxPages: data?.maxPages ?? 2 } });
+    if (!batch.ok) return { ok: false as const, error: batch.error ?? "Falha ao sincronizar processos" };
+    return {
+      ok: true as const,
+      total: batch.job?.processed_items ?? 0,
+      upserted: batch.job?.upserted_items ?? 0,
+      done: batch.done,
+      job: batch.job,
+      warning: batch.warning,
+      stagesDiscovered: [],
+    };
   });
 
 export const startNomusProcessSyncJob = createServerFn({ method: "POST" })
