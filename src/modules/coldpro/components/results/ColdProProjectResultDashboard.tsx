@@ -45,7 +45,6 @@ export function ColdProProjectResultDashboard(props: Props) {
   const consolidated = consolidateColdProProjectResult(props);
   const [analysis, setAnalysis] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
-  const max = Math.max(1, ...consolidated.ranking.map((item) => item.requiredKcalH));
   const environmentRows = projectEnvironmentRows(consolidated);
   const groupedRows = projectGroupedRows(consolidated);
 
@@ -85,23 +84,7 @@ export function ColdProProjectResultDashboard(props: Props) {
         <LoadRankingBarChart title="Ranking de ambientes por carga" subtitle="Ambientes mais pesados no dimensionamento geral." data={environmentRows} total={consolidated.summary.requiredKcalH} />
       </div>
 
-      <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <div className="rounded-xl border p-4">
-          <h4 className="mb-3 text-sm font-semibold">Ranking de ambientes por carga</h4>
-          <div className="space-y-3">
-            {consolidated.ranking.map((item) => (
-              <div key={item.environmentId ?? item.name} className="space-y-1.5">
-                <div className="flex items-center justify-between gap-3 text-sm">
-                  <span className="font-medium">{item.position}. {item.name}</span>
-                  <b className="tabular-nums">{fmtColdProChart(item.requiredKcalH, 0)} kcal/h</b>
-                </div>
-                <div className="h-2 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary" style={{ width: `${Math.max(3, (item.requiredKcalH / max) * 100)}%` }} /></div>
-                <div className="text-xs text-muted-foreground">Capacidade selecionada: {fmtColdProChart(item.selectedCapacityKcalH, 0)} kcal/h · Sobra: {fmtColdProChart(item.surplusPercent, 1)}%</div>
-              </div>
-            ))}
-          </div>
-        </div>
-
+      <div className="mt-5 grid gap-4">
         <div className="rounded-xl border p-4">
           <h4 className="mb-3 text-sm font-semibold">Auditoria global</h4>
           {consolidated.consistencyAudit.hasCriticalDivergence ? (
