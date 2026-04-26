@@ -32,7 +32,20 @@ function getSmallestValidDimension(values: unknown[]): number {
   return dimensions.length > 0 ? Math.min(...dimensions) : 0;
 }
 
-function requiredPositiveFields(input: any, isStatic: boolean): string[] {
+function isStaticTunnel(input: any, processType: string | null): boolean {
+  const normalizedProcessType = String(processType ?? "").toLowerCase();
+  return (
+    normalizedProcessType === "static_cart_freezing" ||
+    normalizedProcessType === "static_pallet_freezing" ||
+    normalizedProcessType.includes("static") ||
+    input?.operationMode === "batch" ||
+    input?.operation_mode === "batch" ||
+    input?.tunnelMode === "static" ||
+    input?.tunnel_mode === "static"
+  );
+}
+
+function requiredPositiveFields(input: any, isStatic: boolean, staticMassKg: number, characteristicDimensionM: number): string[] {
   const requiredNumericFields = ["initialTempC", "finalTempC", "freezingPointC"];
   const commonPositiveFields = [
     "cpAboveKJkgK",
@@ -41,14 +54,20 @@ function requiredPositiveFields(input: any, isStatic: boolean): string[] {
     "frozenWaterFraction",
   ];
 
-  const processFields = isStatic
-    ? ["staticMassKg", "batchTimeH", "palletLengthM", "palletWidthM", "palletHeightM"]
-    : ["productThicknessM", "retentionTimeMin"];
-
   const missingNumericFields = requiredNumericFields.filter((field) => !isProvided(input?.[field]) || !Number.isFinite(Number(input?.[field])));
-  const missingPositiveFields = [...commonPositiveFields, ...processFields].filter((field) => !isProvided(input?.[field]) || toNumber(input?.[field], 0) <= 0);
+  const missingPositiveFields = commonPositiveFields.filter((field) => !isProvided(input?.[field]) || toNumber(input?.[field], 0) <= 0);
+  const processFields = isStatic
+    ? [
+        staticMassKg <= 0 ? "massa estática do lote" : "",
+        positiveNumber(input?.batchTimeH) <= 0 ? "tempo de batelada" : "",
+        characteristicDimensionM <= 0 ? "dimensões do pallet/bloco" : "",
+      ]
+    : [
+        positiveNumber(input?.productThicknessM) <= 0 ? "productThicknessM" : "",
+        positiveNumber(input?.retentionTimeMin) <= 0 ? "retentionTimeMin" : "",
+      ];
 
-  return [...missingNumericFields, ...missingPositiveFields];
+  return [...missingNumericFields, ...missingPositiveFields, ...processFields];
 }
 
 function canEstimateFreezingTime(input: any, distanceToCoreM: number, hEffectiveWM2K: number | null, kEffectiveWMK: number): boolean {
@@ -67,16 +86,15 @@ function canEstimateFreezingTime(input: any, distanceToCoreM: number, hEffective
 export function calculateTunnelEngine(input: any) {
   const validation = validateTunnelInput(input);
   const processType = input?.processType ?? input?.process_type ?? null;
-  const isStatic =
-    processType === "static_cart_freezing" ||
-    processType === "static_pallet_freezing" ||
-    input?.operationMode === "batch";
+  const isStatic = isStaticTunnel(input, processType);
 
   const calculatedMassKgH =
     positiveNumber(input?.unitWeightKg) * positiveNumber(input?.unitsPerCycle) * positiveNumber(input?.cyclesPerHour);
   const directMassKgH = positiveNumber(input?.directMassKgH);
   const usedMassKgH = !isStatic && directMassKgH > 0 ? directMassKgH : calculatedMassKgH;
-  const staticMassKg = positiveNumber(input?.staticMassKg);
+  const palletMassKg = positiveNumber(input?.palletMassKg ?? input?.pallet_mass_kg);
+  const numberOfPallets = Math.max(1, positiveNumber(input?.numberOfPallets ?? input?.number_of_pallets) || 1);
+  const staticMassKg = positiveNumber(input?.staticMassKg) || (palletMassKg * numberOfPallets);
 
   const engineWarnings: string[] = [];
   if (!isStatic && directMassKgH > 0 && calculatedMassKgH > 0) {
@@ -153,7 +171,7 @@ export function calculateTunnelEngine(input: any) {
     : null;
   const availableTimeMin = isStatic ? positiveNumber(input?.batchTimeH) * 60 : positiveNumber(input?.retentionTimeMin);
 
-  const missingFields = unique([...validation.missingFields, ...requiredPositiveFields(input, isStatic)]);
+  const missingFields = unique([...validation.missingFields, ...requiredPositiveFields(input, isStatic, staticMassKg, characteristicDimensionM)]);
   const warnings = unique([...validation.warnings, ...engineWarnings]);
   const invalidFields = unique(validation.invalidFields);
 
@@ -169,11 +187,13 @@ export function calculateTunnelEngine(input: any) {
 
   const calculationBreakdown = {
     mass: {
+      mode: isStatic ? "static" : "continuous",
+      staticMassKg,
       calculatedMassKgH,
       directMassKgH,
       usedMassKgH,
-      staticMassKg,
-      isStatic,
+      batchTimeH: input?.batchTimeH ?? null,
+      retentionTimeMin: input?.retentionTimeMin ?? null,
     },
     geometry: {
       characteristicDimensionM,
@@ -202,6 +222,7 @@ export function calculateTunnelEngine(input: any) {
     timing: {
       estimatedTimeMin,
       availableTimeMin,
+      status,
       retentionTimeMin: input?.retentionTimeMin ?? null,
       batchTimeH: input?.batchTimeH ?? null,
     },

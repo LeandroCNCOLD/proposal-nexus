@@ -319,6 +319,8 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
 
   const save = () => onSave({
     ...form,
+    staticMassKg: tunnelResult.staticMassKg ?? null,
+    static_mass_kg: tunnelResult.staticMassKg ?? null,
     product_name: String(form.product_name ?? "").trim(),
     product_thickness_m: productThicknessM,
     product_thickness_mm: productThicknessM * 1000,
@@ -350,6 +352,41 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
     tunnel_total_load_kcal_h: tunnelResult.totalKcalH ?? null,
     tunnel_total_load_tr: tunnelResult.totalTR ?? null,
   });
+
+  const statusLabel: Record<string, string> = {
+    adequate: "Adequado",
+    insufficient: "Insuficiente",
+    missing_data: "Faltam dados",
+    invalid_input: "Dados inválidos",
+  };
+  const tunnelResultCards = (
+    <>
+      <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <ColdProCalculatedInfo label={isStatic ? "Massa do lote" : "Massa usada"} value={`${fmtColdPro(isStatic ? tunnelResult.staticMassKg : tunnelResult.usedMassKgH)} ${isStatic ? "kg" : "kg/h"}`} description={isStatic ? "pallet/lote × quantidade" : "kg/h usado no motor"} tone={(isStatic ? tunnelResult.staticMassKg : tunnelResult.usedMassKgH) > 0 ? "success" : "warning"} />
+        {!isStatic ? <ColdProCalculatedInfo label="Massa por cadência" value={`${fmtColdPro(tunnelResult.calculatedMassKgH)} kg/h`} description="peso × unidades × ciclos/h" tone={tunnelResult.calculatedMassKgH > 0 ? "info" : "warning"} /> : null}
+        <ColdProCalculatedInfo label={isStatic ? "Tempo de batelada" : "Tempo de retenção"} value={`${fmtColdPro(tunnelResult.availableTimeMin, 1)} min`} description={isStatic ? `${fmtColdPro(Number(form.batch_time_h ?? 0), 2)} h` : "tempo disponível"} tone={tunnelResult.availableTimeMin > 0 ? "info" : "warning"} />
+        <ColdProCalculatedInfo label="Dimensão característica" value={`${fmtColdPro(tunnelResult.characteristicDimensionM, 3)} m`} description="menor dimensão térmica" tone={tunnelResult.characteristicDimensionM > 0 ? "info" : "warning"} />
+        <ColdProCalculatedInfo label="Distância até o núcleo" value={`${fmtColdPro(tunnelResult.distanceToCoreM * 1000, 1)} mm`} description="dimensão característica ÷ 2" tone={tunnelResult.distanceToCoreM > 0 ? "info" : "warning"} />
+        <ColdProCalculatedInfo label="Energia específica total" value={`${fmtColdPro(tunnelResult.energy.totalKJkg, 2)} kJ/kg`} description="sensível + latente" tone={tunnelResult.energy.totalKJkg > 0 ? "success" : "warning"} />
+        <ColdProCalculatedInfo label="Sensível acima" value={`${fmtColdPro(tunnelResult.energy.sensibleAboveKJkg, 2)} kJ/kg`} description="Cp acima × ΔT" tone="info" />
+        <ColdProCalculatedInfo label="Latente" value={`${fmtColdPro(tunnelResult.energy.latentKJkg, 2)} kJ/kg`} description="calor latente × fração" tone="info" />
+        <ColdProCalculatedInfo label="Sensível abaixo" value={`${fmtColdPro(tunnelResult.energy.sensibleBelowKJkg, 2)} kJ/kg`} description="Cp abaixo × ΔT" tone="info" />
+        <ColdProCalculatedInfo label="Carga do produto" value={`${fmtColdPro(tunnelResult.productLoadKW, 2)} kW`} description={`${fmtColdPro(tunnelResult.productLoadKW * 859.845, 0)} kcal/h`} tone={tunnelResult.productLoadKW > 0 ? "success" : "warning"} />
+        <ColdProCalculatedInfo label="Carga embalagem" value={`${fmtColdPro(tunnelResult.packagingLoadKW, 2)} kW`} description="massa embalagem × Cp × ΔT" tone="info" />
+        <ColdProCalculatedInfo label="Carga interna" value={`${fmtColdPro(tunnelResult.internalLoadKW, 2)} kW`} description="motores + ventiladores + outras" tone="info" />
+        <ColdProCalculatedInfo label="Carga total em kW" value={`${fmtColdPro(tunnelResult.totalKW, 2)} kW`} description="produto + embalagem + interna" tone={tunnelResult.totalKW > 0 ? "success" : "warning"} />
+        <ColdProCalculatedInfo label="Carga total em kcal/h" value={`${fmtColdPro(tunnelResult.totalKcalH, 0)} kcal/h`} description="carga total convertida" tone="info" />
+        <ColdProCalculatedInfo label="Carga total em TR" value={`${fmtColdPro(tunnelResult.totalTR, 2)} TR`} description="carga total convertida" tone="info" />
+        <ColdProCalculatedInfo label="h efetivo" value={fmtMaybe(tunnelResult.h.hEffectiveWM2K, 2, " W/m²K")} description={`Fonte: ${tunnelResult.h.source}`} tone={tunnelResult.h.hEffectiveWM2K ? "info" : "warning"} />
+        <ColdProCalculatedInfo label="k efetivo" value={fmtMaybe(tunnelResult.kEffectiveWMK, 3, " W/mK")} description="condutividade × penetração" tone={tunnelResult.kEffectiveWMK ? "info" : "warning"} />
+        <ColdProCalculatedInfo label="Tempo estimado" value={fmtMaybe(tunnelResult.estimatedTimeMin, 1, " min")} description="estimativa até o núcleo" tone={tunnelResult.estimatedTimeMin ? "info" : "warning"} />
+        <ColdProCalculatedInfo label="Tempo disponível" value={`${fmtColdPro(tunnelResult.availableTimeMin, 1)} min`} description={isStatic ? "batelada" : "retenção"} tone={tunnelResult.availableTimeMin > 0 ? "info" : "warning"} />
+        <ColdProCalculatedInfo label="Status" value={statusLabel[tunnelResult.status] ?? tunnelResult.status} description="tempo estimado × disponível" tone={tunnelResult.status === "adequate" ? "success" : "warning"} />
+      </div>
+      {tunnelResult.warnings.length > 0 ? <div className="mt-4 rounded-lg border border-warning/20 bg-warning/10 p-3 text-sm text-warning"><div className="mb-2 flex items-center gap-2 font-semibold"><AlertTriangle className="h-4 w-4" /> Alertas técnicos:</div><ul className="list-disc space-y-1 pl-5">{tunnelResult.warnings.map((warning: string, index: number) => <li key={`${warning}-${index}`}>{warning}</li>)}</ul></div> : null}
+      {tunnelResult.missingFields.length > 0 ? <div className="mt-4 rounded-lg border border-warning/20 bg-warning/10 p-3 text-sm text-warning"><div className="mb-2 flex items-center gap-2 font-semibold"><AlertTriangle className="h-4 w-4" /> Dados necessários para cálculo completo:</div><ul className="list-disc space-y-1 pl-5">{tunnelResult.missingFields.map((field: string, index: number) => <li key={`${field}-${index}`}>{field}</li>)}</ul></div> : null}
+    </>
+  );
 
   return (
     <div className="rounded-xl border bg-background p-5 shadow-sm">
@@ -451,53 +488,11 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
               </ColdProField>
               <ColdProField label="Tempo retenção" unit={RETENTION_UNITS[retentionUnit].label}><ColdProInput {...retentionNum(retentionUnit)} /></ColdProField>
             </div></div>
-            <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              <ColdProCalculatedInfo label="Massa usada" value={`${fmtColdPro(tunnelResult.usedMassKgH)} kg/h`} description="motor modular ColdPro" tone={tunnelResult.usedMassKgH > 0 ? "success" : "warning"} />
-              <ColdProCalculatedInfo label="Massa por cadência" value={`${fmtColdPro(tunnelResult.calculatedMassKgH)} kg/h`} description="peso × unidades × ciclos/h" tone={tunnelResult.calculatedMassKgH > 0 ? "info" : "warning"} />
-              <ColdProCalculatedInfo label="Massa direta" value={fmtMaybe(giroResult.mass.directMassKgH, 2, " kg/h")} description="prioritária quando informada" tone={giroResult.mass.directMassKgH ? "success" : "info"} />
-              <ColdProCalculatedInfo label="Massa dentro do túnel" value={`${fmtColdPro(giroResult.mass.massInsideTunnelKg)} kg`} description="kg/h × tempo de retenção" tone={giroResult.mass.massInsideTunnelKg > 0 ? "info" : "warning"} />
-              <ColdProCalculatedInfo label="Dimensão característica" value={`${fmtColdPro(tunnelResult.characteristicDimensionM, 3)} m`} description="menor dimensão térmica" tone={tunnelResult.characteristicDimensionM > 0 ? "info" : "warning"} />
-              <ColdProCalculatedInfo label="Distância até o núcleo" value={`${fmtColdPro(tunnelResult.distanceToCoreM * 1000, 1)} mm`} description="dimensão característica ÷ 2" tone={tunnelResult.distanceToCoreM > 0 ? "info" : "warning"} />
-              <ColdProCalculatedInfo label="Volume unitário" value={`${fmtColdPro(giroResult.dimensionsM.volumeM3, 6)} m³`} description="comprimento × largura × espessura" tone={giroResult.dimensionsM.volumeM3 > 0 ? "info" : "warning"} />
-              <ColdProCalculatedInfo label="Densidade calculada" value={fmtMaybe(giroResult.physics.densityCalculatedKgM3, 3, " kg/m³")} description="peso unitário ÷ volume" tone={giroResult.physics.densityValidationStatus === "valid" ? "success" : "warning"} />
-              <ColdProCalculatedInfo label="Densidade usada" value={`${fmtColdPro(giroResult.physics.densityUsedKgM3, 1)} kg/m³`} description={`Origem: ${DENSITY_SOURCE_LABEL[giroResult.physics.densitySource]}`} tone={giroResult.physics.densitySource === "default_estimated" ? "warning" : "info"} />
-              <ColdProCalculatedInfo label="Status da densidade" value={DENSITY_STATUS_LABEL[giroResult.physics.densityValidationStatus]} description={giroResult.physics.densityValidationMessage} tone={giroResult.physics.densityValidationStatus === "valid" ? "success" : "warning"} />
-              <ColdProCalculatedInfo label="Carga específica" value={`${fmtColdPro(thermalResult.qSpecificTotalKjKg, 2)} kJ/kg`} description="energia total por kg" tone={thermalResult.qSpecificTotalKjKg > 0 ? "success" : "warning"} />
-              <ColdProCalculatedInfo label="Sensível acima" value={`${fmtColdPro(thermalResult.qSpecificAboveKjKg, 2)} kJ/kg`} description="Cp acima × ΔT" tone="info" />
-              <ColdProCalculatedInfo label="Latente" value={`${fmtColdPro(thermalResult.qSpecificLatentKjKg, 2)} kJ/kg`} description="calor latente × fração" tone="info" />
-              <ColdProCalculatedInfo label="Sensível abaixo" value={`${fmtColdPro(thermalResult.qSpecificBelowKjKg, 2)} kJ/kg`} description="Cp abaixo × ΔT" tone="info" />
-              <ColdProCalculatedInfo label="Carga do produto" value={`${fmtColdPro(tunnelResult.productLoadKW, 2)} kW`} description={`${fmtColdPro(tunnelResult.productLoadKW * 859.845, 0)} kcal/h`} tone={tunnelResult.productLoadKW > 0 ? "success" : "warning"} />
-              <ColdProCalculatedInfo label="Carga da embalagem" value={`${fmtColdPro(tunnelResult.packagingLoadKW, 2)} kW`} description="massa embalagem × Cp × ΔT" tone="info" />
-              <ColdProCalculatedInfo label="Carga interna" value={`${fmtColdPro(tunnelResult.internalLoadKW, 2)} kW`} description="motores + ventiladores + outras" tone="info" />
-              <ColdProCalculatedInfo label="Carga total processo" value={`${fmtColdPro(tunnelResult.totalKW, 2)} kW`} description="produto + embalagem + interna" tone={tunnelResult.totalKW > 0 ? "success" : "warning"} />
-              <ColdProCalculatedInfo label="Capacidade em kcal/h" value={`${fmtColdPro(tunnelResult.totalKcalH, 0)} kcal/h`} description="carga total convertida" tone="info" />
-              <ColdProCalculatedInfo label="Capacidade em TR" value={`${fmtColdPro(tunnelResult.totalTR, 2)} TR`} description="carga total convertida" tone="info" />
-              <ColdProCalculatedInfo label="Vazão de ar necessária" value={fmtMaybe(thermalResult.requiredAirflowM3H, 0, " m³/h")} description="potência ÷ ar × Cp × ΔT" tone={thermalResult.requiredAirflowM3H ? "info" : "warning"} />
-              <ColdProCalculatedInfo label="Temperatura do ar usada" value={`${fmtColdPro(giroResult.physics.airTemperatureUsedC, 1)} °C`} description={environment?.internal_temp_c != null ? "temperatura interna do ambiente" : "base do cálculo térmico"} tone="info" />
-              <ColdProCalculatedInfo label="Velocidade do ar usada" value={`${fmtColdPro(giroResult.physics.airVelocityUsedMs, 2)} m/s`} description={giroResult.physics.airVelocitySource === "suggested" ? "sugerida para atingir o núcleo" : "base de h efetivo"} tone={giroResult.physics.airVelocityUsedMs > 0 ? "info" : "warning"} />
-              <ColdProCalculatedInfo label="Velocidade sugerida" value={fmtMaybe(giroResult.physics.suggestedAirVelocityMs, 2, " m/s")} description="calculada pelo tempo desejado" tone={giroResult.physics.suggestedAirVelocityMs ? "success" : "warning"} />
-              <ColdProCalculatedInfo label="h efetivo" value={fmtMaybe(tunnelResult.h.hEffectiveWM2K, 2, " W/m²K")} description={`Fonte: ${tunnelResult.h.source}`} tone={tunnelResult.h.hEffectiveWM2K ? "info" : "warning"} />
-              <ColdProCalculatedInfo label="k efetivo" value={fmtMaybe(tunnelResult.kEffectiveWMK, 3, " W/mK")} description="condutividade × penetração" tone={tunnelResult.kEffectiveWMK ? "info" : "warning"} />
-              <ColdProCalculatedInfo label="Tempo estimado" value={fmtMaybe(tunnelResult.estimatedTimeMin, 1, " min")} description="estimativa até o núcleo" tone={tunnelResult.estimatedTimeMin ? "info" : "warning"} />
-              <ColdProCalculatedInfo label="Tempo disponível" value={`${fmtColdPro(tunnelResult.availableTimeMin, 1)} min`} description="retenção ou batelada" tone={tunnelResult.availableTimeMin > 0 ? "info" : "warning"} />
-              <ColdProCalculatedInfo label="Status do processo" value={giroStatusLabel[tunnelResult.status as keyof typeof giroStatusLabel] ?? tunnelResult.status} description="tempo estimado × disponível" tone={tunnelResult.status === "adequate" ? "success" : "warning"} />
-            </div>
+            {tunnelResultCards}
             {giroResult.errors.length > 0 ? (
               <div className="mt-4 rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
                 <div className="mb-2 flex items-center gap-2 font-semibold"><AlertTriangle className="h-4 w-4" /> Erros de preenchimento:</div>
                 <ul className="list-disc space-y-1 pl-5">{giroResult.errors.map((error, index) => <li key={`${error}-${index}`}>{error}</li>)}</ul>
-              </div>
-            ) : null}
-            {tunnelResult.warnings.length > 0 ? (
-              <div className="mt-4 rounded-lg border border-warning/20 bg-warning/10 p-3 text-sm text-warning">
-                <div className="mb-2 flex items-center gap-2 font-semibold"><AlertTriangle className="h-4 w-4" /> Alertas técnicos:</div>
-                <ul className="list-disc space-y-1 pl-5">{tunnelResult.warnings.map((warning: string, index: number) => <li key={`${warning}-${index}`}>{warning}</li>)}</ul>
-              </div>
-            ) : null}
-            {tunnelResult.missingFields.length > 0 ? (
-              <div className="mt-4 rounded-lg border border-warning/20 bg-warning/10 p-3 text-sm text-warning">
-                <div className="mb-2 flex items-center gap-2 font-semibold"><AlertTriangle className="h-4 w-4" /> Dados necessários para cálculo completo:</div>
-                <ul className="list-disc space-y-1 pl-5">{tunnelResult.missingFields.map((field: string, index: number) => <li key={`${field}-${index}`}>{field}</li>)}</ul>
               </div>
             ) : null}
           </ColdProFormSection>
@@ -523,6 +518,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
               <ColdProField label="Espaçamento bandejas" unit="m"><ColdProInput {...num("tray_spacing_m")} /></ColdProField>
               <ColdProCalculatedInfo label="Massa total" value={`${fmtColdPro(staticMass)} kg`} description="massa × quantidade" tone={staticMass > 0 ? "success" : "warning"} />
             </div></div>
+            {tunnelResultCards}
           </ColdProFormSection>
         </TabsContent>
 
