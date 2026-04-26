@@ -1,14 +1,17 @@
 import { buildCalculationLog } from "../core/calculationLogger";
 import { kwToKcalH, kwToTr } from "../core/units";
 import { validateTunnelInput } from "../core/validators";
+import { calculateAirflowModel } from "../physics/airflowModel";
+import { calculateExposureFactor } from "../physics/arrangementModel";
 import { calculatePlankFreezingTimeMin } from "../physics/freezingTime";
+import { calculateCharacteristicDimension } from "../physics/geometryModel";
 import { calculateConvectiveCoefficient } from "../physics/heatTransfer";
-import { calculateAirflowThroughFreeArea, calculateCharacteristicDimension, calculateExposureFactor } from "../physics/tunnelGeometry";
 import {
   calculateBatchProductLoadKW,
   calculateContinuousProductLoadKW,
   calculateProductSpecificEnergy,
 } from "../physics/productThermal";
+import { resolveTunnelMode } from "../physics/tunnelModeModel";
 
 export type TunnelPhysicalModel = "continuous_individual" | "continuous_spiral" | "static_cart" | "static_block" | "fluidized_bed" | "blast_freezer";
 export type TunnelScenarioStatus = "adequate" | "insufficient" | "missing_data" | "invalid_input";
@@ -201,32 +204,31 @@ function canEstimateFreezingTime(input: any, distanceToCoreM: number, hEffective
 }
 
 function calculateModelH(input: any, physicalModel: TunnelPhysicalModel, airVelocityUsedMS: number, exposureFactor: number) {
-  const manual = positiveNumber(input?.manualConvectiveCoefficientWM2K);
-  const baseH = calculateConvectiveCoefficient({
+  const h = calculateConvectiveCoefficient({
     airVelocityMS: airVelocityUsedMS,
     manualCoefficientWM2K: input?.manualConvectiveCoefficientWM2K,
-    airExposureFactor: 1,
+    airExposureFactor: input?.airExposureFactor,
+    exposureFactor,
   });
-  if (manual > 0 || baseH.source !== "velocity_estimated") return baseH;
+  if (h.source !== "velocity_estimated") return h;
 
-  const airExposureFactor = positiveNumber(input?.airExposureFactor) || 1;
   const spiralTurbulenceFactor = positiveNumber(input?.spiralTurbulenceFactor) || 1.8;
   const blockExposureFactor = positiveNumber(input?.blockExposureFactor) || 0.7;
   const modelFactor = physicalModel === "continuous_spiral" ? spiralTurbulenceFactor : physicalModel === "static_block" ? blockExposureFactor : 1;
 
   return {
-    ...baseH,
-    hEffectiveWM2K: toNumber(baseH.hBaseWM2K, 0) * exposureFactor * airExposureFactor * modelFactor,
+    ...h,
+    hEffectiveWM2K: toNumber(h.hEffectiveWM2K, 0) * modelFactor,
   };
 }
 
 function calculateTunnelCore(input: any) {
   const processType = input?.processType ?? input?.process_type ?? null;
-  const operationMode = input?.operationMode ?? input?.operation_mode ?? null;
+  const tunnelMode = resolveTunnelMode(input);
   const physicalModel = normalizePhysicalModel(input);
   const modelMeta = MODEL_META[physicalModel];
-  const mode = modelMeta.mode;
-  const isStatic = isStaticTunnel(processType, operationMode);
+  const mode = tunnelMode.operationRegime;
+  const isStatic = tunnelMode.isStatic;
   const spiralTurbulenceFactor = positiveNumber(input?.spiralTurbulenceFactor) || 1.8;
   const blockExposureFactor = positiveNumber(input?.blockExposureFactor) || 0.7;
 
@@ -240,10 +242,10 @@ function calculateTunnelCore(input: any) {
 
   const calculatedMassKgH = positiveNumber(input?.unitWeightKg) * positiveNumber(input?.unitsPerCycle) * positiveNumber(input?.cyclesPerHour);
   const directMassKgH = positiveNumber(input?.directMassKgH);
-  const usedMassKgH = isStatic ? 0 : directMassKgH > 0 ? directMassKgH : calculatedMassKgH;
+  const usedMassKgH = tunnelMode.operationRegime === "batch" ? 0 : directMassKgH > 0 ? directMassKgH : calculatedMassKgH;
   const palletMassKg = positiveNumber(input?.palletMassKg ?? input?.pallet_mass_kg);
   const numberOfPallets = positiveNumber(input?.numberOfPallets ?? input?.number_of_pallets);
-  const staticMassKg = isStatic ? palletMassKg * numberOfPallets : positiveNumber(input?.staticMassKg ?? input?.static_mass_kg) || palletMassKg * Math.max(1, numberOfPallets || 1);
+  const staticMassKg = tunnelMode.operationRegime === "batch" ? positiveNumber(input?.staticMassKg ?? input?.static_mass_kg) || palletMassKg * numberOfPallets : positiveNumber(input?.staticMassKg ?? input?.static_mass_kg) || palletMassKg * Math.max(1, numberOfPallets || 1);
   const airDeltaTK = positiveNumber(input?.airDeltaTK) || 6;
   const airDensityKgM3 = positiveNumber(input?.airDensityKgM3) || 1.2;
   const suggestedAirApproachK = positiveNumber(input?.suggestedAirApproachK) || 8;
@@ -255,15 +257,16 @@ function calculateTunnelCore(input: any) {
   const suggestedAirTempComparisonC = informedAirTempC === null ? null : informedAirTempC - suggestedAirTempC;
   const informedAirFlowM3H = nullableNumber(input?.informedAirFlowM3H ?? input?.airflow_m3_h);
 
-  const geometry = calculateCharacteristicDimension(input);
+  const geometry = calculateCharacteristicDimension({ ...input, isStatic: tunnelMode.isStatic });
   const fallbackCharacteristicDimensionM = isStatic
     ? getSmallestValidDimension([input?.palletLengthM, input?.palletWidthM, input?.palletHeightM])
     : positiveNumber(input?.productThicknessM);
   const characteristicDimensionM = geometry.characteristicDimensionM || fallbackCharacteristicDimensionM;
   const distanceToCoreM = geometry.distanceToCoreM || (characteristicDimensionM > 0 ? characteristicDimensionM / 2 : 0);
-  const airflow = calculateAirflowThroughFreeArea(input);
+  const airflow = calculateAirflowModel(input);
   const exposure = calculateExposureFactor(input);
-  const h = calculateModelH(input, physicalModel, airflow.airVelocityUsedMS, exposure.exposureFactor);
+  const airVelocityUsedMS = airflow.airVelocityUsedMS ?? 0;
+  const h = calculateModelH(input, physicalModel, airVelocityUsedMS, exposure.exposureFactor);
 
   const frozenConductivityWMK = positiveNumber(input?.frozenConductivityWMK);
   const thermalPenetrationFactor = positiveNumber(input?.thermalPenetrationFactor);
@@ -280,7 +283,7 @@ function calculateTunnelCore(input: any) {
     allowPhaseChange: input?.allowPhaseChange,
   });
 
-  const productLoadKW = isStatic
+  const productLoadKW = tunnelMode.operationRegime === "batch"
     ? calculateBatchProductLoadKW({ massKg: staticMassKg, specificEnergyKJkg: energy.totalKJkg, timeH: input?.batchTimeH })
     : calculateContinuousProductLoadKW({ massKgH: usedMassKgH, specificEnergyKJkg: energy.totalKJkg });
 
@@ -313,10 +316,10 @@ function calculateTunnelCore(input: any) {
         kEffectiveWMK,
       })
     : null;
-  const availableTimeMin = isStatic ? positiveNumber(input?.batchTimeH) * 60 : positiveNumber(input?.retentionTimeMin);
+  const availableTimeMin = tunnelMode.operationRegime === "batch" ? positiveNumber(input?.batchTimeH) * 60 : positiveNumber(input?.retentionTimeMin);
 
   const hasManualH = positiveNumber(input?.manualConvectiveCoefficientWM2K) > 0;
-  const airVelocityMS = positiveNumber(input?.airVelocityMS);
+  const airVelocityMS = airVelocityUsedMS;
   const airVelocityLimitWarnings = [
     airVelocityMS > 0 && airVelocityMS < positiveNumber(input?.minAirVelocityMS ?? input?.min_air_velocity_m_s) ? "Velocidade do ar abaixo do limite operacional informado." : "",
     positiveNumber(input?.maxAirVelocityMS ?? input?.max_air_velocity_m_s) > 0 && airVelocityMS > positiveNumber(input?.maxAirVelocityMS ?? input?.max_air_velocity_m_s) ? "Velocidade do ar acima do limite operacional informado." : "",
@@ -359,10 +362,13 @@ function calculateTunnelCore(input: any) {
   ]);
   const missingFields = unique([
     ...validation.missingFields,
-    ...requiredPositiveFields(input, isStatic, staticMassKg, characteristicDimensionM, energy.crossesFreezingPoint, airflow.airVelocityUsedMS),
+    ...tunnelMode.missingFields,
+    ...geometry.missingFields,
+    ...airflow.missingFields,
+    ...requiredPositiveFields(input, isStatic, staticMassKg, characteristicDimensionM, energy.crossesFreezingPoint, airVelocityUsedMS),
     ...freezingTimeMissingFields,
   ]);
-  const warnings = unique([...validation.warnings, ...engineWarnings]);
+  const warnings = unique([...validation.warnings, ...tunnelMode.warnings, ...geometry.warnings, ...exposure.warnings, ...airflow.warnings, ...engineWarnings]);
 
   const status: TunnelScenarioStatus = invalidFields.length > 0
     ? "invalid_input"
@@ -399,19 +405,22 @@ function calculateTunnelCore(input: any) {
 
   const calculationBreakdown = {
     model: {
+      tunnelType: tunnelMode.tunnelType,
+      arrangementType: tunnelMode.arrangementType,
+      operationRegime: tunnelMode.operationRegime,
       physicalModel,
       physicalModelLabel: modelMeta.label,
       physicalDescription: modelMeta.physicalDescription,
       geometryAssumption: modelMeta.geometryAssumption,
       convectionAssumption: modelMeta.convectionAssumption,
     },
-    mass: isStatic
+    mass: tunnelMode.operationRegime === "batch"
       ? { mode: "batch", numberOfPallets, palletMassKg, staticMassKg, calculatedMassKgH, usedMassKgH: null, batchTimeH: input?.batchTimeH ?? null }
       : { mode: "continuous", calculatedMassKgH, directMassKgH, usedMassKgH, retentionTimeMin: input?.retentionTimeMin ?? null },
-    geometry: { tunnelType: input?.tunnelType ?? input?.tunnel_type ?? null, arrangementType: input?.arrangementType ?? input?.arrangement_type ?? null, productGeometry: input?.productGeometry ?? input?.product_geometry ?? null, surfaceExposureModel: exposure.surfaceExposureModel, characteristicDimensionM, distanceToCoreM, geometrySource: geometry.source, productThicknessM: input?.productThicknessM ?? null, palletLengthM: input?.palletLengthM ?? null, palletWidthM: input?.palletWidthM ?? null, palletHeightM: input?.palletHeightM ?? null },
+    geometry: { tunnelType: tunnelMode.tunnelType, arrangementType: tunnelMode.arrangementType, productGeometry: input?.productGeometry ?? input?.product_geometry ?? null, surfaceExposureModel: exposure.surfaceExposureModel, characteristicDimensionM, distanceToCoreM, geometrySource: geometry.source },
     productEnergy: productEnergyBreakdown,
     convection: { source: h.source, hBaseWM2K: h.hBaseWM2K, hEffectiveWM2K: h.hEffectiveWM2K, airVelocityMS: airflow.airVelocityUsedMS, airExposureFactor: input?.airExposureFactor ?? null, exposureFactor: exposure.exposureFactor, spiralTurbulenceFactor, blockExposureFactor },
-    airflow: { airflowSource: airflow.airflowSource, fanAirflowM3H: airflow.fanAirflowM3H, grossAreaM2: airflow.grossAreaM2, freeAreaM2: airflow.freeAreaM2, blockageFactor: airflow.blockageFactor, calculatedAirVelocityMS: airflow.calculatedAirVelocityMS, airVelocityUsedMS: airflow.airVelocityUsedMS },
+    airflow: { airflowSource: airflow.airflowSource, fanAirflowM3H: airflow.fanAirflowM3H, grossAirAreaM2: airflow.grossAreaM2, freeAirAreaM2: airflow.freeAreaM2, blockageFactor: airflow.blockageFactor, calculatedAirVelocityMS: airflow.calculatedAirVelocityMS, airVelocityUsedMS: airflow.airVelocityUsedMS },
     heatTransfer: { hBaseWM2K: h.hBaseWM2K, exposureFactor: exposure.exposureFactor, airExposureFactor: input?.airExposureFactor ?? null, hEffectiveWM2K: h.hEffectiveWM2K, hSource: h.source },
     air: { airTempC: input?.airTempC ?? null, airDeltaTK, airDensityKgM3, airFlowM3H, informedAirFlowM3H, airFlowMethod, suggestedAirTempC, suggestedAirMethod, suggestedAirApproachK, comparison: suggestedAirTempComparisonC },
     scenarios: { adjustedScenario: scenario },
@@ -443,6 +452,20 @@ function calculateTunnelCore(input: any) {
     physicalModelLabel: modelMeta.label,
     mode,
     processType,
+    tunnelType: tunnelMode.tunnelType,
+    arrangementType: tunnelMode.arrangementType,
+    operationRegime: tunnelMode.operationRegime,
+    productGeometry: input?.productGeometry ?? input?.product_geometry ?? null,
+    surfaceExposureModel: exposure.surfaceExposureModel,
+    airflowSource: airflow.airflowSource,
+    fanAirflowM3H: airflow.fanAirflowM3H,
+    grossAirAreaM2: airflow.grossAreaM2,
+    freeAirAreaM2: airflow.freeAreaM2,
+    blockageFactor: airflow.blockageFactor,
+    calculatedAirVelocityMS: airflow.calculatedAirVelocityMS,
+    airVelocityUsedMS: airflow.airVelocityUsedMS,
+    exposureFactor: exposure.exposureFactor,
+    geometrySource: geometry.source,
     isStatic,
     calculatedMassKgH,
     usedMassKgH,
