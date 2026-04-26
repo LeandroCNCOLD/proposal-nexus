@@ -11,10 +11,13 @@ export function formToTunnelInput(form: any, environment: any) {
   return {
     processType: form?.process_type,
     operationMode: form?.operation_mode,
+    tunnelMode: form?.tunnel_mode ?? (form?.operation_mode === "batch" ? "static" : "continuous"),
     unitWeightKg: safeNumber(form?.unit_weight_kg ?? form?.product_unit_weight_kg),
     unitsPerCycle: safeNumber(form?.units_per_cycle),
     cyclesPerHour: safeNumber(form?.cycles_per_hour),
     directMassKgH: safeNumber(form?.mass_kg_hour),
+    palletMassKg: safeNumber(form?.pallet_mass_kg),
+    numberOfPallets: safeNumber(form?.number_of_pallets, 1),
     staticMassKg: safeNumber(form?.pallet_mass_kg) * Math.max(1, safeNumber(form?.number_of_pallets, 1)),
     batchTimeH: safeNumber(form?.batch_time_h),
     retentionTimeMin: safeNumber(form?.process_time_min),
