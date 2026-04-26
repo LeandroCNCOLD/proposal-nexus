@@ -148,14 +148,23 @@ function isStaticTunnel(processType: unknown, operationMode: unknown) {
 
 function resolveStaticMass(input: any) {
   const numberOfPallets = positiveNumber(input?.numberOfPallets ?? input?.number_of_pallets) || 1;
+  const numberOfCarts = positiveNumber(input?.numberOfCarts ?? input?.number_of_carts) || 1;
   const calculatedPalletMassKg = positiveNumber(input?.calculatedPalletMassKg ?? input?.calculated_pallet_mass_kg);
+  const calculatedCartMassKg = positiveNumber(input?.calculatedCartMassKg ?? input?.calculated_cart_mass_kg);
+  const calculatedBatchMassKg = positiveNumber(input?.calculatedBatchMassKg ?? input?.calculated_batch_mass_kg);
   const palletMassKg = positiveNumber(input?.palletMassKg ?? input?.pallet_mass_kg) || calculatedPalletMassKg;
   const savedStaticMassKg = positiveNumber(input?.staticMassKg ?? input?.static_mass_kg);
+  const staticMassMode = String(input?.staticMassMode ?? input?.static_mass_mode ?? "direct_pallet_mass");
+  const directBatchMassKg = positiveNumber(input?.directBatchMassKg ?? input?.direct_batch_mass_kg);
+  const resolvedStaticMassKg = staticMassMode === "calculated_cart_composition" ? calculatedCartMassKg * numberOfCarts : staticMassMode === "direct_cart_mass" ? palletMassKg * numberOfCarts : staticMassMode === "calculated_batch_composition" ? calculatedBatchMassKg : staticMassMode === "direct_batch_mass" ? directBatchMassKg : calculatedPalletMassKg * numberOfPallets || palletMassKg * numberOfPallets;
   return {
     numberOfPallets,
+    numberOfCarts,
     calculatedPalletMassKg,
+    calculatedCartMassKg,
+    calculatedBatchMassKg,
     palletMassKg,
-    staticMassKg: savedStaticMassKg || calculatedPalletMassKg * numberOfPallets || palletMassKg * numberOfPallets,
+    staticMassKg: savedStaticMassKg || resolvedStaticMassKg,
   };
 }
 
