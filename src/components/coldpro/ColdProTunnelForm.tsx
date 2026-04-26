@@ -57,6 +57,18 @@ const defaultTunnel = (environmentId: string) => ({
   blockage_factor: 0,
   blockage_factor_input_mode: "decimal",
   thermal_model_for_pallet: "hybrid",
+  static_mass_mode: "direct_pallet_mass",
+  units_per_box: 0,
+  boxes_per_layer: 0,
+  number_of_layers: 0,
+  total_units_per_pallet: 0,
+  box_packaging_weight_kg: 0,
+  pallet_base_weight_kg: 0,
+  units_per_pallet: 0,
+  product_mass_per_pallet_kg: 0,
+  packaging_mass_per_pallet_kg: 0,
+  calculated_pallet_mass_kg: 0,
+  static_mass_kg: 0,
   operation_mode: "continuous",
   process_type: "continuous_individual_freezing",
   physical_model: "continuous_individual",
@@ -216,6 +228,16 @@ function geometryFromCatalogShape(shape?: unknown) {
   if (text.includes("caixa") || text.includes("garrafa") || text.includes("pote")) return "packed_box";
   if (text.includes("grao") || text.includes("granel") || text.includes("particula")) return "bulk";
   return null;
+}
+
+function suggestedStaticArrangementFields(tunnelType: string, arrangementType: string) {
+  if (tunnelType === "static_pallet" && arrangementType === "palletized_boxes") return { product_geometry: "packed_box", surface_exposure_model: "stacked", thermal_model_for_pallet: "hybrid" };
+  if (tunnelType === "static_pallet" && arrangementType === "palletized_blocks") return { product_geometry: "rectangular_prism", surface_exposure_model: "stacked", thermal_model_for_pallet: "pallet_block_limited" };
+  if (tunnelType === "static_pallet" && arrangementType === "bulk_on_pallet") return { product_geometry: "bulk", surface_exposure_model: "bulk_layer", thermal_model_for_pallet: "pallet_block_limited" };
+  if (tunnelType === "static_cart" && arrangementType === "trays_on_racks") return { surface_exposure_model: "tray_contact" };
+  if (tunnelType === "static_cart" && arrangementType === "boxes_on_cart") return { product_geometry: "packed_box", surface_exposure_model: "boxed", thermal_model_for_pallet: "hybrid" };
+  if (tunnelType === "static_cart" && arrangementType === "hanging_product") return { surface_exposure_model: "fully_exposed" };
+  return {};
 }
 
 function simulationDraftFromTunnel(source: any) {
