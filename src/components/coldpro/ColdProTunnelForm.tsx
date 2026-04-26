@@ -112,6 +112,18 @@ function fmtMaybe(value: number | null | undefined, digits = 2, suffix = "") {
   return value === null || value === undefined ? "—" : `${fmtColdPro(value, digits)}${suffix}`;
 }
 
+function positiveValue(...values: unknown[]) {
+  for (const value of values) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed) && parsed > 0) return parsed;
+  }
+  return 0;
+}
+
+function kcalFromThermal(kcal?: unknown, kj?: unknown) {
+  return positiveValue(kcal) || positiveValue(kj) / 4.1868;
+}
+
 const DENSITY_SOURCE_LABEL = {
   manual: "manual",
   calculated_from_geometry: "geometria + peso",
@@ -182,17 +194,17 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
   const canSave = !processError && !requiredError;
   const ashraeDensityKgM3 = Number(form.ashrae_density_kg_m3 ?? 0);
   const densityFieldKgM3 = Number(form.density_kg_m3 ?? 0);
-  const useEnvironmentProduct = !!product && (!tunnel?.id || !form.product_id);
-  const thermodynamicProduct = useEnvironmentProduct ? product : null;
-  const productDensityKgM3 = Number(thermodynamicProduct?.density_kg_m3 ?? 0);
+  const selectedCatalogProduct = productCatalog.find((item) => item.id === form.product_id) ?? null;
+  const thermodynamicProduct = selectedCatalogProduct ?? product ?? null;
+  const productDensityKgM3 = positiveValue(thermodynamicProduct?.density_kg_m3);
   const manualDensityKgM3 = densityFieldKgM3 > 0 && (!ashraeDensityKgM3 || Math.abs(densityFieldKgM3 - ashraeDensityKgM3) > 0.0001) ? densityFieldKgM3 : productDensityKgM3;
   const airTemperatureC = Number(environment?.internal_temp_c ?? form.air_temp_c ?? 0);
-  const freezingPointC = thermodynamicProduct?.initial_freezing_temp_c ?? form.freezing_temp_c ?? 0;
-  const cpAboveKcalKgC = Number(thermodynamicProduct?.specific_heat_above_kcal_kg_c ?? form.specific_heat_above_kcal_kg_c ?? 0);
-  const cpBelowKcalKgC = Number(thermodynamicProduct?.specific_heat_below_kcal_kg_c ?? form.specific_heat_below_kcal_kg_c ?? 0);
-  const latentHeatKcalKg = Number(thermodynamicProduct?.latent_heat_kcal_kg ?? form.latent_heat_kcal_kg ?? 0);
-  const frozenConductivityWmK = Number(thermodynamicProduct?.thermal_conductivity_frozen_w_m_k ?? form.thermal_conductivity_frozen_w_m_k ?? 0);
-  const frozenWaterFraction = Number(thermodynamicProduct?.frozen_water_fraction ?? form.frozen_water_fraction ?? 0);
+  const freezingPointC = form.freezing_temp_c ?? thermodynamicProduct?.initial_freezing_temp_c ?? -1.5;
+  const cpAboveKcalKgC = kcalFromThermal(form.specific_heat_above_kcal_kg_c, form.specific_heat_above_kj_kg_k) || kcalFromThermal(thermodynamicProduct?.specific_heat_above_kcal_kg_c, thermodynamicProduct?.specific_heat_above_kj_kg_k);
+  const cpBelowKcalKgC = kcalFromThermal(form.specific_heat_below_kcal_kg_c, form.specific_heat_below_kj_kg_k) || kcalFromThermal(thermodynamicProduct?.specific_heat_below_kcal_kg_c, thermodynamicProduct?.specific_heat_below_kj_kg_k);
+  const latentHeatKcalKg = kcalFromThermal(form.latent_heat_kcal_kg, form.latent_heat_kj_kg) || kcalFromThermal(thermodynamicProduct?.latent_heat_kcal_kg, thermodynamicProduct?.latent_heat_kj_kg);
+  const frozenConductivityWmK = positiveValue(form.thermal_conductivity_frozen_w_m_k, thermodynamicProduct?.thermal_conductivity_frozen_w_m_k, thermodynamicProduct?.thermal_conductivity_w_m_k);
+  const frozenWaterFraction = positiveValue(form.frozen_water_fraction, thermodynamicProduct?.frozen_water_fraction, Number(thermodynamicProduct?.freezable_water_content_percent ?? 0) / 100, Number(thermodynamicProduct?.water_content_percent ?? 0) / 100, 0.9);
   const giroResult = calculateContinuousGirofreezer({
     dimensionScale: "m",
     productLength: Number(form.product_length_m ?? 0),
