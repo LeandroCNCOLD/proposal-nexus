@@ -20,6 +20,8 @@ import {
 import { calculateAdvancedProcess } from "./advancedProcesses/advancedProcessEngine";
 import { calculateEvaporatorFrostRisk, suggestedInfiltrationFactor } from "./extra-loads-preview";
 import { calculateEvaporatorFanLoad, calculateMotorLoadKcalH, calculateTechnicalDefrost, calculateTechnicalInfiltration } from "./thermal-calculations";
+import { databaseToTunnelInput } from "@/modules/coldpro/adapters/databaseToTunnelInput";
+import { calculateTunnelEngine } from "@/modules/coldpro/engines/tunnelEngine";
 
 const W_TO_KCAL_H = 0.859845;
 const R_INTERNAL_M2K_W = 0.12;
