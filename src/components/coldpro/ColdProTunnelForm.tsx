@@ -614,28 +614,52 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
         </TabsContent>
 
         <TabsContent value="ar">
-          <ColdProFormSection title="Ar, embalagem e penetração térmica" description="A condição informada é ponto inicial; a recomendação final sai da iteração." icon={<Wind className="h-4 w-4" />}>
-            <div className="grid grid-cols-1 gap-x-10 md:grid-cols-2"><div>
-              <ColdProField label="Temp. ar inicial" unit="°C"><ColdProInput {...num("air_temp_c")} /></ColdProField>
-              <ColdProField label="Velocidade inicial" unit="m/s"><ColdProInput {...num("air_velocity_m_s")} /></ColdProField>
+          <ColdProFormSection title="Ar, embalagem e penetração térmica" description="Ajuste, simule e aprove a condição térmica final usada no cálculo." icon={<Wind className="h-4 w-4" />}>
+            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-5">
+              <ColdProCalculatedInfo label="Inicial · Carga" value={`${fmtColdPro(initialScenario.totalKW, 2)} kW`} description={`${fmtColdPro(initialScenario.totalKcalH, 0)} kcal/h`} tone="info" />
+              <ColdProCalculatedInfo label="Inicial · Tempo" value={fmtMaybe(initialScenario.estimatedTimeMin, 1, " min")} description={`${fmtColdPro(initialScenario.availableTimeMin, 1)} min disponíveis`} tone={initialScenario.status === "adequate" ? "success" : "warning"} />
+              <ColdProCalculatedInfo label="Inicial · Vazão" value={`${fmtColdPro(initialScenario.airFlowM3H, 0)} m³/h`} description="estimada pelo motor" tone="info" />
+              <ColdProCalculatedInfo label="Inicial · Temp. sugerida" value={`${fmtColdPro(initialScenario.suggestedAirTempC, 1)} °C`} description="final - approach" tone="info" />
+              <ColdProCalculatedInfo label="Inicial · Status" value={statusLabel[initialScenario.status] ?? initialScenario.status} description="referência do motor" tone={initialScenario.status === "adequate" ? "success" : "warning"} />
+            </div>
+
+            <div className="mt-5 grid grid-cols-1 gap-x-10 md:grid-cols-2"><div>
+              <ColdProField label="Temp. ar ajustada" unit="°C"><ColdProInput {...num("air_temp_c")} /></ColdProField>
+              <ColdProField label="Velocidade ajustada" unit="m/s"><ColdProInput {...num("air_velocity_m_s")} /></ColdProField>
               <ColdProField label="ΔT do ar" unit="K"><ColdProInput {...num("air_delta_t_k")} /></ColdProField>
               <ColdProField label="Approach ar sugerido" unit="K"><ColdProInput {...num("suggested_air_approach_k")} /></ColdProField>
-              <ColdProField label="Vazão informada" unit="m³/h"><ColdProInput {...num("airflow_m3_h")} /></ColdProField>
+              <ColdProField label="Vazão informada" unit="m³/h"><ColdProInput {...num("informed_air_flow_m3_h")} /></ColdProField>
               <ColdProField label="Coef. convecção manual"><ColdProInput {...num("convective_coefficient_manual_w_m2_k")} /></ColdProField>
             </div><div>
-              <ColdProField label="Limite temp. mínima" unit="°C"><ColdProInput {...num("min_air_temp_c")} /></ColdProField>
-              <ColdProField label="Limite temp. máxima" unit="°C"><ColdProInput {...num("max_air_temp_c")} /></ColdProField>
-              <ColdProField label="Limite velocidade mín." unit="m/s"><ColdProInput {...num("min_air_velocity_m_s")} /></ColdProField>
-              <ColdProField label="Limite velocidade máx." unit="m/s"><ColdProInput {...num("max_air_velocity_m_s")} /></ColdProField>
-              <ColdProField label="Passo temp." unit="°C"><ColdProInput {...num("air_temp_step_c")} /></ColdProField>
-              <ColdProField label="Passo velocidade" unit="m/s"><ColdProInput {...num("air_velocity_step_m_s")} /></ColdProField>
               <ColdProField label="Tipo de embalagem"><ColdProInput type="text" value={form.package_type ?? ""} onChange={(e) => set("package_type", e.target.value)} className="text-left" /></ColdProField>
               <ColdProField label="Fator exposição ao ar"><ColdProInput {...num("air_exposure_factor")} /></ColdProField>
               <ColdProField label="Fator penetração térmica"><ColdProInput {...num("thermal_penetration_factor")} /></ColdProField>
-              <ColdProValidationMessage>A vazão recomendada será recalculada por potência, densidade do ar, Cp do ar e ΔT do ar.</ColdProValidationMessage>
+              <ColdProField label="Limite velocidade mín." unit="m/s"><ColdProInput {...num("min_air_velocity_m_s")} /></ColdProField>
+              <ColdProField label="Limite velocidade máx." unit="m/s"><ColdProInput {...num("max_air_velocity_m_s")} /></ColdProField>
               <ColdProValidationMessage>{velocityWarning ? "Confira a velocidade do ar. Valores usuais ficam acima de 0 e geralmente abaixo de 10 m/s." : ""}</ColdProValidationMessage>
               <ColdProValidationMessage tone="error">{processError ? (isStatic ? "Tempo de batelada deve ser maior que zero." : "Tempo de retenção deve ser maior que zero.") : ""}</ColdProValidationMessage>
             </div></div>
+
+            <div className="mt-5 grid gap-3 md:grid-cols-2 lg:grid-cols-5">
+              <ColdProCalculatedInfo label="Ajustado · Carga" value={`${fmtColdPro(adjustedScenario.totalKW, 2)} kW`} description={`${fmtColdPro(adjustedScenario.totalKcalH, 0)} kcal/h`} tone="info" />
+              <ColdProCalculatedInfo label="Ajustado · Tempo" value={fmtMaybe(adjustedScenario.estimatedTimeMin, 1, " min")} description={`${fmtColdPro(adjustedScenario.availableTimeMin, 1)} min disponíveis`} tone={adjustedScenario.status === "adequate" ? "success" : "warning"} />
+              <ColdProCalculatedInfo label="Ajustado · Vazão" value={`${fmtColdPro(adjustedScenario.airFlowM3H, 0)} m³/h`} description={adjustedScenario.informedAirFlowM3H ? `informada: ${fmtColdPro(adjustedScenario.informedAirFlowM3H, 0)} m³/h` : "estimada pelo motor"} tone="info" />
+              <ColdProCalculatedInfo label="Ajustado · h efetivo" value={fmtMaybe(adjustedScenario.hEffectiveWM2K, 2, " W/m²K")} description={adjustedScenario.hSource} tone={adjustedScenario.hEffectiveWM2K ? "info" : "warning"} />
+              <ColdProCalculatedInfo label="Ajustado · Status" value={statusLabel[adjustedScenario.status] ?? adjustedScenario.status} description="cenário simulado" tone={adjustedScenario.status === "adequate" ? "success" : "warning"} />
+            </div>
+
+            <div className="mt-5 grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+              <ColdProCalculatedInfo label="Diferença tempo" value={fmtMaybe(scenarioDelta.time, 1, " min")} description="ajustado - inicial" tone={scenarioDelta.time !== null && scenarioDelta.time <= 0 ? "success" : "warning"} />
+              <ColdProCalculatedInfo label="Diferença vazão" value={`${fmtColdPro(scenarioDelta.airflow, 0)} m³/h`} description="ajustado - inicial" tone="info" />
+              <ColdProCalculatedInfo label="Diferença h" value={fmtMaybe(scenarioDelta.h, 2, " W/m²K")} description="ajustado - inicial" tone="info" />
+              <ColdProCalculatedInfo label="Mudança status" value={scenarioDelta.statusChanged ? "Alterou" : "Sem mudança"} description={`${statusLabel[initialScenario.status] ?? initialScenario.status} → ${statusLabel[adjustedScenario.status] ?? adjustedScenario.status}`} tone={adjustedScenario.status === "adequate" ? "success" : "warning"} />
+            </div>
+
+            {adjustedScenario.warnings.length > 0 ? <div className="mt-4 rounded-lg border border-warning/20 bg-warning/10 p-3 text-sm text-warning"><div className="mb-2 flex items-center gap-2 font-semibold"><AlertTriangle className="h-4 w-4" /> Alertas do cenário ajustado:</div><ul className="list-disc space-y-1 pl-5">{adjustedScenario.warnings.map((warning: string, index: number) => <li key={`${warning}-${index}`}>{warning}</li>)}</ul></div> : null}
+            <div className="mt-5 flex flex-col gap-3 rounded-lg border bg-muted/30 p-4 md:flex-row md:items-center md:justify-between">
+              <ColdProCalculatedInfo label="Condição térmica" value={form.thermal_condition_approved ? "Aprovada" : "Não aprovada"} description={form.thermal_condition_approved_at ? new Date(form.thermal_condition_approved_at).toLocaleString("pt-BR") : "aguardando aprovação"} tone={form.thermal_condition_approved ? "success" : "warning"} />
+              <button type="button" className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-5 py-2 text-sm font-medium text-primary-foreground shadow-sm transition hover:bg-primary/90" onClick={approveThermalCondition}>Aprovar condição térmica</button>
+            </div>
           </ColdProFormSection>
         </TabsContent>
 
