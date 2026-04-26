@@ -283,7 +283,7 @@ function calculateTunnelCore(input: any) {
     allowPhaseChange: input?.allowPhaseChange,
   });
 
-  const productLoadKW = isStatic
+  const productLoadKW = tunnelMode.operationRegime === "batch"
     ? calculateBatchProductLoadKW({ massKg: staticMassKg, specificEnergyKJkg: energy.totalKJkg, timeH: input?.batchTimeH })
     : calculateContinuousProductLoadKW({ massKgH: usedMassKgH, specificEnergyKJkg: energy.totalKJkg });
 
@@ -316,10 +316,10 @@ function calculateTunnelCore(input: any) {
         kEffectiveWMK,
       })
     : null;
-  const availableTimeMin = isStatic ? positiveNumber(input?.batchTimeH) * 60 : positiveNumber(input?.retentionTimeMin);
+  const availableTimeMin = tunnelMode.operationRegime === "batch" ? positiveNumber(input?.batchTimeH) * 60 : positiveNumber(input?.retentionTimeMin);
 
   const hasManualH = positiveNumber(input?.manualConvectiveCoefficientWM2K) > 0;
-  const airVelocityMS = positiveNumber(input?.airVelocityMS);
+  const airVelocityMS = airVelocityUsedMS;
   const airVelocityLimitWarnings = [
     airVelocityMS > 0 && airVelocityMS < positiveNumber(input?.minAirVelocityMS ?? input?.min_air_velocity_m_s) ? "Velocidade do ar abaixo do limite operacional informado." : "",
     positiveNumber(input?.maxAirVelocityMS ?? input?.max_air_velocity_m_s) > 0 && airVelocityMS > positiveNumber(input?.maxAirVelocityMS ?? input?.max_air_velocity_m_s) ? "Velocidade do ar acima do limite operacional informado." : "",
