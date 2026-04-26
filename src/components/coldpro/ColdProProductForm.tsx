@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Package, Save, Snowflake, Thermometer, Weight } from "lucide-react";
+import { Package, Save, Search, Snowflake, Thermometer, Weight } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { ColdProField, ColdProInput, ColdProSelect } from "./ColdProField";
 import { ColdProCalculatedInfo, ColdProFormSection, ColdProValidationMessage, fmtColdPro, numberOrNull } from "./ColdProFormPrimitives";
@@ -64,6 +64,7 @@ const initialForm = (environmentId: string) => ({
 
 export function ColdProProductForm({ environmentId, product, productCatalog = [], saving = false, onSave }: Props) {
   const [selectedGroup, setSelectedGroup] = React.useState("");
+  const [productSearch, setProductSearch] = React.useState("");
   const [form, setForm] = React.useState(initialForm(environmentId));
 
   React.useEffect(() => {
@@ -73,11 +74,27 @@ export function ColdProProductForm({ environmentId, product, productCatalog = []
   const set = (key: string, value: unknown) => setForm((prev) => ({ ...prev, [key]: value }));
   const num = (key: keyof ReturnType<typeof initialForm>) => ({ type: "number" as const, value: typeof form[key] === "boolean" ? "" : (form[key] ?? ""), onChange: (e: React.ChangeEvent<HTMLInputElement>) => set(key, numberOrNull(e.target.value)) });
 
+  const normalizeSearch = (value: unknown) => String(value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+  const productInitials = (value: unknown) => normalizeSearch(value).split(/[^a-z0-9]+/).filter(Boolean).map((word) => word[0]).join("");
   const groups = React.useMemo(() => Array.from(new Set(productCatalog.map((p) => p.category).filter(Boolean))).sort((a, b) => String(a).localeCompare(String(b), "pt-BR")), [productCatalog]);
-  const filteredProducts = React.useMemo(() => productCatalog.filter((p) => !selectedGroup || p.category === selectedGroup), [productCatalog, selectedGroup]);
+  const filteredProducts = React.useMemo(() => {
+    const query = normalizeSearch(productSearch);
+    return productCatalog
+      .filter((p) => !selectedGroup || p.category === selectedGroup)
+      .filter((p) => !query || normalizeSearch(p.name).includes(query) || normalizeSearch(p.category).includes(query) || productInitials(p.name).startsWith(query))
+      .sort((a, b) => {
+        if (!query) return String(a.name).localeCompare(String(b.name), "pt-BR");
+        const aName = normalizeSearch(a.name);
+        const bName = normalizeSearch(b.name);
+        const aScore = aName.startsWith(query) ? 0 : productInitials(a.name).startsWith(query) ? 1 : aName.includes(query) ? 2 : 3;
+        const bScore = bName.startsWith(query) ? 0 : productInitials(b.name).startsWith(query) ? 1 : bName.includes(query) ? 2 : 3;
+        return aScore - bScore || String(a.name).localeCompare(String(b.name), "pt-BR");
+      });
+  }, [productCatalog, productSearch, selectedGroup]);
 
   const applyGroup = (group: string) => {
     setSelectedGroup(group);
+    setProductSearch("");
     setForm((prev) => ({ ...prev, product_id: null, product_name: group ? "" : "Produto genérico" }));
   };
 
@@ -121,6 +138,8 @@ export function ColdProProductForm({ environmentId, product, productCatalog = []
       respiration_rate_20c_mw_kg: p.respiration_rate_20c_mw_kg ?? null,
       notes: p.notes ?? null,
     }));
+    setSelectedGroup(p.category ?? "");
+    setProductSearch(p.name ?? "");
   };
 
   const mode = String(form.product_load_mode ?? "daily_intake");
@@ -169,9 +188,15 @@ export function ColdProProductForm({ environmentId, product, productCatalog = []
           <AccordionTrigger className="hover:no-underline"><span className="inline-flex items-center gap-2"><Package className="h-4 w-4 text-primary" /> Catálogo ASHRAE</span></AccordionTrigger>
           <AccordionContent>
             <ColdProFormSection title="Seleção do produto" description="A fonte ASHRAE/CN ColdPro carrega propriedades térmicas; estoque e tempo são dados da aplicação.">
-              <div className="grid grid-cols-1 gap-x-10 md:grid-cols-2">
+              <div className="grid grid-cols-1 gap-x-10 xl:grid-cols-2">
+                <ColdProField label="Pesquisar produto" className="xl:col-span-2">
+                  <div className="relative">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <ColdProInput type="search" value={productSearch} onChange={(e) => setProductSearch(e.target.value)} placeholder="Digite o nome ou iniciais do produto" className="pl-9 text-left" />
+                  </div>
+                </ColdProField>
                 <ColdProField label="Grupo ASHRAE"><ColdProSelect value={selectedGroup} onChange={(e) => applyGroup(e.target.value)}><option value="">Seleção manual</option>{groups.map((group) => <option key={group} value={group}>{group}</option>)}</ColdProSelect></ColdProField>
-                <ColdProField label="Produto"><ColdProSelect value={form.product_id ?? ""} disabled={!selectedGroup} onChange={(e) => applyProduct(e.target.value)}><option value="">{selectedGroup ? "Selecione o produto" : "Selecione primeiro o grupo"}</option>{filteredProducts.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</ColdProSelect></ColdProField>
+                <ColdProField label="Produto"><ColdProSelect value={form.product_id ?? ""} disabled={filteredProducts.length === 0} onChange={(e) => applyProduct(e.target.value)}><option value="">{filteredProducts.length ? "Selecione o produto" : "Nenhum produto encontrado"}</option>{filteredProducts.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</ColdProSelect></ColdProField>
                 <ColdProField label="Nome do produto"><ColdProInput type="text" value={form.product_name ?? ""} onChange={(e) => set("product_name", e.target.value)} className="text-left" /><ColdProValidationMessage tone="error">{requiredError ? "Informe ou selecione um produto." : ""}</ColdProValidationMessage></ColdProField>
               </div>
             </ColdProFormSection>

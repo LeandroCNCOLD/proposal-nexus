@@ -1,5 +1,5 @@
 import * as React from "react";
-import { AlertTriangle, Calculator, Fan, Package, Save, Settings, Thermometer, Wind, Warehouse } from "lucide-react";
+import { AlertTriangle, Calculator, Fan, Package, Save, Search, Settings, Thermometer, Wind, Warehouse } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ColdProField, ColdProInput, ColdProSelect } from "./ColdProField";
 import { ColdProCalculatedInfo, ColdProFormSection, ColdProValidationMessage, fmtColdPro, numberOrNull } from "./ColdProFormPrimitives";
@@ -228,6 +228,7 @@ const DENSITY_STATUS_LABEL = {
 export function ColdProTunnelForm({ environmentId, environment, product, tunnel, productCatalog = [], onSave }: { environmentId: string; environment?: any; product?: any | null; tunnel?: any; productCatalog?: any[]; onSave: (data: any) => void }) {
   const [form, setForm] = React.useState<any>(defaultTunnel(environmentId));
   const [selectedGroup, setSelectedGroup] = React.useState("");
+  const [productSearch, setProductSearch] = React.useState("");
   const [continuousUnit, setContinuousUnit] = React.useState<DimensionUnit>("m");
   const [staticUnit, setStaticUnit] = React.useState<DimensionUnit>("m");
   const [weightUnit, setWeightUnit] = React.useState<WeightUnit>("kg");
@@ -392,8 +393,23 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
     requiredAirflowM3H: null,
     requiredAirflowM3S: null,
   };
+  const normalizeSearch = (value: unknown) => String(value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+  const productInitials = (value: unknown) => normalizeSearch(value).split(/[^a-z0-9]+/).filter(Boolean).map((word) => word[0]).join("");
   const groups = React.useMemo(() => Array.from(new Set(productCatalog.map((p) => p.category).filter(Boolean))).sort((a, b) => String(a).localeCompare(String(b), "pt-BR")), [productCatalog]);
-  const filteredProducts = React.useMemo(() => productCatalog.filter((p) => !selectedGroup || p.category === selectedGroup), [productCatalog, selectedGroup]);
+  const filteredProducts = React.useMemo(() => {
+    const query = normalizeSearch(productSearch);
+    return productCatalog
+      .filter((p) => !selectedGroup || p.category === selectedGroup)
+      .filter((p) => !query || normalizeSearch(p.name).includes(query) || normalizeSearch(p.category).includes(query) || productInitials(p.name).startsWith(query))
+      .sort((a, b) => {
+        if (!query) return String(a.name).localeCompare(String(b.name), "pt-BR");
+        const aName = normalizeSearch(a.name);
+        const bName = normalizeSearch(b.name);
+        const aScore = aName.startsWith(query) ? 0 : productInitials(a.name).startsWith(query) ? 1 : aName.includes(query) ? 2 : 3;
+        const bScore = bName.startsWith(query) ? 0 : productInitials(b.name).startsWith(query) ? 1 : bName.includes(query) ? 2 : 3;
+        return aScore - bScore || String(a.name).localeCompare(String(b.name), "pt-BR");
+      });
+  }, [productCatalog, productSearch, selectedGroup]);
 
   const setProcessType = (value: string) => {
     const tunnel = legacyTunnelType(value);
@@ -499,6 +515,8 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
       respiration_rate_20c_mw_kg: p.respiration_rate_20c_mw_kg ?? null,
       notes: p.notes ?? null,
     }));
+    setSelectedGroup(p.category ?? "");
+    setProductSearch(p.name ?? "");
   };
 
   const save = () => onSave({
@@ -784,8 +802,14 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
 
           <ColdProFormSection title="Etapa 2 — Produto e geometria" description="Separe a dimensão da unidade/caixa da dimensão do pallet, carrinho ou bloco." icon={<Package className="h-4 w-4" />}>
             <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(18rem,0.85fr)_minmax(0,1.45fr)]"><div className="min-w-0 rounded-lg border bg-muted/20 p-3 sm:p-4">
-              <ColdProField label="Grupo ASHRAE"><ColdProSelect value={selectedGroup} onChange={(e) => { setSelectedGroup(e.target.value); set("product_id", null); }}><option value="">Seleção manual</option>{groups.map((group) => <option key={group} value={group}>{group}</option>)}</ColdProSelect></ColdProField>
-              <ColdProField label="Produto ASHRAE"><ColdProSelect value={form.product_id ?? ""} disabled={!selectedGroup} onChange={(e) => applyProduct(e.target.value)}><option value="">{selectedGroup ? "Selecione o produto" : "Selecione primeiro o grupo"}</option>{filteredProducts.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</ColdProSelect></ColdProField>
+              <ColdProField label="Pesquisar produto">
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <ColdProInput type="search" value={productSearch} onChange={(e) => setProductSearch(e.target.value)} placeholder="Digite o nome ou iniciais" className="pl-9 text-left" />
+                </div>
+              </ColdProField>
+              <ColdProField label="Grupo ASHRAE"><ColdProSelect value={selectedGroup} onChange={(e) => { setSelectedGroup(e.target.value); setProductSearch(""); set("product_id", null); }}><option value="">Seleção manual</option>{groups.map((group) => <option key={group} value={group}>{group}</option>)}</ColdProSelect></ColdProField>
+              <ColdProField label="Produto ASHRAE"><ColdProSelect value={form.product_id ?? ""} disabled={filteredProducts.length === 0} onChange={(e) => applyProduct(e.target.value)}><option value="">{filteredProducts.length ? "Selecione o produto" : "Nenhum produto encontrado"}</option>{filteredProducts.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</ColdProSelect></ColdProField>
               <ColdProField label="Produto"><ColdProInput type="text" value={form.product_name ?? ""} onChange={(e) => set("product_name", e.target.value)} className="text-left" /></ColdProField>
             </div><div className="min-w-0 rounded-lg border bg-muted/20 p-3 sm:p-4">{productGeometryFields}</div></div>
             <ColdProValidationMessage tone="error">{requiredError ? "Informe o produto do túnel." : ""}</ColdProValidationMessage>
