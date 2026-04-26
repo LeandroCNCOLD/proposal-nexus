@@ -14,11 +14,29 @@ const ARRANGEMENT_DEFAULTS: Record<string, { air: number; penetration: number; l
 };
 
 type DimensionUnit = "m" | "cm" | "mm";
+type WeightUnit = "kg" | "g";
+type CycleUnit = "h" | "min";
+type RetentionUnit = "min" | "h";
 
 const DIMENSION_UNITS: Record<DimensionUnit, { label: string; toMeters: number; step: string }> = {
   m: { label: "m", toMeters: 1, step: "0.001" },
   cm: { label: "cm", toMeters: 0.01, step: "0.1" },
   mm: { label: "mm", toMeters: 0.001, step: "1" },
+};
+
+const WEIGHT_UNITS: Record<WeightUnit, { label: string; toKg: number; step: string }> = {
+  kg: { label: "kg", toKg: 1, step: "0.001" },
+  g: { label: "g", toKg: 0.001, step: "1" },
+};
+
+const CYCLE_UNITS: Record<CycleUnit, { label: string; toCyclesPerHour: number; step: string }> = {
+  h: { label: "ciclos/h", toCyclesPerHour: 1, step: "0.1" },
+  min: { label: "ciclos/min", toCyclesPerHour: 60, step: "0.1" },
+};
+
+const RETENTION_UNITS: Record<RetentionUnit, { label: string; toMinutes: number; step: string }> = {
+  min: { label: "min", toMinutes: 1, step: "1" },
+  h: { label: "h", toMinutes: 60, step: "0.1" },
 };
 
 const defaultTunnel = (environmentId: string) => ({
@@ -93,6 +111,9 @@ export function ColdProTunnelForm({ environmentId, tunnel, productCatalog = [], 
   const [selectedGroup, setSelectedGroup] = React.useState("");
   const [continuousUnit, setContinuousUnit] = React.useState<DimensionUnit>("m");
   const [staticUnit, setStaticUnit] = React.useState<DimensionUnit>("m");
+  const [weightUnit, setWeightUnit] = React.useState<WeightUnit>("kg");
+  const [cycleUnit, setCycleUnit] = React.useState<CycleUnit>("h");
+  const [retentionUnit, setRetentionUnit] = React.useState<RetentionUnit>("min");
 
   React.useEffect(() => setForm((prev: any) => ({ ...prev, ...(tunnel ?? {}), environment_id: environmentId })), [environmentId, tunnel?.id]);
 
@@ -108,6 +129,21 @@ export function ColdProTunnelForm({ environmentId, tunnel, productCatalog = [], 
       value: Number.isFinite(valueM) && valueM !== 0 ? valueM / unitConfig.toMeters : form?.[key] === 0 ? 0 : "",
       onChange: (e: React.ChangeEvent<HTMLInputElement>) => set(key, numberOrNull(e.target.value) === null ? null : Number(e.target.value) * unitConfig.toMeters),
     };
+  };
+  const weightNum = (key: string, unit: WeightUnit) => {
+    const unitConfig = WEIGHT_UNITS[unit];
+    const valueKg = Number(form?.[key] ?? 0);
+    return { type: "number" as const, step: unitConfig.step, value: Number.isFinite(valueKg) && valueKg !== 0 ? valueKg / unitConfig.toKg : form?.[key] === 0 ? 0 : "", onChange: (e: React.ChangeEvent<HTMLInputElement>) => set(key, numberOrNull(e.target.value) === null ? null : Number(e.target.value) * unitConfig.toKg) };
+  };
+  const cyclesNum = (unit: CycleUnit) => {
+    const unitConfig = CYCLE_UNITS[unit];
+    const valuePerHour = Number(form.cycles_per_hour ?? 0);
+    return { type: "number" as const, step: unitConfig.step, value: Number.isFinite(valuePerHour) && valuePerHour !== 0 ? valuePerHour / unitConfig.toCyclesPerHour : form.cycles_per_hour === 0 ? 0 : "", onChange: (e: React.ChangeEvent<HTMLInputElement>) => set("cycles_per_hour", numberOrNull(e.target.value) === null ? null : Number(e.target.value) * unitConfig.toCyclesPerHour) };
+  };
+  const retentionNum = (unit: RetentionUnit) => {
+    const unitConfig = RETENTION_UNITS[unit];
+    const valueMin = Number(form.process_time_min ?? 0);
+    return { type: "number" as const, step: unitConfig.step, value: Number.isFinite(valueMin) && valueMin !== 0 ? valueMin / unitConfig.toMinutes : form.process_time_min === 0 ? 0 : "", onChange: (e: React.ChangeEvent<HTMLInputElement>) => set("process_time_min", numberOrNull(e.target.value) === null ? null : Number(e.target.value) * unitConfig.toMinutes) };
   };
   const processType = String(form.process_type ?? "continuous_individual_freezing");
   const isStatic = isStaticProcess(processType);
@@ -261,12 +297,27 @@ export function ColdProTunnelForm({ environmentId, tunnel, productCatalog = [], 
               <ColdProField label="Comprimento produto" unit={DIMENSION_UNITS[continuousUnit].label}><ColdProInput {...dimensionNum("product_length_m", continuousUnit)} /></ColdProField>
               <ColdProField label="Largura produto" unit={DIMENSION_UNITS[continuousUnit].label}><ColdProInput {...dimensionNum("product_width_m", continuousUnit)} /></ColdProField>
               <ColdProField label="Espessura produto" unit={DIMENSION_UNITS[continuousUnit].label}><ColdProInput {...dimensionNum("product_thickness_m", continuousUnit)} /></ColdProField>
-              <ColdProField label="Peso unitário" unit="kg"><ColdProInput {...num("unit_weight_kg")} /></ColdProField>
+              <ColdProField label="Unidade do peso">
+                <ColdProSelect value={weightUnit} onChange={(e) => setWeightUnit(e.target.value as WeightUnit)}>
+                  {Object.entries(WEIGHT_UNITS).map(([key, item]) => <option key={key} value={key}>{item.label}</option>)}
+                </ColdProSelect>
+              </ColdProField>
+              <ColdProField label="Peso unitário" unit={WEIGHT_UNITS[weightUnit].label}><ColdProInput {...weightNum("unit_weight_kg", weightUnit)} /></ColdProField>
             </div><div>
               <ColdProField label="Unidades/ciclo"><ColdProInput {...num("units_per_cycle")} /></ColdProField>
-              <ColdProField label="Ciclos/h"><ColdProInput {...num("cycles_per_hour")} /></ColdProField>
+              <ColdProField label="Escala dos ciclos">
+                <ColdProSelect value={cycleUnit} onChange={(e) => setCycleUnit(e.target.value as CycleUnit)}>
+                  {Object.entries(CYCLE_UNITS).map(([key, item]) => <option key={key} value={key}>{item.label}</option>)}
+                </ColdProSelect>
+              </ColdProField>
+              <ColdProField label="Ciclos" unit={CYCLE_UNITS[cycleUnit].label}><ColdProInput {...cyclesNum(cycleUnit)} /></ColdProField>
               <ColdProField label="Massa direta" unit="kg/h"><ColdProInput {...num("mass_kg_hour")} /></ColdProField>
-              <ColdProField label="Tempo retenção" unit="min"><ColdProInput {...num("process_time_min")} /></ColdProField>
+              <ColdProField label="Escala do tempo">
+                <ColdProSelect value={retentionUnit} onChange={(e) => setRetentionUnit(e.target.value as RetentionUnit)}>
+                  {Object.entries(RETENTION_UNITS).map(([key, item]) => <option key={key} value={key}>{item.label}</option>)}
+                </ColdProSelect>
+              </ColdProField>
+              <ColdProField label="Tempo retenção" unit={RETENTION_UNITS[retentionUnit].label}><ColdProInput {...retentionNum(retentionUnit)} /></ColdProField>
               <ColdProCalculatedInfo label="Massa usada" value={`${fmtColdPro(massHour)} kg/h`} description="Massa direta ou throughput calculado" tone={massHour > 0 ? "success" : "warning"} />
             </div></div>
           </ColdProFormSection>
