@@ -312,7 +312,7 @@ export async function syncNomusProcessesNewestFirst(supabaseAdmin: any, options:
       }
       const wantedRecent = recentPage.items.filter(wants);
       for (const summary of wantedRecent) newestSeenId = Math.max(newestSeenId, processIdOf(summary));
-      const persisted = await persistChangedNomusProcessBatch(wantedRecent, options.triggeredBy ?? null);
+      const persisted = await persistChangedNomusProcessBatch(supabaseAdmin, wantedRecent, options.triggeredBy ?? null);
       count += persisted.upserted;
       if (!recentPage.hasMore || recentPage.items.length === 0) break;
     }
@@ -599,7 +599,7 @@ export const processNomusProcessSyncBatch = createServerFn({ method: "POST" })
         }
 
         const wantedItems = page.items.filter((p) => tipoMatches(p.tipo, tipos));
-        const persisted = await persistNomusProcessBatch(wantedItems, userId);
+        const persisted = await persistNomusProcessBatch(supabaseAdmin, wantedItems, userId);
         batchScanned += page.items.length;
         batchMatched += wantedItems.length;
         batchPersisted += persisted.upserted;
