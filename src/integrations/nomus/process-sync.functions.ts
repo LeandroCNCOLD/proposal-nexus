@@ -338,10 +338,10 @@ async function syncNomusProcessesFullScan(options: { tipos?: string[]; triggered
   const { NOMUS_ENDPOINTS } = await import("./endpoints");
   const wantedTipos = (options.tipos ?? []).map((t) => t.trim()).filter(Boolean);
   const now = new Date().toISOString();
-  const maxPages = options.maxPages ?? 1;
-  const maxItems = options.maxItems ?? 50;
+  const maxPages = options.maxPages ?? 50;
+  const maxItems = options.maxItems ?? 5_000;
   const pageSize = 50;
-  const deadlineAt = Date.now() + 8_000;
+  const deadlineAt = Date.now() + 25_000;
 
   const { data: lockRow } = await supabaseAdmin
     .from("nomus_sync_state")
@@ -427,11 +427,11 @@ export const pullNomusProcesses = createServerFn({ method: "POST" })
     const r = await syncNomusProcessesFullScan({
       tipos: data?.tipos,
       triggeredBy: context.userId,
-      maxPages: data?.maxPages ?? 1,
-      maxItems: data?.maxItems ?? 50,
+      maxPages: data?.maxPages ?? 50,
+      maxItems: data?.maxItems ?? 5_000,
     });
     return r.ok
-      ? { ok: true as const, total: r.count ?? 0, upserted: r.count ?? 0, stagesDiscovered: [] }
+      ? { ok: true as const, total: r.processed ?? 0, upserted: r.count ?? 0, stagesDiscovered: [] }
       : { ok: false as const, error: r.error ?? "Falha ao sincronizar processos" };
   });
 
