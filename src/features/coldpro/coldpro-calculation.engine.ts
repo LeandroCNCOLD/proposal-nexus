@@ -20,7 +20,6 @@ import {
 import { calculateAdvancedProcess } from "./advancedProcesses/advancedProcessEngine";
 import { calculateEvaporatorFrostRisk, suggestedInfiltrationFactor } from "./extra-loads-preview";
 import { calculateEvaporatorFanLoad, calculateMotorLoadKcalH, calculateTechnicalDefrost, calculateTechnicalInfiltration } from "./thermal-calculations";
-import { calculateProductThermalLoad } from "@/modules/coldpro/services/continuousGirofreezerService";
 
 const W_TO_KCAL_H = 0.859845;
 const R_INTERNAL_M2K_W = 0.12;
@@ -427,6 +426,31 @@ function waterFreezeFraction(item: Pick<ColdProEnvironmentProduct | ColdProTunne
   return 1;
 }
 
+function calculateTunnelThermalProcess(params: {
+  usedMassKgH: number;
+  tin: number;
+  tout: number;
+  tfreeze: number;
+  cpAboveKjKgK: number;
+  cpBelowKjKgK: number;
+  latentHeatKjKg: number;
+  frozenFraction: number;
+  packagingMassKgH: number;
+  packagingCpKjKgK: number;
+  deltaTAirK: number;
+}) {
+  const crossesFreezing = params.tin > params.tfreeze && params.tout < params.tfreeze;
+  const qSpecificAboveKjKg = crossesFreezing ? params.cpAboveKjKgK * positive(params.tin - params.tfreeze) : (params.tout < params.tfreeze ? params.cpBelowKjKgK : params.cpAboveKjKgK) * Math.abs(params.tin - params.tout);
+  const qSpecificLatentKjKg = crossesFreezing ? params.latentHeatKjKg * positive(params.frozenFraction) : 0;
+  const qSpecificBelowKjKg = crossesFreezing ? params.cpBelowKjKgK * positive(params.tfreeze - params.tout) : 0;
+  const qSpecificTotalKjKg = qSpecificAboveKjKg + qSpecificLatentKjKg + qSpecificBelowKjKg;
+  const productLoadKw = positive(params.usedMassKgH) * qSpecificTotalKjKg / 3600;
+  const packagingLoadKw = params.packagingMassKgH > 0 && params.packagingCpKjKgK > 0 ? params.packagingMassKgH * params.packagingCpKjKgK * Math.abs(params.tin - params.tout) / 3600 : 0;
+  const totalProcessLoadKw = productLoadKw + packagingLoadKw;
+  const requiredAirflowM3S = params.deltaTAirK > 0 ? totalProcessLoadKw / (AIR_DENSITY_KG_M3 * 1.005 * params.deltaTAirK) : null;
+  return { qSpecificAboveKjKg, qSpecificLatentKjKg, qSpecificBelowKjKg, qSpecificTotalKjKg, productLoadKw, packagingLoadKw, totalProcessLoadKw, totalProcessLoadKcalH: totalProcessLoadKw * 860, totalProcessLoadTr: totalProcessLoadKw / 3.517, requiredAirflowM3S, requiredAirflowM3H: requiredAirflowM3S === null ? null : requiredAirflowM3S * 3600 };
+}
+
 export function calculateVolume(env: Pick<ColdProEnvironment, "length_m" | "width_m" | "height_m">): number {
   return positive(n(env.length_m) * n(env.width_m) * n(env.height_m));
 }
@@ -778,25 +802,18 @@ export function calculateTunnelLoad(tunnel: ColdProTunnel) {
   const packaging = n(tunnel.packaging_mass_kg_hour) * n(tunnel.packaging_specific_heat_kcal_kg_c) * Math.abs(tin - tout);
   const internalLoads = kwToKcalh(n(tunnel.belt_motor_kw) + n(tunnel.internal_fans_kw) + n(tunnel.other_internal_kw));
   const total = productHourly + packaging + internalLoads;
-  const thermalProcess = calculateProductThermalLoad({
+  const thermalProcess = calculateTunnelThermalProcess({
     usedMassKgH: calculationMass,
-    product: {
-      initialTempC: tin,
-      finalTempC: tout,
-      freezingPointC: n(tfreeze),
-      cpAboveKjKgK: cpAbove * KCAL_TO_KJ,
-      cpBelowKjKgK: cpBelow * KCAL_TO_KJ,
-      latentHeatKjKg: latent * KCAL_TO_KJ,
-      frozenWaterFraction: frozenFraction,
-      packagingMassKgH: n(tunnel.packaging_mass_kg_hour),
-      packagingCpKjKgK: n(tunnel.packaging_specific_heat_kcal_kg_c) * KCAL_TO_KJ,
-    },
-    air: {
-      airTemperatureC: n(tunnel.air_temp_c),
-      airVelocityMs: n(tunnel.air_velocity_m_s),
-      deltaTAirK: n((tunnel as any).air_delta_t_k, 6),
-      airDensityKgM3: AIR_DENSITY_KG_M3,
-    },
+    tin,
+    tout,
+    tfreeze: n(tfreeze),
+    cpAboveKjKgK: cpAbove * KCAL_TO_KJ,
+    cpBelowKjKgK: cpBelow * KCAL_TO_KJ,
+    latentHeatKjKg: latent * KCAL_TO_KJ,
+    frozenFraction,
+    packagingMassKgH: n(tunnel.packaging_mass_kg_hour),
+    packagingCpKjKgK: n(tunnel.packaging_specific_heat_kcal_kg_c) * KCAL_TO_KJ,
+    deltaTAirK: n((tunnel as any).air_delta_t_k, 6),
   });
   const availableTimeMin = isStatic ? batchTimeH * 60 : n(tunnel.process_time_min);
   const optimization = optimizeProcessAirCondition({
