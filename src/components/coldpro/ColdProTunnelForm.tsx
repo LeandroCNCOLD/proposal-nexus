@@ -183,7 +183,7 @@ export function ColdProTunnelForm({ environmentId, environment, tunnel, productC
   const ashraeDensityKgM3 = Number(form.ashrae_density_kg_m3 ?? 0);
   const densityFieldKgM3 = Number(form.density_kg_m3 ?? 0);
   const manualDensityKgM3 = densityFieldKgM3 > 0 && (!ashraeDensityKgM3 || Math.abs(densityFieldKgM3 - ashraeDensityKgM3) > 0.0001) ? densityFieldKgM3 : 0;
-  const airTemperatureC = Number(form.air_temp_c ?? environment?.internal_temp_c ?? 0);
+  const airTemperatureC = Number(environment?.internal_temp_c ?? form.air_temp_c ?? 0);
   const giroResult = calculateContinuousGirofreezer({
     dimensionScale: "m",
     productLength: Number(form.product_length_m ?? 0),
@@ -295,6 +295,7 @@ export function ColdProTunnelForm({ environmentId, environment, tunnel, productC
     product_thickness_m: productThicknessM,
     product_thickness_mm: productThicknessM * 1000,
     product_unit_weight_kg: Number(form.product_unit_weight_kg ?? 0) || Number(form.unit_weight_kg ?? 0),
+    air_temp_c: airTemperatureC,
     mass_kg_hour: isStatic ? 0 : massHour,
     thermal_characteristic_dimension_m: characteristic || null,
     distance_to_core_m: characteristic > 0 ? characteristic / 2 : null,
@@ -420,7 +421,7 @@ export function ColdProTunnelForm({ environmentId, environment, tunnel, productC
               <ColdProCalculatedInfo label="Capacidade em kcal/h" value={`${fmtColdPro(thermalResult.totalProcessLoadKcalH, 0)} kcal/h`} description="carga total convertida" tone="info" />
               <ColdProCalculatedInfo label="Capacidade em TR" value={`${fmtColdPro(thermalResult.totalProcessLoadTr, 2)} TR`} description="carga total convertida" tone="info" />
               <ColdProCalculatedInfo label="Vazão de ar necessária" value={fmtMaybe(thermalResult.requiredAirflowM3H, 0, " m³/h")} description="potência ÷ ar × Cp × ΔT" tone={thermalResult.requiredAirflowM3H ? "info" : "warning"} />
-              <ColdProCalculatedInfo label="Temperatura do ar usada" value={`${fmtColdPro(giroResult.physics.airTemperatureUsedC, 1)} °C`} description={form.air_temp_c == null ? "temperatura interna do ambiente" : "base do cálculo térmico"} tone="info" />
+              <ColdProCalculatedInfo label="Temperatura do ar usada" value={`${fmtColdPro(giroResult.physics.airTemperatureUsedC, 1)} °C`} description={environment?.internal_temp_c != null ? "temperatura interna do ambiente" : "base do cálculo térmico"} tone="info" />
               <ColdProCalculatedInfo label="Velocidade do ar usada" value={`${fmtColdPro(giroResult.physics.airVelocityUsedMs, 2)} m/s`} description={giroResult.physics.airVelocitySource === "suggested" ? "sugerida para atingir o núcleo" : "base de h efetivo"} tone={giroResult.physics.airVelocityUsedMs > 0 ? "info" : "warning"} />
               <ColdProCalculatedInfo label="Velocidade sugerida" value={fmtMaybe(giroResult.physics.suggestedAirVelocityMs, 2, " m/s")} description="calculada pelo tempo desejado" tone={giroResult.physics.suggestedAirVelocityMs ? "success" : "warning"} />
               <ColdProCalculatedInfo label="h efetivo" value={fmtMaybe(giroResult.physics.hEffectiveWm2K, 2, " W/m²K")} description="convecção × exposição" tone={giroResult.physics.hEffectiveWm2K ? "info" : "warning"} />
