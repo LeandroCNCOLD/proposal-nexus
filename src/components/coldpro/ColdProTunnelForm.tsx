@@ -512,6 +512,9 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
     <>
       <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <ColdProCalculatedInfo label="Modelo físico aplicado" value={tunnelResult.physicalModelLabel} description={tunnelResult.calculationBreakdown.model.physicalDescription} tone="info" />
+        <ColdProCalculatedInfo label="Tipo de túnel" value={TUNNEL_TYPES[tunnelResult.tunnelType as keyof typeof TUNNEL_TYPES] ?? tunnelResult.tunnelType} description={tunnelResult.operationRegime === "batch" ? "batelada" : "contínuo"} tone="info" />
+        <ColdProCalculatedInfo label="Tipo de arranjo" value={ARRANGEMENT_DEFAULTS[String(tunnelResult.arrangementType)]?.label ?? String(tunnelResult.arrangementType ?? "—")} description="arranjo usado no fator de exposição" tone="info" />
+        <ColdProCalculatedInfo label="Geometria do produto" value={GEOMETRIES[String(tunnelResult.productGeometry) as keyof typeof GEOMETRIES] ?? String(tunnelResult.productGeometry ?? "—")} description={String(tunnelResult.geometrySource ?? "")} tone="info" />
         <ColdProCalculatedInfo label="Premissa geométrica" value={tunnelResult.physicalModel === "static_block" ? "Bloco/pallet" : "Espessura"} description={tunnelResult.calculationBreakdown.model.geometryAssumption} tone="info" />
         <ColdProCalculatedInfo label={isStatic ? "Massa da batelada" : "Massa usada"} value={`${fmtColdPro(isStatic ? tunnelResult.staticMassKg : tunnelResult.usedMassKgH)} ${isStatic ? "kg" : "kg/h"}`} description={isStatic ? "massa usada na carga térmica" : "kg/h usado no motor"} tone={(isStatic ? tunnelResult.staticMassKg : tunnelResult.usedMassKgH) > 0 ? "success" : "warning"} />
         {isStatic ? <ColdProCalculatedInfo label="Massa total da batelada" value={`${fmtColdPro(tunnelResult.staticMassKg)} kg`} description="massa por pallet × número de pallets" tone={tunnelResult.staticMassKg > 0 ? "success" : "warning"} /> : <ColdProCalculatedInfo label="Massa por cadência" value={`${fmtColdPro(tunnelResult.calculatedMassKgH)} kg/h`} description="peso × unidades × ciclos/h" tone={tunnelResult.calculatedMassKgH > 0 ? "info" : "warning"} />}
@@ -532,14 +535,18 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
         <ColdProCalculatedInfo label="Carga total em TR" value={`${fmtColdPro(tunnelResult.totalTR, 2)} TR`} description="carga total convertida" tone="info" />
         <ColdProCalculatedInfo label="Vazão de ar estimada" value={`${fmtColdPro(tunnelResult.airFlowM3H, 0)} m³/h`} description="por balanço térmico" tone={tunnelResult.airFlowM3H > 0 ? "info" : "warning"} />
         <ColdProCalculatedInfo label="Vazão de ar informada" value={`${fmtColdPro(tunnelResult.fanAirflowM3H ?? 0, 0)} m³/h`} description="ventiladores" tone="info" />
+        <ColdProCalculatedInfo label="Fonte da velocidade" value={tunnelResult.airflowSource === "airflow_by_fans" ? "Vazão / seção livre" : "Manual"} description="origem da velocidade usada" tone="info" />
         <ColdProCalculatedInfo label="Área bruta de passagem" value={`${fmtColdPro(tunnelResult.grossAirAreaM2 ?? 0, 2)} m²`} description="largura × altura" tone="info" />
         <ColdProCalculatedInfo label="Fator de bloqueio" value={`${fmtColdPro((tunnelResult.blockageFactor ?? 0) * 100, 1)}%`} description="produto/esteira/embalagem" tone="info" />
         <ColdProCalculatedInfo label="Área livre estimada" value={`${fmtColdPro(tunnelResult.freeAirAreaM2 ?? 0, 2)} m²`} description="área bruta × livre" tone={(tunnelResult.freeAirAreaM2 ?? 0) > 0 ? "info" : "warning"} />
         <ColdProCalculatedInfo label="Velocidade calculada no produto" value={`${fmtColdPro(tunnelResult.calculatedAirVelocityMS ?? 0, 2)} m/s`} description="vazão ÷ área livre" tone="info" />
         <ColdProCalculatedInfo label="Velocidade usada no cálculo" value={`${fmtColdPro(tunnelResult.airVelocityUsedMS ?? 0, 2)} m/s`} description={tunnelResult.airflowSource ?? "manual_velocity"} tone={(tunnelResult.airVelocityUsedMS ?? 0) > 0 ? "success" : "warning"} />
+        <ColdProCalculatedInfo label="Modelo de exposição" value={EXPOSURE_MODELS[String(tunnelResult.surfaceExposureModel) as keyof typeof EXPOSURE_MODELS] ?? String(tunnelResult.surfaceExposureModel ?? "—")} description="superfície efetivamente exposta" tone="info" />
+        <ColdProCalculatedInfo label="Fator de exposição" value={`${fmtColdPro(tunnelResult.exposureFactor ?? 1, 2)}`} description="multiplica h quando h não é manual" tone="info" />
         <ColdProCalculatedInfo label="Temperatura de ar sugerida" value={`${fmtColdPro(tunnelResult.suggestedAirTempC, 1)} °C`} description="temperatura final - approach" tone="info" />
         <ColdProCalculatedInfo label="Temperatura de ar informada" value={`${fmtColdPro(Number(tunnelInput.airTempC ?? 0), 1)} °C`} description="valor real usado no cálculo" tone="info" />
         <ColdProCalculatedInfo label="Diferença do ar" value={fmtMaybe(tunnelResult.calculationBreakdown.air.comparison as number | null, 1, " °C")} description="informada - sugerida" tone={Number(tunnelResult.calculationBreakdown.air.comparison ?? 0) > 5 ? "warning" : "info"} />
+        <ColdProCalculatedInfo label="h base" value={fmtMaybe(tunnelResult.h.hBaseWM2K, 2, " W/m²K")} description="antes dos fatores de exposição" tone={tunnelResult.h.hBaseWM2K ? "info" : "warning"} />
         <ColdProCalculatedInfo label="h efetivo" value={fmtMaybe(tunnelResult.h.hEffectiveWM2K, 2, " W/m²K")} description={`Fonte: ${tunnelResult.h.source}`} tone={tunnelResult.h.hEffectiveWM2K ? "info" : "warning"} />
         <ColdProCalculatedInfo label="Fonte do h" value={tunnelResult.h.source} description={tunnelResult.calculationBreakdown.model.convectionAssumption} tone="info" />
         <ColdProCalculatedInfo label="k efetivo" value={fmtMaybe(tunnelResult.kEffectiveWMK, 3, " W/mK")} description="condutividade × penetração" tone={tunnelResult.kEffectiveWMK ? "info" : "warning"} />
@@ -561,7 +568,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
         </div>
         <div className="grid grid-cols-2 gap-2 md:min-w-80">
           <ColdProCalculatedInfo label={isStatic ? "Massa lote" : "Throughput"} value={`${fmtColdPro(isStatic ? staticMass : massHour)} ${isStatic ? "kg" : "kg/h"}`} description={isStatic ? "pallet/lote × quantidade" : "kg/h ou un/ciclo"} tone={(isStatic ? staticMass : massHour) > 0 ? "success" : "warning"} />
-          <ColdProCalculatedInfo label="Dimensão térmica" value={`${fmtColdPro(characteristic, 3)} m`} description="Caminho até núcleo = metade" tone={characteristic > 0 ? "info" : "warning"} />
+          <ColdProCalculatedInfo label="Dimensão térmica" value={`${fmtColdPro(tunnelResult.characteristicDimensionM, 3)} m`} description="Caminho até núcleo = metade" tone={tunnelResult.characteristicDimensionM > 0 ? "info" : "warning"} />
         </div>
       </div>
 
