@@ -63,29 +63,29 @@ export function KanbanCardRich({ card }: { card: EnrichedCard }) {
     <Link
       to="/app/crm/$id"
       params={{ id: card.id }}
-      className="group block rounded-md border border-border bg-card p-3 text-left shadow-sm transition hover:border-primary/40 hover:shadow-md"
+      className="group block rounded-md border border-border bg-card p-4 text-left shadow-sm transition hover:border-primary/40 hover:shadow-md"
     >
       {/* Título */}
-      <div className="mb-1.5 flex items-start justify-between gap-2">
-        <p className="line-clamp-2 flex-1 text-[13px] font-semibold leading-snug text-foreground">
+      <div className="mb-2 flex items-start justify-between gap-2">
+        <p className="line-clamp-2 flex-1 text-sm font-semibold leading-snug text-foreground">
           {(card.nome ?? card.pessoa ?? "Sem nome").trim()}
         </p>
         {card.attachments_count > 0 && (
-          <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
-            <Paperclip className="h-3 w-3" />
+          <span className="flex items-center gap-1 text-xs text-muted-foreground">
+            <Paperclip className="h-3.5 w-3.5" />
             {card.attachments_count}
           </span>
         )}
       </div>
 
       {/* Linha ID · Responsável */}
-      <p className="mb-1 truncate text-[11px] text-muted-foreground">
+      <p className="mb-2 truncate text-xs text-muted-foreground">
         #{card.nomus_id}
         {card.responsavel ? ` · ${card.responsavel}` : ""}
       </p>
 
       {/* Campos densos estilo Nomus */}
-      <div className="space-y-0.5 text-[11px] leading-tight">
+      <div className="space-y-1 text-xs leading-snug">
         {card.decisor && (
           <p className="text-muted-foreground">
             <span className="font-medium text-foreground/80">Decisor:</span> {card.decisor}
@@ -122,25 +122,25 @@ export function KanbanCardRich({ card }: { card: EnrichedCard }) {
       </div>
 
       {/* Rodapé */}
-      <div className="mt-2 border-t border-border/60 pt-2">
+      <div className="mt-3 border-t border-border/60 pt-3">
         {card.pessoa && (
-          <p className="mb-1 truncate text-[11px] text-muted-foreground">{card.pessoa}</p>
+          <p className="mb-1.5 truncate text-xs text-muted-foreground">{card.pessoa}</p>
         )}
         <div className="flex items-end justify-between gap-2">
-          <span className="text-[13px] font-bold text-emerald-700 dark:text-emerald-400">
+          <span className="text-sm font-bold text-emerald-700 dark:text-emerald-400">
             {card.proposta_valor !== null ? brl(card.proposta_valor) : "—"}
           </span>
-          <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
-            <Clock className="h-3 w-3" />
+          <span className="flex items-center gap-1 text-xs text-muted-foreground">
+            <Clock className="h-3.5 w-3.5" />
             {timeInStage(card.last_stage_change, card.data_criacao)}
           </span>
         </div>
         {card.proposta_validade && (
           <Badge
             variant={validadeOverdue ? "destructive" : "outline"}
-            className="mt-1.5 text-[10px]"
+            className="mt-2 text-xs"
           >
-            {validadeOverdue && <AlertTriangle className="mr-1 h-2.5 w-2.5" />}
+            {validadeOverdue && <AlertTriangle className="mr-1 h-3 w-3" />}
             {formatBRDate(card.proposta_validade)}
             {validadeOverdue ? " (vencida)" : ""}
           </Badge>
