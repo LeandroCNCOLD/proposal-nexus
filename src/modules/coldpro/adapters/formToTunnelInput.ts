@@ -20,6 +20,8 @@ export function formToTunnelInput(form: any, environment: any) {
   const numberOfPallets = safeNumber(form?.number_of_pallets);
   const palletMassKg = safeNumber(form?.pallet_mass_kg);
   const staticMassKg = isStatic ? palletMassKg * numberOfPallets : safeNumber(form?.static_mass_kg) || safeNumber(form?.staticMassKg) || palletMassKg * Math.max(1, numberOfPallets || 1);
+  const packagingMassKgBatch = safeNumber(form?.packaging_mass_kg_batch);
+  const packagingMassKgH = isStatic && safeNumber(form?.batch_time_h) > 0 && packagingMassKgBatch > 0 ? packagingMassKgBatch / safeNumber(form?.batch_time_h) : safeNumber(form?.packaging_mass_kg_hour);
   const normalAirTempC = airTempSource === "environment" ? safeNumber(environment?.internal_temp_c) : safeNumber(form?.air_temp_c);
   const normalInput = {
     airTempC: normalAirTempC,
@@ -42,11 +44,13 @@ export function formToTunnelInput(form: any, environment: any) {
     arrangementType: form?.arrangement_type,
     productGeometry: form?.product_geometry ?? "slab",
     surfaceExposureModel: form?.surface_exposure_model ?? "fully_exposed",
+    thermalModelForPallet: form?.thermal_model_for_pallet ?? (form?.tunnel_type === "static_pallet" && form?.arrangement_type === "palletized_boxes" ? "hybrid" : null),
     airflowSource: form?.airflow_source ?? "manual_velocity",
     fanAirflowM3H: safeNumber(form?.fan_airflow_m3_h),
     tunnelCrossSectionWidthM: safeNumber(form?.tunnel_cross_section_width_m),
     tunnelCrossSectionHeightM: safeNumber(form?.tunnel_cross_section_height_m),
     blockageFactor: safeNumber(form?.blockage_factor),
+    blockageFactorInputMode: form?.blockage_factor_input_mode ?? "decimal",
     unitWeightKg: safeNumber(form?.unit_weight_kg ?? form?.product_unit_weight_kg),
     unitsPerCycle: safeNumber(form?.units_per_cycle),
     cyclesPerHour: safeNumber(form?.cycles_per_hour),
@@ -93,7 +97,8 @@ export function formToTunnelInput(form: any, environment: any) {
     frozenWaterFraction: safeNumber(form?.frozen_water_fraction),
     frozenConductivityWMK: safeNumber(form?.thermal_conductivity_frozen_w_m_k),
     densityKgM3: safeNumber(form?.density_kg_m3),
-    packagingMassKgH: safeNumber(form?.packaging_mass_kg_hour),
+    packagingMassKgH,
+    packagingMassKgBatch,
     packagingCpKJkgK: packagingSpecificHeatKJkgK > 0
       ? packagingSpecificHeatKJkgK
       : safeNumber(form?.packaging_specific_heat_kcal_kg_c) * KCAL_TO_KJ,
