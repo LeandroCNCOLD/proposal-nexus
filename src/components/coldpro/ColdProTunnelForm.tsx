@@ -110,6 +110,13 @@ function isStaticProcess(processType: string) {
   return processType === "static_cart_freezing" || processType === "static_pallet_freezing";
 }
 
+function physicalModelFromProcess(processType: string) {
+  if (processType === "continuous_girofreezer") return "continuous_spiral";
+  if (processType === "static_cart_freezing") return "static_cart";
+  if (processType === "static_pallet_freezing") return "static_block";
+  return "continuous_individual";
+}
+
 function defaultArrangement(processType: string) {
   if (processType === "static_cart_freezing") return "cart_rack";
   if (processType === "static_pallet_freezing") return "pallet_block";
@@ -187,7 +194,8 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
     return { type: "number" as const, step: unitConfig.step, value: Number.isFinite(valueMin) && valueMin !== 0 ? valueMin / unitConfig.toMinutes : form.process_time_min === 0 ? 0 : "", onChange: (e: React.ChangeEvent<HTMLInputElement>) => set("process_time_min", numberOrNull(e.target.value) === null ? null : Number(e.target.value) * unitConfig.toMinutes) };
   };
   const processType = String(form.process_type ?? "continuous_individual_freezing");
-  const isStatic = isStaticProcess(processType);
+  const physicalModel = String(form.physical_model ?? physicalModelFromProcess(processType));
+  const isStatic = physicalModel === "static_cart" || physicalModel === "static_block" || isStaticProcess(processType);
   const unitWeight = Number(form.unit_weight_kg ?? 0) || Number(form.product_unit_weight_kg ?? 0);
   const throughput = Number(form.units_per_cycle ?? 0) * unitWeight * Number(form.cycles_per_hour ?? 0);
   const massHour = Number(form.mass_kg_hour ?? 0) || throughput;
