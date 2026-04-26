@@ -13,6 +13,14 @@ const ARRANGEMENT_DEFAULTS: Record<string, { air: number; penetration: number; l
   bulk_static: { air: 0.1, penetration: 0.15, label: "Massa a granel" },
 };
 
+type DimensionUnit = "m" | "cm" | "mm";
+
+const DIMENSION_UNITS: Record<DimensionUnit, { label: string; toMeters: number; step: string }> = {
+  m: { label: "m", toMeters: 1, step: "0.001" },
+  cm: { label: "cm", toMeters: 0.01, step: "0.1" },
+  mm: { label: "mm", toMeters: 0.001, step: "1" },
+};
+
 const defaultTunnel = (environmentId: string) => ({
   environment_id: environmentId,
   tunnel_type: "blast_freezer",
@@ -83,11 +91,24 @@ function defaultArrangement(processType: string) {
 export function ColdProTunnelForm({ environmentId, tunnel, productCatalog = [], onSave }: { environmentId: string; tunnel?: any; productCatalog?: any[]; onSave: (data: any) => void }) {
   const [form, setForm] = React.useState<any>(defaultTunnel(environmentId));
   const [selectedGroup, setSelectedGroup] = React.useState("");
+  const [continuousUnit, setContinuousUnit] = React.useState<DimensionUnit>("m");
+  const [staticUnit, setStaticUnit] = React.useState<DimensionUnit>("m");
 
   React.useEffect(() => setForm((prev: any) => ({ ...prev, ...(tunnel ?? {}), environment_id: environmentId })), [environmentId, tunnel?.id]);
 
   const set = (key: string, value: unknown) => setForm((prev: any) => ({ ...prev, [key]: value }));
   const num = (key: string) => ({ type: "number" as const, value: form?.[key] ?? "", onChange: (e: React.ChangeEvent<HTMLInputElement>) => set(key, numberOrNull(e.target.value)) });
+  const dimensionValueM = (key: string) => key === "product_thickness_m" ? (Number(form.product_thickness_m ?? 0) || Number(form.product_thickness_mm ?? 0) / 1000) : Number(form?.[key] ?? 0);
+  const dimensionNum = (key: string, unit: DimensionUnit) => {
+    const unitConfig = DIMENSION_UNITS[unit];
+    const valueM = dimensionValueM(key);
+    return {
+      type: "number" as const,
+      step: unitConfig.step,
+      value: Number.isFinite(valueM) && valueM !== 0 ? valueM / unitConfig.toMeters : form?.[key] === 0 ? 0 : "",
+      onChange: (e: React.ChangeEvent<HTMLInputElement>) => set(key, numberOrNull(e.target.value) === null ? null : Number(e.target.value) * unitConfig.toMeters),
+    };
+  };
   const processType = String(form.process_type ?? "continuous_individual_freezing");
   const isStatic = isStaticProcess(processType);
   const unitWeight = Number(form.unit_weight_kg ?? 0) || Number(form.product_unit_weight_kg ?? 0);
@@ -95,7 +116,8 @@ export function ColdProTunnelForm({ environmentId, tunnel, productCatalog = [], 
   const massHour = Number(form.mass_kg_hour ?? 0) || throughput;
   const staticMass = Number(form.pallet_mass_kg ?? 0) * Math.max(1, Number(form.number_of_pallets ?? 1));
   const blockDims = [Number(form.pallet_length_m ?? 0), Number(form.pallet_width_m ?? 0), Number(form.pallet_height_m ?? 0)].filter((v) => v > 0);
-  const characteristic = isStatic ? (blockDims.length ? Math.min(...blockDims) : 0) : (Number(form.product_thickness_m ?? 0) || Number(form.product_thickness_mm ?? 0) / 1000);
+  const productThicknessM = dimensionValueM("product_thickness_m");
+  const characteristic = isStatic ? (blockDims.length ? Math.min(...blockDims) : 0) : productThicknessM;
   const deltaT = Number(form.inlet_temp_c ?? 0) - Number(form.outlet_temp_c ?? 0);
   const processError = isStatic ? Number(form.batch_time_h ?? 0) <= 0 : Number(form.process_time_min ?? 0) <= 0;
   const velocityWarning = Number(form.air_velocity_m_s ?? 0) <= 0 || Number(form.air_velocity_m_s ?? 0) > 10;
@@ -153,7 +175,8 @@ export function ColdProTunnelForm({ environmentId, tunnel, productCatalog = [], 
   const save = () => onSave({
     ...form,
     product_name: String(form.product_name ?? "").trim(),
-    product_thickness_mm: Number(form.product_thickness_mm ?? 0) || Number(form.product_thickness_m ?? 0) * 1000,
+    product_thickness_m: productThicknessM,
+    product_thickness_mm: productThicknessM * 1000,
     product_unit_weight_kg: Number(form.product_unit_weight_kg ?? 0) || Number(form.unit_weight_kg ?? 0),
     mass_kg_hour: isStatic ? 0 : massHour,
     thermal_characteristic_dimension_m: characteristic || null,
@@ -230,9 +253,14 @@ export function ColdProTunnelForm({ environmentId, tunnel, productCatalog = [], 
         <TabsContent value="continuo">
           <ColdProFormSection title="Contínuo / girofreezer" description="Produto individualizado ou camada fina exposta ao ar." icon={<Wind className="h-4 w-4" />}>
             <div className="grid grid-cols-1 gap-x-10 md:grid-cols-2"><div>
-              <ColdProField label="Comprimento produto" unit="m"><ColdProInput {...num("product_length_m")} /></ColdProField>
-              <ColdProField label="Largura produto" unit="m"><ColdProInput {...num("product_width_m")} /></ColdProField>
-              <ColdProField label="Espessura produto" unit="m"><ColdProInput {...num("product_thickness_m")} /></ColdProField>
+              <ColdProField label="Escala das medidas">
+                <ColdProSelect value={continuousUnit} onChange={(e) => setContinuousUnit(e.target.value as DimensionUnit)}>
+                  {Object.entries(DIMENSION_UNITS).map(([key, item]) => <option key={key} value={key}>{item.label}</option>)}
+                </ColdProSelect>
+              </ColdProField>
+              <ColdProField label="Comprimento produto" unit={DIMENSION_UNITS[continuousUnit].label}><ColdProInput {...dimensionNum("product_length_m", continuousUnit)} /></ColdProField>
+              <ColdProField label="Largura produto" unit={DIMENSION_UNITS[continuousUnit].label}><ColdProInput {...dimensionNum("product_width_m", continuousUnit)} /></ColdProField>
+              <ColdProField label="Espessura produto" unit={DIMENSION_UNITS[continuousUnit].label}><ColdProInput {...dimensionNum("product_thickness_m", continuousUnit)} /></ColdProField>
               <ColdProField label="Peso unitário" unit="kg"><ColdProInput {...num("unit_weight_kg")} /></ColdProField>
             </div><div>
               <ColdProField label="Unidades/ciclo"><ColdProInput {...num("units_per_cycle")} /></ColdProField>
@@ -247,9 +275,14 @@ export function ColdProTunnelForm({ environmentId, tunnel, productCatalog = [], 
         <TabsContent value="estatico">
           <ColdProFormSection title="Estático / carrinho / pallet" description="Massa agrupada tratada como bloco térmico equivalente." icon={<Warehouse className="h-4 w-4" />}>
             <div className="grid grid-cols-1 gap-x-10 md:grid-cols-2"><div>
-              <ColdProField label="Comprimento pallet/bloco" unit="m"><ColdProInput {...num("pallet_length_m")} /></ColdProField>
-              <ColdProField label="Largura pallet/bloco" unit="m"><ColdProInput {...num("pallet_width_m")} /></ColdProField>
-              <ColdProField label="Altura da carga" unit="m"><ColdProInput {...num("pallet_height_m")} /></ColdProField>
+              <ColdProField label="Escala das medidas">
+                <ColdProSelect value={staticUnit} onChange={(e) => setStaticUnit(e.target.value as DimensionUnit)}>
+                  {Object.entries(DIMENSION_UNITS).map(([key, item]) => <option key={key} value={key}>{item.label}</option>)}
+                </ColdProSelect>
+              </ColdProField>
+              <ColdProField label="Comprimento pallet/bloco" unit={DIMENSION_UNITS[staticUnit].label}><ColdProInput {...dimensionNum("pallet_length_m", staticUnit)} /></ColdProField>
+              <ColdProField label="Largura pallet/bloco" unit={DIMENSION_UNITS[staticUnit].label}><ColdProInput {...dimensionNum("pallet_width_m", staticUnit)} /></ColdProField>
+              <ColdProField label="Altura da carga" unit={DIMENSION_UNITS[staticUnit].label}><ColdProInput {...dimensionNum("pallet_height_m", staticUnit)} /></ColdProField>
               <ColdProField label="Massa por pallet/lote" unit="kg"><ColdProInput {...num("pallet_mass_kg")} /></ColdProField>
             </div><div>
               <ColdProField label="Número de pallets/lotes"><ColdProInput {...num("number_of_pallets")} /></ColdProField>
