@@ -169,6 +169,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
   const [weightUnit, setWeightUnit] = React.useState<WeightUnit>("kg");
   const [cycleUnit, setCycleUnit] = React.useState<CycleUnit>("h");
   const [retentionUnit, setRetentionUnit] = React.useState<RetentionUnit>("min");
+  const [activeTab, setActiveTab] = React.useState("modelo");
 
   React.useEffect(() => setForm((prev: any) => ({ ...prev, ...(tunnel ?? {}), environment_id: environmentId })), [environmentId, tunnel?.id]);
 
@@ -203,6 +204,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
   const processType = String(form.process_type ?? "continuous_individual_freezing");
   const physicalModel = String(form.physical_model ?? physicalModelFromProcess(processType));
   const isStatic = isStaticTunnel(processType, form.operation_mode);
+  const modelTab = isStatic ? "estatico" : "continuo";
   const unitWeight = Number(form.unit_weight_kg ?? 0) || Number(form.product_unit_weight_kg ?? 0);
   const throughput = Number(form.units_per_cycle ?? 0) * unitWeight * Number(form.cycles_per_hour ?? 0);
   const massHour = Number(form.mass_kg_hour ?? 0) || throughput;
@@ -306,6 +308,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
     const defaults = ARRANGEMENT_DEFAULTS[arrangement];
     const nextIsStatic = isStaticProcess(value);
     setForm((prev: any) => ({ ...prev, process_type: value, physical_model: physicalModelFromProcess(value), operation_mode: nextIsStatic ? "batch" : "continuous", tunnel_mode: nextIsStatic ? "static" : "continuous", arrangement_type: arrangement, air_exposure_factor: defaults.air, thermal_penetration_factor: defaults.penetration }));
+    setActiveTab(nextIsStatic ? "estatico" : "continuo");
   };
 
   const setArrangementType = (value: string) => {
