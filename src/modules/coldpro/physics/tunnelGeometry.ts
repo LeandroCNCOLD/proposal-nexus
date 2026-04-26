@@ -18,7 +18,7 @@ export function calculateCharacteristicDimension(input: any) {
   const geometry = String(input?.productGeometry ?? input?.product_geometry ?? "slab") as ProductGeometry;
   let characteristicDimensionM = 0;
   let distanceToCoreM = 0;
-  let source = geometry;
+  let source: string = geometry;
 
   if (geometry === "slab") {
     characteristicDimensionM = positive(input?.productThicknessM ?? input?.product_thickness_m);
