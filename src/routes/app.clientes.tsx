@@ -37,6 +37,31 @@ const clientRaw = (client: any) => (client.nomus_raw && typeof client.nomus_raw 
 
 const primaryContact = (client: any) => (client.client_contacts ?? []).find((it: any) => it.is_primary) ?? client.client_contacts?.[0];
 
+const contactPhone = (client: any, contact: any, raw: any) => firstText(
+  contact?.phone,
+  client.phone,
+  raw.telefone,
+  raw.fone,
+  raw.telefonePrincipal,
+  raw.contatos?.[0]?.telefone,
+  raw.contatos?.[0]?.fone,
+);
+
+const contactWhatsapp = (contact: any, raw: any) => firstText(
+  contact?.whatsapp,
+  contact?.mobile,
+  raw.whatsapp,
+  raw.whatsApp,
+  raw.telefoneWhatsApp,
+  raw.celular,
+  raw.telefoneCelular,
+  raw.mobile,
+  raw.contatos?.[0]?.whatsapp,
+  raw.contatos?.[0]?.whatsApp,
+  raw.contatos?.[0]?.celular,
+  raw.contatos?.[0]?.telefoneCelular,
+);
+
 function ClientsPage() {
   const { user } = useAuth();
   const qc = useQueryClient();
@@ -155,7 +180,9 @@ function ClientsPage() {
                 const city = firstText(c.city, raw.municipio, raw.cidade);
                 const state = firstText(c.state, raw.uf, raw.estado, raw.siglaEstado);
                 const contactName = firstText(contact?.name, raw.nomeContato, raw.contato, raw.contatos?.[0]?.nome);
-                const contactInfo = firstText(contact?.email, contact?.phone, contact?.mobile, c.email, raw.email, raw.telefone, raw.celular, raw.contatos?.[0]?.email, raw.contatos?.[0]?.telefone);
+                const email = firstText(contact?.email, c.email, raw.email, raw.contatos?.[0]?.email);
+                const phone = contactPhone(c, contact, raw);
+                const whatsapp = contactWhatsapp(contact, raw);
 
                 return (
                   <TableRow key={c.id} className="cursor-pointer" onClick={() => setSelectedClient(c)}>
@@ -175,7 +202,14 @@ function ClientsPage() {
                       {representative && <div className="text-xs text-muted-foreground">Rep.: {representative}</div>}
                     </TableCell>
                     <TableCell className="min-w-[210px] text-sm">
-                      {contactName || contactInfo ? <><div>{contactName || "Contato principal"}</div><div className="text-xs text-muted-foreground">{contactInfo || "—"}</div></> : "—"}
+                      {contactName || email || phone || whatsapp ? (
+                        <>
+                          <div>{contactName || "Contato principal"}</div>
+                          {email && <div className="text-xs text-muted-foreground">E-mail: {email}</div>}
+                          {phone && <div className="text-xs text-muted-foreground">Tel.: {phone}</div>}
+                          {whatsapp && <div className="text-xs text-muted-foreground">WhatsApp: {whatsapp}</div>}
+                        </>
+                      ) : "—"}
                     </TableCell>
                     <TableCell className="text-sm whitespace-nowrap">{[city, state].filter(Boolean).join(" / ") || "—"}</TableCell>
                   </TableRow>
