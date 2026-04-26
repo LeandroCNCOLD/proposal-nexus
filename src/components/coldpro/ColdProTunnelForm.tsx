@@ -549,11 +549,14 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
             </div><div>
               <ColdProField label="Número de pallets/lotes"><ColdProInput {...num("number_of_pallets")} /></ColdProField>
               <ColdProField label="Tempo batelada desejado" unit="h"><ColdProInput {...num("batch_time_h")} /></ColdProField>
+              {physicalModel === "static_block" ? <ColdProField label="Fator exposição bloco"><ColdProInput {...num("block_exposure_factor")} /></ColdProField> : null}
               <ColdProField label="Número de camadas"><ColdProInput {...num("layers_count")} /></ColdProField>
               <ColdProField label="Número de caixas"><ColdProInput {...num("boxes_count")} /></ColdProField>
               <ColdProField label="Espaçamento bandejas" unit="m"><ColdProInput {...num("tray_spacing_m")} /></ColdProField>
               <ColdProCalculatedInfo label="Massa total" value={`${fmtColdPro(staticMass)} kg`} description="massa × quantidade" tone={staticMass > 0 ? "success" : "warning"} />
             </div></div>
+            {physicalModel === "static_cart" ? <ColdProValidationMessage>Estático em carrinho trata o produto como bandejas/rack expostos e usa a espessura do produto como dimensão crítica.</ColdProValidationMessage> : null}
+            {physicalModel === "static_block" ? <ColdProValidationMessage tone="warning">Estático em pallet/bloco usa a menor dimensão do bloco e aplica redução de exposição; é uma estimativa conservadora.</ColdProValidationMessage> : null}
             {tunnelResultCards}
           </ColdProFormSection>
         </TabsContent>
