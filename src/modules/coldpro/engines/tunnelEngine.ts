@@ -201,7 +201,7 @@ function calculateTunnelCore(input: any) {
 
   const calculatedMassKgH = positiveNumber(input?.unitWeightKg) * positiveNumber(input?.unitsPerCycle) * positiveNumber(input?.cyclesPerHour);
   const directMassKgH = positiveNumber(input?.directMassKgH);
-  const usedMassKgH = isStatic ? null : directMassKgH > 0 ? directMassKgH : calculatedMassKgH;
+  const usedMassKgH = isStatic ? 0 : directMassKgH > 0 ? directMassKgH : calculatedMassKgH;
   const palletMassKg = positiveNumber(input?.palletMassKg ?? input?.pallet_mass_kg);
   const numberOfPallets = positiveNumber(input?.numberOfPallets ?? input?.number_of_pallets);
   const staticMassKg = isStatic ? palletMassKg * numberOfPallets : positiveNumber(input?.staticMassKg ?? input?.static_mass_kg) || palletMassKg * Math.max(1, numberOfPallets || 1);
@@ -315,7 +315,7 @@ function calculateTunnelCore(input: any) {
   ]);
   const missingFields = unique([
     ...validation.missingFields,
-    ...requiredPositiveFields(input, physicalModel, staticMassKg, characteristicDimensionM, energy.crossesFreezingPoint),
+    ...requiredPositiveFields(input, isStatic, staticMassKg, characteristicDimensionM, energy.crossesFreezingPoint),
     ...freezingTimeMissingFields,
   ]);
   const warnings = unique([...validation.warnings, ...engineWarnings]);
@@ -361,7 +361,9 @@ function calculateTunnelCore(input: any) {
       geometryAssumption: modelMeta.geometryAssumption,
       convectionAssumption: modelMeta.convectionAssumption,
     },
-    mass: { mode, calculatedMassKgH, usedMassKgH, staticMassKg, palletMassKg, numberOfPallets, batchTimeH: input?.batchTimeH ?? null, retentionTimeMin: input?.retentionTimeMin ?? null },
+    mass: isStatic
+      ? { mode: "batch", numberOfPallets, palletMassKg, staticMassKg, calculatedMassKgH, usedMassKgH: null, batchTimeH: input?.batchTimeH ?? null }
+      : { mode: "continuous", calculatedMassKgH, directMassKgH, usedMassKgH, retentionTimeMin: input?.retentionTimeMin ?? null },
     geometry: { characteristicDimensionM, distanceToCoreM, productThicknessM: input?.productThicknessM ?? null, palletLengthM: input?.palletLengthM ?? null, palletWidthM: input?.palletWidthM ?? null, palletHeightM: input?.palletHeightM ?? null },
     productEnergy: productEnergyBreakdown,
     convection: { source: h.source, hBaseWM2K: h.hBaseWM2K, hEffectiveWM2K: h.hEffectiveWM2K, airVelocityMS: input?.airVelocityMS ?? null, airExposureFactor: input?.airExposureFactor ?? null, spiralTurbulenceFactor, blockExposureFactor },
