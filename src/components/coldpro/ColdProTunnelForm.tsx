@@ -1,5 +1,5 @@
 import * as React from "react";
-import { AlertTriangle, Fan, Package, Save, Settings, Wind, Warehouse } from "lucide-react";
+import { AlertTriangle, Calculator, Fan, Package, Save, Settings, Thermometer, Wind, Warehouse } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ColdProField, ColdProInput, ColdProSelect } from "./ColdProField";
 import { ColdProCalculatedInfo, ColdProFormSection, ColdProValidationMessage, fmtColdPro, numberOrNull } from "./ColdProFormPrimitives";
@@ -15,6 +15,7 @@ const TUNNEL_TYPES = { continuous_belt: "Túnel contínuo de esteira", spiral_gi
 const ARRANGEMENTS_BY_TUNNEL: Record<string, string[]> = { continuous_belt: ["individual_units", "single_layer_blocks", "trays", "stacked_packages"], spiral_girofreezer: ["individual_units", "trays", "packaged_units"], static_cart: ["trays_on_racks", "boxes_on_cart", "hanging_product"], static_pallet: ["palletized_boxes", "palletized_blocks", "bulk_on_pallet"], fluidized_bed: ["loose_particles", "small_individual_units"], blast_freezer: ["boxes", "racks", "bulk_container"] };
 const GEOMETRIES = { slab: "Placa / manta / hambúrguer achatado", rectangular_prism: "Bloco retangular", cube: "Cubo", cylinder: "Cilindro", sphere: "Esfera", irregular: "Irregular", packed_box: "Caixa / embalagem fechada", bulk: "Granel" } as const;
 const EXPOSURE_MODELS = { fully_exposed: "Produto totalmente exposto ao ar", one_side_contact: "Uma face em contato", tray_contact: "Produto em bandeja", boxed: "Produto dentro de caixa", stacked: "Produto empilhado", bulk_layer: "Camada de produto a granel" } as const;
+const PALLET_THERMAL_MODELS = { box_limited: "Limitado pela caixa individual", pallet_block_limited: "Pallet/bloco compacto conservador", hybrid: "Híbrido: caixa + penalização do pallet" } as const;
 
 type DimensionUnit = "m" | "cm" | "mm";
 type WeightUnit = "kg" | "g";
@@ -53,6 +54,8 @@ const defaultTunnel = (environmentId: string) => ({
   tunnel_cross_section_width_m: 0,
   tunnel_cross_section_height_m: 0,
   blockage_factor: 0,
+  blockage_factor_input_mode: "decimal",
+  thermal_model_for_pallet: "hybrid",
   operation_mode: "continuous",
   process_type: "continuous_individual_freezing",
   physical_model: "continuous_individual",
@@ -120,6 +123,7 @@ const defaultTunnel = (environmentId: string) => ({
   specific_heat_below_kcal_kg_c: 0.4,
   latent_heat_kcal_kg: 60,
   packaging_mass_kg_hour: 0,
+  packaging_mass_kg_batch: 0,
   packaging_specific_heat_kcal_kg_c: 0.4,
   belt_motor_kw: 0,
   internal_fans_kw: 0,
