@@ -7,6 +7,14 @@ function positive(value: unknown): number {
   return parsed > 0 ? parsed : 0;
 }
 
+export function normalizeBlockageFactor(value: unknown, inputMode: "percent" | "decimal" | "auto" = "auto"): number {
+  const raw = safeNumber(value, 0);
+  if (raw <= 0) return 0;
+  if (inputMode === "percent") return Math.min(Math.max(raw / 100, 0), 1);
+  if (inputMode === "decimal") return Math.min(Math.max(raw, 0), 1);
+  return Math.min(Math.max(raw > 1 ? raw / 100 : raw, 0), 1);
+}
+
 export function calculateAirflowModel(input: any) {
   const rawSource = input?.airflowSource ?? input?.airflow_source;
   const airflowSource = (rawSource || "manual_velocity") as AirflowSource;
@@ -35,9 +43,11 @@ export function calculateAirflowModel(input: any) {
   const fanAirflowM3H = positive(input?.fanAirflowM3H ?? input?.fan_airflow_m3_h);
   const width = positive(input?.tunnelCrossSectionWidthM ?? input?.tunnel_cross_section_width_m);
   const height = positive(input?.tunnelCrossSectionHeightM ?? input?.tunnel_cross_section_height_m);
-  const rawBlockage = safeNumber(input?.blockageFactor ?? input?.blockage_factor, 0);
-  const blockageFactor = Math.min(Math.max(rawBlockage, 0), 0.95);
-  if (rawBlockage > 0.95) invalidFields.push("fator de bloqueio");
+  const rawBlockage = input?.blockageFactor ?? input?.blockage_factor;
+  const blockageInputMode = (input?.blockageFactorInputMode ?? input?.blockage_factor_input_mode ?? "auto") as "percent" | "decimal" | "auto";
+  const blockageFactorDecimal = normalizeBlockageFactor(rawBlockage, blockageInputMode);
+  const blockageFactor = Math.min(Math.max(blockageFactorDecimal, 0), 0.95);
+  if (blockageFactorDecimal >= 0.95) invalidFields.push("fator de bloqueio excessivo");
   if (fanAirflowM3H <= 0) missingFields.push("vazão de ar dos ventiladores");
   if (width <= 0) missingFields.push("largura da seção de passagem do ar");
   if (height <= 0) missingFields.push("altura da seção de passagem do ar");
