@@ -454,8 +454,13 @@ export const pullNomusProcesses = createServerFn({ method: "POST" })
     if (!batch.ok) return { ok: false as const, error: batch.error ?? "Falha ao sincronizar processos" };
     return {
       ok: true as const,
-      total: batch.job?.processed_items ?? 0,
-      upserted: batch.job?.upserted_items ?? 0,
+      scanned: batch.scanned ?? 0,
+      matched: batch.matched ?? 0,
+      persisted: batch.persisted ?? 0,
+      total: batch.matched ?? 0,
+      upserted: batch.persisted ?? 0,
+      cumulativeScanned: batch.job?.processed_items ?? 0,
+      cumulativeUpserted: batch.job?.upserted_items ?? 0,
       done: batch.done,
       job: batch.job,
       warning: batch.warning,
