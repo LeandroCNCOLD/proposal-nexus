@@ -81,7 +81,13 @@ function canEstimateFreezingTime(input: any, distanceToCoreM: number, hEffective
 }
 
 export function calculateTunnelEngine(input: any) {
-  const validation = validateTunnelInput(input);
+  const validationInput = {
+    ...input,
+    densityKgM3: positiveNumber(input?.densityKgM3) > 0 ? input?.densityKgM3 : undefined,
+    frozenConductivityWMK: positiveNumber(input?.frozenConductivityWMK) > 0 ? input?.frozenConductivityWMK : undefined,
+    airVelocityMS: positiveNumber(input?.manualConvectiveCoefficientWM2K) > 0 || positiveNumber(input?.airVelocityMS) > 0 ? input?.airVelocityMS : undefined,
+  };
+  const validation = validateTunnelInput(validationInput);
   const processType = input?.processType ?? input?.process_type ?? null;
   const isStatic = isStaticTunnel(input, processType);
   const mode = isStatic ? "static" : "continuous";
@@ -189,7 +195,21 @@ export function calculateTunnelEngine(input: any) {
     : null;
   const availableTimeMin = isStatic ? positiveNumber(input?.batchTimeH) * 60 : positiveNumber(input?.retentionTimeMin);
 
-  const missingFields = unique([...validation.missingFields, ...requiredPositiveFields(input, isStatic, staticMassKg, characteristicDimensionM, energy.crossesFreezingPoint)]);
+  const freezingTimeMissingFields = [
+    positiveNumber(input?.densityKgM3) <= 0 ? "densidade do produto" : "",
+    energy.crossesFreezingPoint && positiveNumber(input?.latentHeatKJkg) <= 0 ? "calor latente" : "",
+    energy.crossesFreezingPoint && positiveNumber(input?.frozenWaterFraction) <= 0 ? "fração de água congelável" : "",
+    !isProvided(input?.freezingPointC) ? "temperatura de congelamento" : "",
+    !isProvided(input?.airTempC) ? "temperatura do ar" : "",
+    distanceToCoreM <= 0 ? "distância até o núcleo" : "",
+    toNumber(h.hEffectiveWM2K, 0) <= 0 ? "coeficiente convectivo efetivo" : "",
+    kEffectiveWMK <= 0 ? "condutividade efetiva" : "",
+  ];
+  const missingFields = unique([
+    ...validation.missingFields,
+    ...requiredPositiveFields(input, isStatic, staticMassKg, characteristicDimensionM, energy.crossesFreezingPoint),
+    ...freezingTimeMissingFields,
+  ]);
   const warnings = unique([...validation.warnings, ...engineWarnings]);
   const invalidFields = unique(validation.invalidFields);
 
