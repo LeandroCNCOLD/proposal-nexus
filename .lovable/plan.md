@@ -1,261 +1,60 @@
-Plano atualizado — Tooltips técnicos do ColdPro com dicionário completo
+Plano para atualizar o ColdPro conforme solicitado:
 
-Objetivo: corrigir os tooltips de ajuda técnica do ColdPro para que todos os textos apareçam completos, sem cortes, centralizados em um dicionário único e legíveis em desktop e mobile.
+1. Criar uma regra única de “produto vindo do catálogo”
+- Quando o usuário selecionar um produto ASHRAE/CN ColdPro, o sistema passa a tratar esse produto como fonte oficial das propriedades técnicas.
+- O usuário ainda poderá editar dados operacionais do cálculo, como massa, tempo, quantidade, temperatura do processo, dimensões quando quiser ajustar a aplicação real.
+- Porém as propriedades térmicas vindas da lista ficam bloqueadas nas telas de cálculo.
 
-Escopo permitido:
-- `src/modules/coldpro/core/fieldHelpTexts.ts`
-- `src/modules/coldpro/components/FieldHelpTooltip.tsx`
-- `src/modules/coldpro/components/FormFieldWithHelp.tsx`
-- `src/components/coldpro/ColdProTunnelForm.tsx`, apenas para ajustar chamadas de tooltip
-- Se necessário para compatibilidade das chamadas existentes, ajustar `src/components/coldpro/ColdProField.tsx` para aceitar ajuda opcional sem alterar o comportamento atual
+2. Usar os dados completos do produto para pré-preencher medidas e geometrias
+- Na seleção do produto dentro do túnel, usar os campos já importados da tabela:
+  - geometria/formato;
+  - comprimento;
+  - largura;
+  - altura/espessura;
+  - espessura característica;
+  - volume aproximado, quando útil;
+  - observações técnicas.
+- Preencher automaticamente os campos correspondentes na etapa de produto/geometria.
+- Se o usuário quiser ajustar medidas para uma aplicação específica, ele poderá editar esses campos depois.
 
-Não alterar:
-- CRM
-- Nomus
-- propostas
-- sincronização
-- seleção de equipamentos
-- cálculo térmico
-- migrations
-- módulos fora do ColdPro
+3. Bloquear propriedades térmicas nas áreas de cálculo
+- Nas telas de carga térmica e túnel, quando houver produto selecionado do catálogo, deixar como somente leitura os campos como:
+  - calor específico acima do congelamento;
+  - calor específico abaixo do congelamento;
+  - calor latente;
+  - temperatura inicial de congelamento;
+  - densidade;
+  - condutividade térmica congelada/não congelada;
+  - fração/percentual de água congelável;
+  - composição base usada no cálculo, quando aplicável;
+  - taxa de respiração em processos especiais, quando vinda do catálogo.
+- Exibir esses campos como “dados do catálogo”, com aparência visual de bloqueado/somente leitura.
+- Manter editável apenas na área administrativa de produtos/catalogo, onde o cadastro técnico é mantido.
 
-1. Criar o dicionário central `fieldHelpTexts.ts`
+4. Garantir que os cálculos usem sempre o catálogo quando houver produto selecionado
+- Ajustar a montagem dos dados antes de salvar/calcular para que, se `product_id` estiver selecionado, os cálculos priorizem os valores atuais do catálogo em vez de valores digitados anteriormente.
+- Isso evita que um valor antigo ou manual sobrescreva os dados técnicos oficiais.
+- Aplicar essa regra em:
+  - Produtos/carga térmica da câmara;
+  - Túnel de congelamento/resfriamento;
+  - Processos especiais/atmosfera controlada quando usar respiração, umidade ou referências de produto.
 
-Criar `src/modules/coldpro/core/fieldHelpTexts.ts` com:
-- `DEFAULT_FIELD_HELP`
-- `COLDPRO_FIELD_HELP`
-- `getColdProFieldHelp(key)`
-- `validateColdProHelpTexts()`
-- `console.warn` em ambiente de desenvolvimento caso existam textos problemáticos
+5. Melhorar a UI para deixar claro o que é editável e o que é técnico bloqueado
+- Adicionar avisos curtos próximos aos campos bloqueados, por exemplo: “Propriedade técnica carregada do catálogo; edite no cadastro de produtos”.
+- Evitar confusão entre campos de aplicação editáveis e propriedades térmicas oficiais.
+- Manter a experiência de pré-preenchimento: selecionou o produto, o formulário já vem completo.
 
-Usar exatamente o pacote completo de textos técnicos enviado, incluindo todas as chaves:
-- `tunnelType`
-- `arrangementType`
-- `physicalModel`
-- `operationRegime`
-- `productGeometry`
-- `surfaceExposureModel`
-- `measurementScale`
-- `productLength`
-- `productWidth`
-- `productHeight`
-- `productThickness`
-- `productDiameter`
-- `productSide`
-- `characteristicDimension`
-- `distanceToCore`
-- `boxLength`
-- `boxWidth`
-- `boxHeight`
-- `bulkLayerHeight`
-- `equivalentParticleDiameter`
-- `palletLength`
-- `palletWidth`
-- `palletHeight`
-- `palletMassKg`
-- `numberOfPallets`
-- `staticMassKg`
-- `batchTime`
-- `blockExposureFactor`
-- `massKgHour`
-- `unitWeightKg`
-- `unitsPerCycle`
-- `cyclesPerHour`
-- `calculatedMassKgH`
-- `usedMassKgH`
-- `retentionTime`
-- `initialProductTemp`
-- `finalProductTemp`
-- `airTemp`
-- `suggestedAirTemp`
-- `approachAirSuggested`
-- `airTempDifference`
-- `freezingPoint`
-- `specificHeatAbove`
-- `specificHeatBelow`
-- `latentHeat`
-- `frozenWaterFraction`
-- `density`
-- `thermalConductivityFrozen`
-- `thermalPenetrationFactor`
-- `airflowSource`
-- `airVelocity`
-- `airVelocityUsed`
-- `fanAirflow`
-- `estimatedAirflow`
-- `informedAirflow`
-- `tunnelCrossSectionWidth`
-- `tunnelCrossSectionHeight`
-- `grossAirArea`
-- `blockageFactor`
-- `freeAirArea`
-- `calculatedAirVelocity`
-- `airDeltaT`
-- `manualConvectiveCoefficient`
-- `airExposureFactor`
-- `hBase`
-- `hEffective`
-- `hSource`
-- `packagingType`
-- `packagingMass`
-- `packagingCp`
-- `beltMotorPower`
-- `internalFansPower`
-- `otherInternalLoads`
-- `specificEnergyTotal`
-- `sensibleAbove`
-- `latent`
-- `sensibleBelow`
-- `productLoad`
-- `packagingLoad`
-- `internalLoad`
-- `totalLoadKW`
-- `totalLoadKcalH`
-- `totalLoadTR`
-- `freezingTime`
-- `availableTime`
-- `processStatus`
-- `technicalWarnings`
-- `simulatedAirTemp`
-- `simulatedAirVelocity`
-- `simulatedAirflow`
-- `minTemperatureLimit`
-- `maxTemperatureLimit`
-- `temperatureStep`
-- `minVelocityLimit`
-- `maxVelocityLimit`
-- `velocityStep`
-- `applySimulation`
-- `resetSimulation`
-- `productTabComparison`
+6. Verificação final
+- Conferir seleção por busca/nome/iniciais.
+- Conferir que medidas são pré-preenchidas no túnel.
+- Conferir que dados térmicos ficam bloqueados nas telas de cálculo.
+- Conferir que os cálculos usam os dados do catálogo.
+- Rodar typecheck e build.
 
-Regras do arquivo:
-- Usar template strings com crase para textos longos.
-- Não usar conteúdo truncado.
-- Não usar `...` como substituição de texto técnico.
-- Não deixar textos inline longos dentro do JSX.
-- A validação deve apenas alertar no console, sem quebrar o build.
-
-2. Criar/ajustar `FieldHelpTooltip.tsx`
-
-Criar `src/modules/coldpro/components/FieldHelpTooltip.tsx` com suporte a:
-- `title`
-- `content`
-- `content` como string ou array de strings
-- múltiplos parágrafos
-- quebras de linha
-- listas simples quando aplicável
-- fallback via `DEFAULT_FIELD_HELP`
-
-Configuração visual obrigatória do `TooltipContent`:
-
-```tsx
-<TooltipContent className="z-[9999] max-w-[calc(100vw-32px)] sm:max-w-[520px] max-h-[70vh] overflow-y-auto whitespace-normal break-words text-left leading-relaxed">
-  {title && <div className="mb-1 font-semibold">{title}</div>}
-  <div>{content}</div>
-</TooltipContent>
-```
-
-Também garantir:
-- sem `truncate`
-- sem `line-clamp`
-- sem `overflow-hidden` no texto
-- `z-[9999]` para ficar acima de cards/inputs
-- uso do portal padrão do Tooltip/Radix para evitar corte por containers pai
-- hover em desktop e tap/click em mobile pelo comportamento padrão do componente
-
-3. Criar/ajustar `FormFieldWithHelp.tsx`
-
-Criar `src/modules/coldpro/components/FormFieldWithHelp.tsx` para compor:
-- label completo sem corte
-- ícone de ajuda ao lado do label
-- tooltip sem empurrar o input
-- layout flexível em grid/card/accordion
-- fallback para `DEFAULT_FIELD_HELP` se uma chave não existir
-
-4. Integrar no `ColdProTunnelForm.tsx`
-
-Ajustar chamadas dos principais campos para usar o dicionário central:
-
-Exemplo esperado:
-
-```tsx
-help={COLDPRO_FIELD_HELP.approachAirSuggested}
-```
-
-ou, se for usada chave:
-
-```tsx
-helpKey="approachAirSuggested"
-```
-
-Não usar:
-
-```tsx
-help={{ content: "texto técnico longo..." }}
-```
-
-Campos prioritários para receber ajuda:
-- Tipo de túnel
-- Tipo de arranjo
-- Modelo físico aplicado
-- Regime calculado
-- Geometria do produto
-- Modelo de exposição
-- Escala das medidas
-- Todas as dimensões do produto/caixa/pallet/bloco
-- Massa por pallet/lote
-- Número de pallets/lotes
-- Massa kg/h
-- Peso unitário
-- Unidades por ciclo
-- Ciclos por hora
-- Tempo de retenção
-- Tempo de batelada
-- Temperaturas
-- Cp acima/abaixo
-- Calor latente
-- Fração congelável
-- Densidade
-- Condutividade congelada
-- Fator de penetração térmica
-- Fonte da velocidade
-- Velocidade do ar
-- Vazão dos ventiladores
-- Largura/altura da seção
-- Fator de bloqueio
-- ΔT do ar
-- Coeficiente convectivo manual
-- Embalagem, Cp embalagem e cargas internas
-- Cards de resultado principais, se o componente aceitar ajuda sem poluir o layout
-
-5. Compatibilidade com `ColdProField`
-
-Se for mais limpo, adicionar props opcionais em `ColdProField`:
-- `help?: { title: string; content: string | string[] }`
-- ou `helpKey?: keyof typeof COLDPRO_FIELD_HELP | string`
-
-Isso mantém as chamadas existentes funcionando e permite incluir o ícone de ajuda ao lado do label sem criar wrappers em todos os pontos.
-
-6. Validação final
-
-Rodar:
-- `bunx tsc --noEmit`
-- `bun run build`
-
-Corrigir qualquer erro de TypeScript/build.
-
-Critérios de aceite
-
-- Nenhum texto de tooltip aparece cortado.
-- Nenhum tooltip usa ellipsis, truncate ou line-clamp.
-- Tooltips aceitam textos longos e múltiplos parágrafos.
-- Tooltips têm largura adequada em desktop e mobile.
-- Tooltips usam `max-w-[calc(100vw-32px)] sm:max-w-[520px]`.
-- Tooltips usam `max-h-[70vh] overflow-y-auto`.
-- Tooltips ficam acima de cards e inputs com `z-[9999]`.
-- Textos principais estão centralizados em `fieldHelpTexts.ts`.
-- `ColdProTunnelForm.tsx` referencia o dicionário/chaves em vez de textos longos inline.
-- O pacote completo de textos fornecido está preservado sem cortes.
-- Typecheck passa.
-- Build passa.
+Detalhes técnicos
+- A mudança será principalmente nos componentes:
+  - `ColdProProductForm.tsx`
+  - `ColdProTunnelForm.tsx`
+  - `ColdProAdvancedProcessForm.tsx`
+- Também será revisado o fluxo de persistência/cálculo em `coldpro.functions` se necessário, para garantir que o backend recarregue/priorize dados do catálogo por `product_id`.
+- Não está previsto mudar a estrutura do banco neste momento, porque os campos de medidas e propriedades técnicas já existem no catálogo. Se durante a implementação aparecer algum campo essencial ausente, será criada uma migração apenas para estrutura, não para dados.
