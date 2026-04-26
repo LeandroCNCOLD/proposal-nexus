@@ -230,6 +230,14 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
   const frozenWaterFraction = positiveValue(form.frozen_water_fraction, thermodynamicProduct?.frozen_water_fraction, Number(thermodynamicProduct?.freezable_water_content_percent ?? 0) / 100, Number(thermodynamicProduct?.water_content_percent ?? 0) / 100, 0.9);
   const tunnelInput = formToTunnelInput(form, environment ?? {});
   const tunnelResult = calculateTunnelEngine(tunnelInput);
+  const initialScenario = tunnelResult.initialScenario;
+  const adjustedScenario = tunnelResult.adjustedScenario;
+  const scenarioDelta = {
+    time: adjustedScenario.estimatedTimeMin !== null && initialScenario.estimatedTimeMin !== null ? adjustedScenario.estimatedTimeMin - initialScenario.estimatedTimeMin : null,
+    airflow: adjustedScenario.airFlowM3H - initialScenario.airFlowM3H,
+    h: adjustedScenario.hEffectiveWM2K !== null && initialScenario.hEffectiveWM2K !== null ? adjustedScenario.hEffectiveWM2K - initialScenario.hEffectiveWM2K : null,
+    statusChanged: adjustedScenario.status !== initialScenario.status,
+  };
   const giroResult = calculateContinuousGirofreezer({
     dimensionScale: "m",
     productLength: Number(form.product_length_m ?? 0),
