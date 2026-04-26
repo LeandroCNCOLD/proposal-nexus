@@ -450,7 +450,7 @@ export const pullNomusProcesses = createServerFn({ method: "POST" })
       .single()).data;
 
     if (!job?.id) return { ok: false as const, error: "Não foi possível iniciar a sincronização do funil." };
-    const batch = await processNomusProcessSyncBatch({ data: { jobId: job.id, maxPages: data?.maxPages ?? 2 } });
+    const batch = await processNomusProcessSyncBatch({ data: { jobId: job.id, maxPages: data?.maxPages ?? 1 } });
     if (!batch.ok) return { ok: false as const, error: batch.error ?? "Falha ao sincronizar processos" };
     return {
       ok: true as const,
@@ -551,7 +551,7 @@ export const processNomusProcessSyncBatch = createServerFn({ method: "POST" })
         const page = await listPage<NomusProcessRaw>(
           NOMUS_ENDPOINTS.processos,
           {},
-          { entity: "processos", pageSize: Number(job.page_size ?? 10), page: currentPage, timeoutMs: 12_000, maxAttempts: 2, triggeredBy: userId },
+          { entity: "processos", pageSize: Number(job.page_size ?? 10), page: currentPage, timeoutMs: 4_000, maxAttempts: 1, triggeredBy: userId },
         );
         if (!page.ok) {
           const { data: updated } = await (supabaseAdmin as any)
