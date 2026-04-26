@@ -340,7 +340,13 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
   const unitWeight = Number(form.unit_weight_kg ?? 0) || Number(form.product_unit_weight_kg ?? 0);
   const throughput = Number(form.units_per_cycle ?? 0) * unitWeight * Number(form.cycles_per_hour ?? 0);
   const massHour = Number(form.mass_kg_hour ?? 0) || throughput;
-  const staticMass = Number(form.pallet_mass_kg ?? 0) * Math.max(1, Number(form.number_of_pallets ?? 1));
+  const staticMassMode = String(form.static_mass_mode ?? "direct_pallet_mass");
+  const unitsPerPallet = staticMassMode === "calculated_pallet_composition" ? (positiveValue(form.total_units_per_pallet) || positiveValue(form.units_per_box) * positiveValue(form.boxes_per_layer) * positiveValue(form.number_of_layers)) : positiveValue(form.units_per_pallet);
+  const productMassPerPalletKg = staticMassMode === "calculated_pallet_composition" ? unitsPerPallet * unitWeight : positiveValue(form.product_mass_per_pallet_kg);
+  const packagingMassPerPalletKg = staticMassMode === "calculated_pallet_composition" ? positiveValue(form.box_packaging_weight_kg) + positiveValue(form.pallet_base_weight_kg) : positiveValue(form.packaging_mass_per_pallet_kg);
+  const calculatedPalletMassKg = staticMassMode === "calculated_pallet_composition" ? productMassPerPalletKg + packagingMassPerPalletKg : positiveValue(form.calculated_pallet_mass_kg);
+  const effectivePalletMassKg = staticMassMode === "calculated_pallet_composition" ? calculatedPalletMassKg : positiveValue(form.pallet_mass_kg);
+  const staticMass = effectivePalletMassKg * Math.max(1, Number(form.number_of_pallets ?? 1));
   const blockDims = [Number(form.pallet_length_m ?? 0), Number(form.pallet_width_m ?? 0), Number(form.pallet_height_m ?? 0)].filter((v) => v > 0);
   const productThicknessM = dimensionValueM("product_thickness_m");
   const characteristic = isStatic ? (blockDims.length ? Math.min(...blockDims) : 0) : productThicknessM;
@@ -508,13 +514,13 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
     const arrangement = defaultArrangement(value);
     const defaults = ARRANGEMENT_DEFAULTS[arrangement];
     const nextIsStatic = isStaticProcess(value);
-    setForm((prev: any) => ({ ...prev, tunnel_type: value, process_type: value, physical_model: physicalModelFromProcess(value), operation_mode: nextIsStatic ? "batch" : "continuous", tunnel_mode: nextIsStatic ? "static" : "continuous", arrangement_type: arrangement, air_exposure_factor: defaults.air, thermal_penetration_factor: defaults.penetration }));
+    setForm((prev: any) => ({ ...prev, tunnel_type: value, process_type: value, physical_model: physicalModelFromProcess(value), operation_mode: nextIsStatic ? "batch" : "continuous", tunnel_mode: nextIsStatic ? "static" : "continuous", arrangement_type: arrangement, static_mass_mode: nextIsStatic ? (prev.static_mass_mode ?? "direct_pallet_mass") : prev.static_mass_mode, air_exposure_factor: defaults.air, thermal_penetration_factor: defaults.penetration, ...suggestedStaticArrangementFields(value, arrangement) }));
     setActiveTab(nextIsStatic ? "estatico" : "continuo");
   };
 
   const setArrangementType = (value: string) => {
     const defaults = ARRANGEMENT_DEFAULTS[value] ?? ARRANGEMENT_DEFAULTS.individual_units;
-    setForm((prev: any) => ({ ...prev, arrangement_type: value, air_exposure_factor: defaults.air, thermal_penetration_factor: defaults.penetration }));
+    setForm((prev: any) => ({ ...prev, arrangement_type: value, air_exposure_factor: defaults.air, thermal_penetration_factor: defaults.penetration, ...suggestedStaticArrangementFields(String(prev.tunnel_type ?? tunnelType), value) }));
   };
 
   const resetSimulation = () => setSimulation(simulationDraftFromTunnel(form));
