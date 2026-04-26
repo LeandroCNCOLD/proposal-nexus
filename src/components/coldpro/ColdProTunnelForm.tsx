@@ -73,6 +73,7 @@ const defaultTunnel = (environmentId: string) => ({
   airflow_m3_h: 0,
   air_flow_m3_h: 0,
   air_delta_t_k: 6,
+  air_density_kg_m3: 1.2,
   suggested_air_approach_k: 8,
   suggested_air_temp_c: null,
   min_air_temp_c: -40,
@@ -277,7 +278,8 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
   const setProcessType = (value: string) => {
     const arrangement = defaultArrangement(value);
     const defaults = ARRANGEMENT_DEFAULTS[arrangement];
-    setForm((prev: any) => ({ ...prev, process_type: value, operation_mode: isStaticProcess(value) ? "batch" : "continuous", arrangement_type: arrangement, air_exposure_factor: defaults.air, thermal_penetration_factor: defaults.penetration }));
+    const nextIsStatic = isStaticProcess(value);
+    setForm((prev: any) => ({ ...prev, process_type: value, operation_mode: nextIsStatic ? "batch" : "continuous", tunnel_mode: nextIsStatic ? "static" : "continuous", arrangement_type: arrangement, air_exposure_factor: defaults.air, thermal_penetration_factor: defaults.penetration }));
   };
 
   const setArrangementType = (value: string) => {
