@@ -127,7 +127,7 @@ const defaultTunnel = (environmentId: string) => ({
 });
 
 function isStaticProcess(processType: string) {
-  return processType === "static_cart_freezing" || processType === "static_pallet_freezing";
+  return processType === "static_cart_freezing" || processType === "static_pallet_freezing" || processType === "static_cart" || processType === "static_pallet" || processType === "blast_freezer";
 }
 
 function isStaticTunnel(processType: string, operationMode: unknown) {
@@ -135,6 +135,11 @@ function isStaticTunnel(processType: string, operationMode: unknown) {
 }
 
 function physicalModelFromProcess(processType: string) {
+  if (processType === "spiral_girofreezer") return "continuous_spiral";
+  if (processType === "static_cart") return "static_cart";
+  if (processType === "static_pallet") return "static_block";
+  if (processType === "fluidized_bed") return "fluidized_bed";
+  if (processType === "blast_freezer") return "blast_freezer";
   if (processType === "continuous_girofreezer") return "continuous_spiral";
   if (processType === "static_cart_freezing") return "static_cart";
   if (processType === "static_pallet_freezing") return "static_block";
@@ -142,10 +147,19 @@ function physicalModelFromProcess(processType: string) {
 }
 
 function defaultArrangement(processType: string) {
+  const byTunnel = ARRANGEMENTS_BY_TUNNEL[processType];
+  if (byTunnel?.length) return byTunnel[0];
   if (processType === "static_cart_freezing") return "cart_rack";
   if (processType === "static_pallet_freezing") return "pallet_block";
   if (processType === "continuous_girofreezer") return "tray_layer";
   return "individual_exposed";
+}
+
+function legacyTunnelType(processType: string) {
+  if (processType === "continuous_girofreezer") return "spiral_girofreezer";
+  if (processType === "static_cart_freezing") return "static_cart";
+  if (processType === "static_pallet_freezing") return "static_pallet";
+  return processType in TUNNEL_TYPES ? processType : "continuous_belt";
 }
 
 function fmtMaybe(value: number | null | undefined, digits = 2, suffix = "") {
