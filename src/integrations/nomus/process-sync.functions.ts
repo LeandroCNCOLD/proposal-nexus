@@ -61,8 +61,8 @@ type NomusProcessRaw = {
   [k: string]: unknown;
 };
 
-async function persistNomusProcessBatch(items: NomusProcessRaw[], userId: string | null) {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+async function persistNomusProcessBatch(db: any, items: NomusProcessRaw[], userId: string | null) {
+  const supabaseAdmin = db;
   if (items.length === 0) {
     return { total: 0, upserted: 0, stagesDiscovered: [] as Array<{ tipo: string; etapas: string[] }>, errors: [] as string[] };
   }
@@ -166,14 +166,14 @@ async function persistNomusProcessBatch(items: NomusProcessRaw[], userId: string
   };
 }
 
-async function persistChangedNomusProcessBatch(items: NomusProcessRaw[], userId: string | null) {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+async function persistChangedNomusProcessBatch(db: any, items: NomusProcessRaw[], userId: string | null) {
+  const supabaseAdmin = db;
   const byId = new Map<string, NomusProcessRaw>();
   for (const item of items) {
     const id = processIdOf(item);
     if (id) byId.set(String(id), item);
   }
-  if (byId.size === 0) return persistNomusProcessBatch([], userId);
+  if (byId.size === 0) return persistNomusProcessBatch(supabaseAdmin, [], userId);
 
   const ids = Array.from(byId.keys());
   const { data: existing } = await supabaseAdmin
@@ -189,7 +189,7 @@ async function persistChangedNomusProcessBatch(items: NomusProcessRaw[], userId:
     .map((id) => byId.get(id)!)
     .filter((raw) => JSON.stringify(rawById.get(String(processIdOf(raw))) ?? null) !== JSON.stringify(raw ?? null));
 
-  return persistNomusProcessBatch(changed, userId);
+  return persistNomusProcessBatch(supabaseAdmin, changed, userId);
 }
 
 const PROCESS_RECENT_LIST_PAGES = 4;
@@ -226,9 +226,9 @@ function processIdOf(raw: NomusProcessRaw): number {
 
 async function syncNomusProcessRecord(
   rawSummary: NomusProcessRaw,
-  options: { requireDetail?: boolean; triggeredBy?: string | null } = {},
+  options: { requireDetail?: boolean; triggeredBy?: string | null; db: any },
 ): Promise<{ changed: boolean; id: number }> {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const supabaseAdmin = options.db;
   const { getOne } = await import("./client");
   const { NOMUS_ENDPOINTS } = await import("./endpoints");
   const id = processIdOf(rawSummary);
@@ -255,12 +255,11 @@ async function syncNomusProcessRecord(
     return { changed: false, id };
   }
 
-  const persisted = await persistNomusProcessBatch([raw], options.triggeredBy ?? null);
+  const persisted = await persistNomusProcessBatch(supabaseAdmin, [raw], options.triggeredBy ?? null);
   return { changed: persisted.upserted > 0, id };
 }
 
-export async function syncNomusProcessesNewestFirst(options: { tipos?: string[]; triggeredBy?: string | null; maxPages?: number } = {}) {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+export async function syncNomusProcessesNewestFirst(supabaseAdmin: any, options: { tipos?: string[]; triggeredBy?: string | null; maxPages?: number } = {}) {
   const { listPage } = await import("./client");
   const { NOMUS_ENDPOINTS } = await import("./endpoints");
   const wantedTipos = (options.tipos ?? []).map((t) => t.trim()).filter(Boolean);
@@ -321,7 +320,7 @@ export async function syncNomusProcessesNewestFirst(options: { tipos?: string[];
     let misses = 0;
     for (let id = maxKnownId + 1; id <= maxKnownId + PROCESS_FORWARD_LOOKAHEAD; id += 1) {
       if (misses >= PROCESS_MAX_CONSECUTIVE_MISSES) break;
-      const result = await syncNomusProcessRecord({ id }, { requireDetail: true, triggeredBy: options.triggeredBy });
+      const result = await syncNomusProcessRecord({ id }, { requireDetail: true, triggeredBy: options.triggeredBy, db: supabaseAdmin });
       if (result.changed) {
         newestSeenId = Math.max(newestSeenId, id);
         count += 1;
@@ -333,7 +332,7 @@ export async function syncNomusProcessesNewestFirst(options: { tipos?: string[];
 
     const recheckStart = Math.max(1, newestSeenId - PROCESS_RECENT_RECHECK + 1);
     for (let id = newestSeenId; id >= recheckStart; id -= 1) {
-      const result = await syncNomusProcessRecord({ id }, { requireDetail: true, triggeredBy: options.triggeredBy });
+      const result = await syncNomusProcessRecord({ id }, { requireDetail: true, triggeredBy: options.triggeredBy, db: supabaseAdmin });
       if (result.changed) count += 1;
     }
   } catch (e) {
@@ -355,8 +354,7 @@ export async function syncNomusProcessesNewestFirst(options: { tipos?: string[];
   return { ok: !runError, count, done: true, error: runError ?? undefined };
 }
 
-async function syncNomusProcessesFullScan(options: { tipos?: string[]; triggeredBy?: string | null; maxPages?: number; maxItems?: number } = {}) {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+async function syncNomusProcessesFullScan(supabaseAdmin: any, options: { tipos?: string[]; triggeredBy?: string | null; maxPages?: number; maxItems?: number } = {}) {
   const { listPage } = await import("./client");
   const { NOMUS_ENDPOINTS } = await import("./endpoints");
   const wantedTipos = (options.tipos ?? []).map((t) => t.trim()).filter(Boolean);
@@ -405,7 +403,7 @@ async function syncNomusProcessesFullScan(options: { tipos?: string[]; triggered
 
       processed += res.items.length;
       const wantedItems = res.items.filter((p) => tipoMatches(p.tipo, wantedTipos));
-      const persisted = await persistNomusProcessBatch(wantedItems, options.triggeredBy ?? null);
+      const persisted = await persistNomusProcessBatch(supabaseAdmin, wantedItems, options.triggeredBy ?? null);
       upserted += persisted.upserted;
 
       if (!res.hasMore || res.items.length < pageSize) break;
@@ -445,7 +443,7 @@ export const pullNomusProcesses = createServerFn({ method: "POST" })
       .default({}),
   )
   .handler(async ({ data, context }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const supabaseAdmin = context.supabase as any;
     const userId = context.userId;
     const tipos = (data?.tipos ?? []).map((t) => t.trim()).filter(Boolean);
     const { data: existingJob } = await (supabaseAdmin as any)
@@ -501,7 +499,7 @@ export const startNomusProcessSyncJob = createServerFn({ method: "POST" })
       .default({}),
   )
   .handler(async ({ data, context }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const supabaseAdmin = context.supabase as any;
     const userId = context.userId;
     const { data: job, error } = await (supabaseAdmin as any)
       .from("nomus_process_sync_jobs")
@@ -537,7 +535,7 @@ export const processNomusProcessSyncBatch = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(z.object({ jobId: z.string().uuid(), maxPages: z.number().int().min(1).max(3).optional() }))
   .handler(async ({ data, context }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const supabaseAdmin = context.supabase as any;
     const { listPage } = await import("./client");
     const { NOMUS_ENDPOINTS } = await import("./endpoints");
     const userId = context.userId;
@@ -656,8 +654,8 @@ export const processNomusProcessSyncBatch = createServerFn({ method: "POST" })
 
 export const listAvailableProcessTypes = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async () => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  .handler(async ({ context }) => {
+    const supabaseAdmin = context.supabase as any;
     const { data, error } = await supabaseAdmin
       .from("nomus_processes")
       .select("tipo")
@@ -781,7 +779,7 @@ export const updateNomusProcess = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(processMutationSchema)
   .handler(async ({ data, context }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const supabaseAdmin = context.supabase as any;
     const { nomusFetch } = await import("./client");
     const { data: row, error } = await (supabaseAdmin as any)
       .from("nomus_processes")
@@ -861,7 +859,7 @@ export const createNomusProcess = createServerFn({ method: "POST" })
     });
     if (!res.ok) return { ok: false as const, error: res.error };
     const raw = res.data && typeof res.data === "object" ? res.data : (payload as NomusProcessRaw);
-    const persisted = await persistNomusProcessBatch([raw], context.userId);
+    const persisted = await persistNomusProcessBatch(context.supabase as any, [raw], context.userId);
     const createdId = raw.id != null ? String(raw.id) : "";
     return persisted.errors.length
       ? { ok: false as const, error: persisted.errors.join("; ") }
@@ -874,7 +872,7 @@ export const pingProcessoPut = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(z.object({ nomusId: z.string().min(1).max(20) }))
   .handler(async ({ data, context }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const supabaseAdmin = context.supabase as any;
     const { nomusFetch } = await import("./client");
     const userId = context.userId;
     // Busca etapa atual para fazer um PUT idempotente (não muda nada).
