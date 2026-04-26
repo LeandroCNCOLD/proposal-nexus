@@ -3,6 +3,10 @@ import { safeNumber } from "../core/units";
 
 const KCAL_TO_KJ = 4.1868;
 
+function isStaticTunnel(processType: unknown, operationMode: unknown) {
+  return processType === "static_cart_freezing" || processType === "static_pallet_freezing" || operationMode === "batch";
+}
+
 export function formToTunnelInput(form: any, environment: any) {
   const thermal = normalizeThermalProperties(form);
   const airTempSource = form?.air_temp_source ?? "environment";
@@ -10,7 +14,12 @@ export function formToTunnelInput(form: any, environment: any) {
   const approved = false;
   const thermalConditionApproved = form?.thermal_condition_approved === true;
   const physicalModel = form?.physical_model;
-  const isStaticBlock = physicalModel === "static_block" || form?.process_type === "static_pallet_freezing";
+  const processType = form?.process_type;
+  const operationMode = form?.operation_mode;
+  const isStatic = isStaticTunnel(processType, operationMode);
+  const numberOfPallets = safeNumber(form?.number_of_pallets);
+  const palletMassKg = safeNumber(form?.pallet_mass_kg);
+  const staticMassKg = isStatic ? palletMassKg * numberOfPallets : safeNumber(form?.static_mass_kg) || safeNumber(form?.staticMassKg) || palletMassKg * Math.max(1, numberOfPallets || 1);
   const normalAirTempC = airTempSource === "environment" ? safeNumber(environment?.internal_temp_c) : safeNumber(form?.air_temp_c);
   const normalInput = {
     airTempC: normalAirTempC,
@@ -26,21 +35,21 @@ export function formToTunnelInput(form: any, environment: any) {
   return {
     physicalModel,
     tunnelPhysicalModel: physicalModel,
-    processType: form?.process_type,
-    operationMode: form?.operation_mode,
-    tunnelMode: form?.tunnel_mode ?? (form?.operation_mode === "batch" ? "static" : "continuous"),
+    processType,
+    operationMode,
+    tunnelMode: form?.tunnel_mode ?? (isStatic ? "static" : "continuous"),
     unitWeightKg: safeNumber(form?.unit_weight_kg ?? form?.product_unit_weight_kg),
     unitsPerCycle: safeNumber(form?.units_per_cycle),
     cyclesPerHour: safeNumber(form?.cycles_per_hour),
     directMassKgH: safeNumber(form?.mass_kg_hour),
-    palletMassKg: safeNumber(form?.pallet_mass_kg),
-    numberOfPallets: safeNumber(form?.number_of_pallets, 1),
-    staticMassKg: safeNumber(form?.static_mass_kg) || safeNumber(form?.staticMassKg) || safeNumber(form?.pallet_mass_kg) * Math.max(1, safeNumber(form?.number_of_pallets, 1)),
+    palletMassKg,
+    numberOfPallets,
+    staticMassKg,
     batchTimeH: safeNumber(form?.batch_time_h),
     retentionTimeMin: safeNumber(form?.process_time_min),
-    productLengthM: isStaticBlock ? 0 : safeNumber(form?.product_length_m),
-    productWidthM: isStaticBlock ? 0 : safeNumber(form?.product_width_m),
-    productThicknessM: isStaticBlock ? 0 : safeNumber(form?.product_thickness_m),
+    productLengthM: isStatic ? 0 : safeNumber(form?.product_length_m),
+    productWidthM: isStatic ? 0 : safeNumber(form?.product_width_m),
+    productThicknessM: isStatic ? 0 : safeNumber(form?.product_thickness_m),
     palletLengthM: safeNumber(form?.pallet_length_m),
     palletWidthM: safeNumber(form?.pallet_width_m),
     palletHeightM: safeNumber(form?.pallet_height_m),

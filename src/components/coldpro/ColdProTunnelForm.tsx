@@ -113,6 +113,10 @@ function isStaticProcess(processType: string) {
   return processType === "static_cart_freezing" || processType === "static_pallet_freezing";
 }
 
+function isStaticTunnel(processType: string, operationMode: unknown) {
+  return processType === "static_cart_freezing" || processType === "static_pallet_freezing" || operationMode === "batch";
+}
+
 function physicalModelFromProcess(processType: string) {
   if (processType === "continuous_girofreezer") return "continuous_spiral";
   if (processType === "static_cart_freezing") return "static_cart";
@@ -198,14 +202,14 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
   };
   const processType = String(form.process_type ?? "continuous_individual_freezing");
   const physicalModel = String(form.physical_model ?? physicalModelFromProcess(processType));
-  const isStatic = physicalModel === "static_cart" || physicalModel === "static_block" || isStaticProcess(processType);
+  const isStatic = isStaticTunnel(processType, form.operation_mode);
   const unitWeight = Number(form.unit_weight_kg ?? 0) || Number(form.product_unit_weight_kg ?? 0);
   const throughput = Number(form.units_per_cycle ?? 0) * unitWeight * Number(form.cycles_per_hour ?? 0);
   const massHour = Number(form.mass_kg_hour ?? 0) || throughput;
   const staticMass = Number(form.pallet_mass_kg ?? 0) * Math.max(1, Number(form.number_of_pallets ?? 1));
   const blockDims = [Number(form.pallet_length_m ?? 0), Number(form.pallet_width_m ?? 0), Number(form.pallet_height_m ?? 0)].filter((v) => v > 0);
   const productThicknessM = dimensionValueM("product_thickness_m");
-  const characteristic = physicalModel === "static_block" ? (blockDims.length ? Math.min(...blockDims) : 0) : productThicknessM;
+  const characteristic = isStatic ? (blockDims.length ? Math.min(...blockDims) : 0) : productThicknessM;
   const deltaT = Number(form.inlet_temp_c ?? 0) - Number(form.outlet_temp_c ?? 0);
   const processError = isStatic ? Number(form.batch_time_h ?? 0) <= 0 : Number(form.process_time_min ?? 0) <= 0;
   const velocityWarning = Number(form.air_velocity_m_s ?? 0) <= 0 || Number(form.air_velocity_m_s ?? 0) > 10;
@@ -441,12 +445,12 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
       <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <ColdProCalculatedInfo label="Modelo físico aplicado" value={tunnelResult.physicalModelLabel} description={tunnelResult.calculationBreakdown.model.physicalDescription} tone="info" />
         <ColdProCalculatedInfo label="Premissa geométrica" value={tunnelResult.physicalModel === "static_block" ? "Bloco/pallet" : "Espessura"} description={tunnelResult.calculationBreakdown.model.geometryAssumption} tone="info" />
-        <ColdProCalculatedInfo label={isStatic ? "Massa do lote" : "Massa usada"} value={`${fmtColdPro(isStatic ? tunnelResult.staticMassKg : tunnelResult.usedMassKgH)} ${isStatic ? "kg" : "kg/h"}`} description={isStatic ? "pallet/lote × quantidade" : "kg/h usado no motor"} tone={(isStatic ? tunnelResult.staticMassKg : tunnelResult.usedMassKgH) > 0 ? "success" : "warning"} />
-        {!isStatic ? <ColdProCalculatedInfo label="Massa por cadência" value={`${fmtColdPro(tunnelResult.calculatedMassKgH)} kg/h`} description="peso × unidades × ciclos/h" tone={tunnelResult.calculatedMassKgH > 0 ? "info" : "warning"} /> : null}
+        <ColdProCalculatedInfo label={isStatic ? "Massa da batelada" : "Massa usada"} value={`${fmtColdPro(isStatic ? tunnelResult.staticMassKg : tunnelResult.usedMassKgH)} ${isStatic ? "kg" : "kg/h"}`} description={isStatic ? "massa usada na carga térmica" : "kg/h usado no motor"} tone={(isStatic ? tunnelResult.staticMassKg : tunnelResult.usedMassKgH) > 0 ? "success" : "warning"} />
+        {isStatic ? <ColdProCalculatedInfo label="Massa total da batelada" value={`${fmtColdPro(tunnelResult.staticMassKg)} kg`} description="massa por pallet × número de pallets" tone={tunnelResult.staticMassKg > 0 ? "success" : "warning"} /> : <ColdProCalculatedInfo label="Massa por cadência" value={`${fmtColdPro(tunnelResult.calculatedMassKgH)} kg/h`} description="peso × unidades × ciclos/h" tone={tunnelResult.calculatedMassKgH > 0 ? "info" : "warning"} />}
         {!isStatic ? <ColdProCalculatedInfo label="Espessura do produto" value={`${fmtColdPro(productThicknessM, 3)} m`} description="dimensão informada" tone={productThicknessM > 0 ? "info" : "warning"} /> : null}
         {isStatic ? <ColdProCalculatedInfo label="Dimensões pallet/bloco" value={`${fmtColdPro(Number(form.pallet_length_m ?? 0), 2)} × ${fmtColdPro(Number(form.pallet_width_m ?? 0), 2)} × ${fmtColdPro(Number(form.pallet_height_m ?? 0), 2)} m`} description="C × L × A" tone={tunnelResult.characteristicDimensionM > 0 ? "info" : "warning"} /> : null}
         <ColdProCalculatedInfo label={isStatic ? "Tempo de batelada" : "Tempo de retenção"} value={`${fmtColdPro(tunnelResult.availableTimeMin, 1)} min`} description={isStatic ? `${fmtColdPro(Number(form.batch_time_h ?? 0), 2)} h` : "tempo disponível"} tone={tunnelResult.availableTimeMin > 0 ? "info" : "warning"} />
-        <ColdProCalculatedInfo label="Dimensão característica" value={`${fmtColdPro(tunnelResult.characteristicDimensionM, 3)} m`} description="menor dimensão térmica" tone={tunnelResult.characteristicDimensionM > 0 ? "info" : "warning"} />
+        <ColdProCalculatedInfo label={isStatic ? "Menor dimensão da carga" : "Dimensão característica"} value={`${fmtColdPro(tunnelResult.characteristicDimensionM, 3)} m`} description={isStatic ? "menor dimensão do pallet/carga" : "espessura do produto"} tone={tunnelResult.characteristicDimensionM > 0 ? "info" : "warning"} />
         <ColdProCalculatedInfo label="Distância até o núcleo" value={`${fmtColdPro(tunnelResult.distanceToCoreM * 1000, 1)} mm`} description="dimensão característica ÷ 2" tone={tunnelResult.distanceToCoreM > 0 ? "info" : "warning"} />
         <ColdProCalculatedInfo label="Energia específica total" value={`${fmtColdPro(tunnelResult.energy.totalKJkg, 2)} kJ/kg`} description="sensível + latente" tone={tunnelResult.energy.totalKJkg > 0 ? "success" : "warning"} />
         <ColdProCalculatedInfo label="Sensível acima" value={`${fmtColdPro(tunnelResult.energy.sensibleAboveKJkg, 2)} kJ/kg`} description="Cp acima × ΔT" tone="info" />
