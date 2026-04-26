@@ -188,9 +188,15 @@ export function ColdProProductForm({ environmentId, product, productCatalog = []
           <AccordionTrigger className="hover:no-underline"><span className="inline-flex items-center gap-2"><Package className="h-4 w-4 text-primary" /> Catálogo ASHRAE</span></AccordionTrigger>
           <AccordionContent>
             <ColdProFormSection title="Seleção do produto" description="A fonte ASHRAE/CN ColdPro carrega propriedades térmicas; estoque e tempo são dados da aplicação.">
-              <div className="grid grid-cols-1 gap-x-10 md:grid-cols-2">
+              <div className="grid grid-cols-1 gap-x-10 xl:grid-cols-2">
+                <ColdProField label="Pesquisar produto" className="xl:col-span-2">
+                  <div className="relative">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <ColdProInput type="search" value={productSearch} onChange={(e) => setProductSearch(e.target.value)} placeholder="Digite o nome ou iniciais do produto" className="pl-9 text-left" />
+                  </div>
+                </ColdProField>
                 <ColdProField label="Grupo ASHRAE"><ColdProSelect value={selectedGroup} onChange={(e) => applyGroup(e.target.value)}><option value="">Seleção manual</option>{groups.map((group) => <option key={group} value={group}>{group}</option>)}</ColdProSelect></ColdProField>
-                <ColdProField label="Produto"><ColdProSelect value={form.product_id ?? ""} disabled={!selectedGroup} onChange={(e) => applyProduct(e.target.value)}><option value="">{selectedGroup ? "Selecione o produto" : "Selecione primeiro o grupo"}</option>{filteredProducts.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</ColdProSelect></ColdProField>
+                <ColdProField label="Produto"><ColdProSelect value={form.product_id ?? ""} disabled={filteredProducts.length === 0} onChange={(e) => applyProduct(e.target.value)}><option value="">{filteredProducts.length ? "Selecione o produto" : "Nenhum produto encontrado"}</option>{filteredProducts.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</ColdProSelect></ColdProField>
                 <ColdProField label="Nome do produto"><ColdProInput type="text" value={form.product_name ?? ""} onChange={(e) => set("product_name", e.target.value)} className="text-left" /><ColdProValidationMessage tone="error">{requiredError ? "Informe ou selecione um produto." : ""}</ColdProValidationMessage></ColdProField>
               </div>
             </ColdProFormSection>
