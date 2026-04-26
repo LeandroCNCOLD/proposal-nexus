@@ -23,24 +23,30 @@ export function calculateTransmissionW(params: { areaM2?: number | null; uValueW
   return areaM2 * uValueWM2K * Math.max(deltaTK, 0);
 }
 
-export function calculateConvectiveCoefficient(params: { manualCoefficientWM2K?: number | null; airVelocityMS?: number | null; airExposureFactor?: number | null }) {
+export function calculateConvectiveCoefficient(params: { manualCoefficientWM2K?: number | null; airVelocityMS?: number | null; airExposureFactor?: number | null; exposureFactor?: number | null }) {
   const manual = safeNumber(params.manualCoefficientWM2K, 0);
+  const airExposureFactor = safeNumber(params.airExposureFactor, 1) || 1;
+  const exposureFactor = safeNumber(params.exposureFactor, 1) || 1;
   if (manual > 0) {
     return {
       hBaseWM2K: manual,
       hEffectiveWM2K: manual,
       source: "manual" as const,
+      airExposureFactor,
+      exposureFactor,
     };
   }
 
   const velocity = safeNumber(params.airVelocityMS, 0);
   if (velocity > 0) {
     const hBase = 10 + 10 * Math.pow(velocity, 0.8);
-    const hEffective = hBase * safeNumber(params.airExposureFactor, 1);
+    const hEffective = hBase * airExposureFactor * exposureFactor;
     return {
       hBaseWM2K: hBase,
       hEffectiveWM2K: hEffective,
       source: "velocity_estimated" as const,
+      airExposureFactor,
+      exposureFactor,
     };
   }
 
@@ -48,5 +54,7 @@ export function calculateConvectiveCoefficient(params: { manualCoefficientWM2K?:
     hBaseWM2K: null,
     hEffectiveWM2K: null,
     source: "missing" as const,
+    airExposureFactor,
+    exposureFactor,
   };
 }
