@@ -3,7 +3,9 @@ import { AlertTriangle, Fan, Package, Save, Settings, Wind, Warehouse } from "lu
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ColdProField, ColdProInput, ColdProSelect } from "./ColdProField";
 import { ColdProCalculatedInfo, ColdProFormSection, ColdProValidationMessage, fmtColdPro, numberOrNull } from "./ColdProFormPrimitives";
-import { calculateContinuousGirofreezer } from "@/modules/coldpro/services/continuousGirofreezerService";
+import { formToTunnelInput } from "@/modules/coldpro/adapters/formToTunnelInput";
+import { calculationToTunnelPayload } from "@/modules/coldpro/adapters/calculationToResultPayload";
+import { calculateTunnelEngine } from "@/modules/coldpro/engines/tunnelEngine";
 
 const ARRANGEMENT_DEFAULTS: Record<string, { air: number; penetration: number; label: string }> = {
   individual_exposed: { air: 1, penetration: 1, label: "Produto individual exposto" },
@@ -178,17 +180,18 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
     return { type: "number" as const, step: unitConfig.step, value: Number.isFinite(valueMin) && valueMin !== 0 ? valueMin / unitConfig.toMinutes : form.process_time_min === 0 ? 0 : "", onChange: (e: React.ChangeEvent<HTMLInputElement>) => set("process_time_min", numberOrNull(e.target.value) === null ? null : Number(e.target.value) * unitConfig.toMinutes) };
   };
   const processType = String(form.process_type ?? "continuous_individual_freezing");
-  const isStatic = isStaticProcess(processType);
-  const unitWeight = Number(form.unit_weight_kg ?? 0) || Number(form.product_unit_weight_kg ?? 0);
-  const throughput = Number(form.units_per_cycle ?? 0) * unitWeight * Number(form.cycles_per_hour ?? 0);
-  const massHour = Number(form.mass_kg_hour ?? 0) || throughput;
-  const staticMass = Number(form.pallet_mass_kg ?? 0) * Math.max(1, Number(form.number_of_pallets ?? 1));
-  const blockDims = [Number(form.pallet_length_m ?? 0), Number(form.pallet_width_m ?? 0), Number(form.pallet_height_m ?? 0)].filter((v) => v > 0);
+  const isStatic = isStaticProcess(processType) || String(form.operation_mode ?? "") === "batch";
+  const tunnelInput = formToTunnelInput(form, environment);
+  const tunnelResult = calculateTunnelEngine(tunnelInput);
+  const tunnelPayload = calculationToTunnelPayload(tunnelResult);
+  const unitWeight = Number(tunnelInput.unitWeightKg ?? 0);
+  const throughput = tunnelResult.calculatedMassKgH;
+  const massHour = tunnelResult.usedMassKgH || throughput;
+  const staticMass = tunnelResult.staticMassKg;
   const productThicknessM = dimensionValueM("product_thickness_m");
-  const characteristic = isStatic ? (blockDims.length ? Math.min(...blockDims) : 0) : productThicknessM;
-  const deltaT = Number(form.inlet_temp_c ?? 0) - Number(form.outlet_temp_c ?? 0);
+  const characteristic = Number(tunnelResult.characteristicDimensionM ?? 0);
   const processError = isStatic ? Number(form.batch_time_h ?? 0) <= 0 : Number(form.process_time_min ?? 0) <= 0;
-  const velocityWarning = Number(form.air_velocity_m_s ?? 0) <= 0 || Number(form.air_velocity_m_s ?? 0) > 10;
+  const velocityWarning = tunnelResult.status === "invalid_input" && tunnelResult.warnings.some((warning) => warning.includes("velocidade"));
   const requiredError = String(form.product_name ?? "").trim().length === 0;
   const staticWarning = isStatic || ["boxed_product", "pallet_block", "bulk_static"].includes(String(form.arrangement_type));
   const canSave = !processError && !requiredError;
@@ -198,69 +201,21 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
   const thermodynamicProduct = selectedCatalogProduct ?? product ?? null;
   const productDensityKgM3 = positiveValue(thermodynamicProduct?.density_kg_m3);
   const manualDensityKgM3 = densityFieldKgM3 > 0 && (!ashraeDensityKgM3 || Math.abs(densityFieldKgM3 - ashraeDensityKgM3) > 0.0001) ? densityFieldKgM3 : productDensityKgM3;
-  const airTemperatureC = Number(environment?.internal_temp_c ?? form.air_temp_c ?? 0);
+  const airTempSource = String(form.air_temp_source ?? "environment");
+  const airTemperatureC = airTempSource === "environment" ? Number(environment?.internal_temp_c ?? form.air_temp_c ?? 0) : Number(form.air_temp_c ?? 0);
   const freezingPointC = Number(form.freezing_temp_c ?? thermodynamicProduct?.initial_freezing_temp_c ?? -1.5);
   const cpAboveKcalKgC = kcalFromThermal(form.specific_heat_above_kcal_kg_c, form.specific_heat_above_kj_kg_k) || kcalFromThermal(thermodynamicProduct?.specific_heat_above_kcal_kg_c, thermodynamicProduct?.specific_heat_above_kj_kg_k);
   const cpBelowKcalKgC = kcalFromThermal(form.specific_heat_below_kcal_kg_c, form.specific_heat_below_kj_kg_k) || kcalFromThermal(thermodynamicProduct?.specific_heat_below_kcal_kg_c, thermodynamicProduct?.specific_heat_below_kj_kg_k);
   const latentHeatKcalKg = kcalFromThermal(form.latent_heat_kcal_kg, form.latent_heat_kj_kg) || kcalFromThermal(thermodynamicProduct?.latent_heat_kcal_kg, thermodynamicProduct?.latent_heat_kj_kg);
   const frozenConductivityWmK = positiveValue(form.thermal_conductivity_frozen_w_m_k, thermodynamicProduct?.thermal_conductivity_frozen_w_m_k, thermodynamicProduct?.thermal_conductivity_w_m_k);
   const frozenWaterFraction = positiveValue(form.frozen_water_fraction, thermodynamicProduct?.frozen_water_fraction, Number(thermodynamicProduct?.freezable_water_content_percent ?? 0) / 100, Number(thermodynamicProduct?.water_content_percent ?? 0) / 100, 0.9);
-  const giroResult = calculateContinuousGirofreezer({
-    dimensionScale: "m",
-    productLength: Number(form.product_length_m ?? 0),
-    productWidth: Number(form.product_width_m ?? 0),
-    productThickness: productThicknessM,
-    weightScale: "kg",
-    unitWeight,
-    unitsPerCycle: Number(form.units_per_cycle ?? 0),
-    cycleScale: "cycles_per_hour",
-    cycles: Number(form.cycles_per_hour ?? 0),
-    directMassKgH: Number(form.mass_kg_hour ?? 0),
-    timeScale: "min",
-    retentionTime: Number(form.process_time_min ?? 0),
-    airTemperatureC,
-    airVelocityMs: Number(form.air_velocity_m_s ?? 0),
-    minAirVelocityMs: Number(form.min_air_velocity_m_s ?? 1),
-    maxAirVelocityMs: Number(form.max_air_velocity_m_s ?? 6),
-    initialTempC: Number(form.inlet_temp_c ?? 0),
-    finalTempC: Number(form.outlet_temp_c ?? 0),
-    cpAboveKjKgK: cpAboveKcalKgC * 4.1868,
-    cpBelowKjKgK: cpBelowKcalKgC * 4.1868,
-    manualDensityKgM3,
-    ashraeDensityKgM3,
-    frozenConductivityWmK,
-    freezingPointC: Number(freezingPointC),
-    latentHeatKjKg: latentHeatKcalKg * 4.1868,
-    frozenWaterFraction,
-    packagingMassKgH: Number(form.packaging_mass_kg_hour ?? 0),
-    packagingCpKjKgK: Number(form.packaging_specific_heat_kcal_kg_c ?? 0) * 4.1868,
-    deltaTAirK: Number(form.air_delta_t_k ?? 5),
-    airDensityKgM3: 1.2,
-    airExposureFactor: Number(form.air_exposure_factor ?? 1),
-    thermalPenetrationFactor: Number(form.thermal_penetration_factor ?? 1),
-  });
-  const giroStatusLabel: Record<typeof giroResult.physics.processStatus, string> = {
+  const statusLabel: Record<typeof tunnelResult.status, string> = {
     adequate: "Adequado",
     insufficient: "Insuficiente",
     missing_data: "Faltam dados",
     invalid_input: "Dados inválidos",
   };
-  const giroStatusTone = giroResult.physics.processStatus === "adequate" ? "success" : "warning";
-  const thermalResult = giroResult.thermal ?? {
-    qSpecificAboveKjKg: 0,
-    qSpecificLatentKjKg: 0,
-    qSpecificBelowKjKg: 0,
-    qSpecificTotalKjKg: 0,
-    productLoadKw: 0,
-    productLoadKcalH: 0,
-    productLoadTr: 0,
-    packagingLoadKw: 0,
-    totalProcessLoadKw: 0,
-    totalProcessLoadKcalH: 0,
-    totalProcessLoadTr: 0,
-    requiredAirflowM3H: null,
-    requiredAirflowM3S: null,
-  };
+  const statusTone = tunnelResult.status === "adequate" ? "success" : "warning";
   const groups = React.useMemo(() => Array.from(new Set(productCatalog.map((p) => p.category).filter(Boolean))).sort((a, b) => String(a).localeCompare(String(b), "pt-BR")), [productCatalog]);
   const filteredProducts = React.useMemo(() => productCatalog.filter((p) => !selectedGroup || p.category === selectedGroup), [productCatalog, selectedGroup]);
 
