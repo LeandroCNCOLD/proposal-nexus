@@ -233,6 +233,8 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
     return { type: "number" as const, step: unitConfig.step, value: Number.isFinite(valueMin) && valueMin !== 0 ? valueMin / unitConfig.toMinutes : form.process_time_min === 0 ? 0 : "", onChange: (e: React.ChangeEvent<HTMLInputElement>) => set("process_time_min", numberOrNull(e.target.value) === null ? null : Number(e.target.value) * unitConfig.toMinutes) };
   };
   const processType = String(form.process_type ?? "continuous_individual_freezing");
+  const tunnelType = String(form.tunnel_type ?? legacyTunnelType(processType));
+  const arrangementOptions = ARRANGEMENTS_BY_TUNNEL[tunnelType] ?? ARRANGEMENTS_BY_TUNNEL.continuous_belt;
   const physicalModel = String(form.physical_model ?? physicalModelFromProcess(processType));
   const isStatic = isStaticTunnel(processType, form.operation_mode);
   const modelTab = isStatic ? "estatico" : "continuo";
@@ -247,7 +249,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
   const processError = isStatic ? Number(form.batch_time_h ?? 0) <= 0 : Number(form.process_time_min ?? 0) <= 0;
   const velocityWarning = Number(form.air_velocity_m_s ?? 0) <= 0 || Number(form.air_velocity_m_s ?? 0) > 10;
   const requiredError = String(form.product_name ?? "").trim().length === 0;
-  const staticWarning = isStatic || ["boxed_product", "pallet_block", "bulk_static"].includes(String(form.arrangement_type));
+  const staticWarning = isStatic || ["boxed", "stacked_packages", "palletized_boxes", "palletized_blocks", "bulk_on_pallet", "bulk_container"].includes(String(form.arrangement_type));
   const canSave = !processError && !requiredError;
   const ashraeDensityKgM3 = Number(form.ashrae_density_kg_m3 ?? 0);
   const densityFieldKgM3 = Number(form.density_kg_m3 ?? 0);
