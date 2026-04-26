@@ -265,7 +265,8 @@ function calculateTunnelCore(input: any) {
   const distanceToCoreM = geometry.distanceToCoreM || (characteristicDimensionM > 0 ? characteristicDimensionM / 2 : 0);
   const airflow = calculateAirflowModel(input);
   const exposure = calculateExposureFactor(input);
-  const h = calculateModelH(input, physicalModel, airflow.airVelocityUsedMS, exposure.exposureFactor);
+  const airVelocityUsedMS = airflow.airVelocityUsedMS ?? 0;
+  const h = calculateModelH(input, physicalModel, airVelocityUsedMS, exposure.exposureFactor);
 
   const frozenConductivityWMK = positiveNumber(input?.frozenConductivityWMK);
   const thermalPenetrationFactor = positiveNumber(input?.thermalPenetrationFactor);
