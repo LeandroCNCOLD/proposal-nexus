@@ -304,6 +304,8 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
   const densityFieldKgM3 = Number(form.density_kg_m3 ?? 0);
   const selectedCatalogProduct = productCatalog.find((item) => item.id === form.product_id) ?? null;
   const thermodynamicProduct = selectedCatalogProduct ?? product ?? null;
+  const catalogLocked = Boolean(selectedCatalogProduct);
+  const lockedNum = (key: string) => ({ ...num(key), readOnly: catalogLocked, readOnlyValue: catalogLocked, title: catalogLocked ? "Propriedade técnica carregada do catálogo; edite no cadastro de produtos." : undefined });
   const productDensityKgM3 = positiveValue(thermodynamicProduct?.density_kg_m3);
   const manualDensityKgM3 = densityFieldKgM3 > 0 && (!ashraeDensityKgM3 || Math.abs(densityFieldKgM3 - ashraeDensityKgM3) > 0.0001) ? densityFieldKgM3 : productDensityKgM3;
   const airTempSource = form.air_temp_source ?? "environment";
@@ -477,6 +479,8 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
       ...prev,
       product_id: p.id,
       product_name: p.name,
+      catalog_approximate_volume_cm3: p.approximate_volume_cm3 ?? prev.catalog_approximate_volume_cm3 ?? null,
+      catalog_geometry_observations: p.observations ?? prev.catalog_geometry_observations ?? null,
       product_geometry: catalogGeometry ?? prev.product_geometry,
       product_length_m: lengthM ?? prev.product_length_m,
       product_width_m: widthM ?? prev.product_width_m,
