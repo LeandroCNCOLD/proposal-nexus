@@ -263,6 +263,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
   const [retentionUnit, setRetentionUnit] = React.useState<RetentionUnit>("min");
   const [activeTab, setActiveTab] = React.useState("modelo");
   const [simulation, setSimulation] = React.useState<any>(() => simulationDraftFromTunnel(defaultTunnel(environmentId)));
+  const autoAirPresetKeyRef = React.useRef("");
 
   React.useEffect(() => {
     const next = { ...defaultTunnel(environmentId), ...(tunnel ?? {}), environment_id: environmentId };
@@ -457,6 +458,14 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
   const applyAirflowPreset = React.useCallback(() => {
     setForm((prev: any) => ({ ...prev, ...buildAirflowPreset(prev) }));
   }, [buildAirflowPreset]);
+
+  React.useEffect(() => {
+    const presetKey = `${environmentId}:${tunnel?.id ?? "new"}`;
+    const hasAirInputs = positiveValue(form.fan_airflow_m3_h, form.tunnel_cross_section_width_m, form.tunnel_cross_section_height_m, form.informed_air_flow_m3_h) > 0;
+    if (autoAirPresetKeyRef.current === presetKey || hasAirInputs || tunnelResult.airFlowM3H <= 0) return;
+    autoAirPresetKeyRef.current = presetKey;
+    setForm((prev: any) => ({ ...prev, ...buildAirflowPreset(prev) }));
+  }, [buildAirflowPreset, environmentId, form.fan_airflow_m3_h, form.informed_air_flow_m3_h, form.tunnel_cross_section_height_m, form.tunnel_cross_section_width_m, tunnel?.id, tunnelResult.airFlowM3H]);
 
   const setProcessType = (value: string) => {
     const tunnel = legacyTunnelType(value);
