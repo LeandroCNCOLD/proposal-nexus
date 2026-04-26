@@ -303,6 +303,7 @@ export type Database = {
           o2_target_percent: number | null
           process_time_h: number | null
           product_final_moisture: number | null
+          product_id: string | null
           product_initial_moisture: number | null
           product_mass_kg: number | null
           product_name: string | null
@@ -341,6 +342,7 @@ export type Database = {
           o2_target_percent?: number | null
           process_time_h?: number | null
           product_final_moisture?: number | null
+          product_id?: string | null
           product_initial_moisture?: number | null
           product_mass_kg?: number | null
           product_name?: string | null
@@ -379,6 +381,7 @@ export type Database = {
           o2_target_percent?: number | null
           process_time_h?: number | null
           product_final_moisture?: number | null
+          product_id?: string | null
           product_initial_moisture?: number | null
           product_mass_kg?: number | null
           product_name?: string | null
@@ -399,6 +402,13 @@ export type Database = {
             columns: ["environment_id"]
             isOneToOne: false
             referencedRelation: "coldpro_environments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coldpro_advanced_processes_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "coldpro_products"
             referencedColumns: ["id"]
           },
           {
