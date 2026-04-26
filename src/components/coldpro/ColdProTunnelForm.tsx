@@ -71,7 +71,11 @@ const defaultTunnel = (environmentId: string) => ({
   air_exposure_factor: 1,
   thermal_penetration_factor: 1,
   airflow_m3_h: 0,
+  air_flow_m3_h: 0,
   air_delta_t_k: 6,
+  air_density_kg_m3: 1.2,
+  suggested_air_approach_k: 8,
+  suggested_air_temp_c: null,
   min_air_temp_c: -40,
   max_air_temp_c: -25,
   min_air_velocity_m_s: 1,
@@ -274,7 +278,8 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
   const setProcessType = (value: string) => {
     const arrangement = defaultArrangement(value);
     const defaults = ARRANGEMENT_DEFAULTS[arrangement];
-    setForm((prev: any) => ({ ...prev, process_type: value, operation_mode: isStaticProcess(value) ? "batch" : "continuous", arrangement_type: arrangement, air_exposure_factor: defaults.air, thermal_penetration_factor: defaults.penetration }));
+    const nextIsStatic = isStaticProcess(value);
+    setForm((prev: any) => ({ ...prev, process_type: value, operation_mode: nextIsStatic ? "batch" : "continuous", tunnel_mode: nextIsStatic ? "static" : "continuous", arrangement_type: arrangement, air_exposure_factor: defaults.air, thermal_penetration_factor: defaults.penetration }));
   };
 
   const setArrangementType = (value: string) => {
@@ -351,6 +356,10 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
     tunnel_total_load_kw: tunnelResult.totalKW ?? null,
     tunnel_total_load_kcal_h: tunnelResult.totalKcalH ?? null,
     tunnel_total_load_tr: tunnelResult.totalTR ?? null,
+    air_flow_m3_h: tunnelResult.airFlowM3H ?? null,
+    suggested_air_temp_c: tunnelResult.suggestedAirTempC ?? null,
+    suggested_air_approach_k: tunnelResult.suggestedAirApproachK ?? null,
+    air_delta_t_k: tunnelResult.airDeltaTK ?? form.air_delta_t_k ?? 6,
   });
 
   const statusLabel: Record<string, string> = {
@@ -364,6 +373,8 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
       <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <ColdProCalculatedInfo label={isStatic ? "Massa do lote" : "Massa usada"} value={`${fmtColdPro(isStatic ? tunnelResult.staticMassKg : tunnelResult.usedMassKgH)} ${isStatic ? "kg" : "kg/h"}`} description={isStatic ? "pallet/lote × quantidade" : "kg/h usado no motor"} tone={(isStatic ? tunnelResult.staticMassKg : tunnelResult.usedMassKgH) > 0 ? "success" : "warning"} />
         {!isStatic ? <ColdProCalculatedInfo label="Massa por cadência" value={`${fmtColdPro(tunnelResult.calculatedMassKgH)} kg/h`} description="peso × unidades × ciclos/h" tone={tunnelResult.calculatedMassKgH > 0 ? "info" : "warning"} /> : null}
+        {!isStatic ? <ColdProCalculatedInfo label="Espessura do produto" value={`${fmtColdPro(productThicknessM, 3)} m`} description="dimensão informada" tone={productThicknessM > 0 ? "info" : "warning"} /> : null}
+        {isStatic ? <ColdProCalculatedInfo label="Dimensões pallet/bloco" value={`${fmtColdPro(Number(form.pallet_length_m ?? 0), 2)} × ${fmtColdPro(Number(form.pallet_width_m ?? 0), 2)} × ${fmtColdPro(Number(form.pallet_height_m ?? 0), 2)} m`} description="C × L × A" tone={tunnelResult.characteristicDimensionM > 0 ? "info" : "warning"} /> : null}
         <ColdProCalculatedInfo label={isStatic ? "Tempo de batelada" : "Tempo de retenção"} value={`${fmtColdPro(tunnelResult.availableTimeMin, 1)} min`} description={isStatic ? `${fmtColdPro(Number(form.batch_time_h ?? 0), 2)} h` : "tempo disponível"} tone={tunnelResult.availableTimeMin > 0 ? "info" : "warning"} />
         <ColdProCalculatedInfo label="Dimensão característica" value={`${fmtColdPro(tunnelResult.characteristicDimensionM, 3)} m`} description="menor dimensão térmica" tone={tunnelResult.characteristicDimensionM > 0 ? "info" : "warning"} />
         <ColdProCalculatedInfo label="Distância até o núcleo" value={`${fmtColdPro(tunnelResult.distanceToCoreM * 1000, 1)} mm`} description="dimensão característica ÷ 2" tone={tunnelResult.distanceToCoreM > 0 ? "info" : "warning"} />
@@ -377,10 +388,10 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
         <ColdProCalculatedInfo label="Carga total em kW" value={`${fmtColdPro(tunnelResult.totalKW, 2)} kW`} description="produto + embalagem + interna" tone={tunnelResult.totalKW > 0 ? "success" : "warning"} />
         <ColdProCalculatedInfo label="Carga total em kcal/h" value={`${fmtColdPro(tunnelResult.totalKcalH, 0)} kcal/h`} description="carga total convertida" tone="info" />
         <ColdProCalculatedInfo label="Carga total em TR" value={`${fmtColdPro(tunnelResult.totalTR, 2)} TR`} description="carga total convertida" tone="info" />
-        <ColdProCalculatedInfo label="Vazão de ar necessária" value={`${fmtColdPro(tunnelResult.airFlowM3H, 0)} m³/h`} description="potência ÷ ar × Cp × ΔT" tone={tunnelResult.airFlowM3H > 0 ? "info" : "warning"} />
-        <ColdProCalculatedInfo label="Temperatura de ar requerida" value={`${fmtColdPro(tunnelResult.requiredAirTempC, 1)} °C`} description="temperatura final - ΔT do ar" tone="info" />
+        <ColdProCalculatedInfo label="Vazão de ar estimada" value={`${fmtColdPro(tunnelResult.airFlowM3H, 0)} m³/h`} description="por balanço térmico" tone={tunnelResult.airFlowM3H > 0 ? "info" : "warning"} />
+        <ColdProCalculatedInfo label="Temperatura de ar sugerida" value={`${fmtColdPro(tunnelResult.suggestedAirTempC, 1)} °C`} description="temperatura final - approach" tone="info" />
         <ColdProCalculatedInfo label="Temperatura de ar informada" value={`${fmtColdPro(Number(tunnelInput.airTempC ?? 0), 1)} °C`} description="valor real usado no cálculo" tone="info" />
-        <ColdProCalculatedInfo label="Diferença do ar" value={fmtMaybe(tunnelResult.calculationBreakdown.air.comparison as number | null, 1, " °C")} description="informada - requerida" tone={Number(tunnelResult.calculationBreakdown.air.comparison ?? 0) > 5 ? "warning" : "info"} />
+        <ColdProCalculatedInfo label="Diferença do ar" value={fmtMaybe(tunnelResult.calculationBreakdown.air.comparison as number | null, 1, " °C")} description="informada - sugerida" tone={Number(tunnelResult.calculationBreakdown.air.comparison ?? 0) > 5 ? "warning" : "info"} />
         <ColdProCalculatedInfo label="h efetivo" value={fmtMaybe(tunnelResult.h.hEffectiveWM2K, 2, " W/m²K")} description={`Fonte: ${tunnelResult.h.source}`} tone={tunnelResult.h.hEffectiveWM2K ? "info" : "warning"} />
         <ColdProCalculatedInfo label="k efetivo" value={fmtMaybe(tunnelResult.kEffectiveWMK, 3, " W/mK")} description="condutividade × penetração" tone={tunnelResult.kEffectiveWMK ? "info" : "warning"} />
         <ColdProCalculatedInfo label="Tempo estimado" value={fmtMaybe(tunnelResult.estimatedTimeMin, 1, " min")} description="estimativa até o núcleo" tone={tunnelResult.estimatedTimeMin ? "info" : "warning"} />
@@ -532,6 +543,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
               <ColdProField label="Temp. ar inicial" unit="°C"><ColdProInput {...num("air_temp_c")} /></ColdProField>
               <ColdProField label="Velocidade inicial" unit="m/s"><ColdProInput {...num("air_velocity_m_s")} /></ColdProField>
               <ColdProField label="ΔT do ar" unit="K"><ColdProInput {...num("air_delta_t_k")} /></ColdProField>
+              <ColdProField label="Approach ar sugerido" unit="K"><ColdProInput {...num("suggested_air_approach_k")} /></ColdProField>
               <ColdProField label="Vazão informada" unit="m³/h"><ColdProInput {...num("airflow_m3_h")} /></ColdProField>
               <ColdProField label="Coef. convecção manual"><ColdProInput {...num("convective_coefficient_manual_w_m2_k")} /></ColdProField>
             </div><div>
