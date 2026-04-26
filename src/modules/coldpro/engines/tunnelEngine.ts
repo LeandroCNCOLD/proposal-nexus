@@ -203,23 +203,13 @@ function canEstimateFreezingTime(input: any, distanceToCoreM: number, hEffective
   );
 }
 
-function calculateModelH(input: any, physicalModel: TunnelPhysicalModel, airVelocityUsedMS: number, exposureFactor: number) {
-  const h = calculateConvectiveCoefficient({
+function calculateModelH(input: any, _physicalModel: TunnelPhysicalModel, airVelocityUsedMS: number, exposureFactor: number) {
+  return calculateConvectiveCoefficient({
     airVelocityMS: airVelocityUsedMS,
     manualCoefficientWM2K: input?.manualConvectiveCoefficientWM2K,
     airExposureFactor: input?.airExposureFactor,
     exposureFactor,
   });
-  if (h.source !== "velocity_estimated") return h;
-
-  const spiralTurbulenceFactor = positiveNumber(input?.spiralTurbulenceFactor) || 1.8;
-  const blockExposureFactor = positiveNumber(input?.blockExposureFactor) || 0.7;
-  const modelFactor = physicalModel === "continuous_spiral" ? spiralTurbulenceFactor : physicalModel === "static_block" ? blockExposureFactor : 1;
-
-  return {
-    ...h,
-    hEffectiveWM2K: toNumber(h.hEffectiveWM2K, 0) * modelFactor,
-  };
 }
 
 function calculateTunnelCore(input: any) {
