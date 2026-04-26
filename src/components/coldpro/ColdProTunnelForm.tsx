@@ -740,14 +740,9 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
 
         <TabsContent value="continuo">
           <ColdProFormSection title="Contínuo / girofreezer" description="Produto individualizado ou camada fina exposta ao ar." icon={<Wind className="h-4 w-4" />}>
+            {productGeometryFields}
+            <div className="mt-5 border-t pt-5" />
             <div className="grid grid-cols-1 gap-x-10 md:grid-cols-2"><div>
-              <ColdProField label="Escala das medidas">
-                <ColdProSelect value={continuousUnit} onChange={(e) => setContinuousUnit(e.target.value as DimensionUnit)}>
-                  {Object.entries(DIMENSION_UNITS).map(([key, item]) => <option key={key} value={key}>{item.label}</option>)}
-                </ColdProSelect>
-              </ColdProField>
-              {form.product_geometry === "slab" ? <ColdProField label="Espessura produto" unit={DIMENSION_UNITS[continuousUnit].label}><ColdProInput {...dimensionNum("product_thickness_m", continuousUnit)} /></ColdProField> : null}
-              {form.product_geometry === "bulk" ? <ColdProField label="Altura da camada" unit={DIMENSION_UNITS[continuousUnit].label}><ColdProInput {...dimensionNum("bulk_layer_height_m", continuousUnit)} /></ColdProField> : null}
               <ColdProField label="Unidade do peso">
                 <ColdProSelect value={weightUnit} onChange={(e) => setWeightUnit(e.target.value as WeightUnit)}>
                   {Object.entries(WEIGHT_UNITS).map(([key, item]) => <option key={key} value={key}>{item.label}</option>)}
@@ -790,6 +785,8 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
 
         <TabsContent value="estatico">
           <ColdProFormSection title="Estático / carrinho / pallet" description="Massa agrupada tratada como bloco térmico equivalente." icon={<Warehouse className="h-4 w-4" />}>
+            {productGeometryFields}
+            <div className="mt-5 border-t pt-5" />
             <div className="grid grid-cols-1 gap-x-10 md:grid-cols-2"><div>
               <ColdProField label="Escala das medidas">
                 <ColdProSelect value={staticUnit} onChange={(e) => setStaticUnit(e.target.value as DimensionUnit)}>
