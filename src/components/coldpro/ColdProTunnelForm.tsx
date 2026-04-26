@@ -297,12 +297,27 @@ export function ColdProTunnelForm({ environmentId, tunnel, productCatalog = [], 
               <ColdProField label="Comprimento produto" unit={DIMENSION_UNITS[continuousUnit].label}><ColdProInput {...dimensionNum("product_length_m", continuousUnit)} /></ColdProField>
               <ColdProField label="Largura produto" unit={DIMENSION_UNITS[continuousUnit].label}><ColdProInput {...dimensionNum("product_width_m", continuousUnit)} /></ColdProField>
               <ColdProField label="Espessura produto" unit={DIMENSION_UNITS[continuousUnit].label}><ColdProInput {...dimensionNum("product_thickness_m", continuousUnit)} /></ColdProField>
-              <ColdProField label="Peso unitário" unit="kg"><ColdProInput {...num("unit_weight_kg")} /></ColdProField>
+              <ColdProField label="Unidade do peso">
+                <ColdProSelect value={weightUnit} onChange={(e) => setWeightUnit(e.target.value as WeightUnit)}>
+                  {Object.entries(WEIGHT_UNITS).map(([key, item]) => <option key={key} value={key}>{item.label}</option>)}
+                </ColdProSelect>
+              </ColdProField>
+              <ColdProField label="Peso unitário" unit={WEIGHT_UNITS[weightUnit].label}><ColdProInput {...weightNum("unit_weight_kg", weightUnit)} /></ColdProField>
             </div><div>
               <ColdProField label="Unidades/ciclo"><ColdProInput {...num("units_per_cycle")} /></ColdProField>
-              <ColdProField label="Ciclos/h"><ColdProInput {...num("cycles_per_hour")} /></ColdProField>
+              <ColdProField label="Escala dos ciclos">
+                <ColdProSelect value={cycleUnit} onChange={(e) => setCycleUnit(e.target.value as CycleUnit)}>
+                  {Object.entries(CYCLE_UNITS).map(([key, item]) => <option key={key} value={key}>{item.label}</option>)}
+                </ColdProSelect>
+              </ColdProField>
+              <ColdProField label="Ciclos" unit={CYCLE_UNITS[cycleUnit].label}><ColdProInput {...cyclesNum(cycleUnit)} /></ColdProField>
               <ColdProField label="Massa direta" unit="kg/h"><ColdProInput {...num("mass_kg_hour")} /></ColdProField>
-              <ColdProField label="Tempo retenção" unit="min"><ColdProInput {...num("process_time_min")} /></ColdProField>
+              <ColdProField label="Escala do tempo">
+                <ColdProSelect value={retentionUnit} onChange={(e) => setRetentionUnit(e.target.value as RetentionUnit)}>
+                  {Object.entries(RETENTION_UNITS).map(([key, item]) => <option key={key} value={key}>{item.label}</option>)}
+                </ColdProSelect>
+              </ColdProField>
+              <ColdProField label="Tempo retenção" unit={RETENTION_UNITS[retentionUnit].label}><ColdProInput {...retentionNum(retentionUnit)} /></ColdProField>
               <ColdProCalculatedInfo label="Massa usada" value={`${fmtColdPro(massHour)} kg/h`} description="Massa direta ou throughput calculado" tone={massHour > 0 ? "success" : "warning"} />
             </div></div>
           </ColdProFormSection>
