@@ -182,6 +182,16 @@ function kcalFromThermal(kcal?: unknown, kj?: unknown) {
   return positiveValue(kcal) || positiveValue(kj) / 4.1868;
 }
 
+function geometryFromCatalogShape(shape?: unknown) {
+  const text = String(shape ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  if (text.includes("retangular") || text.includes("paralelepipedo") || text.includes("bloco")) return "rectangular_prism";
+  if (text.includes("cilind")) return "cylinder";
+  if (text.includes("esfera")) return "sphere";
+  if (text.includes("caixa") || text.includes("garrafa") || text.includes("pote")) return "packed_box";
+  if (text.includes("grao") || text.includes("granel") || text.includes("particula")) return "bulk";
+  return null;
+}
+
 function simulationDraftFromTunnel(source: any) {
   return {
     air_temp_c: source?.air_temp_c ?? -35,
@@ -442,10 +452,27 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
   const applyProduct = (id: string) => {
     const p = productCatalog.find((item) => item.id === id);
     if (!p) return;
+    const catalogGeometry = geometryFromCatalogShape(p.geometry_shape);
+    const lengthM = Number(p.length_mm ?? 0) > 0 ? Number(p.length_mm) / 1000 : null;
+    const widthM = Number(p.width_mm ?? 0) > 0 ? Number(p.width_mm) / 1000 : null;
+    const heightM = Number(p.height_or_thickness_mm ?? 0) > 0 ? Number(p.height_or_thickness_mm) / 1000 : null;
+    const characteristicM = Number(p.characteristic_thickness_m ?? 0) > 0 ? Number(p.characteristic_thickness_m) : Number(p.characteristic_thickness_mm ?? 0) > 0 ? Number(p.characteristic_thickness_mm) / 1000 : null;
     setForm((prev: any) => ({
       ...prev,
       product_id: p.id,
       product_name: p.name,
+      product_geometry: catalogGeometry ?? prev.product_geometry,
+      product_length_m: lengthM ?? prev.product_length_m,
+      product_width_m: widthM ?? prev.product_width_m,
+      product_height_m: heightM ?? prev.product_height_m,
+      product_thickness_m: characteristicM ?? heightM ?? prev.product_thickness_m,
+      product_thickness_mm: characteristicM ? characteristicM * 1000 : p.characteristic_thickness_mm ?? prev.product_thickness_mm,
+      product_diameter_m: catalogGeometry === "cylinder" || catalogGeometry === "sphere" ? (widthM ?? lengthM ?? prev.product_diameter_m) : prev.product_diameter_m,
+      equivalent_diameter_m: catalogGeometry === "irregular" ? (characteristicM ?? prev.equivalent_diameter_m) : prev.equivalent_diameter_m,
+      characteristic_dimension_m: characteristicM ?? prev.characteristic_dimension_m,
+      box_length_m: catalogGeometry === "packed_box" ? (lengthM ?? prev.box_length_m) : prev.box_length_m,
+      box_width_m: catalogGeometry === "packed_box" ? (widthM ?? prev.box_width_m) : prev.box_width_m,
+      box_height_m: catalogGeometry === "packed_box" ? (heightM ?? prev.box_height_m) : prev.box_height_m,
       freezing_temp_c: p.initial_freezing_temp_c ?? prev.freezing_temp_c,
       density_kg_m3: p.density_kg_m3 ?? prev.density_kg_m3,
       ashrae_density_kg_m3: p.density_kg_m3 ?? prev.ashrae_density_kg_m3 ?? 0,
