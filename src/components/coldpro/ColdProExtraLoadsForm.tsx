@@ -15,7 +15,7 @@ export function ColdProExtraLoadsForm({ environment, catalogFanLoadKcalH = 0, on
   const [targetLux, setTargetLux] = React.useState(300);
   React.useEffect(() => setForm(environment), [environment]);
   const set = (key: string, value: unknown) => setForm((prev: any) => ({ ...prev, [key]: value }));
-  const num = (key: string) => ({ type: "number" as const, value: form?.[key] ?? "", onChange: (e: React.ChangeEvent<HTMLInputElement>) => set(key, numberOrNull(e.target.value)) });
+  const num = (key: string) => ({ type: "number" as const, step: "0.0001", value: form?.[key] ?? "", onChange: (e: React.ChangeEvent<HTMLInputElement>) => set(key, numberOrNull(e.target.value)) });
   const select = (key: string) => ({ value: form?.[key] ?? "", onChange: (e: React.ChangeEvent<HTMLSelectElement>) => set(key, e.target.value), className: "h-10 w-full rounded-md border bg-background px-3 text-sm" });
 
   const hoursInvalid = [form.people_hours_day, form.lighting_hours_day, form.motors_hours_day].some((v) => Number(v ?? 0) < 0 || Number(v ?? 0) > 24);

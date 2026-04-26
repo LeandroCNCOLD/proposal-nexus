@@ -320,6 +320,7 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
 
   const num = (key: string) => ({
     type: "number" as const,
+    step: "0.0001",
     value: form?.[key] ?? "",
     onChange: (e: React.ChangeEvent<HTMLInputElement>) => set(key, numberOrNull(e.target.value)),
   });
