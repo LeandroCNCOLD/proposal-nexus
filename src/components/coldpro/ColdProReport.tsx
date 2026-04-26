@@ -221,6 +221,12 @@ export function ColdProReport({
               <div className="text-xl font-bold">{fmt(totals.tr)} TR</div>
             </div>
           </div>
+          <div className="mt-4 grid gap-3 xl:grid-cols-2 print:grid-cols-1">
+            <ProjectEnvironmentPieChart title="Participação dos ambientes na carga total" data={projectEnvironmentRows(consolidated)} />
+            <ProjectStackedLoadChart title="Composição de carga por ambiente" consolidated={consolidated} />
+            <InteractiveLoadPieChart title="Distribuição global por categoria" data={projectGroupedRows(consolidated)} total={consolidated.summary.requiredKcalH} />
+            <CapacityComparisonChart title="Capacidade instalada x carga total" requiredKcalH={consolidated.summary.requiredKcalH} capacityKcalH={consolidated.summary.totalSelectedCapacityKcalH} surplusPercent={consolidated.summary.equipmentSurplusPercent} />
+          </div>
         </section>
 
         {environments.map((env: any, idx: number) => {
@@ -303,7 +309,9 @@ export function ColdProReport({
                   </div>
                   <div className="mt-3 grid gap-3 lg:grid-cols-2">
                     <ResultConsistencyAudit normalized={normalized} />
-                    <EquipmentCapacityChart normalized={normalized} />
+                    <InteractiveLoadPieChart title="Distribuição da carga térmica" data={environmentLoadRows(normalized)} total={normalized.summary.requiredKcalH} />
+                    <LoadRankingBarChart title="Maiores componentes da carga" data={environmentLoadRows(normalized)} total={normalized.summary.requiredKcalH} />
+                    <CapacityComparisonChart title="Carga requerida x capacidade selecionada" requiredKcalH={normalized.summary.requiredKcalH} capacityKcalH={normalized.equipment.totalCapacityKcalH} surplusPercent={normalized.equipment.surplusPercent} />
                   </div>
                   {normalized.loadDistribution.productKcalH === 0 && normalized.loadDistribution.tunnelProcessKcalH > 0 ? (
                     <div className="mt-3 flex gap-2 rounded-md border bg-muted/20 p-3 text-sm">
