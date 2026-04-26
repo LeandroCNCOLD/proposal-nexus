@@ -13,7 +13,9 @@ const ARRANGEMENT_DEFAULTS: Record<string, { air: number; penetration: number; l
 };
 
 const TUNNEL_TYPES = { continuous_belt: "Túnel contínuo de esteira", spiral_girofreezer: "Girofreezer / espiral", static_cart: "Túnel estático com carrinhos", static_pallet: "Túnel estático com pallets", fluidized_bed: "Leito fluidizado / IQF", blast_freezer: "Câmara/túnel de ar forçado" } as const;
-const ARRANGEMENTS_BY_TUNNEL: Record<string, string[]> = { continuous_belt: ["individual_units", "single_layer_blocks", "trays", "stacked_packages"], spiral_girofreezer: ["individual_units", "trays", "packaged_units"], static_cart: ["trays_on_racks", "boxes_on_cart", "hanging_product"], static_pallet: ["palletized_boxes", "palletized_blocks", "bulk_on_pallet"], fluidized_bed: ["loose_particles", "small_individual_units"], blast_freezer: ["boxes", "racks", "bulk_container"] };
+const ARRANGEMENTS_BY_TUNNEL: Record<string, string[]> = { continuous_belt: ["individual_units", "single_layer_blocks", "trays", "stacked_packages"], spiral_girofreezer: ["individual_units", "trays", "packaged_units"], static_cart: ["trays_on_racks", "boxes_on_cart", "hanging_product"], static_pallet: ["palletized_boxes", "palletized_blocks", "bulk_on_pallet"], fluidized_bed: ["loose_particles", "small_individual_units"], blast_freezer: ["boxes", "racks", "bulk_container", "palletized_boxes", "trays_on_racks"] };
+const STATIC_MASS_MODES = { static_pallet: ["direct_pallet_mass", "calculated_pallet_composition"], static_cart: ["direct_cart_mass", "calculated_cart_composition"], blast_freezer: ["direct_batch_mass", "calculated_batch_composition"] } as const;
+const CONTINUOUS_MASS_MODES = { continuous_belt: ["direct_mass_flow", "calculated_by_units_per_hour", "calculated_by_belt_loading"], spiral_girofreezer: ["direct_mass_flow", "calculated_by_units", "calculated_by_trays"], fluidized_bed: ["direct_mass_flow", "calculated_by_feed_rate"] } as const;
 const GEOMETRIES = { slab: "Placa / manta / hambúrguer achatado", rectangular_prism: "Bloco retangular", cube: "Cubo", cylinder: "Cilindro", sphere: "Esfera", irregular: "Irregular", packed_box: "Caixa / embalagem fechada", bulk: "Granel" } as const;
 const EXPOSURE_MODELS = { fully_exposed: "Produto totalmente exposto ao ar", one_side_contact: "Uma face em contato", tray_contact: "Produto em bandeja", boxed: "Produto dentro de caixa", stacked: "Produto empilhado", bulk_layer: "Camada de produto a granel" } as const;
 const PALLET_THERMAL_MODELS = { box_limited: "Limitado pela caixa individual", pallet_block_limited: "Pallet/bloco compacto conservador", hybrid: "Híbrido: caixa + penalização do pallet" } as const;
@@ -58,16 +60,31 @@ const defaultTunnel = (environmentId: string) => ({
   blockage_factor_input_mode: "decimal",
   thermal_model_for_pallet: "hybrid",
   static_mass_mode: "direct_pallet_mass",
+  batch_mass_mode: "direct_batch_mass",
+  continuous_mass_mode: "direct_mass_flow",
+  mass_flow_mode: "direct_mass_flow",
   units_per_box: 0,
   boxes_per_layer: 0,
   number_of_layers: 0,
+  boxes_per_batch: 0,
+  racks_count: 0,
+  containers_count: 0,
   total_units_per_pallet: 0,
   box_packaging_weight_kg: 0,
   pallet_base_weight_kg: 0,
+  packaging_weight_kg: 0,
   units_per_pallet: 0,
   product_mass_per_pallet_kg: 0,
   packaging_mass_per_pallet_kg: 0,
   calculated_pallet_mass_kg: 0,
+  units_per_tray: 0,
+  trays_per_cart: 0,
+  number_of_carts: 1,
+  tray_packaging_weight_kg: 0,
+  cart_structure_weight_kg: 0,
+  calculated_cart_mass_kg: 0,
+  direct_batch_mass_kg: 0,
+  calculated_batch_mass_kg: 0,
   static_mass_kg: 0,
   operation_mode: "continuous",
   process_type: "continuous_individual_freezing",
@@ -91,6 +108,13 @@ const defaultTunnel = (environmentId: string) => ({
   product_unit_weight_kg: 0,
   units_per_cycle: 0,
   cycles_per_hour: 0,
+  trays_per_hour: 0,
+  tray_weight_kg: 0,
+  units_per_hour: 0,
+  units_per_row: 0,
+  rows_per_meter: 0,
+  belt_speed_m_min: 0,
+  feed_rate_kg_h: 0,
   mass_kg_hour: 0,
   pallet_length_m: 0,
   pallet_width_m: 0,
@@ -138,6 +162,10 @@ const defaultTunnel = (environmentId: string) => ({
   packaging_mass_kg_hour: 0,
   packaging_mass_kg_batch: 0,
   packaging_specific_heat_kcal_kg_c: 0.4,
+  bed_width_m: 0,
+  bed_length_m: 0,
+  bed_area_m2: 0,
+  superficial_air_velocity_m_s: 0,
   belt_motor_kw: 0,
   internal_fans_kw: 0,
   other_internal_kw: 0,
@@ -240,6 +268,25 @@ function suggestedStaticArrangementFields(tunnelType: string, arrangementType: s
   return {};
 }
 
+function defaultMassModeForTunnel(tunnelType: string) {
+  if (tunnelType === "static_cart") return "direct_cart_mass";
+  if (tunnelType === "blast_freezer") return "direct_batch_mass";
+  if (tunnelType === "fluidized_bed") return "direct_mass_flow";
+  return "direct_pallet_mass";
+}
+
+function staticModeOptions(tunnelType: string) {
+  if (tunnelType === "static_cart") return [{ value: "direct_cart_mass", label: "Informar massa do carrinho/rack diretamente" }, { value: "calculated_cart_composition", label: "Calcular pela formação do carrinho/rack" }];
+  if (tunnelType === "blast_freezer") return [{ value: "direct_batch_mass", label: "Informar massa do lote diretamente" }, { value: "calculated_batch_composition", label: "Calcular pela formação da batelada" }];
+  return [{ value: "direct_pallet_mass", label: "Informar massa do pallet/lote diretamente" }, { value: "calculated_pallet_composition", label: "Calcular pela formação do pallet/lote" }];
+}
+
+function continuousModeOptions(tunnelType: string) {
+  if (tunnelType === "spiral_girofreezer") return [{ value: "direct_mass_flow", label: "Informar kg/h diretamente" }, { value: "calculated_by_units", label: "Calcular por unidades/ciclo" }, { value: "calculated_by_trays", label: "Calcular por bandejas/h" }];
+  if (tunnelType === "fluidized_bed") return [{ value: "direct_mass_flow", label: "Informar kg/h diretamente" }, { value: "calculated_by_feed_rate", label: "Usar taxa de alimentação" }];
+  return [{ value: "direct_mass_flow", label: "Informar kg/h diretamente" }, { value: "calculated_by_units_per_hour", label: "Calcular por unidades/h" }, { value: "calculated_by_belt_loading", label: "Calcular por carregamento da esteira" }];
+}
+
 function simulationDraftFromTunnel(source: any) {
   return {
     air_temp_c: source?.air_temp_c ?? -35,
@@ -338,15 +385,26 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
   const isStatic = ["static_cart", "static_pallet", "blast_freezer"].includes(tunnelType) || isStaticTunnel(processType, form.operation_mode);
   const modelTab = isStatic ? "estatico" : "continuo";
   const unitWeight = Number(form.unit_weight_kg ?? 0) || Number(form.product_unit_weight_kg ?? 0);
-  const throughput = Number(form.units_per_cycle ?? 0) * unitWeight * Number(form.cycles_per_hour ?? 0);
-  const massHour = Number(form.mass_kg_hour ?? 0) || throughput;
-  const staticMassMode = String(form.static_mass_mode ?? "direct_pallet_mass");
+  const continuousMassMode = tunnelType === "fluidized_bed" ? String(form.mass_flow_mode ?? "direct_mass_flow") : String(form.continuous_mass_mode ?? "direct_mass_flow");
+  const throughputByUnits = unitWeight * positiveValue(form.units_per_cycle) * positiveValue(form.cycles_per_hour);
+  const throughputByTrays = (unitWeight * positiveValue(form.units_per_tray) + positiveValue(form.tray_weight_kg)) * positiveValue(form.trays_per_hour);
+  const throughputByUnitsHour = unitWeight * positiveValue(form.units_per_hour);
+  const beltUnitsPerHour = positiveValue(form.units_per_row) * positiveValue(form.rows_per_meter) * positiveValue(form.belt_speed_m_min) * 60;
+  const throughputByBelt = beltUnitsPerHour * unitWeight;
+  const throughputByFeedRate = positiveValue(form.feed_rate_kg_h);
+  const calculatedMassHour = continuousMassMode === "calculated_by_trays" ? throughputByTrays : continuousMassMode === "calculated_by_units_per_hour" ? throughputByUnitsHour : continuousMassMode === "calculated_by_belt_loading" ? throughputByBelt : continuousMassMode === "calculated_by_feed_rate" ? throughputByFeedRate : throughputByUnits;
+  const massHour = continuousMassMode === "direct_mass_flow" ? positiveValue(form.mass_kg_hour) : calculatedMassHour;
+  const staticMassMode = String(form.static_mass_mode ?? defaultMassModeForTunnel(tunnelType));
   const unitsPerPallet = staticMassMode === "calculated_pallet_composition" ? (positiveValue(form.total_units_per_pallet) || positiveValue(form.units_per_box) * positiveValue(form.boxes_per_layer) * positiveValue(form.number_of_layers)) : positiveValue(form.units_per_pallet);
   const productMassPerPalletKg = staticMassMode === "calculated_pallet_composition" ? unitsPerPallet * unitWeight : positiveValue(form.product_mass_per_pallet_kg);
   const packagingMassPerPalletKg = staticMassMode === "calculated_pallet_composition" ? positiveValue(form.box_packaging_weight_kg) + positiveValue(form.pallet_base_weight_kg) : positiveValue(form.packaging_mass_per_pallet_kg);
   const calculatedPalletMassKg = staticMassMode === "calculated_pallet_composition" ? productMassPerPalletKg + packagingMassPerPalletKg : positiveValue(form.calculated_pallet_mass_kg);
-  const effectivePalletMassKg = staticMassMode === "calculated_pallet_composition" ? calculatedPalletMassKg : positiveValue(form.pallet_mass_kg);
-  const staticMass = effectivePalletMassKg * Math.max(1, Number(form.number_of_pallets ?? 1));
+  const unitsPerCart = positiveValue(form.units_per_tray) * positiveValue(form.trays_per_cart);
+  const calculatedCartMassKg = unitsPerCart * unitWeight + positiveValue(form.tray_packaging_weight_kg) + positiveValue(form.cart_structure_weight_kg);
+  const calculatedBatchMassKg = unitWeight * (positiveValue(form.units_per_box) * positiveValue(form.boxes_per_batch) || positiveValue(form.total_units_per_pallet) || positiveValue(form.units_per_pallet)) + positiveValue(form.packaging_weight_kg);
+  const effectiveBatchUnitMassKg = staticMassMode === "calculated_pallet_composition" ? calculatedPalletMassKg : staticMassMode === "calculated_cart_composition" ? calculatedCartMassKg : staticMassMode === "calculated_batch_composition" ? calculatedBatchMassKg : staticMassMode === "direct_batch_mass" ? positiveValue(form.direct_batch_mass_kg, form.static_mass_kg) : positiveValue(form.pallet_mass_kg);
+  const groupingCount = staticMassMode.includes("cart") ? Math.max(1, Number(form.number_of_carts ?? 1)) : staticMassMode.includes("batch") ? 1 : Math.max(1, Number(form.number_of_pallets ?? 1));
+  const staticMass = effectiveBatchUnitMassKg * groupingCount;
   const blockDims = [Number(form.pallet_length_m ?? 0), Number(form.pallet_width_m ?? 0), Number(form.pallet_height_m ?? 0)].filter((v) => v > 0);
   const productThicknessM = dimensionValueM("product_thickness_m");
   const characteristic = isStatic ? (blockDims.length ? Math.min(...blockDims) : 0) : productThicknessM;
@@ -405,7 +463,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
     unitsPerCycle: Number(form.units_per_cycle ?? 0),
     cycleScale: "cycles_per_hour",
     cycles: Number(form.cycles_per_hour ?? 0),
-    directMassKgH: Number(form.mass_kg_hour ?? 0),
+    directMassKgH: isStatic ? 0 : massHour,
     timeScale: "min",
     retentionTime: Number(form.process_time_min ?? 0),
     airTemperatureC,
@@ -517,7 +575,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
     const arrangement = defaultArrangement(value);
     const defaults = ARRANGEMENT_DEFAULTS[arrangement];
     const nextIsStatic = isStaticProcess(value);
-    setForm((prev: any) => ({ ...prev, tunnel_type: value, process_type: value, physical_model: physicalModelFromProcess(value), operation_mode: nextIsStatic ? "batch" : "continuous", tunnel_mode: nextIsStatic ? "static" : "continuous", arrangement_type: arrangement, static_mass_mode: nextIsStatic ? (prev.static_mass_mode ?? "direct_pallet_mass") : prev.static_mass_mode, air_exposure_factor: defaults.air, thermal_penetration_factor: defaults.penetration, ...suggestedStaticArrangementFields(value, arrangement) }));
+    setForm((prev: any) => ({ ...prev, tunnel_type: value, process_type: value, physical_model: physicalModelFromProcess(value), operation_mode: nextIsStatic ? "batch" : "continuous", tunnel_mode: nextIsStatic ? "static" : "continuous", arrangement_type: arrangement, static_mass_mode: nextIsStatic ? defaultMassModeForTunnel(value) : prev.static_mass_mode, continuous_mass_mode: !nextIsStatic ? "direct_mass_flow" : prev.continuous_mass_mode, mass_flow_mode: value === "fluidized_bed" ? "direct_mass_flow" : prev.mass_flow_mode, air_exposure_factor: defaults.air, thermal_penetration_factor: defaults.penetration, ...suggestedStaticArrangementFields(value, arrangement) }));
     setActiveTab(nextIsStatic ? "estatico" : "continuo");
   };
 
@@ -643,12 +701,34 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
     spiral_turbulence_factor: Number(form.spiral_turbulence_factor ?? 1.8),
     block_exposure_factor: Number(form.block_exposure_factor ?? 0.7),
     static_mass_mode: staticMassMode,
+    batch_mass_mode: tunnelType === "blast_freezer" ? staticMassMode : form.batch_mass_mode ?? null,
+    continuous_mass_mode: tunnelType !== "fluidized_bed" ? continuousMassMode : form.continuous_mass_mode ?? null,
+    mass_flow_mode: tunnelType === "fluidized_bed" ? continuousMassMode : form.mass_flow_mode ?? null,
     units_per_box: Number(form.units_per_box ?? 0) || null,
     boxes_per_layer: Number(form.boxes_per_layer ?? 0) || null,
     number_of_layers: Number(form.number_of_layers ?? 0) || null,
+    boxes_per_batch: Number(form.boxes_per_batch ?? 0) || null,
+    racks_count: Number(form.racks_count ?? 0) || null,
+    containers_count: Number(form.containers_count ?? 0) || null,
     total_units_per_pallet: Number(form.total_units_per_pallet ?? 0) || null,
     box_packaging_weight_kg: Number(form.box_packaging_weight_kg ?? 0) || null,
     pallet_base_weight_kg: Number(form.pallet_base_weight_kg ?? 0) || null,
+    packaging_weight_kg: Number(form.packaging_weight_kg ?? 0) || null,
+    units_per_tray: Number(form.units_per_tray ?? 0) || null,
+    trays_per_cart: Number(form.trays_per_cart ?? 0) || null,
+    number_of_carts: Number(form.number_of_carts ?? 0) || null,
+    tray_packaging_weight_kg: Number(form.tray_packaging_weight_kg ?? 0) || null,
+    cart_structure_weight_kg: Number(form.cart_structure_weight_kg ?? 0) || null,
+    calculated_cart_mass_kg: calculatedCartMassKg || null,
+    direct_batch_mass_kg: Number(form.direct_batch_mass_kg ?? 0) || null,
+    calculated_batch_mass_kg: calculatedBatchMassKg || null,
+    trays_per_hour: Number(form.trays_per_hour ?? 0) || null,
+    tray_weight_kg: Number(form.tray_weight_kg ?? 0) || null,
+    units_per_hour: Number(form.units_per_hour ?? 0) || null,
+    units_per_row: Number(form.units_per_row ?? 0) || null,
+    rows_per_meter: Number(form.rows_per_meter ?? 0) || null,
+    belt_speed_m_min: Number(form.belt_speed_m_min ?? 0) || null,
+    feed_rate_kg_h: Number(form.feed_rate_kg_h ?? 0) || null,
     units_per_pallet: (tunnelResult.unitsPerPallet ?? unitsPerPallet) || null,
     product_mass_per_pallet_kg: (tunnelResult.productMassPerPalletKg ?? productMassPerPalletKg) || null,
     packaging_mass_per_pallet_kg: (tunnelResult.packagingMassPerPalletKg ?? packagingMassPerPalletKg) || null,
@@ -710,6 +790,10 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
     box_height_m: Number(form.box_height_m ?? 0) || null,
     bulk_layer_height_m: Number(form.bulk_layer_height_m ?? 0) || null,
     equivalent_particle_diameter_m: Number(form.equivalent_particle_diameter_m ?? 0) || null,
+    bed_width_m: Number(form.bed_width_m ?? 0) || null,
+    bed_length_m: Number(form.bed_length_m ?? 0) || null,
+    bed_area_m2: Number(form.bed_area_m2 ?? 0) || null,
+    superficial_air_velocity_m_s: Number(form.superficial_air_velocity_m_s ?? 0) || null,
     informed_air_flow_m3_h: Number(form.informed_air_flow_m3_h ?? form.airflow_m3_h ?? 0) || null,
     air_flow_method: tunnelResult.airFlowMethod,
     suggested_air_temp_c: tunnelResult.suggestedAirTempC ?? null,
@@ -957,21 +1041,27 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
 
           <ColdProFormSection title="Etapa 3 — Massa e tempo de processo" description={isStatic ? "Batelada usa massa total do lote e tempo de batelada." : "Contínuo usa kg/h e tempo de retenção."} icon={isStatic ? <Warehouse className="h-4 w-4" /> : <Wind className="h-4 w-4" />}>
             {!isStatic ? <div className="grid grid-cols-1 gap-x-10 xl:grid-cols-2"><div>
+              <ColdProField label="Como deseja calcular a massa contínua?"><ColdProSelect value={continuousMassMode} onChange={(e) => { set(tunnelType === "fluidized_bed" ? "mass_flow_mode" : "continuous_mass_mode", e.target.value); }}>{continuousModeOptions(tunnelType).map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</ColdProSelect></ColdProField>
               <ColdProField label="Unidade do peso">
                 <ColdProSelect value={weightUnit} onChange={(e) => setWeightUnit(e.target.value as WeightUnit)}>
                   {Object.entries(WEIGHT_UNITS).map(([key, item]) => <option key={key} value={key}>{item.label}</option>)}
                 </ColdProSelect>
               </ColdProField>
               <ColdProField label="Peso unitário" helpKey="unitWeightKg" unit={WEIGHT_UNITS[weightUnit].label}><ColdProInput {...weightNum("unit_weight_kg", weightUnit)} /></ColdProField>
+              {continuousMassMode === "calculated_by_units_per_hour" ? <ColdProField label="Unidades por hora"><ColdProInput {...num("units_per_hour")} /></ColdProField> : null}
+              {continuousMassMode === "calculated_by_belt_loading" ? <><ColdProField label="Unidades por fileira"><ColdProInput {...num("units_per_row")} /></ColdProField><ColdProField label="Fileiras por metro"><ColdProInput {...num("rows_per_meter")} /></ColdProField><ColdProField label="Velocidade esteira" unit="m/min"><ColdProInput {...num("belt_speed_m_min")} /></ColdProField></> : null}
+              {continuousMassMode === "calculated_by_trays" ? <><ColdProField label="Unidades por bandeja"><ColdProInput {...num("units_per_tray")} /></ColdProField><ColdProField label="Bandejas por hora"><ColdProInput {...num("trays_per_hour")} /></ColdProField><ColdProField label="Peso da bandeja" unit="kg"><ColdProInput {...num("tray_weight_kg")} /></ColdProField></> : null}
+              {continuousMassMode === "calculated_by_feed_rate" ? <ColdProField label="Taxa de alimentação" unit="kg/h"><ColdProInput {...num("feed_rate_kg_h")} /></ColdProField> : null}
             </div><div>
-              <ColdProField label="Unidades/ciclo" helpKey="unitsPerCycle"><ColdProInput {...num("units_per_cycle")} /></ColdProField>
+              {continuousMassMode === "calculated_by_units" ? <ColdProField label="Unidades/ciclo" helpKey="unitsPerCycle"><ColdProInput {...num("units_per_cycle")} /></ColdProField> : null}
               <ColdProField label="Escala dos ciclos">
                 <ColdProSelect value={cycleUnit} onChange={(e) => setCycleUnit(e.target.value as CycleUnit)}>
                   {Object.entries(CYCLE_UNITS).map(([key, item]) => <option key={key} value={key}>{item.label}</option>)}
                 </ColdProSelect>
               </ColdProField>
-              <ColdProField label="Ciclos" helpKey="cyclesPerHour" unit={CYCLE_UNITS[cycleUnit].label}><ColdProInput {...cyclesNum(cycleUnit)} /></ColdProField>
-              <ColdProField label="Massa direta" helpKey="massKgHour" unit="kg/h"><ColdProInput {...num("mass_kg_hour")} /></ColdProField>
+              {continuousMassMode === "calculated_by_units" ? <ColdProField label="Ciclos" helpKey="cyclesPerHour" unit={CYCLE_UNITS[cycleUnit].label}><ColdProInput {...cyclesNum(cycleUnit)} /></ColdProField> : null}
+              {continuousMassMode === "direct_mass_flow" ? <ColdProField label="Massa direta" helpKey="massKgHour" unit="kg/h"><ColdProInput {...num("mass_kg_hour")} /></ColdProField> : null}
+              {tunnelType === "fluidized_bed" ? <><ColdProField label="Diâmetro partícula" unit={DIMENSION_UNITS[continuousUnit].label}><ColdProInput {...dimensionNum("equivalent_particle_diameter_m", continuousUnit)} /></ColdProField><ColdProField label="Altura da camada" unit={DIMENSION_UNITS[continuousUnit].label}><ColdProInput {...dimensionNum("bulk_layer_height_m", continuousUnit)} /></ColdProField><ColdProField label="Largura leito" unit={DIMENSION_UNITS[continuousUnit].label}><ColdProInput {...dimensionNum("bed_width_m", continuousUnit)} /></ColdProField><ColdProField label="Comprimento leito" unit={DIMENSION_UNITS[continuousUnit].label}><ColdProInput {...dimensionNum("bed_length_m", continuousUnit)} /></ColdProField><ColdProField label="Velocidade superficial" unit="m/s"><ColdProInput {...num("superficial_air_velocity_m_s")} /></ColdProField></> : null}
               <ColdProField label="Escala do tempo">
                 <ColdProSelect value={retentionUnit} onChange={(e) => setRetentionUnit(e.target.value as RetentionUnit)}>
                   {Object.entries(RETENTION_UNITS).map(([key, item]) => <option key={key} value={key}>{item.label}</option>)}
@@ -979,23 +1069,33 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
               </ColdProField>
               <ColdProField label="Tempo retenção" helpKey="retentionTime" unit={RETENTION_UNITS[retentionUnit].label}><ColdProInput {...retentionNum(retentionUnit)} /></ColdProField>
               {physicalModel === "continuous_spiral" ? <ColdProField label="Fator turbulência girofreezer"><ColdProInput {...num("spiral_turbulence_factor")} /></ColdProField> : null}
+              <ColdProCalculatedInfo label="Massa usada no motor" value={`${fmtColdPro(massHour)} kg/h`} description={continuousMassMode === "direct_mass_flow" ? "kg/h informado" : continuousMassMode === "calculated_by_belt_loading" ? "fileiras × esteira × peso" : continuousMassMode === "calculated_by_trays" ? "bandejas/h × massa da bandeja" : "cadência calculada"} tone={massHour > 0 ? "success" : "warning"} />
             </div></div> : <div className="grid grid-cols-1 gap-x-10 xl:grid-cols-2"><div>
-              <ColdProField label="Como deseja informar a massa da batelada?" helpKey="staticMassMode"><ColdProSelect value={staticMassMode} onChange={(e) => set("static_mass_mode", e.target.value)}><option value="direct_pallet_mass">Informar massa do pallet/lote diretamente</option><option value="calculated_pallet_composition">Calcular pela formação do pallet/lote</option></ColdProSelect></ColdProField>
+              <ColdProField label="Como deseja informar a massa da batelada?" helpKey="staticMassMode"><ColdProSelect value={staticMassMode} onChange={(e) => set("static_mass_mode", e.target.value)}>{staticModeOptions(tunnelType).map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</ColdProSelect></ColdProField>
               <ColdProField label="Escala das medidas do bloco/carga" helpKey="measurementScale"><ColdProSelect value={staticUnit} onChange={(e) => setStaticUnit(e.target.value as DimensionUnit)}>{Object.entries(DIMENSION_UNITS).map(([key, item]) => <option key={key} value={key}>{item.label}</option>)}</ColdProSelect></ColdProField>
               <ColdProField label={tunnelType === "static_cart" ? "Comprimento carrinho/carga" : "Comprimento pallet/bloco"} helpKey="palletLength" unit={DIMENSION_UNITS[staticUnit].label}><ColdProInput {...dimensionNum("pallet_length_m", staticUnit)} /></ColdProField>
               <ColdProField label={tunnelType === "static_cart" ? "Largura carrinho/carga" : "Largura pallet/bloco"} helpKey="palletWidth" unit={DIMENSION_UNITS[staticUnit].label}><ColdProInput {...dimensionNum("pallet_width_m", staticUnit)} /></ColdProField>
               <ColdProField label={tunnelType === "static_cart" ? "Altura carrinho/carga" : "Altura da carga"} helpKey="palletHeight" unit={DIMENSION_UNITS[staticUnit].label}><ColdProInput {...dimensionNum("pallet_height_m", staticUnit)} /></ColdProField>
-              {staticMassMode === "direct_pallet_mass" ? <ColdProField label="Massa por pallet/lote" helpKey="palletMassKg" unit="kg"><ColdProInput {...num("pallet_mass_kg")} /></ColdProField> : <><ColdProField label="Peso unitário do pote/produto" helpKey="unitWeightKg" unit={WEIGHT_UNITS[weightUnit].label}><ColdProInput {...weightNum("unit_weight_kg", weightUnit)} /></ColdProField><ColdProField label="Unidades por caixa" helpKey="unitsPerBox"><ColdProInput {...num("units_per_box")} /></ColdProField><ColdProField label="Caixas por camada" helpKey="boxesPerLayer"><ColdProInput {...num("boxes_per_layer")} /></ColdProField><ColdProField label="Número de camadas" helpKey="numberOfLayers"><ColdProInput {...num("number_of_layers")} /></ColdProField></>}
+              {staticMassMode === "direct_pallet_mass" || staticMassMode === "direct_cart_mass" ? <ColdProField label={staticMassMode === "direct_cart_mass" ? "Massa por carrinho/rack" : "Massa por pallet/lote"} helpKey="palletMassKg" unit="kg"><ColdProInput {...num("pallet_mass_kg")} /></ColdProField> : null}
+              {staticMassMode === "direct_batch_mass" ? <ColdProField label="Massa direta da batelada" unit="kg"><ColdProInput {...num("direct_batch_mass_kg")} /></ColdProField> : null}
+              {staticMassMode === "calculated_pallet_composition" ? <><ColdProField label="Peso unitário do pote/produto" helpKey="unitWeightKg" unit={WEIGHT_UNITS[weightUnit].label}><ColdProInput {...weightNum("unit_weight_kg", weightUnit)} /></ColdProField><ColdProField label="Unidades por caixa" helpKey="unitsPerBox"><ColdProInput {...num("units_per_box")} /></ColdProField><ColdProField label="Caixas por camada" helpKey="boxesPerLayer"><ColdProInput {...num("boxes_per_layer")} /></ColdProField><ColdProField label="Número de camadas" helpKey="numberOfLayers"><ColdProInput {...num("number_of_layers")} /></ColdProField></> : null}
+              {staticMassMode === "calculated_cart_composition" ? <><ColdProField label="Peso unitário" unit={WEIGHT_UNITS[weightUnit].label}><ColdProInput {...weightNum("unit_weight_kg", weightUnit)} /></ColdProField><ColdProField label="Unidades por bandeja"><ColdProInput {...num("units_per_tray")} /></ColdProField><ColdProField label="Bandejas por carrinho"><ColdProInput {...num("trays_per_cart")} /></ColdProField><ColdProField label="Peso embalagens/bandejas" unit="kg"><ColdProInput {...num("tray_packaging_weight_kg")} /></ColdProField></> : null}
+              {staticMassMode === "calculated_batch_composition" ? <><ColdProField label="Peso unitário" unit={WEIGHT_UNITS[weightUnit].label}><ColdProInput {...weightNum("unit_weight_kg", weightUnit)} /></ColdProField><ColdProField label="Unidades por caixa"><ColdProInput {...num("units_per_box")} /></ColdProField><ColdProField label="Caixas na batelada"><ColdProInput {...num("boxes_per_batch")} /></ColdProField><ColdProField label="Peso embalagens/contentores" unit="kg"><ColdProInput {...num("packaging_weight_kg")} /></ColdProField></> : null}
             </div><div>
               {staticMassMode === "calculated_pallet_composition" ? <><ColdProField label="Unidades totais por pallet/lote" helpKey="totalUnitsPerPallet"><ColdProInput {...num("total_units_per_pallet")} /></ColdProField><ColdProField label="Peso de embalagens/caixas por pallet" helpKey="boxPackagingWeight" unit="kg"><ColdProInput {...num("box_packaging_weight_kg")} /></ColdProField><ColdProField label="Peso do pallet/base" helpKey="palletBaseWeight" unit="kg"><ColdProInput {...num("pallet_base_weight_kg")} /></ColdProField></> : null}
-              <ColdProField label="Número de pallets/lotes" helpKey="numberOfPallets"><ColdProInput {...num("number_of_pallets")} /></ColdProField>
+              {staticMassMode === "calculated_cart_composition" ? <><ColdProField label="Número de carrinhos"><ColdProInput {...num("number_of_carts")} /></ColdProField><ColdProField label="Peso estrutura carrinho" unit="kg"><ColdProInput {...num("cart_structure_weight_kg")} /></ColdProField></> : null}
+              {staticMassMode === "direct_cart_mass" ? <ColdProField label="Número de carrinhos"><ColdProInput {...num("number_of_carts")} /></ColdProField> : null}
+              {staticMassMode.includes("pallet") ? <ColdProField label="Número de pallets/lotes" helpKey="numberOfPallets"><ColdProInput {...num("number_of_pallets")} /></ColdProField> : null}
+              {tunnelType === "blast_freezer" ? <><ColdProField label="Racks"><ColdProInput {...num("racks_count")} /></ColdProField><ColdProField label="Contentores"><ColdProInput {...num("containers_count")} /></ColdProField></> : null}
               <ColdProField label="Tempo de batelada" helpKey="batchTime" unit="h"><ColdProInput {...num("batch_time_h")} /></ColdProField>
               {physicalModel === "static_block" ? <ColdProField label="Fator exposição bloco" helpKey="blockExposureFactor"><ColdProInput {...num("block_exposure_factor")} /></ColdProField> : null}
               {tunnelType === "static_cart" ? <><ColdProField label="Número de camadas"><ColdProInput {...num("layers_count")} /></ColdProField><ColdProField label="Número de caixas"><ColdProInput {...num("boxes_count")} /></ColdProField><ColdProField label="Espaçamento bandejas" unit={DIMENSION_UNITS[staticUnit].label}><ColdProInput {...dimensionNum("tray_spacing_m", staticUnit)} /></ColdProField></> : null}
               {staticMassMode === "calculated_pallet_composition" ? <><ColdProCalculatedInfo label="Unidades por pallet/lote" value={fmtColdPro(unitsPerPallet, 0)} description="caixas × camadas ou total informado" tone={unitsPerPallet > 0 ? "info" : "warning"} /><ColdProCalculatedInfo label="Massa de produto por pallet" value={`${fmtColdPro(productMassPerPalletKg)} kg`} description="unidades × peso unitário" tone="info" /><ColdProCalculatedInfo label="Massa embalagem/base por pallet" value={`${fmtColdPro(packagingMassPerPalletKg)} kg`} description="embalagens + base" tone="info" /><ColdProCalculatedInfo label="Massa calculada por pallet/lote" value={`${fmtColdPro(calculatedPalletMassKg)} kg`} description={`${fmtColdPro(unitsPerPallet, 0)} unidades × ${fmtColdPro(unitWeight)} kg + ${fmtColdPro(packagingMassPerPalletKg)} kg`} tone={calculatedPalletMassKg > 0 ? "success" : "warning"} /></> : null}
-              <ColdProCalculatedInfo label="Massa total da batelada" value={`${fmtColdPro(staticMass)} kg`} description={`${fmtColdPro(effectivePalletMassKg)} kg × ${fmtColdPro(Number(form.number_of_pallets ?? 1), 0)} pallets/lotes`} tone={staticMass > 0 ? "success" : "warning"} />
+              {staticMassMode === "calculated_cart_composition" ? <><ColdProCalculatedInfo label="Unidades por carrinho" value={fmtColdPro(unitsPerCart, 0)} description="unidades/bandeja × bandejas/carrinho" tone={unitsPerCart > 0 ? "info" : "warning"} /><ColdProCalculatedInfo label="Massa calculada por carrinho" value={`${fmtColdPro(calculatedCartMassKg)} kg`} description="produto + bandejas + estrutura" tone={calculatedCartMassKg > 0 ? "success" : "warning"} /></> : null}
+              {staticMassMode === "calculated_batch_composition" ? <ColdProCalculatedInfo label="Massa calculada da batelada" value={`${fmtColdPro(calculatedBatchMassKg)} kg`} description="peso unitário × unidades do lote + embalagens" tone={calculatedBatchMassKg > 0 ? "success" : "warning"} /> : null}
+              <ColdProCalculatedInfo label="Massa total da batelada" value={`${fmtColdPro(staticMass)} kg`} description={`${fmtColdPro(effectiveBatchUnitMassKg)} kg × ${fmtColdPro(groupingCount, 0)} agrupamentos`} tone={staticMass > 0 ? "success" : "warning"} />
             </div></div>}
-            {giroResult.errors.length > 0 ? (
+            {!isStatic && giroResult.errors.length > 0 ? (
               <div className="mt-4 rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
                 <div className="mb-2 flex items-center gap-2 font-semibold"><AlertTriangle className="h-4 w-4" /> Erros de preenchimento:</div>
                 <ul className="list-disc space-y-1 pl-5">{giroResult.errors.map((error, index) => <li key={`${error}-${index}`}>{error}</li>)}</ul>

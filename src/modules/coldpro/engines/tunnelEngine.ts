@@ -148,14 +148,23 @@ function isStaticTunnel(processType: unknown, operationMode: unknown) {
 
 function resolveStaticMass(input: any) {
   const numberOfPallets = positiveNumber(input?.numberOfPallets ?? input?.number_of_pallets) || 1;
+  const numberOfCarts = positiveNumber(input?.numberOfCarts ?? input?.number_of_carts) || 1;
   const calculatedPalletMassKg = positiveNumber(input?.calculatedPalletMassKg ?? input?.calculated_pallet_mass_kg);
+  const calculatedCartMassKg = positiveNumber(input?.calculatedCartMassKg ?? input?.calculated_cart_mass_kg);
+  const calculatedBatchMassKg = positiveNumber(input?.calculatedBatchMassKg ?? input?.calculated_batch_mass_kg);
   const palletMassKg = positiveNumber(input?.palletMassKg ?? input?.pallet_mass_kg) || calculatedPalletMassKg;
   const savedStaticMassKg = positiveNumber(input?.staticMassKg ?? input?.static_mass_kg);
+  const staticMassMode = String(input?.staticMassMode ?? input?.static_mass_mode ?? "direct_pallet_mass");
+  const directBatchMassKg = positiveNumber(input?.directBatchMassKg ?? input?.direct_batch_mass_kg);
+  const resolvedStaticMassKg = staticMassMode === "calculated_cart_composition" ? calculatedCartMassKg * numberOfCarts : staticMassMode === "direct_cart_mass" ? palletMassKg * numberOfCarts : staticMassMode === "calculated_batch_composition" ? calculatedBatchMassKg : staticMassMode === "direct_batch_mass" ? directBatchMassKg : calculatedPalletMassKg * numberOfPallets || palletMassKg * numberOfPallets;
   return {
     numberOfPallets,
+    numberOfCarts,
     calculatedPalletMassKg,
+    calculatedCartMassKg,
+    calculatedBatchMassKg,
     palletMassKg,
-    staticMassKg: savedStaticMassKg || calculatedPalletMassKg * numberOfPallets || palletMassKg * numberOfPallets,
+    staticMassKg: savedStaticMassKg || resolvedStaticMassKg,
   };
 }
 
@@ -243,9 +252,17 @@ function calculateTunnelCore(input: any) {
   };
   const validation = validateTunnelInput(validationInput);
 
-  const calculatedMassKgH = positiveNumber(input?.unitWeightKg) * positiveNumber(input?.unitsPerCycle) * positiveNumber(input?.cyclesPerHour);
+  const continuousMassMode = String(input?.continuousMassMode ?? input?.continuous_mass_mode ?? input?.massFlowMode ?? input?.mass_flow_mode ?? "direct_mass_flow");
+  const unitWeightKg = positiveNumber(input?.unitWeightKg);
+  const massByCycleKgH = unitWeightKg * positiveNumber(input?.unitsPerCycle) * positiveNumber(input?.cyclesPerHour);
+  const massByTrayKgH = (unitWeightKg * positiveNumber(input?.unitsPerTray) + positiveNumber(input?.trayWeightKg)) * positiveNumber(input?.traysPerHour);
+  const massByUnitsHourKgH = unitWeightKg * positiveNumber(input?.unitsPerHour);
+  const beltUnitsPerHour = positiveNumber(input?.unitsPerRow) * positiveNumber(input?.rowsPerMeter) * positiveNumber(input?.beltSpeedMMin) * 60;
+  const massByBeltKgH = beltUnitsPerHour * unitWeightKg;
+  const massByFeedRateKgH = positiveNumber(input?.feedRateKgH);
+  const calculatedMassKgH = continuousMassMode === "calculated_by_trays" ? massByTrayKgH : continuousMassMode === "calculated_by_units_per_hour" ? massByUnitsHourKgH : continuousMassMode === "calculated_by_belt_loading" ? massByBeltKgH : continuousMassMode === "calculated_by_feed_rate" ? massByFeedRateKgH : massByCycleKgH;
   const directMassKgH = positiveNumber(input?.directMassKgH);
-  const usedMassKgH = tunnelMode.operationRegime === "batch" ? 0 : directMassKgH > 0 ? directMassKgH : calculatedMassKgH;
+  const usedMassKgH = tunnelMode.operationRegime === "batch" ? 0 : continuousMassMode === "direct_mass_flow" && directMassKgH > 0 ? directMassKgH : calculatedMassKgH;
   const staticMass = resolveStaticMass(input);
   const palletMassKg = staticMass.palletMassKg;
   const numberOfPallets = staticMass.numberOfPallets;
@@ -422,8 +439,8 @@ function calculateTunnelCore(input: any) {
       convectionAssumption: modelMeta.convectionAssumption,
     },
     mass: tunnelMode.operationRegime === "batch"
-      ? { mode: "batch", staticMassMode: input?.staticMassMode ?? input?.static_mass_mode ?? "direct_pallet_mass", numberOfPallets, palletMassKg, calculatedPalletMassKg, unitsPerPallet: input?.unitsPerPallet ?? input?.units_per_pallet ?? null, productMassPerPalletKg: input?.productMassPerPalletKg ?? input?.product_mass_per_pallet_kg ?? null, packagingMassPerPalletKg: input?.packagingMassPerPalletKg ?? input?.packaging_mass_per_pallet_kg ?? null, staticMassKg, calculatedMassKgH, usedMassKgH: null, batchTimeH: input?.batchTimeH ?? null }
-      : { mode: "continuous", calculatedMassKgH, directMassKgH, usedMassKgH, retentionTimeMin: input?.retentionTimeMin ?? null },
+      ? { mode: "batch", staticMassMode: input?.staticMassMode ?? input?.static_mass_mode ?? "direct_pallet_mass", numberOfPallets, numberOfCarts: staticMass.numberOfCarts, palletMassKg, calculatedPalletMassKg, calculatedCartMassKg: staticMass.calculatedCartMassKg, calculatedBatchMassKg: staticMass.calculatedBatchMassKg, unitsPerPallet: input?.unitsPerPallet ?? input?.units_per_pallet ?? null, productMassPerPalletKg: input?.productMassPerPalletKg ?? input?.product_mass_per_pallet_kg ?? null, packagingMassPerPalletKg: input?.packagingMassPerPalletKg ?? input?.packaging_mass_per_pallet_kg ?? null, staticMassKg, calculatedMassKgH: null, usedMassKgH: null, batchTimeH: input?.batchTimeH ?? null }
+      : { mode: "continuous", continuousMassMode, calculatedMassKgH, directMassKgH, usedMassKgH, beltUnitsPerHour, retentionTimeMin: input?.retentionTimeMin ?? null },
     geometry: { tunnelType: tunnelMode.tunnelType, arrangementType: tunnelMode.arrangementType, productGeometry: input?.productGeometry ?? input?.product_geometry ?? null, surfaceExposureModel: exposure.surfaceExposureModel, thermalModelForPallet: geometry.thermalModelForPallet ?? input?.thermalModelForPallet ?? input?.thermal_model_for_pallet ?? null, characteristicDimensionM, distanceToCoreM, geometrySource: geometry.source },
     productEnergy: productEnergyBreakdown,
     convection: { source: h.source, hBaseWM2K: h.hBaseWM2K, hEffectiveWM2K: h.hEffectiveWM2K, airVelocityMS: airflow.airVelocityUsedMS, airExposureFactor: input?.airExposureFactor ?? null, exposureFactor: exposure.exposureFactor, spiralTurbulenceFactor, blockExposureFactor },
@@ -438,7 +455,7 @@ function calculateTunnelCore(input: any) {
 
   const formulasUsed = {
     physicalModel: "normalized processType/tunnelMode/operationMode",
-    calculatedMassKgH: "unitWeightKg × unitsPerCycle × cyclesPerHour",
+    calculatedMassKgH: "conforme modo: unidade×ciclo, bandeja×hora, unidade×hora, carregamento da esteira ou taxa de alimentação",
     h: "manualCoefficientWM2K || (10 + 10 × airVelocityUsedMS^0.8) × exposureFactor × airExposureFactor",
     kEffectiveWMK: "frozenConductivityWMK × thermalPenetrationFactor",
     continuousProductLoadKW: "massKgH × specificEnergyKJkg / 3600",
@@ -477,10 +494,13 @@ function calculateTunnelCore(input: any) {
     isStatic,
     calculatedMassKgH,
     usedMassKgH,
+    continuousMassMode,
     staticMassKg,
     staticMassMode: input?.staticMassMode ?? input?.static_mass_mode ?? "direct_pallet_mass",
     palletMassKg,
     calculatedPalletMassKg,
+    calculatedCartMassKg: staticMass.calculatedCartMassKg,
+    calculatedBatchMassKg: staticMass.calculatedBatchMassKg,
     unitsPerPallet: input?.unitsPerPallet ?? input?.units_per_pallet ?? null,
     productMassPerPalletKg: input?.productMassPerPalletKg ?? input?.product_mass_per_pallet_kg ?? null,
     packagingMassPerPalletKg: input?.packagingMassPerPalletKg ?? input?.packaging_mass_per_pallet_kg ?? null,
