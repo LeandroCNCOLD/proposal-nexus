@@ -200,7 +200,10 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
   const thermodynamicProduct = selectedCatalogProduct ?? product ?? null;
   const productDensityKgM3 = positiveValue(thermodynamicProduct?.density_kg_m3);
   const manualDensityKgM3 = densityFieldKgM3 > 0 && (!ashraeDensityKgM3 || Math.abs(densityFieldKgM3 - ashraeDensityKgM3) > 0.0001) ? densityFieldKgM3 : productDensityKgM3;
-  const airTemperatureC = Number(environment?.internal_temp_c ?? form.air_temp_c ?? 0);
+  const airTempSource = form.air_temp_source ?? "environment";
+  const airTemperatureC = airTempSource === "environment"
+    ? Number(environment?.internal_temp_c ?? form.air_temp_c ?? 0)
+    : Number(form.air_temp_c ?? environment?.internal_temp_c ?? 0);
   const freezingPointC = Number(form.freezing_temp_c ?? thermodynamicProduct?.initial_freezing_temp_c ?? -1.5);
   const cpAboveKcalKgC = kcalFromThermal(form.specific_heat_above_kcal_kg_c, form.specific_heat_above_kj_kg_k) || kcalFromThermal(thermodynamicProduct?.specific_heat_above_kcal_kg_c, thermodynamicProduct?.specific_heat_above_kj_kg_k);
   const cpBelowKcalKgC = kcalFromThermal(form.specific_heat_below_kcal_kg_c, form.specific_heat_below_kj_kg_k) || kcalFromThermal(thermodynamicProduct?.specific_heat_below_kcal_kg_c, thermodynamicProduct?.specific_heat_below_kj_kg_k);
@@ -329,7 +332,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
     thermal_conductivity_frozen_w_m_k: frozenConductivityWmK,
     frozen_water_fraction: frozenWaterFraction,
     mass_kg_hour: isStatic ? 0 : massHour,
-    air_temp_source: form.air_temp_source ?? "environment",
+    air_temp_source: airTempSource,
     thermal_characteristic_dimension_m: tunnelResult.characteristicDimensionM || null,
     distance_to_core_m: tunnelResult.distanceToCoreM || null,
     calculation_warnings: tunnelResult.warnings ?? [],
