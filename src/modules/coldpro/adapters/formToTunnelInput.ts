@@ -9,6 +9,8 @@ export function formToTunnelInput(form: any, environment: any) {
   const packagingSpecificHeatKJkgK = safeNumber(form?.packaging_specific_heat_kj_kg_k);
 
   return {
+    physicalModel: form?.physical_model,
+    tunnelPhysicalModel: form?.physical_model,
     processType: form?.process_type,
     operationMode: form?.operation_mode,
     tunnelMode: form?.tunnel_mode ?? (form?.operation_mode === "batch" ? "static" : "continuous"),
@@ -33,6 +35,8 @@ export function formToTunnelInput(form: any, environment: any) {
     manualConvectiveCoefficientWM2K: safeNumber(form?.convective_coefficient_manual_w_m2_k),
     airDeltaTK: safeNumber(form?.air_delta_t_k, 6),
     airDensityKgM3: safeNumber(form?.air_density_kg_m3, 1.2),
+    spiralTurbulenceFactor: safeNumber(form?.spiral_turbulence_factor, 1.8),
+    blockExposureFactor: safeNumber(form?.block_exposure_factor, 0.7),
     suggestedAirApproachK: safeNumber(form?.suggested_air_approach_k, 8),
     airExposureFactor: safeNumber(form?.air_exposure_factor, 1),
     thermalPenetrationFactor: safeNumber(form?.thermal_penetration_factor, 1),

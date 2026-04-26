@@ -9,6 +9,8 @@ export function databaseToTunnelInput(tunnel: any, environment: any) {
   const packagingSpecificHeatKJkgK = safeNumber(tunnel?.packaging_specific_heat_kj_kg_k);
 
   return {
+    physicalModel: tunnel?.physical_model,
+    tunnelPhysicalModel: tunnel?.physical_model,
     processType: tunnel?.process_type,
     operationMode: tunnel?.operation_mode,
     tunnelMode: tunnel?.tunnel_mode ?? (tunnel?.operation_mode === "batch" ? "static" : "continuous"),
@@ -33,6 +35,8 @@ export function databaseToTunnelInput(tunnel: any, environment: any) {
     manualConvectiveCoefficientWM2K: safeNumber(tunnel?.convective_coefficient_manual_w_m2_k),
     airDeltaTK: safeNumber(tunnel?.air_delta_t_k, 6),
     airDensityKgM3: safeNumber(tunnel?.air_density_kg_m3, 1.2),
+    spiralTurbulenceFactor: safeNumber(tunnel?.spiral_turbulence_factor, 1.8),
+    blockExposureFactor: safeNumber(tunnel?.block_exposure_factor, 0.7),
     suggestedAirApproachK: safeNumber(tunnel?.suggested_air_approach_k, 8),
     airExposureFactor: safeNumber(tunnel?.air_exposure_factor, 1),
     thermalPenetrationFactor: safeNumber(tunnel?.thermal_penetration_factor, 1),

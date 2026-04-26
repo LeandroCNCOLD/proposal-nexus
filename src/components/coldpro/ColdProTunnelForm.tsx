@@ -47,6 +47,7 @@ const defaultTunnel = (environmentId: string) => ({
   tunnel_type: "blast_freezer",
   operation_mode: "continuous",
   process_type: "continuous_individual_freezing",
+  physical_model: "continuous_individual",
   arrangement_type: "individual_exposed",
   product_name: "Produto",
   product_length_m: 0,
@@ -74,6 +75,8 @@ const defaultTunnel = (environmentId: string) => ({
   air_flow_m3_h: 0,
   air_delta_t_k: 6,
   air_density_kg_m3: 1.2,
+  spiral_turbulence_factor: 1.8,
+  block_exposure_factor: 0.7,
   suggested_air_approach_k: 8,
   suggested_air_temp_c: null,
   min_air_temp_c: -40,
@@ -105,6 +108,13 @@ const defaultTunnel = (environmentId: string) => ({
 
 function isStaticProcess(processType: string) {
   return processType === "static_cart_freezing" || processType === "static_pallet_freezing";
+}
+
+function physicalModelFromProcess(processType: string) {
+  if (processType === "continuous_girofreezer") return "continuous_spiral";
+  if (processType === "static_cart_freezing") return "static_cart";
+  if (processType === "static_pallet_freezing") return "static_block";
+  return "continuous_individual";
 }
 
 function defaultArrangement(processType: string) {
@@ -184,14 +194,15 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
     return { type: "number" as const, step: unitConfig.step, value: Number.isFinite(valueMin) && valueMin !== 0 ? valueMin / unitConfig.toMinutes : form.process_time_min === 0 ? 0 : "", onChange: (e: React.ChangeEvent<HTMLInputElement>) => set("process_time_min", numberOrNull(e.target.value) === null ? null : Number(e.target.value) * unitConfig.toMinutes) };
   };
   const processType = String(form.process_type ?? "continuous_individual_freezing");
-  const isStatic = isStaticProcess(processType);
+  const physicalModel = String(form.physical_model ?? physicalModelFromProcess(processType));
+  const isStatic = physicalModel === "static_cart" || physicalModel === "static_block" || isStaticProcess(processType);
   const unitWeight = Number(form.unit_weight_kg ?? 0) || Number(form.product_unit_weight_kg ?? 0);
   const throughput = Number(form.units_per_cycle ?? 0) * unitWeight * Number(form.cycles_per_hour ?? 0);
   const massHour = Number(form.mass_kg_hour ?? 0) || throughput;
   const staticMass = Number(form.pallet_mass_kg ?? 0) * Math.max(1, Number(form.number_of_pallets ?? 1));
   const blockDims = [Number(form.pallet_length_m ?? 0), Number(form.pallet_width_m ?? 0), Number(form.pallet_height_m ?? 0)].filter((v) => v > 0);
   const productThicknessM = dimensionValueM("product_thickness_m");
-  const characteristic = isStatic ? (blockDims.length ? Math.min(...blockDims) : 0) : productThicknessM;
+  const characteristic = physicalModel === "static_block" ? (blockDims.length ? Math.min(...blockDims) : 0) : productThicknessM;
   const deltaT = Number(form.inlet_temp_c ?? 0) - Number(form.outlet_temp_c ?? 0);
   const processError = isStatic ? Number(form.batch_time_h ?? 0) <= 0 : Number(form.process_time_min ?? 0) <= 0;
   const velocityWarning = Number(form.air_velocity_m_s ?? 0) <= 0 || Number(form.air_velocity_m_s ?? 0) > 10;
@@ -279,7 +290,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
     const arrangement = defaultArrangement(value);
     const defaults = ARRANGEMENT_DEFAULTS[arrangement];
     const nextIsStatic = isStaticProcess(value);
-    setForm((prev: any) => ({ ...prev, process_type: value, operation_mode: nextIsStatic ? "batch" : "continuous", tunnel_mode: nextIsStatic ? "static" : "continuous", arrangement_type: arrangement, air_exposure_factor: defaults.air, thermal_penetration_factor: defaults.penetration }));
+    setForm((prev: any) => ({ ...prev, process_type: value, physical_model: physicalModelFromProcess(value), operation_mode: nextIsStatic ? "batch" : "continuous", tunnel_mode: nextIsStatic ? "static" : "continuous", arrangement_type: arrangement, air_exposure_factor: defaults.air, thermal_penetration_factor: defaults.penetration }));
   };
 
   const setArrangementType = (value: string) => {
@@ -324,6 +335,9 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
 
   const save = () => onSave({
     ...form,
+    physical_model: tunnelResult.physicalModel,
+    spiral_turbulence_factor: Number(form.spiral_turbulence_factor ?? 1.8),
+    block_exposure_factor: Number(form.block_exposure_factor ?? 0.7),
     staticMassKg: tunnelResult.staticMassKg ?? null,
     static_mass_kg: tunnelResult.staticMassKg ?? null,
     product_name: String(form.product_name ?? "").trim(),
@@ -357,7 +371,9 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
     tunnel_total_load_kcal_h: tunnelResult.totalKcalH ?? null,
     tunnel_total_load_tr: tunnelResult.totalTR ?? null,
     air_flow_m3_h: tunnelResult.airFlowM3H ?? null,
+    air_flow_method: tunnelResult.airFlowMethod,
     suggested_air_temp_c: tunnelResult.suggestedAirTempC ?? null,
+    suggested_air_method: tunnelResult.suggestedAirMethod,
     suggested_air_approach_k: tunnelResult.suggestedAirApproachK ?? null,
     air_delta_t_k: tunnelResult.airDeltaTK ?? form.air_delta_t_k ?? 6,
   });
@@ -371,6 +387,8 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
   const tunnelResultCards = (
     <>
       <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <ColdProCalculatedInfo label="Modelo físico aplicado" value={tunnelResult.physicalModelLabel} description={tunnelResult.calculationBreakdown.model.physicalDescription} tone="info" />
+        <ColdProCalculatedInfo label="Premissa geométrica" value={tunnelResult.physicalModel === "static_block" ? "Bloco/pallet" : "Espessura"} description={tunnelResult.calculationBreakdown.model.geometryAssumption} tone="info" />
         <ColdProCalculatedInfo label={isStatic ? "Massa do lote" : "Massa usada"} value={`${fmtColdPro(isStatic ? tunnelResult.staticMassKg : tunnelResult.usedMassKgH)} ${isStatic ? "kg" : "kg/h"}`} description={isStatic ? "pallet/lote × quantidade" : "kg/h usado no motor"} tone={(isStatic ? tunnelResult.staticMassKg : tunnelResult.usedMassKgH) > 0 ? "success" : "warning"} />
         {!isStatic ? <ColdProCalculatedInfo label="Massa por cadência" value={`${fmtColdPro(tunnelResult.calculatedMassKgH)} kg/h`} description="peso × unidades × ciclos/h" tone={tunnelResult.calculatedMassKgH > 0 ? "info" : "warning"} /> : null}
         {!isStatic ? <ColdProCalculatedInfo label="Espessura do produto" value={`${fmtColdPro(productThicknessM, 3)} m`} description="dimensão informada" tone={productThicknessM > 0 ? "info" : "warning"} /> : null}
@@ -393,6 +411,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
         <ColdProCalculatedInfo label="Temperatura de ar informada" value={`${fmtColdPro(Number(tunnelInput.airTempC ?? 0), 1)} °C`} description="valor real usado no cálculo" tone="info" />
         <ColdProCalculatedInfo label="Diferença do ar" value={fmtMaybe(tunnelResult.calculationBreakdown.air.comparison as number | null, 1, " °C")} description="informada - sugerida" tone={Number(tunnelResult.calculationBreakdown.air.comparison ?? 0) > 5 ? "warning" : "info"} />
         <ColdProCalculatedInfo label="h efetivo" value={fmtMaybe(tunnelResult.h.hEffectiveWM2K, 2, " W/m²K")} description={`Fonte: ${tunnelResult.h.source}`} tone={tunnelResult.h.hEffectiveWM2K ? "info" : "warning"} />
+        <ColdProCalculatedInfo label="Fonte do h" value={tunnelResult.h.source} description={tunnelResult.calculationBreakdown.model.convectionAssumption} tone="info" />
         <ColdProCalculatedInfo label="k efetivo" value={fmtMaybe(tunnelResult.kEffectiveWMK, 3, " W/mK")} description="condutividade × penetração" tone={tunnelResult.kEffectiveWMK ? "info" : "warning"} />
         <ColdProCalculatedInfo label="Tempo estimado" value={fmtMaybe(tunnelResult.estimatedTimeMin, 1, " min")} description="estimativa até o núcleo" tone={tunnelResult.estimatedTimeMin ? "info" : "warning"} />
         <ColdProCalculatedInfo label="Tempo disponível" value={`${fmtColdPro(tunnelResult.availableTimeMin, 1)} min`} description={isStatic ? "batelada" : "retenção"} tone={tunnelResult.availableTimeMin > 0 ? "info" : "warning"} />
@@ -429,7 +448,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
         <TabsContent value="modelo">
           <ColdProFormSection title="Modelo físico aplicado" description="Escolha se o produto será tratado como unidade individual ou bloco térmico equivalente." icon={<Settings className="h-4 w-4" />}>
             <div className="grid grid-cols-1 gap-x-10 md:grid-cols-2">
-              <ColdProField label="Tipo de processo">
+              <ColdProField label="Modelo físico">
                 <ColdProSelect value={processType} onChange={(e) => setProcessType(e.target.value)}>
                   <option value="continuous_individual_freezing">Túnel contínuo individual</option>
                   <option value="continuous_girofreezer">Girofreezer contínuo</option>
@@ -443,7 +462,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
                 </ColdProSelect>
               </ColdProField>
               <ColdProField label="Tipo de túnel"><ColdProSelect value={form.tunnel_type} onChange={(e) => set("tunnel_type", e.target.value)}><option value="blast_freezer">Congelamento</option><option value="cooling_tunnel">Resfriamento</option></ColdProSelect></ColdProField>
-              <ColdProField label="Status físico"><ColdProInput readOnly value={isStatic ? "Massa agrupada / núcleo do bloco" : "Unidade individual / retenção"} /></ColdProField>
+              <ColdProField label="Status físico"><ColdProInput readOnly value={tunnelResult.physicalModelLabel} /></ColdProField>
             </div>
             {staticWarning ? <ColdProValidationMessage tone="warning">Congelamento de caixa, pallet ou bloco depende da embalagem, arranjo, vazão e passagem real de ar. Use como estimativa conservadora.</ColdProValidationMessage> : null}
           </ColdProFormSection>
@@ -502,7 +521,9 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
                 </ColdProSelect>
               </ColdProField>
               <ColdProField label="Tempo retenção" unit={RETENTION_UNITS[retentionUnit].label}><ColdProInput {...retentionNum(retentionUnit)} /></ColdProField>
+              {physicalModel === "continuous_spiral" ? <ColdProField label="Fator turbulência girofreezer"><ColdProInput {...num("spiral_turbulence_factor")} /></ColdProField> : null}
             </div></div>
+            {physicalModel === "continuous_spiral" ? <ColdProValidationMessage>Girofreezer usa alta convecção: o h calculado recebe fator de turbulência; coeficiente manual não é multiplicado.</ColdProValidationMessage> : null}
             {tunnelResultCards}
             {giroResult.errors.length > 0 ? (
               <div className="mt-4 rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
@@ -528,11 +549,14 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
             </div><div>
               <ColdProField label="Número de pallets/lotes"><ColdProInput {...num("number_of_pallets")} /></ColdProField>
               <ColdProField label="Tempo batelada desejado" unit="h"><ColdProInput {...num("batch_time_h")} /></ColdProField>
+              {physicalModel === "static_block" ? <ColdProField label="Fator exposição bloco"><ColdProInput {...num("block_exposure_factor")} /></ColdProField> : null}
               <ColdProField label="Número de camadas"><ColdProInput {...num("layers_count")} /></ColdProField>
               <ColdProField label="Número de caixas"><ColdProInput {...num("boxes_count")} /></ColdProField>
               <ColdProField label="Espaçamento bandejas" unit="m"><ColdProInput {...num("tray_spacing_m")} /></ColdProField>
               <ColdProCalculatedInfo label="Massa total" value={`${fmtColdPro(staticMass)} kg`} description="massa × quantidade" tone={staticMass > 0 ? "success" : "warning"} />
             </div></div>
+            {physicalModel === "static_cart" ? <ColdProValidationMessage>Estático em carrinho trata o produto como bandejas/rack expostos e usa a espessura do produto como dimensão crítica.</ColdProValidationMessage> : null}
+            {physicalModel === "static_block" ? <ColdProValidationMessage tone="warning">Estático em pallet/bloco usa a menor dimensão do bloco e aplica redução de exposição; é uma estimativa conservadora.</ColdProValidationMessage> : null}
             {tunnelResultCards}
           </ColdProFormSection>
         </TabsContent>
