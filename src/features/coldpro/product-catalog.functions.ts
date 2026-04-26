@@ -65,14 +65,27 @@ function toDbPayload(product: z.infer<typeof productSchema>) {
   };
 }
 
+function readableSupabaseError(error: unknown, fallback = "Falha temporária ao acessar o banco de dados.") {
+  const raw = error instanceof Error ? error.message : String(error ?? "");
+  if (raw.includes("525") || raw.includes("SSL handshake failed") || raw.includes("<!DOCTYPE html")) {
+    return "O backend ficou temporariamente indisponível ao carregar os produtos. Tente novamente em alguns instantes.";
+  }
+  return raw.trim() || fallback;
+}
+
 export const listColdProProductCatalog = createServerFn({ method: "GET" }).middleware([requireSupabaseAuth]).handler(async () => {
-  const { data, error } = await supabaseAdmin
-    .from("coldpro_products")
-    .select("*")
-    .order("category", { ascending: true, nullsFirst: false })
-    .order("name", { ascending: true });
-  if (error) throw new Error(error.message);
-  return data ?? [];
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("coldpro_products")
+      .select("*")
+      .order("category", { ascending: true, nullsFirst: false })
+      .order("name", { ascending: true });
+    if (error) return { ok: false, products: [], error: readableSupabaseError(error) };
+    return { ok: true, products: data ?? [], error: null };
+  } catch (error) {
+    console.error("[coldpro-products] list failed", readableSupabaseError(error));
+    return { ok: false, products: [], error: readableSupabaseError(error) };
+  }
 });
 
 export const upsertColdProCatalogProduct = createServerFn({ method: "POST" })
@@ -87,7 +100,7 @@ export const upsertColdProCatalogProduct = createServerFn({ method: "POST" })
         .eq("id", data.id)
         .select("*")
         .single();
-      if (error) throw new Error(error.message);
+      if (error) throw new Error(readableSupabaseError(error));
       return row;
     }
 
@@ -99,7 +112,7 @@ export const upsertColdProCatalogProduct = createServerFn({ method: "POST" })
       ? supabaseAdmin.from("coldpro_products").update(payload as never).eq("id", match.id)
       : supabaseAdmin.from("coldpro_products").insert(payload as never);
     const { data: row, error } = await query.select("*").single();
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(readableSupabaseError(error));
     return row;
   });
 
@@ -110,7 +123,7 @@ export const importColdProCatalogProducts = createServerFn({ method: "POST" })
     const { data: existing, error: existingError } = await supabaseAdmin
       .from("coldpro_products")
       .select("id, name, category");
-    if (existingError) throw new Error(existingError.message);
+    if (existingError) throw new Error(readableSupabaseError(existingError));
 
     const existingByKey = new Map(
       (existing ?? []).map((row) => [`${normalizeKey(row.category)}::${normalizeKey(row.name)}`, row.id]),
@@ -124,7 +137,7 @@ export const importColdProCatalogProducts = createServerFn({ method: "POST" })
       const payload = toDbPayload(product);
       if (id) {
         const { error } = await supabaseAdmin.from("coldpro_products").update(payload as never).eq("id", id);
-        if (error) throw new Error(`Falha ao atualizar ${product.name}: ${error.message}`);
+        if (error) throw new Error(`Falha ao atualizar ${product.name}: ${readableSupabaseError(error)}`);
         updated++;
       } else {
         const { data: inserted, error } = await supabaseAdmin
@@ -132,7 +145,7 @@ export const importColdProCatalogProducts = createServerFn({ method: "POST" })
           .insert(payload as never)
           .select("id")
           .single();
-        if (error) throw new Error(`Falha ao inserir ${product.name}: ${error.message}`);
+        if (error) throw new Error(`Falha ao inserir ${product.name}: ${readableSupabaseError(error)}`);
         existingByKey.set(key, inserted.id);
         created++;
       }
