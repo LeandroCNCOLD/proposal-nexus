@@ -197,6 +197,29 @@ const PROCESS_FORWARD_LOOKAHEAD = 6;
 const PROCESS_RECENT_RECHECK = 4;
 const PROCESS_MAX_CONSECUTIVE_MISSES = 3;
 
+function normalizeTipo(value: string | null | undefined): string {
+  return (value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .replace(/\s+/g, " ");
+}
+
+function tipoMatches(rawTipo: string | null | undefined, wantedTipos: string[]): boolean {
+  if (wantedTipos.length === 0) return true;
+  const actual = normalizeTipo(rawTipo);
+  if (!actual) return false;
+  return wantedTipos.some((wanted) => {
+    const target = normalizeTipo(wanted);
+    if (!target) return false;
+    if (actual === target) return true;
+    const targetWords = target.split(" ").filter(Boolean);
+    return targetWords.length > 0 && targetWords.every((word) => actual.includes(word));
+  });
+}
+
 function processIdOf(raw: NomusProcessRaw): number {
   return Number(raw.id ?? 0) || 0;
 }
@@ -273,7 +296,7 @@ export async function syncNomusProcessesNewestFirst(options: { tipos?: string[];
   let newestSeenId = maxKnownId;
   let runError: string | null = null;
 
-  const wants = (raw: NomusProcessRaw) => wantedTipos.length === 0 || wantedTipos.includes((raw.tipo ?? "").trim());
+  const wants = (raw: NomusProcessRaw) => tipoMatches(raw.tipo, wantedTipos);
 
   try {
     const recentListPages = options.maxPages ?? PROCESS_RECENT_LIST_PAGES;
@@ -381,9 +404,7 @@ async function syncNomusProcessesFullScan(options: { tipos?: string[]; triggered
       if (res.items.length === 0) break;
 
       processed += res.items.length;
-      const wantedItems = wantedTipos.length
-        ? res.items.filter((p) => wantedTipos.includes((p.tipo ?? "").trim()))
-        : res.items;
+      const wantedItems = res.items.filter((p) => tipoMatches(p.tipo, wantedTipos));
       const persisted = await persistNomusProcessBatch(wantedItems, options.triggeredBy ?? null);
       upserted += persisted.upserted;
 
@@ -443,15 +464,15 @@ export const pullNomusProcesses = createServerFn({ method: "POST" })
         status: "queued",
         tipos,
         max_items: data?.maxItems ?? 5_000,
-        page_size: 10,
+        page_size: 50,
         current_page: 1,
       })
       .select("*")
       .single()).data;
 
     if (!job?.id) return { ok: false as const, error: "Não foi possível iniciar a sincronização do funil." };
-    const batch = await processNomusProcessSyncBatch({ data: { jobId: job.id, maxPages: data?.maxPages ?? 1 } });
-    if (!batch.ok) return { ok: false as const, error: batch.error ?? "Falha ao sincronizar processos" };
+    const batch = await processNomusProcessSyncBatch({ data: { jobId: job.id, maxPages: data?.maxPages ?? 3 } });
+    if (!batch.ok) return { ok: false as const, error: "error" in batch ? batch.error : "Falha ao sincronizar processos" };
     return {
       ok: true as const,
       scanned: batch.scanned ?? 0,
@@ -489,7 +510,7 @@ export const startNomusProcessSyncJob = createServerFn({ method: "POST" })
         status: "queued",
         tipos: (data?.tipos ?? []).map((t) => t.trim()).filter(Boolean),
         max_items: data?.maxItems ?? 5000,
-        page_size: 10,
+        page_size: 50,
         current_page: 1,
       })
       .select("*")
@@ -548,36 +569,38 @@ export const processNomusProcessSyncBatch = createServerFn({ method: "POST" })
 
     try {
       const failSoft = async (message: string) => {
+        const finalStatus = batchScanned > 0 ? "running" : "failed";
         const { data: updated } = await (supabaseAdmin as any)
           .from("nomus_process_sync_jobs")
           .update({
-            status: "running",
+            status: finalStatus,
             current_page: currentPage,
             processed_items: processed,
             upserted_items: upserted,
             stages_discovered: stagesCount,
-            last_error: `${message}. Clique novamente para tentar continuar da página ${currentPage}.`,
+            last_error: batchScanned > 0
+              ? `${message}. Clique novamente para tentar continuar da página ${currentPage}.`
+              : `${message}. Não houve progresso neste lote; uma nova sincronização pode tentar novamente pela página 1.`,
+            finished_at: finalStatus === "failed" ? new Date().toISOString() : null,
           })
           .eq("id", job.id)
           .select("*")
           .single();
-        return { ok: true as const, job: updated, done: false as const, warning: message, scanned: batchScanned, matched: batchMatched, persisted: batchPersisted };
+        return { ok: finalStatus !== "failed", job: updated, done: false as const, warning: message, scanned: batchScanned, matched: batchMatched, persisted: batchPersisted };
       };
 
       for (let i = 0; i < maxPages && processed < Number(job.max_items); i += 1) {
-        if (Date.now() - new Date(now).getTime() > 6_000) return failSoft("Tempo seguro do lote atingido");
+        if (Date.now() - new Date(now).getTime() > 18_000) return failSoft("Tempo seguro do lote atingido");
         const page = await listPage<NomusProcessRaw>(
           NOMUS_ENDPOINTS.processos,
           {},
-          { entity: "processos", pageSize: Number(job.page_size ?? 10), page: currentPage, timeoutMs: 4_000, maxAttempts: 1, triggeredBy: userId },
+          { entity: "processos", pageSize: Number(job.page_size ?? 50), page: currentPage, timeoutMs: 12_000, maxAttempts: 2, triggeredBy: userId },
         );
         if (!page.ok) {
           return failSoft(page.error);
         }
 
-        const wantedItems = tipos.length
-          ? page.items.filter((p) => tipos.includes((p.tipo ?? "").trim()))
-          : page.items;
+        const wantedItems = page.items.filter((p) => tipoMatches(p.tipo, tipos));
         const persisted = await persistNomusProcessBatch(wantedItems, userId);
         batchScanned += page.items.length;
         batchMatched += wantedItems.length;
