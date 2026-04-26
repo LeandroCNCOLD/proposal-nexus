@@ -1,7 +1,7 @@
 import * as React from "react";
 import { BarChart3, Calculator, ChevronDown, Droplets, Gauge, Snowflake } from "lucide-react";
 import { fmtColdPro } from "./ColdProFormPrimitives";
-import { normalizeColdProResult } from "@/modules/coldpro/core/resultNormalizer";
+import { normalizeColdProEnvironmentResult } from "@/modules/coldpro/core/environmentResultNormalizer";
 import { LoadDistributionPieChart } from "@/modules/coldpro/components/results/LoadDistributionPieChart";
 import { LoadBreakdownBarChart } from "@/modules/coldpro/components/results/LoadBreakdownBarChart";
 import { EquipmentCapacityChart } from "@/modules/coldpro/components/results/EquipmentCapacityChart";
@@ -73,11 +73,12 @@ type Props = {
   selection?: any | null;
   environment?: any | null;
   products?: any[];
+  advancedProcesses?: any[];
   onAnalyze?: (question: string, previousAnalysis?: string | null) => Promise<string | null>;
   isAnalyzing?: boolean;
 };
 
-export function ColdProResultCard({ result, selection, environment, products = [], onAnalyze, isAnalyzing }: Props) {
+export function ColdProResultCard({ result, selection, environment, products = [], advancedProcesses = [], onAnalyze, isAnalyzing }: Props) {
   const [compact, setCompact] = React.useState(false);
   const [showAudit, setShowAudit] = React.useState(true);
   const [showCharts, setShowCharts] = React.useState(true);
@@ -86,7 +87,7 @@ export function ColdProResultCard({ result, selection, environment, products = [
 
   if (!result) return <div className="rounded-xl border border-dashed bg-background p-6 text-sm text-muted-foreground">Nenhum cálculo realizado. Preencha as etapas anteriores e clique em calcular carga térmica.</div>;
 
-  const normalized = normalizeColdProResult(result, selection, environment, products);
+  const normalized = normalizeColdProEnvironmentResult({ environment, result, selection, products, advancedProcesses });
   const breakdown = result.calculation_breakdown ?? {};
   const transmissionFaces = Array.isArray(breakdown.transmission_faces) ? breakdown.transmission_faces : [];
   const productBreakdown = Array.isArray(breakdown.products) ? breakdown.products : [];
