@@ -65,14 +65,27 @@ function toDbPayload(product: z.infer<typeof productSchema>) {
   };
 }
 
+function readableSupabaseError(error: unknown, fallback = "Falha temporária ao acessar o banco de dados.") {
+  const raw = error instanceof Error ? error.message : String(error ?? "");
+  if (raw.includes("525") || raw.includes("SSL handshake failed") || raw.includes("<!DOCTYPE html")) {
+    return "O backend ficou temporariamente indisponível ao carregar os produtos. Tente novamente em alguns instantes.";
+  }
+  return raw.trim() || fallback;
+}
+
 export const listColdProProductCatalog = createServerFn({ method: "GET" }).middleware([requireSupabaseAuth]).handler(async () => {
-  const { data, error } = await supabaseAdmin
-    .from("coldpro_products")
-    .select("*")
-    .order("category", { ascending: true, nullsFirst: false })
-    .order("name", { ascending: true });
-  if (error) throw new Error(error.message);
-  return data ?? [];
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("coldpro_products")
+      .select("*")
+      .order("category", { ascending: true, nullsFirst: false })
+      .order("name", { ascending: true });
+    if (error) throw new Error(readableSupabaseError(error));
+    return data ?? [];
+  } catch (error) {
+    console.error("[coldpro-products] list failed", readableSupabaseError(error));
+    throw new Error(readableSupabaseError(error));
+  }
 });
 
 export const upsertColdProCatalogProduct = createServerFn({ method: "POST" })
@@ -87,7 +100,7 @@ export const upsertColdProCatalogProduct = createServerFn({ method: "POST" })
         .eq("id", data.id)
         .select("*")
         .single();
-      if (error) throw new Error(error.message);
+      if (error) throw new Error(readableSupabaseError(error));
       return row;
     }
 
@@ -99,7 +112,7 @@ export const upsertColdProCatalogProduct = createServerFn({ method: "POST" })
       ? supabaseAdmin.from("coldpro_products").update(payload as never).eq("id", match.id)
       : supabaseAdmin.from("coldpro_products").insert(payload as never);
     const { data: row, error } = await query.select("*").single();
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(readableSupabaseError(error));
     return row;
   });
 
