@@ -69,7 +69,10 @@ export function ColdProCalculatedInfo({ label, value, description, tone = "info"
 
 export function numberOrNull(value: unknown) {
   if (value === "" || value === null || value === undefined) return null;
-  const n = Number(value);
+  const text = String(value).trim().replace(",", ".");
+  if (text === "" || text === "-" || text === "+" || text === "." || text === "-." || text === "+.") return null;
+  if (!/^[+-]?\d*(?:\.\d{0,4})?$/.test(text) || text === ".") return null;
+  const n = Number(text);
   return Number.isFinite(n) ? n : null;
 }
 

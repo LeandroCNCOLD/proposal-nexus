@@ -15,7 +15,7 @@ export function ColdProExtraLoadsForm({ environment, catalogFanLoadKcalH = 0, on
   const [targetLux, setTargetLux] = React.useState(300);
   React.useEffect(() => setForm(environment), [environment]);
   const set = (key: string, value: unknown) => setForm((prev: any) => ({ ...prev, [key]: value }));
-  const num = (key: string) => ({ type: "number" as const, value: form?.[key] ?? "", onChange: (e: React.ChangeEvent<HTMLInputElement>) => set(key, numberOrNull(e.target.value)) });
+  const num = (key: string) => ({ type: "number" as const, step: "0.0001", value: form?.[key] ?? "", onChange: (e: React.ChangeEvent<HTMLInputElement>) => set(key, numberOrNull(e.target.value)) });
   const select = (key: string) => ({ value: form?.[key] ?? "", onChange: (e: React.ChangeEvent<HTMLSelectElement>) => set(key, e.target.value), className: "h-10 w-full rounded-md border bg-background px-3 text-sm" });
 
   const hoursInvalid = [form.people_hours_day, form.lighting_hours_day, form.motors_hours_day].some((v) => Number(v ?? 0) < 0 || Number(v ?? 0) > 24);
@@ -145,7 +145,7 @@ export function ColdProExtraLoadsForm({ environment, catalogFanLoadKcalH = 0, on
                       {LIGHTING_EQUIPMENT_PRESETS.map((preset, index) => <option key={preset.label} value={index}>{preset.label} · {fmtColdPro(preset.powerW)} W · {fmtColdPro(preset.lumens, 0)} lm</option>)}
                     </select>
                   </ColdProField>
-                  <ColdProField label="Iluminância alvo" unit="lux"><ColdProInput type="number" value={targetLux} onChange={(e) => setTargetLux(Number(e.target.value || 0))} /></ColdProField>
+                  <ColdProField label="Iluminância alvo" unit="lux"><ColdProInput type="number" step="0.0001" value={targetLux} onChange={(e) => setTargetLux(numberOrNull(e.target.value) ?? 0)} /></ColdProField>
                   <ColdProField label="Potência de iluminação calculada" unit="W"><ColdProInput {...num("lighting_power_w")} /></ColdProField>
                   <ColdProField label="Horas de iluminação" unit="h/dia"><ColdProInput {...num("lighting_hours_day")} /></ColdProField>
                   <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-2">

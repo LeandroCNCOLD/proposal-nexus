@@ -246,9 +246,9 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
   }, [environmentId, tunnel?.id]);
 
   const set = (key: string, value: unknown) => setForm((prev: any) => ({ ...prev, [key]: value }));
-  const num = (key: string) => ({ type: "number" as const, value: form?.[key] ?? "", onChange: (e: React.ChangeEvent<HTMLInputElement>) => set(key, numberOrNull(e.target.value)) });
+  const num = (key: string) => ({ type: "number" as const, step: "0.0001", value: form?.[key] ?? "", onChange: (e: React.ChangeEvent<HTMLInputElement>) => set(key, numberOrNull(e.target.value)) });
   const setSim = (key: string, value: unknown) => setSimulation((prev: any) => ({ ...prev, [key]: value }));
-  const simNum = (key: string) => ({ type: "number" as const, value: simulation?.[key] ?? "", onChange: (e: React.ChangeEvent<HTMLInputElement>) => setSim(key, numberOrNull(e.target.value)) });
+  const simNum = (key: string) => ({ type: "number" as const, step: "0.0001", value: simulation?.[key] ?? "", onChange: (e: React.ChangeEvent<HTMLInputElement>) => setSim(key, numberOrNull(e.target.value)) });
   const dimensionValueM = (key: string) => key === "product_thickness_m" ? (Number(form.product_thickness_m ?? 0) || Number(form.product_thickness_mm ?? 0) / 1000) : Number(form?.[key] ?? 0);
   const dimensionNum = (key: string, unit: DimensionUnit) => {
     const unitConfig = DIMENSION_UNITS[unit];
@@ -257,31 +257,31 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
       type: "number" as const,
       step: unitConfig.step,
       value: Number.isFinite(valueM) && valueM !== 0 ? valueM / unitConfig.toMeters : form?.[key] === 0 ? 0 : "",
-      onChange: (e: React.ChangeEvent<HTMLInputElement>) => set(key, numberOrNull(e.target.value) === null ? null : Number(e.target.value) * unitConfig.toMeters),
+      onChange: (e: React.ChangeEvent<HTMLInputElement>) => { const value = numberOrNull(e.target.value); set(key, value === null ? null : value * unitConfig.toMeters); },
     };
   };
   const weightNum = (key: string, unit: WeightUnit) => {
     const unitConfig = WEIGHT_UNITS[unit];
     const valueKg = Number(form?.[key] ?? 0);
-    return { type: "number" as const, step: unitConfig.step, value: Number.isFinite(valueKg) && valueKg !== 0 ? valueKg / unitConfig.toKg : form?.[key] === 0 ? 0 : "", onChange: (e: React.ChangeEvent<HTMLInputElement>) => set(key, numberOrNull(e.target.value) === null ? null : Number(e.target.value) * unitConfig.toKg) };
+    return { type: "number" as const, step: unitConfig.step, value: Number.isFinite(valueKg) && valueKg !== 0 ? valueKg / unitConfig.toKg : form?.[key] === 0 ? 0 : "", onChange: (e: React.ChangeEvent<HTMLInputElement>) => { const value = numberOrNull(e.target.value); set(key, value === null ? null : value * unitConfig.toKg); } };
   };
   const cyclesNum = (unit: CycleUnit) => {
     const unitConfig = CYCLE_UNITS[unit];
     const valuePerHour = Number(form.cycles_per_hour ?? 0);
-    return { type: "number" as const, step: unitConfig.step, value: Number.isFinite(valuePerHour) && valuePerHour !== 0 ? valuePerHour / unitConfig.toCyclesPerHour : form.cycles_per_hour === 0 ? 0 : "", onChange: (e: React.ChangeEvent<HTMLInputElement>) => set("cycles_per_hour", numberOrNull(e.target.value) === null ? null : Number(e.target.value) * unitConfig.toCyclesPerHour) };
+    return { type: "number" as const, step: unitConfig.step, value: Number.isFinite(valuePerHour) && valuePerHour !== 0 ? valuePerHour / unitConfig.toCyclesPerHour : form.cycles_per_hour === 0 ? 0 : "", onChange: (e: React.ChangeEvent<HTMLInputElement>) => { const value = numberOrNull(e.target.value); set("cycles_per_hour", value === null ? null : value * unitConfig.toCyclesPerHour); } };
   };
   const retentionNum = (unit: RetentionUnit) => {
     const unitConfig = RETENTION_UNITS[unit];
     const valueMin = Number(form.process_time_min ?? 0);
-    return { type: "number" as const, step: unitConfig.step, value: Number.isFinite(valueMin) && valueMin !== 0 ? valueMin / unitConfig.toMinutes : form.process_time_min === 0 ? 0 : "", onChange: (e: React.ChangeEvent<HTMLInputElement>) => set("process_time_min", numberOrNull(e.target.value) === null ? null : Number(e.target.value) * unitConfig.toMinutes) };
+    return { type: "number" as const, step: unitConfig.step, value: Number.isFinite(valueMin) && valueMin !== 0 ? valueMin / unitConfig.toMinutes : form.process_time_min === 0 ? 0 : "", onChange: (e: React.ChangeEvent<HTMLInputElement>) => { const value = numberOrNull(e.target.value); set("process_time_min", value === null ? null : value * unitConfig.toMinutes); } };
   };
   const blockagePercentNum = (key: string) => {
     const value = Number(form?.[key] ?? 0);
-    return { type: "number" as const, min: 0, max: 95, step: "0.1", value: Number.isFinite(value) && value !== 0 ? value * 100 : form?.[key] === 0 ? 0 : "", onChange: (e: React.ChangeEvent<HTMLInputElement>) => set(key, numberOrNull(e.target.value) === null ? null : Math.min(Math.max(Number(e.target.value), 0), 95) / 100) };
+    return { type: "number" as const, step: "0.0001", value: Number.isFinite(value) && value !== 0 ? value * 100 : form?.[key] === 0 ? 0 : "", onChange: (e: React.ChangeEvent<HTMLInputElement>) => { const parsed = numberOrNull(e.target.value); set(key, parsed === null ? null : parsed / 100); } };
   };
   const simBlockagePercentNum = (key: string) => {
     const value = Number(simulation?.[key] ?? 0);
-    return { type: "number" as const, min: 0, max: 95, step: "0.1", value: Number.isFinite(value) && value !== 0 ? value * 100 : simulation?.[key] === 0 ? 0 : "", onChange: (e: React.ChangeEvent<HTMLInputElement>) => setSim(key, numberOrNull(e.target.value) === null ? null : Math.min(Math.max(Number(e.target.value), 0), 95) / 100) };
+    return { type: "number" as const, step: "0.0001", value: Number.isFinite(value) && value !== 0 ? value * 100 : simulation?.[key] === 0 ? 0 : "", onChange: (e: React.ChangeEvent<HTMLInputElement>) => { const parsed = numberOrNull(e.target.value); setSim(key, parsed === null ? null : parsed / 100); } };
   };
   const processType = String(form.process_type ?? "continuous_individual_freezing");
   const tunnelType = String(form.tunnel_type ?? legacyTunnelType(processType));

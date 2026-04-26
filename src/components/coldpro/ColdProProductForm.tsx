@@ -74,7 +74,7 @@ export function ColdProProductForm({ environmentId, product, productCatalog = []
   }, [environmentId, product]);
 
   const set = (key: string, value: unknown) => setForm((prev) => ({ ...prev, [key]: value }));
-  const num = (key: keyof ReturnType<typeof initialForm>) => ({ type: "number" as const, value: typeof form[key] === "boolean" ? "" : (form[key] ?? ""), onChange: (e: React.ChangeEvent<HTMLInputElement>) => set(key, numberOrNull(e.target.value)) });
+  const num = (key: keyof ReturnType<typeof initialForm>) => ({ type: "number" as const, step: "0.0001", value: typeof form[key] === "boolean" ? "" : (form[key] ?? ""), onChange: (e: React.ChangeEvent<HTMLInputElement>) => set(key, numberOrNull(e.target.value)) });
 
   const groups = React.useMemo(() => Array.from(new Set(productCatalog.map((p) => p.category).filter(Boolean))).sort((a, b) => String(a).localeCompare(String(b), "pt-BR")), [productCatalog]);
   const filteredProducts = React.useMemo(() => filterAndRankColdProProducts(productCatalog, productSearch, selectedGroup), [productCatalog, productSearch, selectedGroup]);
