@@ -18,6 +18,8 @@ export interface ContinuousGirofreezerInput {
   retentionTime: number;
   airTemperatureC?: number;
   airVelocityMs?: number;
+  manualDensityKgM3?: number;
+  ashraeDensityKgM3?: number;
   productDensityKgM3?: number;
   frozenConductivityWmK?: number;
   freezingPointC?: number;
@@ -48,7 +50,11 @@ export interface ContinuousGirofreezerResult {
   };
   physics: {
     implicitDensityKgM3: number;
+    densityCalculatedKgM3: number | null;
     densityUsedKgM3: number;
+    densitySource: "manual" | "calculated_from_geometry" | "ashrae" | "default_estimated";
+    densityValidationStatus: "valid" | "warning" | "critical" | "missing";
+    densityValidationMessage: string;
     hBaseWm2K: number | null;
     hEffectiveWm2K: number | null;
     kEffectiveWmK: number | null;
@@ -125,6 +131,75 @@ function calculatePlankFreezingTimeMin(params: {
   return timeSeconds / 60;
 }
 
+export function calculateImplicitDensityKgM3(params: {
+  lengthM: number;
+  widthM: number;
+  thicknessM: number;
+  unitWeightKg: number;
+}): {
+  volumeM3: number;
+  densityKgM3: number | null;
+  status: "valid" | "warning" | "critical" | "missing";
+  message: string;
+} {
+  const { lengthM, widthM, thicknessM, unitWeightKg } = params;
+
+  if (lengthM <= 0 || widthM <= 0 || thicknessM <= 0 || unitWeightKg <= 0) {
+    return {
+      volumeM3: 0,
+      densityKgM3: null,
+      status: "missing",
+      message: "Informe comprimento, largura, espessura e peso unitário para calcular a densidade.",
+    };
+  }
+
+  const volumeM3 = lengthM * widthM * thicknessM;
+  const densityKgM3 = unitWeightKg / volumeM3;
+
+  if (densityKgM3 < 100) {
+    return {
+      volumeM3,
+      densityKgM3,
+      status: "critical",
+      message: `Densidade calculada muito baixa (${densityKgM3.toFixed(1)} kg/m³). Verifique se as dimensões ou peso unitário estão em unidade incorreta.`,
+    };
+  }
+
+  if (densityKgM3 < 250) {
+    return {
+      volumeM3,
+      densityKgM3,
+      status: "warning",
+      message: `Densidade calculada baixa (${densityKgM3.toFixed(1)} kg/m³). Validar dimensões, peso unitário ou empacotamento.`,
+    };
+  }
+
+  if (densityKgM3 > 1800) {
+    return {
+      volumeM3,
+      densityKgM3,
+      status: "critical",
+      message: `Densidade calculada muito alta (${densityKgM3.toFixed(1)} kg/m³). Verifique se peso ou dimensões foram informados corretamente.`,
+    };
+  }
+
+  if (densityKgM3 > 1200) {
+    return {
+      volumeM3,
+      densityKgM3,
+      status: "warning",
+      message: `Densidade calculada alta (${densityKgM3.toFixed(1)} kg/m³). Validar se o produto é muito compacto ou se há erro de unidade.`,
+    };
+  }
+
+  return {
+    volumeM3,
+    densityKgM3,
+    status: "valid",
+    message: `Densidade calculada automaticamente: ${densityKgM3.toFixed(1)} kg/m³.`,
+  };
+}
+
 export function calculateContinuousGirofreezer(input: ContinuousGirofreezerInput): ContinuousGirofreezerResult {
   const warnings: string[] = [];
   const errors: string[] = [];
@@ -135,7 +210,8 @@ export function calculateContinuousGirofreezer(input: ContinuousGirofreezerInput
   const unitWeightKg = convertWeightToKg(input.unitWeight, input.weightScale);
   const cyclesPerHour = convertCyclesToHour(input.cycles, input.cycleScale);
   const retentionTimeMin = convertTimeToMinutes(input.retentionTime, input.timeScale);
-  const volumeM3 = lengthM * widthM * thicknessM;
+  const densityResult = calculateImplicitDensityKgM3({ lengthM, widthM, thicknessM, unitWeightKg });
+  const volumeM3 = densityResult.volumeM3 || lengthM * widthM * thicknessM;
   const characteristicDimensionM = thicknessM;
   const distanceToCoreM = characteristicDimensionM / 2;
   const calculatedMassKgH = unitWeightKg * input.unitsPerCycle * cyclesPerHour;
@@ -144,8 +220,11 @@ export function calculateContinuousGirofreezer(input: ContinuousGirofreezerInput
   const massSource = directMassKgH ? "direct" : "calculated";
   const massInsideTunnelKg = usedMassKgH * (retentionTimeMin / 60);
   const massDifferencePercent = directMassKgH && calculatedMassKgH > 0 ? percentDifference(directMassKgH, calculatedMassKgH) : null;
-  const implicitDensityKgM3 = volumeM3 > 0 && unitWeightKg > 0 ? unitWeightKg / volumeM3 : 0;
-  const densityUsedKgM3 = input.productDensityKgM3 && input.productDensityKgM3 > 0 ? input.productDensityKgM3 : implicitDensityKgM3;
+  const implicitDensityKgM3 = densityResult.densityKgM3 ?? 0;
+  const manualDensityKgM3 = input.manualDensityKgM3 && input.manualDensityKgM3 > 0 ? input.manualDensityKgM3 : input.productDensityKgM3 && input.productDensityKgM3 > 0 ? input.productDensityKgM3 : 0;
+  const ashraeDensityKgM3 = input.ashraeDensityKgM3 && input.ashraeDensityKgM3 > 0 ? input.ashraeDensityKgM3 : 0;
+  const densityUsedKgM3 = manualDensityKgM3 > 0 ? manualDensityKgM3 : densityResult.densityKgM3 ? densityResult.densityKgM3 : ashraeDensityKgM3 || 1000;
+  const densitySource = manualDensityKgM3 > 0 ? "manual" : densityResult.densityKgM3 ? "calculated_from_geometry" : ashraeDensityKgM3 > 0 ? "ashrae" : "default_estimated";
 
   if (lengthM <= 0 || widthM <= 0 || thicknessM <= 0) errors.push("Informe comprimento, largura e espessura do produto.");
   if (unitWeightKg <= 0) errors.push("Informe o peso unitário do produto.");
@@ -155,8 +234,9 @@ export function calculateContinuousGirofreezer(input: ContinuousGirofreezerInput
   if (massDifferencePercent !== null && massDifferencePercent > 20) {
     warnings.push(`A massa direta (${directMassKgH?.toFixed(2)} kg/h) difere da massa calculada por ciclos (${calculatedMassKgH.toFixed(2)} kg/h) em ${massDifferencePercent.toFixed(1)}%. Validar cadência, peso unitário ou massa direta.`);
   }
-  if (implicitDensityKgM3 > 0 && implicitDensityKgM3 < 200) warnings.push(`A densidade implícita do produto está muito baixa (${implicitDensityKgM3.toFixed(1)} kg/m³). Verifique medidas ou peso unitário.`);
-  if (implicitDensityKgM3 > 2000) warnings.push(`A densidade implícita do produto está muito alta (${implicitDensityKgM3.toFixed(1)} kg/m³). Verifique medidas ou peso unitário.`);
+  if (densityResult.status === "critical") errors.push(densityResult.message);
+  if (densityResult.status === "warning") warnings.push(densityResult.message);
+  if (densitySource === "default_estimated") warnings.push("Densidade não informada e não calculável; usando densidade padrão estimada de 1000 kg/m³. Validar produto, dimensões e peso unitário.");
   if (thicknessM > 0.08) warnings.push(`Espessura de ${(thicknessM * 1000).toFixed(0)} mm é alta para processo contínuo/girofreezer. Validar tempo até núcleo.`);
 
   const hBaseWm2K = input.airVelocityMs && input.airVelocityMs > 0 ? calculateConvectionCoefficient(input.airVelocityMs) : null;
@@ -189,7 +269,7 @@ export function calculateContinuousGirofreezer(input: ContinuousGirofreezerInput
   return {
     dimensionsM: { lengthM, widthM, thicknessM, volumeM3, characteristicDimensionM, distanceToCoreM },
     mass: { unitWeightKg, cyclesPerHour, calculatedMassKgH, directMassKgH, usedMassKgH, massSource, massInsideTunnelKg, massDifferencePercent },
-    physics: { implicitDensityKgM3, densityUsedKgM3, hBaseWm2K, hEffectiveWm2K, kEffectiveWmK, estimatedFreezingTimeMin, retentionTimeMin, retentionMargin, processStatus },
+    physics: { implicitDensityKgM3, densityCalculatedKgM3: densityResult.densityKgM3, densityUsedKgM3, densitySource, densityValidationStatus: densityResult.status, densityValidationMessage: densityResult.message, hBaseWm2K, hEffectiveWm2K, kEffectiveWmK, estimatedFreezingTimeMin, retentionTimeMin, retentionMargin, processStatus },
     warnings,
     errors,
   };
