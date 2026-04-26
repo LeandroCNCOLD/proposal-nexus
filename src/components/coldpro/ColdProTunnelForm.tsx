@@ -297,9 +297,10 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
   const baseResult = calculateTunnelEngine(tunnelInput);
   const simulationForm = { ...form, ...simulation, initial_scenario_input: tunnelInput.initialScenarioInput, thermal_condition_approved: false };
   const simulationInput = formToTunnelInput(simulationForm, environment ?? {});
-  const tunnelResult = calculateTunnelEngine(simulationInput);
+  const simulationResult = calculateTunnelEngine(simulationInput);
+  const tunnelResult = baseResult;
   const initialScenario = baseResult.adjustedScenario;
-  const adjustedScenario = tunnelResult.adjustedScenario;
+  const adjustedScenario = simulationResult.adjustedScenario;
   const scenarioDelta = {
     time: adjustedScenario.estimatedTimeMin !== null && initialScenario.estimatedTimeMin !== null ? adjustedScenario.estimatedTimeMin - initialScenario.estimatedTimeMin : null,
     airflow: adjustedScenario.airFlowM3H - initialScenario.airFlowM3H,
