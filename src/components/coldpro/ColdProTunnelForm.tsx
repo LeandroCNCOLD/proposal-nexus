@@ -267,7 +267,10 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
     frozen_water_fraction: frozenWaterFraction,
     mass_kg_hour: isStatic ? 0 : massHour,
     thermal_characteristic_dimension_m: characteristic || null,
-    distance_to_core_m: characteristic > 0 ? characteristic / 2 : null,
+    distance_to_core_m: tunnelResult.distanceToCoreM,
+    air_temp_source: airTempSource,
+    air_temp_c: airTemperatureC,
+    ...tunnelPayload,
   });
 
   return (
@@ -440,6 +443,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
         <TabsContent value="ar">
           <ColdProFormSection title="Ar, embalagem e penetração térmica" description="A condição informada é ponto inicial; a recomendação final sai da iteração." icon={<Wind className="h-4 w-4" />}>
             <div className="grid grid-cols-1 gap-x-10 md:grid-cols-2"><div>
+              <ColdProField label="Origem temp. ar"><ColdProSelect value={form.air_temp_source ?? "environment"} onChange={(e) => set("air_temp_source", e.target.value)}><option value="environment">Ambiente</option><option value="manual">Manual túnel</option></ColdProSelect></ColdProField>
               <ColdProField label="Temp. ar inicial" unit="°C"><ColdProInput {...num("air_temp_c")} /></ColdProField>
               <ColdProField label="Velocidade inicial" unit="m/s"><ColdProInput {...num("air_velocity_m_s")} /></ColdProField>
               <ColdProField label="ΔT do ar" unit="K"><ColdProInput {...num("air_delta_t_k")} /></ColdProField>
