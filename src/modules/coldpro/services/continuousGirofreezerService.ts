@@ -18,6 +18,8 @@ export interface ContinuousGirofreezerInput {
   retentionTime: number;
   airTemperatureC?: number;
   airVelocityMs?: number;
+  minAirVelocityMs?: number;
+  maxAirVelocityMs?: number;
   manualDensityKgM3?: number;
   ashraeDensityKgM3?: number;
   productDensityKgM3?: number;
@@ -104,6 +106,10 @@ export interface ContinuousGirofreezerResult {
     hBaseWm2K: number | null;
     hEffectiveWm2K: number | null;
     kEffectiveWmK: number | null;
+    airTemperatureUsedC: number;
+    airVelocityUsedMs: number;
+    airVelocitySource: "manual" | "suggested" | "missing";
+    suggestedAirVelocityMs: number | null;
     estimatedFreezingTimeMin: number | null;
     retentionTimeMin: number;
     retentionMargin: number | null;
@@ -176,6 +182,36 @@ function calculatePlankFreezingTimeMin(params: {
       Math.pow(params.distanceToCoreM, 2) / (2 * params.kEffectiveWmK));
 
   return timeSeconds / 60;
+}
+
+function suggestAirVelocityMs(params: {
+  densityKgM3: number;
+  latentHeatKjKg: number;
+  frozenWaterFraction: number;
+  freezingPointC: number;
+  airTemperatureC: number;
+  distanceToCoreM: number;
+  kEffectiveWmK: number;
+  retentionTimeMin: number;
+  airExposureFactor: number;
+  minAirVelocityMs?: number;
+  maxAirVelocityMs?: number;
+}): number | null {
+  const deltaT = params.freezingPointC - params.airTemperatureC;
+  const retentionSeconds = params.retentionTimeMin * 60;
+  if (params.densityKgM3 <= 0 || params.latentHeatKjKg <= 0 || params.frozenWaterFraction <= 0 || deltaT <= 0 || params.distanceToCoreM <= 0 || params.kEffectiveWmK <= 0 || retentionSeconds <= 0) return null;
+  const latentEffectiveJkg = params.latentHeatKjKg * params.frozenWaterFraction * 1000;
+  const targetTerm = retentionSeconds * deltaT / (params.densityKgM3 * latentEffectiveJkg);
+  const conductionTerm = Math.pow(params.distanceToCoreM, 2) / (2 * params.kEffectiveWmK);
+  const convectionTerm = targetTerm - conductionTerm;
+  if (convectionTerm <= 0) return null;
+  const hEffectiveRequired = params.distanceToCoreM / convectionTerm;
+  const exposure = Math.max(0.01, params.airExposureFactor || 1);
+  const hBaseRequired = hEffectiveRequired / exposure;
+  const velocity = Math.pow(Math.max(0, (hBaseRequired - 10) / 10), 1 / 0.8);
+  const minVelocity = Math.max(0.1, params.minAirVelocityMs ?? 1);
+  const maxVelocity = Math.max(minVelocity, params.maxAirVelocityMs ?? 8);
+  return Math.min(maxVelocity, Math.max(minVelocity, velocity));
 }
 
 export function calculateProductThermalLoad(params: {
@@ -361,16 +397,32 @@ export function calculateContinuousGirofreezer(input: ContinuousGirofreezerInput
   if (densitySource === "default_estimated") warnings.push("Densidade não informada e não calculável; usando densidade padrão estimada de 1000 kg/m³. Validar produto, dimensões e peso unitário.");
   if (thicknessM > 0.08) warnings.push(`Espessura de ${(thicknessM * 1000).toFixed(0)} mm é alta para processo contínuo/girofreezer. Validar tempo até núcleo.`);
 
-  const hBaseWm2K = input.airVelocityMs && input.airVelocityMs > 0 ? calculateConvectionCoefficient(input.airVelocityMs) : null;
-  const hEffectiveWm2K = hBaseWm2K !== null ? hBaseWm2K * (input.airExposureFactor ?? 1) : null;
+  const airTemperatureUsedC = input.airTemperatureC ?? 0;
   const kEffectiveWmK = input.frozenConductivityWmK && input.frozenConductivityWmK > 0 ? input.frozenConductivityWmK * (input.thermalPenetrationFactor ?? 1) : null;
+  const suggestedAirVelocityMs = suggestAirVelocityMs({
+    densityKgM3: densityUsedKgM3,
+    latentHeatKjKg: input.latentHeatKjKg ?? 0,
+    frozenWaterFraction: input.frozenWaterFraction ?? 0,
+    freezingPointC: input.freezingPointC ?? 0,
+    airTemperatureC: airTemperatureUsedC,
+    distanceToCoreM,
+    kEffectiveWmK: kEffectiveWmK ?? 0,
+    retentionTimeMin,
+    airExposureFactor: input.airExposureFactor ?? 1,
+    minAirVelocityMs: input.minAirVelocityMs,
+    maxAirVelocityMs: input.maxAirVelocityMs,
+  });
+  const airVelocityUsedMs = input.airVelocityMs && input.airVelocityMs > 0 ? input.airVelocityMs : suggestedAirVelocityMs ?? 0;
+  const airVelocitySource = input.airVelocityMs && input.airVelocityMs > 0 ? "manual" : suggestedAirVelocityMs ? "suggested" : "missing";
+  const hBaseWm2K = airVelocityUsedMs > 0 ? calculateConvectionCoefficient(airVelocityUsedMs) : null;
+  const hEffectiveWm2K = hBaseWm2K !== null ? hBaseWm2K * (input.airExposureFactor ?? 1) : null;
   const estimatedFreezingTimeMin = hEffectiveWm2K && kEffectiveWmK
     ? calculatePlankFreezingTimeMin({
       densityKgM3: densityUsedKgM3,
       latentHeatKjKg: input.latentHeatKjKg ?? 0,
       frozenWaterFraction: input.frozenWaterFraction ?? 0,
       freezingPointC: input.freezingPointC ?? 0,
-      airTemperatureC: input.airTemperatureC ?? 0,
+      airTemperatureC: airTemperatureUsedC,
       distanceToCoreM,
       hEffectiveWm2K,
       kEffectiveWmK,
@@ -385,13 +437,13 @@ export function calculateContinuousGirofreezer(input: ContinuousGirofreezerInput
     processStatus = retentionTimeMin >= estimatedFreezingTimeMin ? "adequate" : "insufficient";
     if (processStatus === "insufficient") warnings.push(`Tempo de retenção insuficiente. Estimado: ${estimatedFreezingTimeMin.toFixed(1)} min; disponível: ${retentionTimeMin.toFixed(1)} min.`);
   } else if (errors.length === 0) {
-    warnings.push("Não foi possível estimar o tempo de congelamento. Informe temperatura do ar, velocidade do ar, calor latente, fração congelável, condutividade congelada e ponto de congelamento.");
+    warnings.push("Não foi possível estimar o tempo de congelamento. Valide temperatura do ar, velocidade/vazão sugerida, calor latente, fração congelável, condutividade congelada e ponto de congelamento.");
   }
 
   return {
     dimensionsM: { lengthM, widthM, thicknessM, volumeM3, characteristicDimensionM, distanceToCoreM },
     mass: { unitWeightKg, cyclesPerHour, calculatedMassKgH, directMassKgH, usedMassKgH, massSource, massInsideTunnelKg, massDifferencePercent },
-    physics: { implicitDensityKgM3, densityCalculatedKgM3: densityResult.densityKgM3, densityUsedKgM3, densitySource, densityValidationStatus: densityResult.status, densityValidationMessage: densityResult.message, hBaseWm2K, hEffectiveWm2K, kEffectiveWmK, estimatedFreezingTimeMin, retentionTimeMin, retentionMargin, processStatus },
+    physics: { implicitDensityKgM3, densityCalculatedKgM3: densityResult.densityKgM3, densityUsedKgM3, densitySource, densityValidationStatus: densityResult.status, densityValidationMessage: densityResult.message, hBaseWm2K, hEffectiveWm2K, kEffectiveWmK, airTemperatureUsedC, airVelocityUsedMs, airVelocitySource, suggestedAirVelocityMs, estimatedFreezingTimeMin, retentionTimeMin, retentionMargin, processStatus },
     thermal,
     warnings,
     errors,
