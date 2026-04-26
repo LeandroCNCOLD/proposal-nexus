@@ -3,13 +3,14 @@ import { kwToKcalH, kwToTr } from "../core/units";
 import { validateTunnelInput } from "../core/validators";
 import { calculatePlankFreezingTimeMin } from "../physics/freezingTime";
 import { calculateConvectiveCoefficient } from "../physics/heatTransfer";
+import { calculateAirflowThroughFreeArea, calculateCharacteristicDimension, calculateExposureFactor } from "../physics/tunnelGeometry";
 import {
   calculateBatchProductLoadKW,
   calculateContinuousProductLoadKW,
   calculateProductSpecificEnergy,
 } from "../physics/productThermal";
 
-export type TunnelPhysicalModel = "continuous_individual" | "continuous_spiral" | "static_cart" | "static_block";
+export type TunnelPhysicalModel = "continuous_individual" | "continuous_spiral" | "static_cart" | "static_block" | "fluidized_bed" | "blast_freezer";
 export type TunnelScenarioStatus = "adequate" | "insufficient" | "missing_data" | "invalid_input";
 
 export type TunnelThermalScenario = {
