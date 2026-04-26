@@ -2737,6 +2737,19 @@ export type Database = {
           air_velocity_m_s: number
           air_velocity_step_m_s: number
           airflow_m3_h: number
+          approved_air_delta_t_k: number | null
+          approved_air_exposure_factor: number | null
+          approved_air_flow_m3_h: number | null
+          approved_air_temp_c: number | null
+          approved_air_velocity_m_s: number | null
+          approved_convective_coefficient_w_m2_k: number | null
+          approved_estimated_time_min: number | null
+          approved_packaging_type: string | null
+          approved_process_status: string | null
+          approved_thermal_penetration_factor: number | null
+          approved_total_kcal_h: number | null
+          approved_total_kw: number | null
+          approved_total_tr: number | null
           arrangement_type: string
           ash_content_percent: number | null
           batch_time_h: number
@@ -2763,6 +2776,7 @@ export type Database = {
           freezing_temp_c: number | null
           frozen_water_fraction: number | null
           id: string
+          informed_air_flow_m3_h: number | null
           inlet_temp_c: number
           internal_fans_kw: number
           latent_heat_kcal_kg: number
@@ -2820,6 +2834,8 @@ export type Database = {
           suggested_air_method: string | null
           suggested_air_temp_c: number | null
           thermal_characteristic_dimension_m: number | null
+          thermal_condition_approved: boolean | null
+          thermal_condition_approved_at: string | null
           thermal_conductivity_frozen_w_m_k: number | null
           thermal_conductivity_unfrozen_w_m_k: number | null
           thermal_penetration_factor: number | null
@@ -2847,6 +2863,19 @@ export type Database = {
           air_velocity_m_s?: number
           air_velocity_step_m_s?: number
           airflow_m3_h?: number
+          approved_air_delta_t_k?: number | null
+          approved_air_exposure_factor?: number | null
+          approved_air_flow_m3_h?: number | null
+          approved_air_temp_c?: number | null
+          approved_air_velocity_m_s?: number | null
+          approved_convective_coefficient_w_m2_k?: number | null
+          approved_estimated_time_min?: number | null
+          approved_packaging_type?: string | null
+          approved_process_status?: string | null
+          approved_thermal_penetration_factor?: number | null
+          approved_total_kcal_h?: number | null
+          approved_total_kw?: number | null
+          approved_total_tr?: number | null
           arrangement_type?: string
           ash_content_percent?: number | null
           batch_time_h?: number
@@ -2873,6 +2902,7 @@ export type Database = {
           freezing_temp_c?: number | null
           frozen_water_fraction?: number | null
           id?: string
+          informed_air_flow_m3_h?: number | null
           inlet_temp_c?: number
           internal_fans_kw?: number
           latent_heat_kcal_kg?: number
@@ -2930,6 +2960,8 @@ export type Database = {
           suggested_air_method?: string | null
           suggested_air_temp_c?: number | null
           thermal_characteristic_dimension_m?: number | null
+          thermal_condition_approved?: boolean | null
+          thermal_condition_approved_at?: string | null
           thermal_conductivity_frozen_w_m_k?: number | null
           thermal_conductivity_unfrozen_w_m_k?: number | null
           thermal_penetration_factor?: number | null
@@ -2957,6 +2989,19 @@ export type Database = {
           air_velocity_m_s?: number
           air_velocity_step_m_s?: number
           airflow_m3_h?: number
+          approved_air_delta_t_k?: number | null
+          approved_air_exposure_factor?: number | null
+          approved_air_flow_m3_h?: number | null
+          approved_air_temp_c?: number | null
+          approved_air_velocity_m_s?: number | null
+          approved_convective_coefficient_w_m2_k?: number | null
+          approved_estimated_time_min?: number | null
+          approved_packaging_type?: string | null
+          approved_process_status?: string | null
+          approved_thermal_penetration_factor?: number | null
+          approved_total_kcal_h?: number | null
+          approved_total_kw?: number | null
+          approved_total_tr?: number | null
           arrangement_type?: string
           ash_content_percent?: number | null
           batch_time_h?: number
@@ -2983,6 +3028,7 @@ export type Database = {
           freezing_temp_c?: number | null
           frozen_water_fraction?: number | null
           id?: string
+          informed_air_flow_m3_h?: number | null
           inlet_temp_c?: number
           internal_fans_kw?: number
           latent_heat_kcal_kg?: number
@@ -3040,6 +3086,8 @@ export type Database = {
           suggested_air_method?: string | null
           suggested_air_temp_c?: number | null
           thermal_characteristic_dimension_m?: number | null
+          thermal_condition_approved?: boolean | null
+          thermal_condition_approved_at?: string | null
           thermal_conductivity_frozen_w_m_k?: number | null
           thermal_conductivity_unfrozen_w_m_k?: number | null
           thermal_penetration_factor?: number | null

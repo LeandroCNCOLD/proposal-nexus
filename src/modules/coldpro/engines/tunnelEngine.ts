@@ -10,6 +10,30 @@ import {
 } from "../physics/productThermal";
 
 export type TunnelPhysicalModel = "continuous_individual" | "continuous_spiral" | "static_cart" | "static_block";
+export type TunnelScenarioStatus = "adequate" | "insufficient" | "missing_data" | "invalid_input";
+
+export type TunnelThermalScenario = {
+  airTempC: number | null;
+  airVelocityMS: number | null;
+  airDeltaTK: number;
+  airFlowM3H: number;
+  informedAirFlowM3H: number | null;
+  suggestedAirTempC: number;
+  hEffectiveWM2K: number | null;
+  hSource: string;
+  productLoadKW: number;
+  packagingLoadKW: number;
+  internalLoadKW: number;
+  totalKW: number;
+  totalKcalH: number;
+  totalTR: number;
+  estimatedTimeMin: number | null;
+  availableTimeMin: number;
+  status: TunnelScenarioStatus;
+  warnings: string[];
+  missingFields: string[];
+  invalidFields: string[];
+};
 
 const MODEL_META: Record<TunnelPhysicalModel, {
   label: string;
@@ -60,6 +84,10 @@ function isProvided(value: unknown): boolean {
 function positiveNumber(value: unknown): number {
   const parsed = toNumber(value, 0);
   return parsed > 0 ? parsed : 0;
+}
+
+function nullableNumber(value: unknown): number | null {
+  return isProvided(value) && Number.isFinite(Number(value)) ? Number(value) : null;
 }
 
 function unique(values: string[]): string[] {
@@ -150,7 +178,7 @@ function calculateModelH(input: any, physicalModel: TunnelPhysicalModel) {
   };
 }
 
-export function calculateTunnelEngine(input: any) {
+function calculateTunnelCore(input: any) {
   const physicalModel = normalizePhysicalModel(input);
   const modelMeta = MODEL_META[physicalModel];
   const mode = modelMeta.mode;
@@ -184,6 +212,7 @@ export function calculateTunnelEngine(input: any) {
   const suggestedAirTempC = toNumber(input?.finalTempC, 0) - suggestedAirApproachK;
   const informedAirTempC = isProvided(input?.airTempC) ? toNumber(input?.airTempC, 0) : null;
   const suggestedAirTempComparisonC = informedAirTempC === null ? null : informedAirTempC - suggestedAirTempC;
+  const informedAirFlowM3H = nullableNumber(input?.informedAirFlowM3H ?? input?.airflow_m3_h);
 
   const characteristicDimensionM = physicalModel === "static_block"
     ? getSmallestValidDimension([input?.palletLengthM, input?.palletWidthM, input?.palletHeightM])
@@ -243,9 +272,19 @@ export function calculateTunnelEngine(input: any) {
 
   const hasManualH = positiveNumber(input?.manualConvectiveCoefficientWM2K) > 0;
   const airVelocityMS = positiveNumber(input?.airVelocityMS);
+  const airVelocityLimitWarnings = [
+    airVelocityMS > 0 && airVelocityMS < positiveNumber(input?.minAirVelocityMS ?? input?.min_air_velocity_m_s) ? "Velocidade do ar abaixo do limite operacional informado." : "",
+    positiveNumber(input?.maxAirVelocityMS ?? input?.max_air_velocity_m_s) > 0 && airVelocityMS > positiveNumber(input?.maxAirVelocityMS ?? input?.max_air_velocity_m_s) ? "Velocidade do ar acima do limite operacional informado." : "",
+  ];
+  const airFlowDeviation = informedAirFlowM3H !== null && airFlowM3H > 0 ? Math.abs(informedAirFlowM3H - airFlowM3H) / airFlowM3H : 0;
   const engineWarnings = [
     !isStatic && directMassKgH > 0 && calculatedMassKgH > 0 && Math.abs(directMassKgH - calculatedMassKgH) / calculatedMassKgH * 100 > 15 ? `Massa direta difere da massa por cadência em ${(Math.abs(directMassKgH - calculatedMassKgH) / calculatedMassKgH * 100).toFixed(1)}%.` : "",
     suggestedAirTempComparisonC !== null && suggestedAirTempComparisonC > 5 ? "Temperatura do ar informada pode ser insuficiente para atingir a temperatura final do produto no tempo desejado." : "",
+    airFlowDeviation > 0.2 ? "Vazão de ar informada diverge da vazão estimada em mais de 20%." : "",
+    hasManualH && positiveNumber(input?.manualConvectiveCoefficientWM2K) < 25 && energy.crossesFreezingPoint ? "h manual muito baixo para congelamento rápido." : "",
+    isProvided(input?.thermalPenetrationFactor) && toNumber(input?.thermalPenetrationFactor) <= 0 ? "Fator de penetração térmica deve ser maior que zero." : "",
+    isProvided(input?.airExposureFactor) && toNumber(input?.airExposureFactor) <= 0 ? "Fator de exposição ao ar deve ser maior que zero." : "",
+    ...airVelocityLimitWarnings,
     physicalModel === "continuous_individual" && !hasManualH && airVelocityMS > 0 && airVelocityMS < 1 ? "Velocidade do ar baixa para túnel contínuo individual (< 1 m/s)." : "",
     physicalModel === "continuous_spiral" && !hasManualH && airVelocityMS > 0 && airVelocityMS < 2 ? "Velocidade do ar baixa para girofreezer contínuo (< 2 m/s)." : "",
     physicalModel === "continuous_spiral" && (spiralTurbulenceFactor < 1.2 || spiralTurbulenceFactor > 3) ? "Fator de turbulência do girofreezer fora da faixa recomendada de 1,2 a 3,0." : "",
@@ -267,15 +306,19 @@ export function calculateTunnelEngine(input: any) {
     toNumber(h.hEffectiveWM2K, 0) <= 0 ? "coeficiente convectivo efetivo" : "",
     kEffectiveWMK <= 0 ? "condutividade efetiva" : "",
   ];
+  const invalidFields = unique([
+    ...validation.invalidFields,
+    isProvided(input?.thermalPenetrationFactor) && toNumber(input?.thermalPenetrationFactor) <= 0 ? "thermalPenetrationFactor" : "",
+    isProvided(input?.airExposureFactor) && toNumber(input?.airExposureFactor) <= 0 ? "airExposureFactor" : "",
+  ]);
   const missingFields = unique([
     ...validation.missingFields,
     ...requiredPositiveFields(input, physicalModel, staticMassKg, characteristicDimensionM, energy.crossesFreezingPoint),
     ...freezingTimeMissingFields,
   ]);
   const warnings = unique([...validation.warnings, ...engineWarnings]);
-  const invalidFields = unique(validation.invalidFields);
 
-  const status = invalidFields.length > 0
+  const status: TunnelScenarioStatus = invalidFields.length > 0
     ? "invalid_input"
     : missingFields.length > 0
       ? "missing_data"
@@ -285,6 +328,29 @@ export function calculateTunnelEngine(input: any) {
           ? "insufficient"
           : "missing_data";
 
+  const scenario: TunnelThermalScenario = {
+    airTempC: nullableNumber(input?.airTempC),
+    airVelocityMS: nullableNumber(input?.airVelocityMS),
+    airDeltaTK,
+    airFlowM3H,
+    informedAirFlowM3H,
+    suggestedAirTempC,
+    hEffectiveWM2K: nullableNumber(h.hEffectiveWM2K),
+    hSource: h.source,
+    productLoadKW,
+    packagingLoadKW,
+    internalLoadKW,
+    totalKW,
+    totalKcalH,
+    totalTR,
+    estimatedTimeMin,
+    availableTimeMin,
+    status,
+    warnings,
+    missingFields,
+    invalidFields,
+  };
+
   const calculationBreakdown = {
     model: {
       physicalModel,
@@ -293,45 +359,12 @@ export function calculateTunnelEngine(input: any) {
       geometryAssumption: modelMeta.geometryAssumption,
       convectionAssumption: modelMeta.convectionAssumption,
     },
-    mass: {
-      mode,
-      calculatedMassKgH,
-      usedMassKgH,
-      staticMassKg,
-      palletMassKg,
-      numberOfPallets,
-      batchTimeH: input?.batchTimeH ?? null,
-      retentionTimeMin: input?.retentionTimeMin ?? null,
-    },
-    geometry: {
-      characteristicDimensionM,
-      distanceToCoreM,
-      productThicknessM: input?.productThicknessM ?? null,
-      palletLengthM: input?.palletLengthM ?? null,
-      palletWidthM: input?.palletWidthM ?? null,
-      palletHeightM: input?.palletHeightM ?? null,
-    },
+    mass: { mode, calculatedMassKgH, usedMassKgH, staticMassKg, palletMassKg, numberOfPallets, batchTimeH: input?.batchTimeH ?? null, retentionTimeMin: input?.retentionTimeMin ?? null },
+    geometry: { characteristicDimensionM, distanceToCoreM, productThicknessM: input?.productThicknessM ?? null, palletLengthM: input?.palletLengthM ?? null, palletWidthM: input?.palletWidthM ?? null, palletHeightM: input?.palletHeightM ?? null },
     productEnergy: productEnergyBreakdown,
-    convection: {
-      source: h.source,
-      hBaseWM2K: h.hBaseWM2K,
-      hEffectiveWM2K: h.hEffectiveWM2K,
-      airVelocityMS: input?.airVelocityMS ?? null,
-      airExposureFactor: input?.airExposureFactor ?? null,
-      spiralTurbulenceFactor,
-      blockExposureFactor,
-    },
-    air: {
-      airTempC: input?.airTempC ?? null,
-      airDeltaTK,
-      airDensityKgM3,
-      airFlowM3H,
-      airFlowMethod,
-      suggestedAirTempC,
-      suggestedAirMethod,
-      suggestedAirApproachK,
-      comparison: suggestedAirTempComparisonC,
-    },
+    convection: { source: h.source, hBaseWM2K: h.hBaseWM2K, hEffectiveWM2K: h.hEffectiveWM2K, airVelocityMS: input?.airVelocityMS ?? null, airExposureFactor: input?.airExposureFactor ?? null, spiralTurbulenceFactor, blockExposureFactor },
+    air: { airTempC: input?.airTempC ?? null, airDeltaTK, airDensityKgM3, airFlowM3H, informedAirFlowM3H, airFlowMethod, suggestedAirTempC, suggestedAirMethod, suggestedAirApproachK, comparison: suggestedAirTempComparisonC },
+    scenarios: { adjustedScenario: scenario },
     loads: { productLoadKW, packagingLoadKW, internalLoadKW, totalKW, totalKcalH, totalTR },
     timing: { estimatedTimeMin, availableTimeMin, status },
     validation: { warnings, missingFields, invalidFields },
@@ -353,16 +386,7 @@ export function calculateTunnelEngine(input: any) {
   };
 
   const resultSummary = { physicalModel, processType, status, productLoadKW, packagingLoadKW, internalLoadKW, totalKW, estimatedTimeMin, availableTimeMin };
-  const calculationLog = buildCalculationLog({
-    originalInput: input,
-    normalizedInput: { ...input, physicalModel, mode },
-    unitConversions: input?.unitConversions ?? null,
-    warnings,
-    missingFields,
-    invalidFields,
-    formulasUsed,
-    resultSummary,
-  });
+  const calculationLog = buildCalculationLog({ originalInput: input, normalizedInput: { ...input, physicalModel, mode }, unitConversions: input?.unitConversions ?? null, warnings, missingFields, invalidFields, formulasUsed, resultSummary });
 
   return {
     physicalModel,
@@ -381,6 +405,7 @@ export function calculateTunnelEngine(input: any) {
     estimatedTimeMin,
     availableTimeMin,
     airFlowM3H,
+    informedAirFlowM3H,
     airFlowMethod,
     suggestedAirTempC,
     suggestedAirMethod,
@@ -396,6 +421,67 @@ export function calculateTunnelEngine(input: any) {
     warnings,
     missingFields,
     invalidFields,
+    scenario,
+    calculationBreakdown,
+    calculationLog,
+  };
+}
+
+function buildApprovedScenario(input: any): TunnelThermalScenario | null {
+  if (!input?.thermalConditionApproved && !input?.thermal_condition_approved) return null;
+  return {
+    airTempC: nullableNumber(input?.approvedAirTempC ?? input?.approved_air_temp_c),
+    airVelocityMS: nullableNumber(input?.approvedAirVelocityMS ?? input?.approved_air_velocity_m_s),
+    airDeltaTK: positiveNumber(input?.approvedAirDeltaTK ?? input?.approved_air_delta_t_k) || 0,
+    airFlowM3H: positiveNumber(input?.approvedAirFlowM3H ?? input?.approved_air_flow_m3_h),
+    informedAirFlowM3H: nullableNumber(input?.approvedAirFlowM3H ?? input?.approved_air_flow_m3_h),
+    suggestedAirTempC: nullableNumber(input?.approvedSuggestedAirTempC ?? input?.suggestedAirTempC) ?? 0,
+    hEffectiveWM2K: nullableNumber(input?.approvedConvectiveCoefficientWM2K ?? input?.approved_convective_coefficient_w_m2_k),
+    hSource: "approved",
+    productLoadKW: positiveNumber(input?.productLoadKW),
+    packagingLoadKW: positiveNumber(input?.packagingLoadKW),
+    internalLoadKW: positiveNumber(input?.internalLoadKW),
+    totalKW: positiveNumber(input?.approvedTotalKW ?? input?.approved_total_kw),
+    totalKcalH: positiveNumber(input?.approvedTotalKcalH ?? input?.approved_total_kcal_h),
+    totalTR: positiveNumber(input?.approvedTotalTR ?? input?.approved_total_tr),
+    estimatedTimeMin: nullableNumber(input?.approvedEstimatedTimeMin ?? input?.approved_estimated_time_min),
+    availableTimeMin: positiveNumber(input?.approvedAvailableTimeMin ?? input?.availableTimeMin ?? input?.retentionTimeMin) || 0,
+    status: String(input?.approvedProcessStatus ?? input?.approved_process_status ?? "adequate") as TunnelScenarioStatus,
+    warnings: [],
+    missingFields: [],
+    invalidFields: [],
+  };
+}
+
+export function calculateTunnelEngine(input: any) {
+  const adjusted = calculateTunnelCore(input);
+  const initialInput = input?.initialScenarioInput ?? input?.initial_scenario_input ?? input;
+  const initial = initialInput === input ? adjusted : calculateTunnelCore({ ...input, ...initialInput, initialScenarioInput: undefined, initial_scenario_input: undefined, thermalConditionApproved: false, thermal_condition_approved: false });
+  const approvedScenario = buildApprovedScenario(input);
+
+  const calculationBreakdown = {
+    ...adjusted.calculationBreakdown,
+    scenarios: {
+      initialScenario: initial.scenario,
+      adjustedScenario: adjusted.scenario,
+      approvedScenario,
+    },
+  };
+  const calculationLog = buildCalculationLog({
+    ...(adjusted.calculationLog ?? {}),
+    resultSummary: {
+      ...(adjusted.calculationLog?.resultSummary ?? {}),
+      initialStatus: initial.scenario.status,
+      adjustedStatus: adjusted.scenario.status,
+      approvedStatus: approvedScenario?.status ?? null,
+    },
+  });
+
+  return {
+    ...adjusted,
+    initialScenario: initial.scenario,
+    adjustedScenario: adjusted.scenario,
+    approvedScenario,
     calculationBreakdown,
     calculationLog,
   };
