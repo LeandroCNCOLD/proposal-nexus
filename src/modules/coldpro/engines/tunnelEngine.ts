@@ -146,6 +146,19 @@ function isStaticTunnel(processType: unknown, operationMode: unknown) {
   return processType === "static_cart_freezing" || processType === "static_pallet_freezing" || operationMode === "batch";
 }
 
+function resolveStaticMass(input: any) {
+  const numberOfPallets = positiveNumber(input?.numberOfPallets ?? input?.number_of_pallets) || 1;
+  const calculatedPalletMassKg = positiveNumber(input?.calculatedPalletMassKg ?? input?.calculated_pallet_mass_kg);
+  const palletMassKg = positiveNumber(input?.palletMassKg ?? input?.pallet_mass_kg) || calculatedPalletMassKg;
+  const savedStaticMassKg = positiveNumber(input?.staticMassKg ?? input?.static_mass_kg);
+  return {
+    numberOfPallets,
+    calculatedPalletMassKg,
+    palletMassKg,
+    staticMassKg: savedStaticMassKg || calculatedPalletMassKg * numberOfPallets || palletMassKg * numberOfPallets,
+  };
+}
+
 function requiredPositiveFields(input: any, isStatic: boolean, staticMassKg: number, characteristicDimensionM: number, crossesFreezing: boolean, airVelocityUsedMS: number): string[] {
   const commonNumericFields = ["initialTempC", "finalTempC", "freezingPointC"];
   const commonPositiveFields = ["cpAboveKJkgK"];
@@ -163,7 +176,8 @@ function requiredPositiveFields(input: any, isStatic: boolean, staticMassKg: num
   const staticFields = [
     staticMassKg <= 0 ? "massa total da batelada" : "",
     positiveNumber(input?.batchTimeH) <= 0 ? "tempo de batelada" : "",
-    characteristicDimensionM <= 0 ? "dimensões da carga/pallet" : "",
+    !input?.productGeometry && !input?.product_geometry ? "geometria do produto" : "",
+    characteristicDimensionM <= 0 ? "dimensão crítica para tempo até o núcleo" : "",
   ];
 
   return [
@@ -185,7 +199,7 @@ function requiredPositiveFields(input: any, isStatic: boolean, staticMassKg: num
     geometry === "packed_box" && positiveNumber(input?.boxWidthM ?? input?.box_width_m) <= 0 ? "box_width_m" : "",
     geometry === "packed_box" && positiveNumber(input?.boxHeightM ?? input?.box_height_m) <= 0 ? "box_height_m" : "",
     geometry === "irregular" && positiveNumber(input?.characteristicDimensionM ?? input?.characteristic_dimension_m) <= 0 ? "characteristic_dimension_m" : "",
-    !hasHInput && (isStatic || positiveNumber(input?.airVelocityMS) <= 0) ? "velocidade do ar ou coeficiente convectivo manual" : "",
+    !hasHInput && (isStatic || positiveNumber(input?.airVelocityMS) <= 0) ? "velocidade do ar ou vazão dos ventiladores" : "",
   ];
 }
 
