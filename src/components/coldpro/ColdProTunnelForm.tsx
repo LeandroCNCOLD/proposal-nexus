@@ -130,6 +130,21 @@ export function ColdProTunnelForm({ environmentId, tunnel, productCatalog = [], 
       onChange: (e: React.ChangeEvent<HTMLInputElement>) => set(key, numberOrNull(e.target.value) === null ? null : Number(e.target.value) * unitConfig.toMeters),
     };
   };
+  const weightNum = (key: string, unit: WeightUnit) => {
+    const unitConfig = WEIGHT_UNITS[unit];
+    const valueKg = Number(form?.[key] ?? 0);
+    return { type: "number" as const, step: unitConfig.step, value: Number.isFinite(valueKg) && valueKg !== 0 ? valueKg / unitConfig.toKg : form?.[key] === 0 ? 0 : "", onChange: (e: React.ChangeEvent<HTMLInputElement>) => set(key, numberOrNull(e.target.value) === null ? null : Number(e.target.value) * unitConfig.toKg) };
+  };
+  const cyclesNum = (unit: CycleUnit) => {
+    const unitConfig = CYCLE_UNITS[unit];
+    const valuePerHour = Number(form.cycles_per_hour ?? 0);
+    return { type: "number" as const, step: unitConfig.step, value: Number.isFinite(valuePerHour) && valuePerHour !== 0 ? valuePerHour / unitConfig.toCyclesPerHour : form.cycles_per_hour === 0 ? 0 : "", onChange: (e: React.ChangeEvent<HTMLInputElement>) => set("cycles_per_hour", numberOrNull(e.target.value) === null ? null : Number(e.target.value) * unitConfig.toCyclesPerHour) };
+  };
+  const retentionNum = (unit: RetentionUnit) => {
+    const unitConfig = RETENTION_UNITS[unit];
+    const valueMin = Number(form.process_time_min ?? 0);
+    return { type: "number" as const, step: unitConfig.step, value: Number.isFinite(valueMin) && valueMin !== 0 ? valueMin / unitConfig.toMinutes : form.process_time_min === 0 ? 0 : "", onChange: (e: React.ChangeEvent<HTMLInputElement>) => set("process_time_min", numberOrNull(e.target.value) === null ? null : Number(e.target.value) * unitConfig.toMinutes) };
+  };
   const processType = String(form.process_type ?? "continuous_individual_freezing");
   const isStatic = isStaticProcess(processType);
   const unitWeight = Number(form.unit_weight_kg ?? 0) || Number(form.product_unit_weight_kg ?? 0);
