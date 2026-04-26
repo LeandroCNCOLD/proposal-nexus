@@ -126,7 +126,7 @@ const DENSITY_STATUS_LABEL = {
   missing: "faltam dados",
 } as const;
 
-export function ColdProTunnelForm({ environmentId, tunnel, productCatalog = [], onSave }: { environmentId: string; tunnel?: any; productCatalog?: any[]; onSave: (data: any) => void }) {
+export function ColdProTunnelForm({ environmentId, environment, tunnel, productCatalog = [], onSave }: { environmentId: string; environment?: any; tunnel?: any; productCatalog?: any[]; onSave: (data: any) => void }) {
   const [form, setForm] = React.useState<any>(defaultTunnel(environmentId));
   const [selectedGroup, setSelectedGroup] = React.useState("");
   const [continuousUnit, setContinuousUnit] = React.useState<DimensionUnit>("m");
@@ -183,6 +183,7 @@ export function ColdProTunnelForm({ environmentId, tunnel, productCatalog = [], 
   const ashraeDensityKgM3 = Number(form.ashrae_density_kg_m3 ?? 0);
   const densityFieldKgM3 = Number(form.density_kg_m3 ?? 0);
   const manualDensityKgM3 = densityFieldKgM3 > 0 && (!ashraeDensityKgM3 || Math.abs(densityFieldKgM3 - ashraeDensityKgM3) > 0.0001) ? densityFieldKgM3 : 0;
+  const airTemperatureC = Number(form.air_temp_c ?? environment?.internal_temp_c ?? 0);
   const giroResult = calculateContinuousGirofreezer({
     dimensionScale: "m",
     productLength: Number(form.product_length_m ?? 0),
@@ -196,8 +197,10 @@ export function ColdProTunnelForm({ environmentId, tunnel, productCatalog = [], 
     directMassKgH: Number(form.mass_kg_hour ?? 0),
     timeScale: "min",
     retentionTime: Number(form.process_time_min ?? 0),
-    airTemperatureC: Number(form.air_temp_c ?? 0),
+    airTemperatureC,
     airVelocityMs: Number(form.air_velocity_m_s ?? 0),
+    minAirVelocityMs: Number(form.min_air_velocity_m_s ?? 1),
+    maxAirVelocityMs: Number(form.max_air_velocity_m_s ?? 6),
     initialTempC: Number(form.inlet_temp_c ?? 0),
     finalTempC: Number(form.outlet_temp_c ?? 0),
     cpAboveKjKgK: Number(form.specific_heat_above_kcal_kg_c ?? 0) * 4.1868,
@@ -417,8 +420,9 @@ export function ColdProTunnelForm({ environmentId, tunnel, productCatalog = [], 
               <ColdProCalculatedInfo label="Capacidade em kcal/h" value={`${fmtColdPro(thermalResult.totalProcessLoadKcalH, 0)} kcal/h`} description="carga total convertida" tone="info" />
               <ColdProCalculatedInfo label="Capacidade em TR" value={`${fmtColdPro(thermalResult.totalProcessLoadTr, 2)} TR`} description="carga total convertida" tone="info" />
               <ColdProCalculatedInfo label="Vazão de ar necessária" value={fmtMaybe(thermalResult.requiredAirflowM3H, 0, " m³/h")} description="potência ÷ ar × Cp × ΔT" tone={thermalResult.requiredAirflowM3H ? "info" : "warning"} />
-              <ColdProCalculatedInfo label="Temperatura do ar usada" value={`${fmtColdPro(Number(form.air_temp_c ?? 0), 1)} °C`} description="base do cálculo térmico" tone="info" />
-              <ColdProCalculatedInfo label="Velocidade do ar usada" value={`${fmtColdPro(Number(form.air_velocity_m_s ?? 0), 2)} m/s`} description="base de h efetivo" tone={Number(form.air_velocity_m_s ?? 0) > 0 ? "info" : "warning"} />
+              <ColdProCalculatedInfo label="Temperatura do ar usada" value={`${fmtColdPro(giroResult.physics.airTemperatureUsedC, 1)} °C`} description={form.air_temp_c == null ? "temperatura interna do ambiente" : "base do cálculo térmico"} tone="info" />
+              <ColdProCalculatedInfo label="Velocidade do ar usada" value={`${fmtColdPro(giroResult.physics.airVelocityUsedMs, 2)} m/s`} description={giroResult.physics.airVelocitySource === "suggested" ? "sugerida para atingir o núcleo" : "base de h efetivo"} tone={giroResult.physics.airVelocityUsedMs > 0 ? "info" : "warning"} />
+              <ColdProCalculatedInfo label="Velocidade sugerida" value={fmtMaybe(giroResult.physics.suggestedAirVelocityMs, 2, " m/s")} description="calculada pelo tempo desejado" tone={giroResult.physics.suggestedAirVelocityMs ? "success" : "warning"} />
               <ColdProCalculatedInfo label="h efetivo" value={fmtMaybe(giroResult.physics.hEffectiveWm2K, 2, " W/m²K")} description="convecção × exposição" tone={giroResult.physics.hEffectiveWm2K ? "info" : "warning"} />
               <ColdProCalculatedInfo label="k efetivo" value={fmtMaybe(giroResult.physics.kEffectiveWmK, 3, " W/mK")} description="condutividade × penetração" tone={giroResult.physics.kEffectiveWmK ? "info" : "warning"} />
               <ColdProCalculatedInfo label="Tempo estimado" value={fmtMaybe(giroResult.physics.estimatedFreezingTimeMin, 1, " min")} description="estimativa até o núcleo" tone={giroResult.physics.estimatedFreezingTimeMin ? "info" : "warning"} />
