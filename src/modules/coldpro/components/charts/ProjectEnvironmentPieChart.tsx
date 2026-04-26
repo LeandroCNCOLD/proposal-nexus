@@ -18,7 +18,7 @@ export function ProjectEnvironmentPieChart({ title, subtitle, data, onOpenEnviro
         <div className="h-80 w-full">
           <ResponsiveContainer>
             <PieChart>
-              <Pie data={rows} dataKey="value" nameKey="name" innerRadius="52%" outerRadius="82%" paddingAngle={2} onClick={(entry) => setActiveId(String(entry.id ?? entry.name))}>
+              <Pie data={rows} dataKey="value" nameKey="name" innerRadius="52%" outerRadius="82%" paddingAngle={2} onClick={(entry: any) => setActiveId(String(entry.id ?? entry.name))}>
                 {rows.map((item, index) => <Cell key={item.id ?? item.name} fill={COLDPRO_CHART_COLORS[index % COLDPRO_CHART_COLORS.length]} opacity={!active || (active.id ?? active.name) === (item.id ?? item.name) ? 1 : 0.45} />)}
               </Pie>
               <Tooltip formatter={(value: any, name: any) => [`${fmtChart(value, 0)} kcal/h · ${fmtChart(toKW(Number(value)), 1)} kW · ${fmtChart(toTR(Number(value)), 2)} TR · ${fmtChart(pct(Number(value), total), 1)}%`, name]} />
