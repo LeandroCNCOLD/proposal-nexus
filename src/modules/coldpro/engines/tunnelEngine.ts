@@ -362,10 +362,13 @@ function calculateTunnelCore(input: any) {
   ]);
   const missingFields = unique([
     ...validation.missingFields,
+    ...tunnelMode.missingFields,
+    ...geometry.missingFields,
+    ...airflow.missingFields,
     ...requiredPositiveFields(input, isStatic, staticMassKg, characteristicDimensionM, energy.crossesFreezingPoint, airVelocityUsedMS),
     ...freezingTimeMissingFields,
   ]);
-  const warnings = unique([...validation.warnings, ...engineWarnings]);
+  const warnings = unique([...validation.warnings, ...tunnelMode.warnings, ...geometry.warnings, ...exposure.warnings, ...airflow.warnings, ...engineWarnings]);
 
   const status: TunnelScenarioStatus = invalidFields.length > 0
     ? "invalid_input"
