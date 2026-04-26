@@ -3,6 +3,8 @@ import { AlertTriangle, Fan, Package, Save, Settings, Wind, Warehouse } from "lu
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ColdProField, ColdProInput, ColdProSelect } from "./ColdProField";
 import { ColdProCalculatedInfo, ColdProFormSection, ColdProValidationMessage, fmtColdPro, numberOrNull } from "./ColdProFormPrimitives";
+import { formToTunnelInput } from "@/modules/coldpro/adapters/formToTunnelInput";
+import { calculateTunnelEngine } from "@/modules/coldpro/engines/tunnelEngine";
 import { calculateContinuousGirofreezer } from "@/modules/coldpro/services/continuousGirofreezerService";
 
 const ARRANGEMENT_DEFAULTS: Record<string, { air: number; penetration: number; label: string }> = {
@@ -205,6 +207,8 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
   const latentHeatKcalKg = kcalFromThermal(form.latent_heat_kcal_kg, form.latent_heat_kj_kg) || kcalFromThermal(thermodynamicProduct?.latent_heat_kcal_kg, thermodynamicProduct?.latent_heat_kj_kg);
   const frozenConductivityWmK = positiveValue(form.thermal_conductivity_frozen_w_m_k, thermodynamicProduct?.thermal_conductivity_frozen_w_m_k, thermodynamicProduct?.thermal_conductivity_w_m_k);
   const frozenWaterFraction = positiveValue(form.frozen_water_fraction, thermodynamicProduct?.frozen_water_fraction, Number(thermodynamicProduct?.freezable_water_content_percent ?? 0) / 100, Number(thermodynamicProduct?.water_content_percent ?? 0) / 100, 0.9);
+  const tunnelInput = formToTunnelInput(form, environment ?? {});
+  const tunnelResult = calculateTunnelEngine(tunnelInput);
   const giroResult = calculateContinuousGirofreezer({
     dimensionScale: "m",
     productLength: Number(form.product_length_m ?? 0),
