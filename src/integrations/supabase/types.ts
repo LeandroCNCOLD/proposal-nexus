@@ -2785,8 +2785,13 @@ export type Database = {
           approved_total_tr: number | null
           arrangement_type: string
           ash_content_percent: number | null
+          batch_mass_mode: string | null
           batch_time_h: number
+          bed_area_m2: number | null
+          bed_length_m: number | null
+          bed_width_m: number | null
           belt_motor_kw: number
+          belt_speed_m_min: number | null
           block_exposure_factor: number | null
           blockage_factor: number | null
           box_height_m: number | null
@@ -2794,22 +2799,29 @@ export type Database = {
           box_packaging_weight_kg: number | null
           box_width_m: number | null
           boxes_count: number
+          boxes_per_batch: number | null
           boxes_per_layer: number | null
           bulk_layer_height_m: number | null
           calculated_air_velocity_m_s: number | null
+          calculated_batch_mass_kg: number | null
+          calculated_cart_mass_kg: number | null
           calculated_mass_kg_h: number | null
           calculated_pallet_mass_kg: number | null
           calculation_breakdown: Json | null
           calculation_log: Json | null
           calculation_warnings: Json | null
           carbohydrate_content_percent: number | null
+          cart_structure_weight_kg: number | null
           characteristic_dimension_m: number | null
+          containers_count: number | null
+          continuous_mass_mode: string | null
           convective_coefficient_effective_w_m2_k: number | null
           convective_coefficient_manual_w_m2_k: number | null
           convective_coefficient_w_m2_k: number | null
           created_at: string
           cycles_per_hour: number
           density_kg_m3: number | null
+          direct_batch_mass_kg: number | null
           distance_to_core_m: number | null
           environment_id: string
           equivalent_diameter_m: number | null
@@ -2817,6 +2829,7 @@ export type Database = {
           estimated_freezing_time_min: number | null
           fan_airflow_m3_h: number | null
           fat_content_percent: number | null
+          feed_rate_kg_h: number | null
           fiber_content_percent: number | null
           free_air_area_m2: number | null
           freezable_water_content_percent: number | null
@@ -2830,6 +2843,7 @@ export type Database = {
           latent_heat_kcal_kg: number
           latent_heat_kj_kg: number | null
           layers_count: number
+          mass_flow_mode: string | null
           mass_kg_hour: number
           max_air_temp_c: number
           max_air_velocity_m_s: number
@@ -2837,6 +2851,7 @@ export type Database = {
           min_air_velocity_m_s: number
           missing_fields: Json | null
           notes: string | null
+          number_of_carts: number | null
           number_of_layers: number | null
           number_of_pallets: number
           operation_mode: string
@@ -2850,6 +2865,7 @@ export type Database = {
           packaging_mass_kg_hour: number
           packaging_mass_per_pallet_kg: number | null
           packaging_specific_heat_kcal_kg_c: number
+          packaging_weight_kg: number | null
           pallet_base_weight_kg: number | null
           pallet_height_m: number
           pallet_length_m: number
@@ -2872,6 +2888,7 @@ export type Database = {
           product_unit_weight_kg: number
           product_width_m: number
           protein_content_percent: number | null
+          racks_count: number | null
           recommended_air_temp_c: number | null
           recommended_air_velocity_m_s: number | null
           recommended_airflow_m3_h: number | null
@@ -2881,6 +2898,7 @@ export type Database = {
           respiration_rate_20c_mw_kg: number | null
           respiration_rate_5c_mw_kg: number | null
           retention_status: string | null
+          rows_per_meter: number | null
           specific_heat_above_kcal_kg_c: number
           specific_heat_above_kj_kg_k: number | null
           specific_heat_below_kcal_kg_c: number
@@ -2891,6 +2909,7 @@ export type Database = {
           suggested_air_approach_k: number | null
           suggested_air_method: string | null
           suggested_air_temp_c: number | null
+          superficial_air_velocity_m_s: number | null
           surface_exposure_model: string | null
           thermal_characteristic_dimension_m: number | null
           thermal_condition_approved: boolean | null
@@ -2899,7 +2918,11 @@ export type Database = {
           thermal_conductivity_unfrozen_w_m_k: number | null
           thermal_penetration_factor: number | null
           total_units_per_pallet: number | null
+          tray_packaging_weight_kg: number | null
           tray_spacing_m: number
+          tray_weight_kg: number | null
+          trays_per_cart: number | null
+          trays_per_hour: number | null
           tunnel_cross_section_height_m: number | null
           tunnel_cross_section_width_m: number | null
           tunnel_internal_load_kw: number | null
@@ -2912,7 +2935,10 @@ export type Database = {
           unit_weight_kg: number
           units_per_box: number | null
           units_per_cycle: number
+          units_per_hour: number | null
           units_per_pallet: number | null
+          units_per_row: number | null
+          units_per_tray: number | null
           updated_at: string
           used_mass_kg_h: number | null
           water_content_percent: number | null
@@ -2944,8 +2970,13 @@ export type Database = {
           approved_total_tr?: number | null
           arrangement_type?: string
           ash_content_percent?: number | null
+          batch_mass_mode?: string | null
           batch_time_h?: number
+          bed_area_m2?: number | null
+          bed_length_m?: number | null
+          bed_width_m?: number | null
           belt_motor_kw?: number
+          belt_speed_m_min?: number | null
           block_exposure_factor?: number | null
           blockage_factor?: number | null
           box_height_m?: number | null
@@ -2953,22 +2984,29 @@ export type Database = {
           box_packaging_weight_kg?: number | null
           box_width_m?: number | null
           boxes_count?: number
+          boxes_per_batch?: number | null
           boxes_per_layer?: number | null
           bulk_layer_height_m?: number | null
           calculated_air_velocity_m_s?: number | null
+          calculated_batch_mass_kg?: number | null
+          calculated_cart_mass_kg?: number | null
           calculated_mass_kg_h?: number | null
           calculated_pallet_mass_kg?: number | null
           calculation_breakdown?: Json | null
           calculation_log?: Json | null
           calculation_warnings?: Json | null
           carbohydrate_content_percent?: number | null
+          cart_structure_weight_kg?: number | null
           characteristic_dimension_m?: number | null
+          containers_count?: number | null
+          continuous_mass_mode?: string | null
           convective_coefficient_effective_w_m2_k?: number | null
           convective_coefficient_manual_w_m2_k?: number | null
           convective_coefficient_w_m2_k?: number | null
           created_at?: string
           cycles_per_hour?: number
           density_kg_m3?: number | null
+          direct_batch_mass_kg?: number | null
           distance_to_core_m?: number | null
           environment_id: string
           equivalent_diameter_m?: number | null
@@ -2976,6 +3014,7 @@ export type Database = {
           estimated_freezing_time_min?: number | null
           fan_airflow_m3_h?: number | null
           fat_content_percent?: number | null
+          feed_rate_kg_h?: number | null
           fiber_content_percent?: number | null
           free_air_area_m2?: number | null
           freezable_water_content_percent?: number | null
@@ -2989,6 +3028,7 @@ export type Database = {
           latent_heat_kcal_kg?: number
           latent_heat_kj_kg?: number | null
           layers_count?: number
+          mass_flow_mode?: string | null
           mass_kg_hour?: number
           max_air_temp_c?: number
           max_air_velocity_m_s?: number
@@ -2996,6 +3036,7 @@ export type Database = {
           min_air_velocity_m_s?: number
           missing_fields?: Json | null
           notes?: string | null
+          number_of_carts?: number | null
           number_of_layers?: number | null
           number_of_pallets?: number
           operation_mode?: string
@@ -3009,6 +3050,7 @@ export type Database = {
           packaging_mass_kg_hour?: number
           packaging_mass_per_pallet_kg?: number | null
           packaging_specific_heat_kcal_kg_c?: number
+          packaging_weight_kg?: number | null
           pallet_base_weight_kg?: number | null
           pallet_height_m?: number
           pallet_length_m?: number
@@ -3031,6 +3073,7 @@ export type Database = {
           product_unit_weight_kg?: number
           product_width_m?: number
           protein_content_percent?: number | null
+          racks_count?: number | null
           recommended_air_temp_c?: number | null
           recommended_air_velocity_m_s?: number | null
           recommended_airflow_m3_h?: number | null
@@ -3040,6 +3083,7 @@ export type Database = {
           respiration_rate_20c_mw_kg?: number | null
           respiration_rate_5c_mw_kg?: number | null
           retention_status?: string | null
+          rows_per_meter?: number | null
           specific_heat_above_kcal_kg_c?: number
           specific_heat_above_kj_kg_k?: number | null
           specific_heat_below_kcal_kg_c?: number
@@ -3050,6 +3094,7 @@ export type Database = {
           suggested_air_approach_k?: number | null
           suggested_air_method?: string | null
           suggested_air_temp_c?: number | null
+          superficial_air_velocity_m_s?: number | null
           surface_exposure_model?: string | null
           thermal_characteristic_dimension_m?: number | null
           thermal_condition_approved?: boolean | null
@@ -3058,7 +3103,11 @@ export type Database = {
           thermal_conductivity_unfrozen_w_m_k?: number | null
           thermal_penetration_factor?: number | null
           total_units_per_pallet?: number | null
+          tray_packaging_weight_kg?: number | null
           tray_spacing_m?: number
+          tray_weight_kg?: number | null
+          trays_per_cart?: number | null
+          trays_per_hour?: number | null
           tunnel_cross_section_height_m?: number | null
           tunnel_cross_section_width_m?: number | null
           tunnel_internal_load_kw?: number | null
@@ -3071,7 +3120,10 @@ export type Database = {
           unit_weight_kg?: number
           units_per_box?: number | null
           units_per_cycle?: number
+          units_per_hour?: number | null
           units_per_pallet?: number | null
+          units_per_row?: number | null
+          units_per_tray?: number | null
           updated_at?: string
           used_mass_kg_h?: number | null
           water_content_percent?: number | null
@@ -3103,8 +3155,13 @@ export type Database = {
           approved_total_tr?: number | null
           arrangement_type?: string
           ash_content_percent?: number | null
+          batch_mass_mode?: string | null
           batch_time_h?: number
+          bed_area_m2?: number | null
+          bed_length_m?: number | null
+          bed_width_m?: number | null
           belt_motor_kw?: number
+          belt_speed_m_min?: number | null
           block_exposure_factor?: number | null
           blockage_factor?: number | null
           box_height_m?: number | null
@@ -3112,22 +3169,29 @@ export type Database = {
           box_packaging_weight_kg?: number | null
           box_width_m?: number | null
           boxes_count?: number
+          boxes_per_batch?: number | null
           boxes_per_layer?: number | null
           bulk_layer_height_m?: number | null
           calculated_air_velocity_m_s?: number | null
+          calculated_batch_mass_kg?: number | null
+          calculated_cart_mass_kg?: number | null
           calculated_mass_kg_h?: number | null
           calculated_pallet_mass_kg?: number | null
           calculation_breakdown?: Json | null
           calculation_log?: Json | null
           calculation_warnings?: Json | null
           carbohydrate_content_percent?: number | null
+          cart_structure_weight_kg?: number | null
           characteristic_dimension_m?: number | null
+          containers_count?: number | null
+          continuous_mass_mode?: string | null
           convective_coefficient_effective_w_m2_k?: number | null
           convective_coefficient_manual_w_m2_k?: number | null
           convective_coefficient_w_m2_k?: number | null
           created_at?: string
           cycles_per_hour?: number
           density_kg_m3?: number | null
+          direct_batch_mass_kg?: number | null
           distance_to_core_m?: number | null
           environment_id?: string
           equivalent_diameter_m?: number | null
@@ -3135,6 +3199,7 @@ export type Database = {
           estimated_freezing_time_min?: number | null
           fan_airflow_m3_h?: number | null
           fat_content_percent?: number | null
+          feed_rate_kg_h?: number | null
           fiber_content_percent?: number | null
           free_air_area_m2?: number | null
           freezable_water_content_percent?: number | null
@@ -3148,6 +3213,7 @@ export type Database = {
           latent_heat_kcal_kg?: number
           latent_heat_kj_kg?: number | null
           layers_count?: number
+          mass_flow_mode?: string | null
           mass_kg_hour?: number
           max_air_temp_c?: number
           max_air_velocity_m_s?: number
@@ -3155,6 +3221,7 @@ export type Database = {
           min_air_velocity_m_s?: number
           missing_fields?: Json | null
           notes?: string | null
+          number_of_carts?: number | null
           number_of_layers?: number | null
           number_of_pallets?: number
           operation_mode?: string
@@ -3168,6 +3235,7 @@ export type Database = {
           packaging_mass_kg_hour?: number
           packaging_mass_per_pallet_kg?: number | null
           packaging_specific_heat_kcal_kg_c?: number
+          packaging_weight_kg?: number | null
           pallet_base_weight_kg?: number | null
           pallet_height_m?: number
           pallet_length_m?: number
@@ -3190,6 +3258,7 @@ export type Database = {
           product_unit_weight_kg?: number
           product_width_m?: number
           protein_content_percent?: number | null
+          racks_count?: number | null
           recommended_air_temp_c?: number | null
           recommended_air_velocity_m_s?: number | null
           recommended_airflow_m3_h?: number | null
@@ -3199,6 +3268,7 @@ export type Database = {
           respiration_rate_20c_mw_kg?: number | null
           respiration_rate_5c_mw_kg?: number | null
           retention_status?: string | null
+          rows_per_meter?: number | null
           specific_heat_above_kcal_kg_c?: number
           specific_heat_above_kj_kg_k?: number | null
           specific_heat_below_kcal_kg_c?: number
@@ -3209,6 +3279,7 @@ export type Database = {
           suggested_air_approach_k?: number | null
           suggested_air_method?: string | null
           suggested_air_temp_c?: number | null
+          superficial_air_velocity_m_s?: number | null
           surface_exposure_model?: string | null
           thermal_characteristic_dimension_m?: number | null
           thermal_condition_approved?: boolean | null
@@ -3217,7 +3288,11 @@ export type Database = {
           thermal_conductivity_unfrozen_w_m_k?: number | null
           thermal_penetration_factor?: number | null
           total_units_per_pallet?: number | null
+          tray_packaging_weight_kg?: number | null
           tray_spacing_m?: number
+          tray_weight_kg?: number | null
+          trays_per_cart?: number | null
+          trays_per_hour?: number | null
           tunnel_cross_section_height_m?: number | null
           tunnel_cross_section_width_m?: number | null
           tunnel_internal_load_kw?: number | null
@@ -3230,7 +3305,10 @@ export type Database = {
           unit_weight_kg?: number
           units_per_box?: number | null
           units_per_cycle?: number
+          units_per_hour?: number | null
           units_per_pallet?: number | null
+          units_per_row?: number | null
+          units_per_tray?: number | null
           updated_at?: string
           used_mass_kg_h?: number | null
           water_content_percent?: number | null
