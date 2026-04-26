@@ -463,7 +463,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
     unitsPerCycle: Number(form.units_per_cycle ?? 0),
     cycleScale: "cycles_per_hour",
     cycles: Number(form.cycles_per_hour ?? 0),
-    directMassKgH: Number(form.mass_kg_hour ?? 0),
+    directMassKgH: isStatic ? 0 : massHour,
     timeScale: "min",
     retentionTime: Number(form.process_time_min ?? 0),
     airTemperatureC,
@@ -1095,7 +1095,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
               {staticMassMode === "calculated_batch_composition" ? <ColdProCalculatedInfo label="Massa calculada da batelada" value={`${fmtColdPro(calculatedBatchMassKg)} kg`} description="peso unitário × unidades do lote + embalagens" tone={calculatedBatchMassKg > 0 ? "success" : "warning"} /> : null}
               <ColdProCalculatedInfo label="Massa total da batelada" value={`${fmtColdPro(staticMass)} kg`} description={`${fmtColdPro(effectiveBatchUnitMassKg)} kg × ${fmtColdPro(groupingCount, 0)} agrupamentos`} tone={staticMass > 0 ? "success" : "warning"} />
             </div></div>}
-            {giroResult.errors.length > 0 ? (
+            {!isStatic && giroResult.errors.length > 0 ? (
               <div className="mt-4 rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
                 <div className="mb-2 flex items-center gap-2 font-semibold"><AlertTriangle className="h-4 w-4" /> Erros de preenchimento:</div>
                 <ul className="list-disc space-y-1 pl-5">{giroResult.errors.map((error, index) => <li key={`${error}-${index}`}>{error}</li>)}</ul>
