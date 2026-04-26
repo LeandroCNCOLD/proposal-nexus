@@ -55,6 +55,7 @@ export function ColdProAdvancedProcessForm({ projectId, environment, process, pr
     id: process?.id,
     project_id: projectId,
     environment_id: environment?.id,
+    product_id: process?.product_id ?? null,
     advanced_process_type: process?.advanced_process_type ?? (environment?.environment_type === "seed_storage" ? "seed_humidity_control" : "none"),
     product_name: process?.product_name ?? "",
     product_mass_kg: process?.product_mass_kg ?? environment?.seed_mass_kg ?? 0,
@@ -86,6 +87,8 @@ export function ColdProAdvancedProcessForm({ projectId, environment, process, pr
     air_renewal_m3_h: process?.air_renewal_m3_h ?? 0,
   }));
   const result = React.useMemo(() => calculateAdvancedProcess(draft), [draft]);
+  const selectedCatalogProduct = productCatalog.find((item) => item.id === draft.product_id) ?? null;
+  const catalogLocked = Boolean(selectedCatalogProduct);
   const groups = React.useMemo(() => Array.from(new Set(productCatalog.map((p) => p.category).filter(Boolean))).sort((a, b) => String(a).localeCompare(String(b), "pt-BR")), [productCatalog]);
   const filteredProducts = React.useMemo(() => productCatalog.filter((p) => !selectedGroup || p.category === selectedGroup), [productCatalog, selectedGroup]);
   const applyProduct = (id: string) => {
@@ -95,9 +98,10 @@ export function ColdProAdvancedProcessForm({ projectId, environment, process, pr
     const co2Rate = respirationRate ? respirationRate * 3600 / 10_700_000 : null;
     setDraft((old: any) => ({
       ...old,
+      product_id: product.id,
       advanced_process_type: suggestedProcessType(product, old.advanced_process_type),
       product_name: product.name,
-      product_initial_moisture: old.product_initial_moisture || product.water_content_percent || old.product_initial_moisture,
+      product_initial_moisture: product.water_content_percent ?? old.product_initial_moisture,
       respiration_rate_w_kg: respirationRate ?? old.respiration_rate_w_kg,
       co2_generation_rate_m3_kg_h: co2Rate ?? old.co2_generation_rate_m3_kg_h,
       technical_notes: [old.technical_notes, product.source_reference ? `Produto F3: ${product.source_reference}` : "Produto carregado da tabela F3."].filter(Boolean).join("\n"),
@@ -120,7 +124,7 @@ export function ColdProAdvancedProcessForm({ projectId, environment, process, pr
             </ColdProSelect>
           </ColdProField>
           <ColdProField label="Produto F3">
-            <ColdProSelect value="" onChange={(e) => applyProduct(e.target.value)}>
+            <ColdProSelect value={draft.product_id ?? ""} onChange={(e) => applyProduct(e.target.value)}>
               <option value="">Buscar na tabela F3</option>
               {filteredProducts.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}
             </ColdProSelect>
@@ -128,6 +132,7 @@ export function ColdProAdvancedProcessForm({ projectId, environment, process, pr
           <ColdProField label="Produto">
             <ColdProInput type="text" className="text-left" value={draft.product_name ?? ""} onChange={(e) => setDraft((old: any) => ({ ...old, product_name: e.target.value }))} />
           </ColdProField>
+          {catalogLocked ? <ColdProCalculatedInfo label="Produto do catálogo" value="Dados técnicos bloqueados" description="Respiração e umidade vêm da base oficial do produto." tone="info" /> : null}
           {field("product_mass_kg", "Massa armazenada", "kg", draft, setDraft)}
           {field("chamber_volume_m3", "Volume da câmara", "m³", draft, setDraft)}
           {field("target_temperature_c", "Temperatura alvo", "°C", draft, setDraft)}
@@ -147,7 +152,7 @@ export function ColdProAdvancedProcessForm({ projectId, environment, process, pr
           {field("internal_relative_humidity", "Umidade interna alvo", "%", draft, setDraft)}
           {field("air_changes_per_hour", "Trocas de ar", "1/h", draft, setDraft)}
           {field("air_renewal_m3_h", "Renovação manual", "m³/h", draft, setDraft)}
-          {field("product_initial_moisture", "Umidade inicial produto", "%", draft, setDraft)}
+          <ColdProField label="Umidade inicial produto" unit="%"><ColdProInput type="number" step="any" value={draft.product_initial_moisture ?? ""} readOnly={catalogLocked} readOnlyValue={catalogLocked} onChange={(e) => setDraft((old: any) => ({ ...old, product_initial_moisture: numberOrNull(e.target.value) }))} /></ColdProField>
           {field("product_final_moisture", "Umidade final desejada", "%", draft, setDraft)}
           {field("stabilization_time_h", "Tempo estabilização", "h", draft, setDraft)}
         </div>
@@ -167,7 +172,7 @@ export function ColdProAdvancedProcessForm({ projectId, environment, process, pr
           {field("co2_limit_percent", "Limite máximo CO₂", "%", draft, setDraft)}
           {field("external_co2_percent", "CO₂ externo", "%", draft, setDraft)}
           {field("purge_airflow_m3_h", "Vazão de purga manual", "m³/h", draft, setDraft)}
-          {field("respiration_rate_w_kg", "Taxa respiração", "W/kg", draft, setDraft)}
+          <ColdProField label="Taxa respiração" unit="W/kg"><ColdProInput type="number" step="any" value={draft.respiration_rate_w_kg ?? ""} readOnly={catalogLocked} readOnlyValue={catalogLocked} onChange={(e) => setDraft((old: any) => ({ ...old, respiration_rate_w_kg: numberOrNull(e.target.value) }))} /></ColdProField>
           {field("storage_time_h", "Tempo armazenamento", "h", draft, setDraft)}
         </div>
       </ColdProFormSection>

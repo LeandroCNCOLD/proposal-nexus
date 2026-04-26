@@ -304,6 +304,8 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
   const densityFieldKgM3 = Number(form.density_kg_m3 ?? 0);
   const selectedCatalogProduct = productCatalog.find((item) => item.id === form.product_id) ?? null;
   const thermodynamicProduct = selectedCatalogProduct ?? product ?? null;
+  const catalogLocked = Boolean(selectedCatalogProduct);
+  const lockedNum = (key: string) => ({ ...num(key), readOnly: catalogLocked, readOnlyValue: catalogLocked, title: catalogLocked ? "Propriedade técnica carregada do catálogo; edite no cadastro de produtos." : undefined });
   const productDensityKgM3 = positiveValue(thermodynamicProduct?.density_kg_m3);
   const manualDensityKgM3 = densityFieldKgM3 > 0 && (!ashraeDensityKgM3 || Math.abs(densityFieldKgM3 - ashraeDensityKgM3) > 0.0001) ? densityFieldKgM3 : productDensityKgM3;
   const airTempSource = form.air_temp_source ?? "environment";
@@ -477,6 +479,8 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
       ...prev,
       product_id: p.id,
       product_name: p.name,
+      catalog_approximate_volume_cm3: p.approximate_volume_cm3 ?? prev.catalog_approximate_volume_cm3 ?? null,
+      catalog_geometry_observations: p.observations ?? prev.catalog_geometry_observations ?? null,
       product_geometry: catalogGeometry ?? prev.product_geometry,
       product_length_m: lengthM ?? prev.product_length_m,
       product_width_m: widthM ?? prev.product_width_m,
@@ -521,6 +525,26 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
 
   const save = () => onSave({
     ...form,
+    ...(selectedCatalogProduct ? {
+      product_name: selectedCatalogProduct.name,
+      freezing_temp_c: selectedCatalogProduct.initial_freezing_temp_c ?? form.freezing_temp_c,
+      density_kg_m3: selectedCatalogProduct.density_kg_m3 ?? form.density_kg_m3,
+      ashrae_density_kg_m3: selectedCatalogProduct.density_kg_m3 ?? form.ashrae_density_kg_m3,
+      specific_heat_above_kj_kg_k: selectedCatalogProduct.specific_heat_above_kj_kg_k ?? null,
+      specific_heat_below_kj_kg_k: selectedCatalogProduct.specific_heat_below_kj_kg_k ?? null,
+      specific_heat_above_kcal_kg_c: Number(selectedCatalogProduct.specific_heat_above_kcal_kg_c ?? form.specific_heat_above_kcal_kg_c),
+      specific_heat_below_kcal_kg_c: Number(selectedCatalogProduct.specific_heat_below_kcal_kg_c ?? form.specific_heat_below_kcal_kg_c),
+      latent_heat_kj_kg: selectedCatalogProduct.latent_heat_kj_kg ?? null,
+      latent_heat_kcal_kg: Number(selectedCatalogProduct.latent_heat_kcal_kg ?? form.latent_heat_kcal_kg),
+      thermal_conductivity_frozen_w_m_k: selectedCatalogProduct.thermal_conductivity_frozen_w_m_k ?? form.thermal_conductivity_frozen_w_m_k,
+      thermal_conductivity_unfrozen_w_m_k: selectedCatalogProduct.thermal_conductivity_unfrozen_w_m_k ?? selectedCatalogProduct.thermal_conductivity_w_m_k ?? null,
+      water_content_percent: selectedCatalogProduct.water_content_percent ?? null,
+      protein_content_percent: selectedCatalogProduct.protein_content_percent ?? null,
+      fat_content_percent: selectedCatalogProduct.fat_content_percent ?? null,
+      carbohydrate_content_percent: selectedCatalogProduct.carbohydrate_content_percent ?? null,
+      frozen_water_fraction: selectedCatalogProduct.frozen_water_fraction ?? null,
+      freezable_water_content_percent: selectedCatalogProduct.freezable_water_content_percent ?? null,
+    } : {}),
     physical_model: tunnelResult.physicalModel,
     tunnel_type: tunnelResult.tunnelType,
     arrangement_type: tunnelResult.arrangementType,
@@ -811,6 +835,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
               <ColdProField label="Grupo ASHRAE"><ColdProSelect value={selectedGroup} onChange={(e) => { setSelectedGroup(e.target.value); setProductSearch(""); set("product_id", null); }}><option value="">Seleção manual</option>{groups.map((group) => <option key={group} value={group}>{group}</option>)}</ColdProSelect></ColdProField>
               <ColdProField label="Produto ASHRAE"><ColdProSelect value={form.product_id ?? ""} disabled={filteredProducts.length === 0} onChange={(e) => applyProduct(e.target.value)}><option value="">{filteredProducts.length ? "Selecione o produto" : "Nenhum produto encontrado"}</option>{filteredProducts.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</ColdProSelect></ColdProField>
               <ColdProField label="Produto"><ColdProInput type="text" value={form.product_name ?? ""} onChange={(e) => set("product_name", e.target.value)} className="text-left" /></ColdProField>
+              {selectedCatalogProduct ? <ColdProCalculatedInfo label="Dados do catálogo" value="Medidas e propriedades carregadas" description={selectedCatalogProduct.observations ?? selectedCatalogProduct.source_reference ?? "Produto técnico oficial"} tone="info" /> : null}
             </div><div className="min-w-0 rounded-lg border bg-muted/20 p-3 sm:p-4">{productGeometryFields}</div></div>
             <ColdProValidationMessage tone="error">{requiredError ? "Informe o produto do túnel." : ""}</ColdProValidationMessage>
           </ColdProFormSection>
@@ -860,12 +885,13 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
             ) : null}
           </ColdProFormSection>
 
-          <ColdProFormSection title="Etapa 4 — Temperaturas e propriedades térmicas" description="Propriedades usadas na energia específica e na estimativa de tempo até o núcleo." icon={<Thermometer className="h-4 w-4" />}>
+          <ColdProFormSection title="Etapa 4 — Temperaturas e propriedades térmicas" description={catalogLocked ? "Propriedades técnicas carregadas do catálogo e bloqueadas para preservar a base oficial." : "Propriedades usadas na energia específica e na estimativa de tempo até o núcleo."} icon={<Thermometer className="h-4 w-4" />}>
             <div className="grid grid-cols-1 gap-x-10 xl:grid-cols-2"><div>
-              <ColdProField label="Temp. entrada" helpKey="initialProductTemp" unit="°C"><ColdProInput {...num("inlet_temp_c")} /></ColdProField><ColdProField label="Temp. final" helpKey="finalProductTemp" unit="°C"><ColdProInput {...num("outlet_temp_c")} /></ColdProField><ColdProField label="Temp. congelamento" helpKey="freezingPoint" unit="°C"><ColdProInput {...num("freezing_temp_c")} /></ColdProField><ColdProField label="Temperatura do ar" helpKey="airTemp" unit="°C"><ColdProInput {...num("air_temp_c")} /></ColdProField><ColdProField label="Fator penetração térmica" helpKey="thermalPenetrationFactor"><ColdProInput {...num("thermal_penetration_factor")} /></ColdProField>
+              <ColdProField label="Temp. entrada" helpKey="initialProductTemp" unit="°C"><ColdProInput {...num("inlet_temp_c")} /></ColdProField><ColdProField label="Temp. final" helpKey="finalProductTemp" unit="°C"><ColdProInput {...num("outlet_temp_c")} /></ColdProField><ColdProField label="Temp. congelamento" helpKey="freezingPoint" unit="°C"><ColdProInput {...lockedNum("freezing_temp_c")} /></ColdProField><ColdProField label="Temperatura do ar" helpKey="airTemp" unit="°C"><ColdProInput {...num("air_temp_c")} /></ColdProField><ColdProField label="Fator penetração térmica" helpKey="thermalPenetrationFactor"><ColdProInput {...num("thermal_penetration_factor")} /></ColdProField>
             </div><div>
-              <ColdProField label="Cp acima" helpKey="specificHeatAbove"><ColdProInput {...num("specific_heat_above_kcal_kg_c")} /></ColdProField><ColdProField label="Cp abaixo" helpKey="specificHeatBelow"><ColdProInput {...num("specific_heat_below_kcal_kg_c")} /></ColdProField><ColdProField label="Calor latente" helpKey="latentHeat"><ColdProInput {...num("latent_heat_kcal_kg")} /></ColdProField><ColdProField label="Fração congelável" helpKey="frozenWaterFraction"><ColdProInput {...num("frozen_water_fraction")} /></ColdProField><ColdProField label="Densidade" helpKey="density" unit="kg/m³"><ColdProInput {...num("density_kg_m3")} /></ColdProField><ColdProField label="Condutividade congelado" helpKey="thermalConductivityFrozen"><ColdProInput {...num("thermal_conductivity_frozen_w_m_k")} /></ColdProField>
+              <ColdProField label="Cp acima" helpKey="specificHeatAbove"><ColdProInput {...lockedNum("specific_heat_above_kcal_kg_c")} /></ColdProField><ColdProField label="Cp abaixo" helpKey="specificHeatBelow"><ColdProInput {...lockedNum("specific_heat_below_kcal_kg_c")} /></ColdProField><ColdProField label="Calor latente" helpKey="latentHeat"><ColdProInput {...lockedNum("latent_heat_kcal_kg")} /></ColdProField><ColdProField label="Fração congelável" helpKey="frozenWaterFraction"><ColdProInput {...lockedNum("frozen_water_fraction")} /></ColdProField><ColdProField label="Densidade" helpKey="density" unit="kg/m³"><ColdProInput {...lockedNum("density_kg_m3")} /></ColdProField><ColdProField label="Condutividade congelado" helpKey="thermalConductivityFrozen"><ColdProInput {...lockedNum("thermal_conductivity_frozen_w_m_k")} /></ColdProField>
             </div></div>
+            {catalogLocked ? <ColdProValidationMessage>Dados térmicos bloqueados por virem do catálogo oficial. Para alterar, edite o cadastro técnico do produto.</ColdProValidationMessage> : null}
           </ColdProFormSection>
 
           <ColdProFormSection title="Etapa 5 — Ar, vazão e ventilação" description="A velocidade real pode ser manual ou calculada por vazão e seção livre." icon={<Fan className="h-4 w-4" />}>{airflowFields}</ColdProFormSection>

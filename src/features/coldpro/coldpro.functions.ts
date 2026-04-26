@@ -59,6 +59,34 @@ function stripUiMaterialKey(value: unknown) {
   return value.includes(":") ? value.split(":").pop() : value;
 }
 
+const catalogThermalKeys = [
+  "initial_freezing_temp_c", "specific_heat_above_kj_kg_k", "specific_heat_below_kj_kg_k", "specific_heat_above_kcal_kg_c", "specific_heat_below_kcal_kg_c", "latent_heat_kj_kg", "latent_heat_kcal_kg", "density_kg_m3", "water_content_percent", "protein_content_percent", "fat_content_percent", "carbohydrate_content_percent", "fiber_content_percent", "ash_content_percent", "thermal_conductivity_unfrozen_w_m_k", "thermal_conductivity_frozen_w_m_k", "frozen_water_fraction", "freezable_water_content_percent", "characteristic_thickness_m", "default_convective_coefficient_w_m2_k", "allow_phase_change", "respiration_rate_0c_w_kg", "respiration_rate_5c_w_kg", "respiration_rate_10c_w_kg", "respiration_rate_15c_w_kg", "respiration_rate_20c_w_kg", "respiration_rate_0c_mw_kg", "respiration_rate_5c_mw_kg", "respiration_rate_10c_mw_kg", "respiration_rate_15c_mw_kg", "respiration_rate_20c_mw_kg", "notes",
+];
+
+function applyCatalogThermal(payload: any, catalog: any) {
+  if (!catalog) return payload;
+  const next = { ...payload, product_id: catalog.id, product_name: catalog.name };
+  for (const key of catalogThermalKeys) if (catalog[key] !== undefined) next[key] = catalog[key];
+  next.thermal_conductivity_unfrozen_w_m_k = catalog.thermal_conductivity_unfrozen_w_m_k ?? catalog.thermal_conductivity_w_m_k ?? next.thermal_conductivity_unfrozen_w_m_k;
+  next.freezing_temp_c = catalog.initial_freezing_temp_c ?? next.freezing_temp_c;
+  next.ashrae_density_kg_m3 = catalog.density_kg_m3 ?? next.ashrae_density_kg_m3;
+  return next;
+}
+
+async function applyCatalogThermalById(supabase: typeof supabaseAdmin, payload: any) {
+  if (!payload.product_id) return payload;
+  const { data: catalog } = await supabase.from("coldpro_products").select("*").eq("id", payload.product_id).maybeSingle();
+  return applyCatalogThermal(payload, catalog);
+}
+
+async function enrichRowsWithCatalog(supabase: typeof supabaseAdmin, rows: any[] = []) {
+  const ids = Array.from(new Set(rows.map((row) => row?.product_id).filter(Boolean)));
+  if (!ids.length) return rows;
+  const { data: catalogRows } = await supabase.from("coldpro_products").select("*").in("id", ids);
+  const byId = new Map((catalogRows ?? []).map((row: any) => [row.id, row]));
+  return rows.map((row) => applyCatalogThermal(row, byId.get(row?.product_id)));
+}
+
 export const listColdProProjects = createServerFn({ method: "GET" }).middleware([requireSupabaseAuth]).handler(async () => {
   const supabase = supabaseAdmin;
   const { data, error } = await supabase.from("coldpro_projects").select("*").order("created_at", { ascending: false });
@@ -190,7 +218,7 @@ export const upsertColdProEnvironmentProduct = createServerFn({ method: "POST" }
   }))
   .handler(async ({ data }) => {
     const supabase = supabaseAdmin;
-    const payload = { ...data } as any;
+    const payload = await applyCatalogThermalById(supabase, { ...data } as any);
     const { data: row, error } = payload.id
       ? await supabase.from("coldpro_environment_products").update(payload).eq("id", payload.id).select("*").single()
       : await supabase.from("coldpro_environment_products").insert(payload).select("*").single();
@@ -215,7 +243,8 @@ export const upsertColdProTunnel = createServerFn({ method: "POST" })
   }))
   .handler(async ({ data }) => {
     const supabase = supabaseAdmin;
-    const { data: row, error } = await supabase.from("coldpro_tunnels").upsert(data as any, { onConflict: "id" }).select("*").single();
+    const payload = await applyCatalogThermalById(supabase, data as any);
+    const { data: row, error } = await supabase.from("coldpro_tunnels").upsert(payload as any, { onConflict: "id" }).select("*").single();
     if (error) throw new Error(error.message);
     return row;
   });
@@ -223,12 +252,20 @@ export const upsertColdProTunnel = createServerFn({ method: "POST" })
 export const upsertColdProAdvancedProcess = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(z.object({
-    id: z.string().uuid().optional(), project_id: z.string().uuid(), environment_id: z.string().uuid().nullable().optional(), advanced_process_type: advancedProcessType.default("none"), product_name: z.string().max(120).nullable().optional(), product_mass_kg: nonNegativeNumber.default(0), chamber_volume_m3: nonNegativeNumber.default(0), target_temperature_c: finiteNumber.nullable().optional(), target_relative_humidity: nonNegativeNumber.nullable().optional(), process_time_h: nonNegativeNumber.default(0), technical_notes: z.string().max(1000).nullable().optional(), external_temperature_c: finiteNumber.nullable().optional(), external_relative_humidity: nonNegativeNumber.nullable().optional(), internal_temperature_c: finiteNumber.nullable().optional(), internal_relative_humidity: nonNegativeNumber.nullable().optional(), air_changes_per_hour: nonNegativeNumber.default(0), product_initial_moisture: nonNegativeNumber.nullable().optional(), product_final_moisture: nonNegativeNumber.nullable().optional(), stabilization_time_h: nonNegativeNumber.default(0), ethylene_target_ppm: nonNegativeNumber.nullable().optional(), ethylene_exposure_time_h: nonNegativeNumber.nullable().optional(), ethylene_renewal_after_application: z.boolean().default(false), co2_generation_rate_m3_kg_h: nonNegativeNumber.nullable().optional(), co2_limit_percent: nonNegativeNumber.nullable().optional(), external_co2_percent: nonNegativeNumber.default(0.04), storage_time_h: nonNegativeNumber.default(0), o2_target_percent: nonNegativeNumber.nullable().optional(), co2_target_percent: nonNegativeNumber.nullable().optional(), respiration_rate_w_kg: nonNegativeNumber.default(0), purge_airflow_m3_h: nonNegativeNumber.nullable().optional(), scrubber_enabled: z.boolean().default(false), air_renewal_m3_h: nonNegativeNumber.default(0)
+    id: z.string().uuid().optional(), project_id: z.string().uuid(), environment_id: z.string().uuid().nullable().optional(), product_id: z.string().uuid().nullable().optional(), advanced_process_type: advancedProcessType.default("none"), product_name: z.string().max(120).nullable().optional(), product_mass_kg: nonNegativeNumber.default(0), chamber_volume_m3: nonNegativeNumber.default(0), target_temperature_c: finiteNumber.nullable().optional(), target_relative_humidity: nonNegativeNumber.nullable().optional(), process_time_h: nonNegativeNumber.default(0), technical_notes: z.string().max(1000).nullable().optional(), external_temperature_c: finiteNumber.nullable().optional(), external_relative_humidity: nonNegativeNumber.nullable().optional(), internal_temperature_c: finiteNumber.nullable().optional(), internal_relative_humidity: nonNegativeNumber.nullable().optional(), air_changes_per_hour: nonNegativeNumber.default(0), product_initial_moisture: nonNegativeNumber.nullable().optional(), product_final_moisture: nonNegativeNumber.nullable().optional(), stabilization_time_h: nonNegativeNumber.default(0), ethylene_target_ppm: nonNegativeNumber.nullable().optional(), ethylene_exposure_time_h: nonNegativeNumber.nullable().optional(), ethylene_renewal_after_application: z.boolean().default(false), co2_generation_rate_m3_kg_h: nonNegativeNumber.nullable().optional(), co2_limit_percent: nonNegativeNumber.nullable().optional(), external_co2_percent: nonNegativeNumber.default(0.04), storage_time_h: nonNegativeNumber.default(0), o2_target_percent: nonNegativeNumber.nullable().optional(), co2_target_percent: nonNegativeNumber.nullable().optional(), respiration_rate_w_kg: nonNegativeNumber.default(0), purge_airflow_m3_h: nonNegativeNumber.nullable().optional(), scrubber_enabled: z.boolean().default(false), air_renewal_m3_h: nonNegativeNumber.default(0)
   }))
   .handler(async ({ data }) => {
     const supabase = supabaseAdmin;
-    const calculated = calculateAdvancedProcess(data);
-    const { data: row, error } = await supabase.from("coldpro_advanced_processes").upsert({ ...data, calculation_result: calculated as any, calculation_breakdown: calculated as any } as any, { onConflict: "id" }).select("*").single();
+    let payload = { ...data } as any;
+    if (payload.product_id) {
+      const { data: catalog } = await supabase.from("coldpro_products").select("*").eq("id", payload.product_id).maybeSingle();
+      if (catalog) {
+        const respirationRate = Number(catalog.respiration_rate_0c_w_kg ?? catalog.respiration_rate_5c_w_kg ?? catalog.respiration_rate_10c_w_kg ?? 0);
+        payload = { ...payload, product_name: catalog.name, product_initial_moisture: catalog.water_content_percent ?? payload.product_initial_moisture, respiration_rate_w_kg: respirationRate || payload.respiration_rate_w_kg };
+      }
+    }
+    const calculated = calculateAdvancedProcess(payload);
+    const { data: row, error } = await supabase.from("coldpro_advanced_processes").upsert({ ...payload, calculation_result: calculated as any, calculation_breakdown: calculated as any } as any, { onConflict: "id" }).select("*").single();
     if (error) throw new Error(error.message);
     return row;
   });
@@ -240,8 +277,10 @@ export const calculateColdProEnvironment = createServerFn({ method: "POST" })
     const supabase = supabaseAdmin;
     const { data: env, error: envError } = await supabase.from("coldpro_environments").select("*").eq("id", data.environmentId).single();
     if (envError) throw new Error(envError.message);
-    const { data: products } = await supabase.from("coldpro_environment_products").select("*").eq("environment_id", data.environmentId);
-    const { data: tunnel } = await supabase.from("coldpro_tunnels").select("*").eq("environment_id", data.environmentId).maybeSingle();
+    const { data: rawProducts } = await supabase.from("coldpro_environment_products").select("*").eq("environment_id", data.environmentId);
+    const products = await enrichRowsWithCatalog(supabase, rawProducts ?? []);
+    const { data: rawTunnel } = await supabase.from("coldpro_tunnels").select("*").eq("environment_id", data.environmentId).maybeSingle();
+    const tunnel = rawTunnel ? (await enrichRowsWithCatalog(supabase, [rawTunnel]))[0] : null;
     const { data: advancedProcesses } = await supabase.from("coldpro_advanced_processes").select("*").eq("environment_id", data.environmentId);
     const { data: selections } = await supabase.from("coldpro_equipment_selections").select("*").eq("environment_id", data.environmentId).order("created_at", { ascending: false }).limit(1);
     let insulation = null;
