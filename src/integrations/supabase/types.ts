@@ -2730,6 +2730,7 @@ export type Database = {
         Row: {
           air_delta_t_k: number
           air_exposure_factor: number | null
+          air_flow_method: string | null
           air_temp_c: number
           air_temp_source: string | null
           air_temp_step_c: number
@@ -2740,6 +2741,7 @@ export type Database = {
           ash_content_percent: number | null
           batch_time_h: number
           belt_motor_kw: number
+          block_exposure_factor: number | null
           boxes_count: number
           calculated_mass_kg_h: number | null
           calculation_breakdown: Json | null
@@ -2788,6 +2790,7 @@ export type Database = {
           pallet_length_m: number
           pallet_mass_kg: number
           pallet_width_m: number
+          physical_model: string | null
           process_status: string | null
           process_time_min: number
           process_type: string
@@ -2812,7 +2815,9 @@ export type Database = {
           specific_heat_above_kj_kg_k: number | null
           specific_heat_below_kcal_kg_c: number
           specific_heat_below_kj_kg_k: number | null
+          spiral_turbulence_factor: number | null
           suggested_air_approach_k: number | null
+          suggested_air_method: string | null
           suggested_air_temp_c: number | null
           thermal_characteristic_dimension_m: number | null
           thermal_conductivity_frozen_w_m_k: number | null
@@ -2835,6 +2840,7 @@ export type Database = {
         Insert: {
           air_delta_t_k?: number
           air_exposure_factor?: number | null
+          air_flow_method?: string | null
           air_temp_c?: number
           air_temp_source?: string | null
           air_temp_step_c?: number
@@ -2845,6 +2851,7 @@ export type Database = {
           ash_content_percent?: number | null
           batch_time_h?: number
           belt_motor_kw?: number
+          block_exposure_factor?: number | null
           boxes_count?: number
           calculated_mass_kg_h?: number | null
           calculation_breakdown?: Json | null
@@ -2893,6 +2900,7 @@ export type Database = {
           pallet_length_m?: number
           pallet_mass_kg?: number
           pallet_width_m?: number
+          physical_model?: string | null
           process_status?: string | null
           process_time_min?: number
           process_type?: string
@@ -2917,7 +2925,9 @@ export type Database = {
           specific_heat_above_kj_kg_k?: number | null
           specific_heat_below_kcal_kg_c?: number
           specific_heat_below_kj_kg_k?: number | null
+          spiral_turbulence_factor?: number | null
           suggested_air_approach_k?: number | null
+          suggested_air_method?: string | null
           suggested_air_temp_c?: number | null
           thermal_characteristic_dimension_m?: number | null
           thermal_conductivity_frozen_w_m_k?: number | null
@@ -2940,6 +2950,7 @@ export type Database = {
         Update: {
           air_delta_t_k?: number
           air_exposure_factor?: number | null
+          air_flow_method?: string | null
           air_temp_c?: number
           air_temp_source?: string | null
           air_temp_step_c?: number
@@ -2950,6 +2961,7 @@ export type Database = {
           ash_content_percent?: number | null
           batch_time_h?: number
           belt_motor_kw?: number
+          block_exposure_factor?: number | null
           boxes_count?: number
           calculated_mass_kg_h?: number | null
           calculation_breakdown?: Json | null
@@ -2998,6 +3010,7 @@ export type Database = {
           pallet_length_m?: number
           pallet_mass_kg?: number
           pallet_width_m?: number
+          physical_model?: string | null
           process_status?: string | null
           process_time_min?: number
           process_type?: string
@@ -3022,7 +3035,9 @@ export type Database = {
           specific_heat_above_kj_kg_k?: number | null
           specific_heat_below_kcal_kg_c?: number
           specific_heat_below_kj_kg_k?: number | null
+          spiral_turbulence_factor?: number | null
           suggested_air_approach_k?: number | null
+          suggested_air_method?: string | null
           suggested_air_temp_c?: number | null
           thermal_characteristic_dimension_m?: number | null
           thermal_conductivity_frozen_w_m_k?: number | null
