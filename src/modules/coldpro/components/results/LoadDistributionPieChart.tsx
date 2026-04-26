@@ -28,7 +28,7 @@ export function LoadDistributionPieChart({ normalized }: { normalized: ColdProNo
             <Pie data={data} dataKey="value" nameKey="name" innerRadius="54%" outerRadius="82%" paddingAngle={2}>
               {data.map((_, index) => <Cell key={index} fill={CHART_COLORS[index % CHART_COLORS.length]} />)}
             </Pie>
-            <Tooltip formatter={(value: number) => [`${fmtColdProChart(value, 0)} kcal/h (${fmtColdProChart((value / total) * 100, 1)}%)`, "Carga"]} />
+            <Tooltip formatter={(value: any) => [`${fmtColdProChart(value, 0)} kcal/h (${fmtColdProChart((value / total) * 100, 1)}%)`, "Carga"]} />
             <Legend wrapperStyle={{ fontSize: 12 }} />
           </PieChart>
         </ResponsiveContainer>

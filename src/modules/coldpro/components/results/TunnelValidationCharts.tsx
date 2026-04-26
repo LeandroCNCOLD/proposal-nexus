@@ -14,7 +14,7 @@ function MiniBar({ title, data, unit }: { title: string; data: { name: string; v
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
               <XAxis dataKey="name" fontSize={11} />
               <YAxis fontSize={11} />
-              <Tooltip formatter={(value: number) => [`${fmtColdProChart(value, 2)} ${unit}`, title]} />
+              <Tooltip formatter={(value: any) => [`${fmtColdProChart(value, 2)} ${unit}`, title]} />
               <Bar dataKey="value" fill="var(--primary)" radius={[5, 5, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>

@@ -35,7 +35,7 @@ export function LoadBreakdownBarChart({ normalized }: { normalized: ColdProNorma
             <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
             <XAxis type="number" tickFormatter={(value) => fmtColdProChart(value, 0)} fontSize={11} />
             <YAxis dataKey="name" type="category" width={118} fontSize={11} />
-            <Tooltip formatter={(value: number) => [`${fmtColdProChart(value, 0)} kcal/h · ${fmtColdProChart(toKW(value), 1)} kW · ${fmtColdProChart((value / total) * 100, 1)}%`, "Carga"]} />
+            <Tooltip formatter={(value: any) => [`${fmtColdProChart(value, 0)} kcal/h · ${fmtColdProChart(toKW(value), 1)} kW · ${fmtColdProChart((value / total) * 100, 1)}%`, "Carga"]} />
             <Bar dataKey="value" fill="var(--primary)" radius={[0, 6, 6, 0]} />
           </BarChart>
         </ResponsiveContainer>
