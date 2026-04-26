@@ -1,8 +1,9 @@
 import * as React from "react";
-import { Fan, Package, Save, Settings, Wind, Warehouse } from "lucide-react";
+import { AlertTriangle, Fan, Package, Save, Settings, Wind, Warehouse } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ColdProField, ColdProInput, ColdProSelect } from "./ColdProField";
 import { ColdProCalculatedInfo, ColdProFormSection, ColdProValidationMessage, fmtColdPro, numberOrNull } from "./ColdProFormPrimitives";
+import { calculateContinuousGirofreezer } from "@/modules/coldpro/services/continuousGirofreezerService";
 
 const ARRANGEMENT_DEFAULTS: Record<string, { air: number; penetration: number; label: string }> = {
   individual_exposed: { air: 1, penetration: 1, label: "Produto individual exposto" },
@@ -106,6 +107,10 @@ function defaultArrangement(processType: string) {
   return "individual_exposed";
 }
 
+function fmtMaybe(value: number | null | undefined, digits = 2, suffix = "") {
+  return value === null || value === undefined ? "—" : `${fmtColdPro(value, digits)}${suffix}`;
+}
+
 export function ColdProTunnelForm({ environmentId, tunnel, productCatalog = [], onSave }: { environmentId: string; tunnel?: any; productCatalog?: any[]; onSave: (data: any) => void }) {
   const [form, setForm] = React.useState<any>(defaultTunnel(environmentId));
   const [selectedGroup, setSelectedGroup] = React.useState("");
@@ -160,6 +165,36 @@ export function ColdProTunnelForm({ environmentId, tunnel, productCatalog = [], 
   const requiredError = String(form.product_name ?? "").trim().length === 0;
   const staticWarning = isStatic || ["boxed_product", "pallet_block", "bulk_static"].includes(String(form.arrangement_type));
   const canSave = !processError && !requiredError;
+  const giroResult = calculateContinuousGirofreezer({
+    dimensionScale: "m",
+    productLength: Number(form.product_length_m ?? 0),
+    productWidth: Number(form.product_width_m ?? 0),
+    productThickness: productThicknessM,
+    weightScale: "kg",
+    unitWeight,
+    unitsPerCycle: Number(form.units_per_cycle ?? 0),
+    cycleScale: "cycles_per_hour",
+    cycles: Number(form.cycles_per_hour ?? 0),
+    directMassKgH: Number(form.mass_kg_hour ?? 0),
+    timeScale: "min",
+    retentionTime: Number(form.process_time_min ?? 0),
+    airTemperatureC: Number(form.air_temp_c ?? 0),
+    airVelocityMs: Number(form.air_velocity_m_s ?? 0),
+    productDensityKgM3: Number(form.density_kg_m3 ?? 0),
+    frozenConductivityWmK: Number(form.thermal_conductivity_frozen_w_m_k ?? 0),
+    freezingPointC: Number(form.freezing_temp_c ?? 0),
+    latentHeatKjKg: Number(form.latent_heat_kcal_kg ?? 0) * 4.1868,
+    frozenWaterFraction: Number(form.frozen_water_fraction ?? 0),
+    airExposureFactor: Number(form.air_exposure_factor ?? 1),
+    thermalPenetrationFactor: Number(form.thermal_penetration_factor ?? 1),
+  });
+  const giroStatusLabel: Record<typeof giroResult.physics.processStatus, string> = {
+    adequate: "Adequado",
+    insufficient: "Insuficiente",
+    missing_data: "Faltam dados",
+    invalid_input: "Dados inválidos",
+  };
+  const giroStatusTone = giroResult.physics.processStatus === "adequate" ? "success" : "warning";
   const groups = React.useMemo(() => Array.from(new Set(productCatalog.map((p) => p.category).filter(Boolean))).sort((a, b) => String(a).localeCompare(String(b), "pt-BR")), [productCatalog]);
   const filteredProducts = React.useMemo(() => productCatalog.filter((p) => !selectedGroup || p.category === selectedGroup), [productCatalog, selectedGroup]);
 
@@ -318,8 +353,32 @@ export function ColdProTunnelForm({ environmentId, tunnel, productCatalog = [], 
                 </ColdProSelect>
               </ColdProField>
               <ColdProField label="Tempo retenção" unit={RETENTION_UNITS[retentionUnit].label}><ColdProInput {...retentionNum(retentionUnit)} /></ColdProField>
-              <ColdProCalculatedInfo label="Massa usada" value={`${fmtColdPro(massHour)} kg/h`} description="Massa direta ou throughput calculado" tone={massHour > 0 ? "success" : "warning"} />
             </div></div>
+            <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <ColdProCalculatedInfo label="Massa usada" value={`${fmtColdPro(giroResult.mass.usedMassKgH)} kg/h`} description={`Origem: ${giroResult.mass.massSource === "direct" ? "massa direta" : "cadência"}`} tone={giroResult.mass.usedMassKgH > 0 ? "success" : "warning"} />
+              <ColdProCalculatedInfo label="Massa por cadência" value={`${fmtColdPro(giroResult.mass.calculatedMassKgH)} kg/h`} description="peso × unidades × ciclos/h" tone={giroResult.mass.calculatedMassKgH > 0 ? "info" : "warning"} />
+              <ColdProCalculatedInfo label="Massa direta" value={fmtMaybe(giroResult.mass.directMassKgH, 2, " kg/h")} description="prioritária quando informada" tone={giroResult.mass.directMassKgH ? "success" : "info"} />
+              <ColdProCalculatedInfo label="Massa dentro do túnel" value={`${fmtColdPro(giroResult.mass.massInsideTunnelKg)} kg`} description="kg/h × tempo de retenção" tone={giroResult.mass.massInsideTunnelKg > 0 ? "info" : "warning"} />
+              <ColdProCalculatedInfo label="Distância até o núcleo" value={`${fmtColdPro(giroResult.dimensionsM.distanceToCoreM * 1000, 1)} mm`} description="espessura ÷ 2" tone={giroResult.dimensionsM.distanceToCoreM > 0 ? "info" : "warning"} />
+              <ColdProCalculatedInfo label="Densidade implícita" value={`${fmtColdPro(giroResult.physics.implicitDensityKgM3, 1)} kg/m³`} description="peso unitário ÷ volume" tone={giroResult.physics.implicitDensityKgM3 >= 200 && giroResult.physics.implicitDensityKgM3 <= 2000 ? "success" : "warning"} />
+              <ColdProCalculatedInfo label="h efetivo" value={fmtMaybe(giroResult.physics.hEffectiveWm2K, 2, " W/m²K")} description="convecção × exposição" tone={giroResult.physics.hEffectiveWm2K ? "info" : "warning"} />
+              <ColdProCalculatedInfo label="k efetivo" value={fmtMaybe(giroResult.physics.kEffectiveWmK, 3, " W/mK")} description="condutividade × penetração" tone={giroResult.physics.kEffectiveWmK ? "info" : "warning"} />
+              <ColdProCalculatedInfo label="Tempo estimado" value={fmtMaybe(giroResult.physics.estimatedFreezingTimeMin, 1, " min")} description="estimativa até o núcleo" tone={giroResult.physics.estimatedFreezingTimeMin ? "info" : "warning"} />
+              <ColdProCalculatedInfo label="Tempo de retenção" value={`${fmtColdPro(giroResult.physics.retentionTimeMin, 1)} min`} description="tempo disponível" tone={giroResult.physics.retentionTimeMin > 0 ? "info" : "warning"} />
+              <ColdProCalculatedInfo label="Status do processo" value={giroStatusLabel[giroResult.physics.processStatus]} description="tempo estimado × retenção" tone={giroStatusTone} />
+            </div>
+            {giroResult.errors.length > 0 ? (
+              <div className="mt-4 rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
+                <div className="mb-2 flex items-center gap-2 font-semibold"><AlertTriangle className="h-4 w-4" /> Erros de preenchimento:</div>
+                <ul className="list-disc space-y-1 pl-5">{giroResult.errors.map((error, index) => <li key={`${error}-${index}`}>{error}</li>)}</ul>
+              </div>
+            ) : null}
+            {giroResult.warnings.length > 0 ? (
+              <div className="mt-4 rounded-lg border border-warning/20 bg-warning/10 p-3 text-sm text-warning">
+                <div className="mb-2 flex items-center gap-2 font-semibold"><AlertTriangle className="h-4 w-4" /> Alertas técnicos:</div>
+                <ul className="list-disc space-y-1 pl-5">{giroResult.warnings.map((warning, index) => <li key={`${warning}-${index}`}>{warning}</li>)}</ul>
+              </div>
+            ) : null}
           </ColdProFormSection>
         </TabsContent>
 
