@@ -2169,10 +2169,12 @@ export type Database = {
       coldpro_products: {
         Row: {
           allow_phase_change: boolean
+          approximate_volume_cm3: number | null
           ash_content_percent: number | null
           carbohydrate_content_percent: number | null
           category: string | null
           characteristic_thickness_m: number | null
+          characteristic_thickness_mm: number | null
           created_at: string
           data_confidence: string
           default_convective_coefficient_w_m2_k: number | null
@@ -2181,13 +2183,17 @@ export type Database = {
           fiber_content_percent: number | null
           freezable_water_content_percent: number | null
           frozen_water_fraction: number | null
+          geometry_shape: string | null
+          height_or_thickness_mm: number | null
           id: string
           initial_freezing_temp_c: number | null
           is_ashrae_reference: boolean
           latent_heat_kcal_kg: number
           latent_heat_kj_kg: number | null
+          length_mm: number | null
           name: string
           notes: string | null
+          observations: string | null
           protein_content_percent: number | null
           respiration_rate_0c_mw_kg: number | null
           respiration_rate_0c_w_kg: number | null
@@ -2210,13 +2216,16 @@ export type Database = {
           thermal_conductivity_unfrozen_w_m_k: number | null
           thermal_conductivity_w_m_k: number | null
           water_content_percent: number | null
+          width_mm: number | null
         }
         Insert: {
           allow_phase_change?: boolean
+          approximate_volume_cm3?: number | null
           ash_content_percent?: number | null
           carbohydrate_content_percent?: number | null
           category?: string | null
           characteristic_thickness_m?: number | null
+          characteristic_thickness_mm?: number | null
           created_at?: string
           data_confidence?: string
           default_convective_coefficient_w_m2_k?: number | null
@@ -2225,13 +2234,17 @@ export type Database = {
           fiber_content_percent?: number | null
           freezable_water_content_percent?: number | null
           frozen_water_fraction?: number | null
+          geometry_shape?: string | null
+          height_or_thickness_mm?: number | null
           id?: string
           initial_freezing_temp_c?: number | null
           is_ashrae_reference?: boolean
           latent_heat_kcal_kg?: number
           latent_heat_kj_kg?: number | null
+          length_mm?: number | null
           name: string
           notes?: string | null
+          observations?: string | null
           protein_content_percent?: number | null
           respiration_rate_0c_mw_kg?: number | null
           respiration_rate_0c_w_kg?: number | null
@@ -2254,13 +2267,16 @@ export type Database = {
           thermal_conductivity_unfrozen_w_m_k?: number | null
           thermal_conductivity_w_m_k?: number | null
           water_content_percent?: number | null
+          width_mm?: number | null
         }
         Update: {
           allow_phase_change?: boolean
+          approximate_volume_cm3?: number | null
           ash_content_percent?: number | null
           carbohydrate_content_percent?: number | null
           category?: string | null
           characteristic_thickness_m?: number | null
+          characteristic_thickness_mm?: number | null
           created_at?: string
           data_confidence?: string
           default_convective_coefficient_w_m2_k?: number | null
@@ -2269,13 +2285,17 @@ export type Database = {
           fiber_content_percent?: number | null
           freezable_water_content_percent?: number | null
           frozen_water_fraction?: number | null
+          geometry_shape?: string | null
+          height_or_thickness_mm?: number | null
           id?: string
           initial_freezing_temp_c?: number | null
           is_ashrae_reference?: boolean
           latent_heat_kcal_kg?: number
           latent_heat_kj_kg?: number | null
+          length_mm?: number | null
           name?: string
           notes?: string | null
+          observations?: string | null
           protein_content_percent?: number | null
           respiration_rate_0c_mw_kg?: number | null
           respiration_rate_0c_w_kg?: number | null
@@ -2298,6 +2318,7 @@ export type Database = {
           thermal_conductivity_unfrozen_w_m_k?: number | null
           thermal_conductivity_w_m_k?: number | null
           water_content_percent?: number | null
+          width_mm?: number | null
         }
         Relationships: []
       }
