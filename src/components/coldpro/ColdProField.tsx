@@ -1,5 +1,7 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
+import { FieldHelpTooltip } from "@/modules/coldpro/components/FieldHelpTooltip";
+import { type ColdProFieldHelp, type ColdProFieldHelpKey } from "@/modules/coldpro/core/fieldHelpTexts";
 
 /**
  * Linha label : input [unidade] — inspirada no layout limpo do Intarcon
@@ -11,16 +13,19 @@ type FieldProps = {
   htmlFor?: string;
   children: React.ReactNode;
   className?: string;
+  help?: ColdProFieldHelp | null;
+  helpKey?: ColdProFieldHelpKey | string | null;
 };
 
-export function ColdProField({ label, unit, htmlFor, children, className }: FieldProps) {
+export function ColdProField({ label, unit, htmlFor, children, className, help, helpKey }: FieldProps) {
   return (
     <div className={cn("flex flex-col gap-1.5 py-2 sm:flex-row sm:items-center sm:gap-3", className)}>
       <label
         htmlFor={htmlFor}
-        className="shrink-0 text-sm font-medium text-muted-foreground sm:w-[42%] sm:text-right"
+        className="flex shrink-0 items-center gap-1.5 whitespace-normal break-words text-sm font-medium text-muted-foreground sm:w-[42%] sm:justify-end sm:text-right"
       >
-        {label} :
+        <span className="min-w-0 whitespace-normal break-words">{label} :</span>
+        {(help || helpKey) ? <FieldHelpTooltip help={help} helpKey={helpKey} /> : null}
       </label>
       <div className="flex w-full min-w-0 flex-1 items-center gap-2">
         <div className="min-w-0 flex-1">{children}</div>
