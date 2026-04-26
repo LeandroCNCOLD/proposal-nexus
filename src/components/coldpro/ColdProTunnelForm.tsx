@@ -649,7 +649,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
 
   const thermalSimulationFields = (
     <>
-      <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-3 lg:grid-cols-2 2xl:grid-cols-5">
         <ColdProCalculatedInfo label="Projeto · Carga" value={`${fmtColdPro(initialScenario.totalKW, 2)} kW`} description={`${fmtColdPro(initialScenario.totalKcalH, 0)} kcal/h`} tone="info" />
         <ColdProCalculatedInfo label="Projeto · Tempo" value={fmtMaybe(initialScenario.estimatedTimeMin, 1, " min")} description={`${fmtColdPro(initialScenario.availableTimeMin, 1)} min disponíveis`} tone={initialScenario.status === "adequate" ? "success" : "warning"} />
         <ColdProCalculatedInfo label="Projeto · Vazão" value={`${fmtColdPro(initialScenario.airFlowM3H, 0)} m³/h`} description="estimada pelo motor" tone="info" />
@@ -657,7 +657,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
         <ColdProCalculatedInfo label="Projeto · Status" value={statusLabel[initialScenario.status] ?? initialScenario.status} description="referência do motor" tone={initialScenario.status === "adequate" ? "success" : "warning"} />
       </div>
 
-      <div className="mt-5 grid grid-cols-1 gap-x-10 md:grid-cols-2"><div>
+      <div className="mt-5 grid grid-cols-1 gap-x-10 xl:grid-cols-2"><div>
         <ColdProField label="Temp. ar simulada" helpKey="simulatedAirTemp" unit="°C"><ColdProInput {...simNum("air_temp_c")} /></ColdProField>
         <ColdProField label="Fonte da velocidade" helpKey="airflowSource"><ColdProSelect value={simulation.airflow_source ?? "manual_velocity"} onChange={(e) => setSim("airflow_source", e.target.value)}><option value="manual_velocity">Velocidade manual</option><option value="airflow_by_fans">Vazão por ventiladores</option></ColdProSelect></ColdProField>
         {simulation.airflow_source !== "airflow_by_fans" ? <ColdProField label="Velocidade simulada" helpKey="simulatedAirVelocity" unit="m/s"><ColdProInput {...simNum("air_velocity_m_s")} /></ColdProField> : null}
@@ -676,7 +676,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
         <ColdProValidationMessage tone="error">{processError ? (isStatic ? "Tempo de batelada deve ser maior que zero." : "Tempo de retenção deve ser maior que zero.") : ""}</ColdProValidationMessage>
       </div></div>
 
-      <div className="mt-5 grid gap-3 md:grid-cols-2 lg:grid-cols-5">
+      <div className="mt-5 grid gap-3 lg:grid-cols-2 2xl:grid-cols-5">
         <ColdProCalculatedInfo label="Ajustado · Carga" value={`${fmtColdPro(adjustedScenario.totalKW, 2)} kW`} description={`${fmtColdPro(adjustedScenario.totalKcalH, 0)} kcal/h`} tone="info" />
         <ColdProCalculatedInfo label="Ajustado · Tempo" value={fmtMaybe(adjustedScenario.estimatedTimeMin, 1, " min")} description={`${fmtColdPro(adjustedScenario.availableTimeMin, 1)} min disponíveis`} tone={adjustedScenario.status === "adequate" ? "success" : "warning"} />
         <ColdProCalculatedInfo label="Ajustado · Vazão" value={`${fmtColdPro(adjustedScenario.airFlowM3H, 0)} m³/h`} description={adjustedScenario.informedAirFlowM3H ? `informada: ${fmtColdPro(adjustedScenario.informedAirFlowM3H, 0)} m³/h` : "estimada pelo motor"} tone="info" />
@@ -684,7 +684,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
         <ColdProCalculatedInfo label="Ajustado · Status" value={statusLabel[adjustedScenario.status] ?? adjustedScenario.status} description="cenário simulado" tone={adjustedScenario.status === "adequate" ? "success" : "warning"} />
       </div>
 
-      <div className="mt-5 grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-5 grid gap-3 lg:grid-cols-2 2xl:grid-cols-4">
         <ColdProCalculatedInfo label="Diferença tempo" value={fmtMaybe(scenarioDelta.time, 1, " min")} description="ajustado - inicial" tone={scenarioDelta.time !== null && scenarioDelta.time <= 0 ? "success" : "warning"} />
         <ColdProCalculatedInfo label="Diferença vazão" value={`${fmtColdPro(scenarioDelta.airflow, 0)} m³/h`} description={Number(tunnelResult.fanAirflowM3H ?? 0) > 0 ? "simulada - base informada" : "simulada - estimada base"} tone="info" />
         <ColdProCalculatedInfo label="Diferença h" value={fmtMaybe(scenarioDelta.h, 2, " W/m²K")} description="ajustado - inicial" tone="info" />
@@ -704,7 +704,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
   );
 
   const internalLoadFields = (
-    <div className="grid grid-cols-1 gap-x-10 md:grid-cols-2"><div>
+    <div className="grid grid-cols-1 gap-x-10 xl:grid-cols-2"><div>
       {isStatic ? <ColdProField label="Embalagem da batelada" helpKey="packagingMass" unit="kg/batelada"><ColdProInput {...num("packaging_mass_kg_batch")} /></ColdProField> : <ColdProField label="Embalagem" helpKey="packagingMass" unit="kg/h"><ColdProInput {...num("packaging_mass_kg_hour")} /></ColdProField>}
       <ColdProField label="Cp embalagem" helpKey="packagingCp"><ColdProInput {...num("packaging_specific_heat_kcal_kg_c")} /></ColdProField>
     </div><div>
@@ -715,7 +715,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
   );
 
   const airflowFields = (
-    <div className="grid grid-cols-1 gap-x-10 md:grid-cols-2"><div>
+    <div className="grid grid-cols-1 gap-x-10 xl:grid-cols-2"><div>
       <ColdProField label="Fonte da velocidade" helpKey="airflowSource"><ColdProSelect value={form.airflow_source ?? "manual_velocity"} onChange={(e) => set("airflow_source", e.target.value)}><option value="manual_velocity">Velocidade manual</option><option value="airflow_by_fans">Vazão por ventiladores</option></ColdProSelect></ColdProField>
       {form.airflow_source !== "airflow_by_fans" ? <ColdProField label="Velocidade do ar" helpKey="airVelocity" unit="m/s"><ColdProInput {...num("air_velocity_m_s")} /></ColdProField> : null}
       {form.airflow_source === "airflow_by_fans" ? <><ColdProField label="Vazão dos ventiladores" helpKey="fanAirflow" unit="m³/h"><ColdProInput {...num("fan_airflow_m3_h")} /></ColdProField><ColdProField label="Largura seção de passagem" helpKey="tunnelCrossSectionWidth" unit="m"><ColdProInput {...num("tunnel_cross_section_width_m")} /></ColdProField><ColdProField label="Altura seção de passagem" helpKey="tunnelCrossSectionHeight" unit="m"><ColdProInput {...num("tunnel_cross_section_height_m")} /></ColdProField><ColdProField label="Fator de bloqueio" helpKey="blockageFactor" unit="%"><ColdProInput {...blockagePercentNum("blockage_factor")} /></ColdProField></> : null}
@@ -730,7 +730,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
   );
 
   const productGeometryFields = (
-    <div className="grid grid-cols-1 gap-x-10 md:grid-cols-2">
+    <div className="grid grid-cols-1 gap-x-8 xl:grid-cols-2">
       <ColdProField label="Tipo de arranjo" helpKey="arrangementType">
         <ColdProSelect value={form.arrangement_type} onChange={(e) => setArrangementType(e.target.value)}>
           {arrangementOptions.map((key) => <option key={key} value={key}>{ARRANGEMENT_DEFAULTS[key]?.label ?? key}</option>)}
@@ -783,16 +783,16 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
           </ColdProFormSection>
 
           <ColdProFormSection title="Etapa 2 — Produto e geometria" description="Separe a dimensão da unidade/caixa da dimensão do pallet, carrinho ou bloco." icon={<Package className="h-4 w-4" />}>
-            <div className="grid grid-cols-1 gap-x-10 md:grid-cols-2"><div>
+            <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(18rem,0.85fr)_minmax(0,1.45fr)]"><div className="min-w-0 rounded-lg border bg-muted/20 p-3 sm:p-4">
               <ColdProField label="Grupo ASHRAE"><ColdProSelect value={selectedGroup} onChange={(e) => { setSelectedGroup(e.target.value); set("product_id", null); }}><option value="">Seleção manual</option>{groups.map((group) => <option key={group} value={group}>{group}</option>)}</ColdProSelect></ColdProField>
               <ColdProField label="Produto ASHRAE"><ColdProSelect value={form.product_id ?? ""} disabled={!selectedGroup} onChange={(e) => applyProduct(e.target.value)}><option value="">{selectedGroup ? "Selecione o produto" : "Selecione primeiro o grupo"}</option>{filteredProducts.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</ColdProSelect></ColdProField>
               <ColdProField label="Produto"><ColdProInput type="text" value={form.product_name ?? ""} onChange={(e) => set("product_name", e.target.value)} className="text-left" /></ColdProField>
-            </div><div>{productGeometryFields}</div></div>
+            </div><div className="min-w-0 rounded-lg border bg-muted/20 p-3 sm:p-4">{productGeometryFields}</div></div>
             <ColdProValidationMessage tone="error">{requiredError ? "Informe o produto do túnel." : ""}</ColdProValidationMessage>
           </ColdProFormSection>
 
           <ColdProFormSection title="Etapa 3 — Massa e tempo de processo" description={isStatic ? "Batelada usa massa total do lote e tempo de batelada." : "Contínuo usa kg/h e tempo de retenção."} icon={isStatic ? <Warehouse className="h-4 w-4" /> : <Wind className="h-4 w-4" />}>
-            {!isStatic ? <div className="grid grid-cols-1 gap-x-10 md:grid-cols-2"><div>
+            {!isStatic ? <div className="grid grid-cols-1 gap-x-10 xl:grid-cols-2"><div>
               <ColdProField label="Unidade do peso">
                 <ColdProSelect value={weightUnit} onChange={(e) => setWeightUnit(e.target.value as WeightUnit)}>
                   {Object.entries(WEIGHT_UNITS).map(([key, item]) => <option key={key} value={key}>{item.label}</option>)}
@@ -815,7 +815,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
               </ColdProField>
               <ColdProField label="Tempo retenção" helpKey="retentionTime" unit={RETENTION_UNITS[retentionUnit].label}><ColdProInput {...retentionNum(retentionUnit)} /></ColdProField>
               {physicalModel === "continuous_spiral" ? <ColdProField label="Fator turbulência girofreezer"><ColdProInput {...num("spiral_turbulence_factor")} /></ColdProField> : null}
-            </div></div> : <div className="grid grid-cols-1 gap-x-10 md:grid-cols-2"><div>
+            </div></div> : <div className="grid grid-cols-1 gap-x-10 xl:grid-cols-2"><div>
               <ColdProField label="Escala das medidas do bloco/carga" helpKey="measurementScale"><ColdProSelect value={staticUnit} onChange={(e) => setStaticUnit(e.target.value as DimensionUnit)}>{Object.entries(DIMENSION_UNITS).map(([key, item]) => <option key={key} value={key}>{item.label}</option>)}</ColdProSelect></ColdProField>
               <ColdProField label={tunnelType === "static_cart" ? "Comprimento carrinho/carga" : "Comprimento pallet/bloco"} helpKey="palletLength" unit={DIMENSION_UNITS[staticUnit].label}><ColdProInput {...dimensionNum("pallet_length_m", staticUnit)} /></ColdProField>
               <ColdProField label={tunnelType === "static_cart" ? "Largura carrinho/carga" : "Largura pallet/bloco"} helpKey="palletWidth" unit={DIMENSION_UNITS[staticUnit].label}><ColdProInput {...dimensionNum("pallet_width_m", staticUnit)} /></ColdProField>
@@ -837,7 +837,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
           </ColdProFormSection>
 
           <ColdProFormSection title="Etapa 4 — Temperaturas e propriedades térmicas" description="Propriedades usadas na energia específica e na estimativa de tempo até o núcleo." icon={<Thermometer className="h-4 w-4" />}>
-            <div className="grid grid-cols-1 gap-x-10 md:grid-cols-2"><div>
+            <div className="grid grid-cols-1 gap-x-10 xl:grid-cols-2"><div>
               <ColdProField label="Temp. entrada" helpKey="initialProductTemp" unit="°C"><ColdProInput {...num("inlet_temp_c")} /></ColdProField><ColdProField label="Temp. final" helpKey="finalProductTemp" unit="°C"><ColdProInput {...num("outlet_temp_c")} /></ColdProField><ColdProField label="Temp. congelamento" helpKey="freezingPoint" unit="°C"><ColdProInput {...num("freezing_temp_c")} /></ColdProField><ColdProField label="Temperatura do ar" helpKey="airTemp" unit="°C"><ColdProInput {...num("air_temp_c")} /></ColdProField><ColdProField label="Fator penetração térmica" helpKey="thermalPenetrationFactor"><ColdProInput {...num("thermal_penetration_factor")} /></ColdProField>
             </div><div>
               <ColdProField label="Cp acima" helpKey="specificHeatAbove"><ColdProInput {...num("specific_heat_above_kcal_kg_c")} /></ColdProField><ColdProField label="Cp abaixo" helpKey="specificHeatBelow"><ColdProInput {...num("specific_heat_below_kcal_kg_c")} /></ColdProField><ColdProField label="Calor latente" helpKey="latentHeat"><ColdProInput {...num("latent_heat_kcal_kg")} /></ColdProField><ColdProField label="Fração congelável" helpKey="frozenWaterFraction"><ColdProInput {...num("frozen_water_fraction")} /></ColdProField><ColdProField label="Densidade" helpKey="density" unit="kg/m³"><ColdProInput {...num("density_kg_m3")} /></ColdProField><ColdProField label="Condutividade congelado" helpKey="thermalConductivityFrozen"><ColdProInput {...num("thermal_conductivity_frozen_w_m_k")} /></ColdProField>
@@ -848,7 +848,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
           <ColdProFormSection title="Etapa 6 — Cargas auxiliares" description="Cargas de embalagem, motores, ventiladores internos e outras fontes." icon={<Calculator className="h-4 w-4" />}>{internalLoadFields}</ColdProFormSection>
           <ColdProFormSection title="Etapa 7 — Resultado técnico base" description="Resultado calculado somente após as entradas de engenharia." icon={<Calculator className="h-4 w-4" />}>{tunnelResultCards}</ColdProFormSection>
           <ColdProFormSection title="Etapa 8 — Diagnóstico e consistência" description="Comparativo entre o motor do túnel e a carga consolidada do produto, sem sobrescrever valores." icon={<AlertTriangle className="h-4 w-4" />}>
-            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4"><ColdProCalculatedInfo label="Carga tunnelEngine" value={`${fmtColdPro(tunnelResult.totalKcalH, 0)} kcal/h`} description={`${fmtColdPro(tunnelResult.totalKW, 2)} kW`} tone="info" /><ColdProCalculatedInfo label="Carga aba Produtos" value={productSourceKcalH > 0 ? `${fmtColdPro(productSourceKcalH, 0)} kcal/h` : "—"} description="fonte consolidada disponível" tone={productSourceKcalH > 0 ? "info" : "warning"} /><ColdProCalculatedInfo label="Diferença absoluta" value={productSourceKcalH > 0 ? `${fmtColdPro(Math.abs(loadDifferenceKcalH), 0)} kcal/h` : "—"} description="túnel - produto" tone={loadDifferencePercent > 10 ? "warning" : "info"} /><ColdProCalculatedInfo label="Diferença percentual" value={productSourceKcalH > 0 ? `${fmtColdPro(loadDifferencePercent, 1)}%` : "—"} description="base aba Produtos" tone={loadDifferencePercent > 10 ? "warning" : "info"} /></div>
+            <div className="grid gap-3 lg:grid-cols-2 2xl:grid-cols-4"><ColdProCalculatedInfo label="Carga tunnelEngine" value={`${fmtColdPro(tunnelResult.totalKcalH, 0)} kcal/h`} description={`${fmtColdPro(tunnelResult.totalKW, 2)} kW`} tone="info" /><ColdProCalculatedInfo label="Carga aba Produtos" value={productSourceKcalH > 0 ? `${fmtColdPro(productSourceKcalH, 0)} kcal/h` : "—"} description="fonte consolidada disponível" tone={productSourceKcalH > 0 ? "info" : "warning"} /><ColdProCalculatedInfo label="Diferença absoluta" value={productSourceKcalH > 0 ? `${fmtColdPro(Math.abs(loadDifferenceKcalH), 0)} kcal/h` : "—"} description="túnel - produto" tone={loadDifferencePercent > 10 ? "warning" : "info"} /><ColdProCalculatedInfo label="Diferença percentual" value={productSourceKcalH > 0 ? `${fmtColdPro(loadDifferencePercent, 1)}%` : "—"} description="base aba Produtos" tone={loadDifferencePercent > 10 ? "warning" : "info"} /></div>
             {loadDifferencePercent > 10 ? <ColdProValidationMessage tone="warning">Há divergência entre a carga calculada no túnel e a carga consolidada da aba Produtos. Verifique se há duplicidade de produto, processo ou conversão de unidade.</ColdProValidationMessage> : null}
           </ColdProFormSection>
           <details className="rounded-xl border bg-background p-3 shadow-sm sm:p-5">

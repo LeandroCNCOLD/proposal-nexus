@@ -19,10 +19,10 @@ type FieldProps = {
 
 export function ColdProField({ label, unit, htmlFor, children, className, help, helpKey }: FieldProps) {
   return (
-    <div className={cn("flex flex-col gap-1.5 py-2 sm:flex-row sm:items-center sm:gap-3", className)}>
+    <div className={cn("grid min-w-0 gap-1.5 py-2 lg:grid-cols-[minmax(12rem,16rem)_minmax(0,1fr)] lg:items-center lg:gap-3", className)}>
       <label
         htmlFor={htmlFor}
-        className="flex shrink-0 items-center gap-1.5 whitespace-normal break-words text-sm font-medium text-muted-foreground sm:w-[42%] sm:justify-end sm:text-right"
+        className="flex min-w-0 items-center gap-1.5 whitespace-normal break-words text-sm font-medium text-muted-foreground lg:justify-end lg:text-right"
       >
         <span className="min-w-0 whitespace-normal break-words">{label} :</span>
         {(help || helpKey) ? <FieldHelpTooltip help={help} helpKey={helpKey} /> : null}
@@ -41,10 +41,23 @@ export function ColdProField({ label, unit, htmlFor, children, className, help, 
 export function ColdProInput(
   props: React.InputHTMLAttributes<HTMLInputElement> & { readOnlyValue?: boolean },
 ) {
-  const { className, readOnlyValue, ...rest } = props;
+  const { className, readOnlyValue, onFocus, onMouseUp, type, ...rest } = props;
   return (
     <input
       {...rest}
+      type={type}
+      onFocus={(event) => {
+        onFocus?.(event);
+        if (!event.defaultPrevented && type === "number" && !readOnlyValue) {
+          event.currentTarget.select();
+        }
+      }}
+      onMouseUp={(event) => {
+        onMouseUp?.(event);
+        if (!event.defaultPrevented && type === "number" && !readOnlyValue) {
+          event.preventDefault();
+        }
+      }}
       className={cn(
         "h-11 w-full min-w-0 rounded-md border border-transparent px-3 text-right text-base tabular-nums sm:h-10",
         "transition focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/15",
