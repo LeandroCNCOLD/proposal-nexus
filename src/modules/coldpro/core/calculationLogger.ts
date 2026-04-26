@@ -1,22 +1,12 @@
-export function buildCalculationLog(input: {
-  originalInputs: unknown;
-  normalizedInputs: unknown;
-  unitConversions?: unknown;
-  estimatedData?: unknown;
-  missingFields: string[];
-  warnings: string[];
-  formulas: Record<string, string>;
-  finalResult: unknown;
-}) {
+export function buildCalculationLog(params: any) {
   return {
-    originalInputs: input.originalInputs,
-    normalizedInputs: input.normalizedInputs,
-    unitConversions: input.unitConversions ?? {},
-    estimatedData: input.estimatedData ?? {},
-    missingFields: input.missingFields,
-    warnings: input.warnings,
-    formulasApplied: input.formulas,
-    finalResult: input.finalResult,
-    generatedAt: new Date().toISOString(),
+    originalInput: params?.originalInput ?? null,
+    normalizedInput: params?.normalizedInput ?? null,
+    unitConversions: params?.unitConversions ?? {},
+    warnings: params?.warnings ?? [],
+    missingFields: params?.missingFields ?? [],
+    invalidFields: params?.invalidFields ?? [],
+    formulasUsed: params?.formulasUsed ?? {},
+    resultSummary: params?.resultSummary ?? {},
   };
 }
