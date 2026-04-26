@@ -113,7 +113,11 @@ function normalizePhysicalModel(input: any): TunnelPhysicalModel {
   return "continuous_individual";
 }
 
-function requiredPositiveFields(input: any, physicalModel: TunnelPhysicalModel, staticMassKg: number, characteristicDimensionM: number, crossesFreezing: boolean): string[] {
+function isStaticTunnel(processType: unknown, operationMode: unknown) {
+  return processType === "static_cart_freezing" || processType === "static_pallet_freezing" || operationMode === "batch";
+}
+
+function requiredPositiveFields(input: any, isStatic: boolean, staticMassKg: number, characteristicDimensionM: number, crossesFreezing: boolean): string[] {
   const commonNumericFields = ["initialTempC", "finalTempC", "freezingPointC"];
   const commonPositiveFields = ["cpAboveKJkgK"];
   const freezingPositiveFields = crossesFreezing ? ["cpBelowKJkgK", "latentHeatKJkg", "frozenWaterFraction"] : [];
@@ -126,22 +130,17 @@ function requiredPositiveFields(input: any, physicalModel: TunnelPhysicalModel, 
     positiveNumber(input?.retentionTimeMin) <= 0 ? "tempo de retenção" : "",
     positiveNumber(input?.productThicknessM) <= 0 ? "espessura do produto" : "",
   ];
-  const staticCartFields = [
-    staticMassKg <= 0 ? "massa estática do lote" : "",
+  const staticFields = [
+    staticMassKg <= 0 ? "massa total da batelada" : "",
     positiveNumber(input?.batchTimeH) <= 0 ? "tempo de batelada" : "",
-    positiveNumber(input?.productThicknessM) <= 0 ? "espessura do produto" : "",
-  ];
-  const staticBlockFields = [
-    staticMassKg <= 0 ? "massa estática do lote" : "",
-    positiveNumber(input?.batchTimeH) <= 0 ? "tempo de batelada" : "",
-    characteristicDimensionM <= 0 ? "dimensões do pallet/bloco" : "",
+    characteristicDimensionM <= 0 ? "dimensões da carga/pallet" : "",
   ];
 
   return [
     ...missingNumericFields,
     ...missingPositiveFields,
-    ...(physicalModel === "static_cart" ? staticCartFields : physicalModel === "static_block" ? staticBlockFields : continuousFields),
-    !hasHInput && physicalModel !== "continuous_individual" ? "velocidade do ar ou coeficiente convectivo manual" : "",
+    ...(isStatic ? staticFields : continuousFields),
+    !hasHInput && (isStatic || positiveNumber(input?.airVelocityMS) <= 0) ? "velocidade do ar ou coeficiente convectivo manual" : "",
   ];
 }
 
