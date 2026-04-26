@@ -535,6 +535,9 @@ export const processNomusProcessSyncBatch = createServerFn({ method: "POST" })
     let processed = Number(job.processed_items ?? 0);
     let upserted = Number(job.upserted_items ?? 0);
     let stagesCount = Number(job.stages_discovered ?? 0);
+    let batchScanned = 0;
+    let batchMatched = 0;
+    let batchPersisted = 0;
     const maxPages = data.maxPages ?? 1;
     const tipos: string[] = Array.isArray(job.tipos) ? job.tipos : [];
 
@@ -566,6 +569,9 @@ export const processNomusProcessSyncBatch = createServerFn({ method: "POST" })
           ? page.items.filter((p) => tipos.includes((p.tipo ?? "").trim()))
           : page.items;
         const persisted = await persistNomusProcessBatch(wantedItems, userId);
+        batchScanned += page.items.length;
+        batchMatched += wantedItems.length;
+        batchPersisted += persisted.upserted;
         processed += page.items.length;
         upserted += persisted.upserted;
         stagesCount += persisted.stagesDiscovered.reduce((sum, s) => sum + s.etapas.length, 0);
@@ -590,7 +596,7 @@ export const processNomusProcessSyncBatch = createServerFn({ method: "POST" })
             { entity: "processos", last_synced_at: finishedAt, total_synced: upserted, running: false, last_error: null, updated_at: finishedAt },
             { onConflict: "entity" },
           );
-          return { ok: true as const, job: updated, done: true as const };
+          return { ok: true as const, job: updated, done: true as const, scanned: batchScanned, matched: batchMatched, persisted: batchPersisted };
         }
       }
 
@@ -600,7 +606,7 @@ export const processNomusProcessSyncBatch = createServerFn({ method: "POST" })
         .eq("id", job.id)
         .select("*")
         .single();
-      return { ok: true as const, job: updated, done: false as const };
+      return { ok: true as const, job: updated, done: false as const, scanned: batchScanned, matched: batchMatched, persisted: batchPersisted };
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       const { data: updated } = await (supabaseAdmin as any)
