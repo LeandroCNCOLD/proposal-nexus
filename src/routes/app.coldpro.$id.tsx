@@ -609,6 +609,49 @@ function ColdProProjectPage() {
                     </div>
                   ) : null}
 
+                  {["blast_freezer", "cooling_tunnel"].includes(String(selectedEnv.environment_type)) ? (
+                    <div className="rounded-2xl border bg-background p-4">
+                      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                          <h3 className="flex items-center gap-2 text-base font-semibold">
+                            <Sparkles className="h-4 w-4 text-primary" /> Especialista IA em túnel
+                          </h3>
+                          <p className="text-sm text-muted-foreground">
+                            Análise técnica criteriosa liberada após o cálculo e a pré-seleção do equipamento.
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm hover:bg-muted disabled:opacity-50"
+                          onClick={async () => {
+                            const analysis = await handleAnalyzeMemorial(
+                              `Reavalie tecnicamente o túnel ${selectedEnv.name} e gere novos insights de engenharia sobre eficiência, tempo de congelamento/resfriamento, temperatura de evaporação, vazão de ar, margem do equipamento selecionado e oportunidades de otimização.`,
+                              tunnelExpertAnalysis,
+                            );
+                            if (analysis) setTunnelExpertAnalysis(analysis);
+                          }}
+                          disabled={!result || analyzeMemorial.isPending}
+                        >
+                          {analyzeMemorial.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                          {tunnelExpertAnalysis ? "Atualizar análise" : "Gerar análise"}
+                        </button>
+                      </div>
+                      {!result ? (
+                        <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                          Calcule a carga térmica para liberar a análise técnica do túnel.
+                        </div>
+                      ) : tunnelExpertAnalysis ? (
+                        <div className="max-h-[520px] overflow-y-auto whitespace-pre-wrap rounded-lg bg-muted/40 p-4 text-sm leading-relaxed">
+                          {tunnelExpertAnalysis}
+                        </div>
+                      ) : (
+                        <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                          Após calcular, a IA avalia se a seleção está adequada e sugere ajustes de temperatura, vazão, margem e porte do equipamento.
+                        </div>
+                      )}
+                    </div>
+                  ) : null}
+
                   <ColdProReport
                     project={data?.project}
                     environments={environments}
