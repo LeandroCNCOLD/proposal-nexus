@@ -37,6 +37,9 @@ export interface ContinuousGirofreezerInput {
   airDensityKgM3?: number;
   airExposureFactor?: number;
   thermalPenetrationFactor?: number;
+  tunnelType?: string;
+  operationRegime?: "continuous" | "batch";
+  staticMassMode?: string;
 }
 
 export interface ProductThermalInput {
@@ -341,6 +344,7 @@ export function calculateImplicitDensityKgM3(params: {
 export function calculateContinuousGirofreezer(input: ContinuousGirofreezerInput): ContinuousGirofreezerResult {
   const warnings: string[] = [];
   const errors: string[] = [];
+  const isStaticBatch = input.operationRegime === "batch" || ["static_pallet", "static_cart", "blast_freezer"].includes(String(input.tunnelType ?? ""));
 
   const lengthM = convertDimensionToM(input.productLength, input.dimensionScale);
   const widthM = convertDimensionToM(input.productWidth, input.dimensionScale);
@@ -392,8 +396,11 @@ export function calculateContinuousGirofreezer(input: ContinuousGirofreezerInput
   if (massDifferencePercent !== null && massDifferencePercent > 20) {
     warnings.push(`A massa direta (${directMassKgH?.toFixed(2)} kg/h) difere da massa calculada por ciclos (${calculatedMassKgH.toFixed(2)} kg/h) em ${massDifferencePercent.toFixed(1)}%. Validar cadência, peso unitário ou massa direta.`);
   }
-  if (densityResult.status === "critical") errors.push(densityResult.message);
-  if (densityResult.status === "warning") warnings.push(densityResult.message);
+  if (densityResult.status === "critical") {
+    if (isStaticBatch) warnings.push("Densidade implícita da unidade parece baixa, mas o cálculo estático está usando massa do pallet/lote.");
+    else errors.push(densityResult.message);
+  }
+  if (densityResult.status === "warning") warnings.push(isStaticBatch ? "Densidade implícita da unidade parece baixa, mas o cálculo estático está usando massa do pallet/lote." : densityResult.message);
   if (densitySource === "default_estimated") warnings.push("Densidade não informada e não calculável; usando densidade padrão estimada de 1000 kg/m³. Validar produto, dimensões e peso unitário.");
   if (thicknessM > 0.08) warnings.push(`Espessura de ${(thicknessM * 1000).toFixed(0)} mm é alta para processo contínuo/girofreezer. Validar tempo até núcleo.`);
 
