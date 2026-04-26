@@ -153,7 +153,8 @@ function CrmPage() {
       return result;
     },
     onSuccess: (r) => {
-      toast.success(`Funil "${activeTab}" sincronizado: ${r.total ?? 0} processos lidos, ${r.upserted ?? 0} atualizados.`);
+      const status = r.done ? "concluído" : "parcial";
+      toast.success(`Funil "${activeTab}" ${status}: ${r.matched ?? 0} do funil encontrados neste lote, ${r.upserted ?? 0} atualizados.`);
       queryClient.invalidateQueries({ queryKey: ["crm"] });
     },
     onError: (e) => toast.error(`Falha na sincronização: ${e instanceof Error ? e.message : String(e)}`),
