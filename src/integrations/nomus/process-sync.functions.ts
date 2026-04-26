@@ -569,36 +569,38 @@ export const processNomusProcessSyncBatch = createServerFn({ method: "POST" })
 
     try {
       const failSoft = async (message: string) => {
+        const finalStatus = batchScanned > 0 ? "running" : "failed";
         const { data: updated } = await (supabaseAdmin as any)
           .from("nomus_process_sync_jobs")
           .update({
-            status: "running",
+            status: finalStatus,
             current_page: currentPage,
             processed_items: processed,
             upserted_items: upserted,
             stages_discovered: stagesCount,
-            last_error: `${message}. Clique novamente para tentar continuar da página ${currentPage}.`,
+            last_error: batchScanned > 0
+              ? `${message}. Clique novamente para tentar continuar da página ${currentPage}.`
+              : `${message}. Não houve progresso neste lote; uma nova sincronização pode tentar novamente pela página 1.`,
+            finished_at: finalStatus === "failed" ? new Date().toISOString() : null,
           })
           .eq("id", job.id)
           .select("*")
           .single();
-        return { ok: true as const, job: updated, done: false as const, warning: message, scanned: batchScanned, matched: batchMatched, persisted: batchPersisted };
+        return { ok: finalStatus !== "failed" as boolean, job: updated, done: false as const, warning: message, scanned: batchScanned, matched: batchMatched, persisted: batchPersisted };
       };
 
       for (let i = 0; i < maxPages && processed < Number(job.max_items); i += 1) {
-        if (Date.now() - new Date(now).getTime() > 6_000) return failSoft("Tempo seguro do lote atingido");
+        if (Date.now() - new Date(now).getTime() > 18_000) return failSoft("Tempo seguro do lote atingido");
         const page = await listPage<NomusProcessRaw>(
           NOMUS_ENDPOINTS.processos,
           {},
-          { entity: "processos", pageSize: Number(job.page_size ?? 10), page: currentPage, timeoutMs: 4_000, maxAttempts: 1, triggeredBy: userId },
+          { entity: "processos", pageSize: Number(job.page_size ?? 50), page: currentPage, timeoutMs: 12_000, maxAttempts: 2, triggeredBy: userId },
         );
         if (!page.ok) {
           return failSoft(page.error);
         }
 
-        const wantedItems = tipos.length
-          ? page.items.filter((p) => tipos.includes((p.tipo ?? "").trim()))
-          : page.items;
+        const wantedItems = page.items.filter((p) => tipoMatches(p.tipo, tipos));
         const persisted = await persistNomusProcessBatch(wantedItems, userId);
         batchScanned += page.items.length;
         batchMatched += wantedItems.length;
