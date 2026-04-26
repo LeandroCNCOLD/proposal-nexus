@@ -284,7 +284,8 @@ function calculateTunnelCore(input: any) {
     crossesFreezing: energy.crossesFreezingPoint,
   };
 
-  const packagingMassKgH = positiveNumber(input?.packagingMassKgH);
+  const packagingMassKgBatch = positiveNumber(input?.packagingMassKgBatch ?? input?.packaging_mass_kg_batch);
+  const packagingMassKgH = tunnelMode.operationRegime === "batch" && packagingMassKgBatch > 0 && positiveNumber(input?.batchTimeH) > 0 ? packagingMassKgBatch / positiveNumber(input?.batchTimeH) : positiveNumber(input?.packagingMassKgH);
   const packagingCpKJkgK = positiveNumber(input?.packagingCpKJkgK);
   const packagingLoadKW = packagingMassKgH > 0 && packagingCpKJkgK > 0 ? packagingMassKgH * packagingCpKJkgK * Math.abs(toNumber(input?.initialTempC) - toNumber(input?.finalTempC)) / 3600 : 0;
   const internalLoadKW = toNumber(input?.beltMotorKW, 0) + toNumber(input?.internalFansKW, 0) + toNumber(input?.otherInternalKW, 0);
@@ -406,14 +407,14 @@ function calculateTunnelCore(input: any) {
     mass: tunnelMode.operationRegime === "batch"
       ? { mode: "batch", numberOfPallets, palletMassKg, staticMassKg, calculatedMassKgH, usedMassKgH: null, batchTimeH: input?.batchTimeH ?? null }
       : { mode: "continuous", calculatedMassKgH, directMassKgH, usedMassKgH, retentionTimeMin: input?.retentionTimeMin ?? null },
-    geometry: { tunnelType: tunnelMode.tunnelType, arrangementType: tunnelMode.arrangementType, productGeometry: input?.productGeometry ?? input?.product_geometry ?? null, surfaceExposureModel: exposure.surfaceExposureModel, characteristicDimensionM, distanceToCoreM, geometrySource: geometry.source },
+    geometry: { tunnelType: tunnelMode.tunnelType, arrangementType: tunnelMode.arrangementType, productGeometry: input?.productGeometry ?? input?.product_geometry ?? null, surfaceExposureModel: exposure.surfaceExposureModel, thermalModelForPallet: geometry.thermalModelForPallet ?? input?.thermalModelForPallet ?? input?.thermal_model_for_pallet ?? null, characteristicDimensionM, distanceToCoreM, geometrySource: geometry.source },
     productEnergy: productEnergyBreakdown,
     convection: { source: h.source, hBaseWM2K: h.hBaseWM2K, hEffectiveWM2K: h.hEffectiveWM2K, airVelocityMS: airflow.airVelocityUsedMS, airExposureFactor: input?.airExposureFactor ?? null, exposureFactor: exposure.exposureFactor, spiralTurbulenceFactor, blockExposureFactor },
     airflow: { airflowSource: airflow.airflowSource, fanAirflowM3H: airflow.fanAirflowM3H, grossAirAreaM2: airflow.grossAreaM2, freeAirAreaM2: airflow.freeAreaM2, blockageFactor: airflow.blockageFactor, calculatedAirVelocityMS: airflow.calculatedAirVelocityMS, airVelocityUsedMS: airflow.airVelocityUsedMS },
     heatTransfer: { hBaseWM2K: h.hBaseWM2K, exposureFactor: exposure.exposureFactor, airExposureFactor: input?.airExposureFactor ?? null, hEffectiveWM2K: h.hEffectiveWM2K, hSource: h.source },
     air: { airTempC: input?.airTempC ?? null, airDeltaTK, airDensityKgM3, airFlowM3H, informedAirFlowM3H, airFlowMethod, suggestedAirTempC, suggestedAirMethod, suggestedAirApproachK, comparison: suggestedAirTempComparisonC },
     scenarios: { adjustedScenario: scenario },
-    loads: { productLoadKW, packagingLoadKW, internalLoadKW, totalKW, totalKcalH, totalTR },
+    loads: { productLoadKW, packagingLoadKW, internalLoadKW, totalKW, totalKcalH, totalTR, packagingMassKgH, packagingMassKgBatch },
     timing: { estimatedTimeMin, availableTimeMin, status },
     validation: { warnings, missingFields, invalidFields },
   };
@@ -455,6 +456,7 @@ function calculateTunnelCore(input: any) {
     airVelocityUsedMS: airflow.airVelocityUsedMS,
     exposureFactor: exposure.exposureFactor,
     geometrySource: geometry.source,
+    thermalModelForPallet: geometry.thermalModelForPallet ?? input?.thermalModelForPallet ?? input?.thermal_model_for_pallet ?? null,
     isStatic,
     calculatedMassKgH,
     usedMassKgH,
