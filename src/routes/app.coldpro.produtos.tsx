@@ -244,7 +244,8 @@ function ColdProProductsPage() {
     },
   });
 
-  const products = (productsQuery.data ?? []) as ProductForm[];
+  const products = (productsQuery.data?.products ?? []) as ProductForm[];
+  const productsError = productsQuery.data?.error || (productsQuery.error instanceof Error ? productsQuery.error.message : null);
   const existingKeys = useMemo(() => new Set(products.map(keyOf)), [products]);
   const filtered = products.filter((product) => {
     const q = normalize(search);
@@ -309,6 +310,7 @@ function ColdProProductsPage() {
 
       <Card className="p-4">
         <div className="mb-4 flex items-center gap-2"><Search className="h-4 w-4 text-muted-foreground" /><Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar por produto ou grupo..." /></div>
+        {productsError && <div className="mb-4 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{productsError}</div>}
         <div className="overflow-auto rounded-md border">
           <Table>
             <TableHeader><TableRow><TableHead>Grupo</TableHead><TableHead>Produto</TableHead><TableHead>Cong.</TableHead><TableHead>Calor esp.</TableHead><TableHead>Latente</TableHead><TableHead>Densidade</TableHead><TableHead>Fonte</TableHead><TableHead className="w-20">Editar</TableHead></TableRow></TableHeader>
