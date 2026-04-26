@@ -165,6 +165,36 @@ export function ColdProTunnelForm({ environmentId, tunnel, productCatalog = [], 
   const requiredError = String(form.product_name ?? "").trim().length === 0;
   const staticWarning = isStatic || ["boxed_product", "pallet_block", "bulk_static"].includes(String(form.arrangement_type));
   const canSave = !processError && !requiredError;
+  const giroResult = calculateContinuousGirofreezer({
+    dimensionScale: "m",
+    productLength: Number(form.product_length_m ?? 0),
+    productWidth: Number(form.product_width_m ?? 0),
+    productThickness: productThicknessM,
+    weightScale: "kg",
+    unitWeight,
+    unitsPerCycle: Number(form.units_per_cycle ?? 0),
+    cycleScale: "cycles_per_hour",
+    cycles: Number(form.cycles_per_hour ?? 0),
+    directMassKgH: Number(form.mass_kg_hour ?? 0),
+    timeScale: "min",
+    retentionTime: Number(form.process_time_min ?? 0),
+    airTemperatureC: Number(form.air_temp_c ?? 0),
+    airVelocityMs: Number(form.air_velocity_m_s ?? 0),
+    productDensityKgM3: Number(form.density_kg_m3 ?? 0),
+    frozenConductivityWmK: Number(form.thermal_conductivity_frozen_w_m_k ?? 0),
+    freezingPointC: Number(form.freezing_temp_c ?? 0),
+    latentHeatKjKg: Number(form.latent_heat_kcal_kg ?? 0) * 4.1868,
+    frozenWaterFraction: Number(form.frozen_water_fraction ?? 0),
+    airExposureFactor: Number(form.air_exposure_factor ?? 1),
+    thermalPenetrationFactor: Number(form.thermal_penetration_factor ?? 1),
+  });
+  const giroStatusLabel: Record<typeof giroResult.physics.processStatus, string> = {
+    adequate: "Adequado",
+    insufficient: "Insuficiente",
+    missing_data: "Faltam dados",
+    invalid_input: "Dados inválidos",
+  };
+  const giroStatusTone = giroResult.physics.processStatus === "adequate" ? "success" : "warning";
   const groups = React.useMemo(() => Array.from(new Set(productCatalog.map((p) => p.category).filter(Boolean))).sort((a, b) => String(a).localeCompare(String(b), "pt-BR")), [productCatalog]);
   const filteredProducts = React.useMemo(() => productCatalog.filter((p) => !selectedGroup || p.category === selectedGroup), [productCatalog, selectedGroup]);
 
