@@ -66,6 +66,8 @@ function ColdProProjectPage() {
   const [editingProjectName, setEditingProjectName] = React.useState(false);
   const [projectNameDraft, setProjectNameDraft] = React.useState("");
   const [editingProductId, setEditingProductId] = React.useState<string | null>(null);
+  const [autoMinQuantity, setAutoMinQuantity] = React.useState("1");
+  const [autoEquipmentKind, setAutoEquipmentKind] = React.useState<"ALL" | "plugin" | "biblock" | "split">("ALL");
 
   const environments = data?.environments ?? [];
   const selectedEnv = environments.find((env: any) => env.id === selectedEnvId) ?? environments[0];
@@ -146,7 +148,11 @@ function ColdProProjectPage() {
   async function handleAutoSelect() {
     if (!selectedEnv) return;
     try {
-      await autoSelect.mutateAsync(selectedEnv.id);
+      await autoSelect.mutateAsync({
+        environmentId: selectedEnv.id,
+        minQuantity: Math.max(1, Math.ceil(Number(autoMinQuantity || 1))),
+        equipmentKind: autoEquipmentKind === "ALL" ? null : autoEquipmentKind,
+      });
       toast.success("Equipamento selecionado");
     } catch (e: any) {
       toast.error(e?.message ?? "Erro ao selecionar equipamento");
