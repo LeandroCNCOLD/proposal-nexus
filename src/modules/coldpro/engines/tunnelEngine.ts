@@ -438,6 +438,7 @@ function calculateTunnelCore(input: any) {
     airVelocityMS: nullableNumber(airflow.airVelocityUsedMS),
     airDeltaTK,
     airFlowM3H,
+    airFlowThermalBalanceM3H,
     informedAirFlowM3H,
     suggestedAirTempC,
     hEffectiveWM2K: nullableNumber(h.hEffectiveWM2K),
