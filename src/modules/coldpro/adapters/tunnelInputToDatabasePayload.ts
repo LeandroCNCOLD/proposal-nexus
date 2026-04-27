@@ -1,5 +1,5 @@
 import { COLDPRO_TUNNEL_ENGINE_VERSION } from "../engines/tunnelEngine";
-import type { TunnelDatabasePayload, TunnelEngineResult } from "../types/tunnelEngine.types";
+import type { TunnelDatabasePayload, TunnelEngineResult, TunnelSourceRecord } from "../types/tunnelEngine.types";
 
 const INPUT_FIELDS = [
   "id", "environment_id", "tunnel_type", "operation_mode", "process_type", "arrangement_type", "product_id", "product_name",
@@ -36,7 +36,7 @@ const INPUT_FIELDS = [
   "bulk_layer_height_m", "equivalent_particle_diameter_m",
 ] as const;
 
-function pickKnownFields(source: any) {
+function pickKnownFields(source: TunnelSourceRecord) {
   const payload: Record<string, unknown> = {};
   for (const field of INPUT_FIELDS) {
     if (source?.[field] !== undefined) payload[field] = source[field];
@@ -74,7 +74,7 @@ export function validateTunnelCalculationConsistency(tunnelResult: TunnelEngineR
   return { valid: issues.length === 0, issues };
 }
 
-export function tunnelResultToDatabasePayload(form: any, tunnelResult: TunnelEngineResult): TunnelDatabasePayload {
+export function tunnelResultToDatabasePayload(form: TunnelSourceRecord, tunnelResult: TunnelEngineResult): TunnelDatabasePayload {
   const calculatedAt = tunnelResult?.calculatedAt ?? new Date().toISOString();
   const payload = {
     ...pickKnownFields(form),

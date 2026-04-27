@@ -580,7 +580,7 @@ function calculateTunnelCore(input: TunnelEngineInput) {
   };
 }
 
-function buildApprovedScenario(input: any): TunnelThermalScenario | null {
+function buildApprovedScenario(input: TunnelEngineInput): TunnelThermalScenario | null {
   if (!input?.thermalConditionApproved && !input?.thermal_condition_approved) return null;
   return {
     airTempC: nullableNumber(input?.approvedAirTempC ?? input?.approved_air_temp_c),
