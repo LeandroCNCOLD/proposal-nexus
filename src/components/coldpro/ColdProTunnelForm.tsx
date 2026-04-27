@@ -37,6 +37,13 @@ type ColdProTunnelFormProps = {
   onSave: (data: ColdProFormRecord) => void;
 };
 
+type NumericInputProps = {
+  type: "number";
+  step: string;
+  value: string | number;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+};
+
 const coldProTunnelSaveSchema = z.object({
   environment_id: z.string().trim().min(1).max(100),
   product_name: z.string().trim().min(1).max(255),
@@ -230,6 +237,10 @@ function legacyTunnelType(processType: string) {
 
 function fmtMaybe(value: number | null | undefined, digits = 2, suffix = "") {
   return value === null || value === undefined ? "—" : `${fmtColdPro(value, digits)}${suffix}`;
+}
+
+function inputValue(value: unknown): string | number {
+  return typeof value === "number" || typeof value === "string" ? value : "";
 }
 
 function positiveValue(...values: unknown[]) {
