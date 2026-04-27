@@ -13,6 +13,8 @@ import {
 } from "../physics/productThermal";
 import { resolveTunnelMode } from "../physics/tunnelModeModel";
 
+export const COLDPRO_TUNNEL_ENGINE_VERSION = "tunnel-engine-v1.0.0";
+
 export type TunnelPhysicalModel = "continuous_individual" | "continuous_spiral" | "static_cart" | "static_block" | "fluidized_bed" | "blast_freezer";
 export type TunnelScenarioStatus = "adequate" | "insufficient" | "missing_data" | "invalid_input";
 
@@ -160,12 +162,20 @@ function isStaticTunnel(processType: unknown, operationMode: unknown) {
 function resolveStaticMass(input: any) {
   const numberOfPallets = positiveNumber(input?.numberOfPallets ?? input?.number_of_pallets) || 1;
   const numberOfCarts = positiveNumber(input?.numberOfCarts ?? input?.number_of_carts) || 1;
-  const calculatedPalletMassKg = positiveNumber(input?.calculatedPalletMassKg ?? input?.calculated_pallet_mass_kg);
+  const staticMassMode = String(input?.staticMassMode ?? input?.static_mass_mode ?? "direct_pallet_mass");
+  const unitWeightKg = positiveNumber(input?.unitWeightKg ?? input?.unit_weight_kg ?? input?.product_unit_weight_kg);
+  const unitsPerBox = positiveNumber(input?.unitsPerBox ?? input?.units_per_box);
+  const boxesPerLayer = positiveNumber(input?.boxesPerLayer ?? input?.boxes_per_layer);
+  const numberOfLayers = positiveNumber(input?.numberOfLayers ?? input?.number_of_layers);
+  const totalUnitsPerPallet = positiveNumber(input?.totalUnitsPerPallet ?? input?.total_units_per_pallet);
+  const unitsPerPallet = staticMassMode === "calculated_pallet_composition" ? (totalUnitsPerPallet > 0 ? totalUnitsPerPallet : unitsPerBox * boxesPerLayer * numberOfLayers) : positiveNumber(input?.unitsPerPallet ?? input?.units_per_pallet);
+  const productMassPerPalletKg = staticMassMode === "calculated_pallet_composition" ? unitsPerPallet * unitWeightKg : positiveNumber(input?.productMassPerPalletKg ?? input?.product_mass_per_pallet_kg);
+  const packagingMassPerPalletKg = staticMassMode === "calculated_pallet_composition" ? positiveNumber(input?.boxPackagingWeightKg ?? input?.box_packaging_weight_kg) + positiveNumber(input?.palletBaseWeightKg ?? input?.pallet_base_weight_kg) : positiveNumber(input?.packagingMassPerPalletKg ?? input?.packaging_mass_per_pallet_kg);
+  const calculatedPalletMassKg = staticMassMode === "calculated_pallet_composition" ? productMassPerPalletKg + packagingMassPerPalletKg : positiveNumber(input?.calculatedPalletMassKg ?? input?.calculated_pallet_mass_kg);
   const calculatedCartMassKg = positiveNumber(input?.calculatedCartMassKg ?? input?.calculated_cart_mass_kg);
   const calculatedBatchMassKg = positiveNumber(input?.calculatedBatchMassKg ?? input?.calculated_batch_mass_kg);
   const palletMassKg = positiveNumber(input?.palletMassKg ?? input?.pallet_mass_kg) || calculatedPalletMassKg;
   const savedStaticMassKg = positiveNumber(input?.staticMassKg ?? input?.static_mass_kg);
-  const staticMassMode = String(input?.staticMassMode ?? input?.static_mass_mode ?? "direct_pallet_mass");
   const directBatchMassKg = positiveNumber(input?.directBatchMassKg ?? input?.direct_batch_mass_kg);
   const resolvedStaticMassKg = staticMassMode === "calculated_cart_composition" ? calculatedCartMassKg * numberOfCarts : staticMassMode === "direct_cart_mass" ? palletMassKg * numberOfCarts : staticMassMode === "calculated_batch_composition" ? calculatedBatchMassKg : staticMassMode === "direct_batch_mass" ? directBatchMassKg : calculatedPalletMassKg * numberOfPallets || palletMassKg * numberOfPallets;
   return {
@@ -175,6 +185,9 @@ function resolveStaticMass(input: any) {
     calculatedCartMassKg,
     calculatedBatchMassKg,
     palletMassKg,
+    unitsPerPallet,
+    productMassPerPalletKg,
+    packagingMassPerPalletKg,
     staticMassKg: savedStaticMassKg || resolvedStaticMassKg,
   };
 }
