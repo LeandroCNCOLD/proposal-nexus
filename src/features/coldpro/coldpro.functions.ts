@@ -127,6 +127,59 @@ export const updateColdProProject = createServerFn({ method: "POST" })
     return row;
   });
 
+export const listColdProLinkableProposals = createServerFn({ method: "GET" }).middleware([requireSupabaseAuth]).handler(async () => {
+  const supabase = supabaseAdmin;
+  const { data, error } = await supabase
+    .from("proposals")
+    .select("id, number, title, status, created_at, clients(name)")
+    .order("created_at", { ascending: false })
+    .limit(300);
+  if (error) throw new Error(error.message);
+  return data ?? [];
+});
+
+export const linkColdProProjectToProposal = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(z.object({ id: z.string().uuid(), proposal_id: z.string().uuid().nullable() }))
+  .handler(async ({ data }) => {
+    const supabase = supabaseAdmin;
+    const { data: row, error } = await supabase.from("coldpro_projects").update({ proposal_id: data.proposal_id }).eq("id", data.id).select("*").single();
+    if (error) throw new Error(error.message);
+    return row;
+  });
+
+export const deleteColdProProject = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(z.object({ id: z.string().uuid() }))
+  .handler(async ({ data }) => {
+    const supabase = supabaseAdmin;
+    const { data: environments, error: envError } = await supabase.from("coldpro_environments").select("id").eq("coldpro_project_id", data.id);
+    if (envError) throw new Error(envError.message);
+    const environmentIds = (environments ?? []).map((environment) => environment.id);
+
+    if (environmentIds.length > 0) {
+      for (const table of ["coldpro_reports", "coldpro_equipment_selections", "coldpro_results", "coldpro_tunnels", "coldpro_environment_products"] as const) {
+        const { error } = await supabase.from(table).delete().in("environment_id", environmentIds);
+        if (error) throw new Error(error.message);
+      }
+      for (const table of ["coldpro_surfaces", "coldpro_infiltration", "coldpro_internal_loads", "coldpro_process_parameters", "coldpro_advanced_processes"] as const) {
+        const { error } = await supabase.from(table).delete().in("environment_id", environmentIds);
+        if (error) throw new Error(error.message);
+      }
+    }
+
+    for (const table of ["coldpro_surfaces", "coldpro_infiltration", "coldpro_internal_loads", "coldpro_process_parameters", "coldpro_advanced_processes", "coldpro_reports"] as const) {
+      const { error } = await supabase.from(table).delete().eq("project_id", data.id);
+      if (error) throw new Error(error.message);
+    }
+
+    const { error: deleteEnvironmentsError } = await supabase.from("coldpro_environments").delete().eq("coldpro_project_id", data.id);
+    if (deleteEnvironmentsError) throw new Error(deleteEnvironmentsError.message);
+    const { error: deleteProjectError } = await supabase.from("coldpro_projects").delete().eq("id", data.id);
+    if (deleteProjectError) throw new Error(deleteProjectError.message);
+    return { ok: true };
+  });
+
 export const getColdProProjectBundle = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator(z.object({ projectId: z.string().uuid() }))
