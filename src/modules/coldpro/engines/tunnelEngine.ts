@@ -386,12 +386,12 @@ function calculateTunnelCore(input: TunnelEngineInput) {
   const informedAirTempC = isProvided(input?.airTempC) ? toNumber(input?.airTempC, 0) : null;
   const airProps = createAirPropertiesContext({
     temperatureC: informedAirTempC ?? toNumber(input?.finalTempC, 0),
-    altitudeM: input?.altitudeM ?? input?.altitude_m,
-    pressureKPa: input?.atmosphericPressureKPa ?? input?.atmospheric_pressure_kpa,
-    relativeHumidityPercent: input?.internalRelativeHumidityPercent ?? input?.internal_relative_humidity_percent ?? input?.relativeHumidityPercent ?? input?.relative_humidity_percent,
-    airDensityKgM3: input?.airDensityKgM3 ?? input?.air_density_kg_m3,
-    airSpecificHeatKJkgK: input?.airSpecificHeatKJkgK ?? input?.air_specific_heat_kj_kg_k,
-    waterLatentHeatKJkg: input?.waterLatentHeatKJkg ?? input?.water_latent_heat_kj_kg,
+    altitudeM: nullableNumber(input?.altitudeM ?? input?.altitude_m),
+    pressureKPa: nullableNumber(input?.atmosphericPressureKPa ?? input?.atmospheric_pressure_kpa),
+    relativeHumidityPercent: nullableNumber(input?.internalRelativeHumidityPercent ?? input?.internal_relative_humidity_percent ?? input?.relativeHumidityPercent ?? input?.relative_humidity_percent),
+    airDensityKgM3: nullableNumber(input?.airDensityKgM3 ?? input?.air_density_kg_m3),
+    airSpecificHeatKJkgK: nullableNumber(input?.airSpecificHeatKJkgK ?? input?.air_specific_heat_kj_kg_k),
+    waterLatentHeatKJkg: nullableNumber(input?.waterLatentHeatKJkg ?? input?.water_latent_heat_kj_kg),
     mode: "sublimation",
   });
   const airDensityKgM3 = airProps.densityKgM3;
