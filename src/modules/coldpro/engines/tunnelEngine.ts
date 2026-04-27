@@ -359,22 +359,18 @@ function calculateTunnelCore(input: TunnelEngineInput) {
   };
   const validation = validateTunnelInput(validationInput);
 
+  const processMass = resolveProcessMass(input);
   const continuousMassMode = String(input?.continuousMassMode ?? input?.continuous_mass_mode ?? input?.massFlowMode ?? input?.mass_flow_mode ?? "direct_mass_flow");
   const unitWeightKg = positiveNumber(input?.unitWeightKg);
-  const massByCycleKgH = unitWeightKg * positiveNumber(input?.unitsPerCycle) * positiveNumber(input?.cyclesPerHour);
-  const massByTrayKgH = (unitWeightKg * positiveNumber(input?.unitsPerTray) + positiveNumber(input?.trayWeightKg)) * positiveNumber(input?.traysPerHour);
-  const massByUnitsHourKgH = unitWeightKg * positiveNumber(input?.unitsPerHour);
   const beltUnitsPerHour = positiveNumber(input?.unitsPerRow) * positiveNumber(input?.rowsPerMeter) * positiveNumber(input?.beltSpeedMMin) * 60;
-  const massByBeltKgH = beltUnitsPerHour * unitWeightKg;
-  const massByFeedRateKgH = positiveNumber(input?.feedRateKgH);
-  const calculatedMassKgH = continuousMassMode === "calculated_by_trays" ? massByTrayKgH : continuousMassMode === "calculated_by_units_per_hour" ? massByUnitsHourKgH : continuousMassMode === "calculated_by_belt_loading" ? massByBeltKgH : continuousMassMode === "calculated_by_feed_rate" ? massByFeedRateKgH : massByCycleKgH;
+  const calculatedMassKgH = processMass.massFlowKgH;
   const directMassKgH = positiveNumber(input?.directMassKgH ?? input?.massKgH);
-  const usedMassKgH = tunnelMode.operationRegime === "batch" ? 0 : continuousMassMode === "direct_mass_flow" && directMassKgH > 0 ? directMassKgH : calculatedMassKgH;
+  const usedMassKgH = tunnelMode.operationRegime === "batch" ? 0 : processMass.massFlowKgH;
   const staticMass = resolveStaticMass(input);
   const palletMassKg = staticMass.palletMassKg;
   const numberOfPallets = staticMass.numberOfPallets;
   const calculatedPalletMassKg = staticMass.calculatedPalletMassKg;
-  const staticMassKg = tunnelMode.operationRegime === "batch" ? staticMass.staticMassKg : positiveNumber(input?.staticMassKg ?? input?.static_mass_kg) || palletMassKg * Math.max(1, numberOfPallets || 1);
+  const staticMassKg = tunnelMode.operationRegime === "batch" ? processMass.batchMassKg : positiveNumber(input?.staticMassKg ?? input?.static_mass_kg) || palletMassKg * Math.max(1, numberOfPallets || 1);
   const airDeltaTK = positiveNumber(input?.airDeltaTK) || 6;
   const airDensityKgM3 = positiveNumber(input?.airDensityKgM3) || 1.2;
   const suggestedAirApproachK = positiveNumber(input?.suggestedAirApproachK) || 8;
