@@ -26,6 +26,7 @@ import { normalizeProductForKcalEngine } from "@/modules/coldpro/core/unitNormal
 import { buildCalculationMethodReport } from "@/modules/coldpro/reports/calculationMethodReport";
 import { COLDPRO_TUNNEL_ENGINE_VERSION, calculateTunnelEngine } from "@/modules/coldpro/engines/tunnelEngine";
 import { auditColdProTechnicalConsistency } from "@/modules/coldpro/core/technicalAudit";
+import { createAirPropertiesContext } from "@/modules/coldpro/physics/airProperties";
 
 const W_TO_KCAL_H = 0.859845;
 const R_INTERNAL_M2K_W = 0.12;
@@ -368,7 +369,9 @@ export function calculateSeedDehumidificationLoad(env: ColdProEnvironment) {
   const internalW = humidityRatioKgKg(n(env.internal_temp_c), internalRh, pressure);
   const deltaW = externalW - internalW;
   const volumeFlowM3H = n(env.volume_m3) * n(env.air_changes_per_hour) + n(env.fresh_air_m3_h) + n(env.door_infiltration_m3_h);
-  const dryAirFlowKgH = volumeFlowM3H * AIR_DENSITY_KG_M3;
+  const envRecord = env as Record<string, unknown>;
+  const airProps = createAirPropertiesContext({ temperatureC: env.internal_temp_c, relativeHumidityPercent: internalRh, pressureKPa: env.atmospheric_pressure_kpa, altitudeM: Number(envRecord.altitude_m ?? 0) || null, airDensityKgM3: Number(envRecord.air_density_kg_m3 ?? 0) || null, mode: "evaporation" });
+  const dryAirFlowKgH = volumeFlowM3H * airProps.densityKgM3;
   const waterFromAirKgH = deltaW > 0 ? dryAirFlowKgH * deltaW : 0;
   if (deltaW <= 0) warnings.push("Umidade externa menor ou igual à umidade interna desejada: não foi calculada remoção de umidade do ar externo.");
 
@@ -380,8 +383,8 @@ export function calculateSeedDehumidificationLoad(env: ColdProEnvironment) {
   if (initialMoisture <= finalMoisture) warnings.push("Umidade inicial da semente menor ou igual à umidade final desejada: não foi calculada remoção de água da semente.");
   if (waterFromSeedKg > 0 && stabilizationTimeH <= 0) warnings.push("Informe o tempo de estabilização para transformar a água removida da semente em kg/h.");
   const waterFromSeedKgH = waterFromSeedKg > 0 && stabilizationTimeH > 0 ? waterFromSeedKg / stabilizationTimeH : 0;
-  const latentAirKw = waterFromAirKgH * WATER_LATENT_HEAT_KJ_KG / 3600;
-  const latentSeedKw = waterFromSeedKgH * WATER_LATENT_HEAT_KJ_KG / 3600;
+  const latentAirKw = waterFromAirKgH * airProps.waterLatentHeatKJkg / 3600;
+  const latentSeedKw = waterFromSeedKgH * airProps.waterLatentHeatKJkg / 3600;
   const totalKw = latentAirKw + latentSeedKw;
 
   return {

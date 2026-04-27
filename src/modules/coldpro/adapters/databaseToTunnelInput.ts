@@ -51,6 +51,7 @@ export function databaseToTunnelInput(tunnel: TunnelSourceRecord, environment: T
   const packagingMassKgBatch = safeNumber(tunnel?.packaging_mass_kg_batch);
   const packagingMassKgH = isStatic && safeNumber(tunnel?.batch_time_h) > 0 && packagingMassKgBatch > 0 ? packagingMassKgBatch / safeNumber(tunnel?.batch_time_h) : safeNumber(tunnel?.packaging_mass_kg_hour);
   const normalAirTempC = airTempSource === "environment" ? safeNumber(environment?.internal_temp_c) : safeNumber(tunnel?.air_temp_c);
+  const manualAirDensityKgM3 = safeNumber(tunnel?.air_density_kg_m3) > 0 && Math.abs(safeNumber(tunnel?.air_density_kg_m3) - 1.2) > 0.0001 ? safeNumber(tunnel?.air_density_kg_m3) : null;
   const normalInput = {
     airTempC: normalAirTempC,
     airVelocityMS: safeNumber(tunnel?.air_velocity_m_s),
@@ -137,7 +138,13 @@ export function databaseToTunnelInput(tunnel: TunnelSourceRecord, environment: T
     airVelocityMS: approved ? safeNumber(tunnel?.approved_air_velocity_m_s, normalInput.airVelocityMS) : normalInput.airVelocityMS,
     manualConvectiveCoefficientWM2K: approved ? safeNumber(tunnel?.approved_convective_coefficient_w_m2_k, normalInput.manualConvectiveCoefficientWM2K) : normalInput.manualConvectiveCoefficientWM2K,
     airDeltaTK: approved ? safeNumber(tunnel?.approved_air_delta_t_k, normalInput.airDeltaTK) : normalInput.airDeltaTK,
-    airDensityKgM3: safeNumber(tunnel?.air_density_kg_m3, 1.2),
+    airDensityKgM3: manualAirDensityKgM3,
+    airSpecificHeatKJkgK: safeNumber(tunnel?.air_specific_heat_kj_kg_k) || null,
+    waterLatentHeatKJkg: safeNumber(tunnel?.water_latent_heat_kj_kg) || null,
+    altitudeM: safeNumber(environment?.altitude_m ?? tunnel?.altitude_m) || null,
+    atmosphericPressureKPa: safeNumber(environment?.atmospheric_pressure_kpa ?? tunnel?.atmospheric_pressure_kpa) || null,
+    relativeHumidityPercent: safeNumber(environment?.relative_humidity_percent ?? tunnel?.relative_humidity_percent) || null,
+    externalRelativeHumidityPercent: safeNumber(environment?.external_relative_humidity_percent ?? tunnel?.external_relative_humidity_percent) || null,
     spiralTurbulenceFactor: safeNumber(tunnel?.spiral_turbulence_factor, 1.8),
     blockExposureFactor: safeNumber(tunnel?.block_exposure_factor, 0.7),
     suggestedAirApproachK: safeNumber(tunnel?.suggested_air_approach_k, 8),

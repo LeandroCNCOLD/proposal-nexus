@@ -15,7 +15,7 @@ export function calculateCo2Control(input: any) {
   if (purgeAirflowM3H <= 0 && limitFrac > externalFrac) purgeAirflowM3H = generatedM3H / (limitFrac - externalFrac);
   if (limitFrac <= externalFrac && generatedM3H > 0) warnings.push("Limite de CO₂ menor ou igual ao CO₂ externo: cálculo de purga bloqueado como inviável.");
   if (limitPercent >= 1) warnings.push("CO₂ elevado oferece risco a pessoas; prever sensores, alarme e renovação segura.");
-  const purgeKw = sensiblePurgeLoadKw({ airflowM3H: purgeAirflowM3H, externalTemperatureC: input.external_temperature_c, internalTemperatureC: input.internal_temperature_c ?? input.target_temperature_c });
+  const purgeKw = sensiblePurgeLoadKw({ airflowM3H: purgeAirflowM3H, externalTemperatureC: input.external_temperature_c, internalTemperatureC: input.internal_temperature_c ?? input.target_temperature_c, altitudeM: input.altitude_m, pressureKPa: input.atmospheric_pressure_kpa, relativeHumidityPercent: input.internal_relative_humidity ?? input.target_relative_humidity, airDensityKgM3: input.air_density_kg_m3, airSpecificHeatKJkgK: input.air_specific_heat_kj_kg_k });
   return {
     co2_generated_m3_h: roundAdvanced(generatedM3H, 5),
     co2_maximum_m3: roundAdvanced(co2MaximumM3, 3),

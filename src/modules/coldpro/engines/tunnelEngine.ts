@@ -5,6 +5,7 @@ import { buildCalculationMethodReport } from "../reports/calculationMethodReport
 import { kwToKcalH, kwToTr } from "../core/units";
 import { validateTunnelInput } from "../core/validators";
 import { calculateAirflowModel, calculatePsychrometricInfiltrationKW, calculateRequiredAirflowM3H } from "../physics/airflowModel";
+import { createAirPropertiesContext } from "../physics/airProperties";
 import { calculateExposureFactor } from "../physics/arrangementModel";
 import { calculatePlankFreezingTimeMin, validateFreezingTime } from "../physics/freezingTime";
 import { calculateCharacteristicDimension } from "../physics/geometryModel";
@@ -378,13 +379,23 @@ function calculateTunnelCore(input: TunnelEngineInput) {
   const calculatedPalletMassKg = staticMass.calculatedPalletMassKg;
   const staticMassKg = tunnelMode.operationRegime === "batch" ? processMass.batchMassKg : positiveNumber(input?.staticMassKg ?? input?.static_mass_kg) || palletMassKg * Math.max(1, numberOfPallets || 1);
   const airDeltaTK = positiveNumber(input?.airDeltaTK) || 6;
-  const airDensityKgM3 = positiveNumber(input?.airDensityKgM3) || 1.2;
   const suggestedAirApproachK = positiveNumber(input?.suggestedAirApproachK) || 8;
   const airFlowMethod = "thermal_balance_estimate";
   const suggestedAirMethod = "process_temperature_estimate";
-  const cpAirKJkgK = 1.005;
   const suggestedAirTempC = toNumber(input?.finalTempC, 0) - suggestedAirApproachK;
   const informedAirTempC = isProvided(input?.airTempC) ? toNumber(input?.airTempC, 0) : null;
+  const airProps = createAirPropertiesContext({
+    temperatureC: informedAirTempC ?? toNumber(input?.finalTempC, 0),
+    altitudeM: nullableNumber(input?.altitudeM ?? input?.altitude_m),
+    pressureKPa: nullableNumber(input?.atmosphericPressureKPa ?? input?.atmospheric_pressure_kpa),
+    relativeHumidityPercent: nullableNumber(input?.internalRelativeHumidityPercent ?? input?.internal_relative_humidity_percent ?? input?.relativeHumidityPercent ?? input?.relative_humidity_percent),
+    airDensityKgM3: nullableNumber(input?.airDensityKgM3 ?? input?.air_density_kg_m3),
+    airSpecificHeatKJkgK: nullableNumber(input?.airSpecificHeatKJkgK ?? input?.air_specific_heat_kj_kg_k),
+    waterLatentHeatKJkg: nullableNumber(input?.waterLatentHeatKJkg ?? input?.water_latent_heat_kj_kg),
+    mode: "sublimation",
+  });
+  const airDensityKgM3 = airProps.densityKgM3;
+  const cpAirKJkgK = airProps.specificHeatKJkgK;
   const suggestedAirTempComparisonC = informedAirTempC === null ? null : informedAirTempC - suggestedAirTempC;
   const informedAirFlowM3H = nullableNumber(input?.informedAirFlowM3H ?? input?.airflow_m3_h);
   const infiltrationMethod = resolveInfiltrationMethod(input);
@@ -452,7 +463,7 @@ function calculateTunnelCore(input: TunnelEngineInput) {
   const packagingMassKgH = packaging.packagingMassKgH;
   const packagingLoadKW = packaging.packagingLoadKW;
   const transmission = resolveTransmissionLoad({ ...input, airTempC: input?.airTempC ?? input?.finalTempC });
-  const infiltration = calculatePsychrometricInfiltrationKW({ ...input, internalTempC: input?.airTempC ?? input?.finalTempC, airDensityKgM3 });
+  const infiltration = calculatePsychrometricInfiltrationKW({ ...input, internalTempC: input?.airTempC ?? input?.finalTempC, airDensityKgM3, airSpecificHeatKJkgK: cpAirKJkgK, waterLatentHeatKJkg: airProps.waterLatentHeatKJkg, atmosphericPressureKPa: airProps.pressureKPa });
   const internalLoads = resolveInternalLoads(input);
   const transmissionLoadKW = transmission.transmissionKW;
   const infiltrationLoadKW = infiltration.totalKW;
@@ -539,7 +550,7 @@ function calculateTunnelCore(input: TunnelEngineInput) {
     ...processMass.blockers,
     ...productLoadResolution.blockers,
   ]);
-  const warnings = unique([...validation.warnings, ...tunnelMode.warnings, ...geometry.warnings, ...exposure.warnings, ...airflow.warnings, ...engineWarnings, ...freezingValidation.warnings, ...infiltration.warnings, ...thermalReliabilityAlerts.map((alert) => alert.message)]);
+  const warnings = unique([...validation.warnings, ...tunnelMode.warnings, ...geometry.warnings, ...exposure.warnings, ...airflow.warnings, ...engineWarnings, ...freezingValidation.warnings, ...infiltration.warnings, ...airProps.warnings, ...thermalReliabilityAlerts.map((alert) => alert.message)]);
 
   const inputStatus: TunnelScenarioStatus = invalidFields.length > 0
     ? "invalid_input"
@@ -622,7 +633,7 @@ function calculateTunnelCore(input: TunnelEngineInput) {
     convection: { source: h.source, hBaseWM2K: h.hBaseWM2K, hEffectiveWM2K: h.hEffectiveWM2K, airVelocityMS: airflow.airVelocityUsedMS, airExposureFactor: input?.airExposureFactor ?? null, exposureFactor: exposure.exposureFactor, spiralTurbulenceFactor, blockExposureFactor },
     airflow: { airflowSource: airflow.airflowSource, fanAirflowM3H: airflow.fanAirflowM3H, grossAirAreaM2: airflow.grossAreaM2, freeAirAreaM2: airflow.freeAreaM2, blockageFactor: airflow.blockageFactor, calculatedAirVelocityMS: airflow.calculatedAirVelocityMS, airVelocityUsedMS: airflow.airVelocityUsedMS },
     heatTransfer: { hBaseWM2K: h.hBaseWM2K, exposureFactor: exposure.exposureFactor, airExposureFactor: input?.airExposureFactor ?? null, hEffectiveWM2K: h.hEffectiveWM2K, hSource: h.source, transmission },
-    air: { airTempC: input?.airTempC ?? null, airDeltaTK, airDensityKgM3, airFlowM3H, informedAirFlowM3H, airFlowMethod, suggestedAirTempC, suggestedAirMethod, suggestedAirApproachK, comparison: suggestedAirTempComparisonC },
+    air: { airTempC: input?.airTempC ?? null, airDeltaTK, airDensityKgM3, cpAirKJkgK, airProperties: airProps, airFlowM3H, informedAirFlowM3H, airFlowMethod, suggestedAirTempC, suggestedAirMethod, suggestedAirApproachK, comparison: suggestedAirTempComparisonC },
     scenarios: { adjustedScenario: scenario },
     loads: { productLoadKW, packagingLoadKW, transmissionLoadKW, infiltrationLoadKW, internalLoadKW, totalKW, totalKcalH, totalTR, internalLoads, packagingMassKgH, packagingMassKgBatch, packagingMassBatchKg: packagingMassKgBatch, packagingLoadMethod: packaging.packagingLoadMethod, packagingMassSource: packaging.packagingMassSource, productLoadMissingFields: productLoadMissing, loadCalculationReady: productLoadMissing.length === 0, massUsedForProductLoad: tunnelMode.operationRegime === "batch" ? staticMassKg : usedMassKgH, massUnitForProductLoad: tunnelMode.operationRegime === "batch" ? "kg/batelada" : "kg/h", airFlowThermalBalanceM3H },
     infiltration: { ...infiltration, requestedMethod: infiltrationMethod.requested, usedMethod: infiltrationMethod.used, fallbackApplied: infiltrationMethod.used !== infiltrationMethod.requested },
@@ -642,7 +653,7 @@ function calculateTunnelCore(input: TunnelEngineInput) {
     transmissionLoadKW: "U × A × ΔT / 1000",
     infiltrationLoadKW: "m_ar × (h_externo - h_interno), h = 1.006*T + W*(2501 + 1.86*T)",
     totalKW: "productLoadKW + packagingLoadKW + transmissionLoadKW + infiltrationLoadKW + internalLoadKW",
-    airFlowM3H: "calculateRequiredAirflowM3H(totalKW, airDensityKgM3, 1.005, airDeltaTK)",
+    airFlowM3H: "calculateRequiredAirflowM3H(totalKW, airDensityKgM3 dinâmico, cpAirKJkgK dinâmico, airDeltaTK)",
     suggestedAirTempC: "finalTempC - suggestedAirApproachK",
     plankFreezingTime: "Plank equation using density, latent heat, core distance, h and effective k",
   };

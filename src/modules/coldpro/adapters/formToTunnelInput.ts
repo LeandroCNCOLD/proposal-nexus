@@ -54,6 +54,7 @@ export function formToTunnelInput(form: TunnelSourceRecord, environment: TunnelS
   const packagingMassKgBatch = safeNumber(form?.packaging_mass_kg_batch);
   const packagingMassKgH = isStatic && safeNumber(form?.batch_time_h) > 0 && packagingMassKgBatch > 0 ? packagingMassKgBatch / safeNumber(form?.batch_time_h) : safeNumber(form?.packaging_mass_kg_hour);
   const normalAirTempC = airTempSource === "environment" ? safeNumber(environment?.internal_temp_c) : safeNumber(form?.air_temp_c);
+  const manualAirDensityKgM3 = safeNumber(form?.air_density_kg_m3) > 0 && Math.abs(safeNumber(form?.air_density_kg_m3) - 1.2) > 0.0001 ? safeNumber(form?.air_density_kg_m3) : null;
   const airflowSource = optionalString(form?.airflow_source) ?? "manual_velocity";
   const informedAirFlowM3H = airflowSource === "airflow_by_fans"
     ? safeNumber(form?.fan_airflow_m3_h ?? form?.informed_air_flow_m3_h ?? form?.airflow_m3_h)
@@ -144,7 +145,13 @@ export function formToTunnelInput(form: TunnelSourceRecord, environment: TunnelS
     airVelocityMS: approved ? safeNumber(form?.approved_air_velocity_m_s, normalInput.airVelocityMS) : normalInput.airVelocityMS,
     manualConvectiveCoefficientWM2K: approved ? safeNumber(form?.approved_convective_coefficient_w_m2_k, normalInput.manualConvectiveCoefficientWM2K) : normalInput.manualConvectiveCoefficientWM2K,
     airDeltaTK: approved ? safeNumber(form?.approved_air_delta_t_k, normalInput.airDeltaTK) : normalInput.airDeltaTK,
-    airDensityKgM3: safeNumber(form?.air_density_kg_m3, 1.2),
+    airDensityKgM3: manualAirDensityKgM3,
+    airSpecificHeatKJkgK: safeNumber(form?.air_specific_heat_kj_kg_k) || null,
+    waterLatentHeatKJkg: safeNumber(form?.water_latent_heat_kj_kg) || null,
+    altitudeM: safeNumber(environment?.altitude_m ?? form?.altitude_m) || null,
+    atmosphericPressureKPa: safeNumber(environment?.atmospheric_pressure_kpa ?? form?.atmospheric_pressure_kpa) || null,
+    relativeHumidityPercent: safeNumber(environment?.relative_humidity_percent ?? form?.relative_humidity_percent) || null,
+    externalRelativeHumidityPercent: safeNumber(environment?.external_relative_humidity_percent ?? form?.external_relative_humidity_percent) || null,
     spiralTurbulenceFactor: safeNumber(form?.spiral_turbulence_factor, 1.8),
     blockExposureFactor: safeNumber(form?.block_exposure_factor, 0.7),
     suggestedAirApproachK: safeNumber(form?.suggested_air_approach_k, 8),

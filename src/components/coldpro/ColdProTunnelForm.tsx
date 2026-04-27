@@ -9,6 +9,7 @@ import { calculateTunnelEngine } from "@/modules/coldpro/engines/tunnelEngine";
 import { calculateContinuousGirofreezer } from "@/modules/coldpro/services/continuousGirofreezerService";
 import { filterAndRankColdProProducts } from "@/modules/coldpro/core/productSearch";
 import { normalizeProductForKcalEngine } from "@/modules/coldpro/core/unitNormalizer";
+import { createAirPropertiesContext } from "@/modules/coldpro/physics/airProperties";
 
 const ARRANGEMENT_DEFAULTS: Record<string, { air: number; penetration: number; label: string }> = {
   individual_units: { air: 1, penetration: 1, label: "Produto individual sobre esteira" }, single_layer_blocks: { air: 0.8, penetration: 0.85, label: "Blocos em camada única" }, trays: { air: 0.65, penetration: 0.75, label: "Bandejas" }, stacked_packages: { air: 0.45, penetration: 0.55, label: "Pacotes empilhados" }, packaged_units: { air: 0.55, penetration: 0.65, label: "Produto embalado" }, trays_on_racks: { air: 0.65, penetration: 0.75, label: "Bandejas em racks/carrinhos" }, boxes_on_cart: { air: 0.35, penetration: 0.45, label: "Caixas em carrinho" }, hanging_product: { air: 0.8, penetration: 0.85, label: "Produto suspenso" }, palletized_boxes: { air: 0.35, penetration: 0.45, label: "Caixas paletizadas" }, palletized_blocks: { air: 0.25, penetration: 0.35, label: "Blocos paletizados" }, bulk_on_pallet: { air: 0.2, penetration: 0.3, label: "Produto a granel sobre pallet" }, loose_particles: { air: 0.9, penetration: 0.95, label: "Partículas soltas" }, small_individual_units: { air: 0.9, penetration: 0.95, label: "Unidades pequenas individuais" }, boxes: { air: 0.35, penetration: 0.45, label: "Caixas" }, racks: { air: 0.65, penetration: 0.75, label: "Racks" }, bulk_container: { air: 0.4, penetration: 0.5, label: "Contentores" },
@@ -320,9 +321,9 @@ function airflowVelocityStatus(velocityMS: number, tunnelLike: boolean) {
   return { status: "fora da faixa", tone: "warning" as const, warning: "Velocidade fora da faixa usual para câmara fria." };
 }
 
-function requiredAirflowForLoadM3H(loadKW: number, airDeltaTK: number, airDensityKgM3: number) {
-  if (loadKW <= 0 || airDeltaTK <= 0 || airDensityKgM3 <= 0) return 0;
-  return loadKW * 3600 / (airDensityKgM3 * 1.005 * airDeltaTK);
+function requiredAirflowForLoadM3H(loadKW: number, airDeltaTK: number, airDensityKgM3: number, cpAirKJkgK = 1.005) {
+  if (loadKW <= 0 || airDeltaTK <= 0 || airDensityKgM3 <= 0 || cpAirKJkgK <= 0) return 0;
+  return loadKW * 3600 / (airDensityKgM3 * cpAirKJkgK * airDeltaTK);
 }
 
 function airflowForVelocityM3H(freeAreaM2: number, velocityMS: number) {
@@ -523,6 +524,17 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
   const latentHeatKcalKg = kcalFromThermal(form.latent_heat_kcal_kg, form.latent_heat_kj_kg, preferCatalogKj) || kcalFromThermal(thermodynamicProduct?.latent_heat_kcal_kg, thermodynamicProduct?.latent_heat_kj_kg, Boolean(thermodynamicProduct?.id));
   const frozenConductivityWmK = positiveValue(form.thermal_conductivity_frozen_w_m_k, thermodynamicProduct?.thermal_conductivity_frozen_w_m_k, thermodynamicProduct?.thermal_conductivity_w_m_k);
   const frozenWaterFraction = definedNumber(form.frozen_water_fraction, thermodynamicProduct?.frozen_water_fraction, thermodynamicProduct?.freezable_water_content_percent == null ? null : Number(thermodynamicProduct.freezable_water_content_percent) / 100, thermodynamicProduct?.water_content_percent == null ? null : Number(thermodynamicProduct.water_content_percent) / 100, 0.9);
+  const manualAirDensityKgM3 = positiveValue(form.air_density_kg_m3) > 0 && Math.abs(positiveValue(form.air_density_kg_m3) - 1.2) > 0.0001 ? positiveValue(form.air_density_kg_m3) : null;
+  const airProperties = createAirPropertiesContext({
+    temperatureC: airTemperatureC,
+    altitudeM: positiveValue(environment?.altitude_m, form.altitude_m) || null,
+    pressureKPa: positiveValue(environment?.atmospheric_pressure_kpa, form.atmospheric_pressure_kpa) || null,
+    relativeHumidityPercent: positiveValue(environment?.relative_humidity_percent, form.relative_humidity_percent) || null,
+    airDensityKgM3: manualAirDensityKgM3,
+    airSpecificHeatKJkgK: positiveValue(form.air_specific_heat_kj_kg_k) || null,
+    waterLatentHeatKJkg: positiveValue(form.water_latent_heat_kj_kg) || null,
+    mode: "sublimation",
+  });
   const tunnelInput = formToTunnelInput(form, environment ?? {});
   const baseResult = calculateTunnelEngine(tunnelInput);
   const simulationForm = { ...form, ...simulation, initial_scenario_input: tunnelInput.initialScenarioInput, thermal_condition_approved: false };
@@ -575,7 +587,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
     packagingMassKgH: Number(form.packaging_mass_kg_hour ?? 0),
     packagingCpKjKgK: Number(form.packaging_specific_heat_kcal_kg_c ?? 0) * 4.1868,
     deltaTAirK: Number(form.air_delta_t_k ?? 5),
-    airDensityKgM3: 1.2,
+    airDensityKgM3: airProperties.densityKgM3,
     airExposureFactor: Number(form.air_exposure_factor ?? 1),
     thermalPenetrationFactor: Number(form.thermal_penetration_factor ?? 1),
     tunnelType,
@@ -613,8 +625,9 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
     const tunnelLike = ["continuous_belt", "spiral_girofreezer", "static_cart", "static_pallet", "fluidized_bed", "blast_freezer"].includes(tunnelType);
     const loadKW = positiveValue(tunnelResult.totalKW, tunnelResult.productLoadKW, thermalResult.totalProcessLoadKw, thermalResult.productLoadKw);
     const airDeltaTK = positiveValue(source?.air_delta_t_k) || 6;
-    const airDensityKgM3 = positiveValue(source?.air_density_kg_m3) || 1.2;
-    const balanceAirflow = requiredAirflowForLoadM3H(loadKW, airDeltaTK, airDensityKgM3) || positiveValue(thermalResult.requiredAirflowM3H, tunnelResult.airFlowM3H, source?.informed_air_flow_m3_h, source?.airflow_m3_h);
+    const localManualDensity = positiveValue(source?.air_density_kg_m3) > 0 && Math.abs(positiveValue(source?.air_density_kg_m3) - 1.2) > 0.0001 ? positiveValue(source?.air_density_kg_m3) : null;
+    const localAirProps = createAirPropertiesContext({ temperatureC: Number(source?.air_temp_c ?? airTemperatureC), altitudeM: positiveValue(environment?.altitude_m, source?.altitude_m) || null, pressureKPa: positiveValue(environment?.atmospheric_pressure_kpa, source?.atmospheric_pressure_kpa) || null, relativeHumidityPercent: positiveValue(environment?.relative_humidity_percent, source?.relative_humidity_percent) || null, airDensityKgM3: localManualDensity, airSpecificHeatKJkgK: positiveValue(source?.air_specific_heat_kj_kg_k) || null, mode: "sublimation" });
+    const balanceAirflow = requiredAirflowForLoadM3H(loadKW, airDeltaTK, localAirProps.densityKgM3, localAirProps.specificHeatKJkgK) || positiveValue(thermalResult.requiredAirflowM3H, tunnelResult.airFlowM3H, source?.informed_air_flow_m3_h, source?.airflow_m3_h);
     const blockageFactor = recommendedBlockageFactor(tunnelType, source?.arrangement_type ?? form.arrangement_type);
     const horizontal = [dimensions.lengthM, dimensions.widthM].filter((value) => value > 0).sort((a, b) => a - b);
     const smallerWallM = horizontal[0] || positiveValue(source?.tunnel_cross_section_width_m);
@@ -669,9 +682,10 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
 
   const loadBreakdown = tunnelResult.calculationBreakdown.loads ?? {};
   const modelBreakdown = tunnelResult.calculationBreakdown.model ?? {};
-  const airBreakdown = tunnelResult.calculationBreakdown.air ?? {};
+  const airBreakdown = (tunnelResult.calculationBreakdown.air ?? {}) as Record<string, any>;
+  const displayedAirProperties = (airBreakdown.airProperties ?? airProperties) as typeof airProperties;
   const productLoadMissingFields = Array.isArray(loadBreakdown.productLoadMissingFields) ? loadBreakdown.productLoadMissingFields : [];
-  const requiredAirflowM3H = requiredAirflowForLoadM3H(tunnelResult.totalKW, positiveValue(form.air_delta_t_k) || 6, positiveValue(form.air_density_kg_m3) || 1.2) || tunnelResult.airFlowM3H;
+  const requiredAirflowM3H = requiredAirflowForLoadM3H(tunnelResult.totalKW, positiveValue(form.air_delta_t_k) || 6, displayedAirProperties.densityKgM3, displayedAirProperties.specificHeatKJkgK) || tunnelResult.airFlowM3H;
   const informedFanAirflowM3H = positiveValue(form.fan_airflow_m3_h);
   const chamberDimensions = resolveChamberDimensions(environment, { ...(tunnel ?? {}), ...form });
   const displayedAirVelocityMS = positiveValue(form.air_velocity_m_s, tunnelResult.calculatedAirVelocityMS);
@@ -1131,6 +1145,10 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
       <ColdProField label="Temperatura do ar" helpKey="airTemp" unit="°C"><ColdProInput {...num("air_temp_c")} /></ColdProField>
       <ColdProField label="Coeficiente convectivo manual" helpKey="manualConvectiveCoefficient" unit="W/m²K"><ColdProInput {...num("convective_coefficient_manual_w_m2_k")} /></ColdProField>
       <ColdProCalculatedInfo label="3. Vazão por carga térmica" value={fmtAirflow(requiredAirflowM3H)} description="carga total ÷ densidade × Cp × ΔT" tone={requiredAirflowM3H > 0 ? "success" : "warning"} />
+      <ColdProCalculatedInfo label="Densidade do ar usada" value={`${fmtColdPro(displayedAirProperties.densityKgM3, 3)} kg/m³`} description={`fonte: ${displayedAirProperties.source}`} tone={displayedAirProperties.source === "fallback" ? "warning" : "info"} />
+      <ColdProCalculatedInfo label="Cp do ar usado" value={`${fmtColdPro(displayedAirProperties.specificHeatKJkgK, 4)} kJ/kg.K`} description="propriedade dinâmica do ar" tone="info" />
+      <ColdProCalculatedInfo label="Base das propriedades" value={`${fmtColdPro(displayedAirProperties.temperatureC, 1)} °C / ${fmtColdPro(displayedAirProperties.temperatureK, 2)} K`} description={`${fmtColdPro(displayedAirProperties.pressureKPa, 2)} kPa${displayedAirProperties.altitudeM ? ` · ${fmtColdPro(displayedAirProperties.altitudeM, 0)} m` : ""}${displayedAirProperties.relativeHumidityPercent !== null ? ` · UR ${fmtColdPro(displayedAirProperties.relativeHumidityPercent, 1)}%` : ""}`} tone="info" />
+      {displayedAirProperties.warnings.length > 0 ? <ColdProCalculatedInfo label="Alertas propriedades do ar" value={displayedAirProperties.warnings.length.toString()} description={displayedAirProperties.warnings.join(" ")} tone="warning" /> : null}
       <ColdProCalculatedInfo label="4. Vazão por velocidade de túnel" value={fmtAirflow(referenceVelocityAirflowM3H)} description={`${fmtColdPro(airflowReferenceVelocityMS, 1)} m/s × seção livre`} tone={referenceVelocityAirflowM3H > 0 ? "info" : "warning"} />
       <ColdProCalculatedInfo label="5. Vazão recomendada" value={fmtAirflow(designRequiredAirflowM3H)} description="maior entre carga térmica e velocidade mínima" tone={designRequiredAirflowM3H > 0 ? "success" : "warning"} />
       <ColdProCalculatedInfo label="Área bruta calculada" value={`${fmtColdPro(tunnelResult.grossAirAreaM2 ?? 0, 2)} m²`} description="largura × altura" tone="info" />
