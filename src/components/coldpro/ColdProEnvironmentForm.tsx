@@ -529,6 +529,13 @@ export const ColdProEnvironmentForm = React.forwardRef<ColdProEnvironmentFormHan
     ...face,
     solar_orientation: face.local === currentSolarFace && toNumber(face.solar_radiation_w_m2) > 0 ? "Sol direto" : "",
   })), [finalizedConstructionFaces, currentSolarFace]);
+  const save = async () => {
+    if (!canSave) return false;
+    const result = await onSave({ ...form, name: String(form?.name ?? "").trim(), chamber_layout_type: layout, wall_count: wallCount, volume_m3: volume, west_face_insolation: Boolean(currentSolarFace), construction_faces: [...solarAdjustedConstructionFaces, geometry], total_panel_area_m2: totalPanelArea, total_glass_area_m2: totalGlassArea, total_door_area_m2: 0 });
+    return result !== false;
+  };
+
+  React.useImperativeHandle(ref, () => ({ save }));
   const faceCalculationEnv = { ...form, construction_faces: solarAdjustedConstructionFaces, chamber_layout_type: layout, wall_count: wallCount };
   const transmissionPreviewRows = constructionFaces.map((face, index) => {
     const hasGlass = Boolean(face.has_glass) && toNumber(face.glass_area_m2) > 0;
