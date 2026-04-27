@@ -262,7 +262,7 @@ function requiredPositiveFields(input: TunnelEngineInput, isStatic: boolean, sta
 function canEstimateFreezingTime(input: TunnelEngineInput, distanceToCoreM: number, hEffectiveWM2K: number | null, kEffectiveWMK: number): boolean {
   return (
     positiveNumber(input?.densityKgM3) > 0 &&
-    positiveNumber(input?.latentHeatKcalKg) > 0 &&
+    thermalKcal(input, "latentHeatKcalKg", "latentHeatKJkg") > 0 &&
     positiveNumber(input?.frozenWaterFraction) > 0 &&
     distanceToCoreM > 0 &&
     toNumber(hEffectiveWM2K, 0) > 0 &&
@@ -459,7 +459,7 @@ function calculateTunnelCore(input: TunnelEngineInput) {
   const estimatedTimeMin = canEstimateFreezingTime(input, distanceToCoreM, h.hEffectiveWM2K, kEffectiveWMK)
     ? calculatePlankFreezingTimeMin({
         densityKgM3: input?.densityKgM3,
-        latentHeatKJkg: input?.latentHeatKcalKg ? Number(input.latentHeatKcalKg) * 4.1868 : 0,
+        latentHeatKJkg: thermalKcal(input, "latentHeatKcalKg", "latentHeatKJkg") * 4.1868,
         frozenWaterFraction: input?.frozenWaterFraction,
         freezingPointC: input?.freezingPointC,
         airTempC: input?.airTempC,
