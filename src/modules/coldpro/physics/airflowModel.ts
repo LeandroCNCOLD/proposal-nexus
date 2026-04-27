@@ -73,3 +73,13 @@ export function calculateAirflowModel(input: any) {
     invalidFields,
   };
 }
+
+export function calculateRequiredAirflowM3H(params: { loadKW?: number | null; airDeltaTK?: number | null; airDensityKgM3?: number | null; cpAirKJkgK?: number | null }) {
+  const loadKW = positive(params?.loadKW);
+  const airDeltaTK = positive(params?.airDeltaTK);
+  const airDensityKgM3 = positive(params?.airDensityKgM3) || 1.2;
+  const cpAirKJkgK = positive(params?.cpAirKJkgK) || 1.005;
+
+  if (loadKW <= 0 || airDeltaTK <= 0 || airDensityKgM3 <= 0 || cpAirKJkgK <= 0) return 0;
+  return (loadKW * 3600) / (airDensityKgM3 * cpAirKJkgK * airDeltaTK);
+}

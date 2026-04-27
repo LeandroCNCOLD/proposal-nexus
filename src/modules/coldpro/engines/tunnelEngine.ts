@@ -3,9 +3,9 @@ import { COLDPRO_CALCULATION_METHOD_REGISTRY_VERSION, COLDPRO_CALCULATION_METHOD
 import { buildCalculationMethodReport } from "../reports/calculationMethodReport";
 import { kwToKcalH, kwToTr } from "../core/units";
 import { validateTunnelInput } from "../core/validators";
-import { calculateAirflowModel } from "../physics/airflowModel";
+import { calculateAirflowModel, calculateRequiredAirflowM3H } from "../physics/airflowModel";
 import { calculateExposureFactor } from "../physics/arrangementModel";
-import { calculatePlankFreezingTimeMin } from "../physics/freezingTime";
+import { calculatePlankFreezingTimeMin, validateFreezingTime } from "../physics/freezingTime";
 import { calculateCharacteristicDimension } from "../physics/geometryModel";
 import { calculateConvectiveCoefficient } from "../physics/heatTransfer";
 import {
@@ -237,14 +237,14 @@ function requiredPositiveFields(input: TunnelEngineInput, isStatic: boolean, sta
     airflowSource === "airflow_by_fans" && positiveNumber(input?.fanAirflowM3H ?? input?.fan_airflow_m3_h) <= 0 ? "fan_airflow_m3_h" : "",
     airflowSource === "airflow_by_fans" && positiveNumber(input?.tunnelCrossSectionWidthM ?? input?.tunnel_cross_section_width_m) <= 0 ? "tunnel_cross_section_width_m" : "",
     airflowSource === "airflow_by_fans" && positiveNumber(input?.tunnelCrossSectionHeightM ?? input?.tunnel_cross_section_height_m) <= 0 ? "tunnel_cross_section_height_m" : "",
-    geometry === "slab" && positiveNumber(input?.productThicknessM ?? input?.product_thickness_m) <= 0 ? "espessura do produto" : "",
-    geometry === "rectangular_prism" && positiveNumber(input?.productLengthM ?? input?.product_length_m) <= 0 ? "product_length_m" : "",
-    geometry === "rectangular_prism" && positiveNumber(input?.productWidthM ?? input?.product_width_m) <= 0 ? "product_width_m" : "",
-    geometry === "rectangular_prism" && positiveNumber(input?.productHeightM ?? input?.product_height_m) <= 0 ? "product_height_m" : "",
-    geometry === "cube" && positiveNumber(input?.productSideM ?? input?.product_side_m) <= 0 ? "product_side_m" : "",
-    geometry === "cylinder" && positiveNumber(input?.productDiameterM ?? input?.product_diameter_m) <= 0 ? "product_diameter_m" : "",
-    geometry === "cylinder" && positiveNumber(input?.productLengthM ?? input?.product_length_m) <= 0 ? "product_length_m" : "",
-    geometry === "sphere" && positiveNumber(input?.productDiameterM ?? input?.product_diameter_m) <= 0 ? "product_diameter_m" : "",
+    !isStatic && geometry === "slab" && positiveNumber(input?.productThicknessM ?? input?.product_thickness_m) <= 0 ? "espessura do produto" : "",
+    !isStatic && geometry === "rectangular_prism" && positiveNumber(input?.productLengthM ?? input?.product_length_m) <= 0 ? "product_length_m" : "",
+    !isStatic && geometry === "rectangular_prism" && positiveNumber(input?.productWidthM ?? input?.product_width_m) <= 0 ? "product_width_m" : "",
+    !isStatic && geometry === "rectangular_prism" && positiveNumber(input?.productHeightM ?? input?.product_height_m) <= 0 ? "product_height_m" : "",
+    !isStatic && geometry === "cube" && positiveNumber(input?.productSideM ?? input?.product_side_m) <= 0 ? "product_side_m" : "",
+    !isStatic && geometry === "cylinder" && positiveNumber(input?.productDiameterM ?? input?.product_diameter_m) <= 0 ? "product_diameter_m" : "",
+    !isStatic && geometry === "cylinder" && positiveNumber(input?.productLengthM ?? input?.product_length_m) <= 0 ? "product_length_m" : "",
+    !isStatic && geometry === "sphere" && positiveNumber(input?.productDiameterM ?? input?.product_diameter_m) <= 0 ? "product_diameter_m" : "",
     geometry === "packed_box" && positiveNumber(input?.boxLengthM ?? input?.box_length_m) <= 0 ? "box_length_m" : "",
     geometry === "packed_box" && positiveNumber(input?.boxWidthM ?? input?.box_width_m) <= 0 ? "box_width_m" : "",
     geometry === "packed_box" && positiveNumber(input?.boxHeightM ?? input?.box_height_m) <= 0 ? "box_height_m" : "",
@@ -378,7 +378,7 @@ function calculateTunnelCore(input: TunnelEngineInput) {
   const informedAirFlowM3H = nullableNumber(input?.informedAirFlowM3H ?? input?.airflow_m3_h);
   const infiltrationMethod = resolveInfiltrationMethod(input);
 
-  const geometry = calculateCharacteristicDimension({ ...input, isStatic: tunnelMode.isStatic });
+  const geometry = calculateCharacteristicDimension({ ...input, isStatic: tunnelMode.isStatic, tunnelType: tunnelMode.tunnelType, arrangementType: tunnelMode.arrangementType });
   const fallbackCharacteristicDimensionM = isStatic
     ? getSmallestValidDimension([input?.palletLengthM, input?.palletWidthM, input?.palletHeightM])
     : positiveNumber(input?.productThicknessM);
@@ -430,7 +430,7 @@ function calculateTunnelCore(input: TunnelEngineInput) {
   const totalKW = productLoadKW + packagingLoadKW + internalLoadKW;
   const totalKcalH = kwToKcalH(totalKW);
   const totalTR = kwToTr(totalKW);
-  const airFlowM3H = airDeltaTK > 0 && airDensityKgM3 > 0 ? (totalKW * 3600) / (airDensityKgM3 * cpAirKJkgK * airDeltaTK) : 0;
+  const airFlowM3H = calculateRequiredAirflowM3H({ loadKW: totalKW, airDeltaTK, airDensityKgM3, cpAirKJkgK });
   const airFlowThermalBalanceM3H = airFlowM3H;
 
   const estimatedTimeMin = canEstimateFreezingTime(input, distanceToCoreM, h.hEffectiveWM2K, kEffectiveWMK)
@@ -488,6 +488,7 @@ function calculateTunnelCore(input: TunnelEngineInput) {
     positiveNumber(input?.frozenConductivityWMK) <= 0 ? "condutividade congelada" : "",
     positiveNumber(input?.thermalPenetrationFactor) <= 0 ? "fator de penetração térmica" : "",
   ];
+  const freezingValidation = validateFreezingTime({ estimatedTimeMin, availableTimeMin, missingFields: freezingTimeMissingFields, invalidFields: [] });
   const invalidFields = unique([
     ...validation.invalidFields,
     ...airflow.invalidFields,
@@ -502,17 +503,13 @@ function calculateTunnelCore(input: TunnelEngineInput) {
     ...requiredPositiveFields(input, isStatic, staticMassKg, characteristicDimensionM, energy.crossesFreezingPoint, airVelocityUsedMS, continuousMassMode),
     ...freezingTimeMissingFields,
   ]);
-  const warnings = unique([...validation.warnings, ...tunnelMode.warnings, ...geometry.warnings, ...exposure.warnings, ...airflow.warnings, ...engineWarnings, ...thermalReliabilityAlerts.map((alert) => alert.message)]);
+  const warnings = unique([...validation.warnings, ...tunnelMode.warnings, ...geometry.warnings, ...exposure.warnings, ...airflow.warnings, ...engineWarnings, ...freezingValidation.warnings, ...thermalReliabilityAlerts.map((alert) => alert.message)]);
 
   const status: TunnelScenarioStatus = invalidFields.length > 0
     ? "invalid_input"
     : missingFields.length > 0
       ? "missing_data"
-      : estimatedTimeMin !== null && estimatedTimeMin <= availableTimeMin
-        ? "adequate"
-        : estimatedTimeMin !== null && estimatedTimeMin > availableTimeMin
-          ? "insufficient"
-          : "missing_data";
+      : freezingValidation.status;
 
   const scenario: TunnelThermalScenario = {
     airTempC: nullableNumber(input?.airTempC),
@@ -586,7 +583,7 @@ function calculateTunnelCore(input: TunnelEngineInput) {
     scenarios: { adjustedScenario: scenario },
     loads: { productLoadKW, packagingLoadKW, internalLoadKW, totalKW, totalKcalH, totalTR, packagingMassKgH, packagingMassKgBatch, packagingMassBatchKg: packagingMassKgBatch, packagingLoadMethod: packaging.packagingLoadMethod, packagingMassSource: packaging.packagingMassSource, productLoadMissingFields: productLoadMissing, loadCalculationReady: productLoadMissing.length === 0, massUsedForProductLoad: tunnelMode.operationRegime === "batch" ? staticMassKg : usedMassKgH, massUnitForProductLoad: tunnelMode.operationRegime === "batch" ? "kg/batelada" : "kg/h", airFlowThermalBalanceM3H },
     infiltration: { requestedMethod: infiltrationMethod.requested, usedMethod: infiltrationMethod.used, fallbackApplied: Boolean(infiltrationMethod.warning) },
-    timing: { estimatedTimeMin, availableTimeMin, status },
+    timing: { estimatedTimeMin, availableTimeMin, status, validationStatus: freezingValidation.status, marginPercent: freezingValidation.marginPercent },
     validation: { warnings, missingFields, invalidFields, thermalReliabilityAlerts },
   };
 
@@ -600,7 +597,7 @@ function calculateTunnelCore(input: TunnelEngineInput) {
     packagingLoadKW: tunnelMode.operationRegime === "batch" ? "packagingMassKgBatch × packagingCpKJkgK × abs(initialTempC - finalTempC) / (batchTimeH × 3600)" : "packagingMassKgH × packagingCpKJkgK × abs(initialTempC - finalTempC) / 3600",
     internalLoadKW: "beltMotorKW + internalFansKW + otherInternalKW",
     totalKW: "productLoadKW + packagingLoadKW + internalLoadKW",
-    airFlowM3H: "totalKW × 3600 / (airDensityKgM3 × 1.005 × airDeltaTK)",
+    airFlowM3H: "calculateRequiredAirflowM3H(totalKW, airDensityKgM3, 1.005, airDeltaTK)",
     suggestedAirTempC: "finalTempC - suggestedAirApproachK",
     plankFreezingTime: "Plank equation using density, latent heat, core distance, h and effective k",
   };
