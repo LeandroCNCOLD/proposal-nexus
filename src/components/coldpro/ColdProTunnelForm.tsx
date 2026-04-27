@@ -820,6 +820,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
   };
 
   const save = () => {
+    const selectedCatalogKcal = selectedCatalogProduct ? normalizeProductForKcalEngine(selectedCatalogProduct) : null;
     const payload = {
     ...form,
     ...(selectedCatalogProduct ? {
@@ -829,10 +830,10 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
       ashrae_density_kg_m3: selectedCatalogProduct.density_kg_m3 ?? form.ashrae_density_kg_m3,
       specific_heat_above_kj_kg_k: selectedCatalogProduct.specific_heat_above_kj_kg_k ?? null,
       specific_heat_below_kj_kg_k: selectedCatalogProduct.specific_heat_below_kj_kg_k ?? null,
-      specific_heat_above_kcal_kg_c: Number(selectedCatalogProduct.specific_heat_above_kcal_kg_c ?? form.specific_heat_above_kcal_kg_c),
-      specific_heat_below_kcal_kg_c: Number(selectedCatalogProduct.specific_heat_below_kcal_kg_c ?? form.specific_heat_below_kcal_kg_c),
+      specific_heat_above_kcal_kg_c: selectedCatalogKcal?.cpAboveKcalKgC ?? Number(selectedCatalogProduct.specific_heat_above_kcal_kg_c ?? form.specific_heat_above_kcal_kg_c),
+      specific_heat_below_kcal_kg_c: selectedCatalogKcal?.cpBelowKcalKgC ?? Number(selectedCatalogProduct.specific_heat_below_kcal_kg_c ?? form.specific_heat_below_kcal_kg_c),
       latent_heat_kj_kg: selectedCatalogProduct.latent_heat_kj_kg ?? null,
-      latent_heat_kcal_kg: Number(selectedCatalogProduct.latent_heat_kcal_kg ?? form.latent_heat_kcal_kg),
+      latent_heat_kcal_kg: selectedCatalogKcal?.latentHeatKcalKg ?? Number(selectedCatalogProduct.latent_heat_kcal_kg ?? form.latent_heat_kcal_kg),
       thermal_conductivity_frozen_w_m_k: selectedCatalogProduct.thermal_conductivity_frozen_w_m_k ?? form.thermal_conductivity_frozen_w_m_k,
       thermal_conductivity_unfrozen_w_m_k: selectedCatalogProduct.thermal_conductivity_unfrozen_w_m_k ?? selectedCatalogProduct.thermal_conductivity_w_m_k ?? null,
       water_content_percent: selectedCatalogProduct.water_content_percent ?? null,
