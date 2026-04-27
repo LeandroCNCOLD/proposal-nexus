@@ -863,6 +863,15 @@ function ColdProProjectPage() {
                     </div>
                   </div>
 
+                  {result && technicalAudit.isPreliminary ? (
+                    <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+                      <div className="font-semibold">Resultado preliminar. Corrigir dados obrigatórios antes da emissão técnica.</div>
+                      <ul className="mt-2 list-disc space-y-1 pl-5">
+                        {[...technicalAudit.blockers, ...technicalAudit.warnings].map((item) => <li key={item.code}>{item.message}</li>)}
+                      </ul>
+                    </div>
+                  ) : null}
+
                   <div className="rounded-lg border bg-background p-3 print:hidden">
                     <div className="mb-3">
                       <h3 className="text-sm font-semibold">Parâmetros comerciais locais</h3>
