@@ -1,5 +1,6 @@
 import { strict as assert } from "node:assert";
 import { formToTunnelInput } from "../adapters/formToTunnelInput";
+import { compareColdProFormulaWithAshrae } from "../core/ashraeComparison";
 import { tunnelResultToDatabasePayload } from "../adapters/tunnelInputToDatabasePayload";
 import type { TunnelEngineInput, TunnelEngineResult } from "../types/tunnelEngine.types";
 import { calculateTunnelEngine, COLDPRO_TUNNEL_ENGINE_VERSION } from "./tunnelEngine";
@@ -128,6 +129,62 @@ const thermalBase = {
   assert.ok(result.energy.totalKJkg > 200);
   assert.ok(result.productLoadKW > 15);
   assert.equal(result.calculationBreakdown.loads?.productLoadMissingFields?.includes("fração congelável"), false);
+}
+
+{
+  const continuous = calculateTunnelEngine({
+    ...thermalBase,
+    processType: "continuous_individual_freezing",
+    operationMode: "continuous",
+    tunnelType: "continuous_belt",
+    arrangementType: "individual_exposed",
+    productGeometry: "slab",
+    directMassKgH: 1000,
+    retentionTimeMin: 30,
+    productThicknessM: 0.03,
+    packagingMassKgH: 120,
+    packagingCpKJkgK: 1.4,
+  });
+  nearlyEqual(continuous.packagingLoadKW, 1.0733, 0.001);
+  assert.equal(continuous.calculationBreakdown.loads?.packagingMassSource, "kg/h");
+
+  const batch = calculateTunnelEngine({
+    ...thermalBase,
+    processType: "static_pallet_freezing",
+    operationMode: "batch",
+    tunnelType: "blast_freezer",
+    arrangementType: "pallet_block",
+    productGeometry: "slab",
+    staticMassMode: "direct_batch_mass",
+    directBatchMassKg: 2000,
+    batchTimeH: 8,
+    productThicknessM: 0.05,
+    packagingMassKgBatch: 240,
+    packagingCpKJkgK: 1.4,
+  });
+  nearlyEqual(batch.packagingLoadKW, 0.2683, 0.001);
+  assert.equal(batch.calculationBreakdown.loads?.packagingMassSource, "kg/batelada");
+  assert.equal(batch.calculationMethod.methods.infiltration, "simple_air_change");
+}
+
+{
+  const result = calculateTunnelEngine({
+    ...thermalBase,
+    processType: "continuous_individual_freezing",
+    operationMode: "continuous",
+    tunnelType: "continuous_belt",
+    arrangementType: "individual_exposed",
+    productGeometry: "slab",
+    directMassKgH: 1000,
+    retentionTimeMin: 30,
+    productThicknessM: 0.03,
+    infiltrationCalculationMethod: "psychrometric_enthalpy",
+  });
+  assert.equal(result.calculationBreakdown.infiltration?.usedMethod, "simple_air_change");
+  assert.ok(result.warnings.includes("Método psicrométrico solicitado, mas faltam dados de umidade/entalpia. Usando método simplificado."));
+  assert.equal(result.calculationBreakdown.calculationMethod?.methods?.product, "sensível + latente + sensível");
+  assert.equal(compareColdProFormulaWithAshrae("transmission").decision, "manter");
+  assert.equal(compareColdProFormulaWithAshrae("product").decision, "manter");
 }
 
 {
