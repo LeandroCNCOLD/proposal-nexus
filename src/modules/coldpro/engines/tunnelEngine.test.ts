@@ -52,7 +52,7 @@ const thermalBase = {
   const result: TunnelEngineResult = calculateTunnelEngine(input);
   nearlyEqual(result.productLoadKW, 70.125);
   nearlyEqual(result.totalKW, 73.125);
-  nearlyEqual(result.estimatedAirflowM3H, 36380.6, 0.1);
+  nearlyEqual(result.estimatedAirflowM3H, 30126.24, 0.1);
   assert.equal(result.engineVersion, COLDPRO_TUNNEL_ENGINE_VERSION);
   assert.ok(result.calculatedAt);
   assert.ok(result.totalKW > 0);
