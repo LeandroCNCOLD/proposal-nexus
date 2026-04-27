@@ -23,7 +23,7 @@ import { calculateEvaporatorFanLoad, calculateMotorLoadKcalH, calculatePsychrome
 import { databaseToTunnelInput } from "@/modules/coldpro/adapters/databaseToTunnelInput";
 import { listAshraeColdProComparisons } from "@/modules/coldpro/core/ashraeComparison";
 import { COLDPRO_CALCULATION_METHODS } from "@/modules/coldpro/core/calculationMethodRegistry";
-import { normalizeThermalProperties } from "@/modules/coldpro/core/unitNormalizer";
+import { normalizeProductForKcalEngine } from "@/modules/coldpro/core/unitNormalizer";
 import { buildCalculationMethodReport } from "@/modules/coldpro/reports/calculationMethodReport";
 import { COLDPRO_TUNNEL_ENGINE_VERSION, calculateTunnelEngine } from "@/modules/coldpro/engines/tunnelEngine";
 import { auditColdProTechnicalConsistency } from "@/modules/coldpro/core/technicalAudit";
@@ -658,10 +658,10 @@ export function calculateProductLoadBreakdown(product: ColdProEnvironmentProduct
   const tout = n(product.outlet_temp_c);
   const tfreeze = product.initial_freezing_temp_c;
 
-  const thermal = normalizeThermalProperties(product);
-  const cpAbove = thermal.cpAboveKJkgK / KCAL_TO_KJ;
-  const cpBelow = thermal.cpBelowKJkgK / KCAL_TO_KJ;
-  const latent = thermal.latentHeatKJkg / KCAL_TO_KJ;
+  const thermal = normalizeProductForKcalEngine(product);
+  const cpAbove = thermal.cpAboveKcalKgC;
+  const cpBelow = thermal.cpBelowKcalKgC;
+  const latent = thermal.latentHeatKcalKg;
   const allowPhaseChange = product.allow_phase_change !== false;
   const frozenFraction = thermal.frozenWaterFraction;
   const latentResidualFactor = thermal.latentResidualFactor;
