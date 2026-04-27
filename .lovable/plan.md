@@ -1,114 +1,58 @@
-Plano ajustado: aplicar propriedades dinâmicas do ar na Etapa 5 — Ar, vazão e ventilação
+Plano para liberar a finalização quando o túnel já está preenchido corretamente
 
-Escopo confirmado
-- A aplicação principal será na Etapa 5 mostrada no print: cálculo de vazão pela carga, recomendação de vazão, seção livre e validação de ventilação.
-- Não vou alterar cálculo do produto, base de produtos, seleção de equipamento, banco de dados ou lógica de velocidade por túnel.
-- A lógica de velocidade continua igual: vazão ÷ seção livre. O que muda é a vazão por carga térmica, que hoje usa `ρ = 1,2` e `Cp = 1,005` fixos.
+O problema não está na Etapa 5 em si. A Etapa 5 calculou vazão, densidade, Cp e velocidade corretamente. O bloqueio aparece no Resultado porque a auditoria final está lendo os campos do `tunnelEngine` com nomes incompatíveis e interpreta como se produto/processo, temperatura inicial e temperatura final estivessem zerados/ausentes.
 
-1. Criar propriedades dinâmicas do ar
-- Criar `src/modules/coldpro/physics/airProperties.ts` com funções puras, sem singleton global:
-  - `getAirDensityKgM3(params)`
-  - `getAirSpecificHeatKJkgK(params)`
-  - `getWaterLatentHeatKJkg(params)`
-  - `createAirPropertiesContext(params)`
-- O contexto retornará:
-  - densidade usada
-  - Cp usado
-  - calor latente da água por modo
-  - pressão usada
-  - temperatura em Kelvin
-  - fonte: automático, override manual ou fallback
-  - warnings técnicos.
+O que vou corrigir:
 
-2. Aplicar na Etapa 5 do formulário
-Arquivo principal:
-- `src/components/coldpro/ColdProTunnelForm.tsx`
+1. Ajustar a auditoria técnica final
+   - Atualizar `src/modules/coldpro/core/technicalAudit.ts` para reconhecer os nomes reais retornados pelo motor do túnel:
+     - `productLoadKW`, `usedMassKgH`, `availableTimeMin`, `energy.totalKJkg`, `calculationBreakdown.loads`, `calculationBreakdown.mass`, `calculationBreakdown.productEnergy`.
+   - Manter os nomes antigos também, para não quebrar resultados já salvos.
+   - Resultado esperado: não mostrar mais “Produto/processo zerado” quando a carga do túnel está calculada.
 
-Alterações na Etapa 5:
-- Trocar o cálculo atual:
-  - `carga ÷ densidade × Cp × ΔT`
-  - com `densidade = 1,2` e `Cp = 1,005`
-- Por:
-  - `carga ÷ densidade dinâmica × Cp dinâmico × ΔT`
-- A função local `requiredAirflowForLoadM3H` passará a aceitar também `cpAirKJkgK`.
-- O card “3. Vazão por carga térmica” passará a usar o contexto dinâmico.
-- O botão “Calcular ar” também usará o mesmo contexto ao gerar a recomendação.
+2. Corrigir leitura de temperaturas no resultado
+   - Fazer a auditoria buscar temperatura de entrada/final em:
+     - `initialTempC` / `finalTempC`, quando vier do motor;
+     - `inlet_temp_c` / `outlet_temp_c`, quando vier do banco;
+     - `calculationBreakdown` quando estiver dentro do memorial do túnel.
+   - Resultado esperado: não mostrar mais “Temperatura de entrada/final ausente” quando elas estão preenchidas na Etapa 4.
 
-3. Origem dos dados usados na Etapa 5
-Usar os dados disponíveis no próprio cálculo/ambiente:
-- temperatura do ar: `air_temp_c`, no print `-25°C`
-- ΔT do ar: `air_delta_t_k`, no print `6 K`
-- altitude: `environment.altitude_m`, se existir
-- pressão: `environment.atmospheric_pressure_kpa`, se existir
-- UR interna: `environment.relative_humidity_percent` ou campos equivalentes, se existir
-- override manual: `air_density_kg_m3`, se informado pelo usuário.
+3. Não bloquear por avisos técnicos normais
+   - Manter como aviso, não como bloqueio, mensagens como:
+     - pressão/altitude ausente;
+     - infiltração psicrométrica sem dados;
+     - vazão informada diferente da vazão por carga;
+     - calor latente baixo do catálogo.
+   - A finalização só deve bloquear quando faltar dado realmente obrigatório ou quando houver carga zero real.
 
-Regra de prioridade:
-1. Se `air_density_kg_m3` manual existir, usar manual e marcar fonte como `manual_override`.
-2. Se pressão existir, calcular com pressão.
-3. Se não houver pressão mas houver altitude, estimar pressão pela altitude.
-4. Se faltar dado crítico, usar fallback seguro `ρ = 1,2` e `Cp = 1,005` com warning.
+4. Melhorar o texto da tela de Resultado
+   - Separar visualmente “bloqueios” de “avisos”.
+   - Se houver apenas avisos, mostrar como “Resultado com observações técnicas”, sem impedir seleção automática/relatório.
+   - Se houver bloqueios reais, manter “Resultado preliminar” e listar o que precisa ser corrigido.
 
-4. Exibir o breakdown na Etapa 5
-Na própria Etapa 5, adicionar cards técnicos próximos ao card de vazão por carga:
-- Densidade do ar usada, ex.: `1,35 kg/m³`
-- Cp do ar usado, ex.: `1,006 kJ/kg.K`
-- Temperatura base, ex.: `-25°C / 248,15 K`
-- Pressão/altitude usada, ex.: `93,2 kPa / 700 m`
-- UR usada, ex.: `85%`
-- Fonte: `automático`, `manual_override` ou `fallback`
-- Warnings, se houver.
+5. Ajustar a regra de produtos cadastrados para túnel/blast freezer
+   - Para ambientes de túnel, não exigir registro na lista “Produtos cadastrados” se existe um `tunnel` salvo/calculado com produto válido.
+   - Essa lista pode continuar mostrando “Nenhum produto/processo cadastrado”, mas não deve significar que o túnel está inválido.
 
-5. Atualizar o motor para manter coerência
-Arquivos envolvidos:
-- `src/modules/coldpro/engines/tunnelEngine.ts`
-- `src/modules/coldpro/physics/airflowModel.ts`
-- `src/modules/coldpro/types/tunnelEngine.types.ts`
-- `src/modules/coldpro/adapters/formToTunnelInput.ts`
-- `src/modules/coldpro/adapters/databaseToTunnelInput.ts`
+6. Validar o caso “Túnel de Batata Pré-frita”
+   - Confirmar que, com aproximadamente:
+     - produto: Batata pré-frita;
+     - 1.000 kg/h;
+     - entrada/final preenchidas;
+     - carga ~58,1 kW;
+     - vazão recomendada ~69.351 m³/h;
+   - o Resultado fica adequado ou com observações, mas não bloqueado indevidamente.
 
-Objetivo:
-- A Etapa 5 e o motor devem usar a mesma densidade/Cp.
-- `calculationBreakdown.air` terá o contexto de propriedades do ar para auditoria.
-- A vazão exibida na interface será a mesma vazão calculada no motor.
+Detalhes técnicos
 
-6. Aplicar também em infiltração/psicrometria, sem alterar produto
-- Em `calculatePsychrometricInfiltrationKW`, usar densidade/Cp/latente vindos do contexto quando disponíveis.
-- Em funções psicrométricas auxiliares, substituir uso rígido de constantes por contexto ou parâmetros opcionais.
-- Manter fallback para chamadas antigas.
+Arquivos principais a alterar:
+- `src/modules/coldpro/core/technicalAudit.ts`
+- `src/routes/app.coldpro.$id.tsx`
 
-7. Validação do caso do print / Túnel Rafa
-Caso base:
-- Carga usada na vazão: `12,09 kW`
-- ΔT ar: `6 K`
-- Temperatura do ar: `-25°C`
-- Altitude: `700 m`, se disponível
-- UR interna: `85%`
+Não vou alterar:
+- cálculo do produto;
+- lógica de velocidade do túnel;
+- propriedades dinâmicas do ar da Etapa 5;
+- banco de dados.
 
-Comparação esperada:
-- Hardcoded atual:
-  - `ρ = 1,2 kg/m³`
-  - `Cp = 1,005 kJ/kg.K`
-  - vazão ≈ `6.015 m³/h`, que bate com o print.
-- Dinâmico esperado:
-  - densidade aproximada na faixa `1,30–1,42 kg/m³`, dependendo da pressão/altitude/UR
-  - Cp próximo de `1,005–1,01 kJ/kg.K`
-  - vazão por carga deve cair coerentemente em relação aos `6.015 m³/h`, porque o ar mais denso carrega mais energia por m³.
-
-8. Testes finais
-- Atualizar testes do motor ColdPro para cobrir:
-  - fallback antigo preservado
-  - override manual
-  - cálculo automático com `-25°C`, `700 m`, `85% UR`
-  - vazão dinâmica menor que a vazão hardcoded para a mesma carga e ΔT.
-- Rodar:
-  - typecheck
-  - build
-  - testes do motor.
-
-Entrega final após implementação
-- Arquivos criados/alterados.
-- Fórmulas usadas.
-- Comparação hardcoded vs dinâmico.
-- Resultado do caso Túnel Rafa/Etapa 5.
-- Confirmação de que produto, base de produtos, seleção de equipamento, banco e lógica por velocidade não foram alterados.
+Após implementar, vou rodar typecheck/build para garantir que a tela compile sem regressão.

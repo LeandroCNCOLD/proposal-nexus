@@ -323,6 +323,7 @@ function ColdProProjectPage() {
   const environmentLoad = Number(result?.transmission_kcal_h ?? 0);
   const savedProductLoad = Number(result?.product_kcal_h ?? 0) + Number(result?.packaging_kcal_h ?? 0) + Number(result?.calculation_breakdown?.respiration_kcal_h ?? 0) + Number(result?.tunnel_internal_load_kcal_h ?? 0);
   const productLoad = savedProductLoad > 0 ? savedProductLoad : Number(tunnelPreview?.totalKcalH ?? 0);
+  const hasTunnelProduct = Boolean(tunnel && [tunnel.product_name, tunnel.product_id, tunnelPreview?.productLoadKW].some((value) => (typeof value === "number" ? value > 0 : String(value ?? "").trim().length > 0)));
   const extraPreview = calculateExtraLoadPreview(selectedEnv ?? {});
   const extraLoad = result ? Number(result.infiltration_kcal_h ?? 0) + Number(result.people_kcal_h ?? 0) + Number(result.lighting_kcal_h ?? 0) + Number(result.motors_kcal_h ?? 0) + Number(result.fans_kcal_h ?? 0) + Number(result.defrost_kcal_h ?? 0) + Number(result.other_kcal_h ?? 0) : extraPreview.subtotal_kcal_h;
   const catalogFanLoadKcalH = Number(selection?.curve_metadata?.fan_power_kw ?? 0) * Number(selection?.quantity ?? 1) * 859.845;
@@ -366,7 +367,7 @@ function ColdProProjectPage() {
 
   const completed: Record<number, boolean> = {
     0: !!selectedEnv?.length_m,
-    1: products.length > 0 || !!tunnel,
+    1: products.length > 0 || hasTunnelProduct,
     2: !!selectedEnv?.safety_factor_percent,
     3: !!result,
   };
@@ -775,7 +776,7 @@ function ColdProProjectPage() {
                   <div className="rounded-lg border bg-background p-3">
                     <h3 className="mb-3 text-base font-semibold">Produtos cadastrados</h3>
                     {products.length === 0 ? (
-                      <div className="text-sm text-muted-foreground">Nenhum produto/processo cadastrado.</div>
+                      <div className="text-sm text-muted-foreground">{hasTunnelProduct ? `Produto/processo do túnel: ${tunnel?.product_name ?? "informado na configuração do túnel"}.` : "Nenhum produto/processo cadastrado."}</div>
                     ) : (
                       <div className="space-y-2">
                         {products.map((p: any) => (
@@ -870,11 +871,18 @@ function ColdProProjectPage() {
                     </div>
                   </div>
 
-                  {result && technicalAudit.isPreliminary ? (
+                  {result && technicalAudit.isBlocked ? (
                     <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
                       <div className="font-semibold">Resultado preliminar. Corrigir dados obrigatórios antes da emissão técnica.</div>
                       <ul className="mt-2 list-disc space-y-1 pl-5">
-                        {[...technicalAudit.blockers, ...technicalAudit.warnings].map((item) => <li key={item.code}>{item.message}</li>)}
+                        {technicalAudit.blockers.map((item) => <li key={item.code}>{item.message}</li>)}
+                      </ul>
+                    </div>
+                  ) : result && technicalAudit.warnings.length > 0 ? (
+                    <div className="rounded-lg border border-border bg-muted/20 p-3 text-sm text-muted-foreground">
+                      <div className="font-semibold text-foreground">Resultado com observações técnicas.</div>
+                      <ul className="mt-2 list-disc space-y-1 pl-5">
+                        {technicalAudit.warnings.map((item) => <li key={item.code}>{item.message}</li>)}
                       </ul>
                     </div>
                   ) : null}

@@ -25,6 +25,14 @@ function key(value: unknown): string {
   return String(value ?? "").trim().toLowerCase();
 }
 
+function pick(...values: unknown[]): unknown {
+  return values.find((value) => provided(value));
+}
+
+function maxPositive(...values: unknown[]): number {
+  return Math.max(0, ...values.map(n).filter((value) => value > 0));
+}
+
 export function getColdProApplicationLabel(value: unknown) {
   const type = key(value);
   if (type === "blast_freezer") return "Blast freezer";
@@ -47,15 +55,32 @@ export function auditColdProTechnicalConsistency(input: { environment?: any | nu
   const blockers: Array<{ code: string; message: string }> = [];
   const warnings: Array<{ code: string; message: string }> = [];
   const tunnelData = tunnel ?? result?.calculation_breakdown?.tunnel ?? result?.calculation_breakdown?.tunnel?.calculation_breakdown ?? null;
+  const tunnelBreakdown = tunnelData?.calculationBreakdown ?? tunnelData?.calculation_breakdown ?? result?.calculation_breakdown?.tunnel ?? {};
+  const tunnelLoads = tunnelBreakdown?.loads ?? {};
+  const tunnelMass = tunnelBreakdown?.mass ?? {};
+  const tunnelEnergy = tunnelBreakdown?.productEnergy ?? tunnelData?.energy ?? {};
+  const tunnelOriginalInput = tunnelData?.calculationLog?.originalInput ?? tunnelData?.calculation_log?.originalInput ?? tunnelData?.calculation_log?.original_input ?? {};
   const tunnelLike = isColdProTunnelLike(environment, tunnelData);
   const internalTempC = n(environment?.internal_temp_c ?? environment?.internalTempC ?? tunnelData?.airTempC);
-  const productProcessKcalH = n(result?.product_kcal_h) + n(result?.packaging_kcal_h) + n(result?.tunnel_internal_load_kcal_h ?? tunnelData?.total_kcal_h ?? tunnelData?.totalKcalH);
-  const tunnelProductKcalH = n(tunnelData?.product_kcal_h ?? tunnelData?.productKcalH ?? tunnelData?.product_load_kw) * (n(tunnelData?.product_load_kw) > 0 ? 859.845 : 1);
-  const processMass = Math.max(n(tunnelData?.used_mass_kg_h), n(tunnelData?.calculated_mass_kg_h), n(tunnelData?.static_mass_kg), n(tunnelData?.staticMassKg), ...products.map((p) => Math.max(n(p.mass_kg_day), n(p.mass_kg_hour), n(p.freezing_batch_mass_kg))));
-  const processTime = Math.max(n(tunnelData?.batch_time_h), n(tunnelData?.process_time_min), n(tunnelData?.availableTimeMin), ...products.map((p) => Math.max(n(p.process_time_h), n(p.freezing_batch_time_h))));
-  const inletProvided = provided(tunnelData?.inlet_temp_c ?? tunnelData?.initial_temp_c ?? tunnelData?.initialTempC ?? products[0]?.inlet_temp_c);
-  const outletProvided = provided(tunnelData?.outlet_temp_c ?? tunnelData?.final_temp_c ?? tunnelData?.finalTempC ?? products[0]?.outlet_temp_c);
-  const thermalValid = n(tunnelData?.q_specific_kj_kg ?? tunnelData?.energy?.totalKJkg) > 0 || n(tunnelData?.specific_heat_above_kj_kg_k ?? tunnelData?.cpAboveKJkgK ?? products[0]?.specific_heat_above_kj_kg_k) > 0;
+  const tunnelProductKcalH = maxPositive(
+    tunnelData?.product_kcal_h,
+    tunnelData?.productKcalH,
+    n(tunnelData?.product_load_kw) * 859.845,
+    n(tunnelData?.productLoadKW) * 859.845,
+    n(tunnelLoads?.productLoadKW) * 859.845,
+  );
+  const productProcessKcalH = maxPositive(
+    n(result?.product_kcal_h) + n(result?.packaging_kcal_h) + n(result?.tunnel_internal_load_kcal_h),
+    tunnelProductKcalH + maxPositive(tunnelData?.packaging_kcal_h, n(tunnelData?.packagingLoadKW) * 859.845, n(tunnelLoads?.packagingLoadKW) * 859.845) + maxPositive(tunnelData?.tunnel_internal_load_kcal_h, n(tunnelData?.internalLoadKW) * 859.845, n(tunnelLoads?.internalLoadKW) * 859.845),
+    tunnelData?.total_kcal_h,
+    tunnelData?.totalKcalH,
+    tunnelLoads?.totalKcalH,
+  );
+  const processMass = maxPositive(tunnelData?.used_mass_kg_h, tunnelData?.usedMassKgH, tunnelData?.calculated_mass_kg_h, tunnelData?.calculatedMassKgH, tunnelData?.static_mass_kg, tunnelData?.staticMassKg, tunnelLoads?.massUsedForProductLoad, tunnelMass?.usedMassKgH, tunnelMass?.staticMassKg, tunnelMass?.massUsedForProductLoad, ...products.map((p) => Math.max(n(p.mass_kg_day), n(p.mass_kg_hour), n(p.freezing_batch_mass_kg))));
+  const processTime = maxPositive(tunnelData?.batch_time_h, tunnelData?.process_time_min, tunnelData?.availableTimeMin, tunnelMass?.retentionTimeMin, tunnelMass?.processTimeH, ...products.map((p) => Math.max(n(p.process_time_h), n(p.freezing_batch_time_h))));
+  const inletProvided = provided(pick(tunnelData?.inlet_temp_c, tunnelData?.initial_temp_c, tunnelData?.initialTempC, tunnelOriginalInput?.initialTempC, tunnelOriginalInput?.inlet_temp_c, products[0]?.inlet_temp_c));
+  const outletProvided = provided(pick(tunnelData?.outlet_temp_c, tunnelData?.final_temp_c, tunnelData?.finalTempC, tunnelOriginalInput?.finalTempC, tunnelOriginalInput?.outlet_temp_c, products[0]?.outlet_temp_c));
+  const thermalValid = maxPositive(tunnelData?.q_specific_kj_kg, tunnelData?.q_specific_total_kj_kg, tunnelEnergy?.totalKJkg, tunnelData?.energy?.totalKJkg, tunnelData?.specific_heat_above_kj_kg_k, tunnelData?.cpAboveKJkgK, products[0]?.specific_heat_above_kj_kg_k) > 0;
   const totalKcalH = n(result?.total_required_kcal_h ?? tunnelData?.total_kcal_h ?? tunnelData?.totalKcalH);
   const subtotalKcalH = n(result?.subtotal_kcal_h);
   const infiltrationKcalH = n(result?.infiltration_kcal_h ?? tunnelData?.infiltrationLoadKW) * (n(tunnelData?.infiltrationLoadKW) > 0 ? 859.845 : 1);
