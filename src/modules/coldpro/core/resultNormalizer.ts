@@ -1,4 +1,5 @@
 import { listAshraeColdProComparisons } from "./ashraeComparison";
+import { simulateMonthlyEnergyConsumption } from "../energy/monthlyEnergySimulation";
 
 export type ColdProNormalizedResult = ReturnType<typeof normalizeColdProResult>;
 
@@ -124,6 +125,16 @@ export function normalizeColdProResult(rawResult: any, selection?: any | null, e
   const correctedCapacity = num(audit.capacidade_total_corrigida ?? audit.correctedCapacity ?? audit.capacidade_corrigida_validada ?? 0);
   const requiredForEquipment = num(audit.carga_requerida_validada ?? selection?.required_capacity_kcal_h ?? requiredKcalH);
   const surplusPercent = num(audit.sobra_percentual ?? selection?.surplus_percent ?? (requiredForEquipment > 0 ? ((equipmentTotal - requiredForEquipment) / requiredForEquipment) * 100 : 0));
+  const resultTotalKW = num(result.totalKW ?? result.total_kw ?? result.tunnel_total_load_kw ?? tunnel.totalKW ?? tunnel.total_kw) || num(result.total_required_kw) || requiredKcalH / KCAL_PER_KW;
+  const resultCOP = num(result.cop ?? result.COP ?? result.copData?.cop ?? result.cop_data?.cop ?? selection?.cop ?? audit.curva?.cop);
+  const energySimulation = simulateMonthlyEnergyConsumption({
+    coolingLoadKW: resultTotalKW,
+    cop: resultCOP,
+    operatingHoursPerDay: result.operatingHoursPerDay ?? result.operating_hours_per_day ?? 8,
+    operatingDaysPerMonth: result.operatingDaysPerMonth ?? result.operating_days_per_month ?? 22,
+    energyCostPerKWh: result.energyCostPerKWh ?? result.energy_cost_per_kwh ?? 0.95,
+    processedMassKgPerDay: result.processedMassKgPerDay ?? result.processed_mass_kg_per_day ?? products[0]?.mass_kg_day ?? products[0]?.daily_mass_kg ?? 0,
+  });
 
   const warnings: string[] = [];
   const deltaComponentVsSubtotalKcalH = componentSumKcalH - subtotalKcalH;
@@ -209,6 +220,7 @@ export function normalizeColdProResult(rawResult: any, selection?: any | null, e
       curvePoint: audit.curva ?? selection?.curve_metadata ?? null,
       correctedCapacityKcalH: round(correctedCapacity, 2),
     },
+    energySimulation,
     iceAndDefrost: {
       frostKgDay: round(num(breakdown.evaporator_frost?.frost_kg_day ?? breakdown.infiltration_technical?.iceKgDay), 2),
       efficiencyLossPercent: round(num(breakdown.evaporator_frost?.efficiency_loss_percent), 2),
