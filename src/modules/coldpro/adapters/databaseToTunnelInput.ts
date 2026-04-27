@@ -1,4 +1,4 @@
-import { normalizeThermalProperties } from "../core/unitNormalizer";
+import { normalizeProductForKcalEngine } from "../core/unitNormalizer";
 import { safeNumber } from "../core/units";
 import type { TunnelEngineInput, TunnelSourceRecord } from "../types/tunnelEngine.types";
 
@@ -36,7 +36,7 @@ function calculateStaticMass(source: TunnelSourceRecord, isStatic: boolean) {
 }
 
 export function databaseToTunnelInput(tunnel: TunnelSourceRecord, environment: TunnelSourceRecord | null | undefined): TunnelEngineInput {
-  const thermal = normalizeThermalProperties(tunnel);
+  const thermal = normalizeProductForKcalEngine(tunnel);
   const airTempSource = tunnel?.air_temp_source ?? "environment";
   const packagingSpecificHeatKJkgK = safeNumber(tunnel?.packaging_specific_heat_kj_kg_k);
   const approved = tunnel?.thermal_condition_approved === true;
@@ -146,9 +146,10 @@ export function databaseToTunnelInput(tunnel: TunnelSourceRecord, environment: T
     initialTempC: safeNumber(tunnel?.inlet_temp_c),
     finalTempC: safeNumber(tunnel?.outlet_temp_c),
     freezingPointC: safeNumber(tunnel?.freezing_temp_c, -1.5),
-    cpAboveKJkgK: thermal.cpAboveKJkgK,
-    cpBelowKJkgK: thermal.cpBelowKJkgK,
-    latentHeatKJkg: thermal.latentHeatKJkg,
+    cpAboveKcalKgC: thermal.cpAboveKcalKgC,
+    cpBelowKcalKgC: thermal.cpBelowKcalKgC,
+    latentHeatKcalKg: thermal.latentHeatKcalKg,
+    unitAudit: thermal.unitAudit,
     unitConversions: thermal.conversionSources,
     thermalDefaultsApplied: thermal.defaultsApplied,
     frozenWaterFraction: thermal.frozenWaterFraction,
@@ -157,9 +158,7 @@ export function databaseToTunnelInput(tunnel: TunnelSourceRecord, environment: T
     densityKgM3: safeNumber(tunnel?.density_kg_m3),
     packagingMassKgH,
     packagingMassKgBatch,
-    packagingCpKJkgK: packagingSpecificHeatKJkgK > 0
-      ? packagingSpecificHeatKJkgK
-      : safeNumber(tunnel?.packaging_specific_heat_kcal_kg_c) * KCAL_TO_KJ,
+    packagingCpKcalKgC: safeNumber(tunnel?.packaging_specific_heat_kcal_kg_c, packagingSpecificHeatKJkgK > 0 ? packagingSpecificHeatKJkgK / KCAL_TO_KJ : 0),
     beltMotorKW: safeNumber(tunnel?.belt_motor_kw),
     internalFansKW: safeNumber(tunnel?.internal_fans_kw),
     otherInternalKW: safeNumber(tunnel?.other_internal_kw),
