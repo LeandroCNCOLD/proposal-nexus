@@ -41,6 +41,7 @@ export interface TunnelCalculationMethodReport {
   title: string;
   methods: Record<string, string | undefined>;
   limitations: string[];
+  [key: string]: unknown;
 }
 
 export interface TunnelEngineInput {
@@ -111,6 +112,8 @@ export interface TunnelEngineInput {
   blockageFactor?: number | null;
   packagingMassKgH?: number | null;
   packagingMassKgBatch?: number | null;
+  packagingMassKg?: number | null;
+  trayMassPerCartKg?: number | null;
   packagingCpKJkgK?: number | null;
   infiltrationCalculationMethod?: InfiltrationCalculationMethod | string | null;
   externalTempC?: number | null;
@@ -153,6 +156,8 @@ export interface TunnelThermalScenarioResult {
   hSource: string;
   productLoadKW: number;
   packagingLoadKW: number;
+  packagingMassBatchKg?: number;
+  packagingLoadMethod?: "continuous_mass_flow" | "batch_total_mass";
   internalLoadKW: number;
   totalKW: number;
   totalKcalH: number;
