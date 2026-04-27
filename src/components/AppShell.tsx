@@ -68,7 +68,7 @@ function NavItem({ to, label, icon: Icon, exact }: { to: string; label: string; 
     <SidebarMenuItem>
       <SidebarMenuButton asChild isActive={active} tooltip={label}>
         <Link to={to}>
-          <Icon className="h-4 w-4 shrink-0" />
+          <Icon className="h-3.5 w-3.5 shrink-0" />
           <span className="truncate">{label}</span>
         </Link>
       </SidebarMenuButton>
@@ -78,14 +78,14 @@ function NavItem({ to, label, icon: Icon, exact }: { to: string; label: string; 
 
 function AppNavigationSidebar() {
   return (
-    <Sidebar collapsible="icon" className="border-sidebar-border bg-sidebar text-sidebar-foreground">
-      <SidebarHeader className="border-b border-sidebar-border p-3">
-        <div className="flex h-10 items-center gap-2.5 px-2">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-[image:var(--gradient-primary)] shadow-[var(--shadow-glow)]">
-            <Snowflake className="h-5 w-5 text-primary-foreground" />
+    <Sidebar collapsible="icon" className="app-sidebar border-sidebar-border bg-sidebar text-sidebar-foreground">
+      <SidebarHeader className="border-b border-sidebar-border p-2">
+        <div className="flex h-9 items-center gap-2 px-1">
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded bg-[image:var(--gradient-primary)] shadow-[var(--shadow-sm)]">
+            <Snowflake className="h-4 w-4 text-primary-foreground" />
           </div>
           <div className="min-w-0 leading-tight group-data-[collapsible=icon]:hidden">
-            <div className="truncate text-sm font-semibold tracking-tight">CN Cold</div>
+            <div className="truncate text-[13px] font-semibold tracking-tight">CN Cold</div>
             <div className="truncate text-[10px] uppercase tracking-widest text-sidebar-foreground/50">Sales Intelligence</div>
           </div>
         </div>
@@ -102,7 +102,7 @@ function AppNavigationSidebar() {
           </SidebarGroup>
         ))}
       </SidebarContent>
-      <SidebarFooter className="border-t border-sidebar-border p-3 text-[11px] text-sidebar-foreground/50 group-data-[collapsible=icon]:hidden">
+      <SidebarFooter className="border-t border-sidebar-border p-2 text-[10px] text-sidebar-foreground/50 group-data-[collapsible=icon]:hidden">
         v0.1 · CNCode platform
       </SidebarFooter>
     </Sidebar>
