@@ -161,6 +161,108 @@ function ThermalLoadSummary({ result }: { result: any }) {
   );
 }
 
+function commercialEquipmentName(item: any) {
+  return String(item?.equipmentName ?? item?.equipment_name ?? item?.equipment?.model ?? item?.equipment?.name ?? item?.model ?? item?.name ?? "—");
+}
+
+function EnvironmentCommercialProposal({ project, environment, result, selection, products, commercial }: { project: any; environment: any; result: any; selection: any; products: any[]; commercial: any }) {
+  const optimization = result?.equipmentOptimization ?? result?.equipment_optimization ?? result?.optimization ?? result?.calculation_breakdown?.equipmentOptimization ?? result?.calculation_breakdown?.equipment_optimization ?? {};
+  const ranking = Array.isArray(optimization?.ranking) && optimization.ranking.length ? optimization.ranking : selection ? [selection] : [];
+  const baselineMonthlyCost = ranking.reduce((max: number | null, item: any) => {
+    const value = firstFinite(item?.estimatedMonthlyCost, item?.estimated_monthly_cost);
+    return value !== null ? Math.max(max ?? value, value) : max;
+  }, null);
+  const monthlySavings = baselineMonthlyCost !== null && commercial.monthlyCost !== null ? Math.max(0, baselineMonthlyCost - commercial.monthlyCost) : null;
+  const annualSavings = monthlySavings !== null ? monthlySavings * 12 : null;
+  const paybackMonths = annualSavings && annualSavings > 0 && commercial.investmentTotal > 0 ? commercial.investmentTotal / annualSavings * 12 : null;
+  const roiPercent = annualSavings && commercial.investmentTotal > 0 ? annualSavings / commercial.investmentTotal * 100 : null;
+
+  return (
+    <section id="coldpro-commercial-proposal" className="space-y-4 rounded-lg border bg-background p-4">
+      <header className="border-b pb-3">
+        <div className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">CN ColdPro · Proposta comercial automática</div>
+        <h2 className="mt-1 text-xl font-bold">{project?.name ?? "Projeto"}</h2>
+        <div className="mt-1 text-sm text-muted-foreground">Ambiente: {environment?.name ?? "—"} · Emissão {new Date().toLocaleDateString("pt-BR")}</div>
+      </header>
+
+      <div className="grid gap-3 md:grid-cols-3">
+        <CommercialMetric label="Investimento total" value={formatCurrencyLocal(commercial.investmentTotal)} />
+        <CommercialMetric label="Payback estimado" value={paybackMonths !== null ? `${formatNumber(paybackMonths, 1)} meses` : "—"} />
+        <CommercialMetric label="ROI anual estimado" value={roiPercent !== null ? `${formatNumber(roiPercent, 1)}%` : "—"} />
+      </div>
+
+      <div className="grid gap-3 lg:grid-cols-2">
+        <div className="rounded-lg border bg-muted/20 p-3">
+          <h3 className="mb-2 text-sm font-semibold">Resumo técnico-comercial</h3>
+          <div className="grid gap-x-5 gap-y-1 text-sm sm:grid-cols-2">
+            <div>Carga requerida: <b>{formatKw(result?.total_required_kw)}</b></div>
+            <div>Total requerido: <b>{formatNumber(result?.total_required_kcal_h, 0)} kcal/h</b></div>
+            <div>Equipamento: <b>{commercialEquipmentName(selection)}</b></div>
+            <div>Quantidade: <b>{formatNumber(commercial.quantity, 0)} un.</b></div>
+            <div>Potência elétrica: <b>{formatKw(commercial.electricalPowerKW)}</b></div>
+            <div>COP: <b>{formatNumber(commercial.cop, 2)}</b></div>
+          </div>
+        </div>
+
+        <div className="rounded-lg border bg-muted/20 p-3">
+          <h3 className="mb-2 text-sm font-semibold">Energia e custo operacional</h3>
+          <div className="grid gap-x-5 gap-y-1 text-sm sm:grid-cols-2">
+            <div>Consumo diário: <b>{formatNumber(commercial.kWhDay, 0)} kWh</b></div>
+            <div>Consumo mensal: <b>{formatNumber(commercial.kWhMonth, 0)} kWh</b></div>
+            <div>Custo mensal: <b>{formatCurrencyLocal(commercial.monthlyCost)}</b></div>
+            <div>Custo anual: <b>{formatCurrencyLocal(commercial.annualCost)}</b></div>
+            <div>Custo por kg: <b>{commercial.costPerKg !== null ? `${formatCurrencyLocal(commercial.costPerKg)}/kg` : "—"}</b></div>
+            <div>Economia anual estimada: <b>{formatCurrencyLocal(annualSavings)}</b></div>
+          </div>
+        </div>
+      </div>
+
+      {ranking.length ? (
+        <div className="rounded-lg border bg-muted/20 p-3">
+          <h3 className="mb-2 text-sm font-semibold">Comparação de equipamentos</h3>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[680px] border-collapse text-sm">
+              <thead className="bg-muted/40">
+                <tr>
+                  <th className="border px-2 py-1 text-left">#</th>
+                  <th className="border px-2 py-1 text-left">Equipamento</th>
+                  <th className="border px-2 py-1 text-right">Margem</th>
+                  <th className="border px-2 py-1 text-right">Custo mensal</th>
+                  <th className="border px-2 py-1 text-right">Score</th>
+                  <th className="border px-2 py-1 text-right">Potência</th>
+                </tr>
+              </thead>
+              <tbody>
+                {ranking.map((item: any, index: number) => (
+                  <tr key={`${commercialEquipmentName(item)}-${index}`}>
+                    <td className="border px-2 py-1">{index + 1}</td>
+                    <td className="border px-2 py-1">{commercialEquipmentName(item)}</td>
+                    <td className="border px-2 py-1 text-right">{item?.capacityMarginPercent != null ? `${formatNumber(item.capacityMarginPercent, 2)}%` : "—"}</td>
+                    <td className="border px-2 py-1 text-right">{formatCurrencyLocal(item?.estimatedMonthlyCost)}</td>
+                    <td className="border px-2 py-1 text-right">{formatNumber(item?.scores?.final, 2)}</td>
+                    <td className="border px-2 py-1 text-right">{formatKw(item?.estimatedElectricalPowerKW)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : null}
+
+      {products.length ? (
+        <div className="rounded-lg border bg-muted/20 p-3 text-sm">
+          <h3 className="mb-2 text-sm font-semibold">Escopo do ambiente</h3>
+          <div className="grid gap-1 sm:grid-cols-2">
+            {products.map((product: any) => (
+              <div key={product.id}>{product.product_name}: <b>{formatNumber(product.mass_kg_day, 0)} kg/dia</b></div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
 function ColdProProjectPage() {
   const { id } = Route.useParams();
   const { data, isLoading } = useColdProProjectBundle(id);
@@ -194,6 +296,7 @@ function ColdProProjectPage() {
   const [tunnelExpertAnalysis, setTunnelExpertAnalysis] = React.useState<string | null>(null);
   const [showProjectReport, setShowProjectReport] = React.useState(false);
   const [showEnvironmentReport, setShowEnvironmentReport] = React.useState(false);
+  const [showCommercialProposal, setShowCommercialProposal] = React.useState(false);
   const [energyTariff, setEnergyTariff] = React.useState("0.95");
   const [commercialQuantity, setCommercialQuantity] = React.useState("1");
   const [equipmentUnitPrice, setEquipmentUnitPrice] = React.useState("0");
@@ -258,6 +361,7 @@ function ColdProProjectPage() {
   React.useEffect(() => setProjectNameDraft(data?.project?.name ?? ""), [data?.project?.name]);
   React.useEffect(() => setTunnelExpertAnalysis(null), [selectedEnv?.id]);
   React.useEffect(() => setShowEnvironmentReport(false), [selectedEnv?.id]);
+  React.useEffect(() => setShowCommercialProposal(false), [selectedEnv?.id]);
   React.useEffect(() => {
     if (selection?.quantity) setCommercialQuantity(String(Math.max(1, Math.ceil(Number(selection.quantity) || 1))));
   }, [selection?.quantity, selectedEnv?.id]);
