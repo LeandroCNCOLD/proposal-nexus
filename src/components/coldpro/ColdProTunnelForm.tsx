@@ -367,7 +367,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
   const [cycleUnit, setCycleUnit] = React.useState<CycleUnit>("h");
   const [retentionUnit, setRetentionUnit] = React.useState<RetentionUnit>("min");
   const [activeTab, setActiveTab] = React.useState("modelo");
-  const [simulation, setSimulation] = React.useState<ColdProFormRecord>(() => simulationDraftFromTunnel(defaultTunnel(environmentId)) as ColdProFormRecord);
+  const [simulation, setSimulation] = React.useState<ColdProFormRecord>(() => simulationDraftFromTunnel(defaultTunnel(environmentId));
   const autoAirPresetKeyRef = React.useRef("");
 
   React.useEffect(() => {
@@ -552,7 +552,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
   const filteredProducts = React.useMemo(() => filterAndRankColdProProducts(productCatalog, productSearch, selectedGroup), [productCatalog, productSearch, selectedGroup]);
   const productSuggestions = React.useMemo(() => filteredProducts.slice(0, 8), [filteredProducts]);
 
-  const buildAirflowPreset = React.useCallback((source: any = form) => {
+  const buildAirflowPreset = React.useCallback((source: ColdProFormRecord = form) => {
     const presetVelocity = recommendedTunnelAirVelocity(tunnelType, isStatic);
     const requiredAirflow = positiveValue(tunnelResult.airFlowM3H, thermalResult.requiredAirflowM3H, source?.informed_air_flow_m3_h, source?.airflow_m3_h);
     const fanAirflowM3H = requiredAirflow;
@@ -581,7 +581,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
   }, [airTemperatureC, form, isStatic, thermalResult.requiredAirflowM3H, tunnelResult.airFlowM3H, tunnelType]);
 
   const applyAirflowPreset = React.useCallback(() => {
-    setForm((prev: any) => ({ ...prev, ...buildAirflowPreset(prev) }));
+    setForm((prev) => ({ ...prev, ...buildAirflowPreset(prev) }));
   }, [buildAirflowPreset]);
 
   const requiredAirflowM3H = tunnelResult.airFlowM3H;
@@ -602,7 +602,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
     const hasAirInputs = positiveValue(form.fan_airflow_m3_h, form.tunnel_cross_section_width_m, form.tunnel_cross_section_height_m, form.informed_air_flow_m3_h) > 0;
     if (autoAirPresetKeyRef.current === presetKey || hasAirInputs || tunnelResult.airFlowM3H <= 0) return;
     autoAirPresetKeyRef.current = presetKey;
-    setForm((prev: any) => ({ ...prev, ...buildAirflowPreset(prev) }));
+    setForm((prev) => ({ ...prev, ...buildAirflowPreset(prev) }));
   }, [buildAirflowPreset, environmentId, form.fan_airflow_m3_h, form.informed_air_flow_m3_h, form.tunnel_cross_section_height_m, form.tunnel_cross_section_width_m, tunnel?.id, tunnelResult.airFlowM3H]);
 
   const setProcessType = (value: string) => {
@@ -610,7 +610,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
     const arrangement = defaultArrangement(tunnel);
     const defaults = ARRANGEMENT_DEFAULTS[arrangement];
     const nextIsStatic = isStaticProcess(tunnel);
-    setForm((prev: any) => ({ ...prev, process_type: value, tunnel_type: tunnel, physical_model: physicalModelFromProcess(tunnel), operation_mode: nextIsStatic ? "batch" : "continuous", tunnel_mode: nextIsStatic ? "static" : "continuous", arrangement_type: arrangement, air_exposure_factor: defaults.air, thermal_penetration_factor: defaults.penetration }));
+    setForm((prev) => ({ ...prev, process_type: value, tunnel_type: tunnel, physical_model: physicalModelFromProcess(tunnel), operation_mode: nextIsStatic ? "batch" : "continuous", tunnel_mode: nextIsStatic ? "static" : "continuous", arrangement_type: arrangement, air_exposure_factor: defaults.air, thermal_penetration_factor: defaults.penetration }));
     setActiveTab(nextIsStatic ? "estatico" : "continuo");
   };
 
@@ -618,13 +618,13 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
     const arrangement = defaultArrangement(value);
     const defaults = ARRANGEMENT_DEFAULTS[arrangement];
     const nextIsStatic = isStaticProcess(value);
-    setForm((prev: any) => ({ ...prev, tunnel_type: value, process_type: value, physical_model: physicalModelFromProcess(value), operation_mode: nextIsStatic ? "batch" : "continuous", tunnel_mode: nextIsStatic ? "static" : "continuous", arrangement_type: arrangement, static_mass_mode: nextIsStatic ? defaultMassModeForTunnel(value) : prev.static_mass_mode, continuous_mass_mode: !nextIsStatic ? "direct_mass_flow" : prev.continuous_mass_mode, mass_flow_mode: value === "fluidized_bed" ? "direct_mass_flow" : prev.mass_flow_mode, air_exposure_factor: defaults.air, thermal_penetration_factor: defaults.penetration, ...suggestedStaticArrangementFields(value, arrangement) }));
+    setForm((prev) => ({ ...prev, tunnel_type: value, process_type: value, physical_model: physicalModelFromProcess(value), operation_mode: nextIsStatic ? "batch" : "continuous", tunnel_mode: nextIsStatic ? "static" : "continuous", arrangement_type: arrangement, static_mass_mode: nextIsStatic ? defaultMassModeForTunnel(value) : prev.static_mass_mode, continuous_mass_mode: !nextIsStatic ? "direct_mass_flow" : prev.continuous_mass_mode, mass_flow_mode: value === "fluidized_bed" ? "direct_mass_flow" : prev.mass_flow_mode, air_exposure_factor: defaults.air, thermal_penetration_factor: defaults.penetration, ...suggestedStaticArrangementFields(value, arrangement) }));
     setActiveTab(nextIsStatic ? "estatico" : "continuo");
   };
 
   const setArrangementType = (value: string) => {
     const defaults = ARRANGEMENT_DEFAULTS[value] ?? ARRANGEMENT_DEFAULTS.individual_units;
-    setForm((prev: any) => ({ ...prev, arrangement_type: value, air_exposure_factor: defaults.air, thermal_penetration_factor: defaults.penetration, ...suggestedStaticArrangementFields(String(prev.tunnel_type ?? tunnelType), value) }));
+    setForm((prev) => ({ ...prev, arrangement_type: value, air_exposure_factor: defaults.air, thermal_penetration_factor: defaults.penetration, ...suggestedStaticArrangementFields(String(prev.tunnel_type ?? tunnelType), value) }));
   };
 
   const resetSimulation = () => setSimulation(simulationDraftFromTunnel(form));
@@ -634,7 +634,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
       window.alert("Condição térmica ainda não atende o tempo de processo. Ajuste temperatura, velocidade ou tempo de batelada/retenção.");
       return;
     }
-    setForm((prev: any) => ({
+    setForm((prev) => ({
       ...prev,
       ...simulation,
       calculated_air_velocity_m_s: simulationResult.calculatedAirVelocityMS ?? null,
@@ -667,7 +667,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
     const widthM = Number(p.width_mm ?? 0) > 0 ? Number(p.width_mm) / 1000 : null;
     const heightM = Number(p.height_or_thickness_mm ?? 0) > 0 ? Number(p.height_or_thickness_mm) / 1000 : null;
     const characteristicM = Number(p.characteristic_thickness_m ?? 0) > 0 ? Number(p.characteristic_thickness_m) : Number(p.characteristic_thickness_mm ?? 0) > 0 ? Number(p.characteristic_thickness_mm) / 1000 : null;
-    setForm((prev: any) => ({
+    setForm((prev) => ({
       ...prev,
       product_id: p.id,
       product_name: p.name,
@@ -999,7 +999,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
         <ColdProCalculatedInfo label="2. Carga usada na vazão" value={`${fmtColdPro(tunnelResult.totalKW, 2)} kW`} description="produto + embalagem + interna" tone={tunnelResult.totalKW > 0 ? "success" : "warning"} />
       </div>
       {productLoadMissingFields.length > 0 ? <ColdProValidationMessage tone="warning">Carga do produto pendente: falta {productLoadMissingFields.join(", ")}.</ColdProValidationMessage> : null}
-      <ColdProField label="Fonte da velocidade" helpKey="airflowSource"><ColdProSelect value={textValue(form.airflow_source, "manual_velocity")} onChange={(e) => { if (e.target.value === "airflow_by_fans") setForm((prev: any) => ({ ...prev, ...buildAirflowPreset(prev) })); else set("airflow_source", e.target.value); }}><option value="manual_velocity">Velocidade manual</option><option value="airflow_by_fans">Vazão por ventiladores</option></ColdProSelect></ColdProField>
+      <ColdProField label="Fonte da velocidade" helpKey="airflowSource"><ColdProSelect value={textValue(form.airflow_source, "manual_velocity")} onChange={(e) => { if (e.target.value === "airflow_by_fans") setForm((prev) => ({ ...prev, ...buildAirflowPreset(prev) })); else set("airflow_source", e.target.value); }}><option value="manual_velocity">Velocidade manual</option><option value="airflow_by_fans">Vazão por ventiladores</option></ColdProSelect></ColdProField>
       {form.airflow_source !== "airflow_by_fans" ? <ColdProField label="Velocidade do ar" helpKey="airVelocity" unit="m/s"><ColdProInput {...num("air_velocity_m_s")} /></ColdProField> : null}
       {form.airflow_source === "airflow_by_fans" ? <><ColdProField label="Vazão dos ventiladores informada" helpKey="fanAirflow" unit="m³/h"><ColdProInput {...num("fan_airflow_m3_h")} /></ColdProField>{showAirflowMismatch ? <ColdProValidationMessage>A vazão informada está {airflowDeltaM3H > 0 ? "acima" : "abaixo"} da necessária em {fmtColdPro(Math.abs(airflowDeltaM3H), 0)} m³/h ({fmtColdPro(airflowDeltaPercent, 1)}%). Use “Calcular ar” para igualar ao cálculo atual.</ColdProValidationMessage> : null}<ColdProField label="Largura seção de passagem" helpKey="tunnelCrossSectionWidth" unit="m"><ColdProInput {...num("tunnel_cross_section_width_m")} /></ColdProField><ColdProField label="Altura seção de passagem" helpKey="tunnelCrossSectionHeight" unit="m"><ColdProInput {...num("tunnel_cross_section_height_m")} /></ColdProField><ColdProField label="Fator de bloqueio" helpKey="blockageFactor" unit="%"><ColdProInput {...blockagePercentNum("blockage_factor")} /></ColdProField></> : null}
     </div><div>
