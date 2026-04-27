@@ -72,6 +72,21 @@ function Group({ title, rows }: { title: string; rows: { label: string; value: u
   );
 }
 
+function CalculationMethodDetails({ method }: { method: any }) {
+  const methods = method?.methods ?? {};
+  if (!method) return null;
+  const rows = [
+    ["Transmissão", methods.transmission],
+    ["Produto", methods.product],
+    ["Embalagem", methods.packaging],
+    ["Infiltração", methods.infiltration],
+    ["Vazão", methods.airflow],
+    ["Velocidade", methods.velocity],
+    ["Tempo até núcleo", methods.freezingTime],
+  ].filter(([, value]) => value);
+  return <div className="grid gap-2 text-sm md:grid-cols-2">{rows.map(([label, value]) => <div key={String(label)} className="rounded-lg bg-muted/30 p-3"><span className="text-muted-foreground">{label}: </span><b>{String(value)}</b></div>)}{Array.isArray(method.limitations) ? <div className="md:col-span-2 rounded-lg border bg-muted/20 p-3 text-muted-foreground">{method.limitations.join(" ")}</div> : null}</div>;
+}
+
 type Props = {
   result: any;
   selection?: any | null;
@@ -178,6 +193,12 @@ export function ColdProResultCard({ result, selection, environment, products = [
             <Group title="Fechamento" rows={[{ label: "Subtotal", value: normalized.summary.subtotalKcalH }, { label: "Segurança", value: normalized.summary.safetyKcalH }, { label: "Total requerido", value: normalized.summary.requiredKcalH }]} />
           </div>
         </Details>
+
+        {breakdown.calculationMethod ? (
+          <Details title="Método de cálculo utilizado" defaultOpen={showTables}>
+            <CalculationMethodDetails method={breakdown.calculationMethod} />
+          </Details>
+        ) : null}
 
         {seed?.applies ? (
           <Details title="Controle de umidade — sementes" defaultOpen={showTables}>
