@@ -1,171 +1,105 @@
-Plano de correção global ColdPro
+Plano para ajustar o botão "Calcular ar" da Etapa 5 do ColdPro
 
-Objetivo
-Impedir que qualquer ambiente/processo ColdPro seja tratado como cálculo final válido quando parcelas obrigatórias estiverem zeradas ou ausentes, especialmente túneis/blast freezer com produto/processo zerado, infiltração zerada e degelo zerado.
+Escopo
+- Alterar somente o cálculo local/frontend da Etapa 5 do formulário de túnel/blast freezer.
+- Não alterar banco, backend, motor térmico principal, fórmulas já validadas nem seleção de equipamento.
+- O clique apenas preencherá campos locais da tela; o usuário continuará salvando manualmente depois.
 
-Restrições respeitadas
-- Não alterar fórmulas físicas já validadas.
-- Não refazer o motor térmico.
-- Não alterar layout global, sidebar, topbar, CSS global, backend estrutural ou banco.
-- Atuar em validação, auditoria, status, bloqueio, consolidação, seleção e relatórios.
+Arquivos previstos
+- `src/components/coldpro/ColdProTunnelForm.tsx`
+- Opcional, se ficar mais limpo: `src/modules/coldpro/physics/airflowModel.ts` para funções puras auxiliares de ar, sem mexer no motor térmico.
 
-Implementação proposta
+Implementação
+1. Reescrever a lógica usada por `Calcular ar`
+   - Hoje o botão monta um preset simples por velocidade-alvo.
+   - Vou substituir por uma recomendação técnica local que usa:
+     - carga térmica em kW já calculada pelo formulário;
+     - ΔT do ar informado, padrão 6 K;
+     - densidade do ar, padrão 1,2 kg/m³;
+     - Cp do ar = 1,005 kJ/kg.K;
+     - fórmula: `vazao_m3h = carga_kW × 3600 / (densidade_ar × Cp_ar × deltaT_ar)`.
 
-1. Criar uma auditoria global de consistência ColdPro
-- Adicionar um módulo compartilhado em `src/modules/coldpro/core/` para classificar o cálculo com status técnico separado:
-  - `VALID`
-  - `WARNING`
-  - `BLOCKED`
-  - `INVALID_INPUT`
-- A auditoria receberá ambiente, resultado, túnel, produtos, processos especiais e seleção.
-- Ela retornará:
-  - `technicalStatus`
-  - `isBlocked`
-  - `isPreliminary`
-  - `criticalWarnings`
-  - `warnings`
-  - `blockers`
-  - `displayApplicationLabel`
+2. Buscar dimensões automaticamente
+   - Resolver comprimento, largura, altura, volume e temperatura interna a partir de `environment`, `form` e `tunnel`, aceitando variações como:
+     - `length_m`, `width_m`, `height_m`;
+     - `comprimento_m`, `largura_m`, `altura_m`;
+     - valores aninhados como `environment.length`, `environment.width`, `environment.height` quando existirem.
+   - Usar as dimensões da aba Ambiente como prioridade.
 
-2. Regras globais de bloqueio para túneis/blast freezer
-Aplicar para tipos equivalentes:
-- `blast_freezer`
-- `freezing_tunnel`
-- `cooling_tunnel`
-- `tunnel`
-- `static_pallet`
-- `static_cart`
-- `continuous_belt`
-- `spiral_girofreezer`
-- `fluidized_bed`
+3. Sugerir parede e sentido de sopro
+   - Calcular duas opções:
+     - Parede menor: seção = menor dimensão horizontal; sopro no maior comprimento.
+     - Parede maior: seção = maior dimensão horizontal; sopro no menor comprimento.
+   - Para túnel/blast_freezer, preferir parede menor soprando no sentido do maior comprimento.
+   - Avaliar a velocidade de cada opção e escolher a mais adequada tecnicamente.
 
-Critérios:
-- Massa de produto/processo deve ser > 0.
-- Tempo de processo ou fluxo kg/h deve ser > 0.
-- Temperatura de entrada e final devem estar informadas.
-- Propriedades térmicas essenciais devem ser válidas.
-- Carga de produto/processo deve ser > 0.
+4. Calcular seção real de passagem de ar
+   - Não usar a altura total automaticamente.
+   - Calcular `altura_util_ar` com regra local:
+     - padrão: `altura_camara × 0,60`;
+     - se houver altura de carga/pallet: `max(altura_camara - altura_carga, altura_camara × 0,30)`;
+     - limitar a altura útil para evitar usar os 3 m completos em túnel/blast freezer, favorecendo uma faixa mais realista quando há carga/pallet.
+   - Calcular:
+     - `area_bruta_m2 = largura_secao × altura_util_ar`;
+     - `area_livre_m2 = area_bruta_m2 × (1 - fator_bloqueio)`.
 
-Se produto/processo estiver zerado:
-- Status técnico = `BLOCKED` ou `INVALID_INPUT`.
-- Nunca permitir status final `ADEQUADO`.
-- Gerar bloqueio crítico:
-  “Produto/processo zerado em túnel ou blast freezer. Carga térmica inválida.”
+5. Sugerir fator de bloqueio
+   - Túnel com pallet/bloco/caixas paletizadas: 50%.
+   - Túnel vazio/carrinho/rack: 35%.
+   - Câmara comum: 20%.
+   - Exibir/preencher o campo existente de fator de bloqueio em % via valor decimal interno, mantendo o padrão atual da tela.
 
-3. Regras para ambiente negativo, infiltração e degelo
-- Se temperatura interna < 0°C e degelo = 0: gerar bloqueio/alerta crítico conforme auditoria atual, mantendo a mensagem:
-  “Câmara negativa com degelo equivalente zerado; revisar umidade, infiltração e premissas de degelo.”
-- Se ambiente negativo tiver porta/abertura/operação e infiltração = 0: gerar alerta crítico.
-- Se porta = 0 e infiltração = 0 em ambiente negativo: gerar alerta:
-  “Infiltração zerada em ambiente negativo. Validar portas, abertura e operação real.”
-- Se realmente não houver porta operacional, exigir premissa/alerta:
-  “Ambiente sem abertura operacional informada.”
+6. Calcular velocidade do ar no produto
+   - Usar: `velocidade_m_s = vazao_m3h / 3600 / area_livre_m2`.
+   - Preencher localmente:
+     - fonte da velocidade = vazão por ventiladores;
+     - vazão dos ventiladores informada;
+     - vazão informada;
+     - largura seção de passagem;
+     - altura seção de passagem;
+     - fator de bloqueio;
+     - velocidade calculada/manual de referência.
 
-4. Preservar regra de conservação para câmaras
-- `cold_room` / `chilled_room`: produto pode ser zero quando for apenas conservação.
-- `freezer_room` / armazenamento congelado: produto pode ser zero em conservação, mas degelo e infiltração entram na auditoria.
-- Se houver produto cadastrado ou renovação/entrada de produto, validar que a carga de produto foi calculada.
+7. Exibir campos técnicos novos na Etapa 5
+   - Adicionar campos/valores locais para:
+     - parede sugerida;
+     - sentido de sopro;
+     - justificativa técnica.
+   - Esses valores ficam no estado local do formulário e só entram em persistência se o usuário clicar em salvar, mantendo o comportamento pedido.
 
-5. Integrar a auditoria no motor e no resultado normalizado
-Arquivos previstos:
-- `src/modules/coldpro/core/validators.ts`
-- `src/modules/coldpro/engines/tunnelEngine.ts`
-- `src/features/coldpro/coldpro-calculation.engine.ts`
-- `src/modules/coldpro/core/resultNormalizer.ts`
-- `src/modules/coldpro/core/environmentResultNormalizer.ts`
-- `src/modules/coldpro/core/projectResultConsolidator.ts`
+8. Exibir card técnico após cálculo
+   - Card: "Recomendação de instalação do equipamento".
+   - Mostrar:
+     - parede sugerida: parede menor/parede maior;
+     - sentido de sopro;
+     - largura útil considerada;
+     - altura útil considerada;
+     - área livre;
+     - vazão necessária;
+     - velocidade estimada no produto;
+     - status: baixa/adequada/alta;
+     - observação técnica.
 
-Ajustes:
-- O `tunnelEngine` continuará calculando as mesmas cargas, mas passará a classificar corretamente `missing_data`/`invalid_input` quando produto/processo obrigatório estiver incompleto.
-- `calculateColdProLoad` adicionará alertas/bloqueios em `calculation_breakdown.validation_alerts` e `thermalCalculationResult`.
-- `normalizeColdProResult` exporá `technicalStatus`, `isBlocked`, `isPreliminary` e warnings consolidados.
-- `projectResultConsolidator` marcará o projeto como `WARNING` ou `BLOCKED` se qualquer ambiente crítico estiver bloqueado.
+9. Alertas de velocidade
+   - Para túnel/blast_freezer:
+     - < 1,5 m/s: alerta de velocidade baixa;
+     - 2,0 a 5,0 m/s: adequada/ideal;
+     - > 6,0 m/s: alerta de velocidade alta.
+   - Para câmara fria:
+     - ideal 0,2 a 0,8 m/s;
+     - > 1,5 m/s: alerta de excesso.
+   - Se a vazão atende ao balanço térmico, mas a velocidade ficar baixa, mostrar exatamente a mensagem solicitada sobre avaliar maior vazão, dutos, plenum, menor seção livre ou alteração da posição do equipamento.
 
-6. Separar status térmico de status de equipamento
-- A seleção pode informar “atende à carga calculada”, mas não poderá transformar cálculo bloqueado em final válido.
-- Se cálculo estiver bloqueado:
-  - `status_dimensionamento` não será `ADEQUADO` final.
-  - `emissao_permitida` será `PRELIMINAR` ou `BLOQUEADA`.
-  - O memorial exibirá que o resultado é preliminar/bloqueado.
-
-7. Bloquear seleção automática final quando cálculo estiver bloqueado
-Arquivo previsto:
-- `src/features/coldpro/coldpro.functions.ts`
-- `src/routes/app.coldpro.$id.tsx`
-
-Comportamento:
-- `autoSelectColdProEquipment` verificará o status técnico antes de salvar seleção final.
-- Se bloqueado, não salvará seleção automática final e retornará alerta:
-  “Seleção baseada em carga preliminar inválida/incompleta.”
-- Na tela, o botão de seleção automática ficará desabilitado ou exibirá erro claro quando o cálculo estiver bloqueado.
-- A pré-seleção automática pós-cálculo para blast freezer/túnel também respeitará esse bloqueio.
-
-8. Corrigir nomenclatura exibida
-- Criar mapeamento de label por tipo real:
-  - `blast_freezer` → “Blast freezer”
-  - `freezing_tunnel` / `tunnel` / equivalentes → “Túnel de congelamento”
-  - `cooling_tunnel` → “Túnel de resfriamento”
-  - `cold_room` → “Câmara fria”
-  - `freezer_room` → “Câmara de congelados”
-- Usar esse label em tela, relatório e PDF para impedir que blast freezer apareça como `cold_room`.
-
-9. Atualizar relatório, memorial e PDF
-Arquivos previstos:
-- `src/components/coldpro/ColdProReport.tsx`
-- `src/integrations/coldpro/coldproMemorialPdfLib.ts`
-- componentes de resultado ColdPro que exibem auditoria/status
-
-Comportamento:
-- Quando houver bloqueio, exibir destaque visual de alerta/vermelho.
-- Mostrar texto:
-  “Resultado preliminar. Corrigir dados obrigatórios antes da emissão técnica.”
-- No laudo final/PDF, impedir conclusão como `ADEQUADO` final quando `technicalStatus` for bloqueado.
-- Incluir lista de bloqueios e warnings críticos no memorial.
-
-10. Auditoria matemática adicional
-Adicionar validações sem alterar fórmulas:
-- Total requerido >= subtotal válido.
-- Total requerido não pode ser menor que carga de produto/processo.
-- Produto/processo não pode ser 0 em túnel/blast freezer.
-- Se túnel/blast freezer e total < 10.000 kcal/h: warning, sem bloqueio automático:
-  “Carga térmica baixa para túnel de congelamento. Validar massa, tempo e produto.”
-
-11. Caso obrigatório “Túnel Rafa”
-Validar com cenário:
-- volume 67,54 m³
-- temperatura interna -25°C
-- ambiente externo 35°C
-- tipo `blast_freezer`
-- carga atual 4.200 kcal/h
-- produto = 0
-- infiltração = 0
-- porta = 0
-- degelo = 0
-
-Resultado esperado após correção:
-- Cálculo não aparece como `ADEQUADO` final.
-- Status técnico = `BLOCKED`/`INVALID_INPUT`.
-- Bloqueio por produto/processo zerado.
-- Alerta de infiltração/porta.
-- Alerta de degelo zerado em negativo.
-- Relatório indica preliminar/bloqueado.
-- Seleção CN 600 LT não valida o projeto como final.
-
-12. Caso com produto correto
-Criar teste/cenário local de validação com produto/processo preenchido para o mesmo túnel, buscando carga próxima de 17.000 kcal/h conforme premissas informadas.
-Resultado esperado:
-- Status térmico pode voltar para `VALID` ou `WARNING`.
-- Seleção recalcula com carga real.
-- Equipamento pequeno deixa de ser adequado se a capacidade for insuficiente.
+10. Caso da imagem / validação esperada
+   - Para largura 4,28 m, altura 3 m, vazão 1.658 m³/h e bloqueio 50%, o cálculo não usará 3 m como altura útil automaticamente.
+   - A altura útil ficará reduzida pela regra técnica, por exemplo pela altura de carga/pallet ou fração útil, gerando velocidade mais realista.
 
 Validação final
-- Rodar busca por mensagens e status para garantir que `ADEQUADO` não sobrescreve cálculo bloqueado.
-- Rodar typecheck.
-- Rodar build.
+- Rodar typecheck/build após implementar.
 - Retornar:
-  1. arquivos alterados;
-  2. regras globais implementadas;
-  3. resultado Túnel Rafa antes/depois;
-  4. warnings/bloqueios gerados;
-  5. confirmação de que fórmulas físicas não foram alteradas;
-  6. confirmação de typecheck/build.
+  - arquivos alterados;
+  - regras implementadas;
+  - campos preenchidos pelo botão;
+  - comportamento do card técnico;
+  - confirmação de que motor térmico, banco e seleção de equipamento não foram alterados;
+  - confirmação de typecheck/build.
