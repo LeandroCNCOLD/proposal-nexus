@@ -593,32 +593,54 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
   const productSuggestions = React.useMemo(() => filteredProducts.slice(0, 8), [filteredProducts]);
 
   const buildAirflowPreset = React.useCallback((source: ColdProFormRecord = form) => {
-    const presetVelocity = recommendedTunnelAirVelocity(tunnelType, isStatic);
-    const requiredAirflow = positiveValue(tunnelResult.airFlowM3H, thermalResult.requiredAirflowM3H, source?.informed_air_flow_m3_h, source?.airflow_m3_h);
+    const dimensions = resolveChamberDimensions(environment, { ...(tunnel ?? {}), ...source });
+    const tunnelLike = ["continuous_belt", "spiral_girofreezer", "static_cart", "static_pallet", "fluidized_bed", "blast_freezer"].includes(tunnelType);
+    const loadKW = positiveValue(tunnelResult.totalKW, tunnelResult.productLoadKW);
+    const airDeltaTK = positiveValue(source?.air_delta_t_k) || 6;
+    const airDensityKgM3 = positiveValue(source?.air_density_kg_m3) || 1.2;
+    const requiredAirflow = loadKW > 0 ? loadKW * 3600 / (airDensityKgM3 * 1.005 * airDeltaTK) : positiveValue(tunnelResult.airFlowM3H, thermalResult.requiredAirflowM3H, source?.informed_air_flow_m3_h, source?.airflow_m3_h);
     const fanAirflowM3H = requiredAirflow;
-    const blockageFactor = positiveValue(source?.blockage_factor) || recommendedBlockageFactor(tunnelType, source?.arrangement_type ?? form.arrangement_type);
-    const freeAreaM2 = fanAirflowM3H > 0 ? fanAirflowM3H / 3600 / presetVelocity : 0;
-    const grossAreaM2 = freeAreaM2 > 0 ? freeAreaM2 / Math.max(0.05, 1 - blockageFactor) : 0;
-    const currentWidth = positiveValue(source?.tunnel_cross_section_width_m);
-    const currentHeight = positiveValue(source?.tunnel_cross_section_height_m);
-    const ratioWidthM = grossAreaM2 > 0 ? Math.sqrt(grossAreaM2 * 1.6) : 0;
-    const ratioHeightM = grossAreaM2 > 0 ? grossAreaM2 / Math.max(ratioWidthM, 0.01) : 0;
-    const sectionWidthM = currentWidth || ratioWidthM;
-    const sectionHeightM = currentHeight || ratioHeightM;
+    const blockageFactor = recommendedBlockageFactor(tunnelType, source?.arrangement_type ?? form.arrangement_type);
+    const horizontal = [dimensions.lengthM, dimensions.widthM].filter((value) => value > 0).sort((a, b) => a - b);
+    const smallerWallM = horizontal[0] || positiveValue(source?.tunnel_cross_section_width_m);
+    const largerWallM = horizontal[1] || smallerWallM || positiveValue(source?.tunnel_cross_section_width_m);
+    const loadHeightM = positiveValue(source?.pallet_height_m, source?.box_height_m, source?.product_height_m, source?.bulk_layer_height_m);
+    const heightByLoadM = loadHeightM > 0 && dimensions.heightM > 0 ? Math.max(dimensions.heightM - loadHeightM, dimensions.heightM * 0.3) : 0;
+    const usefulHeightM = heightByLoadM || (dimensions.heightM > 0 ? dimensions.heightM * 0.6 : positiveValue(source?.tunnel_cross_section_height_m));
+    const optionFor = (wall: "menor" | "maior", widthM: number, throwM: number) => {
+      const grossAreaM2 = widthM * usefulHeightM;
+      const freeAreaM2 = grossAreaM2 * Math.max(0.05, 1 - blockageFactor);
+      const velocityMS = fanAirflowM3H > 0 && freeAreaM2 > 0 ? fanAirflowM3H / 3600 / freeAreaM2 : 0;
+      const status = airflowVelocityStatus(velocityMS, tunnelLike);
+      const idealPenalty = tunnelLike ? Math.abs(velocityMS - 3) : Math.abs(velocityMS - 0.5);
+      const score = (status.status === "adequada" ? 100 : status.status === "aceitável" ? 80 : status.status === "baixa" ? 35 : 55) - idealPenalty * 8 + (throwM >= widthM ? 10 : 0);
+      return { wall, widthM, throwM, grossAreaM2, freeAreaM2, velocityMS, status, score };
+    };
+    const wallOptions = [optionFor("menor", smallerWallM, largerWallM), optionFor("maior", largerWallM, smallerWallM)];
+    const selected = tunnelLike ? wallOptions[0] : wallOptions.sort((a, b) => b.score - a.score)[0];
+    const observation = selected.status.status === "baixa" && tunnelLike
+      ? "A vazão calculada atende ao balanço térmico, mas a velocidade no produto está baixa para túnel. Avaliar maior vazão, dutos, plenum, menor seção livre ou alteração da posição do equipamento."
+      : selected.status.warning || "Instalação sugerida pela seção livre, alcance de ar e faixa de velocidade recomendada.";
     return {
       airflow_source: "airflow_by_fans",
       fan_airflow_m3_h: roundPreset(fanAirflowM3H, 2),
       informed_air_flow_m3_h: roundPreset(fanAirflowM3H, 2),
       airflow_m3_h: roundPreset(fanAirflowM3H, 2),
-      tunnel_cross_section_width_m: roundPreset(sectionWidthM, 3),
-      tunnel_cross_section_height_m: roundPreset(sectionHeightM, 3),
+      tunnel_cross_section_width_m: roundPreset(selected.widthM, 3),
+      tunnel_cross_section_height_m: roundPreset(usefulHeightM, 3),
       blockage_factor: roundPreset(clamp(blockageFactor, 0, 0.9), 4),
       blockage_factor_input_mode: "decimal",
-      air_delta_t_k: positiveValue(source?.air_delta_t_k) || 6,
+      air_delta_t_k: airDeltaTK,
       air_temp_c: Number.isFinite(Number(source?.air_temp_c)) ? source?.air_temp_c : airTemperatureC,
-      air_velocity_m_s: roundPreset(presetVelocity, 2),
+      air_velocity_m_s: roundPreset(selected.velocityMS, 2),
+      airflow_installation_wall: selected.wall === "menor" ? "Parede menor" : "Parede maior",
+      airflow_blow_direction: selected.throwM >= selected.widthM ? "Sopro no sentido do comprimento maior" : "Sopro no sentido do comprimento menor",
+      airflow_useful_height_m: roundPreset(usefulHeightM, 3),
+      airflow_free_area_m2: roundPreset(selected.freeAreaM2, 3),
+      airflow_velocity_status: selected.status.status,
+      airflow_technical_note: observation,
     };
-  }, [airTemperatureC, form, isStatic, thermalResult.requiredAirflowM3H, tunnelResult.airFlowM3H, tunnelType]);
+  }, [airTemperatureC, environment, form, thermalResult.requiredAirflowM3H, tunnel, tunnelResult.airFlowM3H, tunnelResult.productLoadKW, tunnelResult.totalKW, tunnelType]);
 
   const applyAirflowPreset = React.useCallback(() => {
     setForm((prev) => ({ ...prev, ...buildAirflowPreset(prev) }));
