@@ -608,11 +608,10 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
   const buildAirflowPreset = React.useCallback((source: ColdProFormRecord = form) => {
     const dimensions = resolveChamberDimensions(environment, { ...(tunnel ?? {}), ...source });
     const tunnelLike = ["continuous_belt", "spiral_girofreezer", "static_cart", "static_pallet", "fluidized_bed", "blast_freezer"].includes(tunnelType);
-    const loadKW = positiveValue(tunnelResult.totalKW, tunnelResult.productLoadKW);
+    const loadKW = positiveValue(tunnelResult.totalKW, tunnelResult.productLoadKW, thermalResult.totalProcessLoadKw, thermalResult.productLoadKw);
     const airDeltaTK = positiveValue(source?.air_delta_t_k) || 6;
     const airDensityKgM3 = positiveValue(source?.air_density_kg_m3) || 1.2;
-    const requiredAirflow = loadKW > 0 ? loadKW * 3600 / (airDensityKgM3 * 1.005 * airDeltaTK) : positiveValue(tunnelResult.airFlowM3H, thermalResult.requiredAirflowM3H, source?.informed_air_flow_m3_h, source?.airflow_m3_h);
-    const fanAirflowM3H = requiredAirflow;
+    const balanceAirflow = requiredAirflowForLoadM3H(loadKW, airDeltaTK, airDensityKgM3) || positiveValue(thermalResult.requiredAirflowM3H, tunnelResult.airFlowM3H, source?.informed_air_flow_m3_h, source?.airflow_m3_h);
     const blockageFactor = recommendedBlockageFactor(tunnelType, source?.arrangement_type ?? form.arrangement_type);
     const horizontal = [dimensions.lengthM, dimensions.widthM].filter((value) => value > 0).sort((a, b) => a - b);
     const smallerWallM = horizontal[0] || positiveValue(source?.tunnel_cross_section_width_m);
@@ -623,11 +622,14 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
     const optionFor = (wall: "menor" | "maior", widthM: number, throwM: number) => {
       const grossAreaM2 = widthM * usefulHeightM;
       const freeAreaM2 = grossAreaM2 * Math.max(0.05, 1 - blockageFactor);
+      const referenceVelocityMS = recommendedTunnelAirVelocity(tunnelType, isStatic);
+      const velocityAirflow = airflowForVelocityM3H(freeAreaM2, referenceVelocityMS);
+      const fanAirflowM3H = Math.max(balanceAirflow, tunnelLike ? velocityAirflow : balanceAirflow);
       const velocityMS = fanAirflowM3H > 0 && freeAreaM2 > 0 ? fanAirflowM3H / 3600 / freeAreaM2 : 0;
       const status = airflowVelocityStatus(velocityMS, tunnelLike);
       const idealPenalty = tunnelLike ? Math.abs(velocityMS - 3) : Math.abs(velocityMS - 0.5);
       const score = (status.status === "adequada" ? 100 : status.status === "aceitável" ? 80 : status.status === "baixa" ? 35 : 55) - idealPenalty * 8 + (throwM >= widthM ? 10 : 0);
-      return { wall, widthM, throwM, grossAreaM2, freeAreaM2, velocityMS, status, score };
+      return { wall, widthM, throwM, grossAreaM2, freeAreaM2, velocityMS, status, score, fanAirflowM3H, balanceAirflow, velocityAirflow, referenceVelocityMS };
     };
     const wallOptions = [optionFor("menor", smallerWallM, largerWallM), optionFor("maior", largerWallM, smallerWallM)];
     const selected = tunnelLike ? wallOptions[0] : wallOptions.sort((a, b) => b.score - a.score)[0];
@@ -639,6 +641,9 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
       fan_airflow_m3_h: roundPreset(fanAirflowM3H, 2),
       informed_air_flow_m3_h: roundPreset(fanAirflowM3H, 2),
       airflow_m3_h: roundPreset(fanAirflowM3H, 2),
+      airflow_thermal_balance_m3_h: roundPreset(selected.balanceAirflow, 2),
+      airflow_velocity_reference_m3_h: roundPreset(selected.velocityAirflow, 2),
+      airflow_reference_velocity_m_s: roundPreset(selected.referenceVelocityMS, 2),
       tunnel_cross_section_width_m: roundPreset(selected.widthM, 3),
       tunnel_cross_section_height_m: roundPreset(usefulHeightM, 3),
       blockage_factor: roundPreset(clamp(blockageFactor, 0, 0.9), 4),
@@ -653,7 +658,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
       airflow_velocity_status: selected.status.status,
       airflow_technical_note: observation,
     };
-  }, [airTemperatureC, environment, form, thermalResult.requiredAirflowM3H, tunnel, tunnelResult.airFlowM3H, tunnelResult.productLoadKW, tunnelResult.totalKW, tunnelType]);
+  }, [airTemperatureC, environment, form, isStatic, thermalResult.productLoadKw, thermalResult.requiredAirflowM3H, thermalResult.totalProcessLoadKw, tunnel, tunnelResult.airFlowM3H, tunnelResult.productLoadKW, tunnelResult.totalKW, tunnelType]);
 
   const applyAirflowPreset = React.useCallback(() => {
     setForm((prev) => ({ ...prev, ...buildAirflowPreset(prev) }));
