@@ -694,6 +694,7 @@ function calculateTunnelCore(input: TunnelEngineInput) {
     calculatedMassKgH,
     usedMassKgH,
     continuousMassMode,
+    beltSurface: processMass.beltSurface,
     staticMassKg,
     staticMassMode: input?.staticMassMode ?? input?.static_mass_mode ?? "direct_pallet_mass",
     palletMassKg,
