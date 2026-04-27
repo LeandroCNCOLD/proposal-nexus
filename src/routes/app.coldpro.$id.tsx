@@ -674,12 +674,12 @@ function ColdProProjectPage() {
                   />
 
                   {/* Auto-select pela curva */}
-                  <div className="rounded-2xl border bg-background p-4">
+                  <div className="rounded-lg border bg-background p-3">
                     <h3 className="mb-2 text-base font-semibold">Seleção automática pela curva</h3>
                     <p className="mb-3 text-sm text-muted-foreground">
                       Seleciona automaticamente o melhor modelo usando a curva de rendimento, COP, potência e sobra técnica.
                     </p>
-                    <div className="mb-4 grid gap-3 sm:grid-cols-2">
+                    <div className="mb-3 grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(260px,1fr))]">
                       <label className="text-sm font-medium">
                         Qtd. mínima de equipamentos
                         <input
@@ -688,7 +688,7 @@ function ColdProProjectPage() {
                           step={1}
                           value={autoMinQuantity}
                           onChange={(event) => setAutoMinQuantity(event.target.value)}
-                          className="mt-1 h-10 w-full rounded-md border bg-background px-3 text-right text-sm"
+                          className="mt-1 h-8 w-full rounded-md border bg-background px-2 text-right text-[13px]"
                         />
                       </label>
                       <label className="text-sm font-medium">
@@ -696,7 +696,7 @@ function ColdProProjectPage() {
                         <select
                           value={autoEquipmentKind}
                           onChange={(event) => setAutoEquipmentKind(event.target.value as any)}
-                          className="mt-1 h-10 w-full rounded-md border bg-background px-3 text-sm"
+                          className="mt-1 h-8 w-full rounded-md border bg-background px-2 text-[13px]"
                         >
                           <option value="ALL">Todos</option>
                           <option value="plugin">Plug-in</option>
@@ -716,9 +716,9 @@ function ColdProProjectPage() {
                   </div>
 
                   {selection ? (
-                    <div className="rounded-2xl border bg-background p-4">
+                    <div className="rounded-lg border bg-background p-3">
                       <h3 className="mb-3 text-base font-semibold">Equipamento selecionado</h3>
-                      <div className="grid grid-cols-2 gap-3 text-sm md:grid-cols-3">
+                      <div className="grid gap-2 text-[13px] [grid-template-columns:repeat(auto-fit,minmax(260px,1fr))]">
                         <div>Modelo: <b>{selection.model}</b></div>
                         <div>Qtd.: <b>{fmt(selection.quantity)}</b></div>
                         <div>Capacidade total: <b>{fmt(selection.capacity_total_kcal_h)} kcal/h</b></div>
@@ -733,7 +733,7 @@ function ColdProProjectPage() {
                   ) : null}
 
                   {["blast_freezer", "cooling_tunnel"].includes(String(selectedEnv.environment_type)) ? (
-                    <div className="rounded-2xl border bg-background p-4">
+                    <div className="rounded-lg border bg-background p-3">
                       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
                         <div>
                           <h3 className="flex items-center gap-2 text-base font-semibold">
@@ -760,15 +760,15 @@ function ColdProProjectPage() {
                         </button>
                       </div>
                       {!result ? (
-                        <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                        <div className="rounded-lg border border-dashed p-3 text-[13px] text-muted-foreground">
                           Calcule a carga térmica para liberar a análise técnica do túnel.
                         </div>
                       ) : tunnelExpertAnalysis ? (
-                        <div className="max-h-[520px] overflow-y-auto whitespace-pre-wrap rounded-lg bg-muted/40 p-4 text-sm leading-relaxed">
+                        <div className="max-h-[420px] overflow-y-auto whitespace-pre-wrap rounded-lg bg-muted/40 p-3 text-[13px] leading-relaxed">
                           {tunnelExpertAnalysis}
                         </div>
                       ) : (
-                        <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                        <div className="rounded-lg border border-dashed p-3 text-[13px] text-muted-foreground">
                           Após calcular, a IA avalia se a seleção está adequada e sugere ajustes de temperatura, vazão, margem e porte do equipamento.
                         </div>
                       )}
@@ -779,7 +779,7 @@ function ColdProProjectPage() {
               )}
 
               {/* Navegação inferior */}
-              <div className="flex items-center justify-between rounded-xl border bg-background px-4 py-3 shadow-sm print:hidden">
+              <div className="flex items-center justify-between rounded-lg border bg-background px-3 py-2 shadow-sm print:hidden">
                 <button
                   type="button"
                   onClick={prev}
