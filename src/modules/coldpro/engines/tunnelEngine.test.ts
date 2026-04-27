@@ -1,4 +1,5 @@
 import { strict as assert } from "node:assert";
+import { formToTunnelInput } from "../adapters/formToTunnelInput";
 import { tunnelResultToDatabasePayload } from "../adapters/tunnelInputToDatabasePayload";
 import type { TunnelEngineInput, TunnelEngineResult } from "../types/tunnelEngine.types";
 import { calculateTunnelEngine, COLDPRO_TUNNEL_ENGINE_VERSION } from "./tunnelEngine";
@@ -83,6 +84,50 @@ const thermalBase = {
   nearlyEqual(result.staticMassKg, 450);
   nearlyEqual(result.productLoadKW, 7.8891, 0.001);
   assert.equal(result.engineVersion, COLDPRO_TUNNEL_ENGINE_VERSION);
+}
+
+{
+  const input = formToTunnelInput({
+    process_type: "static_pallet_freezing",
+    operation_mode: "batch",
+    tunnel_type: "static_pallet",
+    arrangement_type: "palletized_blocks",
+    product_geometry: "rectangular_prism",
+    surface_exposure_model: "stacked_product",
+    static_mass_mode: "direct_pallet_mass",
+    pallet_mass_kg: 250,
+    number_of_pallets: 8,
+    batch_time_h: 8,
+    pallet_length_m: 1.2,
+    pallet_width_m: 1,
+    pallet_height_m: 1.7,
+    product_length_m: 0.3,
+    product_width_m: 0.2,
+    product_thickness_m: 0.1,
+    inlet_temp_c: 5,
+    outlet_temp_c: -2,
+    freezing_temp_c: -5.6,
+    air_temp_c: -30,
+    air_temp_source: "manual",
+    airflow_source: "airflow_by_fans",
+    fan_airflow_m3_h: 822,
+    tunnel_cross_section_width_m: 0.6,
+    tunnel_cross_section_height_m: 0.6,
+    blockage_factor: 0.3,
+    air_delta_t_k: 6,
+    specific_heat_above_kj_kg_k: 3.4,
+    specific_heat_below_kj_kg_k: 1.75,
+    latent_heat_kj_kg: 204,
+    frozen_water_fraction: null,
+    density_kg_m3: 605,
+    thermal_conductivity_frozen_w_m_k: 0.8,
+    thermal_penetration_factor: 1,
+  }, { internal_temp_c: -30 });
+  const result = calculateTunnelEngine(input);
+  assert.ok(result.energy.latentKJkg > 0);
+  assert.ok(result.energy.totalKJkg > 200);
+  assert.ok(result.productLoadKW > 15);
+  assert.equal(result.calculationBreakdown.loads?.productLoadMissingFields?.includes("fração congelável"), false);
 }
 
 {

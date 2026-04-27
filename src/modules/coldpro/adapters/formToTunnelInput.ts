@@ -12,6 +12,19 @@ function optionalString(value: unknown): string | null {
   return typeof value === "string" ? value : value == null ? null : String(value);
 }
 
+function resolveFrozenWaterFraction(source: TunnelSourceRecord): number {
+  const directFraction = safeNumber(source?.frozen_water_fraction);
+  if (directFraction > 0) return directFraction;
+
+  const freezablePercent = safeNumber(source?.freezable_water_content_percent);
+  if (freezablePercent > 0) return freezablePercent / 100;
+
+  const waterPercent = safeNumber(source?.water_content_percent);
+  if (waterPercent > 0) return waterPercent / 100;
+
+  return 0.9;
+}
+
 function calculateStaticMass(source: TunnelSourceRecord, isStatic: boolean) {
   const staticMassMode = source?.static_mass_mode ?? "direct_pallet_mass";
   const numberOfPallets = safeNumber(source?.number_of_pallets, 1) || 1;
@@ -157,7 +170,7 @@ export function formToTunnelInput(form: TunnelSourceRecord, environment: TunnelS
     cpBelowKJkgK: thermal.cpBelowKJkgK,
     latentHeatKJkg: thermal.latentHeatKJkg,
     unitConversions: thermal.conversionSources,
-    frozenWaterFraction: safeNumber(form?.frozen_water_fraction),
+    frozenWaterFraction: resolveFrozenWaterFraction(form),
     frozenConductivityWMK: safeNumber(form?.thermal_conductivity_frozen_w_m_k),
     densityKgM3: safeNumber(form?.density_kg_m3),
     packagingMassKgH,
