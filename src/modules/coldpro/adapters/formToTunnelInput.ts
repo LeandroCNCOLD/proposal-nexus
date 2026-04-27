@@ -54,7 +54,7 @@ export function formToTunnelInput(form: TunnelSourceRecord, environment: TunnelS
   const packagingMassKgBatch = safeNumber(form?.packaging_mass_kg_batch);
   const packagingMassKgH = isStatic && safeNumber(form?.batch_time_h) > 0 && packagingMassKgBatch > 0 ? packagingMassKgBatch / safeNumber(form?.batch_time_h) : safeNumber(form?.packaging_mass_kg_hour);
   const normalAirTempC = airTempSource === "environment" ? safeNumber(environment?.internal_temp_c) : safeNumber(form?.air_temp_c);
-  const airflowSource = form?.airflow_source ?? "manual_velocity";
+  const airflowSource = optionalString(form?.airflow_source) ?? "manual_velocity";
   const informedAirFlowM3H = airflowSource === "airflow_by_fans"
     ? safeNumber(form?.fan_airflow_m3_h ?? form?.informed_air_flow_m3_h ?? form?.airflow_m3_h)
     : safeNumber(form?.informed_air_flow_m3_h ?? form?.airflow_m3_h);
