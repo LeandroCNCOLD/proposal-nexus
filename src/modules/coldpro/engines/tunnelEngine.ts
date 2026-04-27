@@ -503,7 +503,7 @@ function calculateTunnelCore(input: TunnelEngineInput) {
     ...requiredPositiveFields(input, isStatic, staticMassKg, characteristicDimensionM, energy.crossesFreezingPoint, airVelocityUsedMS, continuousMassMode),
     ...freezingTimeMissingFields,
   ]);
-  const warnings = unique([...validation.warnings, ...tunnelMode.warnings, ...geometry.warnings, ...exposure.warnings, ...airflow.warnings, ...engineWarnings, ...thermalReliabilityAlerts.map((alert) => alert.message)]);
+  const warnings = unique([...validation.warnings, ...tunnelMode.warnings, ...geometry.warnings, ...exposure.warnings, ...airflow.warnings, ...engineWarnings, ...freezingValidation.warnings, ...thermalReliabilityAlerts.map((alert) => alert.message)]);
 
   const status: TunnelScenarioStatus = invalidFields.length > 0
     ? "invalid_input"
@@ -583,7 +583,7 @@ function calculateTunnelCore(input: TunnelEngineInput) {
     scenarios: { adjustedScenario: scenario },
     loads: { productLoadKW, packagingLoadKW, internalLoadKW, totalKW, totalKcalH, totalTR, packagingMassKgH, packagingMassKgBatch, packagingMassBatchKg: packagingMassKgBatch, packagingLoadMethod: packaging.packagingLoadMethod, packagingMassSource: packaging.packagingMassSource, productLoadMissingFields: productLoadMissing, loadCalculationReady: productLoadMissing.length === 0, massUsedForProductLoad: tunnelMode.operationRegime === "batch" ? staticMassKg : usedMassKgH, massUnitForProductLoad: tunnelMode.operationRegime === "batch" ? "kg/batelada" : "kg/h", airFlowThermalBalanceM3H },
     infiltration: { requestedMethod: infiltrationMethod.requested, usedMethod: infiltrationMethod.used, fallbackApplied: Boolean(infiltrationMethod.warning) },
-    timing: { estimatedTimeMin, availableTimeMin, status },
+    timing: { estimatedTimeMin, availableTimeMin, status, validationStatus: freezingValidation.status, marginPercent: freezingValidation.marginPercent },
     validation: { warnings, missingFields, invalidFields, thermalReliabilityAlerts },
   };
 
@@ -597,7 +597,7 @@ function calculateTunnelCore(input: TunnelEngineInput) {
     packagingLoadKW: tunnelMode.operationRegime === "batch" ? "packagingMassKgBatch × packagingCpKJkgK × abs(initialTempC - finalTempC) / (batchTimeH × 3600)" : "packagingMassKgH × packagingCpKJkgK × abs(initialTempC - finalTempC) / 3600",
     internalLoadKW: "beltMotorKW + internalFansKW + otherInternalKW",
     totalKW: "productLoadKW + packagingLoadKW + internalLoadKW",
-    airFlowM3H: "totalKW × 3600 / (airDensityKgM3 × 1.005 × airDeltaTK)",
+    airFlowM3H: "calculateRequiredAirflowM3H(totalKW, airDensityKgM3, 1.005, airDeltaTK)",
     suggestedAirTempC: "finalTempC - suggestedAirApproachK",
     plankFreezingTime: "Plank equation using density, latent heat, core distance, h and effective k",
   };
