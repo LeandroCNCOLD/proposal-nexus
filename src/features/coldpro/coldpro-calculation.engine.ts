@@ -23,6 +23,7 @@ import { calculateEvaporatorFanLoad, calculateMotorLoadKcalH, calculatePsychrome
 import { databaseToTunnelInput } from "@/modules/coldpro/adapters/databaseToTunnelInput";
 import { listAshraeColdProComparisons } from "@/modules/coldpro/core/ashraeComparison";
 import { COLDPRO_CALCULATION_METHODS } from "@/modules/coldpro/core/calculationMethodRegistry";
+import { normalizeThermalProperties } from "@/modules/coldpro/core/unitNormalizer";
 import { buildCalculationMethodReport } from "@/modules/coldpro/reports/calculationMethodReport";
 import { COLDPRO_TUNNEL_ENGINE_VERSION, calculateTunnelEngine } from "@/modules/coldpro/engines/tunnelEngine";
 
@@ -421,6 +422,14 @@ function thermalValueKcal(kcal: unknown, kj: unknown): number {
   return n(kcal) || kcalFromKj(kj);
 }
 
+function productThermalAlerts(product: ColdProEnvironmentProduct, specificEnergyKjKg: number, latentKjKg: number) {
+  const alerts: Array<{ level: "error" | "warning" | "info"; code: string; message: string }> = [];
+  if (n(product.outlet_temp_c) < 0 && latentKjKg <= 0) alerts.push({ level: "error", code: "latent_heat_zero_frozen_product", message: `Calor latente zerado em produto congelado: ${product.product_name}.` });
+  if (product.frozen_water_fraction === null || product.frozen_water_fraction === undefined) alerts.push({ level: "warning", code: "frozen_water_fraction_missing", message: `Fração congelável vazia em ${product.product_name}; foi aplicado default técnico.` });
+  if (specificEnergyKjKg > 0 && specificEnergyKjKg < 80) alerts.push({ level: "warning", code: "low_specific_energy", message: `Energia específica menor que 80 kJ/kg em ${product.product_name}; revisar unidades e propriedades térmicas.` });
+  return alerts;
+}
+
 function waterFreezeFraction(item: Pick<ColdProEnvironmentProduct | ColdProTunnel, "frozen_water_fraction" | "freezable_water_content_percent" | "water_content_percent">): number {
   const explicit = n(item.frozen_water_fraction, NaN);
   if (item.frozen_water_fraction !== null && item.frozen_water_fraction !== undefined && Number.isFinite(explicit) && explicit >= 0) return explicit > 1 ? explicit / 100 : explicit;
@@ -648,20 +657,22 @@ export function calculateProductLoadBreakdown(product: ColdProEnvironmentProduct
   const tout = n(product.outlet_temp_c);
   const tfreeze = product.initial_freezing_temp_c;
 
-  const cpAbove = thermalValueKcal(product.specific_heat_above_kcal_kg_c, product.specific_heat_above_kj_kg_k);
-  const cpBelow = thermalValueKcal(product.specific_heat_below_kcal_kg_c, product.specific_heat_below_kj_kg_k);
-  const latent = thermalValueKcal(product.latent_heat_kcal_kg, product.latent_heat_kj_kg);
+  const thermal = normalizeThermalProperties(product);
+  const cpAbove = thermal.cpAboveKJkgK / KCAL_TO_KJ;
+  const cpBelow = thermal.cpBelowKJkgK / KCAL_TO_KJ;
+  const latent = thermal.latentHeatKJkg / KCAL_TO_KJ;
   const allowPhaseChange = product.allow_phase_change !== false;
-  const frozenFraction = waterFreezeFraction(product);
+  const frozenFraction = thermal.frozenWaterFraction;
+  const latentResidualFactor = thermal.latentResidualFactor;
 
   let sensibleAbove = 0;
   let latentLoad = 0;
   let sensibleBelow = 0;
 
-  if (allowPhaseChange && tfreeze !== null && tfreeze !== undefined && tin > tfreeze && tout < tfreeze) {
+  if (allowPhaseChange && tfreeze !== null && tfreeze !== undefined && tout < tfreeze) {
     sensibleAbove = massDay * cpAbove * positive(tin - tfreeze);
-    latentLoad = massDay * latent * frozenFraction;
-    sensibleBelow = massDay * cpBelow * positive(tfreeze - tout);
+    latentLoad = massDay * latent * frozenFraction * latentResidualFactor;
+    sensibleBelow = massDay * cpBelow * Math.abs(tout - Math.min(tin, tfreeze));
   } else {
     const cp = tin >= 0 && tout >= 0 ? cpAbove : cpBelow || cpAbove;
     sensibleAbove = massDay * cp * Math.abs(tin - tout);
@@ -669,7 +680,9 @@ export function calculateProductLoadBreakdown(product: ColdProEnvironmentProduct
 
   const totalEnergy = sensibleAbove + latentLoad + sensibleBelow;
   const total = loadMode === "hourly_intake" ? totalEnergy / 24 : totalEnergy / hours;
-  const warnings = [loadMode === "room_pull_down_or_freezing" ? "Câmara de armazenagem usada para resfriar/congelar produto novo: validar circulação de ar, empilhamento, embalagem, área exposta e tempo disponível; para cargas intensas ou recorrentes, considerar túnel dedicado." : null].filter(Boolean);
+  const specificEnergyKjKg = massDay > 0 ? (totalEnergy / massDay) * KCAL_TO_KJ : 0;
+  const thermalAlerts = productThermalAlerts(product, specificEnergyKjKg, latent * KCAL_TO_KJ);
+  const warnings = [loadMode === "room_pull_down_or_freezing" ? "Câmara de armazenagem usada para resfriar/congelar produto novo: validar circulação de ar, empilhamento, embalagem, área exposta e tempo disponível; para cargas intensas ou recorrentes, considerar túnel dedicado." : null, ...thermalAlerts.map((alert) => alert.message)].filter(Boolean);
   return {
     product_name: product.product_name,
     product_load_mode: loadMode,
@@ -688,11 +701,15 @@ export function calculateProductLoadBreakdown(product: ColdProEnvironmentProduct
     freezing_temp_c: tfreeze ?? null,
     cp_above_kcal_kg_c: cpAbove,
     cp_below_kcal_kg_c: cpBelow,
-    cp_above_kj_kg_k: product.specific_heat_above_kj_kg_k ?? round2(cpAbove * KCAL_TO_KJ),
-    cp_below_kj_kg_k: product.specific_heat_below_kj_kg_k ?? round2(cpBelow * KCAL_TO_KJ),
+    cp_above_kj_kg_k: round2(cpAbove * KCAL_TO_KJ),
+    cp_below_kj_kg_k: round2(cpBelow * KCAL_TO_KJ),
     latent_heat_kcal_kg: latent,
-    latent_heat_kj_kg: product.latent_heat_kj_kg ?? round2(latent * KCAL_TO_KJ),
+    latent_heat_kj_kg: round2(latent * KCAL_TO_KJ),
     frozen_water_fraction: frozenFraction,
+    latent_residual_factor: latentResidualFactor,
+    unit_conversions: thermal.conversionSources,
+    thermal_defaults_applied: thermal.defaultsApplied,
+    thermal_alerts: thermalAlerts,
     composition_percent: {
       water: product.water_content_percent ?? null,
       protein: product.protein_content_percent ?? null,
@@ -708,6 +725,7 @@ export function calculateProductLoadBreakdown(product: ColdProEnvironmentProduct
     energy_steps_sum_kcal: round2(sensibleAbove + latentLoad + sensibleBelow),
     energy_consistency_delta_kcal: round2(Math.abs(totalEnergy - (sensibleAbove + latentLoad + sensibleBelow))),
     specific_energy_kcal_kg: massDay > 0 ? round2(totalEnergy / massDay) : 0,
+    specific_energy_kj_kg: round2(specificEnergyKjKg),
     sensible_above_kcal_h: round2(loadMode === "hourly_intake" ? sensibleAbove / 24 : sensibleAbove / hours),
     latent_kcal_h: round2(loadMode === "hourly_intake" ? latentLoad / 24 : latentLoad / hours),
     sensible_below_kcal_h: round2(loadMode === "hourly_intake" ? sensibleBelow / 24 : sensibleBelow / hours),
@@ -868,6 +886,7 @@ function buildColdProValidationAlerts(env: ColdProEnvironment, products: any[], 
   }
   for (const product of products) {
     if (Math.abs(n(product.energy_consistency_delta_kcal)) > 1) alerts.push({ level: "error", code: "product_energy_inconsistent", message: `Carga de produto inconsistente em ${product.product_name}: soma das etapas difere do total.` });
+    for (const alert of Array.isArray(product.thermal_alerts) ? product.thermal_alerts : []) alerts.push(alert);
   }
   if (n(env.motors_power_kw) > 0 && (env.motors_dissipation_factor === null || env.motors_dissipation_factor === undefined || n(env.motors_dissipation_factor) < 0 || n(env.motors_dissipation_factor) > 1)) {
     alerts.push({ level: "warning", code: "motor_dissipation_invalid", message: "Motor informado sem fator de dissipação válido; use 100% interno, 30-70% parcial ou 0% externo." });
@@ -910,7 +929,10 @@ export function calculateColdProLoad(params: {
   const defrost = n(params.env.defrost_kcal_h) > 0 ? n(params.env.defrost_kcal_h) : defrostSuggestion.defrostKcalH;
   const other = n(params.env.other_kcal_h);
 
-  const validationAlerts = buildColdProValidationAlerts(params.env, productBreakdown, infiltrationBreakdown, defrost, fanLoad);
+  const validationAlerts = [
+    ...buildColdProValidationAlerts(params.env, productBreakdown, infiltrationBreakdown, defrost, fanLoad),
+    ...(((tunnelResult as any)?.calculation_breakdown?.validation?.thermalReliabilityAlerts ?? []) as Array<{ level: "error" | "warning" | "info"; code: string; message: string }>),
+  ];
   const subtotal = consolidateColdProSubtotal({ transmission, product, packaging, respiration, tunnel_internal_load: tunnelInternalLoad, seed_dehumidification: dehumidificationLoad, advanced_processes: advancedProcessLoad, infiltration, evaporator_frost: evaporatorFrost.additional_load_kcal_h, people, lighting, motors, fans, defrost, other });
   const safetyFactor = n(params.env.safety_factor_percent);
   const safety = subtotal * (safetyFactor / 100);
