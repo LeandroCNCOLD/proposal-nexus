@@ -1,6 +1,6 @@
 import { normalizeThermalProperties } from "../core/unitNormalizer";
 import { safeNumber } from "../core/units";
-import type { TunnelEngineInput } from "../types/tunnelEngine.types";
+import type { TunnelEngineInput, TunnelSourceRecord } from "../types/tunnelEngine.types";
 
 const KCAL_TO_KJ = 4.1868;
 
@@ -8,7 +8,7 @@ function isStaticTunnel(processType: unknown, operationMode: unknown) {
   return processType === "static_cart_freezing" || processType === "static_pallet_freezing" || operationMode === "batch";
 }
 
-function calculateStaticMass(source: any, isStatic: boolean) {
+function calculateStaticMass(source: TunnelSourceRecord, isStatic: boolean) {
   const staticMassMode = source?.static_mass_mode ?? "direct_pallet_mass";
   const numberOfPallets = safeNumber(source?.number_of_pallets, 1) || 1;
   const numberOfCarts = safeNumber(source?.number_of_carts, 1) || 1;
@@ -33,7 +33,7 @@ function calculateStaticMass(source: any, isStatic: boolean) {
   return { staticMassMode, numberOfPallets, numberOfCarts, unitWeightKg, unitsPerBox, boxesPerLayer, numberOfLayers, totalUnitsPerPallet, unitsPerPallet, productMassPerPalletKg, packagingMassPerPalletKg, calculatedPalletMassKg, calculatedCartMassKg, calculatedBatchMassKg, palletMassKg, staticMassKg };
 }
 
-export function formToTunnelInput(form: any, environment: any): TunnelEngineInput {
+export function formToTunnelInput(form: TunnelSourceRecord, environment: TunnelSourceRecord | null | undefined): TunnelEngineInput {
   const thermal = normalizeThermalProperties(form);
   const airTempSource = form?.air_temp_source ?? "environment";
   const packagingSpecificHeatKJkgK = safeNumber(form?.packaging_specific_heat_kj_kg_k);
