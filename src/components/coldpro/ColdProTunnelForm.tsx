@@ -711,8 +711,8 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
       respiration_rate_20c_mw_kg: p.respiration_rate_20c_mw_kg ?? null,
       notes: p.notes ?? null,
     }));
-    setSelectedGroup(p.category ?? "");
-    setProductSearch(p.name ?? "");
+    setSelectedGroup(textValue(p.category));
+    setProductSearch(textValue(p.name));
     setShowProductSuggestions(false);
   };
 
@@ -933,7 +933,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
 
       <div className="mt-5 grid grid-cols-1 gap-x-10 xl:grid-cols-2"><div>
         <ColdProField label="Temp. ar simulada" helpKey="simulatedAirTemp" unit="°C"><ColdProInput {...simNum("air_temp_c")} /></ColdProField>
-        <ColdProField label="Fonte da velocidade" helpKey="airflowSource"><ColdProSelect value={simulation.airflow_source ?? "manual_velocity"} onChange={(e) => setSim("airflow_source", e.target.value)}><option value="manual_velocity">Velocidade manual</option><option value="airflow_by_fans">Vazão por ventiladores</option></ColdProSelect></ColdProField>
+        <ColdProField label="Fonte da velocidade" helpKey="airflowSource"><ColdProSelect value={textValue(simulation.airflow_source, "manual_velocity")} onChange={(e) => setSim("airflow_source", e.target.value)}><option value="manual_velocity">Velocidade manual</option><option value="airflow_by_fans">Vazão por ventiladores</option></ColdProSelect></ColdProField>
         {simulation.airflow_source !== "airflow_by_fans" ? <ColdProField label="Velocidade simulada" helpKey="simulatedAirVelocity" unit="m/s"><ColdProInput {...simNum("air_velocity_m_s")} /></ColdProField> : null}
         {simulation.airflow_source === "airflow_by_fans" ? <><ColdProField label="Vazão dos ventiladores" helpKey="simulatedAirflow" unit="m³/h"><ColdProInput {...simNum("fan_airflow_m3_h")} /></ColdProField><ColdProField label="Largura seção túnel" unit="m"><ColdProInput {...simNum("tunnel_cross_section_width_m")} /></ColdProField><ColdProField label="Altura seção túnel" unit="m"><ColdProInput {...simNum("tunnel_cross_section_height_m")} /></ColdProField><ColdProField label="Fator de bloqueio" helpKey="blockageFactor" unit="%"><ColdProInput {...simBlockagePercentNum("blockage_factor")} /></ColdProField><ColdProCalculatedInfo label="Área livre simulada" value={`${fmtColdPro(simulationResult.freeAirAreaM2 ?? 0, 2)} m²`} description="seção livre calculada" tone={(simulationResult.freeAirAreaM2 ?? 0) > 0 ? "info" : "warning"} /><ColdProCalculatedInfo label="Velocidade simulada" value={`${fmtColdPro(simulationResult.calculatedAirVelocityMS ?? 0, 2)} m/s`} description="vazão ÷ área livre" tone="info" /></> : null}
         <ColdProField label="ΔT do ar" helpKey="airDeltaT" unit="K"><ColdProInput {...simNum("air_delta_t_k")} /></ColdProField>
@@ -941,7 +941,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
         <ColdProField label="Vazão informada" helpKey="informedAirflow" unit="m³/h"><ColdProInput {...simNum("informed_air_flow_m3_h")} /></ColdProField>
         <ColdProField label="Coef. convecção manual" helpKey="manualConvectiveCoefficient"><ColdProInput {...simNum("convective_coefficient_manual_w_m2_k")} /></ColdProField>
       </div><div>
-        <ColdProField label="Tipo de embalagem" helpKey="packagingType"><ColdProInput type="text" value={simulation.package_type ?? ""} onChange={(e) => setSim("package_type", e.target.value)} className="text-left" /></ColdProField>
+        <ColdProField label="Tipo de embalagem" helpKey="packagingType"><ColdProInput type="text" value={textValue(simulation.package_type)} onChange={(e) => setSim("package_type", e.target.value)} className="text-left" /></ColdProField>
         <ColdProField label="Fator exposição ao ar" helpKey="airExposureFactor"><ColdProInput {...simNum("air_exposure_factor")} /></ColdProField>
         <ColdProField label="Fator penetração térmica" helpKey="thermalPenetrationFactor"><ColdProInput {...simNum("thermal_penetration_factor")} /></ColdProField>
         <ColdProField label="Limite velocidade mín." helpKey="minVelocityLimit" unit="m/s"><ColdProInput {...num("min_air_velocity_m_s")} /></ColdProField>
@@ -968,7 +968,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
       {adjustedScenario.warnings.length > 0 ? <div className="mt-4 rounded-lg border border-warning/20 bg-warning/10 p-3 text-sm text-warning"><div className="mb-2 flex items-center gap-2 font-semibold"><AlertTriangle className="h-4 w-4" /> Alertas do cenário ajustado:</div><ul className="list-disc space-y-1 pl-5">{adjustedScenario.warnings.map((warning: string, index: number) => <li key={`${warning}-${index}`}>{warning}</li>)}</ul></div> : null}
       {loadStableTimeChanged ? <div className="mt-4 rounded-lg border border-primary/15 bg-primary/5 p-3 text-sm text-muted-foreground">A carga térmica requerida é determinada principalmente pela massa, energia específica e tempo de processo. Alterações de velocidade do ar afetam principalmente o tempo estimado de congelamento e a viabilidade da troca térmica.</div> : null}
       <div className="mt-5 flex flex-col gap-3 rounded-lg border bg-muted/30 p-4 md:flex-row md:items-center md:justify-between">
-        <ColdProCalculatedInfo label="Condição térmica" value={form.thermal_condition_approved ? "Aprovada" : "Não aprovada"} description={form.thermal_condition_approved_at ? new Date(form.thermal_condition_approved_at).toLocaleString("pt-BR") : "aguardando aprovação"} tone={form.thermal_condition_approved ? "success" : "warning"} />
+        <ColdProCalculatedInfo label="Condição térmica" value={form.thermal_condition_approved ? "Aprovada" : "Não aprovada"} description={form.thermal_condition_approved_at ? new Date(textValue(form.thermal_condition_approved_at)).toLocaleString("pt-BR") : "aguardando aprovação"} tone={form.thermal_condition_approved ? "success" : "warning"} />
         <div className="flex flex-col gap-2 sm:flex-row">
           <button type="button" className="inline-flex items-center justify-center gap-2 rounded-md border border-input bg-background px-5 py-2 text-sm font-medium shadow-sm transition hover:bg-muted" onClick={resetSimulation}>Restaurar simulação</button>
           <button type="button" className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-5 py-2 text-sm font-medium text-primary-foreground shadow-sm transition hover:bg-primary/90" onClick={approveThermalCondition}>Aplicar simulação aprovada</button>
@@ -999,7 +999,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
         <ColdProCalculatedInfo label="2. Carga usada na vazão" value={`${fmtColdPro(tunnelResult.totalKW, 2)} kW`} description="produto + embalagem + interna" tone={tunnelResult.totalKW > 0 ? "success" : "warning"} />
       </div>
       {productLoadMissingFields.length > 0 ? <ColdProValidationMessage tone="warning">Carga do produto pendente: falta {productLoadMissingFields.join(", ")}.</ColdProValidationMessage> : null}
-      <ColdProField label="Fonte da velocidade" helpKey="airflowSource"><ColdProSelect value={form.airflow_source ?? "manual_velocity"} onChange={(e) => { if (e.target.value === "airflow_by_fans") setForm((prev: any) => ({ ...prev, ...buildAirflowPreset(prev) })); else set("airflow_source", e.target.value); }}><option value="manual_velocity">Velocidade manual</option><option value="airflow_by_fans">Vazão por ventiladores</option></ColdProSelect></ColdProField>
+      <ColdProField label="Fonte da velocidade" helpKey="airflowSource"><ColdProSelect value={textValue(form.airflow_source, "manual_velocity")} onChange={(e) => { if (e.target.value === "airflow_by_fans") setForm((prev: any) => ({ ...prev, ...buildAirflowPreset(prev) })); else set("airflow_source", e.target.value); }}><option value="manual_velocity">Velocidade manual</option><option value="airflow_by_fans">Vazão por ventiladores</option></ColdProSelect></ColdProField>
       {form.airflow_source !== "airflow_by_fans" ? <ColdProField label="Velocidade do ar" helpKey="airVelocity" unit="m/s"><ColdProInput {...num("air_velocity_m_s")} /></ColdProField> : null}
       {form.airflow_source === "airflow_by_fans" ? <><ColdProField label="Vazão dos ventiladores informada" helpKey="fanAirflow" unit="m³/h"><ColdProInput {...num("fan_airflow_m3_h")} /></ColdProField>{showAirflowMismatch ? <ColdProValidationMessage>A vazão informada está {airflowDeltaM3H > 0 ? "acima" : "abaixo"} da necessária em {fmtColdPro(Math.abs(airflowDeltaM3H), 0)} m³/h ({fmtColdPro(airflowDeltaPercent, 1)}%). Use “Calcular ar” para igualar ao cálculo atual.</ColdProValidationMessage> : null}<ColdProField label="Largura seção de passagem" helpKey="tunnelCrossSectionWidth" unit="m"><ColdProInput {...num("tunnel_cross_section_width_m")} /></ColdProField><ColdProField label="Altura seção de passagem" helpKey="tunnelCrossSectionHeight" unit="m"><ColdProInput {...num("tunnel_cross_section_height_m")} /></ColdProField><ColdProField label="Fator de bloqueio" helpKey="blockageFactor" unit="%"><ColdProInput {...blockagePercentNum("blockage_factor")} /></ColdProField></> : null}
     </div><div>
@@ -1016,13 +1016,13 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
   const productGeometryFields = (
     <div className="grid grid-cols-1 gap-x-8 xl:grid-cols-2">
       <ColdProField label="Tipo de arranjo" helpKey="arrangementType">
-        <ColdProSelect value={form.arrangement_type} onChange={(e) => setArrangementType(e.target.value)}>
+        <ColdProSelect value={textValue(form.arrangement_type)} onChange={(e) => setArrangementType(e.target.value)}>
           {arrangementOptions.map((key) => <option key={key} value={key}>{ARRANGEMENT_DEFAULTS[key]?.label ?? key}</option>)}
         </ColdProSelect>
       </ColdProField>
-      <ColdProField label="Geometria do produto" helpKey="productGeometry"><ColdProSelect value={form.product_geometry ?? "slab"} onChange={(e) => set("product_geometry", e.target.value)}>{Object.entries(GEOMETRIES).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</ColdProSelect></ColdProField>
-      <ColdProField label="Modelo de exposição" helpKey="surfaceExposureModel"><ColdProSelect value={form.surface_exposure_model ?? "fully_exposed"} onChange={(e) => set("surface_exposure_model", e.target.value)}>{Object.entries(EXPOSURE_MODELS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</ColdProSelect></ColdProField>
-      {tunnelType === "static_pallet" && form.arrangement_type === "palletized_boxes" ? <ColdProField label="Modelo térmico do pallet"><ColdProSelect value={form.thermal_model_for_pallet ?? "hybrid"} onChange={(e) => set("thermal_model_for_pallet", e.target.value)}>{Object.entries(PALLET_THERMAL_MODELS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</ColdProSelect></ColdProField> : null}
+      <ColdProField label="Geometria do produto" helpKey="productGeometry"><ColdProSelect value={textValue(form.product_geometry, "slab")} onChange={(e) => set("product_geometry", e.target.value)}>{Object.entries(GEOMETRIES).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</ColdProSelect></ColdProField>
+      <ColdProField label="Modelo de exposição" helpKey="surfaceExposureModel"><ColdProSelect value={textValue(form.surface_exposure_model, "fully_exposed")} onChange={(e) => set("surface_exposure_model", e.target.value)}>{Object.entries(EXPOSURE_MODELS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</ColdProSelect></ColdProField>
+      {tunnelType === "static_pallet" && form.arrangement_type === "palletized_boxes" ? <ColdProField label="Modelo térmico do pallet"><ColdProSelect value={textValue(form.thermal_model_for_pallet, "hybrid")} onChange={(e) => set("thermal_model_for_pallet", e.target.value)}>{Object.entries(PALLET_THERMAL_MODELS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</ColdProSelect></ColdProField> : null}
       <ColdProField label="Escala das medidas do produto" helpKey="measurementScale"><ColdProSelect value={continuousUnit} onChange={(e) => setContinuousUnit(e.target.value as DimensionUnit)}>{Object.entries(DIMENSION_UNITS).map(([key, item]) => <option key={key} value={key}>{item.label}</option>)}</ColdProSelect></ColdProField>
       {form.product_geometry === "slab" ? <><ColdProField label="Comprimento produto" helpKey="productLength" unit={DIMENSION_UNITS[continuousUnit].label}><ColdProInput {...dimensionNum("product_length_m", continuousUnit)} /></ColdProField><ColdProField label="Largura produto" helpKey="productWidth" unit={DIMENSION_UNITS[continuousUnit].label}><ColdProInput {...dimensionNum("product_width_m", continuousUnit)} /></ColdProField><ColdProField label="Espessura produto" helpKey="productThickness" unit={DIMENSION_UNITS[continuousUnit].label}><ColdProInput {...dimensionNum("product_thickness_m", continuousUnit)} /></ColdProField></> : null}
       {form.product_geometry === "rectangular_prism" ? <><ColdProField label="Comprimento produto" helpKey="productLength" unit={DIMENSION_UNITS[continuousUnit].label}><ColdProInput {...dimensionNum("product_length_m", continuousUnit)} /></ColdProField><ColdProField label="Largura produto" helpKey="productWidth" unit={DIMENSION_UNITS[continuousUnit].label}><ColdProInput {...dimensionNum("product_width_m", continuousUnit)} /></ColdProField><ColdProField label="Altura produto" helpKey="productHeight" unit={DIMENSION_UNITS[continuousUnit].label}><ColdProInput {...dimensionNum("product_height_m", continuousUnit)} /></ColdProField></> : null}
@@ -1056,7 +1056,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
                 </ColdProSelect>
               </ColdProField>
               <ColdProField label="Tipo de arranjo" helpKey="arrangementType">
-                <ColdProSelect value={form.arrangement_type} onChange={(e) => setArrangementType(e.target.value)}>
+                <ColdProSelect value={textValue(form.arrangement_type)} onChange={(e) => setArrangementType(e.target.value)}>
                   {arrangementOptions.map((key) => <option key={key} value={key}>{ARRANGEMENT_DEFAULTS[key]?.label ?? key}</option>)}
                 </ColdProSelect>
               </ColdProField>
@@ -1073,17 +1073,17 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <ColdProInput type="search" value={productSearch} onFocus={() => setShowProductSuggestions(true)} onBlur={() => window.setTimeout(() => setShowProductSuggestions(false), 120)} onChange={(e) => { setProductSearch(e.target.value); setShowProductSuggestions(true); }} placeholder="Digite mesmo com erro: ex. pao" className="pl-9 text-left" autoComplete="off" />
                   {showProductSuggestions && productSearch.trim() ? <div className="absolute left-0 right-0 top-[calc(100%+0.25rem)] z-30 max-h-64 overflow-auto rounded-md border bg-popover p-1 text-popover-foreground shadow-lg">
-                    {productSuggestions.length ? productSuggestions.map((p) => <button key={p.id} type="button" className="flex w-full flex-col rounded-sm px-3 py-2 text-left text-sm transition hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground" onMouseDown={(event) => { event.preventDefault(); applyProduct(p.id); }}>
-                      <span className="font-medium">{p.name}</span>
-                      {p.category ? <span className="text-xs text-muted-foreground">{p.category}</span> : null}
+                    {productSuggestions.length ? productSuggestions.map((p) => <button key={textValue(p.id)} type="button" className="flex w-full flex-col rounded-sm px-3 py-2 text-left text-sm transition hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground" onMouseDown={(event) => { event.preventDefault(); applyProduct(p.id); }}>
+                      <span className="font-medium">{textValue(p.name)}</span>
+                      {p.category ? <span className="text-xs text-muted-foreground">{textValue(p.category)}</span> : null}
                     </button>) : <div className="px-3 py-2 text-sm text-muted-foreground">Nenhum produto encontrado</div>}
                   </div> : null}
                 </div>
               </ColdProField>
               <ColdProField label="Grupo ASHRAE"><ColdProSelect value={selectedGroup} onChange={(e) => { setSelectedGroup(e.target.value); setProductSearch(""); set("product_id", null); }}><option value="">Seleção manual</option>{groups.map((group) => <option key={group} value={group}>{group}</option>)}</ColdProSelect></ColdProField>
-              <ColdProField label="Produto ASHRAE"><ColdProSelect value={form.product_id ?? ""} disabled={filteredProducts.length === 0} onChange={(e) => applyProduct(e.target.value)}><option value="">{filteredProducts.length ? "Selecione o produto" : "Nenhum produto encontrado"}</option>{filteredProducts.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</ColdProSelect></ColdProField>
-              <ColdProField label="Produto"><ColdProInput type="text" value={form.product_name ?? ""} onChange={(e) => set("product_name", e.target.value)} className="text-left" /></ColdProField>
-              {selectedCatalogProduct ? <ColdProCalculatedInfo label="Dados do catálogo" value="Medidas e propriedades carregadas" description={selectedCatalogProduct.observations ?? selectedCatalogProduct.source_reference ?? "Produto técnico oficial"} tone="info" /> : null}
+              <ColdProField label="Produto ASHRAE"><ColdProSelect value={textValue(form.product_id)} disabled={filteredProducts.length === 0} onChange={(e) => applyProduct(e.target.value)}><option value="">{filteredProducts.length ? "Selecione o produto" : "Nenhum produto encontrado"}</option>{filteredProducts.map((p) => <option key={textValue(p.id)} value={textValue(p.id)}>{textValue(p.name)}</option>)}</ColdProSelect></ColdProField>
+              <ColdProField label="Produto"><ColdProInput type="text" value={textValue(form.product_name)} onChange={(e) => set("product_name", e.target.value)} className="text-left" /></ColdProField>
+              {selectedCatalogProduct ? <ColdProCalculatedInfo label="Dados do catálogo" value="Medidas e propriedades carregadas" description={textValue(selectedCatalogProduct.observations ?? selectedCatalogProduct.source_reference, "Produto técnico oficial")} tone="info" /> : null}
             </div><div className="min-w-0 rounded-lg border bg-muted/20 p-3 sm:p-4">{productGeometryFields}</div></div>
             <ColdProValidationMessage tone="error">{requiredError ? "Informe o produto do túnel." : ""}</ColdProValidationMessage>
           </ColdProFormSection>
