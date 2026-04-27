@@ -12,11 +12,12 @@ import {
   calculateProductSpecificEnergy,
 } from "../physics/productThermal";
 import { resolveTunnelMode } from "../physics/tunnelModeModel";
+import type { TunnelEngineInput, TunnelEngineResult, TunnelProcessStatus } from "../types/tunnelEngine.types";
 
 export const COLDPRO_TUNNEL_ENGINE_VERSION = "tunnel-engine-v1.0.0";
 
 export type TunnelPhysicalModel = "continuous_individual" | "continuous_spiral" | "static_cart" | "static_block" | "fluidized_bed" | "blast_freezer";
-export type TunnelScenarioStatus = "adequate" | "insufficient" | "missing_data" | "invalid_input";
+export type TunnelScenarioStatus = TunnelProcessStatus;
 
 export type TunnelThermalScenario = {
   airTempC: number | null;
@@ -111,7 +112,7 @@ function nullableNumber(value: unknown): number | null {
   return isProvided(value) && Number.isFinite(Number(value)) ? Number(value) : null;
 }
 
-function continuousMassRequirement(input: any, continuousMassMode: string): string {
+function continuousMassRequirement(input: TunnelEngineInput, continuousMassMode: string): string {
   const unitWeightKg = positiveNumber(input?.unitWeightKg);
   if (continuousMassMode === "direct_mass_flow") return positiveNumber(input?.directMassKgH ?? input?.massKgH) > 0 ? "" : "massa direta em kg/h";
   if (continuousMassMode === "calculated_by_units_per_hour") return unitWeightKg * positiveNumber(input?.unitsPerHour) > 0 ? "" : "peso unitário e unidades por hora";
@@ -130,7 +131,7 @@ function getSmallestValidDimension(values: unknown[]): number {
   return dimensions.length > 0 ? Math.min(...dimensions) : 0;
 }
 
-function normalizePhysicalModel(input: any): TunnelPhysicalModel {
+function normalizePhysicalModel(input: TunnelEngineInput): TunnelPhysicalModel {
   const processType = input?.processType ?? input?.process_type;
   const operationMode = input?.operationMode ?? input?.operation_mode;
   const tunnelType = String(input?.tunnelType ?? input?.tunnel_type ?? "").toLowerCase().trim();
@@ -159,7 +160,7 @@ function isStaticTunnel(processType: unknown, operationMode: unknown) {
   return processType === "static_cart_freezing" || processType === "static_pallet_freezing" || operationMode === "batch";
 }
 
-function resolveStaticMass(input: any) {
+function resolveStaticMass(input: TunnelEngineInput) {
   const numberOfPallets = positiveNumber(input?.numberOfPallets ?? input?.number_of_pallets) || 1;
   const numberOfCarts = positiveNumber(input?.numberOfCarts ?? input?.number_of_carts) || 1;
   const staticMassMode = String(input?.staticMassMode ?? input?.static_mass_mode ?? "direct_pallet_mass");
@@ -192,7 +193,7 @@ function resolveStaticMass(input: any) {
   };
 }
 
-function requiredPositiveFields(input: any, isStatic: boolean, staticMassKg: number, characteristicDimensionM: number, crossesFreezing: boolean, airVelocityUsedMS: number, continuousMassMode: string): string[] {
+function requiredPositiveFields(input: TunnelEngineInput, isStatic: boolean, staticMassKg: number, characteristicDimensionM: number, crossesFreezing: boolean, airVelocityUsedMS: number, continuousMassMode: string): string[] {
   const commonNumericFields = ["initialTempC", "finalTempC", "freezingPointC"];
   const commonPositiveFields = ["cpAboveKJkgK"];
   const freezingPositiveFields = crossesFreezing ? ["cpBelowKJkgK", "latentHeatKJkg", "frozenWaterFraction"] : [];
@@ -236,7 +237,7 @@ function requiredPositiveFields(input: any, isStatic: boolean, staticMassKg: num
   ];
 }
 
-function canEstimateFreezingTime(input: any, distanceToCoreM: number, hEffectiveWM2K: number | null, kEffectiveWMK: number): boolean {
+function canEstimateFreezingTime(input: TunnelEngineInput, distanceToCoreM: number, hEffectiveWM2K: number | null, kEffectiveWMK: number): boolean {
   return (
     positiveNumber(input?.densityKgM3) > 0 &&
     positiveNumber(input?.latentHeatKJkg) > 0 &&
@@ -249,7 +250,7 @@ function canEstimateFreezingTime(input: any, distanceToCoreM: number, hEffective
   );
 }
 
-function productLoadMissingFields(input: any, isStatic: boolean, staticMassKg: number, usedMassKgH: number, energy: ReturnType<typeof calculateProductSpecificEnergy>): string[] {
+function productLoadMissingFields(input: TunnelEngineInput, isStatic: boolean, staticMassKg: number, usedMassKgH: number, energy: ReturnType<typeof calculateProductSpecificEnergy>): string[] {
   return unique([
     isStatic && staticMassKg <= 0 ? "massa total da batelada" : "",
     isStatic && positiveNumber(input?.batchTimeH) <= 0 ? "tempo de batelada" : "",
@@ -264,7 +265,7 @@ function productLoadMissingFields(input: any, isStatic: boolean, staticMassKg: n
   ]);
 }
 
-function calculateModelH(input: any, _physicalModel: TunnelPhysicalModel, airVelocityUsedMS: number, exposureFactor: number) {
+function calculateModelH(input: TunnelEngineInput, _physicalModel: TunnelPhysicalModel, airVelocityUsedMS: number, exposureFactor: number) {
   return calculateConvectiveCoefficient({
     airVelocityMS: airVelocityUsedMS,
     manualCoefficientWM2K: input?.manualConvectiveCoefficientWM2K,
@@ -273,8 +274,8 @@ function calculateModelH(input: any, _physicalModel: TunnelPhysicalModel, airVel
   });
 }
 
-function calculateTunnelCore(input: any) {
-  const processType = input?.processType ?? input?.process_type ?? null;
+function calculateTunnelCore(input: TunnelEngineInput) {
+  const processType = typeof input?.processType === "string" ? input.processType : typeof input?.process_type === "string" ? input.process_type : null;
   const tunnelMode = resolveTunnelMode(input);
   const physicalModel = normalizePhysicalModel(input);
   const modelMeta = MODEL_META[physicalModel];
@@ -606,7 +607,7 @@ function buildApprovedScenario(input: any): TunnelThermalScenario | null {
   };
 }
 
-export function calculateTunnelEngine(input: any) {
+export function calculateTunnelEngine(input: TunnelEngineInput): TunnelEngineResult {
   const adjusted = calculateTunnelCore(input);
   const initialInput = input?.initialScenarioInput ?? input?.initial_scenario_input ?? input;
   const initial = initialInput === input ? adjusted : calculateTunnelCore({ ...input, ...initialInput, initialScenarioInput: undefined, initial_scenario_input: undefined, thermalConditionApproved: false, thermal_condition_approved: false });

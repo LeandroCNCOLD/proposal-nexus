@@ -1,5 +1,6 @@
 import { normalizeThermalProperties } from "../core/unitNormalizer";
 import { safeNumber } from "../core/units";
+import type { TunnelEngineInput } from "../types/tunnelEngine.types";
 
 const KCAL_TO_KJ = 4.1868;
 
@@ -30,7 +31,7 @@ function calculateStaticMass(source: any, isStatic: boolean) {
   return { staticMassMode, numberOfPallets, numberOfCarts, unitWeightKg, unitsPerBox, boxesPerLayer, numberOfLayers, totalUnitsPerPallet, unitsPerPallet, productMassPerPalletKg, packagingMassPerPalletKg, calculatedPalletMassKg, calculatedCartMassKg, calculatedBatchMassKg, palletMassKg, staticMassKg };
 }
 
-export function databaseToTunnelInput(tunnel: any, environment: any) {
+export function databaseToTunnelInput(tunnel: any, environment: any): TunnelEngineInput {
   const thermal = normalizeThermalProperties(tunnel);
   const airTempSource = tunnel?.air_temp_source ?? "environment";
   const packagingSpecificHeatKJkgK = safeNumber(tunnel?.packaging_specific_heat_kj_kg_k);
