@@ -283,10 +283,40 @@ function recommendedTunnelAirVelocity(tunnelType: string, isStatic: boolean) {
 
 function recommendedBlockageFactor(tunnelType: string, arrangementType: unknown) {
   const arrangement = String(arrangementType ?? "");
-  if (tunnelType === "fluidized_bed") return 0.12;
-  if (arrangement.includes("pallet") || arrangement.includes("block") || arrangement.includes("boxes")) return 0.3;
-  if (arrangement.includes("tray") || arrangement.includes("rack")) return 0.22;
-  return 0.18;
+  const tunnelLike = ["continuous_belt", "spiral_girofreezer", "static_cart", "static_pallet", "fluidized_bed", "blast_freezer"].includes(tunnelType);
+  if (tunnelLike && (arrangement.includes("pallet") || arrangement.includes("block") || arrangement.includes("boxes"))) return 0.5;
+  if (tunnelLike || arrangement.includes("tray") || arrangement.includes("rack") || arrangement.includes("cart")) return 0.35;
+  return 0.2;
+}
+
+function positiveFromPath(source: unknown, ...paths: string[]) {
+  for (const path of paths) {
+    const value = path.split(".").reduce<unknown>((acc, key) => (acc && typeof acc === "object" ? (acc as Record<string, unknown>)[key] : undefined), source);
+    const parsed = Number(value);
+    if (Number.isFinite(parsed) && parsed > 0) return parsed;
+  }
+  return 0;
+}
+
+function resolveChamberDimensions(environment: unknown, tunnel: unknown) {
+  const lengthM = positiveFromPath(environment, "length_m", "comprimento_m", "length", "comprimento") || positiveFromPath(tunnel, "length_m", "comprimento_m", "length", "comprimento");
+  const widthM = positiveFromPath(environment, "width_m", "largura_m", "width", "largura") || positiveFromPath(tunnel, "width_m", "largura_m", "width", "largura");
+  const heightM = positiveFromPath(environment, "height_m", "altura_m", "height", "altura") || positiveFromPath(tunnel, "height_m", "altura_m", "height", "altura");
+  const volumeM3 = positiveFromPath(environment, "volume_m3", "volume") || (lengthM > 0 && widthM > 0 && heightM > 0 ? lengthM * widthM * heightM : 0);
+  const internalTempC = definedNumber((environment as Record<string, unknown> | null)?.internal_temp_c, (environment as Record<string, unknown> | null)?.internal_temperature_c, (tunnel as Record<string, unknown> | null)?.air_temp_c, 0);
+  return { lengthM, widthM, heightM, volumeM3, internalTempC };
+}
+
+function airflowVelocityStatus(velocityMS: number, tunnelLike: boolean) {
+  if (velocityMS <= 0) return { status: "pendente", tone: "warning" as const, warning: "Informe carga, vazão e seção livre para validar a velocidade." };
+  if (tunnelLike) {
+    if (velocityMS < 1.5) return { status: "baixa", tone: "warning" as const, warning: "Velocidade baixa para túnel de congelamento" };
+    if (velocityMS > 6) return { status: "alta", tone: "warning" as const, warning: "Velocidade alta; validar arraste, perda de carga e desidratação" };
+    return { status: velocityMS >= 2 && velocityMS <= 5 ? "adequada" : "aceitável", tone: "success" as const, warning: "" };
+  }
+  if (velocityMS > 1.5) return { status: "alta", tone: "warning" as const, warning: "Velocidade alta para câmara fria; validar excesso de ar no produto." };
+  if (velocityMS >= 0.2 && velocityMS <= 0.8) return { status: "adequada", tone: "success" as const, warning: "" };
+  return { status: "fora da faixa", tone: "warning" as const, warning: "Velocidade fora da faixa usual para câmara fria." };
 }
 
 function kcalFromThermal(kcal?: unknown, kj?: unknown) {
@@ -563,32 +593,54 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
   const productSuggestions = React.useMemo(() => filteredProducts.slice(0, 8), [filteredProducts]);
 
   const buildAirflowPreset = React.useCallback((source: ColdProFormRecord = form) => {
-    const presetVelocity = recommendedTunnelAirVelocity(tunnelType, isStatic);
-    const requiredAirflow = positiveValue(tunnelResult.airFlowM3H, thermalResult.requiredAirflowM3H, source?.informed_air_flow_m3_h, source?.airflow_m3_h);
+    const dimensions = resolveChamberDimensions(environment, { ...(tunnel ?? {}), ...source });
+    const tunnelLike = ["continuous_belt", "spiral_girofreezer", "static_cart", "static_pallet", "fluidized_bed", "blast_freezer"].includes(tunnelType);
+    const loadKW = positiveValue(tunnelResult.totalKW, tunnelResult.productLoadKW);
+    const airDeltaTK = positiveValue(source?.air_delta_t_k) || 6;
+    const airDensityKgM3 = positiveValue(source?.air_density_kg_m3) || 1.2;
+    const requiredAirflow = loadKW > 0 ? loadKW * 3600 / (airDensityKgM3 * 1.005 * airDeltaTK) : positiveValue(tunnelResult.airFlowM3H, thermalResult.requiredAirflowM3H, source?.informed_air_flow_m3_h, source?.airflow_m3_h);
     const fanAirflowM3H = requiredAirflow;
-    const blockageFactor = positiveValue(source?.blockage_factor) || recommendedBlockageFactor(tunnelType, source?.arrangement_type ?? form.arrangement_type);
-    const freeAreaM2 = fanAirflowM3H > 0 ? fanAirflowM3H / 3600 / presetVelocity : 0;
-    const grossAreaM2 = freeAreaM2 > 0 ? freeAreaM2 / Math.max(0.05, 1 - blockageFactor) : 0;
-    const currentWidth = positiveValue(source?.tunnel_cross_section_width_m);
-    const currentHeight = positiveValue(source?.tunnel_cross_section_height_m);
-    const ratioWidthM = grossAreaM2 > 0 ? Math.sqrt(grossAreaM2 * 1.6) : 0;
-    const ratioHeightM = grossAreaM2 > 0 ? grossAreaM2 / Math.max(ratioWidthM, 0.01) : 0;
-    const sectionWidthM = currentWidth || ratioWidthM;
-    const sectionHeightM = currentHeight || ratioHeightM;
+    const blockageFactor = recommendedBlockageFactor(tunnelType, source?.arrangement_type ?? form.arrangement_type);
+    const horizontal = [dimensions.lengthM, dimensions.widthM].filter((value) => value > 0).sort((a, b) => a - b);
+    const smallerWallM = horizontal[0] || positiveValue(source?.tunnel_cross_section_width_m);
+    const largerWallM = horizontal[1] || smallerWallM || positiveValue(source?.tunnel_cross_section_width_m);
+    const loadHeightM = positiveValue(source?.pallet_height_m, source?.box_height_m, source?.product_height_m, source?.bulk_layer_height_m);
+    const heightByLoadM = loadHeightM > 0 && dimensions.heightM > 0 ? Math.max(dimensions.heightM - loadHeightM, dimensions.heightM * 0.3) : 0;
+    const usefulHeightM = heightByLoadM || (dimensions.heightM > 0 ? dimensions.heightM * 0.6 : positiveValue(source?.tunnel_cross_section_height_m));
+    const optionFor = (wall: "menor" | "maior", widthM: number, throwM: number) => {
+      const grossAreaM2 = widthM * usefulHeightM;
+      const freeAreaM2 = grossAreaM2 * Math.max(0.05, 1 - blockageFactor);
+      const velocityMS = fanAirflowM3H > 0 && freeAreaM2 > 0 ? fanAirflowM3H / 3600 / freeAreaM2 : 0;
+      const status = airflowVelocityStatus(velocityMS, tunnelLike);
+      const idealPenalty = tunnelLike ? Math.abs(velocityMS - 3) : Math.abs(velocityMS - 0.5);
+      const score = (status.status === "adequada" ? 100 : status.status === "aceitável" ? 80 : status.status === "baixa" ? 35 : 55) - idealPenalty * 8 + (throwM >= widthM ? 10 : 0);
+      return { wall, widthM, throwM, grossAreaM2, freeAreaM2, velocityMS, status, score };
+    };
+    const wallOptions = [optionFor("menor", smallerWallM, largerWallM), optionFor("maior", largerWallM, smallerWallM)];
+    const selected = tunnelLike ? wallOptions[0] : wallOptions.sort((a, b) => b.score - a.score)[0];
+    const observation = selected.status.status === "baixa" && tunnelLike
+      ? "A vazão calculada atende ao balanço térmico, mas a velocidade no produto está baixa para túnel. Avaliar maior vazão, dutos, plenum, menor seção livre ou alteração da posição do equipamento."
+      : selected.status.warning || "Instalação sugerida pela seção livre, alcance de ar e faixa de velocidade recomendada.";
     return {
       airflow_source: "airflow_by_fans",
       fan_airflow_m3_h: roundPreset(fanAirflowM3H, 2),
       informed_air_flow_m3_h: roundPreset(fanAirflowM3H, 2),
       airflow_m3_h: roundPreset(fanAirflowM3H, 2),
-      tunnel_cross_section_width_m: roundPreset(sectionWidthM, 3),
-      tunnel_cross_section_height_m: roundPreset(sectionHeightM, 3),
+      tunnel_cross_section_width_m: roundPreset(selected.widthM, 3),
+      tunnel_cross_section_height_m: roundPreset(usefulHeightM, 3),
       blockage_factor: roundPreset(clamp(blockageFactor, 0, 0.9), 4),
       blockage_factor_input_mode: "decimal",
-      air_delta_t_k: positiveValue(source?.air_delta_t_k) || 6,
+      air_delta_t_k: airDeltaTK,
       air_temp_c: Number.isFinite(Number(source?.air_temp_c)) ? source?.air_temp_c : airTemperatureC,
-      air_velocity_m_s: roundPreset(presetVelocity, 2),
+      air_velocity_m_s: roundPreset(selected.velocityMS, 2),
+      airflow_installation_wall: selected.wall === "menor" ? "Parede menor" : "Parede maior",
+      airflow_blow_direction: selected.throwM >= selected.widthM ? "Sopro no sentido do comprimento maior" : "Sopro no sentido do comprimento menor",
+      airflow_useful_height_m: roundPreset(usefulHeightM, 3),
+      airflow_free_area_m2: roundPreset(selected.freeAreaM2, 3),
+      airflow_velocity_status: selected.status.status,
+      airflow_technical_note: observation,
     };
-  }, [airTemperatureC, form, isStatic, thermalResult.requiredAirflowM3H, tunnelResult.airFlowM3H, tunnelType]);
+  }, [airTemperatureC, environment, form, thermalResult.requiredAirflowM3H, tunnel, tunnelResult.airFlowM3H, tunnelResult.productLoadKW, tunnelResult.totalKW, tunnelType]);
 
   const applyAirflowPreset = React.useCallback(() => {
     setForm((prev) => ({ ...prev, ...buildAirflowPreset(prev) }));
@@ -599,6 +651,13 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
   const airflowDeltaM3H = informedFanAirflowM3H - requiredAirflowM3H;
   const airflowDeltaPercent = requiredAirflowM3H > 0 ? Math.abs(airflowDeltaM3H) / requiredAirflowM3H * 100 : 0;
   const showAirflowMismatch = form.airflow_source === "airflow_by_fans" && requiredAirflowM3H > 0 && informedFanAirflowM3H > 0 && airflowDeltaPercent > 5;
+  const chamberDimensions = resolveChamberDimensions(environment, { ...(tunnel ?? {}), ...form });
+  const displayedAirVelocityMS = positiveValue(form.air_velocity_m_s, tunnelResult.calculatedAirVelocityMS);
+  const displayedAirStatus = airflowVelocityStatus(displayedAirVelocityMS, ["continuous_belt", "spiral_girofreezer", "static_cart", "static_pallet", "fluidized_bed", "blast_freezer"].includes(tunnelType));
+  const displayedFreeAirAreaM2 = positiveValue(form.airflow_free_area_m2, tunnelResult.freeAirAreaM2);
+  const displayedAirWall = textValue(form.airflow_installation_wall, tunnelType === "blast_freezer" ? "Parede menor" : "—");
+  const displayedAirDirection = textValue(form.airflow_blow_direction, tunnelType === "blast_freezer" ? "Sopro no sentido do comprimento maior" : "—");
+  const displayedAirNote = textValue(form.airflow_technical_note, displayedAirStatus.warning || "Clique em Calcular ar para atualizar a recomendação pela carga térmica e dimensões do ambiente.");
   const loadBreakdown = tunnelResult.calculationBreakdown.loads ?? {};
   const modelBreakdown = tunnelResult.calculationBreakdown.model ?? {};
   const airBreakdown = tunnelResult.calculationBreakdown.air ?? {};
@@ -1009,7 +1068,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
   const airflowFields = (
     <div className="grid grid-cols-1 gap-x-10 xl:grid-cols-2"><div>
       <div className="mb-3 flex flex-col gap-2 rounded-lg border bg-muted/20 p-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="text-sm text-muted-foreground">Pré-set técnico pela carga, ΔT, temperatura do ambiente e velocidade típica do túnel.</div>
+        <div className="text-sm text-muted-foreground">Calcula vazão pela carga, busca dimensões do ambiente e recomenda seção real de passagem do ar.</div>
         <button type="button" className="inline-flex items-center justify-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm font-medium shadow-sm transition hover:bg-muted" onClick={applyAirflowPreset}><Calculator className="h-4 w-4" /> Calcular ar</button>
       </div>
       <div className="mb-3 grid gap-3 sm:grid-cols-2">
@@ -1019,7 +1078,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
       {productLoadMissingFields.length > 0 ? <ColdProValidationMessage tone="warning">Carga do produto pendente: falta {productLoadMissingFields.join(", ")}.</ColdProValidationMessage> : null}
       <ColdProField label="Fonte da velocidade" helpKey="airflowSource"><ColdProSelect value={textValue(form.airflow_source, "manual_velocity")} onChange={(e) => { if (e.target.value === "airflow_by_fans") setForm((prev) => ({ ...prev, ...buildAirflowPreset(prev) })); else set("airflow_source", e.target.value); }}><option value="manual_velocity">Velocidade manual</option><option value="airflow_by_fans">Vazão por ventiladores</option></ColdProSelect></ColdProField>
       {form.airflow_source !== "airflow_by_fans" ? <ColdProField label="Velocidade do ar" helpKey="airVelocity" unit="m/s"><ColdProInput {...num("air_velocity_m_s")} /></ColdProField> : null}
-      {form.airflow_source === "airflow_by_fans" ? <><ColdProField label="Vazão dos ventiladores informada" helpKey="fanAirflow" unit="m³/h"><ColdProInput {...num("fan_airflow_m3_h")} /></ColdProField>{showAirflowMismatch ? <ColdProValidationMessage>A vazão informada está {airflowDeltaM3H > 0 ? "acima" : "abaixo"} da necessária em {fmtColdPro(Math.abs(airflowDeltaM3H), 0)} m³/h ({fmtColdPro(airflowDeltaPercent, 1)}%). Use “Calcular ar” para igualar ao cálculo atual.</ColdProValidationMessage> : null}<ColdProField label="Largura seção de passagem" helpKey="tunnelCrossSectionWidth" unit="m"><ColdProInput {...num("tunnel_cross_section_width_m")} /></ColdProField><ColdProField label="Altura seção de passagem" helpKey="tunnelCrossSectionHeight" unit="m"><ColdProInput {...num("tunnel_cross_section_height_m")} /></ColdProField><ColdProField label="Fator de bloqueio" helpKey="blockageFactor" unit="%"><ColdProInput {...blockagePercentNum("blockage_factor")} /></ColdProField></> : null}
+      {form.airflow_source === "airflow_by_fans" ? <><ColdProField label="Vazão dos ventiladores informada" helpKey="fanAirflow" unit="m³/h"><ColdProInput {...num("fan_airflow_m3_h")} /></ColdProField>{showAirflowMismatch ? <ColdProValidationMessage>A vazão informada está {airflowDeltaM3H > 0 ? "acima" : "abaixo"} da necessária em {fmtColdPro(Math.abs(airflowDeltaM3H), 0)} m³/h ({fmtColdPro(airflowDeltaPercent, 1)}%). Use “Calcular ar” para igualar ao cálculo atual.</ColdProValidationMessage> : null}<ColdProField label="Largura seção de passagem" helpKey="tunnelCrossSectionWidth" unit="m"><ColdProInput {...num("tunnel_cross_section_width_m")} /></ColdProField><ColdProField label="Altura útil seção de passagem" helpKey="tunnelCrossSectionHeight" unit="m"><ColdProInput {...num("tunnel_cross_section_height_m")} /></ColdProField><ColdProField label="Fator de bloqueio" helpKey="blockageFactor" unit="%"><ColdProInput {...blockagePercentNum("blockage_factor")} /></ColdProField><ColdProField label="Parede sugerida"><ColdProInput readOnly value={displayedAirWall} /></ColdProField><ColdProField label="Sentido de sopro"><ColdProInput readOnly value={displayedAirDirection} /></ColdProField></> : null}
     </div><div>
       <ColdProField label="ΔT do ar" helpKey="airDeltaT" unit="K"><ColdProInput {...num("air_delta_t_k")} /></ColdProField>
       <ColdProField label="Temperatura do ar" helpKey="airTemp" unit="°C"><ColdProInput {...num("air_temp_c")} /></ColdProField>
@@ -1028,7 +1087,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
       <ColdProCalculatedInfo label="Área bruta calculada" value={`${fmtColdPro(tunnelResult.grossAirAreaM2 ?? 0, 2)} m²`} description="largura × altura" tone="info" />
       <ColdProCalculatedInfo label="Área livre calculada" value={`${fmtColdPro(tunnelResult.freeAirAreaM2 ?? 0, 2)} m²`} description="área bruta × (1 - bloqueio)" tone={(tunnelResult.freeAirAreaM2 ?? 0) > 0 ? "info" : "warning"} />
       <ColdProCalculatedInfo label="Velocidade calculada" value={`${fmtColdPro(tunnelResult.calculatedAirVelocityMS ?? 0, 2)} m/s`} description="vazão dos ventiladores ÷ seção livre" tone="info" />
-    </div></div>
+    </div><div className="xl:col-span-2 mt-4 rounded-lg border bg-muted/20 p-3"><div className="mb-3 text-sm font-semibold text-foreground">Recomendação de instalação do equipamento</div><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><ColdProCalculatedInfo label="Parede sugerida" value={displayedAirWall} description={`${fmtColdPro(chamberDimensions.lengthM, 2)} × ${fmtColdPro(chamberDimensions.widthM, 2)} × ${fmtColdPro(chamberDimensions.heightM, 2)} m`} tone="info" /><ColdProCalculatedInfo label="Sentido de sopro" value={displayedAirDirection} description="critério: alcance e velocidade" tone="info" /><ColdProCalculatedInfo label="Largura útil considerada" value={`${fmtColdPro(Number(form.tunnel_cross_section_width_m ?? 0), 2)} m`} description="largura da parede sugerida" tone="info" /><ColdProCalculatedInfo label="Altura útil considerada" value={`${fmtColdPro(Number(form.tunnel_cross_section_height_m ?? 0), 2)} m`} description="não usa altura total automaticamente" tone="info" /><ColdProCalculatedInfo label="Área livre" value={`${fmtColdPro(displayedFreeAirAreaM2, 2)} m²`} description="área bruta descontando bloqueio" tone={displayedFreeAirAreaM2 > 0 ? "info" : "warning"} /><ColdProCalculatedInfo label="Vazão necessária" value={`${fmtColdPro(informedFanAirflowM3H || requiredAirflowM3H, 0)} m³/h`} description="carga térmica ÷ ar × Cp × ΔT" tone={(informedFanAirflowM3H || requiredAirflowM3H) > 0 ? "success" : "warning"} /><ColdProCalculatedInfo label="Velocidade no produto" value={`${fmtColdPro(displayedAirVelocityMS, 2)} m/s`} description="vazão ÷ seção livre" tone={displayedAirStatus.tone} /><ColdProCalculatedInfo label="Status" value={displayedAirStatus.status} description={displayedAirStatus.warning || "faixa recomendada atendida"} tone={displayedAirStatus.tone} /></div><ColdProValidationMessage tone="warning">{displayedAirStatus.warning}</ColdProValidationMessage><p className="mt-3 text-xs text-muted-foreground">{displayedAirNote}</p></div></div>
   );
 
   const productGeometryFields = (
