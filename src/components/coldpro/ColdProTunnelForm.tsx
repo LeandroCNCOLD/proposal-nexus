@@ -367,7 +367,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
   const [cycleUnit, setCycleUnit] = React.useState<CycleUnit>("h");
   const [retentionUnit, setRetentionUnit] = React.useState<RetentionUnit>("min");
   const [activeTab, setActiveTab] = React.useState("modelo");
-  const [simulation, setSimulation] = React.useState<ColdProFormRecord>(() => simulationDraftFromTunnel(defaultTunnel(environmentId));
+  const [simulation, setSimulation] = React.useState<ColdProFormRecord>(() => simulationDraftFromTunnel(defaultTunnel(environmentId)));
   const autoAirPresetKeyRef = React.useRef("");
 
   React.useEffect(() => {
