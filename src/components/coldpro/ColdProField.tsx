@@ -19,10 +19,10 @@ type FieldProps = {
 
 export function ColdProField({ label, unit, htmlFor, children, className, help, helpKey }: FieldProps) {
   return (
-    <div className={cn("grid min-w-0 gap-1.5 py-2 lg:grid-cols-[minmax(12rem,16rem)_minmax(0,1fr)] lg:items-center lg:gap-3", className)}>
+    <div className={cn("grid min-w-0 gap-1 py-1 lg:grid-cols-[minmax(9rem,13rem)_minmax(0,1fr)] lg:items-center lg:gap-2", className)}>
       <label
         htmlFor={htmlFor}
-        className="flex min-w-0 items-center gap-1.5 whitespace-normal break-words text-sm font-medium text-muted-foreground lg:justify-end lg:text-right"
+        className="flex min-w-0 items-center gap-1.5 whitespace-normal break-words text-xs font-medium text-muted-foreground lg:justify-end lg:text-right"
       >
         <span className="min-w-0 whitespace-normal break-words">{label} :</span>
         {(help || helpKey) ? <FieldHelpTooltip help={help} helpKey={helpKey} /> : null}
@@ -83,7 +83,7 @@ export function ColdProInput(
         }
       }}
       className={cn(
-        "h-11 w-full min-w-0 rounded-md border border-transparent px-3 text-right text-base tabular-nums sm:h-10",
+        "compact-input h-8 w-full min-w-0 rounded-md border border-transparent px-2 text-right text-[13px] tabular-nums",
         "transition focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/15",
         readOnlyValue
           ? "bg-primary/5 text-foreground"
@@ -111,7 +111,7 @@ export function ColdProSelect(
     <select
       {...rest}
       className={cn(
-        "h-11 w-full min-w-0 rounded-md border border-transparent bg-muted/40 px-3 text-sm sm:h-10",
+        "compact-input h-8 w-full min-w-0 rounded-md border border-transparent bg-muted/40 px-2 text-[13px]",
         "transition hover:bg-muted/60 focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/15",
         className,
       )}
@@ -124,7 +124,7 @@ export function ColdProSelect(
 /** Cabeçalho de seção centralizado com linhas decorativas. */
 export function ColdProSectionTitle({ children }: { children: React.ReactNode }) {
   return (
-    <div className="my-6 flex items-center gap-4">
+    <div className="my-3 flex items-center gap-3">
       <div className="h-px flex-1 bg-border" />
       <h3 className="text-[15px] font-semibold tracking-wide text-muted-foreground">
         {children}
