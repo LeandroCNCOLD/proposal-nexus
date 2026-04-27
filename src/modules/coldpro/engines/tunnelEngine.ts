@@ -33,6 +33,8 @@ export type TunnelThermalScenario = {
   hSource: string;
   productLoadKW: number;
   packagingLoadKW: number;
+  transmissionLoadKW: number;
+  infiltrationLoadKW: number;
   internalLoadKW: number;
   totalKW: number;
   totalKcalH: number;
