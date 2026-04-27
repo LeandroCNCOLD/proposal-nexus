@@ -674,6 +674,8 @@ function calculateTunnelCore(input: TunnelEngineInput) {
     airDeltaTK,
     productLoadKW,
     packagingLoadKW,
+    transmissionLoadKW,
+    infiltrationLoadKW,
     packagingMassBatchKg: packagingMassKgBatch,
     packagingLoadMethod: packaging.packagingLoadMethod,
     internalLoadKW,
