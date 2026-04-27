@@ -661,7 +661,7 @@ function ColdProProjectPage() {
                 results={currentResults}
                 selections={currentSelections}
                 products={allProducts}
-                advancedProcesses={data?.advancedProcesses ?? []}
+                advancedProcesses={[]}
                 onAnalyze={handleAnalyzeMemorial}
                 isAnalyzing={analyzeMemorial.isPending}
               />
@@ -672,7 +672,7 @@ function ColdProProjectPage() {
                 results={currentResults}
                 selections={currentSelections}
                 products={allProducts}
-                advancedProcesses={data?.advancedProcesses ?? []}
+                advancedProcesses={[]}
                 onPushToProposal={handlePushToProposal}
                 isPushing={pushToProposal.isPending}
                 onGeneratePdf={handleGeneratePdf}
@@ -902,7 +902,7 @@ function ColdProProjectPage() {
                       commercial={commercialSummary}
                     />
                   ) : null}
-                  <ColdProResultCard result={result} selection={selection} environment={selectedEnv} products={products} advancedProcesses={data?.advancedProcesses ?? []} onAnalyze={handleAnalyzeMemorial} isAnalyzing={analyzeMemorial.isPending} />
+                  <ColdProResultCard result={result} selection={selection} environment={selectedEnv} products={products} advancedProcesses={[]} onAnalyze={handleAnalyzeMemorial} isAnalyzing={analyzeMemorial.isPending} />
                   <div className="coldpro-grid">
                     <ThermalLoadSummary result={result} />
                     <EnergySummary result={result} />
@@ -1023,7 +1023,7 @@ function ColdProProjectPage() {
                         results={[result]}
                         selections={selection ? [selection] : []}
                         products={products}
-                        advancedProcesses={(data?.advancedProcesses ?? []).filter((item: any) => item.environment_id === selectedEnv.id)}
+                        advancedProcesses={[]}
                         lastPdfUrl={lastPdfUrl}
                       />
                     </div>
