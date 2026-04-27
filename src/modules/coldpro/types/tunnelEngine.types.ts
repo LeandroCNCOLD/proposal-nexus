@@ -58,6 +58,12 @@ export interface TunnelEngineInput {
   directMassKgH?: number | null;
   calculatedMassKgH?: number | null;
   usedMassKgH?: number | null;
+  beltWidthM?: number | null;
+  beltEffectiveLengthM?: number | null;
+  beltAreaM2?: number | null;
+  beltSurfaceDensityKgM2?: number | null;
+  beltNominalCapacityKgH?: number | null;
+  beltMassOnBeltKg?: number | null;
   staticMassKg?: number | null;
   palletMassKg?: number | null;
   numberOfPallets?: number | null;
@@ -132,6 +138,8 @@ export interface TunnelEngineInput {
   internalRelativeHumidityPercent?: number | null;
   infiltrationAirflowM3H?: number | null;
   beltMotorKW?: number | null;
+  beltMotorInsideEnvironment?: boolean | null;
+  beltMotorDissipationFactor?: number | null;
   internalFansKW?: number | null;
   otherInternalKW?: number | null;
   allowPhaseChange?: boolean;
