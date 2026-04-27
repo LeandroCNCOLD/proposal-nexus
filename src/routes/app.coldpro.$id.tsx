@@ -439,6 +439,48 @@ function ColdProProjectPage() {
     }
   }
 
+  async function handleRecalculateEnvironment(environmentId: string, successMessage: string) {
+    try {
+      await calculate.mutateAsync(environmentId);
+      toast.success(successMessage);
+    } catch (e: any) {
+      toast.warning(e?.message ? `Dados salvos, mas o recálculo falhou: ${e.message}` : "Dados salvos, mas o recálculo falhou.");
+    }
+  }
+
+  async function handleSaveTunnel(payload: any) {
+    if (!selectedEnv) return;
+    try {
+      await upsertTunnel.mutateAsync(payload);
+      await handleRecalculateEnvironment(selectedEnv.id, "Túnel salvo e carga recalculada");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Erro ao salvar");
+    }
+  }
+
+  async function handleSaveProduct(payload: any) {
+    if (!selectedEnv) return;
+    try {
+      const row = await upsertProduct.mutateAsync(payload);
+      setEditingProductId(row?.id ?? null);
+      await handleRecalculateEnvironment(selectedEnv.id, payload.id ? "Produto salvo e carga recalculada" : "Produto adicionado e carga recalculada");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Erro ao salvar");
+    }
+  }
+
+  async function handleDeleteProduct(product: any) {
+    if (!selectedEnv) return;
+    if (!window.confirm(`Excluir o produto "${product.product_name}"?`)) return;
+    try {
+      await deleteProduct.mutateAsync(product.id);
+      if (editingProductId === product.id) setEditingProductId(null);
+      await handleRecalculateEnvironment(selectedEnv.id, "Produto excluído e carga recalculada");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Erro ao excluir");
+    }
+  }
+
   async function handleAutoSelect() {
     if (!selectedEnv) return;
     if (technicalAudit.isBlocked) {
