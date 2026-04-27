@@ -147,8 +147,8 @@ export function normalizeColdProResult(rawResult: any, selection?: any | null, e
   const deltaComponentVsSubtotalKcalH = componentSumKcalH - subtotalKcalH;
   const deltaComponentVsSubtotalPercent = pct(Math.abs(deltaComponentVsSubtotalKcalH), subtotalKcalH);
   if (subtotalKcalH > 0 && deltaComponentVsSubtotalPercent > 1) warnings.push("A soma dos componentes não fecha com o subtotal validado.");
-  if (directProductKcalH === 0 && tunnelProcessKcalH > 0) warnings.push("Produto direto está zerado, mas há carga em túnel/processo considerada como processo especial de produto.");
-  if (requiredKcalH > 0 && pct(loadDistribution.otherKcalH, requiredKcalH) > 5) warnings.push("Carga relevante classificada como Outros. Recomenda-se reclassificar para produto, processo especial ou carga interna.");
+  if (directProductKcalH === 0 && tunnelProcessKcalH > 0) warnings.push("Produto direto está zerado, mas há carga em túnel/processo considerada na carga de produto.");
+  if (requiredKcalH > 0 && pct(loadDistribution.otherKcalH, requiredKcalH) > 5) warnings.push("Carga relevante classificada como Outros. Recomenda-se reclassificar para produto ou carga interna.");
   if (equipmentTotal > 0 && correctedCapacity === 0) warnings.push("Auditoria de curva inconsistente: equipamento selecionado possui capacidade, mas capacidade corrigida validada está zerada.");
   if (surplusPercent < 0) warnings.push("Equipamento subdimensionado.");
   if (surplusPercent > 30) warnings.push("Possível superdimensionamento.");
