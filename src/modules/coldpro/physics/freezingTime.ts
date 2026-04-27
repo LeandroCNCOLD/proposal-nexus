@@ -11,13 +11,17 @@ export function calculatePlankFreezingTimeMin(params: any) {
   const distanceToCoreM = safeNumber(params?.distanceToCoreM, 0);
   const hEffectiveWM2K = safeNumber(params?.hEffectiveWM2K, 0);
   const kEffectiveWMK = safeNumber(params?.kEffectiveWMK, 0);
+  const latentMode = params?.latentMode ?? "effective";
   const deltaT = freezingPointC - airTempC;
 
   if (densityKgM3 <= 0 || latentHeatKJkg <= 0 || frozenWaterFraction <= 0 || deltaT <= 0 || distanceToCoreM <= 0 || hEffectiveWM2K <= 0 || kEffectiveWMK <= 0) {
     return null;
   }
 
-  const latentHeatJkg = latentHeatKJkg * frozenWaterFraction * 1000;
+  // LOGICA DE LATENT_MODE:
+  // - "effective": latente ja esta corrigido na base -> usar direto
+  // - "full": latente e total -> multiplicar por frozenWaterFraction
+  const latentHeatJkg = (latentMode === "full" ? latentHeatKJkg * frozenWaterFraction : latentHeatKJkg) * 1000;
   const timeSeconds = (densityKgM3 * latentHeatJkg / deltaT) * (distanceToCoreM / hEffectiveWM2K + Math.pow(distanceToCoreM, 2) / (2 * kEffectiveWMK));
   return timeSeconds / 60;
 }

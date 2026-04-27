@@ -17,6 +17,7 @@ export type FreezingCurveInput = {
   frozenWaterFraction?: number | null;
   latentResidualFactor?: number | null;
   allowPhaseChange?: boolean | null;
+  latentMode?: "effective" | "full" | null; // NOVO: Modo de interpretação do latente
   curve?: FreezingCurvePoint[] | null;
 };
 
@@ -169,7 +170,15 @@ export function calculateFreezingCurveEnergy(input: FreezingCurveInput): Freezin
   if (validationWarnings.length > 0) return buildFallbackResult(input, "curva de congelamento inválida", validationWarnings);
 
   const points = normalizeFreezingCurvePoints(input.curve ?? []);
-  const latentLimitKJkg = latentHeatKJkg * frozenWaterFraction * latentResidualFactor;
+  
+  // LÓGICA DE LATENT_MODE:
+  // - "effective": latente já está corrigido na base → usar direto
+  // - "full": latente é total → multiplicar por frozenWaterFraction
+  const latentMode = input?.latentMode ?? "effective";
+  const latentLimitKJkg = latentMode === "full"
+    ? latentHeatKJkg * frozenWaterFraction * latentResidualFactor  // Método ASHRAE puro
+    : latentHeatKJkg * latentResidualFactor;  // Latente já efetivo na base
+  
   const intervals = buildTemperatureIntervals(initialTempC, finalTempC, points).map((interval) => {
     const averageTempC = (interval.startTempC + interval.endTempC) / 2;
     const frozenFractionStart = interpolateFrozenFraction(interval.startTempC, points);

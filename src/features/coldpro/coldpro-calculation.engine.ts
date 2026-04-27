@@ -97,10 +97,14 @@ export function estimateFreezingTimePlankMin(params: {
   const tfreeze = n(params.freezingTempC, NaN);
   const latent = n(params.latentHeatKcalKg) * KCAL_TO_KJ;
   const frozenFraction = n(params.frozenWaterFraction, 0.9) || 0.9;
+  const latentMode = params?.latentMode ?? "effective";
   const h = n(params.convectiveCoefficientWM2K) || n(calculateConvectionCoefficient(params.airVelocityMS));
   const deltaT = tfreeze - n(params.airTempC);
   if (distanceToCore <= 0 || density <= 0 || conductivity <= 0 || !Number.isFinite(tfreeze) || latent <= 0 || h <= 0 || deltaT <= 0) return null;
-  const latentJkg = latent * frozenFraction * 1000;
+  // LOGICA DE LATENT_MODE:
+  // - "effective": latente ja esta corrigido na base -> usar direto
+  // - "full": latente e total -> multiplicar por frozenFraction
+  const latentJkg = (latentMode === "full" ? latent * frozenFraction : latent) * 1000;
   const seconds = (density * latentJkg / deltaT) * (distanceToCore / h + (distanceToCore * distanceToCore) / (2 * conductivity));
   return round2(seconds / 60);
 }
@@ -455,7 +459,11 @@ function calculateTunnelThermalProcess(params: {
 }) {
   const crossesFreezing = params.tin > params.tfreeze && params.tout < params.tfreeze;
   const qSpecificAboveKjKg = crossesFreezing ? params.cpAboveKjKgK * positive(params.tin - params.tfreeze) : (params.tout < params.tfreeze ? params.cpBelowKjKgK : params.cpAboveKjKgK) * Math.abs(params.tin - params.tout);
-  const qSpecificLatentKjKg = crossesFreezing ? params.latentHeatKjKg * positive(params.frozenFraction) : 0;
+  // LOGICA DE LATENT_MODE:
+  // - "effective": latente ja esta corrigido na base -> usar direto
+  // - "full": latente e total -> multiplicar por frozenFraction
+  const latentMode = params?.latentMode ?? "effective";
+  const qSpecificLatentKjKg = crossesFreezing ? (latentMode === "full" ? params.latentHeatKjKg * positive(params.frozenFraction) : params.latentHeatKjKg) : 0;
   const qSpecificBelowKjKg = crossesFreezing ? params.cpBelowKjKgK * positive(params.tfreeze - params.tout) : 0;
   const qSpecificTotalKjKg = qSpecificAboveKjKg + qSpecificLatentKjKg + qSpecificBelowKjKg;
   const productLoadKw = positive(params.usedMassKgH) * qSpecificTotalKjKg / 3600;
@@ -664,6 +672,7 @@ export function calculateProductLoadBreakdown(product: ColdProEnvironmentProduct
   const allowPhaseChange = product.allow_phase_change !== false;
   const frozenFraction = thermal.frozenWaterFraction;
   const latentResidualFactor = thermal.latentResidualFactor;
+  const latentMode = product?.latentMode ?? "effective";
 
   let sensibleAbove = 0;
   let latentLoad = 0;
@@ -671,7 +680,10 @@ export function calculateProductLoadBreakdown(product: ColdProEnvironmentProduct
 
   if (allowPhaseChange && tfreeze !== null && tfreeze !== undefined && tout < tfreeze) {
     sensibleAbove = massDay * cpAbove * positive(tin - tfreeze);
-    latentLoad = massDay * latent * frozenFraction * latentResidualFactor;
+    // LOGICA DE LATENT_MODE:
+    // - "effective": latente ja esta corrigido na base -> usar direto
+    // - "full": latente e total -> multiplicar por frozenFraction
+    latentLoad = massDay * (latentMode === "full" ? latent * frozenFraction : latent) * latentResidualFactor;
     sensibleBelow = massDay * cpBelow * Math.abs(tout - Math.min(tin, tfreeze));
   } else {
     const cp = tin >= 0 && tout >= 0 ? cpAbove : cpBelow || cpAbove;

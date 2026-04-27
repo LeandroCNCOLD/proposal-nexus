@@ -178,7 +178,11 @@ function calculatePlankFreezingTimeMin(params: {
     return null;
   }
 
-  const latentEffectiveJkg = params.latentHeatKjKg * params.frozenWaterFraction * 1000;
+  // LOGICA DE LATENT_MODE:
+  // - "effective": latente ja esta corrigido na base -> usar direto
+  // - "full": latente e total -> multiplicar por frozenWaterFraction
+  const latentMode = params?.latentMode ?? "effective";
+  const latentEffectiveJkg = (latentMode === "full" ? params.latentHeatKjKg * params.frozenWaterFraction : params.latentHeatKjKg) * 1000;
   const timeSeconds =
     (params.densityKgM3 * latentEffectiveJkg / deltaT) *
     (params.distanceToCoreM / params.hEffectiveWm2K +
@@ -203,7 +207,11 @@ function suggestAirVelocityMs(params: {
   const deltaT = params.freezingPointC - params.airTemperatureC;
   const retentionSeconds = params.retentionTimeMin * 60;
   if (params.densityKgM3 <= 0 || params.latentHeatKjKg <= 0 || params.frozenWaterFraction <= 0 || deltaT <= 0 || params.distanceToCoreM <= 0 || params.kEffectiveWmK <= 0 || retentionSeconds <= 0) return null;
-  const latentEffectiveJkg = params.latentHeatKjKg * params.frozenWaterFraction * 1000;
+  // LOGICA DE LATENT_MODE:
+  // - "effective": latente ja esta corrigido na base -> usar direto
+  // - "full": latente e total -> multiplicar por frozenWaterFraction
+  const latentMode = params?.latentMode ?? "effective";
+  const latentEffectiveJkg = (latentMode === "full" ? params.latentHeatKjKg * params.frozenWaterFraction : params.latentHeatKjKg) * 1000;
   const targetTerm = retentionSeconds * deltaT / (params.densityKgM3 * latentEffectiveJkg);
   const conductionTerm = Math.pow(params.distanceToCoreM, 2) / (2 * params.kEffectiveWmK);
   const convectionTerm = targetTerm - conductionTerm;
@@ -231,7 +239,13 @@ export function calculateProductThermalLoad(params: {
 
   if (crossesFreezing) {
     qSpecificAboveKjKg = product.cpAboveKjKgK * Math.max(product.initialTempC - product.freezingPointC, 0);
-    qSpecificLatentKjKg = product.latentHeatKjKg * Math.max(product.frozenWaterFraction, 0);
+    // LOGICA DE LATENT_MODE:
+    // - "effective": latente ja esta corrigido na base -> usar direto
+    // - "full": latente e total -> multiplicar por frozenWaterFraction
+    const latentMode = product?.latentMode ?? "effective";
+    qSpecificLatentKjKg = latentMode === "full"
+      ? product.latentHeatKjKg * Math.max(product.frozenWaterFraction, 0)
+      : product.latentHeatKjKg;
     qSpecificBelowKjKg = product.cpBelowKjKgK * Math.max(product.freezingPointC - product.finalTempC, 0);
   } else {
     const cp = product.finalTempC < product.freezingPointC ? product.cpBelowKjKgK : product.cpAboveKjKgK;
