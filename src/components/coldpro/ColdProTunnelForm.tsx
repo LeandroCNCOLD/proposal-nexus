@@ -25,7 +25,7 @@ type DimensionUnit = "m" | "cm" | "mm";
 type WeightUnit = "kg" | "g";
 type CycleUnit = "h" | "min";
 type RetentionUnit = "min" | "h";
-type ColdProFormRecord = ReturnType<typeof defaultTunnel> & Record<string, unknown>;
+type ColdProFormRecord = Record<string, unknown>;
 type ColdProProductRecord = Record<string, unknown> & { id?: string; name?: string; category?: string };
 
 type ColdProTunnelFormProps = {
