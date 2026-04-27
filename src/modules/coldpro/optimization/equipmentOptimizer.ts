@@ -214,13 +214,16 @@ export function optimizeColdProEquipment(input: EquipmentOptimizerInput): Equipm
   const ranking = candidates.map((item) => {
     const energyEfficiency = maxCOP > 0 ? clamp((item.cop / maxCOP) * 100) : 0;
     const monthlyCost = Number.isFinite(minCost) && item.estimatedMonthlyCost > 0 ? clamp((minCost / item.estimatedMonthlyCost) * 100) : 0;
+    const oversizingPenalty = item.capacityMarginPercent > 45 ? 25 : item.capacityMarginPercent > 30 ? (item.capacityMarginPercent - 30) * 0.8 : 0;
+    const highCopPenalty = item.cop > 3.5 ? 18 : 0;
     const final = clamp(
-      energyEfficiency * 0.4 +
-        monthlyCost * 0.3 +
+      monthlyCost * 0.4 +
+        energyEfficiency * 0.3 +
         item.scores.capacityFit * 0.2 +
         item.scores.technicalRisk * 0.1 -
         (!item.meetsRequiredLoad ? 35 : 0) -
-        (item.isExtremelyOversized ? 25 : 0) -
+        oversizingPenalty -
+        highCopPenalty -
         riskPenalty(item.technicalRisk),
     );
 
@@ -249,12 +252,13 @@ export function optimizeColdProEquipment(input: EquipmentOptimizerInput): Equipm
     warnings: Array.from(new Set(warnings)),
     assumptions: {
       scoreWeights: {
-        energyEfficiency: 0.4,
-        monthlyCost: 0.3,
+        monthlyCost: 0.4,
+        energyEfficiency: 0.3,
         capacityFit: 0.2,
         technicalRisk: 0.1,
       },
-      idealCapacityMarginPercent: "10% a 20%",
+      idealCapacityMarginPercent: 15,
+      progressiveOversizingPenaltyStartsAtPercent: 30,
       extremeOversizingThresholdPercent: 45,
       hoursMonth: round(hoursMonth),
       energyTariff: round(energyTariff, 4),
