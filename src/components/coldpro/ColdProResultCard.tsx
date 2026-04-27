@@ -104,7 +104,7 @@ export function ColdProResultCard({ result, selection, environment, products = [
   const [showAI, setShowAI] = React.useState(true);
   const [showTables, setShowTables] = React.useState(false);
 
-  if (!result) return <div className="rounded-xl border border-dashed bg-background p-6 text-sm text-muted-foreground">Nenhum cálculo realizado. Preencha as etapas anteriores e clique em calcular carga térmica.</div>;
+  if (!result) return <div className="rounded-lg border border-dashed bg-background p-3 text-sm text-muted-foreground">Nenhum cálculo realizado. Preencha as etapas anteriores e clique em calcular carga térmica.</div>;
 
   const normalized = normalizeColdProEnvironmentResult({ environment, result, selection, products, advancedProcesses });
   const breakdown = result.calculation_breakdown ?? {};
@@ -117,11 +117,11 @@ export function ColdProResultCard({ result, selection, environment, products = [
   const groupedRows = environmentGroupedRows(normalized);
 
   return (
-    <div className="min-w-0 rounded-xl border bg-background p-3 shadow-sm sm:p-5">
-      <div className="mb-5 flex flex-col gap-3 border-b pb-4 md:flex-row md:items-start md:justify-between">
+    <div className="coldpro-card min-w-0">
+      <div className="mb-3 flex flex-col gap-2 border-b pb-3 md:flex-row md:items-start md:justify-between">
         <div>
-          <h3 className="text-lg font-semibold">Resultado do ambiente atual — {environment?.name ?? "Ambiente selecionado"}</h3>
-          <p className="mt-1 text-sm text-muted-foreground">Usa somente cálculo, produtos, processos e equipamento do ambiente selecionado.</p>
+          <h3 className="text-base font-semibold">Resultado do ambiente atual — {environment?.name ?? "Ambiente selecionado"}</h3>
+          <p className="mt-0.5 text-xs text-muted-foreground">Usa somente cálculo, produtos, processos e equipamento do ambiente selecionado.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Toggle checked={compact} onChange={setCompact} label="Visualização resumida" />
@@ -132,7 +132,7 @@ export function ColdProResultCard({ result, selection, environment, products = [
         </div>
       </div>
 
-      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="coldpro-grid">
         <Kpi label="Carga requerida" value={normalized.summary.requiredKcalH} unit="kcal/h" icon={<Calculator className="h-4 w-4" />} />
         <Kpi label="Potência" value={normalized.summary.requiredKW} unit="kW" icon={<Gauge className="h-4 w-4" />} />
         <Kpi label="Capacidade" value={normalized.summary.requiredTR} unit="TR" icon={<Snowflake className="h-4 w-4" />} />
@@ -144,7 +144,7 @@ export function ColdProResultCard({ result, selection, environment, products = [
       </section>
 
       {showCharts ? (
-        <section className="mt-5 grid grid-cols-1 gap-4 xl:grid-cols-2">
+        <section className="coldpro-section grid grid-cols-1 gap-3 xl:grid-cols-2">
           <InteractiveLoadPieChart title="Distribuição da carga térmica" subtitle="Percentual por origem da carga do ambiente." data={detailedRows} total={normalized.summary.requiredKcalH} />
           <LoadRankingBarChart title="Maiores componentes da carga" subtitle="Ranking técnico do que mais pesa no dimensionamento." data={detailedRows} total={normalized.summary.requiredKcalH} />
         </section>
