@@ -1,4 +1,5 @@
 import { buildCalculationLog } from "../core/calculationLogger";
+import { COLDPRO_CALCULATION_METHOD_REGISTRY_VERSION, COLDPRO_CALCULATION_METHODS } from "../core/calculationMethodRegistry";
 import { buildCalculationMethodReport } from "../reports/calculationMethodReport";
 import { kwToKcalH, kwToTr } from "../core/units";
 import { validateTunnelInput } from "../core/validators";
@@ -293,6 +294,28 @@ function resolveInfiltrationMethod(input: TunnelEngineInput) {
       ? "Método psicrométrico solicitado, mas faltam dados de umidade/entalpia. Usando método simplificado."
       : "",
   };
+}
+
+function resolvePackagingLoad(input: TunnelEngineInput, operationRegime: "continuous" | "batch") {
+  const deltaT = Math.abs(toNumber(input?.initialTempC) - toNumber(input?.finalTempC));
+  const cp = positiveNumber(input?.packagingCpKJkgK ?? input?.packaging_cp_kj_kg_k);
+  const batchTimeH = positiveNumber(input?.batchTimeH ?? input?.batch_time_h);
+  const continuousMassKgH = positiveNumber(input?.packagingMassKgH ?? input?.packaging_mass_kg_h ?? input?.packaging_mass_kg_hour);
+  const numberOfPallets = positiveNumber(input?.numberOfPallets ?? input?.number_of_pallets) || 1;
+  const numberOfCarts = positiveNumber(input?.numberOfCarts ?? input?.number_of_carts) || 1;
+  const candidates = [
+    { mass: positiveNumber(input?.packagingMassKgBatch ?? input?.packaging_mass_kg_batch), source: "packagingMassKgBatch" },
+    { mass: positiveNumber(input?.packagingMassKg ?? input?.packaging_mass_kg), source: "packagingMassKg" },
+    { mass: positiveNumber(input?.packagingMassPerPalletKg ?? input?.packaging_mass_per_pallet_kg) * numberOfPallets, source: "packagingMassPerPalletKg × numberOfPallets" },
+    { mass: positiveNumber(input?.trayMassPerCartKg ?? input?.tray_mass_per_cart_kg) * numberOfCarts, source: "trayMassPerCartKg × numberOfCarts" },
+  ];
+  const batchCandidate = candidates.find((candidate) => candidate.mass > 0);
+  if (operationRegime === "batch") {
+    const loadKW = batchCandidate && cp > 0 && batchTimeH > 0 ? (batchCandidate.mass * cp * deltaT) / (batchTimeH * 3600) : 0;
+    return { packagingLoadKW: loadKW, packagingMassKgH: continuousMassKgH, packagingMassBatchKg: batchCandidate?.mass ?? 0, packagingLoadMethod: "batch_total_mass" as const, packagingMassSource: batchCandidate?.source ?? "none" };
+  }
+  const loadKW = continuousMassKgH > 0 && cp > 0 ? (continuousMassKgH * cp * deltaT) / 3600 : 0;
+  return { packagingLoadKW: loadKW, packagingMassKgH: continuousMassKgH, packagingMassBatchKg: 0, packagingLoadMethod: "continuous_mass_flow" as const, packagingMassSource: "packagingMassKgH" };
 }
 
 function calculateTunnelCore(input: TunnelEngineInput) {
