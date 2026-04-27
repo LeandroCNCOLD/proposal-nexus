@@ -352,7 +352,6 @@ export const calculateColdProEnvironment = createServerFn({ method: "POST" })
     const { data: rawTunnels } = await supabase.from("coldpro_tunnels").select("*").eq("environment_id", data.environmentId).order("updated_at", { ascending: false }).order("created_at", { ascending: false }).limit(1);
     const rawTunnel = rawTunnels?.[0] ?? null;
     const tunnel = rawTunnel ? (await enrichRowsWithCatalog(supabase, [rawTunnel]))[0] : null;
-    const { data: advancedProcesses } = await supabase.from("coldpro_advanced_processes").select("*").eq("environment_id", data.environmentId);
     const { data: selections } = await supabase.from("coldpro_equipment_selections").select("*").eq("environment_id", data.environmentId).order("created_at", { ascending: false }).limit(1);
     let insulation = null;
     if (env.insulation_material_id) {
@@ -365,7 +364,7 @@ export const calculateColdProEnvironment = createServerFn({ method: "POST" })
     }
     if (!insulation) throw new Error("Material isolante não encontrado.");
     if (env.relative_humidity_percent !== null && env.relative_humidity_percent !== undefined && Number(env.relative_humidity_percent) <= 0) throw new Error("UR interna igual a 0% é fisicamente inválida. Informe uma UR real ou deixe o campo em branco para aplicar a premissa automática.");
-    const result = calculateColdProLoad({ env: env as any, products: (products ?? []) as any, insulation: insulation as any, tunnel: (tunnel ?? null) as any, advancedProcesses: (advancedProcesses ?? []) as any, selection: selections?.[0] ?? null });
+    const result = calculateColdProLoad({ env: env as any, products: (products ?? []) as any, insulation: insulation as any, tunnel: (tunnel ?? null) as any, advancedProcesses: [], selection: selections?.[0] ?? null });
     const { calculation_breakdown, ...resultRest } = result;
     await supabase.from("coldpro_results").delete().eq("environment_id", data.environmentId);
     const { data: saved, error } = await supabase
@@ -374,7 +373,7 @@ export const calculateColdProEnvironment = createServerFn({ method: "POST" })
         environment_id: data.environmentId,
         ...resultRest,
         calculation_breakdown: calculation_breakdown as any,
-        calculation_input: { environment: env, products: products ?? [], tunnel, advancedProcesses: advancedProcesses ?? [], insulation, selection: selections?.[0] ?? null } as any,
+        calculation_input: { environment: env, products: products ?? [], tunnel, advancedProcesses: [], insulation, selection: selections?.[0] ?? null } as any,
       })
       .select("*")
       .single();

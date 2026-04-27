@@ -11,7 +11,6 @@ import {
   useUpsertColdProProduct,
   useDeleteColdProProduct,
   useUpsertColdProTunnel,
-  useUpsertColdProAdvancedProcess,
   useCalculateColdProEnvironment,
   useAutoSelectColdProEquipment,
   usePushColdProToProposal,
@@ -21,7 +20,6 @@ import {
 import { ColdProEnvironmentForm } from "@/components/coldpro/ColdProEnvironmentForm";
 import { ColdProProductForm } from "@/components/coldpro/ColdProProductForm";
 import { ColdProTunnelForm } from "@/components/coldpro/ColdProTunnelForm";
-import { ColdProAdvancedProcessForm } from "@/components/coldpro/ColdProAdvancedProcessForm";
 import { ColdProResultCard } from "@/components/coldpro/ColdProResultCard";
 import { ColdProExtraLoadsForm } from "@/components/coldpro/ColdProExtraLoadsForm";
 import { ColdProStepper, COLDPRO_STEPS } from "@/components/coldpro/ColdProStepper";
@@ -274,7 +272,6 @@ function ColdProProjectPage() {
   const upsertProduct = useUpsertColdProProduct(id);
   const deleteProduct = useDeleteColdProProduct(id);
   const upsertTunnel = useUpsertColdProTunnel(id);
-  const upsertAdvancedProcess = useUpsertColdProAdvancedProcess(id);
   const calculate = useCalculateColdProEnvironment(id);
   const autoSelect = useAutoSelectColdProEquipment(id);
   const pushToProposal = usePushColdProToProposal(id);
@@ -307,7 +304,6 @@ function ColdProProjectPage() {
   const allProducts = data?.products ?? [];
   const products = allProducts.filter((p: any) => p.environment_id === selectedEnv?.id);
   const tunnel = (data?.tunnels ?? []).find((t: any) => t.environment_id === selectedEnv?.id);
-  const advancedProcess = (data?.advancedProcesses ?? []).find((item: any) => item.environment_id === selectedEnv?.id);
   const savedResult = (data?.results ?? []).find((r: any) => r.environment_id === selectedEnv?.id);
   const calculatedResult = calculate.data?.environment_id === selectedEnv?.id ? calculate.data : null;
   const result = calculatedResult ?? savedResult;
@@ -323,7 +319,7 @@ function ColdProProjectPage() {
     [data?.selections, selection, selectedEnv?.id],
   );
   const tunnelPreview = tunnel && selectedEnv ? calculateTunnelEngine(databaseToTunnelInput(tunnel, selectedEnv)) : null;
-  const technicalAudit = React.useMemo(() => auditColdProTechnicalConsistency({ environment: selectedEnv, result, tunnel: tunnelPreview ?? tunnel, products, advancedProcesses: advancedProcess ? [advancedProcess] : [], selection }), [selectedEnv, result, tunnelPreview, tunnel, products, advancedProcess, selection]);
+  const technicalAudit = React.useMemo(() => auditColdProTechnicalConsistency({ environment: selectedEnv, result, tunnel: tunnelPreview ?? tunnel, products, advancedProcesses: [], selection }), [selectedEnv, result, tunnelPreview, tunnel, products, selection]);
   const environmentLoad = Number(result?.transmission_kcal_h ?? 0);
   const savedProductLoad = Number(result?.product_kcal_h ?? 0) + Number(result?.packaging_kcal_h ?? 0) + Number(result?.calculation_breakdown?.respiration_kcal_h ?? 0) + Number(result?.tunnel_internal_load_kcal_h ?? 0);
   const productLoad = savedProductLoad > 0 ? savedProductLoad : Number(tunnelPreview?.totalKcalH ?? 0);
@@ -371,9 +367,8 @@ function ColdProProjectPage() {
   const completed: Record<number, boolean> = {
     0: !!selectedEnv?.length_m,
     1: products.length > 0 || !!tunnel,
-    2: !!advancedProcess || !["seed_storage", "climatized_room"].includes(String(selectedEnv?.environment_type ?? "")),
-    3: !!selectedEnv?.safety_factor_percent,
-    4: !!result,
+    2: !!selectedEnv?.safety_factor_percent,
+    3: !!result,
   };
 
   if (isLoading) return <div className="p-6 text-sm text-muted-foreground">Carregando CN ColdPro...</div>;
@@ -418,8 +413,8 @@ function ColdProProjectPage() {
     try {
       const calculated = await calculate.mutateAsync(selectedEnv.id);
       toast.success("Carga térmica calculada");
-      setStepIndex(4);
-      const postAudit = auditColdProTechnicalConsistency({ environment: selectedEnv, result: calculated, tunnel: tunnelPreview ?? tunnel, products, advancedProcesses: advancedProcess ? [advancedProcess] : [], selection });
+      setStepIndex(COLDPRO_STEPS.length - 1);
+      const postAudit = auditColdProTechnicalConsistency({ environment: selectedEnv, result: calculated, tunnel: tunnelPreview ?? tunnel, products, advancedProcesses: [], selection });
       if (["blast_freezer", "cooling_tunnel"].includes(String(selectedEnv.environment_type)) && !postAudit.isBlocked) {
         try {
           await autoSelect.mutateAsync({ environmentId: selectedEnv.id, minQuantity: 1, equipmentKind: null });
@@ -666,7 +661,7 @@ function ColdProProjectPage() {
                 results={currentResults}
                 selections={currentSelections}
                 products={allProducts}
-                advancedProcesses={data?.advancedProcesses ?? []}
+                advancedProcesses={[]}
                 onAnalyze={handleAnalyzeMemorial}
                 isAnalyzing={analyzeMemorial.isPending}
               />
@@ -677,7 +672,7 @@ function ColdProProjectPage() {
                 results={currentResults}
                 selections={currentSelections}
                 products={allProducts}
-                advancedProcesses={data?.advancedProcesses ?? []}
+                advancedProcesses={[]}
                 onPushToProposal={handlePushToProposal}
                 isPushing={pushToProposal.isPending}
                 onGeneratePdf={handleGeneratePdf}
@@ -801,34 +796,8 @@ function ColdProProjectPage() {
                 </div>
               )}
 
-              {/* STEP 2 - PROCESSOS ESPECIAIS */}
+              {/* STEP 2 - CARGAS EXTRAS */}
               {stepIndex === 2 && (
-                <div className="space-y-3">
-                  <ColdProAdvancedProcessForm
-                    projectId={id}
-                    environment={selectedEnv}
-                    process={advancedProcess}
-                    productCatalog={data?.productCatalog ?? []}
-                    onSave={(payload) =>
-                      upsertAdvancedProcess.mutate(payload, {
-                        onSuccess: () => toast.success("Processo especial salvo"),
-                        onError: (e: any) => toast.error(e?.message ?? "Erro ao salvar processo especial"),
-                      })
-                    }
-                  />
-                  <ColdProSectionLoadSummary
-                    title="Prévia dos processos especiais"
-                    rows={[
-                      { label: "Umidade, respiração e purga", value: result?.calculation_breakdown?.advanced_processes_kcal_h },
-                    ]}
-                    totalLabel="Total calculado da aba Processos Especiais"
-                    total={Number(result?.calculation_breakdown?.advanced_processes_kcal_h ?? 0)}
-                  />
-                </div>
-              )}
-
-              {/* STEP 3 - CARGAS EXTRAS */}
-              {stepIndex === 3 && (
                 <div className="space-y-3">
                   <ColdProExtraLoadsForm
                     environment={selectedEnv}
@@ -861,8 +830,8 @@ function ColdProProjectPage() {
                 </div>
               )}
 
-              {/* STEP 4 - RESULTADO */}
-              {stepIndex === 4 && (
+              {/* STEP 3 - RESULTADO */}
+              {stepIndex === 3 && (
                 <div className="space-y-3">
                   <div className="rounded-lg border bg-background p-3">
                     <div className="flex flex-wrap items-start justify-between gap-3">
@@ -933,7 +902,7 @@ function ColdProProjectPage() {
                       commercial={commercialSummary}
                     />
                   ) : null}
-                  <ColdProResultCard result={result} selection={selection} environment={selectedEnv} products={products} advancedProcesses={data?.advancedProcesses ?? []} onAnalyze={handleAnalyzeMemorial} isAnalyzing={analyzeMemorial.isPending} />
+                  <ColdProResultCard result={result} selection={selection} environment={selectedEnv} products={products} advancedProcesses={[]} onAnalyze={handleAnalyzeMemorial} isAnalyzing={analyzeMemorial.isPending} />
                   <div className="coldpro-grid">
                     <ThermalLoadSummary result={result} />
                     <EnergySummary result={result} />
@@ -1054,7 +1023,7 @@ function ColdProProjectPage() {
                         results={[result]}
                         selections={selection ? [selection] : []}
                         products={products}
-                        advancedProcesses={(data?.advancedProcesses ?? []).filter((item: any) => item.environment_id === selectedEnv.id)}
+                        advancedProcesses={[]}
                         lastPdfUrl={lastPdfUrl}
                       />
                     </div>

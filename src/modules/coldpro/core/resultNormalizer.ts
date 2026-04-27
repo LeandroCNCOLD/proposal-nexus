@@ -22,10 +22,6 @@ function pct(part: number, total: number): number {
   return total > 0 ? round((part / total) * 100, 2) : 0;
 }
 
-function sumAdvanced(list: any[], picker: (item: any) => unknown): number {
-  return list.reduce((sum, item) => sum + num(picker(item)), 0);
-}
-
 function kwToKcalH(value: unknown): number {
   return num(value) * KCAL_PER_KW;
 }
@@ -85,16 +81,16 @@ export function normalizeColdProResult(rawResult: any, selection?: any | null, e
   const attempt = selectedTunnelAttempt(tunnel);
   const seed = breakdown.seed_dehumidification ?? {};
   const frost = breakdown.evaporator_frost ?? breakdown.infiltration_technical ?? {};
-  const advanced = Array.isArray(breakdown.advanced_processes) ? breakdown.advanced_processes : [];
+  const advanced: any[] = [];
   const calculationMethodSummary = buildCalculationMethodSummary(result);
   const technicalAudit = breakdown.technicalAudit ?? auditColdProTechnicalConsistency({ environment, result, tunnel, products, advancedProcesses: advanced, selection });
 
   const directProductKcalH = num(result.product_kcal_h);
   const tunnelProcessKcalH = tunnelLoads.totalKcalH || num(result.tunnel_internal_load_kcal_h || tunnel.total_kcal_h || tunnel.total_kw * KCAL_PER_KW);
   const packagingKcalH = num(result.packaging_kcal_h);
-  const respirationKcalH = num(breakdown.respiration_kcal_h) + sumAdvanced(advanced, (item) => item.controlled_atmosphere?.respiration_load_kcal_h);
+  const respirationKcalH = num(breakdown.respiration_kcal_h);
   const dehumidificationKcalH = num(seed.total_kcal_h);
-  const specialProcessesKcalH = num(breakdown.advanced_processes_kcal_h);
+  const specialProcessesKcalH = 0;
   const iceImpactKcalH = num(breakdown.evaporator_frost?.additional_load_kcal_h ?? 0);
   const defrostKcalH = num(result.defrost_kcal_h);
   const safetyKcalH = num(audit.seguranca_kcal_h ?? result.safety_kcal_h);
@@ -151,8 +147,8 @@ export function normalizeColdProResult(rawResult: any, selection?: any | null, e
   const deltaComponentVsSubtotalKcalH = componentSumKcalH - subtotalKcalH;
   const deltaComponentVsSubtotalPercent = pct(Math.abs(deltaComponentVsSubtotalKcalH), subtotalKcalH);
   if (subtotalKcalH > 0 && deltaComponentVsSubtotalPercent > 1) warnings.push("A soma dos componentes não fecha com o subtotal validado.");
-  if (directProductKcalH === 0 && tunnelProcessKcalH > 0) warnings.push("Produto direto está zerado, mas há carga em túnel/processo considerada como processo especial de produto.");
-  if (requiredKcalH > 0 && pct(loadDistribution.otherKcalH, requiredKcalH) > 5) warnings.push("Carga relevante classificada como Outros. Recomenda-se reclassificar para produto, processo especial ou carga interna.");
+  if (directProductKcalH === 0 && tunnelProcessKcalH > 0) warnings.push("Produto direto está zerado, mas há carga em túnel/processo considerada na carga de produto.");
+  if (requiredKcalH > 0 && pct(loadDistribution.otherKcalH, requiredKcalH) > 5) warnings.push("Carga relevante classificada como Outros. Recomenda-se reclassificar para produto ou carga interna.");
   if (equipmentTotal > 0 && correctedCapacity === 0) warnings.push("Auditoria de curva inconsistente: equipamento selecionado possui capacidade, mas capacidade corrigida validada está zerada.");
   if (surplusPercent < 0) warnings.push("Equipamento subdimensionado.");
   if (surplusPercent > 30) warnings.push("Possível superdimensionamento.");
