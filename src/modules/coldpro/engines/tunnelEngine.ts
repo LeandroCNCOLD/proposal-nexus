@@ -333,6 +333,7 @@ function calculateTunnelCore(input: any) {
   const productLoadKW = tunnelMode.operationRegime === "batch"
     ? calculateBatchProductLoadKW({ massKg: staticMassKg, specificEnergyKJkg: energy.totalKJkg, timeH: input?.batchTimeH })
     : calculateContinuousProductLoadKW({ massKgH: usedMassKgH, specificEnergyKJkg: energy.totalKJkg });
+  const productLoadMissing = productLoadMissingFields(input, tunnelMode.operationRegime === "batch", staticMassKg, usedMassKgH, energy);
 
   const productEnergyBreakdown = {
     sensibleAboveKJkg: energy.sensibleAboveKJkg,
@@ -351,6 +352,7 @@ function calculateTunnelCore(input: any) {
   const totalKcalH = kwToKcalH(totalKW);
   const totalTR = kwToTr(totalKW);
   const airFlowM3H = airDeltaTK > 0 && airDensityKgM3 > 0 ? (totalKW * 3600) / (airDensityKgM3 * cpAirKJkgK * airDeltaTK) : 0;
+  const airFlowThermalBalanceM3H = airFlowM3H;
 
   const estimatedTimeMin = canEstimateFreezingTime(input, distanceToCoreM, h.hEffectiveWM2K, kEffectiveWMK)
     ? calculatePlankFreezingTimeMin({
@@ -376,7 +378,9 @@ function calculateTunnelCore(input: any) {
   const engineWarnings = [
     !isStatic && directMassKgH > 0 && calculatedMassKgH > 0 && Math.abs(directMassKgH - calculatedMassKgH) / calculatedMassKgH * 100 > 15 ? `Massa direta difere da massa por cadência em ${(Math.abs(directMassKgH - calculatedMassKgH) / calculatedMassKgH * 100).toFixed(1)}%.` : "",
     suggestedAirTempComparisonC !== null && suggestedAirTempComparisonC > 5 ? "Temperatura do ar informada pode ser insuficiente para atingir a temperatura final do produto no tempo desejado." : "",
-    airFlowDeviation > 0.2 ? "Vazão de ar informada diverge da vazão estimada em mais de 20%." : "",
+    airFlowDeviation > 0.2 ? "Vazão de ar informada diverge da vazão necessária pela carga térmica em mais de 20%." : "",
+    informedAirFlowM3H !== null && airFlowM3H > 0 && informedAirFlowM3H < airFlowM3H * 0.95 ? "Vazão dos ventiladores informada abaixo da vazão necessária pela carga térmica." : "",
+    productLoadKW <= 0 && productLoadMissing.length > 0 ? `Carga térmica do produto não calculada: falta ${productLoadMissing.join(", ")}.` : "",
     hasManualH && positiveNumber(input?.manualConvectiveCoefficientWM2K) < 25 && energy.crossesFreezingPoint ? "h manual muito baixo para congelamento rápido." : "",
     isProvided(input?.thermalPenetrationFactor) && toNumber(input?.thermalPenetrationFactor) <= 0 ? "Fator de penetração térmica deve ser maior que zero." : "",
     isProvided(input?.airExposureFactor) && toNumber(input?.airExposureFactor) <= 0 ? "Fator de exposição ao ar deve ser maior que zero." : "",
@@ -473,7 +477,7 @@ function calculateTunnelCore(input: any) {
     heatTransfer: { hBaseWM2K: h.hBaseWM2K, exposureFactor: exposure.exposureFactor, airExposureFactor: input?.airExposureFactor ?? null, hEffectiveWM2K: h.hEffectiveWM2K, hSource: h.source },
     air: { airTempC: input?.airTempC ?? null, airDeltaTK, airDensityKgM3, airFlowM3H, informedAirFlowM3H, airFlowMethod, suggestedAirTempC, suggestedAirMethod, suggestedAirApproachK, comparison: suggestedAirTempComparisonC },
     scenarios: { adjustedScenario: scenario },
-    loads: { productLoadKW, packagingLoadKW, internalLoadKW, totalKW, totalKcalH, totalTR, packagingMassKgH, packagingMassKgBatch },
+    loads: { productLoadKW, packagingLoadKW, internalLoadKW, totalKW, totalKcalH, totalTR, packagingMassKgH, packagingMassKgBatch, productLoadMissingFields: productLoadMissing, loadCalculationReady: productLoadMissing.length === 0, massUsedForProductLoad: tunnelMode.operationRegime === "batch" ? staticMassKg : usedMassKgH, massUnitForProductLoad: tunnelMode.operationRegime === "batch" ? "kg/batelada" : "kg/h", airFlowThermalBalanceM3H },
     timing: { estimatedTimeMin, availableTimeMin, status },
     validation: { warnings, missingFields, invalidFields },
   };
