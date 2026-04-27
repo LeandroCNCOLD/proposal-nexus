@@ -940,6 +940,11 @@ export function calculateColdProLoad(params: {
         glass_total_w: transmissionBreakdown.glass_total_w,
         glass_total_kcal_h: transmissionBreakdown.glass_total_kcal_h,
       },
+      calculationMethod: buildCalculationMethodReport(
+        String((infiltrationBreakdown as { method?: unknown }).method ?? "simple_air_change"),
+        tunnelResult?.calculation_breakdown?.calculationMethod?.methods?.productLoad ?? "kg/h contínuo ou kg/batelada",
+      ),
+      ashraeComparison: listAshraeComparisons(),
       transmission_faces: transmissionBreakdown.faces,
       tunnel: tunnelResult,
       tunnel_engine: tunnelResult ? {
