@@ -466,8 +466,8 @@ function calculateTunnelCore(input: TunnelEngineInput) {
   const estimatedTimeMin = canEstimateFreezingTime(input, distanceToCoreM, h.hEffectiveWM2K, kEffectiveWMK)
     ? calculatePlankFreezingTimeMin({
         densityKgM3: input?.densityKgM3,
-        latentHeatKJkg: thermalKcal(input, "latentHeatKcalKg", "latentHeatKJkg") * 4.1868,
-        frozenWaterFraction: input?.frozenWaterFraction,
+        latentHeatKJkg: energy.latentEffectiveKJkg,
+        frozenWaterFraction: 1,
         freezingPointC: input?.freezingPointC,
         airTempC: input?.airTempC,
         distanceToCoreM,
@@ -513,8 +513,8 @@ function calculateTunnelCore(input: TunnelEngineInput) {
 
   const freezingTimeMissingFields = [
     positiveNumber(input?.densityKgM3) <= 0 ? "densidade do produto" : "",
-    energy.crossesFreezingPoint && thermalKcal(input, "latentHeatKcalKg", "latentHeatKJkg") <= 0 ? "calor latente" : "",
-    energy.crossesFreezingPoint && positiveNumber(input?.frozenWaterFraction) <= 0 ? "fração congelável" : "",
+    energy.crossesFreezingPoint && toNumber(energy.latentEffectiveKJkg) <= 0 ? "calor latente" : "",
+    energy.crossesFreezingPoint && energy.latentMode === "full" && positiveNumber(input?.frozenWaterFraction) <= 0 ? "fração congelável" : "",
     !isProvided(input?.freezingPointC) ? "temperatura de congelamento" : "",
     !isProvided(input?.airTempC) ? "temperatura do ar" : "",
     distanceToCoreM <= 0 ? "dimensão crítica para tempo até o núcleo" : "",
