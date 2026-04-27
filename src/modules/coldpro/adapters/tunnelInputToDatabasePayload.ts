@@ -1,4 +1,5 @@
 import { COLDPRO_TUNNEL_ENGINE_VERSION } from "../engines/tunnelEngine";
+import type { TunnelDatabasePayload, TunnelEngineResult } from "../types/tunnelEngine.types";
 
 const INPUT_FIELDS = [
   "id", "environment_id", "tunnel_type", "operation_mode", "process_type", "arrangement_type", "product_id", "product_name",
@@ -50,7 +51,7 @@ function round(value: unknown, digits = 4) {
   return Math.round(parsed * factor) / factor;
 }
 
-export function validateTunnelCalculationConsistency(tunnelResult: any, savedPayload: any) {
+export function validateTunnelCalculationConsistency(tunnelResult: TunnelEngineResult, savedPayload: TunnelDatabasePayload) {
   const issues: string[] = [];
   const product = Number(tunnelResult?.productLoadKW ?? 0);
   const packaging = Number(tunnelResult?.packagingLoadKW ?? 0);
@@ -73,7 +74,7 @@ export function validateTunnelCalculationConsistency(tunnelResult: any, savedPay
   return { valid: issues.length === 0, issues };
 }
 
-export function tunnelResultToDatabasePayload(form: any, tunnelResult: any) {
+export function tunnelResultToDatabasePayload(form: any, tunnelResult: TunnelEngineResult): TunnelDatabasePayload {
   const calculatedAt = tunnelResult?.calculatedAt ?? new Date().toISOString();
   const payload = {
     ...pickKnownFields(form),
