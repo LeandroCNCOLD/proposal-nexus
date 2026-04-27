@@ -439,6 +439,48 @@ function ColdProProjectPage() {
     }
   }
 
+  async function handleRecalculateEnvironment(environmentId: string, successMessage: string) {
+    try {
+      await calculate.mutateAsync(environmentId);
+      toast.success(successMessage);
+    } catch (e: any) {
+      toast.warning(e?.message ? `Dados salvos, mas o recálculo falhou: ${e.message}` : "Dados salvos, mas o recálculo falhou.");
+    }
+  }
+
+  async function handleSaveTunnel(payload: any) {
+    if (!selectedEnv) return;
+    try {
+      await upsertTunnel.mutateAsync(payload);
+      await handleRecalculateEnvironment(selectedEnv.id, "Túnel salvo e carga recalculada");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Erro ao salvar");
+    }
+  }
+
+  async function handleSaveProduct(payload: any) {
+    if (!selectedEnv) return;
+    try {
+      const row = await upsertProduct.mutateAsync(payload);
+      setEditingProductId(row?.id ?? null);
+      await handleRecalculateEnvironment(selectedEnv.id, payload.id ? "Produto salvo e carga recalculada" : "Produto adicionado e carga recalculada");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Erro ao salvar");
+    }
+  }
+
+  async function handleDeleteProduct(product: any) {
+    if (!selectedEnv) return;
+    if (!window.confirm(`Excluir o produto "${product.product_name}"?`)) return;
+    try {
+      await deleteProduct.mutateAsync(product.id);
+      if (editingProductId === product.id) setEditingProductId(null);
+      await handleRecalculateEnvironment(selectedEnv.id, "Produto excluído e carga recalculada");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Erro ao excluir");
+    }
+  }
+
   async function handleAutoSelect() {
     if (!selectedEnv) return;
     if (technicalAudit.isBlocked) {
@@ -664,9 +706,15 @@ function ColdProProjectPage() {
                   <div className="truncate text-sm font-semibold">{selectedEnv.name}</div>
                   <div className="text-xs text-muted-foreground">{selectedEnv.environment_type} · {fmt(selectedEnv.volume_m3)} m³ · {selectedEnv.internal_temp_c}°C</div>
                 </div>
-                <button type="button" onClick={handleDeleteEnvironment} disabled={deleteEnv.isPending} className="inline-flex items-center gap-2 rounded-md border border-destructive/30 px-3 py-1.5 text-sm text-destructive transition hover:bg-destructive/10 disabled:opacity-50">
-                  <Trash2 className="h-4 w-4" /> {deleteEnv.isPending ? "Excluindo..." : "Excluir ambiente"}
-                </button>
+                <div className="flex flex-wrap gap-2">
+                  <button type="button" onClick={handleCalculate} disabled={calculate.isPending} className="inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm transition hover:bg-muted disabled:opacity-50">
+                    {calculate.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Calculator className="h-4 w-4" />}
+                    {calculate.isPending ? "Recalculando..." : "Recalcular ambiente"}
+                  </button>
+                  <button type="button" onClick={handleDeleteEnvironment} disabled={deleteEnv.isPending} className="inline-flex items-center gap-2 rounded-md border border-destructive/30 px-3 py-1.5 text-sm text-destructive transition hover:bg-destructive/10 disabled:opacity-50">
+                    <Trash2 className="h-4 w-4" /> {deleteEnv.isPending ? "Excluindo..." : "Excluir ambiente"}
+                  </button>
+                </div>
               </div>
 
               {/* STEP 0 - AMBIENTE */}
@@ -705,25 +753,15 @@ function ColdProProjectPage() {
                       product={products[0] ?? null}
                       tunnel={tunnel}
                       productCatalog={data?.productCatalog ?? []}
-                      onSave={(payload) =>
-                        upsertTunnel.mutate(payload, {
-                          onSuccess: () => toast.success("Túnel salvo"),
-                          onError: (e: any) => toast.error(e?.message ?? "Erro ao salvar"),
-                        })
-                      }
+                      onSave={handleSaveTunnel}
                     />
                   ) : (
                     <ColdProProductForm
                       environmentId={selectedEnv.id}
                       product={products.find((p: any) => p.id === editingProductId) ?? products[0] ?? null}
                       productCatalog={data?.productCatalog ?? []}
-                      saving={upsertProduct.isPending}
-                      onSave={(payload) =>
-                        upsertProduct.mutate(payload, {
-                          onSuccess: (row: any) => { setEditingProductId(row?.id ?? null); toast.success(payload.id ? "Produto atualizado" : "Produto adicionado"); },
-                          onError: (e: any) => toast.error(e?.message ?? "Erro ao salvar"),
-                        })
-                      }
+                      saving={upsertProduct.isPending || calculate.isPending}
+                      onSave={handleSaveProduct}
                     />
                   )}
 
@@ -753,7 +791,7 @@ function ColdProProjectPage() {
                             </div>
                             <div className="flex gap-2">
                               <button type="button" onClick={() => setEditingProductId(p.id)} className="rounded-md border px-2 py-1 text-xs hover:bg-muted">Editar</button>
-                              <button type="button" onClick={() => { if (window.confirm(`Excluir o produto "${p.product_name}"?`)) deleteProduct.mutate(p.id, { onSuccess: () => { if (editingProductId === p.id) setEditingProductId(null); toast.success("Produto excluído"); }, onError: (e: any) => toast.error(e?.message ?? "Erro ao excluir") }); }} className="rounded-md border border-destructive/30 px-2 py-1 text-xs text-destructive hover:bg-destructive/10">Excluir</button>
+                              <button type="button" onClick={() => handleDeleteProduct(p)} disabled={deleteProduct.isPending || calculate.isPending} className="rounded-md border border-destructive/30 px-2 py-1 text-xs text-destructive hover:bg-destructive/10 disabled:opacity-50">Excluir</button>
                             </div>
                           </div>
                         ))}
