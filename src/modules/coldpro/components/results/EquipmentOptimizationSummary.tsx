@@ -39,32 +39,32 @@ export function EquipmentOptimizationSummary({ result, selection }: Props) {
   ].filter(Boolean).map(String)));
 
   return (
-    <div className="rounded-xl border bg-background p-4">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-        <h3 className="text-base font-semibold">Otimização de equipamento</h3>
+    <div className="rounded-xl border bg-background p-3">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-sm font-semibold">Otimização de equipamento</h3>
         <div className="text-sm text-muted-foreground">Melhor equipamento: <b className="text-foreground">{equipmentName(bestEquipment)}</b></div>
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[720px] text-sm">
+        <table className="w-full min-w-[640px] text-xs sm:text-sm">
           <thead className="text-left text-xs uppercase tracking-wide text-muted-foreground">
             <tr className="border-b">
-              <th className="py-2 pr-3 font-medium">Ranking</th>
-              <th className="py-2 pr-3 font-medium">Equipamento</th>
-              <th className="py-2 pr-3 font-medium">Margem</th>
-              <th className="py-2 pr-3 font-medium">Custo mensal</th>
-              <th className="py-2 pr-3 font-medium">Score final</th>
-              <th className="py-2 pr-3 font-medium">Potência</th>
+              <th className="py-2 pr-2 font-medium">#</th>
+              <th className="py-2 pr-2 font-medium">Equipamento</th>
+              <th className="py-2 pr-2 font-medium">Margem</th>
+              <th className="py-2 pr-2 font-medium">Custo mensal</th>
+              <th className="py-2 pr-2 font-medium">Score</th>
+              <th className="py-2 pr-2 font-medium">Potência</th>
             </tr>
           </thead>
           <tbody>
             {ranking.length ? ranking.map((item: any, index: number) => (
               <tr key={`${equipmentName(item)}-${index}`} className="border-b last:border-0">
-                <td className="py-2 pr-3 tabular-nums">{index + 1}</td>
-                <td className="py-2 pr-3 font-medium text-foreground">{equipmentName(item)}</td>
-                <td className="py-2 pr-3 tabular-nums">{toFinite(item?.capacityMarginPercent ?? item?.capacity_margin_percent ?? item?.surplus_percent) === null ? "—" : `${formatNumber(item?.capacityMarginPercent ?? item?.capacity_margin_percent ?? item?.surplus_percent, 2)}%`}</td>
-                <td className="py-2 pr-3 tabular-nums">{formatCurrency(item?.estimatedMonthlyCost ?? item?.estimated_monthly_cost ?? item?.monthlyCost ?? item?.monthly_cost)}</td>
-                <td className="py-2 pr-3 tabular-nums">{formatNumber(item?.scores?.final ?? item?.finalScore ?? item?.final_score ?? item?.score ?? item?.curve_metadata?.score, 2)}</td>
-                <td className="py-2 pr-3 tabular-nums">{formatKw(item?.estimatedElectricalPowerKW ?? item?.estimated_electrical_power_kw ?? item?.total_power_kw)}</td>
+                <td className="py-2 pr-2 tabular-nums">{index + 1}</td>
+                <td className="py-2 pr-2 font-medium text-foreground">{equipmentName(item)}</td>
+                <td className="py-2 pr-2 tabular-nums">{toFinite(item?.capacityMarginPercent ?? item?.capacity_margin_percent ?? item?.surplus_percent) === null ? "—" : `${formatNumber(item?.capacityMarginPercent ?? item?.capacity_margin_percent ?? item?.surplus_percent, 2)}%`}</td>
+                <td className="py-2 pr-2 tabular-nums">{formatCurrency(item?.estimatedMonthlyCost ?? item?.estimated_monthly_cost ?? item?.monthlyCost ?? item?.monthly_cost)}</td>
+                <td className="py-2 pr-2 tabular-nums">{formatNumber(item?.scores?.final ?? item?.finalScore ?? item?.final_score ?? item?.score ?? item?.curve_metadata?.score, 2)}</td>
+                <td className="py-2 pr-2 tabular-nums">{formatKw(item?.estimatedElectricalPowerKW ?? item?.estimated_electrical_power_kw ?? item?.total_power_kw)}</td>
               </tr>
             )) : (
               <tr><td colSpan={6} className="py-4 text-center text-muted-foreground">—</td></tr>

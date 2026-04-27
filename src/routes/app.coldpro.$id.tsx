@@ -47,19 +47,28 @@ function isFiniteValue(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
 }
 
+function toFiniteValue(value: unknown): number | null {
+  if (isFiniteValue(value)) return value;
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = Number(String(value).replace(",", "."));
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 function firstFinite(...values: unknown[]) {
   for (const value of values) {
-    if (isFiniteValue(value)) return value;
+    const parsed = toFiniteValue(value);
+    if (parsed !== null) return parsed;
   }
   return null;
 }
 
 function formatNumber(value: unknown, decimals = 2) {
-  return isFiniteValue(value) ? new Intl.NumberFormat("pt-BR", { minimumFractionDigits: decimals, maximumFractionDigits: decimals }).format(value) : "—";
+  const parsed = toFiniteValue(value);
+  return parsed !== null ? new Intl.NumberFormat("pt-BR", { minimumFractionDigits: decimals, maximumFractionDigits: decimals }).format(parsed) : "—";
 }
 
 function formatKw(value: unknown) {
-  return isFiniteValue(value) ? `${formatNumber(value, 2)} kW` : "—";
+  return toFiniteValue(value) !== null ? `${formatNumber(value, 2)} kW` : "—";
 }
 
 function ThermalLoadSummary({ result }: { result: any }) {
@@ -76,13 +85,13 @@ function ThermalLoadSummary({ result }: { result: any }) {
   ];
 
   return (
-    <div className="rounded-xl border bg-background p-4">
-      <h3 className="mb-3 text-base font-semibold">Carga térmica</h3>
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="rounded-xl border bg-background p-3">
+      <h3 className="mb-2 text-sm font-semibold">Carga térmica</h3>
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-7">
         {rows.map((row, index) => (
-          <div key={`${row.label}-${index}`} className="rounded-lg border bg-muted/20 p-3">
+          <div key={`${row.label}-${index}`} className="min-w-0 rounded-lg border bg-muted/20 p-2.5">
             <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{row.label}</div>
-            <div className="mt-2 text-lg font-semibold tabular-nums text-foreground">{row.format(row.value)}</div>
+            <div className="mt-1 text-sm font-semibold tabular-nums text-foreground sm:text-base">{row.format(row.value)}</div>
           </div>
         ))}
       </div>
@@ -316,10 +325,10 @@ function ColdProProjectPage() {
         </div>
       </div>
 
-      <div className="mx-auto grid max-w-[1400px] grid-cols-1 gap-4 p-3 sm:p-5 lg:grid-cols-[260px_minmax(0,1fr)] lg:gap-6">
+      <div className="mx-auto grid max-w-[1600px] grid-cols-1 gap-3 p-2 sm:p-4 lg:grid-cols-[220px_minmax(0,1fr)] xl:grid-cols-[240px_minmax(0,1fr)]">
         {/* Sidebar de ambientes */}
         <aside className="space-y-4 print:hidden lg:sticky lg:top-4 lg:self-start">
-          <div className="rounded-xl border bg-background p-4 shadow-sm">
+          <div className="rounded-xl border bg-background p-3 shadow-sm">
             <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
               Novo ambiente
             </h2>
@@ -345,7 +354,7 @@ function ColdProProjectPage() {
             </div>
           </div>
 
-          <div className="rounded-xl border bg-background p-4 shadow-sm">
+          <div className="rounded-xl border bg-background p-3 shadow-sm">
             <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
               Ambientes do projeto
             </h2>
@@ -392,7 +401,7 @@ function ColdProProjectPage() {
         </aside>
 
         {/* Conteúdo principal */}
-        <div className="min-w-0 space-y-4">
+        <div className="min-w-0 space-y-3">
           {showProjectReport && environments.length > 0 ? (
             <div className="space-y-6">
               <ColdProProjectResultDashboard
