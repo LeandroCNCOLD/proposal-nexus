@@ -21,7 +21,11 @@ type Props = {
   environment: any;
   insulationMaterials: any[];
   thermalMaterials?: any[];
-  onSave: (patch: Record<string, unknown>) => void;
+  onSave: (patch: Record<string, unknown>) => void | boolean | Promise<void | boolean>;
+};
+
+export type ColdProEnvironmentFormHandle = {
+  save: () => Promise<boolean>;
 };
 
 type ChamberLayout = "rectangular" | "l_shape" | "irregular_l" | "custom_polygon";
@@ -301,7 +305,7 @@ function ChamberShapePreview({ layout }: { layout: ChamberLayout }) {
   );
 }
 
-export function ColdProEnvironmentForm({ environment, insulationMaterials, thermalMaterials = [], onSave }: Props) {
+export const ColdProEnvironmentForm = React.forwardRef<ColdProEnvironmentFormHandle, Props>(function ColdProEnvironmentForm({ environment, insulationMaterials, thermalMaterials = [], onSave }, ref) {
   const [form, setForm] = React.useState<any>(environment);
   const [floorInsulationMaterialId, setFloorInsulationMaterialId] = React.useState<string>(environment?.insulation_material_id ?? "");
   const [panelMaterialKey, setPanelMaterialKey] = React.useState<string>(environment?.insulation_material_id ? `legacy:${environment.insulation_material_id}` : "");
