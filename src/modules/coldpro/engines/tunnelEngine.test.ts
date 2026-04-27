@@ -150,7 +150,7 @@ const thermalBase = {
   nearlyEqual(belt.flowByRetentionKgH, 975, 0.001);
   nearlyEqual(belt.flowBySpeedKgH, 993.6, 0.001);
   nearlyEqual(result.usedMassKgH, 975, 0.001);
-  nearlyEqual(result.calculationBreakdown.loads?.internalLoads?.beltMotorDissipatedKW, 20, 0.001);
+  nearlyEqual(((result.calculationBreakdown.loads as any)?.internalLoads)?.beltMotorDissipatedKW, 20, 0.001);
   assert.equal(result.massBasis, "belt_surface_density");
   assert.equal(result.warnings.some((warning) => warning.includes("densityKgM3 fora da faixa") || warning.includes("densidade volumétrica")), false);
 }
