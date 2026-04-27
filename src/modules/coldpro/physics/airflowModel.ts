@@ -83,3 +83,50 @@ export function calculateRequiredAirflowM3H(params: { loadKW?: number | null; ai
   if (loadKW <= 0 || airDeltaTK <= 0 || airDensityKgM3 <= 0 || cpAirKJkgK <= 0) return 0;
   return (loadKW * 3600) / (airDensityKgM3 * cpAirKJkgK * airDeltaTK);
 }
+
+function clamp(value: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, value));
+}
+
+export function humidityRatioKgKgDryAir(tempC: number, relativeHumidity: number, atmosphericPressureKPa = 101.325) {
+  const rh = clamp(relativeHumidity > 1 ? relativeHumidity / 100 : relativeHumidity, 0, 1);
+  const saturationPressureKPa = 0.61094 * Math.exp((17.625 * tempC) / (tempC + 243.04));
+  const vaporPressureKPa = rh * saturationPressureKPa;
+  return 0.62198 * vaporPressureKPa / Math.max(0.001, atmosphericPressureKPa - vaporPressureKPa);
+}
+
+export function moistAirEnthalpyKJkgDryAir(tempC: number, humidityRatioKgKg: number) {
+  return 1.006 * tempC + humidityRatioKgKg * (2501 + 1.86 * tempC);
+}
+
+export function calculatePsychrometricInfiltrationKW(input: any) {
+  const externalTempC = safeNumber(input?.externalTempC ?? input?.external_temp_c, 0);
+  const internalTempC = safeNumber(input?.internalTempC ?? input?.internal_temp_c ?? input?.airTempC ?? input?.air_temp_c, 0);
+  const externalRH = safeNumber(input?.externalRelativeHumidityPercent ?? input?.external_relative_humidity_percent, NaN);
+  const internalRH = safeNumber(input?.internalRelativeHumidityPercent ?? input?.internal_relative_humidity_percent ?? input?.relative_humidity_percent, NaN);
+  const infiltrationAirflowM3H = positive(input?.infiltrationAirflowM3H ?? input?.infiltration_airflow_m3_h ?? input?.freshAirM3H ?? input?.fresh_air_m3_h ?? input?.doorInfiltrationM3H ?? input?.door_infiltration_m3_h);
+  const airDensityKgM3 = positive(input?.airDensityKgM3 ?? input?.air_density_kg_m3) || 1.2;
+  const atmosphericPressureKPa = positive(input?.atmosphericPressureKPa ?? input?.atmospheric_pressure_kpa) || 101.325;
+  const missingFields = [
+    infiltrationAirflowM3H <= 0 ? "vazão de infiltração" : "",
+    !Number.isFinite(externalRH) ? "umidade relativa externa" : "",
+    !Number.isFinite(internalRH) ? "umidade relativa interna" : "",
+  ].filter(Boolean);
+
+  if (missingFields.length > 0) {
+    return { totalKW: 0, sensibleKW: 0, latentKW: 0, infiltrationAirflowM3H, missingFields, warnings: ["Infiltração psicrométrica não calculada por falta de dados."], method: "psychrometric_enthalpy" };
+  }
+
+  const externalHumidityRatio = humidityRatioKgKgDryAir(externalTempC, externalRH, atmosphericPressureKPa);
+  const internalHumidityRatio = humidityRatioKgKgDryAir(internalTempC, internalRH, atmosphericPressureKPa);
+  const externalEnthalpyKJkg = moistAirEnthalpyKJkgDryAir(externalTempC, externalHumidityRatio);
+  const internalEnthalpyKJkg = moistAirEnthalpyKJkgDryAir(internalTempC, internalHumidityRatio);
+  const deltaEnthalpyKJkg = Math.max(externalEnthalpyKJkg - internalEnthalpyKJkg, 0);
+  const deltaHumidityRatio = Math.max(externalHumidityRatio - internalHumidityRatio, 0);
+  const dryAirMassKgS = infiltrationAirflowM3H * airDensityKgM3 / 3600;
+  const totalKW = dryAirMassKgS * deltaEnthalpyKJkg;
+  const sensibleKW = Math.max(dryAirMassKgS * 1.006 * (externalTempC - internalTempC), 0);
+  const latentKW = Math.max(dryAirMassKgS * deltaHumidityRatio * (2501 + 1.86 * internalTempC), Math.max(totalKW - sensibleKW, 0));
+
+  return { totalKW, sensibleKW, latentKW, infiltrationAirflowM3H, externalHumidityRatio, internalHumidityRatio, deltaHumidityRatio, externalEnthalpyKJkg, internalEnthalpyKJkg, deltaEnthalpyKJkg, missingFields, warnings: [], method: "psychrometric_enthalpy" };
+}
