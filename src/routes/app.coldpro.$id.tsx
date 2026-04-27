@@ -294,7 +294,7 @@ function ColdProProjectPage() {
   }
 
   return (
-    <div className="min-h-screen min-w-0 bg-muted/30">
+    <div className="min-h-screen min-w-0 bg-muted/30" style={{ zoom: 0.8 }}>
       {/* HEADER ESTILO SELECT COLD: faixa escura com identidade */}
       <div className="border-b border-sidebar-border bg-sidebar text-sidebar-foreground print:hidden">
         <div className="mx-auto flex max-w-[1400px] flex-col gap-2 px-3 py-3 sm:px-6 md:flex-row md:items-center md:justify-between">
