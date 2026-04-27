@@ -1,6 +1,6 @@
 import { normalizeThermalProperties } from "../core/unitNormalizer";
 import { safeNumber } from "../core/units";
-import type { TunnelEngineInput } from "../types/tunnelEngine.types";
+import type { TunnelEngineInput, TunnelSourceRecord } from "../types/tunnelEngine.types";
 
 const KCAL_TO_KJ = 4.1868;
 
@@ -8,7 +8,11 @@ function isStaticTunnel(processType: unknown, operationMode: unknown) {
   return processType === "static_cart_freezing" || processType === "static_pallet_freezing" || operationMode === "batch";
 }
 
-function calculateStaticMass(source: any, isStatic: boolean) {
+function optionalString(value: unknown): string | null {
+  return typeof value === "string" ? value : value == null ? null : String(value);
+}
+
+function calculateStaticMass(source: TunnelSourceRecord, isStatic: boolean) {
   const staticMassMode = source?.static_mass_mode ?? "direct_pallet_mass";
   const numberOfPallets = safeNumber(source?.number_of_pallets, 1) || 1;
   const numberOfCarts = safeNumber(source?.number_of_carts, 1) || 1;
@@ -31,14 +35,14 @@ function calculateStaticMass(source: any, isStatic: boolean) {
   return { staticMassMode, numberOfPallets, numberOfCarts, unitWeightKg, unitsPerBox, boxesPerLayer, numberOfLayers, totalUnitsPerPallet, unitsPerPallet, productMassPerPalletKg, packagingMassPerPalletKg, calculatedPalletMassKg, calculatedCartMassKg, calculatedBatchMassKg, palletMassKg, staticMassKg };
 }
 
-export function databaseToTunnelInput(tunnel: any, environment: any): TunnelEngineInput {
+export function databaseToTunnelInput(tunnel: TunnelSourceRecord, environment: TunnelSourceRecord | null | undefined): TunnelEngineInput {
   const thermal = normalizeThermalProperties(tunnel);
   const airTempSource = tunnel?.air_temp_source ?? "environment";
   const packagingSpecificHeatKJkgK = safeNumber(tunnel?.packaging_specific_heat_kj_kg_k);
   const approved = tunnel?.thermal_condition_approved === true;
-  const physicalModel = tunnel?.physical_model;
-  const processType = tunnel?.process_type;
-  const operationMode = tunnel?.operation_mode;
+  const physicalModel = optionalString(tunnel?.physical_model);
+  const processType = optionalString(tunnel?.process_type);
+  const operationMode = optionalString(tunnel?.operation_mode);
   const isStatic = isStaticTunnel(processType, operationMode);
   const mass = calculateStaticMass(tunnel, isStatic);
   const numberOfPallets = mass.numberOfPallets;
@@ -64,12 +68,12 @@ export function databaseToTunnelInput(tunnel: any, environment: any): TunnelEngi
     processType,
     operationMode,
     tunnelMode: tunnel?.tunnel_mode ?? (isStatic ? "static" : "continuous"),
-    tunnelType: tunnel?.tunnel_type,
-    arrangementType: tunnel?.arrangement_type,
-    productGeometry: tunnel?.product_geometry ?? "slab",
-    surfaceExposureModel: tunnel?.surface_exposure_model ?? "fully_exposed",
-    thermalModelForPallet: tunnel?.thermal_model_for_pallet ?? (tunnel?.tunnel_type === "static_pallet" && tunnel?.arrangement_type === "palletized_boxes" ? "hybrid" : null),
-    airflowSource: tunnel?.airflow_source ?? "manual_velocity",
+    tunnelType: optionalString(tunnel?.tunnel_type),
+    arrangementType: optionalString(tunnel?.arrangement_type),
+    productGeometry: optionalString(tunnel?.product_geometry) ?? "slab",
+    surfaceExposureModel: optionalString(tunnel?.surface_exposure_model) ?? "fully_exposed",
+    thermalModelForPallet: optionalString(tunnel?.thermal_model_for_pallet) ?? (tunnel?.tunnel_type === "static_pallet" && tunnel?.arrangement_type === "palletized_boxes" ? "hybrid" : null),
+    airflowSource: optionalString(tunnel?.airflow_source) ?? "manual_velocity",
     fanAirflowM3H: safeNumber(tunnel?.fan_airflow_m3_h),
     tunnelCrossSectionWidthM: safeNumber(tunnel?.tunnel_cross_section_width_m),
     tunnelCrossSectionHeightM: safeNumber(tunnel?.tunnel_cross_section_height_m),
