@@ -423,9 +423,9 @@ function thermalValueKcal(kcal: unknown, kj: unknown): number {
 
 function waterFreezeFraction(item: Pick<ColdProEnvironmentProduct | ColdProTunnel, "frozen_water_fraction" | "freezable_water_content_percent" | "water_content_percent">): number {
   const explicit = n(item.frozen_water_fraction, NaN);
-  if (Number.isFinite(explicit) && explicit > 0) return explicit > 1 ? explicit / 100 : explicit;
+  if (item.frozen_water_fraction !== null && item.frozen_water_fraction !== undefined && Number.isFinite(explicit) && explicit >= 0) return explicit > 1 ? explicit / 100 : explicit;
   const freezable = n(item.freezable_water_content_percent, NaN);
-  if (Number.isFinite(freezable) && freezable > 0) return freezable / 100;
+  if (item.freezable_water_content_percent !== null && item.freezable_water_content_percent !== undefined && Number.isFinite(freezable) && freezable >= 0) return freezable / 100;
   const water = n(item.water_content_percent, NaN);
   if (Number.isFinite(water) && water > 0) return Math.min(1, water / 100);
   return 1;

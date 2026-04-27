@@ -14,10 +14,10 @@ function optionalString(value: unknown): string | null {
 
 function resolveFrozenWaterFraction(source: TunnelSourceRecord): number {
   const directFraction = safeNumber(source?.frozen_water_fraction);
-  if (directFraction > 0) return directFraction;
+  if (source?.frozen_water_fraction !== null && source?.frozen_water_fraction !== undefined && directFraction >= 0) return directFraction;
 
   const freezablePercent = safeNumber(source?.freezable_water_content_percent);
-  if (freezablePercent > 0) return freezablePercent / 100;
+  if (source?.freezable_water_content_percent !== null && source?.freezable_water_content_percent !== undefined && freezablePercent >= 0) return freezablePercent / 100;
 
   const waterPercent = safeNumber(source?.water_content_percent);
   if (waterPercent > 0) return waterPercent / 100;
