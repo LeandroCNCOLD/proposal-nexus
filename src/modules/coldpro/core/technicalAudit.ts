@@ -53,8 +53,8 @@ export function auditColdProTechnicalConsistency(input: { environment?: any | nu
   const tunnelProductKcalH = n(tunnelData?.product_kcal_h ?? tunnelData?.productKcalH ?? tunnelData?.product_load_kw) * (n(tunnelData?.product_load_kw) > 0 ? 859.845 : 1);
   const processMass = Math.max(n(tunnelData?.used_mass_kg_h), n(tunnelData?.calculated_mass_kg_h), n(tunnelData?.static_mass_kg), n(tunnelData?.staticMassKg), ...products.map((p) => Math.max(n(p.mass_kg_day), n(p.mass_kg_hour), n(p.freezing_batch_mass_kg))));
   const processTime = Math.max(n(tunnelData?.batch_time_h), n(tunnelData?.process_time_min), n(tunnelData?.availableTimeMin), ...products.map((p) => Math.max(n(p.process_time_h), n(p.freezing_batch_time_h))));
-  const inletProvided = provided(tunnelData?.inlet_temp_c ?? tunnelData?.initialTempC ?? products[0]?.inlet_temp_c);
-  const outletProvided = provided(tunnelData?.outlet_temp_c ?? tunnelData?.finalTempC ?? products[0]?.outlet_temp_c);
+  const inletProvided = provided(tunnelData?.inlet_temp_c ?? tunnelData?.initial_temp_c ?? tunnelData?.initialTempC ?? products[0]?.inlet_temp_c);
+  const outletProvided = provided(tunnelData?.outlet_temp_c ?? tunnelData?.final_temp_c ?? tunnelData?.finalTempC ?? products[0]?.outlet_temp_c);
   const thermalValid = n(tunnelData?.q_specific_kj_kg ?? tunnelData?.energy?.totalKJkg) > 0 || n(tunnelData?.specific_heat_above_kj_kg_k ?? tunnelData?.cpAboveKJkgK ?? products[0]?.specific_heat_above_kj_kg_k) > 0;
   const totalKcalH = n(result?.total_required_kcal_h ?? tunnelData?.total_kcal_h ?? tunnelData?.totalKcalH);
   const subtotalKcalH = n(result?.subtotal_kcal_h);
