@@ -145,7 +145,7 @@ export interface TunnelEngineResult {
   usedMassKgH: number;
   continuousMassMode?: string;
   staticMassKg: number;
-  staticMassMode?: string;
+  staticMassMode?: unknown;
   palletMassKg?: number;
   calculatedPalletMassKg?: number;
   calculatedCartMassKg?: number;
