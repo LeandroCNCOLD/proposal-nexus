@@ -17,7 +17,6 @@ import {
   kwToKcalh,
   round2,
 } from "./coldpro.constants";
-import { calculateAdvancedProcess } from "./advancedProcesses/advancedProcessEngine";
 import { calculateEvaporatorFrostRisk, suggestedInfiltrationFactor } from "./extra-loads-preview";
 import { calculateEvaporatorFanLoad, calculateMotorLoadKcalH, calculatePsychrometricInfiltrationLoad, calculateTechnicalDefrost, calculateTechnicalInfiltration } from "./thermal-calculations";
 import { databaseToTunnelInput } from "@/modules/coldpro/adapters/databaseToTunnelInput";
@@ -935,8 +934,8 @@ export function calculateColdProLoad(params: {
   const tunnelInternalLoad = tunnelResult?.total_kcal_h ?? 0;
   const dehumidification = calculateSeedDehumidificationLoad(params.env);
   const dehumidificationLoad = dehumidification.total_kcal_h;
-  const advancedProcesses = (params.advancedProcesses ?? []).map(calculateAdvancedProcess);
-  const advancedProcessLoad = advancedProcesses.reduce((sum, item) => sum + n(item.total_additional_kcal_h), 0);
+  const advancedProcesses: any[] = [];
+  const advancedProcessLoad = 0;
   const infiltrationBreakdown = calculateTechnicalInfiltration(params.env);
   const requestedInfiltrationMethod = String((params.env as any).infiltration_calculation_method ?? (params.env as any).infiltrationCalculationMethod ?? "simple_air_change");
   const psychrometricInfiltration = requestedInfiltrationMethod === "psychrometric_enthalpy" ? calculatePsychrometricInfiltrationLoad(params.env, infiltrationBreakdown) : null;
@@ -1055,7 +1054,7 @@ export function calculateColdProLoad(params: {
       },
     },
   };
-  const technicalAudit = auditColdProTechnicalConsistency({ environment: params.env, result: calculatedResult, tunnel: tunnelResult ?? params.tunnel, products: params.products, advancedProcesses: params.advancedProcesses ?? [], selection: params.selection });
+  const technicalAudit = auditColdProTechnicalConsistency({ environment: params.env, result: calculatedResult, tunnel: tunnelResult ?? params.tunnel, products: params.products, advancedProcesses, selection: params.selection });
   const validationAlerts = [
     ...baseValidationAlerts,
     ...technicalAudit.blockers.map((item) => ({ level: "error" as const, code: item.code, message: item.message })),
