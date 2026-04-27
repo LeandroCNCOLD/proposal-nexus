@@ -12,7 +12,6 @@ export function LoadBreakdownBarChart({ normalized }: { normalized: ColdProNorma
     ["Embalagem", l.packagingKcalH],
     ["Respiração", l.respirationKcalH],
     ["Desumidificação", l.dehumidificationKcalH],
-    ["Processos especiais", l.specialProcessesKcalH],
     ["Infiltração", l.infiltrationKcalH],
     ["Pessoas", l.peopleKcalH],
     ["Iluminação", l.lightingKcalH],
