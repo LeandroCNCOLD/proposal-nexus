@@ -499,7 +499,13 @@ function calculateTunnelCore(input: TunnelEngineInput) {
     invalidFields,
   };
 
+  const calculationMethod = buildCalculationMethodReport(
+    infiltrationMethod.used,
+    tunnelMode.operationRegime === "batch" ? "kg/batelada" : "kg/h contínuo",
+  );
+
   const calculationBreakdown = {
+    calculationMethod,
     model: {
       tunnelType: tunnelMode.tunnelType,
       arrangementType: tunnelMode.arrangementType,
@@ -520,7 +526,8 @@ function calculateTunnelCore(input: TunnelEngineInput) {
     heatTransfer: { hBaseWM2K: h.hBaseWM2K, exposureFactor: exposure.exposureFactor, airExposureFactor: input?.airExposureFactor ?? null, hEffectiveWM2K: h.hEffectiveWM2K, hSource: h.source },
     air: { airTempC: input?.airTempC ?? null, airDeltaTK, airDensityKgM3, airFlowM3H, informedAirFlowM3H, airFlowMethod, suggestedAirTempC, suggestedAirMethod, suggestedAirApproachK, comparison: suggestedAirTempComparisonC },
     scenarios: { adjustedScenario: scenario },
-    loads: { productLoadKW, packagingLoadKW, internalLoadKW, totalKW, totalKcalH, totalTR, packagingMassKgH, packagingMassKgBatch, productLoadMissingFields: productLoadMissing, loadCalculationReady: productLoadMissing.length === 0, massUsedForProductLoad: tunnelMode.operationRegime === "batch" ? staticMassKg : usedMassKgH, massUnitForProductLoad: tunnelMode.operationRegime === "batch" ? "kg/batelada" : "kg/h", airFlowThermalBalanceM3H },
+    loads: { productLoadKW, packagingLoadKW, internalLoadKW, totalKW, totalKcalH, totalTR, packagingMassKgH, packagingMassKgBatch, packagingMassSource: tunnelMode.operationRegime === "batch" && packagingMassKgBatch > 0 ? "kg/batelada" : "kg/h", productLoadMissingFields: productLoadMissing, loadCalculationReady: productLoadMissing.length === 0, massUsedForProductLoad: tunnelMode.operationRegime === "batch" ? staticMassKg : usedMassKgH, massUnitForProductLoad: tunnelMode.operationRegime === "batch" ? "kg/batelada" : "kg/h", airFlowThermalBalanceM3H },
+    infiltration: { requestedMethod: infiltrationMethod.requested, usedMethod: infiltrationMethod.used, fallbackApplied: Boolean(infiltrationMethod.warning) },
     timing: { estimatedTimeMin, availableTimeMin, status },
     validation: { warnings, missingFields, invalidFields },
   };
@@ -532,7 +539,7 @@ function calculateTunnelCore(input: TunnelEngineInput) {
     kEffectiveWMK: "frozenConductivityWMK × thermalPenetrationFactor",
     continuousProductLoadKW: "massKgH × specificEnergyKJkg / 3600",
     batchProductLoadKW: "massKg × specificEnergyKJkg / (timeH × 3600)",
-    packagingLoadKW: "packagingMassKgH × packagingCpKJkgK × abs(initialTempC - finalTempC) / 3600",
+    packagingLoadKW: tunnelMode.operationRegime === "batch" ? "packagingMassKgBatch × packagingCpKJkgK × abs(initialTempC - finalTempC) / (batchTimeH × 3600)" : "packagingMassKgH × packagingCpKJkgK × abs(initialTempC - finalTempC) / 3600",
     internalLoadKW: "beltMotorKW + internalFansKW + otherInternalKW",
     totalKW: "productLoadKW + packagingLoadKW + internalLoadKW",
     airFlowM3H: "totalKW × 3600 / (airDensityKgM3 × 1.005 × airDeltaTK)",
@@ -602,6 +609,7 @@ function calculateTunnelCore(input: TunnelEngineInput) {
     missingFields,
     invalidFields,
     scenario,
+    calculationMethod,
     calculationBreakdown,
     calculationLog,
   };
