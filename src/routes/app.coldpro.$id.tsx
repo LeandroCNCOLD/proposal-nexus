@@ -446,10 +446,10 @@ function ColdProProjectPage() {
                   <ColdProSectionLoadSummary
                     title="Prévia da carga de produto"
                     rows={[
-                      { label: "Produto", value: result?.product_kcal_h },
-                      { label: "Embalagem", value: result?.packaging_kcal_h },
+                      { label: "Produto", value: Number(result?.product_kcal_h ?? 0) || (tunnelPreview ? tunnelPreview.productLoadKW * 859.845 : 0) },
+                      { label: "Embalagem", value: Number(result?.packaging_kcal_h ?? 0) || (tunnelPreview ? tunnelPreview.packagingLoadKW * 859.845 : 0) },
                       { label: "Respiração", value: result?.calculation_breakdown?.respiration_kcal_h },
-                      { label: "Túnel / processo", value: result?.tunnel_internal_load_kcal_h },
+                      { label: "Túnel / processo", value: Number(result?.tunnel_internal_load_kcal_h ?? 0) || (tunnelPreview ? tunnelPreview.internalLoadKW * 859.845 : 0) },
                     ]}
                     totalLabel="Total calculado da aba Produtos"
                     total={productLoad}
