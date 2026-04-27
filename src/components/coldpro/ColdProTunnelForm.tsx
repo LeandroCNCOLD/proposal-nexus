@@ -1153,6 +1153,8 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
       <ColdProField label="Cp embalagem" helpKey="packagingCp"><ColdProInput {...num("packaging_specific_heat_kcal_kg_c")} /></ColdProField>
     </div><div>
       <ColdProField label="Motor esteira" helpKey="beltMotorPower" unit="kW"><ColdProInput {...num("belt_motor_kw")} /></ColdProField>
+      <ColdProField label="Motor dentro do ambiente"><ColdProSelect value={form.belt_motor_inside_environment === false ? "outside" : "inside"} onChange={(e) => { const inside = e.target.value === "inside"; set("belt_motor_inside_environment", inside); set("belt_motor_dissipation_factor", inside ? 1 : form.belt_motor_dissipation_factor ?? 0); }}><option value="inside">Interno · 100% dissipado</option><option value="outside">Externo · fator manual</option></ColdProSelect></ColdProField>
+      {form.belt_motor_inside_environment === false ? <ColdProField label="Fator dissipação motor" unit="0–1"><ColdProInput {...num("belt_motor_dissipation_factor")} /></ColdProField> : null}
       <ColdProField label="Ventiladores internos" helpKey="internalFansPower" unit="kW"><ColdProInput {...num("internal_fans_kw")} /></ColdProField>
       <ColdProField label="Outras cargas" helpKey="otherInternalLoads" unit="kW"><ColdProInput {...num("other_internal_kw")} /></ColdProField>
     </div></div>
