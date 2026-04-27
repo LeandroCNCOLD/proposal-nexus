@@ -409,6 +409,7 @@ function calculateTunnelCore(input: TunnelEngineInput) {
     ? calculateBatchProductLoadKW({ massKg: staticMassKg, specificEnergyKJkg: energy.totalKJkg, timeH: input?.batchTimeH })
     : calculateContinuousProductLoadKW({ massKgH: usedMassKgH, specificEnergyKJkg: energy.totalKJkg });
   const productLoadMissing = productLoadMissingFields(input, tunnelMode.operationRegime === "batch", staticMassKg, usedMassKgH, energy);
+  const thermalReliabilityAlerts = buildThermalReliabilityAlerts(input, energy, productLoadKW, tunnelMode.operationRegime === "batch" ? staticMassKg : usedMassKgH, tunnelMode.operationRegime === "batch" ? positiveNumber(input?.batchTimeH) : 0);
 
   const productEnergyBreakdown = {
     sensibleAboveKJkg: energy.sensibleAboveKJkg,
