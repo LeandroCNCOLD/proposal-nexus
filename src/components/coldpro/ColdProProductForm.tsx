@@ -256,9 +256,9 @@ export function ColdProProductForm({ environmentId, product, productCatalog = []
                 <ColdProField label="Água" unit="%"><ColdProInput {...lockedNum("water_content_percent")} /></ColdProField>
                 <ColdProField label="Proteína" unit="%"><ColdProInput {...lockedNum("protein_content_percent")} /></ColdProField>
               </div><div>
-                <ColdProField label="Cp acima"><ColdProInput {...lockedNum("specific_heat_above_kcal_kg_c")} /></ColdProField>
-                <ColdProField label="Cp abaixo"><ColdProInput {...lockedNum("specific_heat_below_kcal_kg_c")} /></ColdProField>
-                <ColdProField label="Calor latente"><ColdProInput {...lockedNum("latent_heat_kcal_kg")} /></ColdProField>
+                <ColdProField label="Cp acima" unit="kcal/kg·°C"><ColdProInput {...lockedNum("specific_heat_above_kcal_kg_c")} value={catalogLocked ? thermalForKcalEngine.cpAboveKcalKgC : (form.specific_heat_above_kcal_kg_c ?? "")} /></ColdProField>
+                <ColdProField label="Cp abaixo" unit="kcal/kg·°C"><ColdProInput {...lockedNum("specific_heat_below_kcal_kg_c")} value={catalogLocked ? thermalForKcalEngine.cpBelowKcalKgC : (form.specific_heat_below_kcal_kg_c ?? "")} /></ColdProField>
+                <ColdProField label="Calor latente" unit="kcal/kg"><ColdProInput {...lockedNum("latent_heat_kcal_kg")} value={catalogLocked ? thermalForKcalEngine.latentHeatKcalKg : (form.latent_heat_kcal_kg ?? "")} /></ColdProField>
                 <ColdProField label="Calor latente" unit="kJ/kg"><ColdProInput {...lockedNum("latent_heat_kj_kg")} /></ColdProField>
                 <ColdProField label="Condutividade congelado"><ColdProInput {...lockedNum("thermal_conductivity_frozen_w_m_k")} /></ColdProField>
                 <ColdProField label="Fração água congelável"><ColdProInput {...lockedNum("frozen_water_fraction")} /></ColdProField>
