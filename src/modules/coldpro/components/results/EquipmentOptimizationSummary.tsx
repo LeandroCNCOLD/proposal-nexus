@@ -45,30 +45,34 @@ export function EquipmentOptimizationSummary({ result, selection }: Props) {
         <div className="text-sm text-muted-foreground">Melhor equipamento: <b className="text-foreground">{equipmentName(bestEquipment)}</b></div>
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[640px] border-collapse text-xs">
-          <thead className="text-xs uppercase tracking-wide text-muted-foreground">
-            <tr className="border-b">
-              <th scope="col" className="px-2 py-1.5 text-left font-medium">#</th>
-              <th scope="col" className="px-2 py-1.5 text-left font-medium">Equipamento</th>
-              <th scope="col" className="px-2 py-1.5 text-right font-medium">Margem</th>
-              <th scope="col" className="px-2 py-1.5 text-right font-medium">Custo mensal</th>
-              <th scope="col" className="px-2 py-1.5 text-right font-medium">Score</th>
-              <th scope="col" className="px-2 py-1.5 text-right font-medium">Potência</th>
+        <table className="coldpro-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Equipamento</th>
+              <th>Margem</th>
+              <th>Custo mensal</th>
+              <th>Score</th>
+              <th>Potência</th>
             </tr>
           </thead>
           <tbody>
             {ranking.length ? ranking.map((item: any, index: number) => (
-              <tr key={`${equipmentName(item)}-${index}`} className="border-b last:border-0">
-                <td className="px-2 py-1.5 text-left tabular-nums">{index + 1}</td>
-                <td className="px-2 py-1.5 text-left font-medium text-foreground">{equipmentName(item)}</td>
-                <td className="px-2 py-1.5 text-right tabular-nums">{toFinite(item?.capacityMarginPercent ?? item?.capacity_margin_percent ?? item?.surplus_percent) === null ? "—" : `${formatNumber(item?.capacityMarginPercent ?? item?.capacity_margin_percent ?? item?.surplus_percent, 2)}%`}</td>
-                <td className="px-2 py-1.5 text-right tabular-nums">{formatCurrency(item?.estimatedMonthlyCost ?? item?.estimated_monthly_cost ?? item?.monthlyCost ?? item?.monthly_cost)}</td>
-                <td className="px-2 py-1.5 text-right tabular-nums">{formatNumber(item?.scores?.final ?? item?.finalScore ?? item?.final_score ?? item?.score ?? item?.curve_metadata?.score, 2)}</td>
-                <td className="px-2 py-1.5 text-right tabular-nums">{formatKw(item?.estimatedElectricalPowerKW ?? item?.estimated_electrical_power_kw ?? item?.total_power_kw)}</td>
+              <tr key={index}>
+                <td>{index + 1}</td>
+                <td>{equipmentName(item)}</td>
+                <td>
+                  {item?.capacityMarginPercent != null
+                    ? `${formatNumber(item.capacityMarginPercent, 2)}%`
+                    : "—"}
+                </td>
+                <td>{formatCurrency(item?.estimatedMonthlyCost)}</td>
+                <td>{formatNumber(item?.scores?.final, 2)}</td>
+                <td>{formatKw(item?.estimatedElectricalPowerKW)}</td>
               </tr>
             )) : (
               <tr>
-                <td colSpan={6} className="px-2 py-3 text-center text-muted-foreground">—</td>
+                <td colSpan={6}>—</td>
               </tr>
             )}
           </tbody>
