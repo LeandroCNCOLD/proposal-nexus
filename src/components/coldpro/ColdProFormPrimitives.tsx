@@ -77,5 +77,7 @@ export function numberOrNull(value: unknown) {
 }
 
 export function fmtColdPro(value: unknown, digits = 2) {
-  return new Intl.NumberFormat("pt-BR", { maximumFractionDigits: digits }).format(Number(value ?? 0));
+  if (typeof value === "string" && value.trim() && !Number.isFinite(Number(value))) return value;
+  const parsed = Number(value ?? 0);
+  return new Intl.NumberFormat("pt-BR", { maximumFractionDigits: digits }).format(Number.isFinite(parsed) ? parsed : 0);
 }
