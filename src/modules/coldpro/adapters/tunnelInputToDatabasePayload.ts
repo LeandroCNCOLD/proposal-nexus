@@ -55,6 +55,9 @@ export function validateTunnelCalculationConsistency(tunnelResult: TunnelEngineR
   const issues: string[] = [];
   const product = Number(tunnelResult?.productLoadKW ?? 0);
   const packaging = Number(tunnelResult?.packagingLoadKW ?? 0);
+  const breakdownLoads = (tunnelResult?.calculationBreakdown?.loads ?? {}) as Record<string, unknown>;
+  const transmission = Number(tunnelResult?.transmissionLoadKW ?? breakdownLoads.transmissionLoadKW ?? 0);
+  const infiltration = Number(tunnelResult?.infiltrationLoadKW ?? breakdownLoads.infiltrationLoadKW ?? 0);
   const internal = Number(tunnelResult?.internalLoadKW ?? 0);
   const total = Number(tunnelResult?.totalKW ?? 0);
   const totalKcalH = Number(tunnelResult?.totalKcalH ?? 0);
@@ -62,7 +65,7 @@ export function validateTunnelCalculationConsistency(tunnelResult: TunnelEngineR
   const available = Number(tunnelResult?.availableTimeMin ?? 0);
   const missingFields = Array.isArray(tunnelResult?.missingFields) ? tunnelResult.missingFields : [];
 
-  if (Math.abs(product + packaging + internal - total) > 0.01) issues.push("product + packaging + internal não fecha com totalKW.");
+  if (Math.abs(product + packaging + transmission + infiltration + internal - total) > 0.01) issues.push("product + packaging + transmission + infiltration + internal não fecha com totalKW.");
   if (Math.abs(total * 859.845 - totalKcalH) > 1) issues.push("totalKW convertido não bate com totalKcalH.");
   if (missingFields.length > 0 && tunnelResult?.status === "adequate") issues.push("status adequado com campos faltantes.");
   if (estimated !== null && estimated !== undefined && available > 0) {
@@ -76,6 +79,17 @@ export function validateTunnelCalculationConsistency(tunnelResult: TunnelEngineR
 
 export function tunnelResultToDatabasePayload(form: TunnelSourceRecord, tunnelResult: TunnelEngineResult): TunnelDatabasePayload {
   const calculatedAt = tunnelResult?.calculatedAt ?? new Date().toISOString();
+  const breakdownLoads = (tunnelResult?.calculationBreakdown?.loads ?? {}) as Record<string, unknown>;
+  const persistedLoads = {
+    productLoadKW: round(tunnelResult?.productLoadKW),
+    packagingLoadKW: round(tunnelResult?.packagingLoadKW),
+    transmissionLoadKW: round(tunnelResult?.transmissionLoadKW ?? breakdownLoads.transmissionLoadKW),
+    infiltrationLoadKW: round(tunnelResult?.infiltrationLoadKW ?? breakdownLoads.infiltrationLoadKW),
+    internalLoadKW: round(tunnelResult?.internalLoadKW),
+    totalKW: round(tunnelResult?.totalKW),
+    totalKcalH: round(tunnelResult?.totalKcalH, 2),
+    totalTR: round(tunnelResult?.totalTR, 4),
+  };
   const payload = {
     ...pickKnownFields(form),
     calculated_mass_kg_h: round(tunnelResult?.calculatedMassKgH),
@@ -112,7 +126,7 @@ export function tunnelResultToDatabasePayload(form: TunnelSourceRecord, tunnelRe
     process_status: tunnelResult?.status ?? null,
     calculation_warnings: tunnelResult?.warnings ?? [],
     missing_fields: tunnelResult?.missingFields ?? [],
-    calculation_breakdown: tunnelResult?.calculationBreakdown ?? {},
+    calculation_breakdown: { ...(tunnelResult?.calculationBreakdown ?? {}), persistedLoads },
     calculation_log: tunnelResult?.calculationLog ?? {},
     engine_version: tunnelResult?.engineVersion ?? COLDPRO_TUNNEL_ENGINE_VERSION,
     calculated_at: calculatedAt,

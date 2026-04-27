@@ -23,6 +23,36 @@ function sumAdvanced(list: any[], picker: (item: any) => unknown): number {
   return list.reduce((sum, item) => sum + num(picker(item)), 0);
 }
 
+function kwToKcalH(value: unknown): number {
+  return num(value) * KCAL_PER_KW;
+}
+
+function tunnelLoadBreakdown(result: any, tunnel: any) {
+  const loads = tunnel?.calculation_breakdown?.loads ?? tunnel?.calculationBreakdown?.loads ?? tunnel?.calculation_breakdown?.persistedLoads ?? tunnel?.calculationBreakdown?.persistedLoads ?? {};
+  const productKW = num(result.tunnel_product_load_kw ?? tunnel.tunnel_product_load_kw ?? tunnel.product_load_kw ?? tunnel.productLoadKW ?? loads.productLoadKW);
+  const packagingKW = num(result.tunnel_packaging_load_kw ?? tunnel.tunnel_packaging_load_kw ?? tunnel.packaging_load_kw ?? tunnel.packagingLoadKW ?? loads.packagingLoadKW);
+  const transmissionKW = num(result.tunnel_transmission_load_kw ?? tunnel.tunnel_transmission_load_kw ?? tunnel.transmission_load_kw ?? tunnel.transmissionLoadKW ?? loads.transmissionLoadKW);
+  const infiltrationKW = num(result.tunnel_infiltration_load_kw ?? tunnel.tunnel_infiltration_load_kw ?? tunnel.infiltration_load_kw ?? tunnel.infiltrationLoadKW ?? loads.infiltrationLoadKW);
+  const internalKW = num(result.tunnel_internal_load_kw ?? tunnel.tunnel_internal_load_kw ?? tunnel.internal_load_kw ?? tunnel.internalLoadKW ?? loads.internalLoadKW);
+  const totalKW = num(result.tunnel_total_load_kw ?? tunnel.tunnel_total_load_kw ?? tunnel.total_kw ?? tunnel.totalKW ?? loads.totalKW) || productKW + packagingKW + transmissionKW + infiltrationKW + internalKW;
+
+  return {
+    productKW,
+    packagingKW,
+    transmissionKW,
+    infiltrationKW,
+    internalKW,
+    totalKW,
+    productKcalH: kwToKcalH(productKW),
+    packagingKcalH: kwToKcalH(packagingKW),
+    transmissionKcalH: kwToKcalH(transmissionKW),
+    infiltrationKcalH: kwToKcalH(infiltrationKW),
+    internalKcalH: kwToKcalH(internalKW),
+    totalKcalH: num(result.tunnel_total_load_kcal_h ?? tunnel.tunnel_total_load_kcal_h ?? tunnel.total_kcal_h ?? tunnel.totalKcalH ?? loads.totalKcalH) || kwToKcalH(totalKW),
+    totalTR: num(result.tunnel_total_load_tr ?? tunnel.tunnel_total_load_tr ?? tunnel.total_tr ?? tunnel.totalTR ?? loads.totalTR) || (totalKW * KCAL_PER_KW) / KCAL_PER_TR,
+  };
+}
+
 export function buildCalculationMethodSummary(result: any) {
   const breakdown = result?.calculation_breakdown ?? result?.calculationBreakdown ?? {};
   const method = breakdown.calculationMethod ?? {};
@@ -48,6 +78,7 @@ export function normalizeColdProResult(rawResult: any, selection?: any | null, e
   const breakdown = result.calculation_breakdown ?? {};
   const audit = breakdown.thermalCalculationResult ?? breakdown.mathematical_audit ?? {};
   const tunnel = breakdown.tunnel ?? {};
+  const tunnelLoads = tunnelLoadBreakdown(result, tunnel);
   const attempt = selectedTunnelAttempt(tunnel);
   const seed = breakdown.seed_dehumidification ?? {};
   const frost = breakdown.evaporator_frost ?? breakdown.infiltration_technical ?? {};
@@ -55,7 +86,7 @@ export function normalizeColdProResult(rawResult: any, selection?: any | null, e
   const calculationMethodSummary = buildCalculationMethodSummary(result);
 
   const directProductKcalH = num(result.product_kcal_h);
-  const tunnelProcessKcalH = num(result.tunnel_internal_load_kcal_h || tunnel.total_kcal_h || tunnel.total_kw * KCAL_PER_KW);
+  const tunnelProcessKcalH = tunnelLoads.totalKcalH || num(result.tunnel_internal_load_kcal_h || tunnel.total_kcal_h || tunnel.total_kw * KCAL_PER_KW);
   const packagingKcalH = num(result.packaging_kcal_h);
   const respirationKcalH = num(breakdown.respiration_kcal_h) + sumAdvanced(advanced, (item) => item.controlled_atmosphere?.respiration_load_kcal_h);
   const dehumidificationKcalH = num(seed.total_kcal_h);
@@ -116,17 +147,38 @@ export function normalizeColdProResult(rawResult: any, selection?: any | null, e
       technicalSurplusPercent: round(surplusPercent, 2),
     },
     loadDistribution,
+    tunnelLoadBreakdown: {
+      productKcalH: round(tunnelLoads.productKcalH, 2),
+      packagingKcalH: round(tunnelLoads.packagingKcalH, 2),
+      transmissionKcalH: round(tunnelLoads.transmissionKcalH, 2),
+      infiltrationKcalH: round(tunnelLoads.infiltrationKcalH, 2),
+      internalKcalH: round(tunnelLoads.internalKcalH, 2),
+      totalKcalH: round(tunnelLoads.totalKcalH, 2),
+      productKW: round(tunnelLoads.productKW, 2),
+      packagingKW: round(tunnelLoads.packagingKW, 2),
+      transmissionKW: round(tunnelLoads.transmissionKW, 2),
+      infiltrationKW: round(tunnelLoads.infiltrationKW, 2),
+      internalKW: round(tunnelLoads.internalKW, 2),
+      totalKW: round(tunnelLoads.totalKW, 2),
+      totalTR: round(tunnelLoads.totalTR, 2),
+    },
     groupedLoads: {
       transmissionKcalH: loadDistribution.environmentKcalH,
-      productsAndProcessKcalH: directProductKcalH + tunnelProcessKcalH + packagingKcalH + respirationKcalH + specialProcessesKcalH,
+      productsAndProcessKcalH: directProductKcalH + tunnelProcessKcalH + (tunnelProcessKcalH > 0 ? 0 : packagingKcalH) + respirationKcalH + specialProcessesKcalH,
       airAndMoistureKcalH: loadDistribution.infiltrationKcalH + dehumidificationKcalH,
       internalLoadsKcalH: loadDistribution.peopleKcalH + loadDistribution.lightingKcalH + loadDistribution.motorsKcalH + loadDistribution.fansKcalH,
       defrostAndIceKcalH: defrostKcalH + iceImpactKcalH,
       safetyKcalH,
       otherKcalH: loadDistribution.otherKcalH,
+      tunnelTotalKcalH: round(tunnelLoads.totalKcalH, 2),
     },
     tunnelValidation: {
       tunnelProcessKcalH: round(tunnelProcessKcalH, 2),
+      productLoadKW: round(tunnelLoads.productKW, 2),
+      transmissionLoadKW: round(tunnelLoads.transmissionKW, 2),
+      infiltrationLoadKW: round(tunnelLoads.infiltrationKW, 2),
+      internalLoadKW: round(tunnelLoads.internalKW, 2),
+      totalLoadKW: round(tunnelLoads.totalKW, 2),
       energySpecificKJkg: round(num(tunnel.q_specific_kj_kg), 2),
       powerKW: round(num(tunnel.total_kw) || tunnelProcessKcalH / KCAL_PER_KW, 2),
       availableTimeMin: round(num(tunnel.process_time_min || products[0]?.process_time_h * 60), 2),
