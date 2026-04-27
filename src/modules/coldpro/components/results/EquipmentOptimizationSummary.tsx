@@ -19,10 +19,6 @@ function formatCurrency(value: unknown) {
   return parsed === null ? "—" : new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(parsed);
 }
 
-function formatKwh(value: unknown) {
-  return toFinite(value) === null ? "—" : `${formatNumber(value, 0)} kWh`;
-}
-
 function formatKw(value: unknown) {
   return toFinite(value) === null ? "—" : `${formatNumber(value, 2)} kW`;
 }
@@ -43,7 +39,7 @@ export function EquipmentOptimizationSummary({ result, selection }: Props) {
   ].filter(Boolean).map(String)));
 
   return (
-    <section className="rounded-xl border bg-background p-4">
+    <div className="rounded-xl border bg-background p-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <h3 className="text-base font-semibold">Otimização de equipamento</h3>
         <div className="text-sm text-muted-foreground">Melhor equipamento: <b className="text-foreground">{equipmentName(bestEquipment)}</b></div>
@@ -76,8 +72,13 @@ export function EquipmentOptimizationSummary({ result, selection }: Props) {
           </tbody>
         </table>
       </div>
-      <div className="sr-only">{formatKwh(null)}</div>
-      {warnings.length ? <div className="mt-3 space-y-2 text-sm text-muted-foreground">{warnings.map((warning) => <div key={warning} className="rounded-md border bg-muted/20 p-2">{warning}</div>)}</div> : null}
-    </section>
+      {warnings.length ? (
+        <div className="mt-3 space-y-2 text-sm text-muted-foreground">
+          {warnings.map((warning, i) => (
+            <div key={i} className="rounded-md border bg-muted/20 p-2">{warning}</div>
+          ))}
+        </div>
+      ) : null}
+    </div>
   );
 }

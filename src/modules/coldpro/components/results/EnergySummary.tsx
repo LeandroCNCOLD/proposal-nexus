@@ -49,7 +49,7 @@ export function EnergySummary({ result }: Props) {
   const warnings: string[] = Array.isArray(energy?.warnings) ? energy.warnings.filter(Boolean).map(String) : [];
 
   return (
-    <section className="rounded-xl border bg-background p-4">
+    <div className="rounded-xl border bg-background p-4">
       <h3 className="mb-3 text-base font-semibold">Energia</h3>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Metric label="COP" value={formatNumber(firstFinite(result?.cop, result?.COP, result?.copData?.cop, result?.cop_data?.cop, energy?.cop, energy?.assumptions?.cop), 2)} />
@@ -63,9 +63,11 @@ export function EnergySummary({ result }: Props) {
       </div>
       {warnings.length ? (
         <div className="mt-3 space-y-2 text-sm text-muted-foreground">
-          {warnings.map((warning) => <div key={warning} className="rounded-md border bg-muted/20 p-2">{warning}</div>)}
+          {warnings.map((warning, i) => (
+            <div key={i} className="rounded-md border bg-muted/20 p-2">{warning}</div>
+          ))}
         </div>
       ) : null}
-    </section>
+    </div>
   );
 }

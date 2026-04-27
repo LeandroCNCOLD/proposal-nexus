@@ -76,7 +76,7 @@ function ThermalLoadSummary({ result }: { result: any }) {
   ];
 
   return (
-    <section className="rounded-xl border bg-background p-4">
+    <div className="rounded-xl border bg-background p-4">
       <h3 className="mb-3 text-base font-semibold">Carga térmica</h3>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {rows.map((row, index) => (
@@ -86,7 +86,7 @@ function ThermalLoadSummary({ result }: { result: any }) {
           </div>
         ))}
       </div>
-    </section>
+    </div>
   );
 }
 
