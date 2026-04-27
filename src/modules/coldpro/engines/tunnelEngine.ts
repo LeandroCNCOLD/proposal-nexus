@@ -705,6 +705,8 @@ function buildApprovedScenario(input: TunnelEngineInput): TunnelThermalScenario 
     hSource: "approved",
     productLoadKW: positiveNumber(input?.productLoadKW),
     packagingLoadKW: positiveNumber(input?.packagingLoadKW),
+    transmissionLoadKW: positiveNumber(input?.transmissionLoadKW ?? input?.transmission_load_kw),
+    infiltrationLoadKW: positiveNumber(input?.infiltrationLoadKW ?? input?.infiltration_load_kw),
     internalLoadKW: positiveNumber(input?.internalLoadKW),
     totalKW: positiveNumber(input?.approvedTotalKW ?? input?.approved_total_kw),
     totalKcalH: positiveNumber(input?.approvedTotalKcalH ?? input?.approved_total_kcal_h),
