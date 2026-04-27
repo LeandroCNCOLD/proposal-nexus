@@ -1140,7 +1140,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
   );
 
   const productGeometryFields = (
-    <div className="grid grid-cols-1 gap-x-8 xl:grid-cols-2">
+    <div className="grid grid-cols-1 gap-x-8 gap-y-2 md:grid-cols-2 xl:grid-cols-4">
       <ColdProField label="Tipo de arranjo" helpKey="arrangementType">
         <ColdProSelect value={textValue(form.arrangement_type)} onChange={(e) => setArrangementType(e.target.value)}>
           {arrangementOptions.map((key) => <option key={key} value={key}>{ARRANGEMENT_DEFAULTS[key]?.label ?? key}</option>)}
@@ -1193,7 +1193,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
           </ColdProFormSection>
 
           <ColdProFormSection title="Etapa 2 — Produto e geometria" description="Separe a dimensão da unidade/caixa da dimensão do pallet, carrinho ou bloco." icon={<Package className="h-4 w-4" />}>
-            <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(18rem,0.85fr)_minmax(0,1.45fr)]"><div className="min-w-0 rounded-lg border bg-muted/20 p-3 sm:p-4">
+            <div className="space-y-4"><div className="min-w-0 rounded-lg border bg-muted/20 p-3 sm:p-4"><div className="grid grid-cols-1 gap-x-8 gap-y-2 md:grid-cols-2 xl:grid-cols-4">
               <ColdProField label="Pesquisar produto">
                 <div className="relative">
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -1209,8 +1209,8 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
               <ColdProField label="Grupo ASHRAE"><ColdProSelect value={selectedGroup} onChange={(e) => { setSelectedGroup(e.target.value); setProductSearch(""); set("product_id", null); }}><option value="">Seleção manual</option>{groups.map((group) => <option key={textValue(group)} value={textValue(group)}>{textValue(group)}</option>)}</ColdProSelect></ColdProField>
               <ColdProField label="Produto ASHRAE"><ColdProSelect value={textValue(form.product_id)} disabled={filteredProducts.length === 0} onChange={(e) => applyProduct(e.target.value)}><option value="">{filteredProducts.length ? "Selecione o produto" : "Nenhum produto encontrado"}</option>{filteredProducts.map((p) => <option key={textValue(p.id)} value={textValue(p.id)}>{textValue(p.name)}</option>)}</ColdProSelect></ColdProField>
               <ColdProField label="Produto"><ColdProInput type="text" value={textValue(form.product_name)} onChange={(e) => set("product_name", e.target.value)} className="text-left" /></ColdProField>
-              {selectedCatalogProduct ? <ColdProCalculatedInfo label="Dados do catálogo" value="Medidas e propriedades carregadas" description={textValue(selectedCatalogProduct.observations ?? selectedCatalogProduct.source_reference, "Produto técnico oficial")} tone="info" /> : null}
-            </div><div className="min-w-0 rounded-lg border bg-muted/20 p-3 sm:p-4">{productGeometryFields}</div></div>
+              {selectedCatalogProduct ? <div className="md:col-span-2 xl:col-span-4"><ColdProCalculatedInfo label="Dados do catálogo" value="Medidas e propriedades carregadas" description={textValue(selectedCatalogProduct.observations ?? selectedCatalogProduct.source_reference, "Produto técnico oficial")} tone="info" /></div> : null}
+            </div></div><div className="min-w-0 rounded-lg border bg-muted/20 p-3 sm:p-4">{productGeometryFields}</div></div>
             <ColdProValidationMessage tone="error">{requiredError ? "Informe o produto do túnel." : ""}</ColdProValidationMessage>
           </ColdProFormSection>
 
