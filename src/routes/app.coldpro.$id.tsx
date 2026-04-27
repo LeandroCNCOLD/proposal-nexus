@@ -27,6 +27,8 @@ import { ColdProExtraLoadsForm } from "@/components/coldpro/ColdProExtraLoadsFor
 import { ColdProStepper, COLDPRO_STEPS } from "@/components/coldpro/ColdProStepper";
 import { ColdProReport } from "@/components/coldpro/ColdProReport";
 import { ColdProProjectResultDashboard } from "@/modules/coldpro/components/results/ColdProProjectResultDashboard";
+import { EnergySummary } from "@/modules/coldpro/components/results/EnergySummary";
+import { EquipmentOptimizationSummary } from "@/modules/coldpro/components/results/EquipmentOptimizationSummary";
 import { ColdProRealSelection } from "@/components/coldpro/ColdProRealSelection";
 import { ColdProSectionLoadSummary } from "@/components/coldpro/ColdProSectionLoadSummary";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -39,6 +41,53 @@ export const Route = createFileRoute("/app/coldpro/$id")({ component: ColdProPro
 
 function fmt(value: unknown) {
   return new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 2 }).format(Number(value ?? 0));
+}
+
+function isFiniteValue(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+function firstFinite(...values: unknown[]) {
+  for (const value of values) {
+    if (isFiniteValue(value)) return value;
+  }
+  return null;
+}
+
+function formatNumber(value: unknown, decimals = 2) {
+  return isFiniteValue(value) ? new Intl.NumberFormat("pt-BR", { minimumFractionDigits: decimals, maximumFractionDigits: decimals }).format(value) : "—";
+}
+
+function formatKw(value: unknown) {
+  return isFiniteValue(value) ? `${formatNumber(value, 2)} kW` : "—";
+}
+
+function ThermalLoadSummary({ result }: { result: any }) {
+  const tunnel = result?.calculation_breakdown?.tunnel ?? result?.calculationBreakdown?.tunnel ?? {};
+  const loads = tunnel?.loads ?? tunnel?.persistedLoads ?? {};
+  const rows = [
+    { label: "Produto", value: firstFinite(result?.productLoadKW, result?.product_load_kw, result?.tunnel_product_load_kw, tunnel?.productLoadKW, loads?.productLoadKW), format: formatKw },
+    { label: "Transmissão", value: firstFinite(result?.transmissionLoadKW, result?.transmission_load_kw, result?.tunnel_transmission_load_kw, tunnel?.transmissionLoadKW, loads?.transmissionLoadKW), format: formatKw },
+    { label: "Infiltração", value: firstFinite(result?.infiltrationLoadKW, result?.infiltration_load_kw, result?.tunnel_infiltration_load_kw, tunnel?.infiltrationLoadKW, loads?.infiltrationLoadKW), format: formatKw },
+    { label: "Interna", value: firstFinite(result?.internalLoadKW, result?.internal_load_kw, result?.tunnel_internal_load_kw, tunnel?.internalLoadKW, loads?.internalLoadKW), format: formatKw },
+    { label: "Total", value: firstFinite(result?.totalKW, result?.total_kw, result?.total_required_kw, result?.tunnel_total_load_kw, tunnel?.totalKW, loads?.totalKW), format: formatKw },
+    { label: "Total", value: firstFinite(result?.totalKcalH, result?.total_kcal_h, result?.total_required_kcal_h, result?.tunnel_total_load_kcal_h, tunnel?.totalKcalH, loads?.totalKcalH), format: (value: unknown) => (isFiniteValue(value) ? `${formatNumber(value, 0)} kcal/h` : "—") },
+    { label: "Total", value: firstFinite(result?.totalTR, result?.total_tr, result?.total_required_tr, result?.tunnel_total_load_tr, tunnel?.totalTR, loads?.totalTR), format: (value: unknown) => (isFiniteValue(value) ? `${formatNumber(value, 2)} TR` : "—") },
+  ];
+
+  return (
+    <section className="rounded-xl border bg-background p-4">
+      <h3 className="mb-3 text-base font-semibold">Carga térmica</h3>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {rows.map((row, index) => (
+          <div key={`${row.label}-${index}`} className="rounded-lg border bg-muted/20 p-3">
+            <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{row.label}</div>
+            <div className="mt-2 text-lg font-semibold tabular-nums text-foreground">{row.format(row.value)}</div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
 }
 
 function ColdProProjectPage() {
@@ -569,6 +618,11 @@ function ColdProProjectPage() {
                     </button>
                   </div>
                   <ColdProResultCard result={result} selection={selection} environment={selectedEnv} products={products} advancedProcesses={data?.advancedProcesses ?? []} onAnalyze={handleAnalyzeMemorial} isAnalyzing={analyzeMemorial.isPending} />
+                  <div className="grid gap-4">
+                    <ThermalLoadSummary result={result} />
+                    <EnergySummary result={result} />
+                    <EquipmentOptimizationSummary result={result} selection={selection} />
+                  </div>
 
                   {/* Seleção por curva real do catálogo */}
                   <ColdProRealSelection
