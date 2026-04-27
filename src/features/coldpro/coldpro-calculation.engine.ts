@@ -834,6 +834,8 @@ export function calculateTunnelLoad(tunnel: ColdProTunnel, env?: ColdProEnvironm
     warnings: tunnelResult.warnings,
     calculation_breakdown: tunnelResult.calculationBreakdown,
     calculation_log: tunnelResult.calculationLog,
+    engine_version: tunnelResult.engineVersion ?? COLDPRO_TUNNEL_ENGINE_VERSION,
+    calculated_at: tunnelResult.calculatedAt ?? null,
     recommended_air_temp_c: null,
     recommended_air_velocity_m_s: null,
     recommended_airflow_m3_h: round2(tunnelResult.estimatedAirflowM3H ?? tunnelResult.airFlowM3H),
