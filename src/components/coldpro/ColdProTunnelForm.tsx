@@ -490,8 +490,16 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
   const throughputByUnitsHour = unitWeight * positiveValue(form.units_per_hour);
   const beltUnitsPerHour = positiveValue(form.units_per_row) * positiveValue(form.rows_per_meter) * positiveValue(form.belt_speed_m_min) * 60;
   const throughputByBelt = beltUnitsPerHour * unitWeight;
+  const beltSurfaceAreaM2 = positiveValue(form.belt_area_m2) || positiveValue(form.belt_width_m) * positiveValue(form.belt_effective_length_m);
+  const beltSurfaceMassKg = positiveValue(form.belt_mass_on_belt_kg) || beltSurfaceAreaM2 * positiveValue(form.belt_surface_density_kg_m2);
+  const beltLinearLoadKgM = positiveValue(form.belt_surface_density_kg_m2) * positiveValue(form.belt_width_m);
+  const beltFlowByRetentionKgH = beltSurfaceMassKg > 0 && positiveValue(form.process_time_min) > 0 ? beltSurfaceMassKg / positiveValue(form.process_time_min) * 60 : 0;
+  const beltFlowBySpeedKgH = beltLinearLoadKgM * positiveValue(form.belt_speed_m_min) * 60;
+  const beltSurfaceFlowKgH = beltFlowByRetentionKgH || beltFlowBySpeedKgH || positiveValue(form.belt_nominal_capacity_kg_h);
+  const beltCalculatedRetentionMin = positiveValue(form.belt_effective_length_m) > 0 && positiveValue(form.belt_speed_m_min) > 0 ? positiveValue(form.belt_effective_length_m) / positiveValue(form.belt_speed_m_min) : 0;
+  const beltCapacityDeviationPercent = beltSurfaceFlowKgH > 0 && positiveValue(form.belt_nominal_capacity_kg_h) > 0 ? Math.abs(beltSurfaceFlowKgH - positiveValue(form.belt_nominal_capacity_kg_h)) / positiveValue(form.belt_nominal_capacity_kg_h) * 100 : null;
   const throughputByFeedRate = positiveValue(form.feed_rate_kg_h);
-  const calculatedMassHour = continuousMassMode === "calculated_by_trays" ? throughputByTrays : continuousMassMode === "calculated_by_units_per_hour" ? throughputByUnitsHour : continuousMassMode === "calculated_by_belt_loading" ? throughputByBelt : continuousMassMode === "calculated_by_feed_rate" ? throughputByFeedRate : throughputByUnits;
+  const calculatedMassHour = continuousMassMode === "calculated_by_trays" ? throughputByTrays : continuousMassMode === "calculated_by_units_per_hour" ? throughputByUnitsHour : continuousMassMode === "calculated_by_belt_loading" ? throughputByBelt : continuousMassMode === "calculated_by_belt_surface_density" ? beltSurfaceFlowKgH : continuousMassMode === "calculated_by_feed_rate" ? throughputByFeedRate : throughputByUnits;
   const massHour = continuousMassMode === "direct_mass_flow" ? positiveValue(form.mass_kg_hour) : calculatedMassHour;
   const staticMassMode = String(form.static_mass_mode ?? defaultMassModeForTunnel(tunnelType));
   const unitsPerPallet = staticMassMode === "calculated_pallet_composition" ? (positiveValue(form.total_units_per_pallet) || positiveValue(form.units_per_box) * positiveValue(form.boxes_per_layer) * positiveValue(form.number_of_layers)) : positiveValue(form.units_per_pallet);
