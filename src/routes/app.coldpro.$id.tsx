@@ -722,7 +722,7 @@ function ColdProProjectPage() {
                 <ColdProStepper
                   currentStep={stepIndex}
                   completed={completed}
-                  onStepClick={setStepIndex}
+                  onStepClick={goToStep}
                 />
               </div>
 
