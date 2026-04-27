@@ -45,36 +45,44 @@ export function EquipmentOptimizationSummary({ result, selection }: Props) {
         <div className="text-sm text-muted-foreground">Melhor equipamento: <b className="text-foreground">{equipmentName(bestEquipment)}</b></div>
       </div>
       <div className="overflow-x-auto">
-        <table className="coldpro-table border-collapse">
+        <table className="coldpro-table w-full">
           <thead>
             <tr>
-              <th scope="col" className="text-left">#</th>
-              <th scope="col" className="text-left">Equipamento</th>
-              <th scope="col" className="text-right">Margem</th>
-              <th scope="col" className="text-right">Custo mensal</th>
-              <th scope="col" className="text-right">Score</th>
-              <th scope="col" className="text-right">Potência</th>
+              <th>#</th>
+              <th>Equipamento</th>
+              <th className="text-right">Margem (%)</th>
+              <th className="text-right">Custo mensal</th>
+              <th className="text-right">Score</th>
+              <th className="text-right">Potência (kW)</th>
             </tr>
           </thead>
+
           <tbody>
-            {ranking.length ? ranking.map((item: any, index: number) => (
+            {ranking?.map((item, index) => (
               <tr key={index}>
-                <td className="text-left">{index + 1}</td>
-                <td className="text-left">{equipmentName(item)}</td>
-                <td className="text-right tabular-nums">
+                <td>{index + 1}</td>
+
+                <td>{equipmentName(item)}</td>
+
+                <td className="text-right">
                   {item?.capacityMarginPercent != null
                     ? `${formatNumber(item.capacityMarginPercent, 2)}%`
                     : "—"}
                 </td>
-                <td className="text-right tabular-nums">{formatCurrency(item?.estimatedMonthlyCost)}</td>
-                <td className="text-right tabular-nums">{formatNumber(item?.scores?.final, 2)}</td>
-                <td className="text-right tabular-nums">{formatKw(item?.estimatedElectricalPowerKW)}</td>
+
+                <td className="text-right">
+                  {formatCurrency(item?.estimatedMonthlyCost)}
+                </td>
+
+                <td className="text-right">
+                  {formatNumber(item?.scores?.final, 2)}
+                </td>
+
+                <td className="text-right">
+                  {formatKw(item?.estimatedElectricalPowerKW)}
+                </td>
               </tr>
-            )) : (
-              <tr>
-                <td colSpan={6}>—</td>
-              </tr>
-            )}
+            ))}
           </tbody>
         </table>
       </div>
