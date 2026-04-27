@@ -349,7 +349,8 @@ export const calculateColdProEnvironment = createServerFn({ method: "POST" })
     if (envError) throw new Error(envError.message);
     const { data: rawProducts } = await supabase.from("coldpro_environment_products").select("*").eq("environment_id", data.environmentId);
     const products = await enrichRowsWithCatalog(supabase, rawProducts ?? []);
-    const { data: rawTunnel } = await supabase.from("coldpro_tunnels").select("*").eq("environment_id", data.environmentId).maybeSingle();
+    const { data: rawTunnels } = await supabase.from("coldpro_tunnels").select("*").eq("environment_id", data.environmentId).order("updated_at", { ascending: false }).order("created_at", { ascending: false }).limit(1);
+    const rawTunnel = rawTunnels?.[0] ?? null;
     const tunnel = rawTunnel ? (await enrichRowsWithCatalog(supabase, [rawTunnel]))[0] : null;
     const { data: advancedProcesses } = await supabase.from("coldpro_advanced_processes").select("*").eq("environment_id", data.environmentId);
     const { data: selections } = await supabase.from("coldpro_equipment_selections").select("*").eq("environment_id", data.environmentId).order("created_at", { ascending: false }).limit(1);
