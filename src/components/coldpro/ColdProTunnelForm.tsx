@@ -1140,7 +1140,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
   );
 
   const productGeometryFields = (
-    <div className="grid grid-cols-1 gap-x-8 xl:grid-cols-2">
+    <div className="grid grid-cols-1 gap-x-8 gap-y-2 md:grid-cols-2 xl:grid-cols-4">
       <ColdProField label="Tipo de arranjo" helpKey="arrangementType">
         <ColdProSelect value={textValue(form.arrangement_type)} onChange={(e) => setArrangementType(e.target.value)}>
           {arrangementOptions.map((key) => <option key={key} value={key}>{ARRANGEMENT_DEFAULTS[key]?.label ?? key}</option>)}
