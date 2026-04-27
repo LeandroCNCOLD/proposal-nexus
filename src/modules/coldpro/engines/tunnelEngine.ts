@@ -540,8 +540,8 @@ function calculateTunnelCore(input: TunnelEngineInput) {
       ? "missing_data"
       : "adequate";
   const thermalStatus: TunnelScenarioStatus = productLoadKW <= 0 || energy.totalKcalKg <= 0 ? "missing_data" : freezingValidation.status;
-  const equipmentStatus: TunnelScenarioStatus = inputStatus === "adequate" && thermalStatus === "adequate" ? "adequate" : inputStatus === "invalid_input" ? "invalid_input" : "missing_data";
-  const projectStatus: TunnelScenarioStatus = inputStatus === "invalid_input" || thermalStatus === "invalid_input" ? "invalid_input" : inputStatus !== "adequate" || thermalStatus !== "adequate" || equipmentStatus !== "adequate" ? "missing_data" : "adequate";
+  const equipmentStatus: TunnelScenarioStatus = inputStatus === "adequate" && thermalStatus === "adequate" ? "adequate" : inputStatus === "invalid_input" ? "invalid_input" : thermalStatus === "insufficient" ? "insufficient" : "missing_data";
+  const projectStatus: TunnelScenarioStatus = inputStatus === "invalid_input" || thermalStatus === "invalid_input" ? "invalid_input" : inputStatus !== "adequate" ? "missing_data" : thermalStatus === "insufficient" ? "insufficient" : equipmentStatus !== "adequate" ? "missing_data" : "adequate";
   const status: TunnelScenarioStatus = projectStatus === "adequate" ? freezingValidation.status : projectStatus;
 
   const scenario: TunnelThermalScenario = {
