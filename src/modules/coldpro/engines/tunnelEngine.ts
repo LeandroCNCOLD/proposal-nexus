@@ -407,23 +407,27 @@ function calculateTunnelCore(input: TunnelEngineInput) {
     initialTempC: input?.initialTempC,
     finalTempC: input?.finalTempC,
     freezingPointC: input?.freezingPointC,
-    cpAboveKJkgK: input?.cpAboveKJkgK,
-    cpBelowKJkgK: input?.cpBelowKJkgK,
-    latentHeatKJkg: input?.latentHeatKJkg,
+    cpAboveKcalKgC: input?.cpAboveKcalKgC,
+    cpBelowKcalKgC: input?.cpBelowKcalKgC,
+    latentHeatKcalKg: input?.latentHeatKcalKg,
     frozenWaterFraction: input?.frozenWaterFraction,
     latentResidualFactor: input?.latentResidualFactor,
     allowPhaseChange: input?.allowPhaseChange,
   });
 
   const productLoadKW = tunnelMode.operationRegime === "batch"
-    ? calculateBatchProductLoadKW({ massKg: staticMassKg, specificEnergyKJkg: energy.totalKJkg, timeH: input?.batchTimeH })
-    : calculateContinuousProductLoadKW({ massKgH: usedMassKgH, specificEnergyKJkg: energy.totalKJkg });
+    ? calculateBatchProductLoadKW({ massKg: staticMassKg, specificEnergyKcalKg: energy.totalKcalKg, timeH: input?.batchTimeH })
+    : calculateContinuousProductLoadKW({ massKgH: usedMassKgH, specificEnergyKcalKg: energy.totalKcalKg });
   const productLoadMissing = productLoadMissingFields(input, tunnelMode.operationRegime === "batch", staticMassKg, usedMassKgH, energy);
   const thermalReliabilityAlerts = buildThermalReliabilityAlerts(input, energy, productLoadKW, tunnelMode.operationRegime === "batch" ? staticMassKg : usedMassKgH, tunnelMode.operationRegime === "batch" ? positiveNumber(input?.batchTimeH) : 0);
 
   const productEnergyBreakdown = {
     unitAudit: input?.unitAudit ?? null,
-    effectiveCalculationUnit: "kJ/kg.K para Cp e kJ/kg para calor latente",
+    effectiveCalculationUnit: "kcal/kg°C para Cp e kcal/kg para calor latente",
+    sensibleAboveKcalKg: energy.sensibleAboveKcalKg,
+    latentKcalKg: energy.latentKcalKg,
+    sensibleBelowKcalKg: energy.sensibleBelowKcalKg,
+    totalKcalKg: energy.totalKcalKg,
     sensibleAboveKJkg: energy.sensibleAboveKJkg,
     latentKJkg: energy.latentKJkg,
     sensibleBelowKJkg: energy.sensibleBelowKJkg,
@@ -453,7 +457,7 @@ function calculateTunnelCore(input: TunnelEngineInput) {
   const estimatedTimeMin = canEstimateFreezingTime(input, distanceToCoreM, h.hEffectiveWM2K, kEffectiveWMK)
     ? calculatePlankFreezingTimeMin({
         densityKgM3: input?.densityKgM3,
-        latentHeatKJkg: input?.latentHeatKJkg,
+        latentHeatKJkg: input?.latentHeatKcalKg ? Number(input.latentHeatKcalKg) * 4.1868 : 0,
         frozenWaterFraction: input?.frozenWaterFraction,
         freezingPointC: input?.freezingPointC,
         airTempC: input?.airTempC,
