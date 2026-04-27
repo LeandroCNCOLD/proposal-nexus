@@ -90,16 +90,17 @@ export function ColdProProductForm({ environmentId, product, productCatalog = []
   const applyProduct = (id: string) => {
     const p = productCatalog.find((item) => item.id === id);
     if (!p) return;
+    const kcalProduct = normalizeProductForKcalEngine(p);
     setForm((prev) => ({
       ...prev,
       product_id: p.id,
       product_name: p.name,
       specific_heat_above_kj_kg_k: p.specific_heat_above_kj_kg_k ?? null,
       specific_heat_below_kj_kg_k: p.specific_heat_below_kj_kg_k ?? null,
-      specific_heat_above_kcal_kg_c: Number(p.specific_heat_above_kcal_kg_c ?? prev.specific_heat_above_kcal_kg_c),
-      specific_heat_below_kcal_kg_c: Number(p.specific_heat_below_kcal_kg_c ?? prev.specific_heat_below_kcal_kg_c),
+      specific_heat_above_kcal_kg_c: kcalProduct.cpAboveKcalKgC || Number(p.specific_heat_above_kcal_kg_c ?? prev.specific_heat_above_kcal_kg_c),
+      specific_heat_below_kcal_kg_c: kcalProduct.cpBelowKcalKgC || Number(p.specific_heat_below_kcal_kg_c ?? prev.specific_heat_below_kcal_kg_c),
       latent_heat_kj_kg: p.latent_heat_kj_kg ?? null,
-      latent_heat_kcal_kg: Number(p.latent_heat_kcal_kg ?? prev.latent_heat_kcal_kg),
+      latent_heat_kcal_kg: kcalProduct.latentHeatKcalKg || Number(p.latent_heat_kcal_kg ?? prev.latent_heat_kcal_kg),
       initial_freezing_temp_c: p.initial_freezing_temp_c ?? prev.initial_freezing_temp_c,
       density_kg_m3: p.density_kg_m3 ?? null,
       water_content_percent: p.water_content_percent ?? null,
