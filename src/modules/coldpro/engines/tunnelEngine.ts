@@ -129,6 +129,11 @@ function nullableNumber(value: unknown): number | null {
   return isProvided(value) && Number.isFinite(Number(value)) ? Number(value) : null;
 }
 
+function thermalKcal(input: TunnelEngineInput, kcalField: string, kjField: string): number {
+  const kcal = positiveNumber(input?.[kcalField]);
+  return kcal > 0 ? kcal : positiveNumber(input?.[kjField]) / 4.1868;
+}
+
 function continuousMassRequirement(input: TunnelEngineInput, continuousMassMode: string): string {
   const unitWeightKg = positiveNumber(input?.unitWeightKg);
   if (continuousMassMode === "direct_mass_flow") return positiveNumber(input?.directMassKgH ?? input?.massKgH) > 0 ? "" : "massa direta em kg/h";
@@ -212,10 +217,10 @@ function resolveStaticMass(input: TunnelEngineInput) {
 
 function requiredPositiveFields(input: TunnelEngineInput, isStatic: boolean, staticMassKg: number, characteristicDimensionM: number, crossesFreezing: boolean, airVelocityUsedMS: number, continuousMassMode: string): string[] {
   const commonNumericFields = ["initialTempC", "finalTempC", "freezingPointC"];
-  const commonPositiveFields = ["cpAboveKcalKgC"];
-  const freezingPositiveFields = crossesFreezing ? ["cpBelowKcalKgC", "latentHeatKcalKg", "frozenWaterFraction"] : [];
+  const commonPositiveFields = [thermalKcal(input, "cpAboveKcalKgC", "cpAboveKJkgK") <= 0 ? "cpAboveKcalKgC" : ""];
+  const freezingPositiveFields = crossesFreezing ? [thermalKcal(input, "cpBelowKcalKgC", "cpBelowKJkgK") <= 0 ? "cpBelowKcalKgC" : "", thermalKcal(input, "latentHeatKcalKg", "latentHeatKJkg") <= 0 ? "latentHeatKcalKg" : "", positiveNumber(input?.frozenWaterFraction) <= 0 ? "frozenWaterFraction" : ""] : [];
   const missingNumericFields = commonNumericFields.filter((field) => !isProvided(input?.[field]) || !Number.isFinite(Number(input?.[field])));
-  const missingPositiveFields = [...commonPositiveFields, ...freezingPositiveFields].filter((field) => !isProvided(input?.[field]) || toNumber(input?.[field], 0) <= 0);
+  const missingPositiveFields = [...commonPositiveFields, ...freezingPositiveFields].filter(Boolean);
   const hasHInput = positiveNumber(input?.manualConvectiveCoefficientWM2K) > 0 || airVelocityUsedMS > 0;
   const geometry = String(input?.productGeometry ?? input?.product_geometry ?? "slab");
   const airflowSource = String(input?.airflowSource ?? input?.airflow_source ?? "manual_velocity");
