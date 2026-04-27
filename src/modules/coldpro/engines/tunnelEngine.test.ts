@@ -4,6 +4,7 @@ import { compareColdProFormulaWithAshrae, getHighPriorityAshraeActions } from ".
 import { COLDPRO_CALCULATION_METHODS } from "../core/calculationMethodRegistry";
 import { buildCalculationMethodSummary } from "../core/resultNormalizer";
 import { tunnelResultToDatabasePayload } from "../adapters/tunnelInputToDatabasePayload";
+import { createAirPropertiesContext } from "../physics/airProperties";
 import { calculateProductSpecificEnergy } from "../physics/productThermal";
 import type { TunnelEngineInput, TunnelEngineResult } from "../types/tunnelEngine.types";
 import { calculateTunnelEngine, COLDPRO_TUNNEL_ENGINE_VERSION } from "./tunnelEngine";
@@ -95,6 +96,32 @@ const thermalBase = {
   assert.equal(fullLatent.latentMode, "full");
   nearlyEqual(fullLatent.latentEffectiveKJkg, 98, 0.001);
   assert.ok(fullLatent.totalKJkg < paoDeQueijo.totalKJkg, "latentMode full must be lower than effective when fraction < 1");
+}
+
+{
+  const hardcodedAirflow = (12.09 * 3600) / (1.2 * 1.005 * 6);
+  const rafaAir = createAirPropertiesContext({ temperatureC: -25, altitudeM: 700, relativeHumidityPercent: 85, mode: "sublimation" });
+  const dynamicAirflow = (12.09 * 3600) / (rafaAir.densityKgM3 * rafaAir.specificHeatKJkgK * 6);
+  assert.ok(rafaAir.densityKgM3 >= 1.3 && rafaAir.densityKgM3 <= 1.42, `expected dynamic density near 1.30–1.42 kg/m³, got ${rafaAir.densityKgM3}`);
+  assert.ok(dynamicAirflow < hardcodedAirflow, `expected dynamic airflow ${dynamicAirflow} lower than hardcoded ${hardcodedAirflow}`);
+
+  const result = calculateTunnelEngine({
+    ...thermalBase,
+    processType: "continuous_individual_freezing",
+    operationMode: "continuous",
+    tunnelType: "continuous_belt",
+    arrangementType: "individual_exposed",
+    productGeometry: "slab",
+    directMassKgH: 170,
+    retentionTimeMin: 30,
+    productThicknessM: 0.03,
+    airTempC: -25,
+    altitudeM: 700,
+    relativeHumidityPercent: 85,
+    airDeltaTK: 6,
+  });
+  assert.ok(Number((result.calculationBreakdown.air as any)?.airProperties?.densityKgM3) >= 1.3);
+  assert.ok(result.airFlowM3H > 0);
 }
 
 {
