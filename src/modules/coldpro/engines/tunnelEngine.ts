@@ -537,7 +537,7 @@ function calculateTunnelCore(input: any) {
     thermalModelForPallet: geometry.thermalModelForPallet ?? input?.thermalModelForPallet ?? input?.thermal_model_for_pallet ?? null,
     isStatic,
     calculatedMassKgH,
-    usedMassKgH: tunnelMode.operationRegime === "batch" ? null : usedMassKgH,
+    usedMassKgH: (tunnelMode.operationRegime === "batch" ? null : usedMassKgH) as any,
     continuousMassMode,
     staticMassKg,
     staticMassMode: input?.staticMassMode ?? input?.static_mass_mode ?? "direct_pallet_mass",
