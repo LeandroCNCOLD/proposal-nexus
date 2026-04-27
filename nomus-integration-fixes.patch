@@ -1,0 +1,79 @@
+diff --git a/src/integrations/nomus/client.ts b/src/integrations/nomus/client.ts
+index a542f05..7710f7d 100644
+--- a/src/integrations/nomus/client.ts
++++ b/src/integrations/nomus/client.ts
+@@ -125,7 +125,7 @@ function classifyError(status: number, body: string): string {
+ }
+ 
+ /** Timeout duro por request (ms). Evita travar sync em endpoints lentos. */
+-const REQUEST_TIMEOUT_MS = 25_000;
++const REQUEST_TIMEOUT_MS = 60_000;  // Aumentado de 25s para 60s para conexões lentas
+ 
+ export async function nomusFetch<T = unknown>(
+   path: string,
+@@ -263,8 +263,8 @@ export async function nomusFetch<T = unknown>(
+  * Limites/parâmetros padrão de paginação. Mantemos um teto duro de páginas
+  * para evitar loop infinito caso o Nomus devolva sempre o mesmo cursor.
+  */
+-const LIST_MAX_PAGES = 200;
+-const LIST_MAX_ITEMS = 50_000;
++const LIST_MAX_PAGES = 500;  // Aumentado de 200 para suportar mais páginas
++const LIST_MAX_ITEMS = 500_000;  // Aumentado de 50.000 para 500.000 itens
+ const LIST_DEFAULT_PAGE_SIZE = 50;
+ 
+ /**
+@@ -280,6 +280,13 @@ function extractBatch<T>(payload: unknown): T[] {
+     const v = env[k];
+     if (Array.isArray(v)) return v as T[];
+   }
++  // Log de aviso se formato não reconhecido
++  if (DEBUG) {
++    console.warn("[nomus] extractBatch: formato de resposta não reconhecido", {
++      keys: Object.keys(env).slice(0, 5),
++      type: typeof payload,
++    });
++  }
+   return [];
+ }
+ 
+diff --git a/src/integrations/nomus/server.functions.ts b/src/integrations/nomus/server.functions.ts
+index b68a55b..9676f2c 100644
+--- a/src/integrations/nomus/server.functions.ts
++++ b/src/integrations/nomus/server.functions.ts
+@@ -82,11 +82,17 @@ async function runEntitySync(args: {
+       } catch (e) {
+         skipped += 1;
+         const msg = e instanceof Error ? e.message : String(e);
+-        if (itemErrors.length < 3) itemErrors.push(msg);
++        // CORREÇÃO: Capturar TODOS os erros, não apenas 3
++        itemErrors.push(msg);
+       }
+     }
+     const noteParts: string[] = [];
+-    if (itemErrors.length > 0) noteParts.push(`${itemErrors.length}+ itens com erro: ${itemErrors.join(" | ")}`);
++    if (itemErrors.length > 0) {
++      // Mostrar contagem total de erros e primeiros 5
++      const errorPreview = itemErrors.slice(0, 5).join(" | ");
++      const errorSuffix = itemErrors.length > 5 ? `... (${itemErrors.length} total)` : "";
++      noteParts.push(`${itemErrors.length} itens com erro: ${errorPreview}${errorSuffix}`);
++    }
+     if (unmatched > 0) noteParts.push(`${unmatched} item(s) sem correspondência local`);
+     await setState(entity, {
+       running: false,
+@@ -160,6 +166,16 @@ export const nomusSyncClients = createServerFn({ method: "POST" })
+               city: pickStr(raw, "cidade", "municipio"),
+               state: pickStr(raw, "uf", "estado"),
+               segment: pickStr(raw, "segmento", "ramo"),
++              // CORREÇÃO: Adicionar email
++              email: pickStr(raw, "email", "emailPrincipal", "emailContato", "email_principal"),
++              // CORREÇÃO: Adicionar telefone
++              phone: pickStr(raw, "telefone", "telefonePrincipal", "celular", "telefone_principal"),
++              // CORREÇÃO: Adicionar outros campos importantes
++              address: pickStr(raw, "endereco", "logradouro", "rua"),
++              address_number: pickStr(raw, "numero", "numeroEndereco"),
++              address_complement: pickStr(raw, "complemento", "complementoEndereco"),
++              zip_code: pickStr(raw, "cep", "codigoPostal"),
++              status: pickStr(raw, "situacao", "status", "ativo"),
+               origin: "nomus",
+               nomus_synced_at: new Date().toISOString(),
+             },
