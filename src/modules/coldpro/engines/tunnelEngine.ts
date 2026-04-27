@@ -632,7 +632,7 @@ function calculateTunnelCore(input: TunnelEngineInput) {
     plankFreezingTime: "Plank equation using density, latent heat, core distance, h and effective k",
   };
 
-  const resultSummary = { physicalModel, processType, status, productLoadKW, packagingLoadKW, transmissionLoadKW, infiltrationLoadKW, internalLoadKW, totalKW, estimatedTimeMin, availableTimeMin };
+  const resultSummary = { physicalModel, processType, status, inputStatus, thermalStatus, equipmentStatus, projectStatus, massBasis: processMass.massBasis, processMode: processMass.processMode, productLoadKW, packagingLoadKW, transmissionLoadKW, infiltrationLoadKW, internalLoadKW, totalKW, estimatedTimeMin, availableTimeMin };
   const calculationLog = buildCalculationLog({ originalInput: input, normalizedInput: { ...input, physicalModel, mode }, unitConversions: input?.unitConversions ?? null, warnings, missingFields, invalidFields, formulasUsed, resultSummary, methodRegistryVersion: COLDPRO_CALCULATION_METHOD_REGISTRY_VERSION, methodsUsed });
 
   return {
@@ -643,6 +643,12 @@ function calculateTunnelCore(input: TunnelEngineInput) {
     tunnelType: tunnelMode.tunnelType,
     arrangementType: tunnelMode.arrangementType,
     operationRegime: tunnelMode.operationRegime,
+    processMode: processMass.processMode,
+    massBasis: processMass.massBasis,
+    inputStatus,
+    thermalStatus,
+    equipmentStatus,
+    projectStatus,
     productGeometry: input?.productGeometry ?? input?.product_geometry ?? null,
     surfaceExposureModel: exposure.surfaceExposureModel,
     airflowSource: airflow.airflowSource,
