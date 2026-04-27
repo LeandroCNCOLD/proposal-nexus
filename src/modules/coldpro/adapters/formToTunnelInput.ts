@@ -8,6 +8,10 @@ function isStaticTunnel(processType: unknown, operationMode: unknown) {
   return processType === "static_cart_freezing" || processType === "static_pallet_freezing" || operationMode === "batch";
 }
 
+function optionalString(value: unknown): string | null {
+  return typeof value === "string" ? value : value == null ? null : String(value);
+}
+
 function calculateStaticMass(source: TunnelSourceRecord, isStatic: boolean) {
   const staticMassMode = source?.static_mass_mode ?? "direct_pallet_mass";
   const numberOfPallets = safeNumber(source?.number_of_pallets, 1) || 1;
@@ -39,9 +43,9 @@ export function formToTunnelInput(form: TunnelSourceRecord, environment: TunnelS
   const packagingSpecificHeatKJkgK = safeNumber(form?.packaging_specific_heat_kj_kg_k);
   const approved = false;
   const thermalConditionApproved = form?.thermal_condition_approved === true;
-  const physicalModel = form?.physical_model;
-  const processType = form?.process_type;
-  const operationMode = form?.operation_mode;
+  const physicalModel = optionalString(form?.physical_model);
+  const processType = optionalString(form?.process_type);
+  const operationMode = optionalString(form?.operation_mode);
   const isStatic = isStaticTunnel(processType, operationMode);
   const mass = calculateStaticMass(form, isStatic);
   const numberOfPallets = mass.numberOfPallets;
@@ -71,11 +75,11 @@ export function formToTunnelInput(form: TunnelSourceRecord, environment: TunnelS
     processType,
     operationMode,
     tunnelMode: form?.tunnel_mode ?? (isStatic ? "static" : "continuous"),
-    tunnelType: form?.tunnel_type,
-    arrangementType: form?.arrangement_type,
-    productGeometry: form?.product_geometry ?? "slab",
-    surfaceExposureModel: form?.surface_exposure_model ?? "fully_exposed",
-    thermalModelForPallet: form?.thermal_model_for_pallet ?? (form?.tunnel_type === "static_pallet" && form?.arrangement_type === "palletized_boxes" ? "hybrid" : null),
+    tunnelType: optionalString(form?.tunnel_type),
+    arrangementType: optionalString(form?.arrangement_type),
+    productGeometry: optionalString(form?.product_geometry) ?? "slab",
+    surfaceExposureModel: optionalString(form?.surface_exposure_model) ?? "fully_exposed",
+    thermalModelForPallet: optionalString(form?.thermal_model_for_pallet) ?? (form?.tunnel_type === "static_pallet" && form?.arrangement_type === "palletized_boxes" ? "hybrid" : null),
     airflowSource,
     fanAirflowM3H: safeNumber(form?.fan_airflow_m3_h),
     tunnelCrossSectionWidthM: safeNumber(form?.tunnel_cross_section_width_m),
