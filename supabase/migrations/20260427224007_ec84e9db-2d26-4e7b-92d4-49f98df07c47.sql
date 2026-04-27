@@ -1,0 +1,15 @@
+ALTER TABLE public.coldpro_tunnels
+  ADD COLUMN IF NOT EXISTS belt_width_m numeric,
+  ADD COLUMN IF NOT EXISTS belt_effective_length_m numeric,
+  ADD COLUMN IF NOT EXISTS belt_area_m2 numeric,
+  ADD COLUMN IF NOT EXISTS belt_surface_density_kg_m2 numeric,
+  ADD COLUMN IF NOT EXISTS belt_mass_on_belt_kg numeric,
+  ADD COLUMN IF NOT EXISTS belt_linear_load_kg_m numeric,
+  ADD COLUMN IF NOT EXISTS belt_flow_by_retention_kg_h numeric,
+  ADD COLUMN IF NOT EXISTS belt_flow_by_speed_kg_h numeric,
+  ADD COLUMN IF NOT EXISTS belt_calculated_flow_kg_h numeric,
+  ADD COLUMN IF NOT EXISTS belt_nominal_capacity_kg_h numeric,
+  ADD COLUMN IF NOT EXISTS belt_calculated_retention_min numeric,
+  ADD COLUMN IF NOT EXISTS belt_capacity_deviation_percent numeric,
+  ADD COLUMN IF NOT EXISTS belt_motor_inside_environment boolean DEFAULT true,
+  ADD COLUMN IF NOT EXISTS belt_motor_dissipation_factor numeric DEFAULT 1;

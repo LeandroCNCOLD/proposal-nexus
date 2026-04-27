@@ -2791,8 +2791,22 @@ export type Database = {
           bed_area_m2: number | null
           bed_length_m: number | null
           bed_width_m: number | null
+          belt_area_m2: number | null
+          belt_calculated_flow_kg_h: number | null
+          belt_calculated_retention_min: number | null
+          belt_capacity_deviation_percent: number | null
+          belt_effective_length_m: number | null
+          belt_flow_by_retention_kg_h: number | null
+          belt_flow_by_speed_kg_h: number | null
+          belt_linear_load_kg_m: number | null
+          belt_mass_on_belt_kg: number | null
+          belt_motor_dissipation_factor: number | null
+          belt_motor_inside_environment: boolean | null
           belt_motor_kw: number
+          belt_nominal_capacity_kg_h: number | null
           belt_speed_m_min: number | null
+          belt_surface_density_kg_m2: number | null
+          belt_width_m: number | null
           block_exposure_factor: number | null
           blockage_factor: number | null
           box_height_m: number | null
@@ -2979,8 +2993,22 @@ export type Database = {
           bed_area_m2?: number | null
           bed_length_m?: number | null
           bed_width_m?: number | null
+          belt_area_m2?: number | null
+          belt_calculated_flow_kg_h?: number | null
+          belt_calculated_retention_min?: number | null
+          belt_capacity_deviation_percent?: number | null
+          belt_effective_length_m?: number | null
+          belt_flow_by_retention_kg_h?: number | null
+          belt_flow_by_speed_kg_h?: number | null
+          belt_linear_load_kg_m?: number | null
+          belt_mass_on_belt_kg?: number | null
+          belt_motor_dissipation_factor?: number | null
+          belt_motor_inside_environment?: boolean | null
           belt_motor_kw?: number
+          belt_nominal_capacity_kg_h?: number | null
           belt_speed_m_min?: number | null
+          belt_surface_density_kg_m2?: number | null
+          belt_width_m?: number | null
           block_exposure_factor?: number | null
           blockage_factor?: number | null
           box_height_m?: number | null
@@ -3167,8 +3195,22 @@ export type Database = {
           bed_area_m2?: number | null
           bed_length_m?: number | null
           bed_width_m?: number | null
+          belt_area_m2?: number | null
+          belt_calculated_flow_kg_h?: number | null
+          belt_calculated_retention_min?: number | null
+          belt_capacity_deviation_percent?: number | null
+          belt_effective_length_m?: number | null
+          belt_flow_by_retention_kg_h?: number | null
+          belt_flow_by_speed_kg_h?: number | null
+          belt_linear_load_kg_m?: number | null
+          belt_mass_on_belt_kg?: number | null
+          belt_motor_dissipation_factor?: number | null
+          belt_motor_inside_environment?: boolean | null
           belt_motor_kw?: number
+          belt_nominal_capacity_kg_h?: number | null
           belt_speed_m_min?: number | null
+          belt_surface_density_kg_m2?: number | null
+          belt_width_m?: number | null
           block_exposure_factor?: number | null
           blockage_factor?: number | null
           box_height_m?: number | null
