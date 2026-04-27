@@ -142,6 +142,7 @@ function continuousMassRequirement(input: TunnelEngineInput, continuousMassMode:
   if (continuousMassMode === "direct_mass_flow") return positiveNumber(input?.directMassKgH ?? input?.massKgH) > 0 ? "" : "massa direta em kg/h";
   if (continuousMassMode === "calculated_by_units_per_hour") return unitWeightKg * positiveNumber(input?.unitsPerHour) > 0 ? "" : "peso unitário e unidades por hora";
   if (continuousMassMode === "calculated_by_belt_loading") return unitWeightKg * positiveNumber(input?.unitsPerRow) * positiveNumber(input?.rowsPerMeter) * positiveNumber(input?.beltSpeedMMin) > 0 ? "" : "peso unitário, unidades por fileira, fileiras por metro e velocidade da esteira";
+  if (continuousMassMode === "calculated_by_belt_surface_density") return (positiveNumber(input?.beltAreaM2 ?? input?.belt_area_m2) || positiveNumber(input?.beltWidthM ?? input?.belt_width_m) * positiveNumber(input?.beltEffectiveLengthM ?? input?.belt_effective_length_m)) * positiveNumber(input?.beltSurfaceDensityKgM2 ?? input?.belt_surface_density_kg_m2) > 0 ? "" : "área útil e densidade superficial da esteira";
   if (continuousMassMode === "calculated_by_trays") return (unitWeightKg * positiveNumber(input?.unitsPerTray) + positiveNumber(input?.trayWeightKg)) * positiveNumber(input?.traysPerHour) > 0 ? "" : "unidades por bandeja, bandejas por hora e massa da bandeja";
   if (continuousMassMode === "calculated_by_feed_rate") return positiveNumber(input?.feedRateKgH) > 0 ? "" : "taxa de alimentação em kg/h";
   return unitWeightKg * positiveNumber(input?.unitsPerCycle) * positiveNumber(input?.cyclesPerHour) > 0 ? "" : "peso unitário, unidades por ciclo e ciclos por hora";
@@ -342,10 +343,12 @@ function resolvePackagingLoad(input: TunnelEngineInput, operationRegime: "contin
 
 function resolveInternalLoads(input: TunnelEngineInput) {
   const fansKW = toNumber(input?.internalFansKW ?? input?.internal_fans_kw ?? input?.fansKW ?? input?.fans_kw, 0);
-  const motorsKW = toNumber(input?.beltMotorKW ?? input?.belt_motor_kw, 0) + toNumber(input?.motorsPowerKW ?? input?.motors_power_kw ?? input?.motorsKW ?? input?.motors_kw, 0) * (positiveNumber(input?.motorsDissipationFactor ?? input?.motors_dissipation_factor) || 1);
+  const beltMotorKW = toNumber(input?.beltMotorKW ?? input?.belt_motor_kw, 0);
+  const beltDissipationFactor = input?.beltMotorInsideEnvironment === false || input?.belt_motor_inside_environment === false ? positiveNumber(input?.beltMotorDissipationFactor ?? input?.belt_motor_dissipation_factor) : 1;
+  const motorsKW = beltMotorKW * beltDissipationFactor + toNumber(input?.motorsPowerKW ?? input?.motors_power_kw ?? input?.motorsKW ?? input?.motors_kw, 0) * (positiveNumber(input?.motorsDissipationFactor ?? input?.motors_dissipation_factor) || 1);
   const lightingKW = toNumber(input?.lightingPowerW ?? input?.lighting_power_w, 0) / 1000 + toNumber(input?.lightingPowerKW ?? input?.lighting_power_kw, 0);
   const otherKW = toNumber(input?.otherInternalKW ?? input?.other_internal_kw, 0);
-  return { fansKW, motorsKW, lightingKW, otherKW, internalLoadKW: fansKW + motorsKW + lightingKW + otherKW };
+  return { fansKW, motorsKW, beltMotorKW, beltDissipationFactor, beltMotorDissipatedKW: beltMotorKW * beltDissipationFactor, lightingKW, otherKW, internalLoadKW: fansKW + motorsKW + lightingKW + otherKW };
 }
 
 function calculateTunnelCore(input: TunnelEngineInput) {
