@@ -26,7 +26,7 @@ type WeightUnit = "kg" | "g";
 type CycleUnit = "h" | "min";
 type RetentionUnit = "min" | "h";
 type ColdProFormRecord = Record<string, unknown>;
-type ColdProProductRecord = Record<string, unknown> & { id?: string; name?: string; category?: string };
+type ColdProProductRecord = Record<string, unknown> & { id?: string | null; name?: string | null; category?: string | null };
 
 type ColdProTunnelFormProps = {
   environmentId: string;
@@ -241,6 +241,10 @@ function fmtMaybe(value: number | null | undefined, digits = 2, suffix = "") {
 
 function inputValue(value: unknown): string | number {
   return typeof value === "number" || typeof value === "string" ? value : "";
+}
+
+function textValue(value: unknown, fallback = ""): string {
+  return typeof value === "string" || typeof value === "number" ? String(value) : fallback;
 }
 
 function positiveValue(...values: unknown[]) {
