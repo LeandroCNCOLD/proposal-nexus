@@ -19,6 +19,7 @@ const thermalBase = {
   cpAboveKJkgK: 3.5,
   cpBelowKJkgK: 1.8,
   latentHeatKJkg: 250,
+  latentMode: "full" as const,
   frozenWaterFraction: 0.8,
   frozenConductivityWMK: 1.5,
   densityKgM3: 1000,
