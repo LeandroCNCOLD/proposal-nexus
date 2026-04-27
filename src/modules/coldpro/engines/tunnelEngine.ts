@@ -414,6 +414,7 @@ function calculateTunnelCore(input: TunnelEngineInput) {
     cpAboveKJkgK: positiveNumber(input?.cpAboveKJkgK) || undefined,
     cpBelowKJkgK: positiveNumber(input?.cpBelowKJkgK) || undefined,
     latentHeatKJkg: positiveNumber(input?.latentHeatKJkg) || undefined,
+    latentMode: input?.latentMode,
     frozenWaterFraction: input?.frozenWaterFraction,
     latentResidualFactor: input?.latentResidualFactor,
     allowPhaseChange: input?.allowPhaseChange,
@@ -426,7 +427,12 @@ function calculateTunnelCore(input: TunnelEngineInput) {
 
   const productEnergyBreakdown = {
     unitAudit: input?.unitAudit ?? null,
-    effectiveCalculationUnit: "kcal/kg°C para Cp e kcal/kg para calor latente",
+    effectiveCalculationUnit: "kJ/kg.K para Cp e kJ/kg para calor latente; kcal apenas compatibilidade",
+    cpAboveKJkgK: energy.cpAboveKJkgK,
+    cpBelowKJkgK: energy.cpBelowKJkgK,
+    latentHeatKJkg: energy.latentHeatKJkg,
+    latentMode: energy.latentMode,
+    latentEffectiveKJkg: energy.latentEffectiveKJkg,
     sensibleAboveKcalKg: energy.sensibleAboveKcalKg,
     latentKcalKg: energy.latentKcalKg,
     sensibleBelowKcalKg: energy.sensibleBelowKcalKg,
@@ -436,8 +442,8 @@ function calculateTunnelCore(input: TunnelEngineInput) {
     sensibleBelowKJkg: energy.sensibleBelowKJkg,
     totalKJkg: energy.totalKJkg,
     crossesFreezing: energy.crossesFreezingPoint,
-    frozenWaterFraction: input?.frozenWaterFraction ?? null,
-    latentResidualFactor: input?.latentResidualFactor ?? null,
+    frozenWaterFraction: energy.frozenWaterFraction ?? null,
+    latentResidualFactor: energy.latentResidualFactor ?? null,
     unitConversions: input?.unitConversions ?? null,
   };
 
