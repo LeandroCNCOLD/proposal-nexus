@@ -1,5 +1,6 @@
 import * as React from "react";
 import { AlertTriangle, Calculator, Fan, Package, Save, Search, Settings, Thermometer, Wind, Warehouse } from "lucide-react";
+import { z } from "zod";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ColdProField, ColdProInput, ColdProSelect } from "./ColdProField";
 import { ColdProCalculatedInfo, ColdProFormSection, ColdProValidationMessage, fmtColdPro, numberOrNull } from "./ColdProFormPrimitives";
@@ -24,6 +25,26 @@ type DimensionUnit = "m" | "cm" | "mm";
 type WeightUnit = "kg" | "g";
 type CycleUnit = "h" | "min";
 type RetentionUnit = "min" | "h";
+type ColdProFormRecord = ReturnType<typeof defaultTunnel> & Record<string, unknown>;
+type ColdProProductRecord = Record<string, unknown> & { id?: string; name?: string; category?: string };
+
+type ColdProTunnelFormProps = {
+  environmentId: string;
+  environment?: Record<string, unknown>;
+  product?: Record<string, unknown> | null;
+  tunnel?: ColdProFormRecord | null;
+  productCatalog?: ColdProProductRecord[];
+  onSave: (data: ColdProFormRecord) => void;
+};
+
+const coldProTunnelSaveSchema = z.object({
+  environment_id: z.string().trim().min(1).max(100),
+  product_name: z.string().trim().min(1).max(255),
+  tunnel_type: z.string().trim().min(1).max(80),
+  arrangement_type: z.string().trim().min(1).max(80).nullish(),
+  process_type: z.string().trim().min(1).max(80).nullish(),
+  operation_mode: z.string().trim().min(1).max(40).nullish(),
+}).passthrough();
 
 const DIMENSION_UNITS: Record<DimensionUnit, { label: string; toMeters: number; step: string }> = {
   m: { label: "m", toMeters: 1, step: "0.001" },
