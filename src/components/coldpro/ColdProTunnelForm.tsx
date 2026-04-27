@@ -638,9 +638,9 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
       : selected.status.warning || "Instalação sugerida pela seção livre, alcance de ar e faixa de velocidade recomendada.";
     return {
       airflow_source: "airflow_by_fans",
-      fan_airflow_m3_h: roundPreset(fanAirflowM3H, 2),
-      informed_air_flow_m3_h: roundPreset(fanAirflowM3H, 2),
-      airflow_m3_h: roundPreset(fanAirflowM3H, 2),
+      fan_airflow_m3_h: roundPreset(selected.fanAirflowM3H, 2),
+      informed_air_flow_m3_h: roundPreset(selected.fanAirflowM3H, 2),
+      airflow_m3_h: roundPreset(selected.fanAirflowM3H, 2),
       airflow_thermal_balance_m3_h: roundPreset(selected.balanceAirflow, 2),
       airflow_velocity_reference_m3_h: roundPreset(selected.velocityAirflow, 2),
       airflow_reference_velocity_m_s: roundPreset(selected.referenceVelocityMS, 2),
