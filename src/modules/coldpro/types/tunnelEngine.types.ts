@@ -12,7 +12,21 @@ export type AirflowSource = "manual_velocity" | "airflow_by_fans" | string;
 
 export type TunnelSourceRecord = Record<string, unknown>;
 
-export type TunnelCalculationRecord = Record<string, unknown>;
+export interface TunnelCalculationRecord {
+  [key: string]: unknown;
+  model?: {
+    physicalDescription?: string;
+    geometryAssumption?: string;
+    convectionAssumption?: string;
+  };
+  loads?: {
+    productLoadMissingFields?: string[];
+    massUsedForProductLoad?: number;
+  };
+  air?: {
+    comparison?: number | null;
+  };
+}
 
 export interface TunnelEngineInput {
   [key: string]: unknown;
