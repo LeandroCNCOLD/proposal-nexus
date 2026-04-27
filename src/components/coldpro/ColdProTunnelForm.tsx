@@ -524,6 +524,17 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
   const latentHeatKcalKg = kcalFromThermal(form.latent_heat_kcal_kg, form.latent_heat_kj_kg, preferCatalogKj) || kcalFromThermal(thermodynamicProduct?.latent_heat_kcal_kg, thermodynamicProduct?.latent_heat_kj_kg, Boolean(thermodynamicProduct?.id));
   const frozenConductivityWmK = positiveValue(form.thermal_conductivity_frozen_w_m_k, thermodynamicProduct?.thermal_conductivity_frozen_w_m_k, thermodynamicProduct?.thermal_conductivity_w_m_k);
   const frozenWaterFraction = definedNumber(form.frozen_water_fraction, thermodynamicProduct?.frozen_water_fraction, thermodynamicProduct?.freezable_water_content_percent == null ? null : Number(thermodynamicProduct.freezable_water_content_percent) / 100, thermodynamicProduct?.water_content_percent == null ? null : Number(thermodynamicProduct.water_content_percent) / 100, 0.9);
+  const manualAirDensityKgM3 = positiveValue(form.air_density_kg_m3) > 0 && Math.abs(positiveValue(form.air_density_kg_m3) - 1.2) > 0.0001 ? positiveValue(form.air_density_kg_m3) : null;
+  const airProperties = createAirPropertiesContext({
+    temperatureC: airTemperatureC,
+    altitudeM: positiveValue(environment?.altitude_m, form.altitude_m) || null,
+    pressureKPa: positiveValue(environment?.atmospheric_pressure_kpa, form.atmospheric_pressure_kpa) || null,
+    relativeHumidityPercent: positiveValue(environment?.relative_humidity_percent, form.relative_humidity_percent) || null,
+    airDensityKgM3: manualAirDensityKgM3,
+    airSpecificHeatKJkgK: positiveValue(form.air_specific_heat_kj_kg_k) || null,
+    waterLatentHeatKJkg: positiveValue(form.water_latent_heat_kj_kg) || null,
+    mode: "sublimation",
+  });
   const tunnelInput = formToTunnelInput(form, environment ?? {});
   const baseResult = calculateTunnelEngine(tunnelInput);
   const simulationForm = { ...form, ...simulation, initial_scenario_input: tunnelInput.initialScenarioInput, thermal_condition_approved: false };
@@ -576,7 +587,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
     packagingMassKgH: Number(form.packaging_mass_kg_hour ?? 0),
     packagingCpKjKgK: Number(form.packaging_specific_heat_kcal_kg_c ?? 0) * 4.1868,
     deltaTAirK: Number(form.air_delta_t_k ?? 5),
-    airDensityKgM3: 1.2,
+    airDensityKgM3: airProperties.densityKgM3,
     airExposureFactor: Number(form.air_exposure_factor ?? 1),
     thermalPenetrationFactor: Number(form.thermal_penetration_factor ?? 1),
     tunnelType,
@@ -614,8 +625,9 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
     const tunnelLike = ["continuous_belt", "spiral_girofreezer", "static_cart", "static_pallet", "fluidized_bed", "blast_freezer"].includes(tunnelType);
     const loadKW = positiveValue(tunnelResult.totalKW, tunnelResult.productLoadKW, thermalResult.totalProcessLoadKw, thermalResult.productLoadKw);
     const airDeltaTK = positiveValue(source?.air_delta_t_k) || 6;
-    const airDensityKgM3 = positiveValue(source?.air_density_kg_m3) || 1.2;
-    const balanceAirflow = requiredAirflowForLoadM3H(loadKW, airDeltaTK, airDensityKgM3) || positiveValue(thermalResult.requiredAirflowM3H, tunnelResult.airFlowM3H, source?.informed_air_flow_m3_h, source?.airflow_m3_h);
+    const localManualDensity = positiveValue(source?.air_density_kg_m3) > 0 && Math.abs(positiveValue(source?.air_density_kg_m3) - 1.2) > 0.0001 ? positiveValue(source?.air_density_kg_m3) : null;
+    const localAirProps = createAirPropertiesContext({ temperatureC: Number(source?.air_temp_c ?? airTemperatureC), altitudeM: positiveValue(environment?.altitude_m, source?.altitude_m) || null, pressureKPa: positiveValue(environment?.atmospheric_pressure_kpa, source?.atmospheric_pressure_kpa) || null, relativeHumidityPercent: positiveValue(environment?.relative_humidity_percent, source?.relative_humidity_percent) || null, airDensityKgM3: localManualDensity, airSpecificHeatKJkgK: positiveValue(source?.air_specific_heat_kj_kg_k) || null, mode: "sublimation" });
+    const balanceAirflow = requiredAirflowForLoadM3H(loadKW, airDeltaTK, localAirProps.densityKgM3, localAirProps.specificHeatKJkgK) || positiveValue(thermalResult.requiredAirflowM3H, tunnelResult.airFlowM3H, source?.informed_air_flow_m3_h, source?.airflow_m3_h);
     const blockageFactor = recommendedBlockageFactor(tunnelType, source?.arrangement_type ?? form.arrangement_type);
     const horizontal = [dimensions.lengthM, dimensions.widthM].filter((value) => value > 0).sort((a, b) => a - b);
     const smallerWallM = horizontal[0] || positiveValue(source?.tunnel_cross_section_width_m);
