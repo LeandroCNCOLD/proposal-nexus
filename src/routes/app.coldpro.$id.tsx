@@ -17,11 +17,11 @@ import {
   useGenerateColdProMemorialPdf,
   useAnalyzeColdProMemorial,
 } from "@/features/coldpro/use-coldpro";
-import { ColdProEnvironmentForm } from "@/components/coldpro/ColdProEnvironmentForm";
-import { ColdProProductForm } from "@/components/coldpro/ColdProProductForm";
+import { ColdProEnvironmentForm, type ColdProEnvironmentFormHandle } from "@/components/coldpro/ColdProEnvironmentForm";
+import { ColdProProductForm, type ColdProProductFormHandle } from "@/components/coldpro/ColdProProductForm";
 import { ColdProTunnelForm, type ColdProTunnelFormHandle } from "@/components/coldpro/ColdProTunnelForm";
 import { ColdProResultCard } from "@/components/coldpro/ColdProResultCard";
-import { ColdProExtraLoadsForm } from "@/components/coldpro/ColdProExtraLoadsForm";
+import { ColdProExtraLoadsForm, type ColdProExtraLoadsFormHandle } from "@/components/coldpro/ColdProExtraLoadsForm";
 import { ColdProStepper, COLDPRO_STEPS } from "@/components/coldpro/ColdProStepper";
 import { ColdProReport } from "@/components/coldpro/ColdProReport";
 import { ColdProProjectResultDashboard } from "@/modules/coldpro/components/results/ColdProProjectResultDashboard";
@@ -298,6 +298,9 @@ function ColdProProjectPage() {
   const [energyTariff, setEnergyTariff] = React.useState("0.95");
   const [commercialQuantity, setCommercialQuantity] = React.useState("1");
   const [equipmentUnitPrice, setEquipmentUnitPrice] = React.useState("0");
+  const environmentFormRef = React.useRef<ColdProEnvironmentFormHandle | null>(null);
+  const productFormRef = React.useRef<ColdProProductFormHandle | null>(null);
+  const extraLoadsFormRef = React.useRef<ColdProExtraLoadsFormHandle | null>(null);
   const tunnelFormRef = React.useRef<ColdProTunnelFormHandle | null>(null);
 
   const environments = data?.environments ?? [];
