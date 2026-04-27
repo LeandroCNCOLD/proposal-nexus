@@ -64,7 +64,7 @@ export function simulateMonthlyEnergyConsumption(input: MonthlyEnergySimulationI
   const monthlyProcessedMassKg = processedMassKgPerDay * operatingDaysPerMonth;
   const costPerKg = monthlyProcessedMassKg > 0 ? monthlyCost / monthlyProcessedMassKg : 0;
 
-  const result = {
+  const result: MonthlyEnergySimulationResult = {
     electricalPowerKW: roundEnergy(electricalPowerKW),
     kWhDay: roundEnergy(kWhDay),
     kWhMonth: roundEnergy(kWhMonth),
@@ -84,5 +84,5 @@ export function simulateMonthlyEnergyConsumption(input: MonthlyEnergySimulationI
     },
   };
 
-  return Object.fromEntries(Object.entries(result).map(([key, value]) => [key, typeof value === "number" && !Number.isFinite(value) ? 0 : value])) as MonthlyEnergySimulationResult;
+  return result;
 }
