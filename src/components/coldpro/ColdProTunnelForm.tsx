@@ -716,7 +716,8 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
     setShowProductSuggestions(false);
   };
 
-  const save = () => onSave({
+  const save = () => {
+    const payload = {
     ...form,
     ...(selectedCatalogProduct ? {
       product_name: selectedCatalogProduct.name,
@@ -860,7 +861,14 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
     packaging_mass_kg_batch: Number(form.packaging_mass_kg_batch ?? 0) || null,
     thermal_condition_approved: form.thermal_condition_approved === true,
     thermal_condition_approved_at: form.thermal_condition_approved_at ?? null,
-  });
+  };
+    const validatedPayload = coldProTunnelSaveSchema.safeParse(payload);
+    if (!validatedPayload.success) {
+      window.alert("Revise os campos obrigatórios do túnel antes de salvar.");
+      return;
+    }
+    onSave(validatedPayload.data);
+  };
 
   const statusLabel: Record<string, string> = {
     adequate: "Adequado",
