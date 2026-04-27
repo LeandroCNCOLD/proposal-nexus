@@ -6,7 +6,11 @@ import { ColdProCalculatedInfo, ColdProFormSection, ColdProValidationMessage, fm
 import { filterAndRankColdProProducts } from "@/modules/coldpro/core/productSearch";
 import { normalizeProductForKcalEngine } from "@/modules/coldpro/core/unitNormalizer";
 
-type Props = { environmentId: string; product?: any | null; productCatalog?: any[]; saving?: boolean; onSave: (data: any) => void };
+type Props = { environmentId: string; product?: any | null; productCatalog?: any[]; saving?: boolean; onSave: (data: any) => void | boolean | Promise<void | boolean> };
+
+export type ColdProProductFormHandle = {
+  save: () => Promise<boolean>;
+};
 
 const initialForm = (environmentId: string) => ({
   id: undefined as string | undefined,
@@ -64,7 +68,7 @@ const initialForm = (environmentId: string) => ({
   notes: null as string | null,
 });
 
-export function ColdProProductForm({ environmentId, product, productCatalog = [], saving = false, onSave }: Props) {
+export const ColdProProductForm = React.forwardRef<ColdProProductFormHandle, Props>(function ColdProProductForm({ environmentId, product, productCatalog = [], saving = false, onSave }, ref) {
   const [selectedGroup, setSelectedGroup] = React.useState("");
   const [productSearch, setProductSearch] = React.useState("");
   const [showProductSuggestions, setShowProductSuggestions] = React.useState(false);
@@ -148,10 +152,10 @@ export function ColdProProductForm({ environmentId, product, productCatalog = []
   const lockedNum = (key: keyof ReturnType<typeof initialForm>) => ({ ...num(key), readOnly: catalogLocked, readOnlyValue: catalogLocked, title: catalogLocked ? "Propriedade técnica carregada do catálogo; edite no cadastro de produtos." : undefined });
   const thermalForKcalEngine = normalizeProductForKcalEngine(form);
 
-  const save = () => {
-    if (saving) return;
+  const save = async () => {
+    if (saving || !canSave) return false;
     const movement_basis = mode === "storage_turnover" ? "calculated_from_stock" : mode === "hourly_intake" ? "manual_hourly" : mode === "room_pull_down_or_freezing" ? "batch_recovery" : "manual_daily";
-    onSave({
+    const result = await onSave({
       ...form,
       ...(selectedCatalogProduct ? {
         product_name: selectedCatalogProduct.name,
@@ -178,7 +182,10 @@ export function ColdProProductForm({ environmentId, product, productCatalog = []
       mass_kg_hour: mode === "hourly_intake" ? hourlyReference : 0,
       process_time_h: mode === "hourly_intake" ? 1 : recoveryHours,
     });
+    return result !== false;
   };
+
+  React.useImperativeHandle(ref, () => ({ save }));
 
   return (
     <div className="min-w-0 rounded-xl border bg-background p-3 shadow-sm sm:p-5">
@@ -287,4 +294,4 @@ export function ColdProProductForm({ environmentId, product, productCatalog = []
       </div>
     </div>
   );
-}
+});

@@ -17,11 +17,11 @@ import {
   useGenerateColdProMemorialPdf,
   useAnalyzeColdProMemorial,
 } from "@/features/coldpro/use-coldpro";
-import { ColdProEnvironmentForm } from "@/components/coldpro/ColdProEnvironmentForm";
-import { ColdProProductForm } from "@/components/coldpro/ColdProProductForm";
-import { ColdProTunnelForm } from "@/components/coldpro/ColdProTunnelForm";
+import { ColdProEnvironmentForm, type ColdProEnvironmentFormHandle } from "@/components/coldpro/ColdProEnvironmentForm";
+import { ColdProProductForm, type ColdProProductFormHandle } from "@/components/coldpro/ColdProProductForm";
+import { ColdProTunnelForm, type ColdProTunnelFormHandle } from "@/components/coldpro/ColdProTunnelForm";
 import { ColdProResultCard } from "@/components/coldpro/ColdProResultCard";
-import { ColdProExtraLoadsForm } from "@/components/coldpro/ColdProExtraLoadsForm";
+import { ColdProExtraLoadsForm, type ColdProExtraLoadsFormHandle } from "@/components/coldpro/ColdProExtraLoadsForm";
 import { ColdProStepper, COLDPRO_STEPS } from "@/components/coldpro/ColdProStepper";
 import { ColdProReport } from "@/components/coldpro/ColdProReport";
 import { ColdProProjectResultDashboard } from "@/modules/coldpro/components/results/ColdProProjectResultDashboard";
@@ -298,6 +298,10 @@ function ColdProProjectPage() {
   const [energyTariff, setEnergyTariff] = React.useState("0.95");
   const [commercialQuantity, setCommercialQuantity] = React.useState("1");
   const [equipmentUnitPrice, setEquipmentUnitPrice] = React.useState("0");
+  const environmentFormRef = React.useRef<ColdProEnvironmentFormHandle | null>(null);
+  const productFormRef = React.useRef<ColdProProductFormHandle | null>(null);
+  const extraLoadsFormRef = React.useRef<ColdProExtraLoadsFormHandle | null>(null);
+  const tunnelFormRef = React.useRef<ColdProTunnelFormHandle | null>(null);
 
   const environments = data?.environments ?? [];
   const selectedEnv = environments.find((env: any) => env.id === selectedEnvId) ?? environments[0];
@@ -439,29 +443,47 @@ function ColdProProjectPage() {
     try {
       await calculate.mutateAsync(environmentId);
       toast.success(successMessage);
+      return true;
     } catch (e: any) {
       toast.warning(e?.message ? `Dados salvos, mas o recálculo falhou: ${e.message}` : "Dados salvos, mas o recálculo falhou.");
+      return true;
     }
   }
 
   async function handleSaveTunnel(payload: any) {
-    if (!selectedEnv) return;
+    if (!selectedEnv) return false;
     try {
       await upsertTunnel.mutateAsync(payload);
       await handleRecalculateEnvironment(selectedEnv.id, "Túnel salvo e carga recalculada");
+      return true;
     } catch (e: any) {
       toast.error(e?.message ?? "Erro ao salvar");
+      return false;
     }
   }
 
   async function handleSaveProduct(payload: any) {
-    if (!selectedEnv) return;
+    if (!selectedEnv) return false;
     try {
       const row = await upsertProduct.mutateAsync(payload);
       setEditingProductId(row?.id ?? null);
       await handleRecalculateEnvironment(selectedEnv.id, payload.id ? "Produto salvo e carga recalculada" : "Produto adicionado e carga recalculada");
+      return true;
     } catch (e: any) {
       toast.error(e?.message ?? "Erro ao salvar");
+      return false;
+    }
+  }
+
+  async function handleSaveEnvironmentPatch(patch: Record<string, unknown>, successMessage: string) {
+    if (!selectedEnv) return false;
+    try {
+      await updateEnv.mutateAsync({ id: selectedEnv.id, patch });
+      toast.success(successMessage);
+      return true;
+    } catch (e: any) {
+      toast.error(e?.message ?? "Erro ao salvar");
+      return false;
     }
   }
 
@@ -537,8 +559,27 @@ function ColdProProjectPage() {
     }
   }
 
-  function next() {
+  async function saveCurrentStepBeforeNavigation() {
+    if (!selectedEnv) return true;
+    if (stepIndex === 0) return environmentFormRef.current ? environmentFormRef.current.save() : true;
+    if (stepIndex === 1 && ["blast_freezer", "cooling_tunnel"].includes(String(selectedEnv.environment_type))) {
+      return tunnelFormRef.current ? tunnelFormRef.current.save() : true;
+    }
+    if (stepIndex === 1) return productFormRef.current ? productFormRef.current.save() : true;
+    if (stepIndex === 2) return extraLoadsFormRef.current ? extraLoadsFormRef.current.save() : true;
+    return true;
+  }
+
+  async function next() {
+    const saved = await saveCurrentStepBeforeNavigation();
+    if (!saved) return;
     setStepIndex((i) => Math.min(i + 1, COLDPRO_STEPS.length - 1));
+  }
+  async function goToStep(index: number) {
+    if (index === stepIndex) return;
+    const saved = await saveCurrentStepBeforeNavigation();
+    if (!saved) return;
+    setStepIndex(index);
   }
   function prev() {
     setStepIndex((i) => Math.max(i - 1, 0));
@@ -693,7 +734,7 @@ function ColdProProjectPage() {
                 <ColdProStepper
                   currentStep={stepIndex}
                   completed={completed}
-                  onStepClick={setStepIndex}
+                  onStepClick={goToStep}
                 />
               </div>
 
@@ -717,18 +758,11 @@ function ColdProProjectPage() {
               {stepIndex === 0 && (
                 <div className="space-y-3">
                   <ColdProEnvironmentForm
+                    ref={environmentFormRef}
                     environment={selectedEnv}
                     insulationMaterials={data?.insulationMaterials ?? []}
                     thermalMaterials={data?.thermalMaterials ?? []}
-                    onSave={(patch) => {
-                      updateEnv.mutate(
-                        { id: selectedEnv.id, patch },
-                        {
-                          onSuccess: () => toast.success("Ambiente salvo"),
-                          onError: (e: any) => toast.error(e?.message ?? "Erro ao salvar"),
-                        },
-                      );
-                    }}
+                    onSave={(patch) => handleSaveEnvironmentPatch(patch, "Ambiente salvo")}
                   />
                   <ColdProSectionLoadSummary
                     title="Prévia da carga do ambiente"
@@ -744,6 +778,7 @@ function ColdProProjectPage() {
                 <div className="space-y-3">
                   {["blast_freezer", "cooling_tunnel"].includes(selectedEnv.environment_type) ? (
                     <ColdProTunnelForm
+                      ref={tunnelFormRef}
                       environmentId={selectedEnv.id}
                       environment={selectedEnv}
                       product={products[0] ?? null}
@@ -753,6 +788,7 @@ function ColdProProjectPage() {
                     />
                   ) : (
                     <ColdProProductForm
+                      ref={productFormRef}
                       environmentId={selectedEnv.id}
                       product={products.find((p: any) => p.id === editingProductId) ?? products[0] ?? null}
                       productCatalog={data?.productCatalog ?? []}
@@ -801,17 +837,10 @@ function ColdProProjectPage() {
               {stepIndex === 2 && (
                 <div className="space-y-3">
                   <ColdProExtraLoadsForm
+                    ref={extraLoadsFormRef}
                     environment={selectedEnv}
                     catalogFanLoadKcalH={catalogFanLoadKcalH}
-                    onSave={(patch) =>
-                      updateEnv.mutate(
-                        { id: selectedEnv.id, patch },
-                        {
-                          onSuccess: () => toast.success("Cargas extras salvas"),
-                          onError: (e: any) => toast.error(e?.message ?? "Erro ao salvar"),
-                        },
-                      )
-                    }
+                    onSave={(patch) => handleSaveEnvironmentPatch(patch, "Cargas extras salvas")}
                   />
                   <ColdProSectionLoadSummary
                     title="Prévia das cargas extras"
@@ -1099,7 +1128,7 @@ function ColdProProjectPage() {
                 <button
                   type="button"
                   onClick={next}
-                  disabled={stepIndex === COLDPRO_STEPS.length - 1}
+                  disabled={stepIndex === COLDPRO_STEPS.length - 1 || upsertTunnel.isPending || calculate.isPending}
                   className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-1.5 text-sm font-medium text-primary-foreground shadow-sm transition hover:bg-primary/90 disabled:opacity-40"
                 >
                   Próxima etapa <ArrowRight className="h-4 w-4" />

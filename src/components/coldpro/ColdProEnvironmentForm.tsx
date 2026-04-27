@@ -21,7 +21,11 @@ type Props = {
   environment: any;
   insulationMaterials: any[];
   thermalMaterials?: any[];
-  onSave: (patch: Record<string, unknown>) => void;
+  onSave: (patch: Record<string, unknown>) => void | boolean | Promise<void | boolean>;
+};
+
+export type ColdProEnvironmentFormHandle = {
+  save: () => Promise<boolean>;
 };
 
 type ChamberLayout = "rectangular" | "l_shape" | "irregular_l" | "custom_polygon";
@@ -301,7 +305,7 @@ function ChamberShapePreview({ layout }: { layout: ChamberLayout }) {
   );
 }
 
-export function ColdProEnvironmentForm({ environment, insulationMaterials, thermalMaterials = [], onSave }: Props) {
+export const ColdProEnvironmentForm = React.forwardRef<ColdProEnvironmentFormHandle, Props>(function ColdProEnvironmentForm({ environment, insulationMaterials, thermalMaterials = [], onSave }, ref) {
   const [form, setForm] = React.useState<any>(environment);
   const [floorInsulationMaterialId, setFloorInsulationMaterialId] = React.useState<string>(environment?.insulation_material_id ?? "");
   const [panelMaterialKey, setPanelMaterialKey] = React.useState<string>(environment?.insulation_material_id ? `legacy:${environment.insulation_material_id}` : "");
@@ -525,6 +529,13 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
     ...face,
     solar_orientation: face.local === currentSolarFace && toNumber(face.solar_radiation_w_m2) > 0 ? "Sol direto" : "",
   })), [finalizedConstructionFaces, currentSolarFace]);
+  const save = async () => {
+    if (!canSave) return false;
+    const result = await onSave({ ...form, name: String(form?.name ?? "").trim(), chamber_layout_type: layout, wall_count: wallCount, volume_m3: volume, west_face_insolation: Boolean(currentSolarFace), construction_faces: [...solarAdjustedConstructionFaces, geometry], total_panel_area_m2: totalPanelArea, total_glass_area_m2: totalGlassArea, total_door_area_m2: 0 });
+    return result !== false;
+  };
+
+  React.useImperativeHandle(ref, () => ({ save }));
   const faceCalculationEnv = { ...form, construction_faces: solarAdjustedConstructionFaces, chamber_layout_type: layout, wall_count: wallCount };
   const transmissionPreviewRows = constructionFaces.map((face, index) => {
     const hasGlass = Boolean(face.has_glass) && toNumber(face.glass_area_m2) > 0;
@@ -849,10 +860,10 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
       </Tabs>
 
       <div className="mt-5 flex justify-end border-t pt-4">
-        <button type="button" disabled={!canSave} onClick={() => onSave({ ...form, name: String(form?.name ?? "").trim(), chamber_layout_type: layout, wall_count: wallCount, volume_m3: volume, west_face_insolation: Boolean(currentSolarFace), construction_faces: [...solarAdjustedConstructionFaces, geometry], total_panel_area_m2: totalPanelArea, total_glass_area_m2: totalGlassArea, total_door_area_m2: 0 })} className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-2 text-sm font-medium text-primary-foreground shadow-sm transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50">
+        <button type="button" disabled={!canSave} onClick={save} className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-2 text-sm font-medium text-primary-foreground shadow-sm transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50">
           <Save className="h-4 w-4" /> Salvar ambiente
         </button>
       </div>
     </div>
   );
-}
+});
