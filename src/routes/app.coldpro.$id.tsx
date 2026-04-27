@@ -1,6 +1,6 @@
 import * as React from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, ArrowRight, Calculator, Download, FileText, Loader2, Pencil, Plus, Printer, Snowflake, Sparkles, Thermometer, Trash2, Wind, Warehouse } from "lucide-react";
+import { ArrowLeft, ArrowRight, Calculator, Download, FileText, Loader2, Pencil, Printer, Snowflake, Sparkles, Thermometer, Trash2, Wind, Warehouse } from "lucide-react";
 import { toast } from "sonner";
 import {
   useColdProProjectBundle,
