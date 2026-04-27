@@ -21,6 +21,7 @@ export type TunnelThermalScenario = {
   airVelocityMS: number | null;
   airDeltaTK: number;
   airFlowM3H: number;
+  airFlowThermalBalanceM3H: number;
   informedAirFlowM3H: number | null;
   suggestedAirTempC: number;
   hEffectiveWM2K: number | null;
