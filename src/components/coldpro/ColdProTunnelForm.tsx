@@ -283,10 +283,40 @@ function recommendedTunnelAirVelocity(tunnelType: string, isStatic: boolean) {
 
 function recommendedBlockageFactor(tunnelType: string, arrangementType: unknown) {
   const arrangement = String(arrangementType ?? "");
-  if (tunnelType === "fluidized_bed") return 0.12;
-  if (arrangement.includes("pallet") || arrangement.includes("block") || arrangement.includes("boxes")) return 0.3;
-  if (arrangement.includes("tray") || arrangement.includes("rack")) return 0.22;
-  return 0.18;
+  const tunnelLike = ["continuous_belt", "spiral_girofreezer", "static_cart", "static_pallet", "fluidized_bed", "blast_freezer"].includes(tunnelType);
+  if (tunnelLike && (arrangement.includes("pallet") || arrangement.includes("block") || arrangement.includes("boxes"))) return 0.5;
+  if (tunnelLike || arrangement.includes("tray") || arrangement.includes("rack") || arrangement.includes("cart")) return 0.35;
+  return 0.2;
+}
+
+function positiveFromPath(source: unknown, ...paths: string[]) {
+  for (const path of paths) {
+    const value = path.split(".").reduce<unknown>((acc, key) => (acc && typeof acc === "object" ? (acc as Record<string, unknown>)[key] : undefined), source);
+    const parsed = Number(value);
+    if (Number.isFinite(parsed) && parsed > 0) return parsed;
+  }
+  return 0;
+}
+
+function resolveChamberDimensions(environment: unknown, tunnel: unknown) {
+  const lengthM = positiveFromPath(environment, "length_m", "comprimento_m", "length", "comprimento") || positiveFromPath(tunnel, "length_m", "comprimento_m", "length", "comprimento");
+  const widthM = positiveFromPath(environment, "width_m", "largura_m", "width", "largura") || positiveFromPath(tunnel, "width_m", "largura_m", "width", "largura");
+  const heightM = positiveFromPath(environment, "height_m", "altura_m", "height", "altura") || positiveFromPath(tunnel, "height_m", "altura_m", "height", "altura");
+  const volumeM3 = positiveFromPath(environment, "volume_m3", "volume") || (lengthM > 0 && widthM > 0 && heightM > 0 ? lengthM * widthM * heightM : 0);
+  const internalTempC = definedNumber((environment as Record<string, unknown> | null)?.internal_temp_c, (environment as Record<string, unknown> | null)?.internal_temperature_c, (tunnel as Record<string, unknown> | null)?.air_temp_c, 0);
+  return { lengthM, widthM, heightM, volumeM3, internalTempC };
+}
+
+function airflowVelocityStatus(velocityMS: number, tunnelLike: boolean) {
+  if (velocityMS <= 0) return { status: "pendente", tone: "warning" as const, warning: "Informe carga, vazão e seção livre para validar a velocidade." };
+  if (tunnelLike) {
+    if (velocityMS < 1.5) return { status: "baixa", tone: "warning" as const, warning: "Velocidade baixa para túnel de congelamento" };
+    if (velocityMS > 6) return { status: "alta", tone: "warning" as const, warning: "Velocidade alta; validar arraste, perda de carga e desidratação" };
+    return { status: velocityMS >= 2 && velocityMS <= 5 ? "adequada" : "aceitável", tone: "success" as const, warning: "" };
+  }
+  if (velocityMS > 1.5) return { status: "alta", tone: "warning" as const, warning: "Velocidade alta para câmara fria; validar excesso de ar no produto." };
+  if (velocityMS >= 0.2 && velocityMS <= 0.8) return { status: "adequada", tone: "success" as const, warning: "" };
+  return { status: "fora da faixa", tone: "warning" as const, warning: "Velocidade fora da faixa usual para câmara fria." };
 }
 
 function kcalFromThermal(kcal?: unknown, kj?: unknown) {
