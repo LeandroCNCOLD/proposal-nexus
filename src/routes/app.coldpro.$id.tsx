@@ -349,8 +349,8 @@ function ColdProProjectPage() {
               <ColdProProjectResultDashboard
                 project={data?.project}
                 environments={environments}
-                results={data?.results ?? []}
-                selections={data?.selections ?? []}
+                results={currentResults}
+                selections={currentSelections}
                 products={allProducts}
                 advancedProcesses={data?.advancedProcesses ?? []}
                 onAnalyze={handleAnalyzeMemorial}
@@ -360,8 +360,8 @@ function ColdProProjectPage() {
               <ColdProReport
                 project={data?.project}
                 environments={environments}
-                results={data?.results ?? []}
-                selections={data?.selections ?? []}
+                results={currentResults}
+                selections={currentSelections}
                 products={allProducts}
                 advancedProcesses={data?.advancedProcesses ?? []}
                 onPushToProposal={handlePushToProposal}
