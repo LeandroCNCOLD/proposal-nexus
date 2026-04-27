@@ -102,6 +102,30 @@ export interface TunnelConvectiveResult {
   exposureFactor?: number;
 }
 
+export interface TunnelThermalScenarioResult {
+  airTempC: number | null;
+  airVelocityMS: number | null;
+  airDeltaTK: number;
+  airFlowM3H: number;
+  airFlowThermalBalanceM3H: number;
+  informedAirFlowM3H: number | null;
+  suggestedAirTempC: number;
+  hEffectiveWM2K: number | null;
+  hSource: string;
+  productLoadKW: number;
+  packagingLoadKW: number;
+  internalLoadKW: number;
+  totalKW: number;
+  totalKcalH: number;
+  totalTR: number;
+  estimatedTimeMin: number | null;
+  availableTimeMin: number;
+  status: TunnelProcessStatus;
+  warnings: string[];
+  missingFields: string[];
+  invalidFields: string[];
+}
+
 export interface TunnelEngineResult {
   [key: string]: unknown;
   processType?: string | null;
@@ -136,10 +160,10 @@ export interface TunnelEngineResult {
   totalKW: number;
   totalKcalH: number;
   totalTR: number;
-  airFlowM3H?: number;
+  airFlowM3H: number;
   airFlowMethod?: string;
-  airFlowThermalBalanceM3H?: number;
-  estimatedAirflowM3H?: number;
+  airFlowThermalBalanceM3H: number;
+  estimatedAirflowM3H: number;
   informedAirFlowM3H?: number | null;
   suggestedAirTempC?: number;
   suggestedAirMethod?: string;
@@ -151,8 +175,12 @@ export interface TunnelEngineResult {
   missingFields: string[];
   invalidFields: string[];
   warnings: string[];
-  calculationBreakdown: Record<string, unknown>;
-  calculationLog: Record<string, unknown>;
+  scenario?: TunnelThermalScenarioResult;
+  initialScenario: TunnelThermalScenarioResult;
+  adjustedScenario: TunnelThermalScenarioResult;
+  approvedScenario: TunnelThermalScenarioResult | null;
+  calculationBreakdown: Record<string, any>;
+  calculationLog: Record<string, any>;
   engineVersion: string;
   calculatedAt: string;
 }
