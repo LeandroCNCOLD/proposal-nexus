@@ -2804,6 +2804,7 @@ export type Database = {
           boxes_per_layer: number | null
           bulk_layer_height_m: number | null
           calculated_air_velocity_m_s: number | null
+          calculated_at: string | null
           calculated_batch_mass_kg: number | null
           calculated_cart_mass_kg: number | null
           calculated_mass_kg_h: number | null
@@ -2824,6 +2825,7 @@ export type Database = {
           density_kg_m3: number | null
           direct_batch_mass_kg: number | null
           distance_to_core_m: number | null
+          engine_version: string | null
           environment_id: string
           equivalent_diameter_m: number | null
           equivalent_particle_diameter_m: number | null
@@ -2990,6 +2992,7 @@ export type Database = {
           boxes_per_layer?: number | null
           bulk_layer_height_m?: number | null
           calculated_air_velocity_m_s?: number | null
+          calculated_at?: string | null
           calculated_batch_mass_kg?: number | null
           calculated_cart_mass_kg?: number | null
           calculated_mass_kg_h?: number | null
@@ -3010,6 +3013,7 @@ export type Database = {
           density_kg_m3?: number | null
           direct_batch_mass_kg?: number | null
           distance_to_core_m?: number | null
+          engine_version?: string | null
           environment_id: string
           equivalent_diameter_m?: number | null
           equivalent_particle_diameter_m?: number | null
@@ -3176,6 +3180,7 @@ export type Database = {
           boxes_per_layer?: number | null
           bulk_layer_height_m?: number | null
           calculated_air_velocity_m_s?: number | null
+          calculated_at?: string | null
           calculated_batch_mass_kg?: number | null
           calculated_cart_mass_kg?: number | null
           calculated_mass_kg_h?: number | null
@@ -3196,6 +3201,7 @@ export type Database = {
           density_kg_m3?: number | null
           direct_batch_mass_kg?: number | null
           distance_to_core_m?: number | null
+          engine_version?: string | null
           environment_id?: string
           equivalent_diameter_m?: number | null
           equivalent_particle_diameter_m?: number | null
