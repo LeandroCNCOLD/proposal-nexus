@@ -553,6 +553,11 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
   const airflowDeltaM3H = informedFanAirflowM3H - requiredAirflowM3H;
   const airflowDeltaPercent = requiredAirflowM3H > 0 ? Math.abs(airflowDeltaM3H) / requiredAirflowM3H * 100 : 0;
   const showAirflowMismatch = form.airflow_source === "airflow_by_fans" && requiredAirflowM3H > 0 && informedFanAirflowM3H > 0 && airflowDeltaPercent > 5;
+  const loadBreakdown = tunnelResult.calculationBreakdown.loads ?? {};
+  const productLoadMissingFields = Array.isArray(loadBreakdown.productLoadMissingFields) ? loadBreakdown.productLoadMissingFields : [];
+  const productLoadMassDescription = isStatic
+    ? `${fmtColdPro(loadBreakdown.massUsedForProductLoad ?? tunnelResult.staticMassKg)} kg ÷ ${fmtColdPro(Number(form.batch_time_h ?? 0), 2)} h × energia específica`
+    : `${fmtColdPro(loadBreakdown.massUsedForProductLoad ?? tunnelResult.usedMassKgH)} kg/h × energia específica`;
 
   React.useEffect(() => {
     const presetKey = `${environmentId}:${tunnel?.id ?? "new"}`;
