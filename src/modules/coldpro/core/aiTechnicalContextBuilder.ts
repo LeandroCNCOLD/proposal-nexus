@@ -1,6 +1,7 @@
 import type { ColdProNormalizedResult } from "./resultNormalizer";
 import type { ColdProEnvironmentNormalizedResult } from "./environmentResultNormalizer";
 import type { ColdProProjectConsolidatedResult } from "./projectResultConsolidator";
+import { getHighPriorityAshraeActions } from "./ashraeComparison";
 
 function baseEnvironmentContext(normalizedResult: ColdProNormalizedResult | ColdProEnvironmentNormalizedResult) {
   const distribution = Object.entries(normalizedResult.groupedLoads)
@@ -16,6 +17,12 @@ function baseEnvironmentContext(normalizedResult: ColdProNormalizedResult | Cold
     equipment: normalizedResult.equipment,
     consistencyAudit: normalizedResult.consistencyAudit,
     iceAndDefrost: normalizedResult.iceAndDefrost,
+    ashraeMethodContext: {
+      methodsUsed: normalizedResult.calculationMethodSummary.methods,
+      limitations: normalizedResult.calculationMethodSummary.limitations,
+      comparisonFindings: normalizedResult.calculationMethodSummary.ashraeComparison,
+      highPriorityActions: getHighPriorityAshraeActions(),
+    },
     chartSummary: {
       largestComponent: largest,
       distributionByCategory: distribution,
@@ -40,6 +47,9 @@ function baseEnvironmentContext(normalizedResult: ColdProNormalizedResult | Cold
       "Não afirme que a carga de produto está ausente se houver carga classificada como túnel/processo ou processo especial.",
       "Quando houver divergência de classificação, trate como alerta de classificação, não como erro matemático automático.",
       "Produto direto zerado com túnel/processo maior que zero significa produto calculado como processo especial.",
+      "Não diga que uma fórmula oficial está errada; diferencie método simplificado permitido de melhoria recomendada.",
+      "Para infiltração simples em baixa temperatura, recomende psicrometria como melhoria, sem invalidar automaticamente.",
+      "Para tempo até núcleo, declare que é estimativa dependente de geometria, h efetivo, condutividade e arranjo.",
     ],
   };
 }
@@ -65,6 +75,12 @@ export function buildColdProProjectAIContext(consolidatedResult: ColdProProjectC
     groupedLoads: consolidatedResult.groupedLoads,
     ranking: consolidatedResult.ranking,
     consistencyAudit: consolidatedResult.consistencyAudit,
+    ashraeMethodContext: {
+      methodsUsed: consolidatedResult.calculationMethodSummary.methods,
+      limitations: consolidatedResult.calculationMethodSummary.limitations,
+      comparisonFindings: consolidatedResult.calculationMethodSummary.ashraeComparison,
+      highPriorityActions: getHighPriorityAshraeActions(),
+    },
     chartSummary: {
       dominantEnvironment,
       largestGlobalCategory: groupedDistribution[0] ?? null,
@@ -94,5 +110,5 @@ export function compactColdProAIQuestion(action: string, instruction: string, sc
 }
 
 export function buildColdProAISystemPrompt() {
-  return "Você é um especialista em engenharia frigorífica industrial. Use apenas os dados estruturados fornecidos. Não invente valores. Não afirme que a carga de produto está ausente se houver carga classificada como túnel/processo ou processo especial. Quando houver divergência de classificação, trate como alerta de classificação, não como erro matemático automático. Gere análise em 5 seções: conclusão executiva, principais cargas, validação do túnel, seleção de equipamentos, recomendações práticas.";
+  return "Você é um especialista em engenharia frigorífica industrial. Use apenas os dados estruturados fornecidos. Não invente valores. Não afirme que a carga de produto está ausente se houver carga classificada como túnel/processo ou processo especial. Não diga que uma fórmula oficial do ColdPro está errada; diferencie método simplificado permitido de melhoria recomendada. Para infiltração simples em baixa temperatura, recomende psicrometria como melhoria. Para tempo até núcleo, sempre declare que é estimativa dependente de geometria, h efetivo, condutividade e arranjo; em pallets/blocos recomende validação de campo ou fator conservador. Gere análise em 5 seções: conclusão executiva, principais cargas, validação do túnel, seleção de equipamentos, recomendações práticas.";
 }
