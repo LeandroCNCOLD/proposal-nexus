@@ -57,6 +57,12 @@ export function consolidateColdProProjectResult({
   const equipmentSurplusPercent = summary.requiredKcalH > 0 ? round(((summary.totalSelectedCapacityKcalH - summary.requiredKcalH) / summary.requiredKcalH) * 100, 2) : 0;
   const criticalEnvironments = environmentResults.filter((item) => item.consistencyAudit.hasCriticalDivergence);
   const warnings = environmentResults.flatMap((item) => item.consistencyAudit.warnings.map((warning: string) => `${item.environment?.name ?? "Ambiente"}: ${warning}`));
+  const methodSummary = {
+    methods: Array.from(new Set(environmentResults.flatMap((item) => item.calculationMethodSummary.methods))),
+    limitations: Array.from(new Set(environmentResults.flatMap((item) => item.calculationMethodSummary.limitations))),
+    warnings: Array.from(new Set(environmentResults.flatMap((item) => item.calculationMethodSummary.warnings))),
+    ashraeComparison: environmentResults[0]?.calculationMethodSummary.ashraeComparison ?? [],
+  };
 
   return {
     scope: "project" as const,
@@ -64,6 +70,7 @@ export function consolidateColdProProjectResult({
     summary: { ...summary, equipmentSurplusPercent, environmentCount: environments.length, calculatedEnvironmentCount: environmentResults.filter((item) => item.summary.requiredKcalH > 0).length },
     groupedLoads,
     environmentResults,
+    calculationMethodSummary: methodSummary,
     ranking: [...environmentResults].sort((a, b) => b.summary.requiredKcalH - a.summary.requiredKcalH).map((item, index) => ({
       position: index + 1,
       environmentId: item.environment?.id ?? null,
