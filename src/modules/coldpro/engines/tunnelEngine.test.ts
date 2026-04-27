@@ -1,6 +1,8 @@
 import { strict as assert } from "node:assert";
 import { formToTunnelInput } from "../adapters/formToTunnelInput";
-import { compareColdProFormulaWithAshrae } from "../core/ashraeComparison";
+import { compareColdProFormulaWithAshrae, getHighPriorityAshraeActions } from "../core/ashraeComparison";
+import { COLDPRO_CALCULATION_METHODS } from "../core/calculationMethodRegistry";
+import { buildCalculationMethodSummary } from "../core/resultNormalizer";
 import { tunnelResultToDatabasePayload } from "../adapters/tunnelInputToDatabasePayload";
 import type { TunnelEngineInput, TunnelEngineResult } from "../types/tunnelEngine.types";
 import { calculateTunnelEngine, COLDPRO_TUNNEL_ENGINE_VERSION } from "./tunnelEngine";
@@ -146,7 +148,7 @@ const thermalBase = {
     packagingCpKJkgK: 1.4,
   });
   nearlyEqual(continuous.packagingLoadKW, 1.0733, 0.001);
-  assert.equal(continuous.calculationBreakdown.loads?.packagingMassSource, "kg/h");
+  assert.equal(continuous.packagingLoadMethod, "continuous_mass_flow");
 
   const batch = calculateTunnelEngine({
     ...thermalBase,
@@ -163,7 +165,7 @@ const thermalBase = {
     packagingCpKJkgK: 1.4,
   });
   nearlyEqual(batch.packagingLoadKW, 0.2683, 0.001);
-  assert.equal(batch.calculationBreakdown.loads?.packagingMassSource, "kg/batelada");
+  assert.equal(batch.packagingLoadMethod, "batch_total_mass");
   assert.equal(batch.calculationMethod.methods.infiltration, "simple_air_change");
 }
 
@@ -182,9 +184,40 @@ const thermalBase = {
   });
   assert.equal(result.calculationBreakdown.infiltration?.usedMethod, "simple_air_change");
   assert.ok(result.warnings.includes("Método psicrométrico solicitado, mas faltam dados de umidade/entalpia. Usando método simplificado."));
-  assert.equal(result.calculationBreakdown.calculationMethod?.methods?.product, "sensível + latente + sensível");
-  assert.equal(compareColdProFormulaWithAshrae("transmission").decision, "manter");
-  assert.equal(compareColdProFormulaWithAshrae("product").decision, "manter");
+  assert.equal(result.calculationBreakdown.calculationMethod?.methods?.product, COLDPRO_CALCULATION_METHODS.productCoolingFreezing.formula);
+  assert.equal(compareColdProFormulaWithAshrae("transmission")?.decision, "keep");
+  assert.equal(compareColdProFormulaWithAshrae("product")?.decision, "keep");
+}
+
+{
+  assert.ok(COLDPRO_CALCULATION_METHODS.transmission);
+  assert.ok(COLDPRO_CALCULATION_METHODS.productCoolingFreezing);
+  assert.ok(COLDPRO_CALCULATION_METHODS.airFlowBalance);
+  assert.ok(COLDPRO_CALCULATION_METHODS.freezingTime);
+  const highPriority = getHighPriorityAshraeActions().map((item) => item.area);
+  assert.ok(highPriority.includes("packaging"));
+  assert.ok(highPriority.includes("freezingTime"));
+}
+
+{
+  const result = calculateTunnelEngine({
+    ...thermalBase,
+    processType: "continuous_individual_freezing",
+    operationMode: "continuous",
+    tunnelType: "continuous_belt",
+    arrangementType: "individual_exposed",
+    productGeometry: "slab",
+    directMassKgH: 1000,
+    retentionTimeMin: 30,
+    productThicknessM: 0.03,
+  });
+  assert.ok(result.calculationBreakdown.calculationMethod?.productEnergy);
+  assert.ok(result.calculationBreakdown.calculationMethod?.productLoad);
+  assert.ok(result.calculationBreakdown.calculationMethod?.airflow);
+  assert.ok(result.calculationBreakdown.calculationMethod?.freezingTime);
+  const summary = buildCalculationMethodSummary({ calculation_breakdown: result.calculationBreakdown });
+  assert.ok(summary.methods.length > 0);
+  assert.ok(summary.limitations.length > 0);
 }
 
 {
