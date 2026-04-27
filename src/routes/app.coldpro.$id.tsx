@@ -757,6 +757,7 @@ function ColdProProjectPage() {
                 <div className="space-y-3">
                   {["blast_freezer", "cooling_tunnel"].includes(selectedEnv.environment_type) ? (
                     <ColdProTunnelForm
+                      ref={tunnelFormRef}
                       environmentId={selectedEnv.id}
                       environment={selectedEnv}
                       product={products[0] ?? null}
@@ -1112,7 +1113,7 @@ function ColdProProjectPage() {
                 <button
                   type="button"
                   onClick={next}
-                  disabled={stepIndex === COLDPRO_STEPS.length - 1}
+                  disabled={stepIndex === COLDPRO_STEPS.length - 1 || upsertTunnel.isPending || calculate.isPending}
                   className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-1.5 text-sm font-medium text-primary-foreground shadow-sm transition hover:bg-primary/90 disabled:opacity-40"
                 >
                   Próxima etapa <ArrowRight className="h-4 w-4" />
