@@ -107,7 +107,9 @@ export function calculatePsychrometricInfiltrationKW(input: any) {
   let infiltrationAirflowM3H = positive(input?.infiltrationAirflowM3H ?? input?.infiltration_airflow_m3_h ?? input?.freshAirM3H ?? input?.fresh_air_m3_h ?? input?.doorInfiltrationM3H ?? input?.door_infiltration_m3_h);
   // Se a vazão vem em m³/dia (como do cálculo de porta), converter para m³/h
   if (input?.door_infiltration_m3_h && input.door_infiltration_m3_h > 0 && infiltrationAirflowM3H > 0) {
-    infiltrationAirflowM3H = infiltrationAirflowM3H / 24; // Converter m³/dia → m³/h
+    // Usar horas de rateio corretas: infiltration_recovery > compressor > operating > 16
+    const rateHours = positive(input?.infiltrationRecoveryHoursPerDay ?? input?.infiltration_recovery_hours_per_day) || positive(input?.compressorHoursPerDay ?? input?.compressor_hours_per_day) || positive(input?.operatingHoursPerDay ?? input?.operating_hours_per_day) || 16;
+    infiltrationAirflowM3H = infiltrationAirflowM3H / rateHours; // Converter m³/dia → m³/h com rateio correto
   }
   const airDensityKgM3 = positive(input?.airDensityKgM3 ?? input?.air_density_kg_m3) || 1.2;
   const atmosphericPressureKPa = positive(input?.atmosphericPressureKPa ?? input?.atmospheric_pressure_kpa) || 101.325;
