@@ -682,7 +682,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
 
   const loadBreakdown = tunnelResult.calculationBreakdown.loads ?? {};
   const modelBreakdown = tunnelResult.calculationBreakdown.model ?? {};
-  const airBreakdown = tunnelResult.calculationBreakdown.air ?? {};
+  const airBreakdown = (tunnelResult.calculationBreakdown.air ?? {}) as Record<string, any>;
   const displayedAirProperties = (airBreakdown.airProperties ?? airProperties) as typeof airProperties;
   const productLoadMissingFields = Array.isArray(loadBreakdown.productLoadMissingFields) ? loadBreakdown.productLoadMissingFields : [];
   const requiredAirflowM3H = requiredAirflowForLoadM3H(tunnelResult.totalKW, positiveValue(form.air_delta_t_k) || 6, displayedAirProperties.densityKgM3, displayedAirProperties.specificHeatKJkgK) || tunnelResult.airFlowM3H;
