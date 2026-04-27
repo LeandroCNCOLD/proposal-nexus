@@ -333,8 +333,8 @@ function fmtAirflow(value: unknown, digits = 0) {
   return `${fmtColdPro(value, digits)} m³/h`;
 }
 
-function kcalFromThermal(kcal?: unknown, kj?: unknown) {
-  const normalized = normalizeProductForKcalEngine({ specific_heat_above_kcal_kg_c: kcal, specific_heat_above_kj_kg_k: kj });
+function kcalFromThermal(kcal?: unknown, kj?: unknown, preferKjSource = false) {
+  const normalized = normalizeProductForKcalEngine({ specific_heat_above_kcal_kg_c: kcal, specific_heat_above_kj_kg_k: kj, prefer_kj_source: preferKjSource });
   return normalized.cpAboveKcalKgC;
 }
 
@@ -517,9 +517,10 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
     ? Number(environment?.internal_temp_c ?? form.air_temp_c ?? 0)
     : Number(form.air_temp_c ?? environment?.internal_temp_c ?? 0);
   const freezingPointC = Number(form.freezing_temp_c ?? thermodynamicProduct?.initial_freezing_temp_c ?? -1.5);
-  const cpAboveKcalKgC = kcalFromThermal(form.specific_heat_above_kcal_kg_c, form.specific_heat_above_kj_kg_k) || kcalFromThermal(thermodynamicProduct?.specific_heat_above_kcal_kg_c, thermodynamicProduct?.specific_heat_above_kj_kg_k);
-  const cpBelowKcalKgC = kcalFromThermal(form.specific_heat_below_kcal_kg_c, form.specific_heat_below_kj_kg_k) || kcalFromThermal(thermodynamicProduct?.specific_heat_below_kcal_kg_c, thermodynamicProduct?.specific_heat_below_kj_kg_k);
-  const latentHeatKcalKg = kcalFromThermal(form.latent_heat_kcal_kg, form.latent_heat_kj_kg) || kcalFromThermal(thermodynamicProduct?.latent_heat_kcal_kg, thermodynamicProduct?.latent_heat_kj_kg);
+  const preferCatalogKj = Boolean(form.product_id ?? selectedCatalogProduct?.id);
+  const cpAboveKcalKgC = kcalFromThermal(form.specific_heat_above_kcal_kg_c, form.specific_heat_above_kj_kg_k, preferCatalogKj) || kcalFromThermal(thermodynamicProduct?.specific_heat_above_kcal_kg_c, thermodynamicProduct?.specific_heat_above_kj_kg_k, Boolean(thermodynamicProduct?.id));
+  const cpBelowKcalKgC = kcalFromThermal(form.specific_heat_below_kcal_kg_c, form.specific_heat_below_kj_kg_k, preferCatalogKj) || kcalFromThermal(thermodynamicProduct?.specific_heat_below_kcal_kg_c, thermodynamicProduct?.specific_heat_below_kj_kg_k, Boolean(thermodynamicProduct?.id));
+  const latentHeatKcalKg = kcalFromThermal(form.latent_heat_kcal_kg, form.latent_heat_kj_kg, preferCatalogKj) || kcalFromThermal(thermodynamicProduct?.latent_heat_kcal_kg, thermodynamicProduct?.latent_heat_kj_kg, Boolean(thermodynamicProduct?.id));
   const frozenConductivityWmK = positiveValue(form.thermal_conductivity_frozen_w_m_k, thermodynamicProduct?.thermal_conductivity_frozen_w_m_k, thermodynamicProduct?.thermal_conductivity_w_m_k);
   const frozenWaterFraction = definedNumber(form.frozen_water_fraction, thermodynamicProduct?.frozen_water_fraction, thermodynamicProduct?.freezable_water_content_percent == null ? null : Number(thermodynamicProduct.freezable_water_content_percent) / 100, thermodynamicProduct?.water_content_percent == null ? null : Number(thermodynamicProduct.water_content_percent) / 100, 0.9);
   const tunnelInput = formToTunnelInput(form, environment ?? {});
