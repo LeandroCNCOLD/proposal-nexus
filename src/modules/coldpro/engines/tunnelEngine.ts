@@ -523,9 +523,28 @@ function calculateTunnelCore(input: TunnelEngineInput) {
     infiltrationMethod.used,
     tunnelMode.operationRegime === "batch" ? "kg/batelada" : "kg/h contínuo",
   );
+  const officialCalculationMethod = {
+    ...calculationMethod,
+    productEnergy: COLDPRO_CALCULATION_METHODS.productCoolingFreezing,
+    productLoad: tunnelMode.operationRegime === "batch" ? COLDPRO_CALCULATION_METHODS.batchProductLoad : COLDPRO_CALCULATION_METHODS.continuousProductLoad,
+    packaging: tunnelMode.operationRegime === "batch" ? COLDPRO_CALCULATION_METHODS.packagingBatch : COLDPRO_CALCULATION_METHODS.packagingContinuous,
+    airflow: COLDPRO_CALCULATION_METHODS.airFlowBalance,
+    airVelocity: COLDPRO_CALCULATION_METHODS.airVelocity,
+    convectiveCoefficient: COLDPRO_CALCULATION_METHODS.convectiveCoefficient,
+    freezingTime: COLDPRO_CALCULATION_METHODS.freezingTime,
+  };
+  const methodsUsed = [
+    officialCalculationMethod.productEnergy.name,
+    officialCalculationMethod.productLoad.name,
+    officialCalculationMethod.packaging.name,
+    officialCalculationMethod.airflow.name,
+    officialCalculationMethod.airVelocity.name,
+    officialCalculationMethod.convectiveCoefficient.name,
+    officialCalculationMethod.freezingTime.name,
+  ];
 
   const calculationBreakdown = {
-    calculationMethod,
+    calculationMethod: officialCalculationMethod,
     model: {
       tunnelType: tunnelMode.tunnelType,
       arrangementType: tunnelMode.arrangementType,
@@ -568,7 +587,7 @@ function calculateTunnelCore(input: TunnelEngineInput) {
   };
 
   const resultSummary = { physicalModel, processType, status, productLoadKW, packagingLoadKW, internalLoadKW, totalKW, estimatedTimeMin, availableTimeMin };
-  const calculationLog = buildCalculationLog({ originalInput: input, normalizedInput: { ...input, physicalModel, mode }, unitConversions: input?.unitConversions ?? null, warnings, missingFields, invalidFields, formulasUsed, resultSummary });
+  const calculationLog = buildCalculationLog({ originalInput: input, normalizedInput: { ...input, physicalModel, mode }, unitConversions: input?.unitConversions ?? null, warnings, missingFields, invalidFields, formulasUsed, resultSummary, methodRegistryVersion: COLDPRO_CALCULATION_METHOD_REGISTRY_VERSION, methodsUsed });
 
   return {
     physicalModel,
@@ -629,7 +648,7 @@ function calculateTunnelCore(input: TunnelEngineInput) {
     missingFields,
     invalidFields,
     scenario,
-    calculationMethod,
+    calculationMethod: officialCalculationMethod,
     calculationBreakdown,
     calculationLog,
   };
