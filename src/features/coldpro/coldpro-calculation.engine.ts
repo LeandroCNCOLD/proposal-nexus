@@ -26,6 +26,7 @@ import { COLDPRO_CALCULATION_METHODS } from "@/modules/coldpro/core/calculationM
 import { normalizeThermalProperties } from "@/modules/coldpro/core/unitNormalizer";
 import { buildCalculationMethodReport } from "@/modules/coldpro/reports/calculationMethodReport";
 import { COLDPRO_TUNNEL_ENGINE_VERSION, calculateTunnelEngine } from "@/modules/coldpro/engines/tunnelEngine";
+import { auditColdProTechnicalConsistency } from "@/modules/coldpro/core/technicalAudit";
 
 const W_TO_KCAL_H = 0.859845;
 const R_INTERNAL_M2K_W = 0.12;
@@ -300,10 +301,10 @@ export function buildThermalCalculationResult(result: any, selection?: any | nul
   if (selection && Math.abs(surplusCalculated - surplusDisplayed) > 0.1) addBlocker("surplus_mismatch", "Sobra técnica exibida não fecha com capacidade corrigida total e carga requerida validada.");
   for (const alert of Array.isArray(breakdown?.validation_alerts) ? breakdown.validation_alerts : []) {
     if (["internal_rh_zero", "product_energy_inconsistent"].includes(String(alert.code))) addBlocker(String(alert.code), String(alert.message));
-    if (["negative_room_without_defrost", "door_without_infiltration"].includes(String(alert.code))) addBlocker(String(alert.code), String(alert.message));
+    if (["negative_room_without_defrost", "door_without_infiltration", "tunnel_product_process_zero", "tunnel_inlet_temp_missing", "tunnel_outlet_temp_missing", "tunnel_thermal_properties_missing", "required_below_subtotal", "required_below_product"].includes(String(alert.code))) addBlocker(String(alert.code), String(alert.message));
   }
   if (!selection) warnings.push({ code: "equipment_selection_missing", message: "Seleção de equipamento ainda não vinculada ao resultado validado." });
-  const status = dimensioningStatus(requiredCalculated, correctedTotalCalculated);
+  const status = blockers.length ? "BLOQUEADO" : dimensioningStatus(requiredCalculated, correctedTotalCalculated);
   return {
     subtotal_validado: subtotalCalculated,
     subtotal_exibido: subtotalDisplayed,
