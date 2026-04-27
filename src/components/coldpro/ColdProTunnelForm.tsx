@@ -664,6 +664,10 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
     setForm((prev) => ({ ...prev, ...buildAirflowPreset(prev) }));
   }, [buildAirflowPreset]);
 
+  const loadBreakdown = tunnelResult.calculationBreakdown.loads ?? {};
+  const modelBreakdown = tunnelResult.calculationBreakdown.model ?? {};
+  const airBreakdown = tunnelResult.calculationBreakdown.air ?? {};
+  const productLoadMissingFields = Array.isArray(loadBreakdown.productLoadMissingFields) ? loadBreakdown.productLoadMissingFields : [];
   const requiredAirflowM3H = requiredAirflowForLoadM3H(tunnelResult.totalKW, positiveValue(form.air_delta_t_k) || 6, positiveValue(form.air_density_kg_m3) || 1.2) || tunnelResult.airFlowM3H;
   const informedFanAirflowM3H = positiveValue(form.fan_airflow_m3_h);
   const chamberDimensions = resolveChamberDimensions(environment, { ...(tunnel ?? {}), ...form });
@@ -688,10 +692,6 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
     displayedAirStatus.warning ? { tone: "warning" as const, text: displayedAirStatus.warning } : null,
     productLoadMissingFields.length > 0 ? { tone: "warning" as const, text: `Carga do produto pendente: falta ${productLoadMissingFields.join(", ")}.` } : null,
   ].filter(Boolean) as Array<{ tone: "error" | "warning"; text: string }>;
-  const loadBreakdown = tunnelResult.calculationBreakdown.loads ?? {};
-  const modelBreakdown = tunnelResult.calculationBreakdown.model ?? {};
-  const airBreakdown = tunnelResult.calculationBreakdown.air ?? {};
-  const productLoadMissingFields = Array.isArray(loadBreakdown.productLoadMissingFields) ? loadBreakdown.productLoadMissingFields : [];
   const productLoadMassDescription = isStatic
     ? `${fmtColdPro(loadBreakdown.massUsedForProductLoad ?? tunnelResult.staticMassKg)} kg ÷ ${fmtColdPro(Number(form.batch_time_h ?? 0), 2)} h × energia específica`
     : `${fmtColdPro(loadBreakdown.massUsedForProductLoad ?? tunnelResult.usedMassKgH)} kg/h × energia específica`;
