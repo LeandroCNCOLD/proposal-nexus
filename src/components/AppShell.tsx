@@ -117,15 +117,15 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <SidebarProvider>
-      <div className="flex min-h-screen w-full overflow-x-hidden bg-background">
+      <div className="app-shell flex min-h-screen w-full overflow-x-hidden bg-background">
       <AppNavigationSidebar />
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 border-b bg-card/80 backdrop-blur">
-          <div className="flex min-h-12 items-center gap-2 px-3 py-1.5 sm:px-4">
-          <SidebarTrigger className="h-8 w-8 shrink-0" />
+        <header className="app-topbar sticky top-0 z-30 border-b bg-card/90 backdrop-blur">
+          <div className="flex min-h-12 items-center gap-2 px-2 py-1 sm:px-3">
+          <SidebarTrigger className="h-7 w-7 shrink-0" />
           <div className="relative hidden max-w-xl flex-1 sm:block">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input placeholder="Buscar propostas, clientes, equipamentos..." className="pl-9 bg-secondary/50 border-transparent focus:bg-card" />
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+            <Input placeholder="Buscar propostas, clientes, equipamentos..." className="compact-input h-8 border-transparent bg-secondary/50 pl-8 focus:bg-card" />
           </div>
           <div className="flex min-w-0 flex-1 items-center gap-2 sm:hidden">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-[image:var(--gradient-primary)] shadow-[var(--shadow-glow)]">
@@ -136,13 +136,13 @@ export function AppShell({ children }: { children: ReactNode }) {
               <div className="truncate text-[10px] uppercase tracking-widest text-muted-foreground">Sales Intelligence</div>
             </div>
           </div>
-          <Button variant="ghost" size="icon" className="relative h-8 w-8">
-            <Bell className="h-5 w-5" />
+          <Button variant="ghost" size="icon" className="relative h-7 w-7">
+            <Bell className="h-4 w-4" />
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="flex items-center gap-2 rounded-full pl-1 pr-2 py-1 hover:bg-secondary">
-                <Avatar className="h-8 w-8">
+              <button className="flex items-center gap-1.5 rounded-full py-0.5 pl-0.5 pr-1.5 hover:bg-secondary">
+                <Avatar className="h-7 w-7">
                   <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">{initial}</AvatarFallback>
                 </Avatar>
                 <div className="hidden text-left md:block">
@@ -165,7 +165,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </DropdownMenu>
           </div>
         </header>
-        <main className="min-w-0 flex-1 p-2 sm:p-3 lg:p-4">{children}</main>
+        <main className="app-main min-w-0 flex-1">{children}</main>
       </div>
       </div>
     </SidebarProvider>
