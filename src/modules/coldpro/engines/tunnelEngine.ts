@@ -403,13 +403,10 @@ function calculateTunnelCore(input: TunnelEngineInput) {
     crossesFreezing: energy.crossesFreezingPoint,
   };
 
-  const packagingMassKgBatch = positiveNumber(input?.packagingMassKgBatch ?? input?.packaging_mass_kg_batch);
-  const informedPackagingMassKgH = positiveNumber(input?.packagingMassKgH ?? input?.packaging_mass_kg_h ?? input?.packaging_mass_kg_hour);
-  const packagingMassKgH = tunnelMode.operationRegime === "batch" && packagingMassKgBatch > 0 && positiveNumber(input?.batchTimeH) > 0 ? packagingMassKgBatch / positiveNumber(input?.batchTimeH) : informedPackagingMassKgH;
-  const packagingCpKJkgK = positiveNumber(input?.packagingCpKJkgK);
-  const packagingLoadKW = tunnelMode.operationRegime === "batch"
-    ? packagingMassKgBatch > 0 && packagingCpKJkgK > 0 && positiveNumber(input?.batchTimeH) > 0 ? packagingMassKgBatch * packagingCpKJkgK * Math.abs(toNumber(input?.initialTempC) - toNumber(input?.finalTempC)) / (positiveNumber(input?.batchTimeH) * 3600) : packagingMassKgH > 0 && packagingCpKJkgK > 0 ? packagingMassKgH * packagingCpKJkgK * Math.abs(toNumber(input?.initialTempC) - toNumber(input?.finalTempC)) / 3600 : 0
-    : packagingMassKgH > 0 && packagingCpKJkgK > 0 ? packagingMassKgH * packagingCpKJkgK * Math.abs(toNumber(input?.initialTempC) - toNumber(input?.finalTempC)) / 3600 : 0;
+  const packaging = resolvePackagingLoad(input, tunnelMode.operationRegime);
+  const packagingMassKgBatch = packaging.packagingMassBatchKg;
+  const packagingMassKgH = packaging.packagingMassKgH;
+  const packagingLoadKW = packaging.packagingLoadKW;
   const internalLoadKW = toNumber(input?.beltMotorKW, 0) + toNumber(input?.internalFansKW, 0) + toNumber(input?.otherInternalKW, 0);
   const totalKW = productLoadKW + packagingLoadKW + internalLoadKW;
   const totalKcalH = kwToKcalH(totalKW);
@@ -457,7 +454,7 @@ function calculateTunnelCore(input: TunnelEngineInput) {
     physicalModel === "static_block" && characteristicDimensionM <= 0 ? "Dimensões do bloco/pallet ausentes para estático em pallet/bloco." : "",
     physicalModel === "static_block" ? "Modelo static_block é conservador para bloco compacto/pallet." : "",
     physicalModel === "static_block" && positiveNumber(input?.batchTimeH) <= 0 ? "Tempo de batelada ausente para estático em pallet/bloco." : "",
-    tunnelMode.operationRegime === "batch" && packagingMassKgBatch <= 0 && informedPackagingMassKgH > 0 ? "Em processo de batelada, informe massa total da embalagem na batelada para cálculo mais preciso." : "",
+    tunnelMode.operationRegime === "batch" && packagingMassKgBatch <= 0 ? "Em processo de batelada, informe a massa total de embalagem da batelada para cálculo mais preciso." : "",
     infiltrationMethod.warning,
   ];
 
@@ -549,7 +546,7 @@ function calculateTunnelCore(input: TunnelEngineInput) {
     heatTransfer: { hBaseWM2K: h.hBaseWM2K, exposureFactor: exposure.exposureFactor, airExposureFactor: input?.airExposureFactor ?? null, hEffectiveWM2K: h.hEffectiveWM2K, hSource: h.source },
     air: { airTempC: input?.airTempC ?? null, airDeltaTK, airDensityKgM3, airFlowM3H, informedAirFlowM3H, airFlowMethod, suggestedAirTempC, suggestedAirMethod, suggestedAirApproachK, comparison: suggestedAirTempComparisonC },
     scenarios: { adjustedScenario: scenario },
-    loads: { productLoadKW, packagingLoadKW, internalLoadKW, totalKW, totalKcalH, totalTR, packagingMassKgH, packagingMassKgBatch, packagingMassSource: tunnelMode.operationRegime === "batch" && packagingMassKgBatch > 0 ? "kg/batelada" : "kg/h", productLoadMissingFields: productLoadMissing, loadCalculationReady: productLoadMissing.length === 0, massUsedForProductLoad: tunnelMode.operationRegime === "batch" ? staticMassKg : usedMassKgH, massUnitForProductLoad: tunnelMode.operationRegime === "batch" ? "kg/batelada" : "kg/h", airFlowThermalBalanceM3H },
+    loads: { productLoadKW, packagingLoadKW, internalLoadKW, totalKW, totalKcalH, totalTR, packagingMassKgH, packagingMassKgBatch, packagingMassBatchKg: packagingMassKgBatch, packagingLoadMethod: packaging.packagingLoadMethod, packagingMassSource: packaging.packagingMassSource, productLoadMissingFields: productLoadMissing, loadCalculationReady: productLoadMissing.length === 0, massUsedForProductLoad: tunnelMode.operationRegime === "batch" ? staticMassKg : usedMassKgH, massUnitForProductLoad: tunnelMode.operationRegime === "batch" ? "kg/batelada" : "kg/h", airFlowThermalBalanceM3H },
     infiltration: { requestedMethod: infiltrationMethod.requested, usedMethod: infiltrationMethod.used, fallbackApplied: Boolean(infiltrationMethod.warning) },
     timing: { estimatedTimeMin, availableTimeMin, status },
     validation: { warnings, missingFields, invalidFields },
