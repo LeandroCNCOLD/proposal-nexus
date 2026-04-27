@@ -419,7 +419,8 @@ function ColdProProjectPage() {
       await calculate.mutateAsync(selectedEnv.id);
       toast.success("Carga térmica calculada");
       setStepIndex(4);
-      if (["blast_freezer", "cooling_tunnel"].includes(String(selectedEnv.environment_type))) {
+      const postAudit = auditColdProTechnicalConsistency({ environment: selectedEnv, result: calculate.data, tunnel: tunnelPreview ?? tunnel, products, advancedProcesses: advancedProcess ? [advancedProcess] : [], selection });
+      if (["blast_freezer", "cooling_tunnel"].includes(String(selectedEnv.environment_type)) && !postAudit.isBlocked) {
         try {
           await autoSelect.mutateAsync({ environmentId: selectedEnv.id, minQuantity: 1, equipmentKind: null });
           toast.success("Melhor equipamento CN Cold pré-selecionado");
@@ -430,6 +431,8 @@ function ColdProProjectPage() {
           `Analise tecnicamente o túnel ${selectedEnv.name} após o cálculo e a pré-seleção de equipamento. Atue como especialista em túnel de congelamento/resfriamento: valide carga térmica, temperatura interna, temperatura de evaporação, vazão/velocidade de ar quando disponíveis, tempo estimado de processo, margem da seleção, COP e eficiência. Dê insights práticos sobre melhorar desempenho, reduzir tempo de congelamento, ajustar temperatura do túnel, aumentar ou reduzir porte do equipamento e riscos técnicos. Seja criterioso e não invente dados ausentes.`,
         );
         if (analysis) setTunnelExpertAnalysis(analysis);
+      } else if (postAudit.isBlocked) {
+        toast.warning("Cálculo preliminar/bloqueado: corrija produto/processo, infiltração e degelo antes da seleção final.");
       }
     } catch (e: any) {
       toast.error(e?.message ?? "Erro no cálculo");
@@ -839,7 +842,7 @@ function ColdProProjectPage() {
                           {calculate.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Calculator className="h-4 w-4" />}
                           {calculate.isPending ? "Calculando..." : "Calcular carga"}
                         </button>
-                        <button type="button" className="inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm hover:bg-muted disabled:opacity-50" onClick={handleAutoSelect} disabled={!result || autoSelect.isPending}>
+                        <button type="button" className="inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm hover:bg-muted disabled:opacity-50" onClick={handleAutoSelect} disabled={!result || autoSelect.isPending || technicalAudit.isBlocked}>
                           {autoSelect.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Snowflake className="h-4 w-4" />}
                           {autoSelect.isPending ? "Selecionando..." : "Selecionar automático"}
                         </button>
