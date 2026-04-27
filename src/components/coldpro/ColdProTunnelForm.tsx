@@ -383,7 +383,7 @@ function staticModeOptions(tunnelType: string) {
 function continuousModeOptions(tunnelType: string) {
   if (tunnelType === "spiral_girofreezer") return [{ value: "direct_mass_flow", label: "Informar kg/h diretamente" }, { value: "calculated_by_units", label: "Calcular por unidades/ciclo" }, { value: "calculated_by_trays", label: "Calcular por bandejas/h" }];
   if (tunnelType === "fluidized_bed") return [{ value: "direct_mass_flow", label: "Informar kg/h diretamente" }, { value: "calculated_by_feed_rate", label: "Usar taxa de alimentação" }];
-  return [{ value: "direct_mass_flow", label: "Informar kg/h diretamente" }, { value: "calculated_by_units_per_hour", label: "Calcular por unidades/h" }, { value: "calculated_by_belt_loading", label: "Calcular por carregamento da esteira" }];
+  return [{ value: "direct_mass_flow", label: "Informar kg/h diretamente" }, { value: "calculated_by_units_per_hour", label: "Calcular por unidades/h" }, { value: "calculated_by_belt_loading", label: "Calcular por carregamento da esteira" }, { value: "calculated_by_belt_surface_density", label: "Calcular por densidade superficial da esteira" }];
 }
 
 function simulationDraftFromTunnel(source: Partial<ColdProFormRecord>) {
