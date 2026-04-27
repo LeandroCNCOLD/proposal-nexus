@@ -193,7 +193,7 @@ function resolveStaticMass(input: TunnelEngineInput) {
   };
 }
 
-function requiredPositiveFields(input: any, isStatic: boolean, staticMassKg: number, characteristicDimensionM: number, crossesFreezing: boolean, airVelocityUsedMS: number, continuousMassMode: string): string[] {
+function requiredPositiveFields(input: TunnelEngineInput, isStatic: boolean, staticMassKg: number, characteristicDimensionM: number, crossesFreezing: boolean, airVelocityUsedMS: number, continuousMassMode: string): string[] {
   const commonNumericFields = ["initialTempC", "finalTempC", "freezingPointC"];
   const commonPositiveFields = ["cpAboveKJkgK"];
   const freezingPositiveFields = crossesFreezing ? ["cpBelowKJkgK", "latentHeatKJkg", "frozenWaterFraction"] : [];
@@ -237,7 +237,7 @@ function requiredPositiveFields(input: any, isStatic: boolean, staticMassKg: num
   ];
 }
 
-function canEstimateFreezingTime(input: any, distanceToCoreM: number, hEffectiveWM2K: number | null, kEffectiveWMK: number): boolean {
+function canEstimateFreezingTime(input: TunnelEngineInput, distanceToCoreM: number, hEffectiveWM2K: number | null, kEffectiveWMK: number): boolean {
   return (
     positiveNumber(input?.densityKgM3) > 0 &&
     positiveNumber(input?.latentHeatKJkg) > 0 &&
@@ -250,7 +250,7 @@ function canEstimateFreezingTime(input: any, distanceToCoreM: number, hEffective
   );
 }
 
-function productLoadMissingFields(input: any, isStatic: boolean, staticMassKg: number, usedMassKgH: number, energy: ReturnType<typeof calculateProductSpecificEnergy>): string[] {
+function productLoadMissingFields(input: TunnelEngineInput, isStatic: boolean, staticMassKg: number, usedMassKgH: number, energy: ReturnType<typeof calculateProductSpecificEnergy>): string[] {
   return unique([
     isStatic && staticMassKg <= 0 ? "massa total da batelada" : "",
     isStatic && positiveNumber(input?.batchTimeH) <= 0 ? "tempo de batelada" : "",
@@ -265,7 +265,7 @@ function productLoadMissingFields(input: any, isStatic: boolean, staticMassKg: n
   ]);
 }
 
-function calculateModelH(input: any, _physicalModel: TunnelPhysicalModel, airVelocityUsedMS: number, exposureFactor: number) {
+function calculateModelH(input: TunnelEngineInput, _physicalModel: TunnelPhysicalModel, airVelocityUsedMS: number, exposureFactor: number) {
   return calculateConvectiveCoefficient({
     airVelocityMS: airVelocityUsedMS,
     manualCoefficientWM2K: input?.manualConvectiveCoefficientWM2K,
