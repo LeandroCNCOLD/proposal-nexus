@@ -943,11 +943,20 @@ export function calculateColdProLoad(params: {
         glass_total_w: transmissionBreakdown.glass_total_w,
         glass_total_kcal_h: transmissionBreakdown.glass_total_kcal_h,
       },
-      calculationMethod: buildCalculationMethodReport(
-        String((infiltrationBreakdown as { method?: unknown }).method ?? "simple_air_change"),
-        String(((tunnelResult?.calculation_breakdown?.calculationMethod as Record<string, Record<string, unknown>> | undefined)?.methods?.productLoad) ?? "kg/h contínuo ou kg/batelada"),
-      ),
-      ashraeComparison: listAshraeComparisons(),
+      calculationMethod: {
+        ...buildCalculationMethodReport(
+          String(psychrometricInfiltration?.methodUsed ?? (infiltrationBreakdown as { method?: unknown }).method ?? "simple_air_change"),
+          String(((tunnelResult?.calculation_breakdown?.calculationMethod as Record<string, Record<string, unknown>> | undefined)?.methods?.productLoad) ?? "kg/h contínuo ou kg/batelada"),
+        ),
+        transmission: COLDPRO_CALCULATION_METHODS.transmission,
+        product: COLDPRO_CALCULATION_METHODS.productCoolingFreezing,
+        packaging: tunnelResult?.operation_regime === "batch" || tunnelResult?.operationRegime === "batch" ? COLDPRO_CALCULATION_METHODS.packagingBatch : COLDPRO_CALCULATION_METHODS.packagingContinuous,
+        infiltration: psychrometricInfiltration?.methodUsed === "psychrometric_enthalpy" ? COLDPRO_CALCULATION_METHODS.infiltrationPsychrometric : COLDPRO_CALCULATION_METHODS.infiltrationSimple,
+        internalLoads: COLDPRO_CALCULATION_METHODS.internalLoads,
+        tunnel: "calculateTunnelEngine official result",
+        equipmentSelection: COLDPRO_CALCULATION_METHODS.equipmentSelection,
+      },
+      ashraeComparison: listAshraeColdProComparisons(),
       transmission_faces: transmissionBreakdown.faces,
       tunnel: tunnelResult,
       tunnel_engine: tunnelResult ? {
@@ -956,7 +965,7 @@ export function calculateColdProLoad(params: {
         source: "resultado salvo",
       } : null,
       seed_dehumidification: dehumidification,
-      infiltration_technical: infiltrationBreakdown,
+      infiltration_technical: { ...infiltrationBreakdown, requestedMethod: requestedInfiltrationMethod, methodUsed: psychrometricInfiltration?.methodUsed ?? "simple_air_change", psychrometric: psychrometricInfiltration },
       defrost_suggestion: defrostSuggestion,
       evaporator_fans: fanLoad,
       motors: {
