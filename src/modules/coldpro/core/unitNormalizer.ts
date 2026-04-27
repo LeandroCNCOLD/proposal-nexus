@@ -30,17 +30,17 @@ function firstProvided(...values: unknown[]) {
   return values.find((value) => value !== null && value !== undefined && value !== "");
 }
 
-function normalizeEnergy(kjValue: unknown, kcalValue: unknown, defaultKcalValue?: unknown): { value: number; source: ConversionSource } {
-  const kj = safeNumber(kjValue, 0);
-  if (kj > 0) return { value: kj, source: "kJ" };
-
+function normalizeEnergy(kjValue: unknown, kcalValue: unknown, defaultKcalValue?: unknown): { value: number; source: ConversionSource; originalValue: number; originalUnit: string; convertedValue: number } {
   const kcal = safeNumber(kcalValue, 0);
-  if (kcal > 0) return { value: kcal * KCAL_TO_KJ, source: "kcal_converted" };
+  if (kcal > 0) return { value: kcal * KCAL_TO_KJ, source: "kcal_converted", originalValue: kcal, originalUnit: "kcal/kg°C ou kcal/kg", convertedValue: kcal * KCAL_TO_KJ };
+
+  const kj = safeNumber(kjValue, 0);
+  if (kj > 0) return { value: kj, source: "kJ", originalValue: kj, originalUnit: "kJ/kg.K ou kJ/kg", convertedValue: kj };
 
   const defaultKcal = safeNumber(defaultKcalValue, 0);
-  if (defaultKcal > 0) return { value: defaultKcal * KCAL_TO_KJ, source: "default_kcal_converted" };
+  if (defaultKcal > 0) return { value: defaultKcal * KCAL_TO_KJ, source: "default_kcal_converted", originalValue: defaultKcal, originalUnit: "kcal/kg°C ou kcal/kg", convertedValue: defaultKcal * KCAL_TO_KJ };
 
-  return { value: 0, source: "missing" };
+  return { value: 0, source: "missing", originalValue: 0, originalUnit: "ausente", convertedValue: 0 };
 }
 
 export function normalizeThermalProperties(input: any) {
@@ -65,6 +65,12 @@ export function normalizeThermalProperties(input: any) {
       cpAboveKJkgK: cpAbove.source,
       cpBelowKJkgK: cpBelow.source,
       latentHeatKJkg: latentHeat.source,
+    },
+    unitAudit: {
+      conversionFactor: KCAL_TO_KJ,
+      cpAbove: { originalValue: cpAbove.originalValue, originalUnit: cpAbove.source === "kJ" ? "kJ/kg.K" : cpAbove.originalUnit.replace(" ou kcal/kg", ""), convertedValue: cpAbove.convertedValue, usedUnit: "kJ/kg.K", source: cpAbove.source },
+      cpBelow: { originalValue: cpBelow.originalValue, originalUnit: cpBelow.source === "kJ" ? "kJ/kg.K" : cpBelow.originalUnit.replace(" ou kcal/kg", ""), convertedValue: cpBelow.convertedValue, usedUnit: "kJ/kg.K", source: cpBelow.source },
+      latentHeat: { originalValue: latentHeat.originalValue, originalUnit: latentHeat.source === "kJ" ? "kJ/kg" : "kcal/kg", convertedValue: latentHeat.convertedValue, usedUnit: "kJ/kg", source: latentHeat.source },
     },
   };
 }
