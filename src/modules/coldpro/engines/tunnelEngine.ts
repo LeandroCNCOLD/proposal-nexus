@@ -274,7 +274,7 @@ function calculateModelH(input: TunnelEngineInput, _physicalModel: TunnelPhysica
   });
 }
 
-function calculateTunnelCore(input: any) {
+function calculateTunnelCore(input: TunnelEngineInput) {
   const processType = input?.processType ?? input?.process_type ?? null;
   const tunnelMode = resolveTunnelMode(input);
   const physicalModel = normalizePhysicalModel(input);
@@ -607,7 +607,7 @@ function buildApprovedScenario(input: any): TunnelThermalScenario | null {
   };
 }
 
-export function calculateTunnelEngine(input: any) {
+export function calculateTunnelEngine(input: TunnelEngineInput): TunnelEngineResult {
   const adjusted = calculateTunnelCore(input);
   const initialInput = input?.initialScenarioInput ?? input?.initial_scenario_input ?? input;
   const initial = initialInput === input ? adjusted : calculateTunnelCore({ ...input, ...initialInput, initialScenarioInput: undefined, initial_scenario_input: undefined, thermalConditionApproved: false, thermal_condition_approved: false });
