@@ -664,18 +664,30 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
     setForm((prev) => ({ ...prev, ...buildAirflowPreset(prev) }));
   }, [buildAirflowPreset]);
 
-  const requiredAirflowM3H = tunnelResult.airFlowM3H;
+  const requiredAirflowM3H = requiredAirflowForLoadM3H(tunnelResult.totalKW, positiveValue(form.air_delta_t_k) || 6, positiveValue(form.air_density_kg_m3) || 1.2) || tunnelResult.airFlowM3H;
   const informedFanAirflowM3H = positiveValue(form.fan_airflow_m3_h);
-  const airflowDeltaM3H = informedFanAirflowM3H - requiredAirflowM3H;
-  const airflowDeltaPercent = requiredAirflowM3H > 0 ? Math.abs(airflowDeltaM3H) / requiredAirflowM3H * 100 : 0;
-  const showAirflowMismatch = form.airflow_source === "airflow_by_fans" && requiredAirflowM3H > 0 && informedFanAirflowM3H > 0 && airflowDeltaPercent > 5;
   const chamberDimensions = resolveChamberDimensions(environment, { ...(tunnel ?? {}), ...form });
   const displayedAirVelocityMS = positiveValue(form.air_velocity_m_s, tunnelResult.calculatedAirVelocityMS);
   const displayedAirStatus = airflowVelocityStatus(displayedAirVelocityMS, ["continuous_belt", "spiral_girofreezer", "static_cart", "static_pallet", "fluidized_bed", "blast_freezer"].includes(tunnelType));
   const displayedFreeAirAreaM2 = positiveValue(form.airflow_free_area_m2, tunnelResult.freeAirAreaM2);
+  const airflowReferenceVelocityMS = positiveValue(form.airflow_reference_velocity_m_s) || recommendedTunnelAirVelocity(tunnelType, isStatic);
+  const referenceVelocityAirflowM3H = airflowForVelocityM3H(displayedFreeAirAreaM2, airflowReferenceVelocityMS);
+  const designRequiredAirflowM3H = Math.max(requiredAirflowM3H, referenceVelocityAirflowM3H);
+  const airflowDeltaM3H = informedFanAirflowM3H - designRequiredAirflowM3H;
+  const airflowDeltaPercent = designRequiredAirflowM3H > 0 ? Math.abs(airflowDeltaM3H) / designRequiredAirflowM3H * 100 : 0;
+  const showAirflowMismatch = form.airflow_source === "airflow_by_fans" && designRequiredAirflowM3H > 0 && informedFanAirflowM3H > 0 && airflowDeltaPercent > 5;
   const displayedAirWall = textValue(form.airflow_installation_wall, tunnelType === "blast_freezer" ? "Parede menor" : "—");
   const displayedAirDirection = textValue(form.airflow_blow_direction, tunnelType === "blast_freezer" ? "Sopro no sentido do comprimento maior" : "—");
   const displayedAirNote = textValue(form.airflow_technical_note, displayedAirStatus.warning || "Clique em Calcular ar para atualizar a recomendação pela carga térmica e dimensões do ambiente.");
+  const airflowValidationIssues = [
+    tunnelResult.totalKW <= 0 ? { tone: "error" as const, text: "Carga térmica total zerada ou inválida; revise massa, tempo, propriedades térmicas e cargas internas antes de dimensionar ar." } : null,
+    tunnelResult.productLoadKW <= 0 ? { tone: "error" as const, text: "Carga térmica do produto zerada; a vazão pode ficar subestimada." } : null,
+    requiredAirflowM3H > 0 && informedFanAirflowM3H > 0 && informedFanAirflowM3H < requiredAirflowM3H * 0.95 ? { tone: "error" as const, text: `Vazão informada abaixo do balanço térmico em ${fmtAirflow(requiredAirflowM3H - informedFanAirflowM3H)}.` } : null,
+    designRequiredAirflowM3H > 0 && informedFanAirflowM3H > 0 && informedFanAirflowM3H < designRequiredAirflowM3H * 0.95 ? { tone: "warning" as const, text: `Vazão abaixo da referência de velocidade do túnel em ${fmtAirflow(designRequiredAirflowM3H - informedFanAirflowM3H)}.` } : null,
+    displayedFreeAirAreaM2 <= 0 ? { tone: "error" as const, text: "Seção livre de passagem não calculada; informe largura, altura útil e bloqueio." } : null,
+    displayedAirStatus.warning ? { tone: "warning" as const, text: displayedAirStatus.warning } : null,
+    productLoadMissingFields.length > 0 ? { tone: "warning" as const, text: `Carga do produto pendente: falta ${productLoadMissingFields.join(", ")}.` } : null,
+  ].filter(Boolean) as Array<{ tone: "error" | "warning"; text: string }>;
   const loadBreakdown = tunnelResult.calculationBreakdown.loads ?? {};
   const modelBreakdown = tunnelResult.calculationBreakdown.model ?? {};
   const airBreakdown = tunnelResult.calculationBreakdown.air ?? {};
