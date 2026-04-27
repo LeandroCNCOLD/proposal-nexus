@@ -10,6 +10,8 @@ export type ProductGeometry = "slab" | "rectangular_prism" | "cube" | "cylinder"
 
 export type AirflowSource = "manual_velocity" | "airflow_by_fans" | string;
 
+export type InfiltrationCalculationMethod = "simple_air_change" | "psychrometric_enthalpy";
+
 export type TunnelSourceRecord = Record<string, unknown>;
 
 export interface TunnelCalculationRecord {
@@ -95,7 +97,13 @@ export interface TunnelEngineInput {
   tunnelCrossSectionHeightM?: number | null;
   blockageFactor?: number | null;
   packagingMassKgH?: number | null;
+  packagingMassKgBatch?: number | null;
   packagingCpKJkgK?: number | null;
+  infiltrationCalculationMethod?: InfiltrationCalculationMethod | string | null;
+  externalTempC?: number | null;
+  externalRelativeHumidityPercent?: number | null;
+  internalRelativeHumidityPercent?: number | null;
+  infiltrationAirflowM3H?: number | null;
   beltMotorKW?: number | null;
   internalFansKW?: number | null;
   otherInternalKW?: number | null;
@@ -202,6 +210,7 @@ export interface TunnelEngineResult {
   invalidFields: string[];
   warnings: string[];
   scenario?: TunnelThermalScenarioResult;
+  calculationMethod: Record<string, unknown>;
   initialScenario: TunnelThermalScenarioResult;
   adjustedScenario: TunnelThermalScenarioResult;
   approvedScenario: TunnelThermalScenarioResult | null;
