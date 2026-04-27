@@ -190,7 +190,7 @@ export const getColdProProjectBundle = createServerFn({ method: "GET" })
     const { data: environments } = await supabase.from("coldpro_environments").select("*").eq("coldpro_project_id", data.projectId).order("sort_order", { ascending: true });
     const environmentIds = (environments ?? []).map((e) => e.id);
     const { data: products } = environmentIds.length ? await supabase.from("coldpro_environment_products").select("*").in("environment_id", environmentIds) : { data: [] as any[] };
-    const { data: tunnels } = environmentIds.length ? await supabase.from("coldpro_tunnels").select("*").in("environment_id", environmentIds) : { data: [] as any[] };
+    const { data: tunnels } = environmentIds.length ? await supabase.from("coldpro_tunnels").select("*").in("environment_id", environmentIds).order("updated_at", { ascending: false }).order("created_at", { ascending: false }) : { data: [] as any[] };
     const { data: advancedProcesses } = await supabase.from("coldpro_advanced_processes").select("*").eq("project_id", data.projectId).order("created_at", { ascending: true });
     const { data: results } = environmentIds.length ? await supabase.from("coldpro_results").select("*").in("environment_id", environmentIds).order("created_at", { ascending: false }) : { data: [] as any[] };
     const { data: selections } = environmentIds.length ? await supabase.from("coldpro_equipment_selections").select("*").in("environment_id", environmentIds).order("created_at", { ascending: false }) : { data: [] as any[] };
@@ -209,7 +209,8 @@ export const getColdProProjectBundle = createServerFn({ method: "GET" })
     const { data: insulationMaterials } = await supabase.from("coldpro_insulation_materials").select("*").order("name");
     const { data: thermalMaterials } = await supabase.from("coldpro_thermal_materials").select("*").order("category").order("material_name");
     const { data: productCatalog } = await supabase.from("coldpro_products").select("*").order("name");
-    return { project, environments: environments ?? [], products: products ?? [], tunnels: tunnels ?? [], advancedProcesses: advancedProcesses ?? [], results: latestResults, selections: enrichedSelections, insulationMaterials: insulationMaterials ?? [], thermalMaterials: thermalMaterials ?? [], productCatalog: productCatalog ?? [] };
+    const latestTunnels = latestRowsByEnvironment(tunnels ?? []);
+    return { project, environments: environments ?? [], products: products ?? [], tunnels: latestTunnels, advancedProcesses: advancedProcesses ?? [], results: latestResults, selections: enrichedSelections, insulationMaterials: insulationMaterials ?? [], thermalMaterials: thermalMaterials ?? [], productCatalog: productCatalog ?? [] };
   });
 
 export const createColdProEnvironment = createServerFn({ method: "POST" })
@@ -311,9 +312,13 @@ export const upsertColdProTunnel = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const supabase = supabaseAdmin;
     const enriched = await applyCatalogThermalById(supabase, data as any);
+    const { data: existingTunnel } = enriched.id
+      ? { data: null }
+      : await supabase.from("coldpro_tunnels").select("id").eq("environment_id", enriched.environment_id).order("updated_at", { ascending: false }).order("created_at", { ascending: false }).limit(1).maybeSingle();
+    const tunnelSource = existingTunnel?.id ? { ...enriched, id: existingTunnel.id } : enriched;
     const { data: environment } = await supabase.from("coldpro_environments").select("*").eq("id", enriched.environment_id).maybeSingle();
-    const tunnelResult = calculateTunnelEngine(formToTunnelInput(enriched, environment ?? {}));
-    const payload = tunnelResultToDatabasePayload(enriched, tunnelResult);
+    const tunnelResult = calculateTunnelEngine(formToTunnelInput(tunnelSource, environment ?? {}));
+    const payload = tunnelResultToDatabasePayload(tunnelSource, tunnelResult);
     const { data: row, error } = await supabase.from("coldpro_tunnels").upsert(payload as any, { onConflict: "id" }).select("*").single();
     if (error) throw new Error(error.message);
     return row;
