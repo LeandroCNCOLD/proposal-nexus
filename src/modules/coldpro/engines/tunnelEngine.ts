@@ -422,6 +422,8 @@ function calculateTunnelCore(input: TunnelEngineInput) {
   const thermalReliabilityAlerts = buildThermalReliabilityAlerts(input, energy, productLoadKW, tunnelMode.operationRegime === "batch" ? staticMassKg : usedMassKgH, tunnelMode.operationRegime === "batch" ? positiveNumber(input?.batchTimeH) : 0);
 
   const productEnergyBreakdown = {
+    unitAudit: input?.unitAudit ?? null,
+    effectiveCalculationUnit: "kJ/kg.K para Cp e kJ/kg para calor latente",
     sensibleAboveKJkg: energy.sensibleAboveKJkg,
     latentKJkg: energy.latentKJkg,
     sensibleBelowKJkg: energy.sensibleBelowKJkg,
