@@ -150,39 +150,39 @@ export function ColdProResultCard({ result, selection, environment, products = [
         </section>
       ) : null}
 
-      {showAudit ? <section className="mt-5"><ResultConsistencyAudit normalized={normalized} /></section> : null}
+      {showAudit ? <section className="coldpro-section"><ResultConsistencyAudit normalized={normalized} /></section> : null}
 
       {!compact ? (
         <>
-          <section className="mt-5 grid grid-cols-1 gap-4 xl:grid-cols-2">
+          <section className="coldpro-section grid grid-cols-1 gap-3 xl:grid-cols-2">
             <LoadWaterfallChart title="Formação da carga requerida" subtitle="Subtotal técnico + segurança até a carga final." components={groupedRows.filter((item) => item.name !== "Segurança")} subtotal={normalized.summary.subtotalKcalH} safety={normalized.summary.safetyKcalH} total={normalized.summary.requiredKcalH} />
             <EquipmentCapacityGauge title="Sobra técnica do equipamento" requiredKcalH={normalized.equipment.requiredCapacityKcalH || normalized.summary.requiredKcalH} selectedCapacityKcalH={normalized.equipment.totalCapacityKcalH} surplusPercent={normalized.equipment.surplusPercent} />
             <CapacityComparisonChart title="Carga requerida x capacidade selecionada" requiredKcalH={normalized.summary.requiredKcalH} capacityKcalH={normalized.equipment.totalCapacityKcalH} surplusPercent={normalized.equipment.surplusPercent} />
             <ThermalProfileLineChart title="Perfil térmico do produto" normalized={normalized} />
             <SimulationMatrixChart title="Matriz de simulação operacional" normalized={normalized} />
           </section>
-          <section className="mt-5"><TunnelValidationCharts normalized={normalized} /></section>
+          <section className="coldpro-section"><TunnelValidationCharts normalized={normalized} /></section>
 
-          <section className="mt-5 rounded-xl border bg-background p-4">
+          <section className="coldpro-section coldpro-card">
             <div className="mb-3 flex items-center gap-2"><Snowflake className="h-4 w-4 text-primary" /><h4 className="text-sm font-semibold">Análise de gelo, umidade e degelo</h4></div>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="coldpro-grid">
               <Kpi label="Gelo por dia" value={frost.frostKgDay} unit="kg/dia" icon={<Droplets className="h-4 w-4" />} />
               <Kpi label="Perda rendimento" value={frost.efficiencyLossPercent} unit="%" icon={<Gauge className="h-4 w-4" />} />
               <Kpi label="Carga adicional" value={frost.additionalLoadKcalH} unit="kcal/h" icon={<Calculator className="h-4 w-4" />} />
               <Kpi label="Degelo preventivo" value={frost.recommendedDefrostIntervalH} unit="h" icon={<Snowflake className="h-4 w-4" />} />
             </div>
-            <div className="mt-4 grid grid-cols-1 gap-3 text-sm md:grid-cols-3">
+            <div className="mt-3 grid grid-cols-1 gap-2 text-sm md:grid-cols-3">
               <div className="rounded-lg bg-muted/30 p-3">Operação normal: <b>{frost.normalBlockHours ? `${fmtColdPro(frost.normalBlockHours)} h` : "sem bloqueio estimado"}</b></div>
               <div className="rounded-lg bg-muted/30 p-3">Operação arriscada: <b>{frost.riskyBlockHours ? `${fmtColdPro(frost.riskyBlockHours)} h` : "sem bloqueio estimado"}</b></div>
               <div className="rounded-lg bg-muted/30 p-3">Operação complexa: <b>{frost.complexBlockHours ? `${fmtColdPro(frost.complexBlockHours)} h` : "sem bloqueio estimado"}</b></div>
             </div>
           </section>
 
-          {showAI ? <section className="mt-5"><ColdProAIInsightPanel normalized={normalized} onAnalyze={onAnalyze} isAnalyzing={isAnalyzing} /></section> : null}
+          {showAI ? <section className="coldpro-section"><ColdProAIInsightPanel normalized={normalized} onAnalyze={onAnalyze} isAnalyzing={isAnalyzing} /></section> : null}
         </>
       ) : null}
 
-      <div className="mt-5 space-y-3">
+      <div className="coldpro-section space-y-2">
         <Details title="Decomposição técnica consolidada" defaultOpen={showTables}>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             <Group title="Ambiente" rows={[{ label: "Transmissão", value: normalized.loadDistribution.environmentKcalH }]} />
