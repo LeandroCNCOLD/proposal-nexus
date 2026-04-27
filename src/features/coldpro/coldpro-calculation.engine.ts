@@ -19,9 +19,10 @@ import {
 } from "./coldpro.constants";
 import { calculateAdvancedProcess } from "./advancedProcesses/advancedProcessEngine";
 import { calculateEvaporatorFrostRisk, suggestedInfiltrationFactor } from "./extra-loads-preview";
-import { calculateEvaporatorFanLoad, calculateMotorLoadKcalH, calculateTechnicalDefrost, calculateTechnicalInfiltration } from "./thermal-calculations";
+import { calculateEvaporatorFanLoad, calculateMotorLoadKcalH, calculatePsychrometricInfiltrationLoad, calculateTechnicalDefrost, calculateTechnicalInfiltration } from "./thermal-calculations";
 import { databaseToTunnelInput } from "@/modules/coldpro/adapters/databaseToTunnelInput";
-import { listAshraeComparisons } from "@/modules/coldpro/core/ashraeComparison";
+import { listAshraeColdProComparisons } from "@/modules/coldpro/core/ashraeComparison";
+import { COLDPRO_CALCULATION_METHODS } from "@/modules/coldpro/core/calculationMethodRegistry";
 import { buildCalculationMethodReport } from "@/modules/coldpro/reports/calculationMethodReport";
 import { COLDPRO_TUNNEL_ENGINE_VERSION, calculateTunnelEngine } from "@/modules/coldpro/engines/tunnelEngine";
 
@@ -895,8 +896,10 @@ export function calculateColdProLoad(params: {
   const dehumidificationLoad = dehumidification.total_kcal_h;
   const advancedProcesses = (params.advancedProcesses ?? []).map(calculateAdvancedProcess);
   const advancedProcessLoad = advancedProcesses.reduce((sum, item) => sum + n(item.total_additional_kcal_h), 0);
-  const infiltration = calculateInfiltrationLoad(params.env);
   const infiltrationBreakdown = calculateTechnicalInfiltration(params.env);
+  const requestedInfiltrationMethod = String((params.env as any).infiltration_calculation_method ?? (params.env as any).infiltrationCalculationMethod ?? "simple_air_change");
+  const psychrometricInfiltration = requestedInfiltrationMethod === "psychrometric_enthalpy" ? calculatePsychrometricInfiltrationLoad(params.env, infiltrationBreakdown) : null;
+  const infiltration = psychrometricInfiltration?.totalKcalH ?? calculateInfiltrationLoad(params.env);
   const evaporatorFrost = calculateEvaporatorFrostRisk(params.env, infiltration);
   const people = calculatePeopleLoad(params.env);
   const lighting = calculateLightingLoad(params.env);
