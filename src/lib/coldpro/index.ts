@@ -15,6 +15,7 @@ export {
   calculateProductSpecificEnergy,
   calculateProductThermalLoad,
   validateProductProperties,
+  convertProductPropertiesIfNeeded,
 } from "./physics/productThermal";
 
 // Engines - Motor principal

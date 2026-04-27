@@ -21,10 +21,13 @@ export interface ProductThermalProperties {
   tempCongelamento: number;
   tempFinal: number;
   
-  // Propriedades termofísicas (kJ/kg·K ou kJ/kg)
-  cpAT: number; // Calor específico acima do ponto de congelamento
-  cpAP: number; // Calor específico abaixo do ponto de congelamento
-  calorLatente: number; // Calor latente de congelamento
+  // Propriedades termofísicas
+  // ⚠️ IMPORTANTE: Todas em kJ/kg·K (não kcal!)
+  // Se seus dados estão em kcal, use convertProductPropertiesIfNeeded()
+  // Fator de conversão: 1 kcal = 4.184 kJ
+  cpAT: number; // kJ/kg·K - Calor específico acima do ponto de congelamento
+  cpAP: number; // kJ/kg·K - Calor específico abaixo do ponto de congelamento
+  calorLatente: number; // kJ/kg - Calor latente de congelamento
   
   // Fator de congelamento (0 a 1)
   fatorCongelamento: number;
@@ -56,6 +59,34 @@ export interface ThermalLoadResult {
   energiaEspecifica_kJ_kg: number; // Energia específica do produto
   massaProcessada_kg?: number;
   tempoCongelamento_horas?: number;
+}
+
+/**
+ * Converte propriedades de kcal para kJ se necessário
+ * 
+ * IMPORTANTE: Use esta função se seus dados estão em kcal/kg·K
+ * Fator de conversão: 1 kcal = 4.184 kJ
+ * 
+ * @param props Propriedades termofísicas do produto
+ * @param sourceUnit Unidade de origem ("kcal" ou "kJ")
+ * @returns Propriedades convertidas para kJ
+ */
+export function convertProductPropertiesIfNeeded(
+  props: ProductThermalProperties,
+  sourceUnit: "kcal" | "kJ" = "kJ"
+): ProductThermalProperties {
+  if (sourceUnit === "kcal") {
+    console.warn(
+      `⚠️  Convertendo propriedades de kcal para kJ para ${props.productName}`
+    );
+    return {
+      ...props,
+      cpAT: props.cpAT * 4.184,
+      cpAP: props.cpAP * 4.184,
+      calorLatente: props.calorLatente * 4.184,
+    };
+  }
+  return props;
 }
 
 /**
