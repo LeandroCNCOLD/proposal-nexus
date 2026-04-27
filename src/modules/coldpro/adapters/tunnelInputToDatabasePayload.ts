@@ -55,8 +55,9 @@ export function validateTunnelCalculationConsistency(tunnelResult: TunnelEngineR
   const issues: string[] = [];
   const product = Number(tunnelResult?.productLoadKW ?? 0);
   const packaging = Number(tunnelResult?.packagingLoadKW ?? 0);
-  const transmission = Number(tunnelResult?.transmissionLoadKW ?? tunnelResult?.calculationBreakdown?.loads?.transmissionLoadKW ?? 0);
-  const infiltration = Number(tunnelResult?.infiltrationLoadKW ?? tunnelResult?.calculationBreakdown?.loads?.infiltrationLoadKW ?? 0);
+  const breakdownLoads = (tunnelResult?.calculationBreakdown?.loads ?? {}) as Record<string, unknown>;
+  const transmission = Number(tunnelResult?.transmissionLoadKW ?? breakdownLoads.transmissionLoadKW ?? 0);
+  const infiltration = Number(tunnelResult?.infiltrationLoadKW ?? breakdownLoads.infiltrationLoadKW ?? 0);
   const internal = Number(tunnelResult?.internalLoadKW ?? 0);
   const total = Number(tunnelResult?.totalKW ?? 0);
   const totalKcalH = Number(tunnelResult?.totalKcalH ?? 0);
@@ -78,11 +79,12 @@ export function validateTunnelCalculationConsistency(tunnelResult: TunnelEngineR
 
 export function tunnelResultToDatabasePayload(form: TunnelSourceRecord, tunnelResult: TunnelEngineResult): TunnelDatabasePayload {
   const calculatedAt = tunnelResult?.calculatedAt ?? new Date().toISOString();
+  const breakdownLoads = (tunnelResult?.calculationBreakdown?.loads ?? {}) as Record<string, unknown>;
   const persistedLoads = {
     productLoadKW: round(tunnelResult?.productLoadKW),
     packagingLoadKW: round(tunnelResult?.packagingLoadKW),
-    transmissionLoadKW: round(tunnelResult?.transmissionLoadKW ?? tunnelResult?.calculationBreakdown?.loads?.transmissionLoadKW),
-    infiltrationLoadKW: round(tunnelResult?.infiltrationLoadKW ?? tunnelResult?.calculationBreakdown?.loads?.infiltrationLoadKW),
+    transmissionLoadKW: round(tunnelResult?.transmissionLoadKW ?? breakdownLoads.transmissionLoadKW),
+    infiltrationLoadKW: round(tunnelResult?.infiltrationLoadKW ?? breakdownLoads.infiltrationLoadKW),
     internalLoadKW: round(tunnelResult?.internalLoadKW),
     totalKW: round(tunnelResult?.totalKW),
     totalKcalH: round(tunnelResult?.totalKcalH, 2),
