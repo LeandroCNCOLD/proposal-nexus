@@ -388,8 +388,8 @@ export function calculateContinuousGirofreezer(input: ContinuousGirofreezerInput
   const densityUsedKgM3 = manualDensityKgM3 > 0 ? manualDensityKgM3 : densityResult.densityKgM3 ? densityResult.densityKgM3 : ashraeDensityKgM3 || 1000;
   const densitySource = manualDensityKgM3 > 0 ? "manual" : densityResult.densityKgM3 ? "calculated_from_geometry" : ashraeDensityKgM3 > 0 ? "ashrae" : "default_estimated";
 
-  if (lengthM <= 0 || widthM <= 0 || thicknessM <= 0) errors.push("Informe comprimento, largura e espessura do produto.");
-  if (unitWeightKg <= 0) errors.push("Informe o peso unitário do produto.");
+  if (thicknessM <= 0) errors.push("Informe a espessura do produto.");
+  if (!directMassKgH && calculatedMassKgH <= 0 && unitWeightKg <= 0) errors.push("Informe o peso unitário do produto para cálculo por cadência.");
   if (usedMassKgH <= 0) errors.push("Informe massa direta em kg/h ou dados suficientes para calcular pela cadência.");
   if (retentionTimeMin <= 0) errors.push("Informe o tempo de retenção.");
 
