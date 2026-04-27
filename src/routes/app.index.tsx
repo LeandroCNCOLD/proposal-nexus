@@ -55,31 +55,31 @@ function Dashboard() {
         actions={<Button asChild className="bg-[image:var(--gradient-primary)]"><Link to="/app/propostas/nova"><Plus className="mr-1.5 h-4 w-4" /> Nova proposta</Link></Button>}
       />
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Propostas no funil" value={num(total)} hint={`${active.length} ativas`} icon={<FileText className="h-4 w-4" />} accent="primary" />
         <StatCard label="Valor proposto" value={brl(totalValue)} hint={`${brl(activeValue)} em aberto`} icon={<DollarSign className="h-4 w-4" />} accent="info" />
         <StatCard label="Valor ganho" value={brl(wonValue)} hint={`${won.length} propostas fechadas`} icon={<Trophy className="h-4 w-4" />} accent="success" />
         <StatCard label="Taxa de conversão" value={`${conversion.toFixed(1)}%`} hint={`Ticket médio ${brl(ticket)}`} icon={<Target className="h-4 w-4" />} accent="primary" />
       </div>
 
-      <div className="mt-4 grid gap-4 md:grid-cols-3">
+      <div className="mt-3 grid gap-3 md:grid-cols-3">
         <StatCard label="Propostas vencidas" value={num(overdue)} hint="Requerem ação imediata" icon={<AlertTriangle className="h-4 w-4" />} accent="destructive" />
         <StatCard label="Sem follow-up" value={num(stale)} hint="Follow-up em atraso" icon={<Clock className="h-4 w-4" />} accent="warning" />
         <StatCard label="Perdidas" value={num(lost.length)} hint={`${brl(lost.reduce((s,p)=>s+Number(p.total_value??0),0))} em valor`} icon={<AlertTriangle className="h-4 w-4" />} accent="destructive" />
       </div>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-3">
-        <div className="rounded-xl border bg-card p-5 shadow-[var(--shadow-sm)] lg:col-span-2">
-          <div className="mb-4 flex items-center justify-between">
+      <div className="mt-3 grid gap-3 lg:grid-cols-3">
+        <div className="rounded-lg border bg-card p-3 shadow-[var(--shadow-sm)] lg:col-span-2">
+          <div className="mb-3 flex items-center justify-between">
             <h2 className="text-sm font-semibold">Distribuição por status</h2>
             <span className="text-xs text-muted-foreground">{total} propostas</span>
           </div>
           {chartData.length === 0 ? (
-            <div className="flex h-64 items-center justify-center text-sm text-muted-foreground">
+            <div className="flex h-48 items-center justify-center text-sm text-muted-foreground">
               Sem propostas ainda — crie a primeira para começar.
             </div>
           ) : (
-            <ResponsiveContainer width="100%" height={280}>
+            <ResponsiveContainer width="100%" height={220}>
               <BarChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 40 }}>
                 <XAxis dataKey="status" angle={-30} textAnchor="end" tick={{ fontSize: 10 }} interval={0} stroke="var(--muted-foreground)" />
                 <YAxis tick={{ fontSize: 11 }} stroke="var(--muted-foreground)" allowDecimals={false} />
@@ -94,8 +94,8 @@ function Dashboard() {
           )}
         </div>
 
-        <div className="rounded-xl border bg-card p-5 shadow-[var(--shadow-sm)]">
-          <div className="mb-4 flex items-center justify-between">
+        <div className="rounded-lg border bg-card p-3 shadow-[var(--shadow-sm)]">
+          <div className="mb-3 flex items-center justify-between">
             <h2 className="text-sm font-semibold">Recentes</h2>
             <Link to="/app/propostas" className="text-xs text-primary hover:underline">Ver todas</Link>
           </div>
