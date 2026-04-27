@@ -112,7 +112,7 @@ function nullableNumber(value: unknown): number | null {
   return isProvided(value) && Number.isFinite(Number(value)) ? Number(value) : null;
 }
 
-function continuousMassRequirement(input: any, continuousMassMode: string): string {
+function continuousMassRequirement(input: TunnelEngineInput, continuousMassMode: string): string {
   const unitWeightKg = positiveNumber(input?.unitWeightKg);
   if (continuousMassMode === "direct_mass_flow") return positiveNumber(input?.directMassKgH ?? input?.massKgH) > 0 ? "" : "massa direta em kg/h";
   if (continuousMassMode === "calculated_by_units_per_hour") return unitWeightKg * positiveNumber(input?.unitsPerHour) > 0 ? "" : "peso unitário e unidades por hora";
@@ -131,7 +131,7 @@ function getSmallestValidDimension(values: unknown[]): number {
   return dimensions.length > 0 ? Math.min(...dimensions) : 0;
 }
 
-function normalizePhysicalModel(input: any): TunnelPhysicalModel {
+function normalizePhysicalModel(input: TunnelEngineInput): TunnelPhysicalModel {
   const processType = input?.processType ?? input?.process_type;
   const operationMode = input?.operationMode ?? input?.operation_mode;
   const tunnelType = String(input?.tunnelType ?? input?.tunnel_type ?? "").toLowerCase().trim();
@@ -160,7 +160,7 @@ function isStaticTunnel(processType: unknown, operationMode: unknown) {
   return processType === "static_cart_freezing" || processType === "static_pallet_freezing" || operationMode === "batch";
 }
 
-function resolveStaticMass(input: any) {
+function resolveStaticMass(input: TunnelEngineInput) {
   const numberOfPallets = positiveNumber(input?.numberOfPallets ?? input?.number_of_pallets) || 1;
   const numberOfCarts = positiveNumber(input?.numberOfCarts ?? input?.number_of_carts) || 1;
   const staticMassMode = String(input?.staticMassMode ?? input?.static_mass_mode ?? "direct_pallet_mass");
