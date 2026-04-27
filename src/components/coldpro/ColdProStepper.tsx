@@ -30,7 +30,7 @@ type Props = {
 export function ColdProStepper({ currentStep, onStepClick, completed }: Props) {
   return (
     <nav aria-label="Etapas do cálculo" className="border-b border-border bg-background">
-      <ol className="flex items-center gap-1 overflow-x-auto px-2">
+      <ol className="flex items-center gap-0.5 overflow-x-auto px-1.5">
         {COLDPRO_STEPS.map((step, idx) => {
           const isActive = idx === currentStep;
           const isDone = completed[idx];
@@ -40,7 +40,7 @@ export function ColdProStepper({ currentStep, onStepClick, completed }: Props) {
                 type="button"
                 onClick={() => onStepClick(idx)}
                 className={cn(
-                  "group relative flex items-center gap-2 px-4 py-3 text-sm transition",
+                  "group relative flex items-center gap-1.5 px-2.5 py-1.5 text-xs transition",
                   isActive
                     ? "text-foreground"
                     : "text-muted-foreground hover:text-foreground",
@@ -48,7 +48,7 @@ export function ColdProStepper({ currentStep, onStepClick, completed }: Props) {
               >
                 <span
                   className={cn(
-                    "flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-semibold transition",
+                    "flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-semibold transition",
                     isActive
                       ? "bg-primary text-primary-foreground"
                       : isDone
@@ -56,7 +56,7 @@ export function ColdProStepper({ currentStep, onStepClick, completed }: Props) {
                         : "bg-muted text-muted-foreground group-hover:bg-muted/80",
                   )}
                 >
-                  {isDone ? <Check className="h-3 w-3" /> : idx + 1}
+                  {isDone ? <Check className="h-2.5 w-2.5" /> : idx + 1}
                 </span>
                 <span className="font-medium">{step.title}</span>
                 <span
