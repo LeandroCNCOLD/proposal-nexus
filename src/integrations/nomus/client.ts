@@ -456,6 +456,7 @@ export type NomusProbe = {
  */
 export async function testNomusConnection(triggeredBy: string | null = null): Promise<{
   success: boolean;
+  message: string;
   status: number;
   durationMs: number;
   endpoint: string;
@@ -470,53 +471,44 @@ export async function testNomusConnection(triggeredBy: string | null = null): Pr
   try {
     baseUrl = getNomusBaseUrl();
   } catch (e) {
+    const error = e instanceof Error ? e.message : String(e);
     return {
       success: false,
+      message: error,
       status: 0,
-      durationMs: Date.now() - overallStarted,
-      endpoint: primaryEndpoint,
-      error: e instanceof Error ? e.message : String(e),
-      probes: [],
+      durationMs: Date.now() - started,
+      endpoint,
+      error,
     };
   }
 
-  const probes: NomusProbe[] = [];
-  for (const entity of NOMUS_PROBE_ENTITIES) {
-    const endpoint = NOMUS_ENDPOINTS[entity];
-    const started = Date.now();
-    const res = await nomusFetch(endpoint, {
-      method: "GET",
-      // Sem query params: isola problemas de validação de parâmetros.
-      entity: "test",
-      operation: `ping:${entity}`,
-      direction: "test",
-      triggeredBy,
-    });
-    probes.push({
-      entity,
-      endpoint,
-      ok: res.ok,
+  const res = await nomusFetch(endpoint, {
+    method: "GET",
+    query: { pagina: 1 },
+    entity: "test",
+    operation: "health_check",
+    direction: "test",
+    triggeredBy,
+  });
+
+  if (!res.ok) {
+    return {
+      success: false,
+      message: `Falha ao conectar ao Nomus via ${endpoint}: ${res.error}`,
       status: res.status,
       durationMs: Date.now() - started,
-      error: res.ok ? undefined : res.error,
-    });
+      endpoint,
+      baseUrl,
+      error: res.error,
+    };
   }
 
-  const primary = probes.find((p) => p.entity === NOMUS_HEALTHCHECK_ENTITY) ?? probes[0];
-  const allOk = probes.length > 0 && probes.every((p) => p.ok);
-
   return {
-    success: allOk,
-    status: primary?.status ?? 0,
-    durationMs: Date.now() - overallStarted,
-    endpoint: primaryEndpoint,
+    success: true,
+    message: `Conexão com o Nomus validada com sucesso via ${endpoint}.`,
+    status: res.status,
+    durationMs: Date.now() - started,
+    endpoint,
     baseUrl,
-    error: allOk
-      ? undefined
-      : probes
-          .filter((p) => !p.ok)
-          .map((p) => `${p.entity}: ${p.status} ${p.error ?? ""}`.trim())
-          .join(" | ") || primary?.error,
-    probes,
   };
 }
