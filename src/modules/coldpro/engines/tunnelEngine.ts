@@ -491,6 +491,9 @@ function calculateTunnelCore(input: TunnelEngineInput) {
     physicalModel === "static_block" && positiveNumber(input?.batchTimeH) <= 0 ? "Tempo de batelada ausente para estático em pallet/bloco." : "",
     tunnelMode.operationRegime === "batch" && packagingMassKgBatch <= 0 ? "Em processo de batelada, informe a massa total de embalagem da batelada para cálculo mais preciso." : "",
     infiltrationMethod.warning,
+    ...processMass.warnings,
+    productLoadKW > 0 && kwToKcalH(productLoadKW) < 10000 ? "Carga total do produto abaixo de 10.000 kcal/h; validar escala industrial e massa/tempo informados." : "",
+    productLoadKW > 0 && transmissionLoadKW > 0 && productLoadKW < transmissionLoadKW * 0.25 ? "Carga de produto muito baixa em relação à transmissão; revisar massa, tempo e energia específica." : "",
   ];
 
   const freezingTimeMissingFields = [
@@ -518,14 +521,20 @@ function calculateTunnelCore(input: TunnelEngineInput) {
     ...airflow.missingFields,
     ...requiredPositiveFields(input, isStatic, staticMassKg, characteristicDimensionM, energy.crossesFreezingPoint, airVelocityUsedMS, continuousMassMode),
     ...freezingTimeMissingFields,
+    ...processMass.blockers,
+    ...productLoadResolution.blockers,
   ]);
   const warnings = unique([...validation.warnings, ...tunnelMode.warnings, ...geometry.warnings, ...exposure.warnings, ...airflow.warnings, ...engineWarnings, ...freezingValidation.warnings, ...infiltration.warnings, ...thermalReliabilityAlerts.map((alert) => alert.message)]);
 
-  const status: TunnelScenarioStatus = invalidFields.length > 0
+  const inputStatus: TunnelScenarioStatus = invalidFields.length > 0
     ? "invalid_input"
     : missingFields.length > 0
       ? "missing_data"
-      : freezingValidation.status;
+      : "adequate";
+  const thermalStatus: TunnelScenarioStatus = productLoadKW <= 0 || energy.totalKcalKg <= 0 ? "missing_data" : freezingValidation.status;
+  const equipmentStatus: TunnelScenarioStatus = inputStatus === "adequate" && thermalStatus === "adequate" ? "adequate" : inputStatus === "invalid_input" ? "invalid_input" : "missing_data";
+  const projectStatus: TunnelScenarioStatus = inputStatus === "invalid_input" || thermalStatus === "invalid_input" ? "invalid_input" : inputStatus !== "adequate" || thermalStatus !== "adequate" || equipmentStatus !== "adequate" ? "missing_data" : "adequate";
+  const status: TunnelScenarioStatus = projectStatus === "adequate" ? freezingValidation.status : projectStatus;
 
   const scenario: TunnelThermalScenario = {
     airTempC: nullableNumber(input?.airTempC),
