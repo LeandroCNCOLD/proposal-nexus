@@ -680,7 +680,9 @@ export function calculateProductLoadBreakdown(product: ColdProEnvironmentProduct
 
   const totalEnergy = sensibleAbove + latentLoad + sensibleBelow;
   const total = loadMode === "hourly_intake" ? totalEnergy / 24 : totalEnergy / hours;
-  const warnings = [loadMode === "room_pull_down_or_freezing" ? "Câmara de armazenagem usada para resfriar/congelar produto novo: validar circulação de ar, empilhamento, embalagem, área exposta e tempo disponível; para cargas intensas ou recorrentes, considerar túnel dedicado." : null].filter(Boolean);
+  const specificEnergyKjKg = massDay > 0 ? (totalEnergy / massDay) * KCAL_TO_KJ : 0;
+  const thermalAlerts = productThermalAlerts(product, specificEnergyKjKg, latent * KCAL_TO_KJ);
+  const warnings = [loadMode === "room_pull_down_or_freezing" ? "Câmara de armazenagem usada para resfriar/congelar produto novo: validar circulação de ar, empilhamento, embalagem, área exposta e tempo disponível; para cargas intensas ou recorrentes, considerar túnel dedicado." : null, ...thermalAlerts.map((alert) => alert.message)].filter(Boolean);
   return {
     product_name: product.product_name,
     product_load_mode: loadMode,
@@ -702,8 +704,12 @@ export function calculateProductLoadBreakdown(product: ColdProEnvironmentProduct
     cp_above_kj_kg_k: product.specific_heat_above_kj_kg_k ?? round2(cpAbove * KCAL_TO_KJ),
     cp_below_kj_kg_k: product.specific_heat_below_kj_kg_k ?? round2(cpBelow * KCAL_TO_KJ),
     latent_heat_kcal_kg: latent,
-    latent_heat_kj_kg: product.latent_heat_kj_kg ?? round2(latent * KCAL_TO_KJ),
+    latent_heat_kj_kg: round2(latent * KCAL_TO_KJ),
     frozen_water_fraction: frozenFraction,
+    latent_residual_factor: latentResidualFactor,
+    unit_conversions: thermal.conversionSources,
+    thermal_defaults_applied: thermal.defaultsApplied,
+    thermal_alerts: thermalAlerts,
     composition_percent: {
       water: product.water_content_percent ?? null,
       protein: product.protein_content_percent ?? null,
@@ -719,6 +725,7 @@ export function calculateProductLoadBreakdown(product: ColdProEnvironmentProduct
     energy_steps_sum_kcal: round2(sensibleAbove + latentLoad + sensibleBelow),
     energy_consistency_delta_kcal: round2(Math.abs(totalEnergy - (sensibleAbove + latentLoad + sensibleBelow))),
     specific_energy_kcal_kg: massDay > 0 ? round2(totalEnergy / massDay) : 0,
+    specific_energy_kj_kg: round2(specificEnergyKjKg),
     sensible_above_kcal_h: round2(loadMode === "hourly_intake" ? sensibleAbove / 24 : sensibleAbove / hours),
     latent_kcal_h: round2(loadMode === "hourly_intake" ? latentLoad / 24 : latentLoad / hours),
     sensible_below_kcal_h: round2(loadMode === "hourly_intake" ? sensibleBelow / 24 : sensibleBelow / hours),
