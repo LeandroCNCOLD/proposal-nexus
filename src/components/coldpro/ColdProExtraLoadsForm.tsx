@@ -6,9 +6,13 @@ import { ColdProCalculatedInfo, ColdProFormSection, ColdProValidationMessage, fm
 import { calculateExtraLoadPreview, suggestedInfiltrationFactor } from "@/features/coldpro/extra-loads-preview";
 import { LIGHTING_EQUIPMENT_PRESETS, MOTOR_EQUIPMENT_PRESETS } from "@/features/coldpro/thermal-calculations";
 
-type Props = { environment: any; catalogFanLoadKcalH?: number; onSave: (patch: Record<string, unknown>) => void };
+type Props = { environment: any; catalogFanLoadKcalH?: number; onSave: (patch: Record<string, unknown>) => void | boolean | Promise<void | boolean> };
 
-export function ColdProExtraLoadsForm({ environment, catalogFanLoadKcalH = 0, onSave }: Props) {
+export type ColdProExtraLoadsFormHandle = {
+  save: () => Promise<boolean>;
+};
+
+export const ColdProExtraLoadsForm = React.forwardRef<ColdProExtraLoadsFormHandle, Props>(function ColdProExtraLoadsForm({ environment, catalogFanLoadKcalH = 0, onSave }, ref) {
   const [form, setForm] = React.useState<any>(environment);
   const [selectedMotorPreset, setSelectedMotorPreset] = React.useState("0");
   const [selectedLightingPreset, setSelectedLightingPreset] = React.useState("0");
@@ -55,7 +59,13 @@ export function ColdProExtraLoadsForm({ environment, catalogFanLoadKcalH = 0, on
     if (!selectedLighting) return;
     setForm((prev: any) => ({ ...prev, lighting_power_w: recommendedLightingPowerW, lighting_hours_day: prev?.lighting_hours_day ?? 8 }));
   };
-  const save = () => onSave({ ...form, infiltration_factor: Number(form?.infiltration_factor ?? 0) > 0 ? form.infiltration_factor : suggestedFactor, defrost_kcal_h: Number(form?.defrost_kcal_h ?? 0) > 0 ? form.defrost_kcal_h : preview.defrost_suggestion.defrostKcalH });
+  const save = async () => {
+    if (!canSave) return false;
+    const result = await onSave({ ...form, infiltration_factor: Number(form?.infiltration_factor ?? 0) > 0 ? form.infiltration_factor : suggestedFactor, defrost_kcal_h: Number(form?.defrost_kcal_h ?? 0) > 0 ? form.defrost_kcal_h : preview.defrost_suggestion.defrostKcalH });
+    return result !== false;
+  };
+
+  React.useImperativeHandle(ref, () => ({ save }));
 
   return (
     <div className="min-w-0 rounded-xl border bg-background p-3 shadow-sm sm:p-5">
@@ -221,4 +231,4 @@ export function ColdProExtraLoadsForm({ environment, catalogFanLoadKcalH = 0, on
       </div>
     </div>
   );
-}
+});
