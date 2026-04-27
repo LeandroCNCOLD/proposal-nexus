@@ -4,18 +4,23 @@ export const COLDPRO_FREEZING_TIME_LIMITATION =
   "O tempo estimado é uma aproximação baseada em modelo tipo Plank/ASHRAE. Para pallets compactos, caixas empilhadas ou produtos irregulares, o resultado deve ser tratado como estimativa conservadora e validado em campo.";
 
 export function buildCalculationMethodReport(infiltrationMethod = "simple_air_change", productLoadMethod = "kg/h contínuo ou kg/batelada") {
+  const packagingFormula = `${COLDPRO_CALCULATION_METHODS.packagingContinuous.formula} / ${COLDPRO_CALCULATION_METHODS.packagingBatch.formula}`;
   return {
     title: "Método de cálculo utilizado",
     methods: {
       transmission: COLDPRO_CALCULATION_METHODS.transmission.formula,
-      product: "sensível + latente + sensível",
+      product: COLDPRO_CALCULATION_METHODS.productCoolingFreezing.formula,
       productLoad: productLoadMethod,
-      packaging: `${COLDPRO_CALCULATION_METHODS.packagingContinuousLoad.formula} / ${COLDPRO_CALCULATION_METHODS.packagingBatchLoad.formula}`,
+      packaging: packagingFormula,
       infiltration: infiltrationMethod,
-      airflow: "Q × 3600 / rho Cp ΔT",
-      velocity: "vazão / área livre",
-      freezingTime: "ASHRAE/Plank-style estimate",
+      airflow: COLDPRO_CALCULATION_METHODS.airFlowBalance.formula,
+      velocity: COLDPRO_CALCULATION_METHODS.airVelocity.formula,
+      freezingTime: COLDPRO_CALCULATION_METHODS.freezingTime.formula,
     },
-    limitations: [COLDPRO_FREEZING_TIME_LIMITATION],
+    limitations: [
+      COLDPRO_FREEZING_TIME_LIMITATION,
+      COLDPRO_CALCULATION_METHODS.airFlowBalance.limitations,
+      infiltrationMethod === "simple_air_change" ? COLDPRO_CALCULATION_METHODS.infiltrationSimple.limitations : undefined,
+    ].filter(Boolean) as string[],
   };
 }
