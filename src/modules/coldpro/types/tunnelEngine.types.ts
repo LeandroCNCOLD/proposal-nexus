@@ -10,6 +10,10 @@ export type ProductGeometry = "slab" | "rectangular_prism" | "cube" | "cylinder"
 
 export type AirflowSource = "manual_velocity" | "airflow_by_fans" | string;
 
+export type TunnelSourceRecord = Record<string, unknown>;
+
+export type TunnelCalculationRecord = Record<string, unknown>;
+
 export interface TunnelEngineInput {
   [key: string]: unknown;
   processType?: string | null;
@@ -187,12 +191,10 @@ export interface TunnelEngineResult {
   initialScenario: TunnelThermalScenarioResult;
   adjustedScenario: TunnelThermalScenarioResult;
   approvedScenario: TunnelThermalScenarioResult | null;
-  calculationBreakdown: Record<string, any>;
-  calculationLog: Record<string, any>;
+  calculationBreakdown: TunnelCalculationRecord;
+  calculationLog: TunnelCalculationRecord;
   engineVersion: string;
   calculatedAt: string;
 }
 
-export interface TunnelDatabasePayload {
-  [key: string]: unknown;
-}
+export type TunnelDatabasePayload = TunnelSourceRecord;
