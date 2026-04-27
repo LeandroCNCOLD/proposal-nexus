@@ -42,6 +42,36 @@ export function absoluteHumidityKgM3(tempC: number, relativeHumidity: number): n
   return (0.00216679 * rh * saturationVaporPressurePa(tempC)) / (tempC + 273.15);
 }
 
+function moistAirEnthalpyKJkgDryAir(tempC: number, relativeHumidity: number): number {
+  const rh = clamp(relativeHumidity > 1 ? relativeHumidity / 100 : relativeHumidity, 0, 1);
+  const vaporPressureKPa = (rh * saturationVaporPressurePa(tempC)) / 1000;
+  const humidityRatio = 0.62198 * vaporPressureKPa / Math.max(0.001, 101.325 - vaporPressureKPa);
+  return 1.006 * tempC + humidityRatio * (2501 + 1.86 * tempC);
+}
+
+export function calculatePsychrometricInfiltrationLoad(input: any, simpleFallback?: ReturnType<typeof calculateTechnicalInfiltration>) {
+  const warnings: string[] = [];
+  const externalTempC = input.externalTempC ?? input.external_temp_c;
+  const externalRH = input.externalRelativeHumidityPercent ?? input.external_relative_humidity_percent;
+  const internalTempC = input.internalTempC ?? input.internal_temp_c ?? input.airTempC ?? input.air_temp_c;
+  const internalRH = input.internalRelativeHumidityPercent ?? input.internal_relative_humidity_percent ?? input.relative_humidity_percent;
+  const airflowM3H = input.infiltrationAirflowM3H ?? input.infiltration_airflow_m3_h;
+  const density = num(input.airDensityKgM3 ?? input.air_density_kg_m3, THERMAL_CONSTANTS.air.densityKgM3);
+  const missing = [externalTempC, externalRH, internalTempC, internalRH, airflowM3H].some((value) => value === null || value === undefined || value === "" || !Number.isFinite(Number(value)) || Number(value) <= 0 && value === airflowM3H);
+  if (missing) {
+    warnings.push("Método psicrométrico solicitado, mas faltam dados de umidade/entalpia. Usando método simplificado.");
+    const fallback = simpleFallback ?? calculateTechnicalInfiltration(input);
+    return { sensibleKcalH: fallback.sensibleKcalH, latentKcalH: fallback.latentKcalH, totalKcalH: fallback.totalInfiltrationKcalH, methodUsed: "simple_air_change", warnings };
+  }
+  const hOut = moistAirEnthalpyKJkgDryAir(num(externalTempC), num(externalRH));
+  const hIn = moistAirEnthalpyKJkgDryAir(num(internalTempC), num(internalRH));
+  const massAirKgS = Math.max(0, num(airflowM3H)) * Math.max(0.1, density) / 3600;
+  const totalKW = Math.max(0, massAirKgS * (hOut - hIn));
+  const sensibleKW = Math.max(0, massAirKgS * 1.005 * (num(externalTempC) - num(internalTempC)));
+  const latentKW = Math.max(0, totalKW - sensibleKW);
+  return { sensibleKcalH: round(sensibleKW * THERMAL_CONSTANTS.conversion.kcalPerKwH), latentKcalH: round(latentKW * THERMAL_CONSTANTS.conversion.kcalPerKwH), totalKcalH: round(totalKW * THERMAL_CONSTANTS.conversion.kcalPerKwH), methodUsed: "psychrometric_enthalpy", warnings, enthalpyExternalKJkg: round(hOut, 3), enthalpyInternalKJkg: round(hIn, 3), infiltrationAirflowM3H: round(num(airflowM3H)) };
+}
+
 export function applicationTypeFromEnvironment(type?: string | null): ApplicationType {
   const value = String(type ?? "cold_room");
   if (["tunnel", "blast_freezer", "freezing_tunnel"].includes(value)) return "tunnel";
