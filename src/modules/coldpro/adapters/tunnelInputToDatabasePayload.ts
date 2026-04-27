@@ -83,7 +83,8 @@ export function validateTunnelCalculationConsistency(tunnelResult: TunnelEngineR
 export function tunnelResultToDatabasePayload(form: TunnelSourceRecord, tunnelResult: TunnelEngineResult): TunnelDatabasePayload {
   const calculatedAt = tunnelResult?.calculatedAt ?? new Date().toISOString();
   const breakdownLoads = (tunnelResult?.calculationBreakdown?.loads ?? {}) as Record<string, unknown>;
-  const beltSurface = (tunnelResult?.beltSurface ?? tunnelResult?.calculationBreakdown?.mass?.beltSurface ?? {}) as Record<string, unknown>;
+  const breakdownMass = ((tunnelResult?.calculationBreakdown as any)?.mass ?? {}) as Record<string, unknown>;
+  const beltSurface = ((tunnelResult as any)?.beltSurface ?? breakdownMass.beltSurface ?? {}) as Record<string, unknown>;
   const persistedLoads = {
     productLoadKW: round(tunnelResult?.productLoadKW),
     packagingLoadKW: round(tunnelResult?.packagingLoadKW),
