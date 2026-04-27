@@ -353,6 +353,11 @@ function ColdProProjectPage() {
     }
   }
 
+  function handlePrintEnvironmentReport() {
+    setShowEnvironmentReport(true);
+    window.setTimeout(() => window.print(), 80);
+  }
+
   async function handleGeneratePdf(aiAnalysis?: string | null, reportType: "full" | "proposal_summary" = "full") {
     try {
       const res = await generatePdf.mutateAsync({ attachToProposal: true, aiAnalysis, reportType });
@@ -708,19 +713,52 @@ function ColdProProjectPage() {
               {stepIndex === 4 && (
                 <div className="space-y-3">
                   <div className="rounded-lg border bg-background p-3">
-                    <h3 className="mb-2 text-base font-semibold">Calcular carga térmica</h3>
-                    <p className="mb-3 text-sm text-muted-foreground">
-                      Use as informações cadastradas nas etapas anteriores para gerar o cálculo da carga térmica do ambiente.
-                    </p>
-                    <button
-                      type="button"
-                      className="rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground"
-                      onClick={handleCalculate}
-                      disabled={calculate.isPending}
-                    >
-                      {calculate.isPending ? "Calculando..." : "Calcular carga térmica"}
-                    </button>
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <h3 className="mb-1 text-base font-semibold">Resultado e ações do ambiente</h3>
+                        <p className="text-sm text-muted-foreground">
+                          Calcule, selecione equipamento e gere o relatório do ambiente atual.
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <button type="button" className="inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm hover:bg-muted" onClick={() => setStepIndex(0)}>
+                          <Pencil className="h-4 w-4" /> Editar
+                        </button>
+                        <button type="button" className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-1.5 text-sm text-primary-foreground disabled:opacity-50" onClick={handleCalculate} disabled={calculate.isPending}>
+                          {calculate.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Calculator className="h-4 w-4" />}
+                          {calculate.isPending ? "Calculando..." : "Calcular carga"}
+                        </button>
+                        <button type="button" className="inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm hover:bg-muted disabled:opacity-50" onClick={handleAutoSelect} disabled={!result || autoSelect.isPending}>
+                          {autoSelect.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Snowflake className="h-4 w-4" />}
+                          {autoSelect.isPending ? "Selecionando..." : "Selecionar automático"}
+                        </button>
+                        <button type="button" className="inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm hover:bg-muted disabled:opacity-50" onClick={() => setShowEnvironmentReport((value) => !value)} disabled={!result}>
+                          <FileText className="h-4 w-4" /> Gerar relatório
+                        </button>
+                        <button type="button" className="inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm hover:bg-muted disabled:opacity-50" onClick={handlePrintEnvironmentReport} disabled={!result}>
+                          <Printer className="h-4 w-4" /> Imprimir PDF
+                        </button>
+                        <button type="button" className="inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm hover:bg-muted disabled:opacity-50" onClick={() => handleGeneratePdf(null, "full")} disabled={!result || generatePdf.isPending}>
+                          {generatePdf.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                          Gerar PDF
+                        </button>
+                      </div>
+                    </div>
                   </div>
+
+                  <div className="rounded-lg border bg-background p-3 print:hidden">
+                    <div className="mb-3">
+                      <h3 className="text-sm font-semibold">Parâmetros comerciais locais</h3>
+                      <p className="text-xs text-muted-foreground">Valores usados apenas para simulação nesta tela. Não são salvos e não alteram o resultado calculado.</p>
+                    </div>
+                    <div className="grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(180px,1fr))]">
+                      <CommercialField label="Valor da energia" value={energyTariff} onChange={setEnergyTariff} prefix="R$" suffix="/kWh" step="0.01" />
+                      <CommercialField label="Quantidade de equipamentos" value={commercialQuantity} onChange={setCommercialQuantity} suffix="un." min={1} step="1" />
+                      <CommercialField label="Valor unitário" value={equipmentUnitPrice} onChange={setEquipmentUnitPrice} prefix="R$" step="0.01" />
+                    </div>
+                  </div>
+
+                  <EnvironmentCommercialSummary commercial={commercialSummary} />
                   <ColdProResultCard result={result} selection={selection} environment={selectedEnv} products={products} advancedProcesses={data?.advancedProcesses ?? []} onAnalyze={handleAnalyzeMemorial} isAnalyzing={analyzeMemorial.isPending} />
                   <div className="coldpro-grid">
                     <ThermalLoadSummary result={result} />
