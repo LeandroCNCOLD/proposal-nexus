@@ -85,7 +85,7 @@ export function auditColdProTechnicalConsistency(input: { environment?: any | nu
   const technicalStatus: ColdProTechnicalStatus = blockers.length ? "BLOCKED" : warnings.length ? "WARNING" : "VALID";
   return {
     technicalStatus,
-    isBlocked: technicalStatus === "BLOCKED" || technicalStatus === "INVALID_INPUT",
+    isBlocked: technicalStatus === "BLOCKED",
     isPreliminary: technicalStatus !== "VALID",
     blockers,
     warnings,
