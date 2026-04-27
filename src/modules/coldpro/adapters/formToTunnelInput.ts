@@ -157,6 +157,7 @@ export function formToTunnelInput(form: TunnelSourceRecord, environment: TunnelS
     cpBelowKJkgK: thermal.cpBelowKJkgK,
     latentHeatKJkg: thermal.latentHeatKJkg,
     unitConversions: thermal.conversionSources,
+    unitAudit: thermal.unitAudit,
     thermalDefaultsApplied: thermal.defaultsApplied,
     frozenWaterFraction: thermal.frozenWaterFraction,
     latentResidualFactor: thermal.latentResidualFactor,
