@@ -886,6 +886,7 @@ function buildColdProValidationAlerts(env: ColdProEnvironment, products: any[], 
   }
   for (const product of products) {
     if (Math.abs(n(product.energy_consistency_delta_kcal)) > 1) alerts.push({ level: "error", code: "product_energy_inconsistent", message: `Carga de produto inconsistente em ${product.product_name}: soma das etapas difere do total.` });
+    for (const alert of Array.isArray(product.thermal_alerts) ? product.thermal_alerts : []) alerts.push(alert);
   }
   if (n(env.motors_power_kw) > 0 && (env.motors_dissipation_factor === null || env.motors_dissipation_factor === undefined || n(env.motors_dissipation_factor) < 0 || n(env.motors_dissipation_factor) > 1)) {
     alerts.push({ level: "warning", code: "motor_dissipation_invalid", message: "Motor informado sem fator de dissipação válido; use 100% interno, 30-70% parcial ou 0% externo." });
