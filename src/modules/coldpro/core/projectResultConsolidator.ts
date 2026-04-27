@@ -42,6 +42,7 @@ export function consolidateColdProProjectResult({
     defrostAndIceKcalH: round(sum(environmentResults.map((item) => item.groupedLoads.defrostAndIceKcalH))),
     safetyKcalH: round(sum(environmentResults.map((item) => item.groupedLoads.safetyKcalH))),
     otherKcalH: round(sum(environmentResults.map((item) => item.groupedLoads.otherKcalH))),
+    tunnelTotalKcalH: round(sum(environmentResults.map((item) => Number(item.groupedLoads.tunnelTotalKcalH ?? item.tunnelLoadBreakdown?.totalKcalH ?? 0)))),
   };
 
   const summary = {
@@ -56,7 +57,10 @@ export function consolidateColdProProjectResult({
 
   const equipmentSurplusPercent = summary.requiredKcalH > 0 ? round(((summary.totalSelectedCapacityKcalH - summary.requiredKcalH) / summary.requiredKcalH) * 100, 2) : 0;
   const criticalEnvironments = environmentResults.filter((item) => item.consistencyAudit.hasCriticalDivergence);
-  const warnings = environmentResults.flatMap((item) => item.consistencyAudit.warnings.map((warning: string) => `${item.environment?.name ?? "Ambiente"}: ${warning}`));
+  const warnings = environmentResults.flatMap((item) => [
+    ...item.consistencyAudit.warnings,
+    ...(Array.isArray(item.technicalAlerts) ? item.technicalAlerts : []),
+  ].map((warning: string) => `${item.environment?.name ?? "Ambiente"}: ${warning}`));
   const methodSummary = {
     methods: Array.from(new Set(environmentResults.flatMap((item) => item.calculationMethodSummary.methods))),
     limitations: Array.from(new Set(environmentResults.flatMap((item) => item.calculationMethodSummary.limitations))),
@@ -80,6 +84,8 @@ export function consolidateColdProProjectResult({
       requiredTR: item.summary.requiredTR,
       selectedCapacityKcalH: item.equipment.totalCapacityKcalH,
       surplusPercent: item.equipment.surplusPercent,
+      equipmentRequiredKcalH: item.equipment.requiredCapacityKcalH || item.summary.requiredKcalH,
+      selectionUsesTotalEnvironmentLoad: (item.equipment.requiredCapacityKcalH || item.summary.requiredKcalH) >= item.summary.requiredKcalH * 0.99,
       hasCriticalDivergence: item.consistencyAudit.hasCriticalDivergence,
     })),
     consistencyAudit: {
