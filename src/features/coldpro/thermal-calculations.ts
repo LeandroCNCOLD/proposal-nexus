@@ -87,6 +87,7 @@ export function calculateTechnicalInfiltration(env: any) {
   const internalTempC = num(env.internal_temp_c);
   const externalTempC = env.external_temp_c !== null && env.external_temp_c !== undefined ? num(env.external_temp_c) : regionDefaults.externalTempC;
   const compressorHoursDay = Math.max(1, num(env.compressor_runtime_hours_day, 20) || 20);
+  const infiltrationAveragingHoursDay = 24;
   const applicationType = applicationTypeFromEnvironment(env.environment_type);
   const externalRH = env.external_relative_humidity_percent !== null && env.external_relative_humidity_percent !== undefined && num(env.external_relative_humidity_percent) > 0 ? num(env.external_relative_humidity_percent) / 100 : regionDefaults.externalRH;
   const internalRHWasInformed = env.relative_humidity_percent !== null && env.relative_humidity_percent !== undefined && num(env.relative_humidity_percent) > 0;
@@ -141,19 +142,20 @@ export function calculateTechnicalInfiltration(env: any) {
     internalAbsoluteHumidityKgM3: round(internalAbsoluteHumidityKgM3, 6),
     deltaHumidityKgM3: round(deltaHumidityKgM3, 6),
     deltaHumidityGM3: round(deltaHumidityKgM3 * 1000, 2),
-    sensibleKcalH: round(sensibleKcalDay / compressorHoursDay),
-    latentKcalH: round(latentKcalDay / compressorHoursDay),
-    totalInfiltrationKcalH: round((sensibleKcalDay + latentKcalDay) / compressorHoursDay),
+    sensibleKcalH: round(sensibleKcalDay / infiltrationAveragingHoursDay),
+    latentKcalH: round(latentKcalDay / infiltrationAveragingHoursDay),
+    totalInfiltrationKcalH: round((sensibleKcalDay + latentKcalDay) / infiltrationAveragingHoursDay),
     iceKgDay: round(iceKgDay),
     iceKgHour: round(iceKgDay / 24),
     compressorHoursDay: round(compressorHoursDay),
+    infiltrationAveragingHoursDay,
     formulas: {
       door_area: "A = largura x altura",
       door_infiltration: "V_porta = A x velocidade_ar x tempo_total_abertura x fator_correcao",
       psychrometric: "Delta umidade = umidade_absoluta_externa - umidade_absoluta_interna",
       ice: "gelo_kg_dia = volume_ar_infiltrado x Delta umidade",
-      sensible: "Q_sensível = V_ar x densidade_ar x cp_ar x DeltaT / horas_compressor",
-      latent: "Q_latente = gelo_kg_dia x calor_latente_vapor_para_gelo / horas_compressor",
+      sensible: "Q_sensível = V_ar_diário x densidade_ar x cp_ar x DeltaT / 24h",
+      latent: "Q_latente = gelo_kg_dia x calor_latente_vapor_para_gelo / 24h",
     },
   };
 }
