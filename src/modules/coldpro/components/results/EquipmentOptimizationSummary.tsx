@@ -58,7 +58,7 @@ export function EquipmentOptimizationSummary({ result, selection }: Props) {
           </thead>
 
           <tbody>
-            {ranking?.map((item, index) => (
+            {ranking?.map((item: any, index: number) => (
               <tr key={index}>
                 <td>{index + 1}</td>
 
