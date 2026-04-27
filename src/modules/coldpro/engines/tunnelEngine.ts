@@ -5,6 +5,9 @@ import { buildCalculationMethodReport } from "../reports/calculationMethodReport
 import { kwToKcalH, kwToTr } from "../core/units";
 import { validateTunnelInput } from "../core/validators";
 import { calculateAirflowModel, calculatePsychrometricInfiltrationKW, calculateRequiredAirflowM3H } from "../physics/airflowModel";
+import { calculateRequiredAirflowForFreezingTime, resolveRecommendedAirflow } from "../physics/airflowOptimizer";
+import { resolveLoadRateHours } from "../core/loadRateResolver";
+import { calculateExtraLoads, calculateExtraLoadsTotal } from "../core/extraLoadsCalculator";
 import { calculateExposureFactor } from "../physics/arrangementModel";
 import { calculatePlankFreezingTimeMin, validateFreezingTime } from "../physics/freezingTime";
 import { calculateCharacteristicDimension } from "../physics/geometryModel";
@@ -448,12 +451,23 @@ function calculateTunnelCore(input: TunnelEngineInput) {
   const infiltration = calculatePsychrometricInfiltrationKW({ ...input, internalTempC: input?.airTempC ?? input?.finalTempC, airDensityKgM3 });
   const internalLoads = resolveInternalLoads(input);
   const transmissionLoadKW = transmission.transmissionKW;
-  const infiltrationLoadKW = infiltration.totalKW;
+  // Usar rateio correto de tempo para infiltração
+  const infiltrationRate = resolveLoadRateHours({
+    loadType: 'infiltration',
+    batchTimeH: positiveNumber(input?.batchTimeH),
+    operatingHoursPerDay: positiveNumber(input?.operatingHoursPerDay) || 16,
+    infiltrationRecoveryHoursPerDay: positiveNumber(input?.infiltrationRecoveryHoursPerDay),
+    compressorHoursPerDay: positiveNumber(input?.compressorHoursPerDay),
+  });
+  const infiltrationLoadKW = infiltration.totalKW > 0 && infiltrationRate.rateHours > 0
+    ? (infiltration.totalKW * 24) / infiltrationRate.rateHours
+    : infiltration.totalKW;
   const internalLoadKW = internalLoads.internalLoadKW;
   const totalKW = productLoadKW + packagingLoadKW + transmissionLoadKW + infiltrationLoadKW + internalLoadKW;
   const totalKcalH = kwToKcalH(totalKW);
   const totalTR = kwToTr(totalKW);
   const airFlowM3H = calculateRequiredAirflowM3H({ loadKW: totalKW, airDeltaTK, airDensityKgM3, cpAirKJkgK });
+  const airFlowByMinVelocityM3H = geometry.freeAreaM2 * (positiveNumber(input?.minAirVelocityMS ?? input?.min_air_velocity_m_s) || 2.5) * 3600;
   const airFlowThermalBalanceM3H = airFlowM3H;
 
   const estimatedTimeMin = canEstimateFreezingTime(input, distanceToCoreM, h.hEffectiveWM2K, kEffectiveWMK)
