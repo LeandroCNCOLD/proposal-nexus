@@ -630,7 +630,7 @@ function calculateTunnelCore(input: TunnelEngineInput) {
     },
     mass: tunnelMode.operationRegime === "batch"
       ? { mode: "batch", processMode: processMass.processMode, massBasis: processMass.massBasis, staticMassMode: input?.staticMassMode ?? input?.static_mass_mode ?? "direct_pallet_mass", numberOfPallets, numberOfCarts: processMass.numberOfCarts, palletMassKg, calculatedPalletMassKg: processMass.calculatedPalletMassKg, calculatedCartMassKg: processMass.calculatedCartMassKg, calculatedBatchMassKg: processMass.calculatedBatchMassKg, unitsPerPallet: processMass.unitsPerPallet, productMassPerPalletKg: processMass.productMassPerPalletKg, packagingMassPerPalletKg: processMass.packagingMassPerPalletKg, staticMassKg, calculatedMassKgH: null, usedMassKgH: null, batchTimeH: processMass.processTimeH }
-      : { mode: "continuous", processMode: processMass.processMode, massBasis: processMass.massBasis, continuousMassMode, calculatedMassKgH, directMassKgH, usedMassKgH, beltUnitsPerHour, retentionTimeMin: input?.retentionTimeMin ?? null, processTimeH: processMass.processTimeH },
+      : { mode: "continuous", processMode: processMass.processMode, massBasis: processMass.massBasis, continuousMassMode, calculatedMassKgH, directMassKgH, usedMassKgH, beltUnitsPerHour, beltSurface: processMass.beltSurface, retentionTimeMin: input?.retentionTimeMin ?? null, processTimeH: processMass.processTimeH },
     geometry: { tunnelType: tunnelMode.tunnelType, arrangementType: tunnelMode.arrangementType, productGeometry: input?.productGeometry ?? input?.product_geometry ?? null, surfaceExposureModel: exposure.surfaceExposureModel, thermalModelForPallet: geometry.thermalModelForPallet ?? input?.thermalModelForPallet ?? input?.thermal_model_for_pallet ?? null, characteristicDimensionM, distanceToCoreM, geometrySource: geometry.source },
     productEnergy: productEnergyBreakdown,
     convection: { source: h.source, hBaseWM2K: h.hBaseWM2K, hEffectiveWM2K: h.hEffectiveWM2K, airVelocityMS: airflow.airVelocityUsedMS, airExposureFactor: input?.airExposureFactor ?? null, exposureFactor: exposure.exposureFactor, spiralTurbulenceFactor, blockExposureFactor },
@@ -652,7 +652,7 @@ function calculateTunnelCore(input: TunnelEngineInput) {
     continuousProductLoadKW: "massKgH × specificEnergyKJkg / 3600",
     batchProductLoadKW: "massKg × specificEnergyKJkg / (timeH × 3600)",
     packagingLoadKW: tunnelMode.operationRegime === "batch" ? "packagingMassKgBatch × packagingCpKcalKgC × abs(initialTempC - finalTempC) / batchTimeH / 859,845" : "packagingMassKgH × packagingCpKcalKgC × abs(initialTempC - finalTempC) / 859,845",
-    internalLoadKW: "beltMotorKW + internalFansKW + otherInternalKW",
+    internalLoadKW: "beltMotorKW × beltMotorDissipationFactor + internalFansKW + otherInternalKW",
     transmissionLoadKW: "U × A × ΔT / 1000",
     infiltrationLoadKW: "m_ar × (h_externo - h_interno), h = 1.006*T + W*(2501 + 1.86*T)",
     totalKW: "productLoadKW + packagingLoadKW + transmissionLoadKW + infiltrationLoadKW + internalLoadKW",
