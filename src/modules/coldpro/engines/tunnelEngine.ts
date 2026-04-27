@@ -332,6 +332,14 @@ function resolvePackagingLoad(input: TunnelEngineInput, operationRegime: "contin
   return { packagingLoadKW: loadKW, packagingMassKgH: continuousMassKgH, packagingMassBatchKg: 0, packagingLoadMethod: "continuous_mass_flow" as const, packagingMassSource: "packagingMassKgH" };
 }
 
+function resolveInternalLoads(input: TunnelEngineInput) {
+  const fansKW = toNumber(input?.internalFansKW ?? input?.internal_fans_kw ?? input?.fansKW ?? input?.fans_kw, 0);
+  const motorsKW = toNumber(input?.beltMotorKW ?? input?.belt_motor_kw, 0) + toNumber(input?.motorsPowerKW ?? input?.motors_power_kw ?? input?.motorsKW ?? input?.motors_kw, 0) * (positiveNumber(input?.motorsDissipationFactor ?? input?.motors_dissipation_factor) || 1);
+  const lightingKW = toNumber(input?.lightingPowerW ?? input?.lighting_power_w, 0) / 1000 + toNumber(input?.lightingPowerKW ?? input?.lighting_power_kw, 0);
+  const otherKW = toNumber(input?.otherInternalKW ?? input?.other_internal_kw, 0);
+  return { fansKW, motorsKW, lightingKW, otherKW, internalLoadKW: fansKW + motorsKW + lightingKW + otherKW };
+}
+
 function calculateTunnelCore(input: TunnelEngineInput) {
   const processType = typeof input?.processType === "string" ? input.processType : typeof input?.process_type === "string" ? input.process_type : null;
   const tunnelMode = resolveTunnelMode(input);
