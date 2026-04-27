@@ -930,7 +930,7 @@ export function calculateColdProLoad(params: {
   const defrost = n(params.env.defrost_kcal_h) > 0 ? n(params.env.defrost_kcal_h) : defrostSuggestion.defrostKcalH;
   const other = n(params.env.other_kcal_h);
 
-  const validationAlerts = [
+  const baseValidationAlerts = [
     ...buildColdProValidationAlerts(params.env, productBreakdown, infiltrationBreakdown, defrost, fanLoad),
     ...(((tunnelResult as any)?.calculation_breakdown?.validation?.thermalReliabilityAlerts ?? []) as Array<{ level: "error" | "warning" | "info"; code: string; message: string }>),
   ];
@@ -1002,7 +1002,7 @@ export function calculateColdProLoad(params: {
       advanced_processes_kcal_h: round2(advancedProcessLoad),
       evaporator_frost: evaporatorFrost,
       products: productBreakdown,
-      validation_alerts: validationAlerts,
+      validation_alerts: baseValidationAlerts,
       mathematical_audit: null,
       thermalCalculationResult: null,
       final_sum_formula: "Carga total = transmissão + produto + embalagem + respiração + infiltração sensível/latente + gelo/degelo + motores + iluminação + pessoas + ventiladores + outros + segurança",
@@ -1019,6 +1019,14 @@ export function calculateColdProLoad(params: {
       },
     },
   };
+  const technicalAudit = auditColdProTechnicalConsistency({ environment: params.env, result: calculatedResult, tunnel: tunnelResult ?? params.tunnel, products: params.products, advancedProcesses: params.advancedProcesses ?? [], selection: params.selection });
+  const validationAlerts = [
+    ...baseValidationAlerts,
+    ...technicalAudit.blockers.map((item) => ({ level: "error" as const, code: item.code, message: item.message })),
+    ...technicalAudit.warnings.map((item) => ({ level: "warning" as const, code: item.code, message: item.message })),
+  ];
+  calculatedResult.calculation_breakdown.validation_alerts = validationAlerts;
+  calculatedResult.calculation_breakdown.technicalAudit = technicalAudit;
   const thermalCalculationResult = buildThermalCalculationResult(calculatedResult, params.selection);
   calculatedResult.calculation_breakdown.mathematical_audit = thermalCalculationResult;
   calculatedResult.calculation_breakdown.thermalCalculationResult = thermalCalculationResult;
