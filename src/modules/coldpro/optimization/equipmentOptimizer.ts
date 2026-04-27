@@ -215,7 +215,7 @@ export function optimizeColdProEquipment(input: EquipmentOptimizerInput): Equipm
     const energyEfficiency = maxCOP > 0 ? clamp((item.cop / maxCOP) * 100) : 0;
     const monthlyCost = Number.isFinite(minCost) && item.estimatedMonthlyCost > 0 ? clamp((minCost / item.estimatedMonthlyCost) * 100) : 0;
     const oversizingPenalty = item.capacityMarginPercent > 45 ? 25 : item.capacityMarginPercent > 30 ? (item.capacityMarginPercent - 30) * 0.8 : 0;
-    const highCopPenalty = item.cop > 3.5 ? 18 : 0;
+    const highCopPenalty = item.cop > 3.5 ? 36 : 0;
     const final = clamp(
       monthlyCost * 0.4 +
         energyEfficiency * 0.3 +
