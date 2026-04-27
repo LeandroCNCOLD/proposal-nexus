@@ -939,8 +939,8 @@ export function calculateColdProLoad(params: {
       transmission_faces: transmissionBreakdown.faces,
       tunnel: tunnelResult,
       tunnel_engine: tunnelResult ? {
-        engine_version: tunnelResult.engine_version ?? tunnelResult.engineVersion ?? COLDPRO_TUNNEL_ENGINE_VERSION,
-        calculated_at: tunnelResult.calculated_at ?? tunnelResult.calculatedAt ?? null,
+        engine_version: (tunnelResult as any).engine_version ?? (tunnelResult as any).engineVersion ?? COLDPRO_TUNNEL_ENGINE_VERSION,
+        calculated_at: (tunnelResult as any).calculated_at ?? (tunnelResult as any).calculatedAt ?? null,
         source: "resultado salvo",
       } : null,
       seed_dehumidification: dehumidification,
