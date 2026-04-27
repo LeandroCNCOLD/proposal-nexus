@@ -597,6 +597,7 @@ export async function buildColdProMemorialPdfBuffer({ project, environments, res
     if (result) {
       heading(ctx, "2. Cálculo executado", 3);
       paragraph(ctx, "O cálculo considera as trocas térmicas pela envoltória, a retirada de calor do produto e embalagem, a entrada de ar por infiltração e as cargas internas informadas para o ambiente.", { size: 8.5, gap: 4 });
+      drawCalculationMethodology(ctx, result);
       temperatureCurveChart(ctx, env, envProducts);
       barChart(ctx, result);
       stackedLoadChart(ctx, result);
