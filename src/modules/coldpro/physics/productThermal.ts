@@ -35,7 +35,9 @@ export function calculateProductSpecificEnergy(params: ProductSpecificEnergyInpu
 
   if (crossesFreezingPoint) {
     const sensibleAboveKcalKg = cpAboveKcalKgC * Math.max(initialTempC - freezingPointC, 0);
-    const latentKcalKg = latentHeatKcalKg * frozenWaterFraction * latentResidualFactor;
+    // CORREÇÃO: Se latente já está preenchido na base, usar direto SEM multiplicar por fração
+    // Fração congelável deve ser usada APENAS como origem/auditoria
+    const latentKcalKg = latentHeatKcalKg * latentResidualFactor;
     const belowStartC = Math.min(initialTempC, freezingPointC);
     const sensibleBelowKcalKg = cpBelowKcalKgC * Math.max(belowStartC - finalTempC, 0);
     return {

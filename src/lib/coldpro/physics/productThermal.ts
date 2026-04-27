@@ -114,10 +114,10 @@ export function calculateProductSpecificEnergy(
   // Q1 = Cp_AT × (T_inicial - T_congelamento)
   const Q1_especifica = cpAT * (tempInicial - tempCongelamento);
 
-  // Fase 2: Congelamento (latente) - CRÍTICO: aplicar fator!
-  // Q2 = Cl × Fator_congelamento
-  // Este é o erro mais comum: usar Q2 = Cl sem o fator
-  const Q2_especifica = calorLatente * fatorCongelamento;
+  // Fase 2: Congelamento (latente) - CORREÇÃO: Se latente já está preenchido, usar direto
+  // Q2 = Cl (SEM multiplicar por fator_congelamento)
+  // Fator de congelamento deve ser usado APENAS como origem/auditoria
+  const Q2_especifica = calorLatente;
 
   // Fase 3: Subresfriamento (abaixo do ponto de congelamento)
   // Q3 = Cp_AP × (T_congelamento - T_final)
@@ -165,9 +165,9 @@ export function calculateProductThermalLoad(
   // Q1 = m × Cp_AT × (T_inicial - T_congelamento)
   const Q1_resfriamento = massa * cpAT * (tempInicial - tempCongelamento);
 
-  // Fase 2: Congelamento (CRÍTICO: aplicar fator!)
-  // Q2 = m × Cl × Fator_congelamento
-  const Q2_congelamento = massa * calorLatente * fatorCongelamento;
+  // Fase 2: Congelamento (CORREÇÃO: Se latente já está preenchido, usar direto)
+  // Q2 = m × Cl (SEM multiplicar por fator_congelamento)
+  const Q2_congelamento = massa * calorLatente;
 
   // Fase 3: Subresfriamento
   // Q3 = m × Cp_AP × (T_congelamento - T_final)
