@@ -55,12 +55,15 @@ function ProposalsList() {
     onError: (err: Error) => toast.error(`Erro ao iniciar sincronização: ${err.message}`),
   });
 
-  const isSyncing = syncMutation.isPending || !!syncState?.running;
   const syncUpdatedAt = syncState?.updated_at ? new Date(syncState.updated_at) : null;
   const syncFinishedAt = syncState?.last_synced_at ? new Date(syncState.last_synced_at) : null;
-  const syncStatusLabel = syncState?.running
+  const hasFreshRunningState = !!syncState?.running && !!syncUpdatedAt && Date.now() - syncUpdatedAt.getTime() < 3 * 60_000;
+  const isSyncing = syncMutation.isPending || hasFreshRunningState;
+  const syncStatusLabel = hasFreshRunningState
     ? `Sincronizando propostas desde ${syncUpdatedAt?.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) ?? "agora"}`
-    : syncState?.last_error
+    : syncState?.running
+      ? `Sincronização anterior ficou pendente; último status atualizado em ${syncUpdatedAt?.toLocaleString("pt-BR") ?? "—"}`
+      : syncState?.last_error
       ? `Falha na última sincronização: ${syncState.last_error}`
       : syncFinishedAt
         ? `Última sincronização: ${syncFinishedAt.toLocaleString("pt-BR")} · ${syncState?.total_synced ?? 0} alterações acumuladas`
@@ -274,9 +277,9 @@ function ProposalsList() {
       <div className="mb-4 rounded-xl border bg-card p-3 shadow-[var(--shadow-sm)]">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-2 text-sm">
-            {syncState?.running ? (
+            {hasFreshRunningState ? (
               <Clock3 className="h-4 w-4 animate-pulse text-primary" />
-            ) : syncState?.last_error ? (
+            ) : syncState?.last_error || syncState?.running ? (
               <AlertCircle className="h-4 w-4 text-destructive" />
             ) : (
               <CheckCircle2 className="h-4 w-4 text-primary" />
