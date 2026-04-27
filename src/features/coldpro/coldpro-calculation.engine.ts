@@ -880,8 +880,19 @@ export function calculateTunnelLoad(tunnel: ColdProTunnel, env?: ColdProEnvironm
 
 function buildColdProValidationAlerts(env: ColdProEnvironment, products: any[], infiltration: any, defrostKcalH: number, fanLoad: any) {
   const alerts: Array<{ level: "error" | "warning" | "info"; code: string; message: string }> = [];
+  const environmentType = String(env.environment_type ?? "cold_room");
+  const hasProductMovement = products.some((product) => n(product.mass_kg_day) > 0 || n(product.daily_movement_kg) > 0 || n(product.hourly_movement_kg) > 0 || n(product.total_kcal_h) > 0);
   if (env.relative_humidity_percent !== null && env.relative_humidity_percent !== undefined && n(env.relative_humidity_percent) <= 0) {
     alerts.push({ level: "error", code: "internal_rh_zero", message: "UR interna igual a 0% é fisicamente inválida; use valor manual real ou deixe em branco para adotar a premissa automática." });
+  }
+  if (["cold_room", "chilled_room", "climatized_room"].includes(environmentType) && products.length === 0) {
+    alerts.push({ level: "info", code: "storage_product_optional", message: "Câmara de conservação sem produto: carga de produto zerada permitida; cálculo considera transmissão, infiltração e cargas internas." });
+  }
+  if (["freezer_room", "frozen_room"].includes(environmentType) && products.length === 0) {
+    alerts.push({ level: "info", code: "freezer_storage_product_optional", message: "Câmara negativa em conservação sem entrada de produto: produto zerado permitido, com auditoria de degelo e infiltração." });
+  }
+  if (hasProductMovement && products.every((product) => n(product.total_kcal_h) <= 0)) {
+    alerts.push({ level: "error", code: "product_movement_without_load", message: "Há entrada/renovação de produto informada, mas a carga de produto ficou zerada." });
   }
   if (infiltration.doorAreaM2 > 0 && infiltration.doorOpeningsPerDay > 0 && infiltration.totalInfiltrationM3Day <= 0) {
     alerts.push({ level: "warning", code: "door_without_infiltration", message: "Há porta e aberturas informadas, mas a infiltração calculada ficou zerada; revisar dimensões, tempo aberta e perfil operacional." });
