@@ -401,6 +401,7 @@ function calculateTunnelCore(input: TunnelEngineInput) {
     cpBelowKJkgK: input?.cpBelowKJkgK,
     latentHeatKJkg: input?.latentHeatKJkg,
     frozenWaterFraction: input?.frozenWaterFraction,
+    latentResidualFactor: input?.latentResidualFactor,
     allowPhaseChange: input?.allowPhaseChange,
   });
 
@@ -415,6 +416,9 @@ function calculateTunnelCore(input: TunnelEngineInput) {
     sensibleBelowKJkg: energy.sensibleBelowKJkg,
     totalKJkg: energy.totalKJkg,
     crossesFreezing: energy.crossesFreezingPoint,
+    frozenWaterFraction: input?.frozenWaterFraction ?? null,
+    latentResidualFactor: input?.latentResidualFactor ?? null,
+    unitConversions: input?.unitConversions ?? null,
   };
 
   const packaging = resolvePackagingLoad(input, tunnelMode.operationRegime);
