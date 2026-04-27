@@ -46,7 +46,7 @@ function Metric({ label, value }: { label: string; value: string }) {
 export function EnergySummary({ result }: Props) {
   const energy = result?.energySimulation ?? result?.energy_simulation ?? result?.calculation_breakdown?.energySimulation ?? result?.calculation_breakdown?.energy_simulation ?? {};
   const processedMassKgMonth = firstFinite(energy?.processedMassKgMonth, energy?.processed_mass_kg_month, energy?.assumptions?.monthlyProcessedMassKg, energy?.assumptions?.monthly_processed_mass_kg);
-  const warnings = Array.isArray(energy?.warnings) ? energy.warnings.filter(Boolean).map(String) : [];
+  const warnings: string[] = Array.isArray(energy?.warnings) ? energy.warnings.filter(Boolean).map(String) : [];
 
   return (
     <section className="rounded-xl border bg-background p-4">

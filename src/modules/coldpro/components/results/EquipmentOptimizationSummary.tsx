@@ -36,7 +36,7 @@ export function EquipmentOptimizationSummary({ result, selection }: Props) {
   const explicitRanking = Array.isArray(optimization?.ranking) ? optimization.ranking : [];
   const ranking = explicitRanking.length ? explicitRanking : selection ? [selection] : [];
   const bestEquipment = optimization?.bestEquipment ?? optimization?.best_equipment ?? ranking[0] ?? null;
-  const warnings = Array.from(new Set([
+  const warnings: string[] = Array.from(new Set([
     ...(Array.isArray(optimization?.warnings) ? optimization.warnings : []),
     ...(Array.isArray(bestEquipment?.warnings) ? bestEquipment.warnings : []),
     ...(Array.isArray(selection?.curve_metadata?.warnings) ? selection.curve_metadata.warnings : []),
