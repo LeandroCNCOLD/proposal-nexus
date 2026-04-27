@@ -5,6 +5,7 @@ export type ColdProNormalizedResult = ReturnType<typeof normalizeColdProResult>;
 
 const KCAL_PER_KW = 859.845;
 const KCAL_PER_TR = 3024;
+const ENERGY_COP_WARNING = "COP ausente ou inválido; simulação energética calculada sem potência elétrica real.";
 
 function num(value: unknown): number {
   const n = Number(value ?? 0);
@@ -127,14 +128,22 @@ export function normalizeColdProResult(rawResult: any, selection?: any | null, e
   const surplusPercent = num(audit.sobra_percentual ?? selection?.surplus_percent ?? (requiredForEquipment > 0 ? ((equipmentTotal - requiredForEquipment) / requiredForEquipment) * 100 : 0));
   const resultTotalKW = num(result.totalKW ?? result.total_kw ?? result.tunnel_total_load_kw ?? tunnel.totalKW ?? tunnel.total_kw) || num(result.total_required_kw) || requiredKcalH / KCAL_PER_KW;
   const resultCOP = num(result.cop ?? result.COP ?? result.copData?.cop ?? result.cop_data?.cop ?? selection?.cop ?? audit.curva?.cop);
-  const energySimulation = simulateMonthlyEnergyConsumption({
+  const energySimulationInput = {
     coolingLoadKW: resultTotalKW,
     cop: resultCOP,
     operatingHoursPerDay: result.operatingHoursPerDay ?? result.operating_hours_per_day ?? 8,
     operatingDaysPerMonth: result.operatingDaysPerMonth ?? result.operating_days_per_month ?? 22,
     energyCostPerKWh: result.energyCostPerKWh ?? result.energy_cost_per_kwh ?? 0.95,
     processedMassKgPerDay: result.processedMassKgPerDay ?? result.processed_mass_kg_per_day ?? products[0]?.mass_kg_day ?? products[0]?.daily_mass_kg ?? 0,
-  });
+    demandFactor: result.demandFactor ?? result.demand_factor ?? 1,
+  };
+  const energySimulationBase = simulateMonthlyEnergyConsumption(energySimulationInput);
+  const energyWarnings = resultCOP <= 0 ? [ENERGY_COP_WARNING] : [];
+  const energySimulation = {
+    ...energySimulationBase,
+    processedMassKgMonth: num(energySimulationBase.assumptions?.monthlyProcessedMassKg),
+    warnings: Array.from(new Set([...energySimulationBase.warnings, ...energyWarnings])),
+  };
 
   const warnings: string[] = [];
   const deltaComponentVsSubtotalKcalH = componentSumKcalH - subtotalKcalH;
@@ -145,6 +154,7 @@ export function normalizeColdProResult(rawResult: any, selection?: any | null, e
   if (equipmentTotal > 0 && correctedCapacity === 0) warnings.push("Auditoria de curva inconsistente: equipamento selecionado possui capacidade, mas capacidade corrigida validada está zerada.");
   if (surplusPercent < 0) warnings.push("Equipamento subdimensionado.");
   if (surplusPercent > 30) warnings.push("Possível superdimensionamento.");
+  warnings.push(...energyWarnings);
 
   return {
     summary: {
@@ -246,7 +256,7 @@ export function normalizeColdProResult(rawResult: any, selection?: any | null, e
       tunnelVsProductTabDeltaKcalH: round(tunnelProcessKcalH - directProductKcalH, 2),
       tunnelVsProductTabDeltaPercent: pct(Math.abs(tunnelProcessKcalH - directProductKcalH), Math.max(tunnelProcessKcalH, directProductKcalH)),
       hasCriticalDivergence: warnings.some((warning) => warning.includes("não fecha") || warning.includes("capacidade corrigida") || warning.includes("subdimensionado")),
-      warnings,
+      warnings: Array.from(new Set([...warnings, ...energySimulation.warnings])),
     },
     calculationMethod: breakdown.calculationMethod ?? null,
     calculationMethodSummary,

@@ -9,6 +9,8 @@ function round(value: number, digits = 2) {
   return Math.round((Number.isFinite(value) ? value : 0) * factor) / factor;
 }
 
+const MISSING_MONTHLY_MASS_WARNING = "Massa processada mensal ausente; custo por kg não calculado.";
+
 export type ColdProProjectConsolidatorInput = {
   project?: any | null;
   environments?: any[];
@@ -54,14 +56,21 @@ export function consolidateColdProProjectResult({
     totalSelectedCapacityKcalH: round(sum(environmentResults.map((item) => item.equipment.totalCapacityKcalH))),
     totalEstimatedPowerKW: round(sum(environmentResults.map((item) => item.equipment.estimatedPowerKW))),
   };
+  const totalMonthlyCost = sum(environmentResults.map((item) => Number(item.energySimulation?.monthlyCost ?? 0)));
+  const totalProcessedMassKgMonth = sum(environmentResults.map((item) => Number(item.energySimulation?.processedMassKgMonth ?? item.energySimulation?.assumptions?.monthlyProcessedMassKg ?? 0)));
+  const energySimulationWarnings = Array.from(new Set([
+    ...environmentResults.flatMap((item) => Array.isArray(item.energySimulation?.warnings) ? item.energySimulation.warnings : []),
+    ...(totalProcessedMassKgMonth <= 0 ? [MISSING_MONTHLY_MASS_WARNING] : []),
+  ]));
   const energySimulation = {
     electricalPowerKW: round(sum(environmentResults.map((item) => Number(item.energySimulation?.electricalPowerKW ?? 0))), 6),
     kWhDay: round(sum(environmentResults.map((item) => Number(item.energySimulation?.kWhDay ?? 0))), 6),
     kWhMonth: round(sum(environmentResults.map((item) => Number(item.energySimulation?.kWhMonth ?? 0))), 6),
-    monthlyCost: round(sum(environmentResults.map((item) => Number(item.energySimulation?.monthlyCost ?? 0))), 2),
+    monthlyCost: round(totalMonthlyCost, 2),
     annualCost: round(sum(environmentResults.map((item) => Number(item.energySimulation?.annualCost ?? 0))), 2),
-    costPerKg: round(sum(environmentResults.map((item) => Number(item.energySimulation?.monthlyCost ?? 0))) / Math.max(sum(environmentResults.map((item) => Number(item.energySimulation?.assumptions?.monthlyProcessedMassKg ?? 0))), 1), 2),
-    warnings: Array.from(new Set(environmentResults.flatMap((item) => Array.isArray(item.energySimulation?.warnings) ? item.energySimulation.warnings : []))),
+    processedMassKgMonth: round(totalProcessedMassKgMonth, 6),
+    costPerKg: totalProcessedMassKgMonth > 0 ? round(totalMonthlyCost / totalProcessedMassKgMonth, 6) : 0,
+    warnings: energySimulationWarnings,
   };
 
   const equipmentSurplusPercent = summary.requiredKcalH > 0 ? round(((summary.totalSelectedCapacityKcalH - summary.requiredKcalH) / summary.requiredKcalH) * 100, 2) : 0;
