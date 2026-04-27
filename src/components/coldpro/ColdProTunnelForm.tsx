@@ -319,6 +319,19 @@ function airflowVelocityStatus(velocityMS: number, tunnelLike: boolean) {
   return { status: "fora da faixa", tone: "warning" as const, warning: "Velocidade fora da faixa usual para câmara fria." };
 }
 
+function requiredAirflowForLoadM3H(loadKW: number, airDeltaTK: number, airDensityKgM3: number) {
+  if (loadKW <= 0 || airDeltaTK <= 0 || airDensityKgM3 <= 0) return 0;
+  return loadKW * 3600 / (airDensityKgM3 * 1.005 * airDeltaTK);
+}
+
+function airflowForVelocityM3H(freeAreaM2: number, velocityMS: number) {
+  return freeAreaM2 > 0 && velocityMS > 0 ? freeAreaM2 * velocityMS * 3600 : 0;
+}
+
+function fmtAirflow(value: unknown, digits = 0) {
+  return `${fmtColdPro(value, digits)} m³/h`;
+}
+
 function kcalFromThermal(kcal?: unknown, kj?: unknown) {
   return positiveValue(kcal) || positiveValue(kj) / 4.1868;
 }
