@@ -39,12 +39,24 @@ export function calculateCharacteristicDimension(input: any): GeometryResult {
   let geometry = input?.productGeometry ?? input?.product_geometry;
   const tunnelType = String(input?.tunnelType ?? input?.tunnel_type ?? "");
   const arrangementType = String(input?.arrangementType ?? input?.arrangement_type ?? "");
+  const isStaticBlock = input?.isStatic === true && (tunnelType === "static_pallet" || /pallet|block|bloco/i.test(arrangementType));
+  const palletDim = smallest([input?.palletLengthM ?? input?.pallet_length_m, input?.palletWidthM ?? input?.pallet_width_m, input?.palletHeightM ?? input?.pallet_height_m]);
   const isPalletizedBox = tunnelType === "static_pallet" && arrangementType === "palletized_boxes";
   const thermalModelForPallet = (input?.thermalModelForPallet ?? input?.thermal_model_for_pallet ?? (isPalletizedBox ? "hybrid" : null)) as ThermalModelForPallet | null;
 
+  if (isStaticBlock) {
+    return result(
+      palletDim,
+      "smallest_pallet_block_dimension",
+      palletDim ? [] : ["dimensões do pallet/bloco"],
+      palletDim ? palletDim / 2 : null,
+      ["Túnel paletizado/bloco: dimensão crítica baseada no pallet/bloco, não no produto individual."],
+      thermalModelForPallet ?? "pallet_block_limited",
+    );
+  }
+
   if (isPalletizedBox && geometry === "packed_box") {
     const boxDim = smallest([input?.boxLengthM ?? input?.box_length_m, input?.boxWidthM ?? input?.box_width_m, input?.boxHeightM ?? input?.box_height_m]);
-    const palletDim = smallest([input?.palletLengthM ?? input?.pallet_length_m, input?.palletWidthM ?? input?.pallet_width_m, input?.palletHeightM ?? input?.pallet_height_m]);
     if (thermalModelForPallet === "pallet_block_limited") return result(palletDim, "smallest_pallet_block_dimension", palletDim ? [] : ["dimensões do pallet/bloco"], palletDim ? palletDim / 2 : null, ["Modelo conservador: pallet tratado como bloco térmico compacto."], thermalModelForPallet);
     if (thermalModelForPallet === "hybrid") return result(boxDim, "hybrid_box_dimension_with_pallet_exposure", boxDim ? [] : ["dimensões da caixa"], boxDim ? boxDim / 2 : null, ["Modelo híbrido: dimensão térmica da caixa com penalização de exposição por paletização."], thermalModelForPallet);
     return result(boxDim, "smallest_box_dimension_pallet_box_limited", boxDim ? [] : ["dimensões da caixa"], boxDim ? boxDim / 2 : null, [], thermalModelForPallet);
