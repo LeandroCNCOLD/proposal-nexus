@@ -475,6 +475,18 @@ function ColdProProjectPage() {
     }
   }
 
+  async function handleSaveEnvironmentPatch(patch: Record<string, unknown>, successMessage: string) {
+    if (!selectedEnv) return false;
+    try {
+      await updateEnv.mutateAsync({ id: selectedEnv.id, patch });
+      toast.success(successMessage);
+      return true;
+    } catch (e: any) {
+      toast.error(e?.message ?? "Erro ao salvar");
+      return false;
+    }
+  }
+
   async function handleDeleteProduct(product: any) {
     if (!selectedEnv) return;
     if (!window.confirm(`Excluir o produto "${product.product_name}"?`)) return;
