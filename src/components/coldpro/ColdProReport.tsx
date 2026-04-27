@@ -43,6 +43,13 @@ function TemperatureStrip({ env }: { env: any }) {
   return <div className="rounded-lg border bg-muted/20 p-3"><div className="mb-2 text-sm font-semibold">Temperaturas de projeto</div><div className="grid grid-cols-2 gap-3 text-sm"><div className="rounded-md bg-background p-2"><div className="text-xs text-muted-foreground">Interna</div><div className="text-lg font-bold">{fmt(env.internal_temp_c)} °C</div></div><div className="rounded-md bg-background p-2"><div className="text-xs text-muted-foreground">Externa</div><div className="text-lg font-bold">{fmt(env.external_temp_c)} °C</div></div></div></div>;
 }
 
+function CalculationMethodBox({ result }: { result: any }) {
+  const method = result?.calculation_breakdown?.calculationMethod;
+  const methods = method?.methods ?? {};
+  if (!method) return null;
+  return <div className="mt-3 rounded-md border bg-muted/20 p-3 text-xs"><div className="mb-2 text-sm font-semibold">Método de cálculo utilizado</div><div className="grid gap-1 sm:grid-cols-2"><div><b>Transmissão:</b> {methods.transmission}</div><div><b>Produto:</b> {methods.product}</div><div><b>Embalagem:</b> {methods.packaging}</div><div><b>Infiltração:</b> {methods.infiltration}</div><div><b>Vazão:</b> {methods.airflow}</div><div><b>Tempo até núcleo:</b> {methods.freezingTime}</div></div>{Array.isArray(method.limitations) ? <div className="mt-2 text-muted-foreground">{method.limitations.join(" ")}</div> : null}</div>;
+}
+
 type Props = {
   project: any;
   environments: any[];
@@ -307,6 +314,7 @@ export function ColdProReport({
                     <b>Total requerido:</b> {fmt(result.total_required_kcal_h)} kcal/h ·{" "}
                     {fmt(result.total_required_kw)} kW · {fmt(result.total_required_tr)} TR
                   </div>
+                  <CalculationMethodBox result={result} />
                   <div className="mt-3 grid gap-3 lg:grid-cols-2">
                     <ResultConsistencyAudit normalized={normalized} />
                     <InteractiveLoadPieChart title="Distribuição da carga térmica" data={environmentLoadRows(normalized)} total={normalized.summary.requiredKcalH} />

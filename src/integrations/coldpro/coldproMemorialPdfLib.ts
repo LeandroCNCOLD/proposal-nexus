@@ -585,6 +585,12 @@ export async function buildColdProMemorialPdfBuffer({ project, environments, res
       barChart(ctx, result);
       stackedLoadChart(ctx, result);
       table(ctx, ["Componente", "Carga"], [["Transmissão", result.transmission_kcal_h], ["Produto", result.product_kcal_h], ["Embalagem", result.packaging_kcal_h], ["Infiltração", result.infiltration_kcal_h], ["Pessoas", result.people_kcal_h], ["Iluminação", result.lighting_kcal_h], ["Motores", result.motors_kcal_h], ["Ventiladores", result.fans_kcal_h], ["Degelo", result.defrost_kcal_h], ["Outros", result.other_kcal_h]].map(([l, v]) => [String(l), `${fmt(v, 0)} kcal/h`]), [0.68, 0.32]);
+      if (result.calculation_breakdown?.calculationMethod?.methods) {
+        const methods = result.calculation_breakdown.calculationMethod.methods;
+        heading(ctx, "Método de cálculo utilizado", 3);
+        table(ctx, ["Item", "Método"], [["Transmissão", methods.transmission], ["Produto", methods.product], ["Embalagem", methods.packaging], ["Infiltração", methods.infiltration], ["Vazão", methods.airflow], ["Tempo até núcleo", methods.freezingTime]].filter(([, value]) => value).map(([label, value]) => [String(label), String(value)]), [0.28, 0.72]);
+        if (Array.isArray(result.calculation_breakdown.calculationMethod.limitations)) paragraph(ctx, result.calculation_breakdown.calculationMethod.limitations.join(" "), { size: 8, gap: 4 });
+      }
       drawAuditMemory(ctx, result);
       heading(ctx, "3. Resultado do dimensionamento", 3);
       drawKpis(ctx, [["Subtotal", `${fmt(result.subtotal_kcal_h, 0)} kcal/h`], ["Segurança", `${fmt(result.safety_kcal_h, 0)} kcal/h`], ["Carga requerida", `${fmt(result.total_required_kcal_h, 0)} kcal/h`]]);

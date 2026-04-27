@@ -10,10 +10,13 @@ export type ProductGeometry = "slab" | "rectangular_prism" | "cube" | "cylinder"
 
 export type AirflowSource = "manual_velocity" | "airflow_by_fans" | string;
 
+export type InfiltrationCalculationMethod = "simple_air_change" | "psychrometric_enthalpy";
+
 export type TunnelSourceRecord = Record<string, unknown>;
 
 export interface TunnelCalculationRecord {
   [key: string]: unknown;
+  calculationMethod?: TunnelCalculationMethodReport;
   model?: {
     physicalDescription?: string;
     geometryAssumption?: string;
@@ -22,10 +25,22 @@ export interface TunnelCalculationRecord {
   loads?: {
     productLoadMissingFields?: string[];
     massUsedForProductLoad?: number;
+    packagingMassSource?: string;
   };
   air?: {
     comparison?: number | null;
   };
+  infiltration?: {
+    requestedMethod?: string;
+    usedMethod?: string;
+    fallbackApplied?: boolean;
+  };
+}
+
+export interface TunnelCalculationMethodReport {
+  title: string;
+  methods: Record<string, string | undefined>;
+  limitations: string[];
 }
 
 export interface TunnelEngineInput {
@@ -95,7 +110,13 @@ export interface TunnelEngineInput {
   tunnelCrossSectionHeightM?: number | null;
   blockageFactor?: number | null;
   packagingMassKgH?: number | null;
+  packagingMassKgBatch?: number | null;
   packagingCpKJkgK?: number | null;
+  infiltrationCalculationMethod?: InfiltrationCalculationMethod | string | null;
+  externalTempC?: number | null;
+  externalRelativeHumidityPercent?: number | null;
+  internalRelativeHumidityPercent?: number | null;
+  infiltrationAirflowM3H?: number | null;
   beltMotorKW?: number | null;
   internalFansKW?: number | null;
   otherInternalKW?: number | null;
@@ -202,6 +223,7 @@ export interface TunnelEngineResult {
   invalidFields: string[];
   warnings: string[];
   scenario?: TunnelThermalScenarioResult;
+  calculationMethod: TunnelCalculationMethodReport;
   initialScenario: TunnelThermalScenarioResult;
   adjustedScenario: TunnelThermalScenarioResult;
   approvedScenario: TunnelThermalScenarioResult | null;
