@@ -18,7 +18,7 @@ const ARRANGEMENT_DEFAULTS: Record<string, { air: number; penetration: number; l
 const TUNNEL_TYPES = { continuous_belt: "Túnel contínuo de esteira", spiral_girofreezer: "Girofreezer / espiral", static_cart: "Túnel estático com carrinhos", static_pallet: "Túnel estático com pallets", fluidized_bed: "Leito fluidizado / IQF", blast_freezer: "Câmara/túnel de ar forçado" } as const;
 const ARRANGEMENTS_BY_TUNNEL: Record<string, string[]> = { continuous_belt: ["individual_units", "single_layer_blocks", "trays", "stacked_packages"], spiral_girofreezer: ["individual_units", "trays", "packaged_units"], static_cart: ["trays_on_racks", "boxes_on_cart", "hanging_product"], static_pallet: ["palletized_boxes", "palletized_blocks", "bulk_on_pallet"], fluidized_bed: ["loose_particles", "small_individual_units"], blast_freezer: ["boxes", "racks", "bulk_container", "palletized_boxes", "trays_on_racks"] };
 const STATIC_MASS_MODES = { static_pallet: ["direct_pallet_mass", "calculated_pallet_composition"], static_cart: ["direct_cart_mass", "calculated_cart_composition"], blast_freezer: ["direct_batch_mass", "calculated_batch_composition"] } as const;
-const CONTINUOUS_MASS_MODES = { continuous_belt: ["direct_mass_flow", "calculated_by_units_per_hour", "calculated_by_belt_loading"], spiral_girofreezer: ["direct_mass_flow", "calculated_by_units", "calculated_by_trays"], fluidized_bed: ["direct_mass_flow", "calculated_by_feed_rate"] } as const;
+const CONTINUOUS_MASS_MODES = { continuous_belt: ["direct_mass_flow", "calculated_by_units_per_hour", "calculated_by_belt_loading", "calculated_by_belt_surface_density"], spiral_girofreezer: ["direct_mass_flow", "calculated_by_units", "calculated_by_trays"], fluidized_bed: ["direct_mass_flow", "calculated_by_feed_rate"] } as const;
 const GEOMETRIES = { slab: "Placa / manta / hambúrguer achatado", rectangular_prism: "Bloco retangular", cube: "Cubo", cylinder: "Cilindro", sphere: "Esfera", irregular: "Irregular", packed_box: "Caixa / embalagem fechada", bulk: "Granel" } as const;
 const EXPOSURE_MODELS = { fully_exposed: "Produto totalmente exposto ao ar", one_side_contact: "Uma face em contato", tray_contact: "Produto em bandeja", boxed: "Produto dentro de caixa", stacked: "Produto empilhado", bulk_layer: "Camada de produto a granel" } as const;
 const PALLET_THERMAL_MODELS = { box_limited: "Limitado pela caixa individual", pallet_block_limited: "Pallet/bloco compacto conservador", hybrid: "Híbrido: caixa + penalização do pallet" } as const;
@@ -144,6 +144,12 @@ const defaultTunnel = (environmentId: string) => ({
   units_per_row: 0,
   rows_per_meter: 0,
   belt_speed_m_min: 0,
+  belt_width_m: 0,
+  belt_effective_length_m: 0,
+  belt_area_m2: 0,
+  belt_surface_density_kg_m2: 0,
+  belt_mass_on_belt_kg: 0,
+  belt_nominal_capacity_kg_h: 0,
   feed_rate_kg_h: 0,
   mass_kg_hour: 0,
   pallet_length_m: 0,
@@ -197,6 +203,8 @@ const defaultTunnel = (environmentId: string) => ({
   bed_area_m2: 0,
   superficial_air_velocity_m_s: 0,
   belt_motor_kw: 0,
+  belt_motor_inside_environment: true,
+  belt_motor_dissipation_factor: 1,
   internal_fans_kw: 0,
   other_internal_kw: 0,
 });
