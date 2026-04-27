@@ -264,7 +264,7 @@ const mappers: Record<EntityKey, { endpoint: string; map: Mapper }> = {
 };
 
 /** Máximo de propostas novas/alteradas processadas por invocação (evita timeout). */
-const PROPOSALS_BATCH_SIZE = 8;
+const PROPOSALS_BATCH_SIZE = 4;
 const PROPOSALS_FORWARD_LOOKAHEAD = 24;
 const PROPOSALS_RECENT_RECHECK = 8;
 const PROPOSALS_RECENT_PAGE_SCAN = 5;
@@ -325,7 +325,18 @@ export async function syncProposalsBatch(): Promise<{ ok: boolean; count?: numbe
 async function pullProposalsNewestFirst(): Promise<{ ok: boolean; count?: number; error?: string; done?: boolean }> {
   const endpoint = NOMUS_ENDPOINTS.propostas;
 
-  // Marca início
+  const { data: stateRow } = await supabaseAdmin
+    .from("nomus_sync_state")
+    .select("running, total_synced, last_cursor, updated_at")
+    .eq("entity", "propostas")
+    .maybeSingle();
+
+  const currentState = stateRow as { running?: boolean | null; total_synced?: number | null; last_cursor?: string | null; updated_at?: string | null } | null;
+  const updatedAt = currentState?.updated_at ? new Date(currentState.updated_at).getTime() : 0;
+  const alreadyRunning = !!currentState?.running && Date.now() - updatedAt < 2 * 60_000;
+  if (alreadyRunning) return { ok: true, count: 0, done: false };
+
+  // Marca início apenas quando não há execução recente em andamento.
   await supabaseAdmin.from("nomus_sync_state").upsert({
     entity: "propostas",
     running: true,
@@ -333,13 +344,7 @@ async function pullProposalsNewestFirst(): Promise<{ ok: boolean; count?: number
     updated_at: new Date().toISOString(),
   });
 
-  const { data: stateRow } = await supabaseAdmin
-    .from("nomus_sync_state")
-    .select("total_synced, last_cursor")
-    .eq("entity", "propostas")
-    .maybeSingle();
-
-  const previousTotal = (stateRow as { total_synced?: number | null } | null)?.total_synced ?? 0;
+  const previousTotal = currentState?.total_synced ?? 0;
   const { data: knownRows } = await supabaseAdmin
     .from("nomus_proposals")
     .select("nomus_id")
