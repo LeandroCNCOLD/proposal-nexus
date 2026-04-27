@@ -929,7 +929,10 @@ export function calculateColdProLoad(params: {
   const defrost = n(params.env.defrost_kcal_h) > 0 ? n(params.env.defrost_kcal_h) : defrostSuggestion.defrostKcalH;
   const other = n(params.env.other_kcal_h);
 
-  const validationAlerts = buildColdProValidationAlerts(params.env, productBreakdown, infiltrationBreakdown, defrost, fanLoad);
+  const validationAlerts = [
+    ...buildColdProValidationAlerts(params.env, productBreakdown, infiltrationBreakdown, defrost, fanLoad),
+    ...(((tunnelResult as any)?.calculation_breakdown?.validation?.thermalReliabilityAlerts ?? []) as Array<{ level: "error" | "warning" | "info"; code: string; message: string }>),
+  ];
   const subtotal = consolidateColdProSubtotal({ transmission, product, packaging, respiration, tunnel_internal_load: tunnelInternalLoad, seed_dehumidification: dehumidificationLoad, advanced_processes: advancedProcessLoad, infiltration, evaporator_frost: evaporatorFrost.additional_load_kcal_h, people, lighting, motors, fans, defrost, other });
   const safetyFactor = n(params.env.safety_factor_percent);
   const safety = subtotal * (safetyFactor / 100);
