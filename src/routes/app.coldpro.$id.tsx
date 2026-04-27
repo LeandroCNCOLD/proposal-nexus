@@ -549,9 +549,12 @@ function ColdProProjectPage() {
 
   async function saveCurrentStepBeforeNavigation() {
     if (!selectedEnv) return true;
+    if (stepIndex === 0) return environmentFormRef.current ? environmentFormRef.current.save() : true;
     if (stepIndex === 1 && ["blast_freezer", "cooling_tunnel"].includes(String(selectedEnv.environment_type))) {
       return tunnelFormRef.current ? tunnelFormRef.current.save() : true;
     }
+    if (stepIndex === 1) return productFormRef.current ? productFormRef.current.save() : true;
+    if (stepIndex === 2) return extraLoadsFormRef.current ? extraLoadsFormRef.current.save() : true;
     return true;
   }
 
@@ -559,6 +562,12 @@ function ColdProProjectPage() {
     const saved = await saveCurrentStepBeforeNavigation();
     if (!saved) return;
     setStepIndex((i) => Math.min(i + 1, COLDPRO_STEPS.length - 1));
+  }
+  async function goToStep(index: number) {
+    if (index === stepIndex) return;
+    const saved = await saveCurrentStepBeforeNavigation();
+    if (!saved) return;
+    setStepIndex(index);
   }
   function prev() {
     setStepIndex((i) => Math.max(i - 1, 0));
