@@ -59,6 +59,7 @@ export type EquipmentRankingItem = {
     energyEfficiency: number;
     monthlyCost: number;
     capacityFit: number;
+    robustness: number;
     technicalRisk: number;
     final: number;
   };
@@ -126,12 +127,15 @@ function equipmentName(equipment: ColdProOptimizationEquipment): string {
 
 function capacityFitScore(marginPercent: number, meetsRequiredLoad: boolean): number {
   if (!meetsRequiredLoad) return 0;
-  if (marginPercent >= 10 && marginPercent <= 20) return 100;
-  if (marginPercent >= 5 && marginPercent < 10) return 85;
-  if (marginPercent > 20 && marginPercent <= 30) return 80;
-  if (marginPercent >= 0 && marginPercent < 5) return 65;
-  if (marginPercent > 30 && marginPercent <= 45) return 45;
-  return 15;
+  const robustness = robustnessScore(marginPercent);
+  if (marginPercent > 45) return clamp(robustness - 35);
+  if (marginPercent > 30) return clamp(robustness - (marginPercent - 30) * 1.2);
+  if (marginPercent >= 0 && marginPercent < 5) return clamp(robustness - 15);
+  return robustness;
+}
+
+function robustnessScore(marginPercent: number): number {
+  return clamp(100 - Math.abs((Number.isFinite(marginPercent) ? marginPercent : 0) - 15) * 2);
 }
 
 export function optimizeColdProEquipment(input: EquipmentOptimizerInput): EquipmentOptimizerResult {
@@ -158,18 +162,22 @@ export function optimizeColdProEquipment(input: EquipmentOptimizerInput): Equipm
     const meetsRequiredLoad = requiredCoolingKW > 0 && capacityKW >= requiredCoolingKW;
     const isExtremelyOversized = marginPercent > 45;
     const cop = positiveNumber(equipment.cop) || baseCOP;
+    const hasValidOperatingBasis = capacityKW > 0 && cop > 0;
     const explicitPowerKW = positiveNumber(equipment.powerKW ?? equipment.power_kw);
     const explicitMonthlyCost = positiveNumber(equipment.monthlyCost ?? equipment.monthly_cost);
-    const estimatedElectricalPowerKW = explicitPowerKW || (cop > 0 ? requiredCoolingKW / cop : 0);
+    const estimatedElectricalPowerKW = hasValidOperatingBasis ? explicitPowerKW || Math.min(requiredCoolingKW, capacityKW) / cop : 0;
     const estimatedKWhMonth = estimatedElectricalPowerKW * hoursMonth;
     const estimatedMonthlyCost = explicitMonthlyCost || estimatedKWhMonth * energyTariff;
     const technicalRisk = normalizeRisk(equipment.technicalRisk ?? equipment.risk, marginPercent);
     const itemWarnings: string[] = [];
+    const itemRobustnessScore = robustnessScore(marginPercent);
 
     if (capacityKW <= 0) itemWarnings.push("Capacidade do equipamento ausente ou inválida.");
     if (!meetsRequiredLoad) itemWarnings.push("Equipamento não atende à carga térmica requerida.");
+    if (marginPercent > 30 && marginPercent <= 45) itemWarnings.push("Equipamento com superdimensionamento moderado; penalização progressiva aplicada.");
     if (isExtremelyOversized) itemWarnings.push("Equipamento extremamente superdimensionado; revisar aplicação.");
-    if (cop <= 0) itemWarnings.push("COP do equipamento ausente; custo operacional estimado com premissa conservadora.");
+    if (cop <= 0) itemWarnings.push("COP do equipamento ausente ou inválido; potência elétrica estimada zerada.");
+    if (cop > 3.5) itemWarnings.push("COP informado acima do típico para aplicação de congelamento; revisar curva do equipamento.");
 
     return {
       equipment,
@@ -189,6 +197,7 @@ export function optimizeColdProEquipment(input: EquipmentOptimizerInput): Equipm
         energyEfficiency: 0,
         monthlyCost: 0,
         capacityFit: capacityFitScore(marginPercent, meetsRequiredLoad),
+        robustness: round(itemRobustnessScore, 2),
         technicalRisk: riskScore(technicalRisk),
         final: 0,
       },
