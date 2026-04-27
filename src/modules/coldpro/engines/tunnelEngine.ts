@@ -8,6 +8,7 @@ import { calculateAirflowModel, calculatePsychrometricInfiltrationKW, calculateR
 import { calculateRequiredAirflowForFreezingTime, resolveRecommendedAirflow } from "../physics/airflowOptimizer";
 import { resolveLoadRateHours } from "../core/loadRateResolver";
 import { calculateExtraLoads, calculateExtraLoadsTotal } from "../core/extraLoadsCalculator";
+import { calculateInfiltrationAirflow } from "../physics/infiltrationCalculator";
 import { calculateExposureFactor } from "../physics/arrangementModel";
 import { calculatePlankFreezingTimeMin, validateFreezingTime } from "../physics/freezingTime";
 import { calculateCharacteristicDimension } from "../physics/geometryModel";
@@ -448,23 +449,34 @@ function calculateTunnelCore(input: TunnelEngineInput) {
   const packagingMassKgH = packaging.packagingMassKgH;
   const packagingLoadKW = packaging.packagingLoadKW;
   const transmission = resolveTransmissionLoad({ ...input, airTempC: input?.airTempC ?? input?.finalTempC });
-  const infiltration = calculatePsychrometricInfiltrationKW({ ...input, internalTempC: input?.airTempC ?? input?.finalTempC, airDensityKgM3 });
   const internalLoads = resolveInternalLoads(input);
   const transmissionLoadKW = transmission.transmissionKW;
-  // Usar rateio correto de tempo para infiltração
-  const infiltrationRate = resolveLoadRateHours({
-    loadType: 'infiltration',
-    batchTimeH: positiveNumber(input?.batchTimeH),
-    operatingHoursPerDay: positiveNumber(input?.operatingHoursPerDay) || 16,
-    infiltrationRecoveryHoursPerDay: positiveNumber(input?.infiltrationRecoveryHoursPerDay),
-    compressorHoursPerDay: positiveNumber(input?.compressorHoursPerDay),
+  
+  // NOVO: Usar método correto de infiltração (por ciclo vs por dia)
+  const infiltrationAirflowResult = calculateInfiltrationAirflow({
+    environmentType: input?.environmentType || input?.environment_type || 'blast_freezer',
+    processMode: input?.processMode || input?.process_mode || 'batch',
+    doorWidthM: positiveNumber(input?.doorWidthM ?? input?.door_width_m),
+    doorHeightM: positiveNumber(input?.doorHeightM ?? input?.door_height_m),
+    doorAirVelocityMS: positiveNumber(input?.doorAirVelocityMS ?? input?.door_air_velocity_m_s) || 0.5,
+    doorProtectionFactor: positiveNumber(input?.doorProtectionFactor ?? input?.door_protection_factor) || 1.0,
+    openingsPerCycle: positiveNumber(input?.openingsPerCycle ?? input?.openings_per_cycle),
+    doorOpenTimeSecondsPerOpening: positiveNumber(input?.doorOpenTimeSecondsPerOpening ?? input?.door_open_time_seconds_per_opening) || 300,
+    batchTimeH: positiveNumber(input?.batchTimeH ?? input?.batch_time_h),
+    openingsPerDay: positiveNumber(input?.openingsPerDay ?? input?.openings_per_day),
+    infiltrationRecoveryHoursPerDay: positiveNumber(input?.infiltrationRecoveryHoursPerDay ?? input?.infiltration_recovery_hours_per_day),
+    compressorHoursPerDay: positiveNumber(input?.compressorHoursPerDay ?? input?.compressor_hours_per_day),
+    operatingHoursPerDay: positiveNumber(input?.operatingHoursPerDay ?? input?.operating_hours_per_day),
   });
-  // Rateio correto: se infiltração é recuperada em X horas, distribuir ao longo do dia
-  // infiltration.totalKW é a carga de infiltração (em kW)
-  // Se recuperação é 16h/dia, então carga diária = infiltration.totalKW * (24/16) = infiltration.totalKW * 1.5
-  // Mas queremos a carga média horária, então: infiltration.totalKW * (24/16) / 24 = infiltration.totalKW / 16
-  // Simplificando: carga média = infiltration.totalKW (já é média horária!)
-  // O rateio deve ser feito ANTES de chegar aqui, não aqui!
+  
+  // Calcular infiltração psicrométrica com vazão corrigida
+  const infiltration = calculatePsychrometricInfiltrationKW({
+    ...input,
+    internalTempC: input?.airTempC ?? input?.finalTempC,
+    airDensityKgM3,
+    infiltrationAirflowM3H: infiltrationAirflowResult.airflowM3H,
+  });
+  
   const infiltrationLoadKW = infiltration.totalKW;
   const internalLoadKW = internalLoads.internalLoadKW;
   const totalKW = productLoadKW + packagingLoadKW + transmissionLoadKW + infiltrationLoadKW + internalLoadKW;
