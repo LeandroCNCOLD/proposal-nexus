@@ -1,5 +1,6 @@
 import { strict as assert } from "node:assert";
 import { tunnelResultToDatabasePayload } from "../adapters/tunnelInputToDatabasePayload";
+import type { TunnelEngineInput, TunnelEngineResult } from "../types/tunnelEngine.types";
 import { calculateTunnelEngine, COLDPRO_TUNNEL_ENGINE_VERSION } from "./tunnelEngine";
 
 function nearlyEqual(actual: number, expected: number, tolerance = 0.02) {
@@ -29,7 +30,7 @@ const thermalBase = {
 };
 
 {
-  const result = calculateTunnelEngine({
+  const input: TunnelEngineInput = {
     ...thermalBase,
     processType: "continuous_individual_freezing",
     operationMode: "continuous",
@@ -40,11 +41,15 @@ const thermalBase = {
     directMassKgH: 1000,
     retentionTimeMin: 30,
     productThicknessM: 0.03,
-  });
+  };
+  const result: TunnelEngineResult = calculateTunnelEngine(input);
   nearlyEqual(result.productLoadKW, 70.125);
   nearlyEqual(result.totalKW, 73.125);
   nearlyEqual(result.estimatedAirflowM3H, 36380.6, 0.1);
   assert.equal(result.engineVersion, COLDPRO_TUNNEL_ENGINE_VERSION);
+  assert.ok(result.calculatedAt);
+  assert.ok(result.totalKW > 0);
+  assert.ok(result.calculationBreakdown);
   assert.equal(result.status, "insufficient");
 
   const payload = tunnelResultToDatabasePayload({ environment_id: "00000000-0000-0000-0000-000000000000", air_flow_m3_h: 123, campo_desconhecido: "não salvar" }, result);
