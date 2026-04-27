@@ -20,12 +20,12 @@ function n(value: unknown) {
 
 function Kpi({ label, value, unit, icon, note }: { label: string; value: unknown; unit: string; icon: React.ReactNode; note?: string }) {
   return (
-    <div className="min-w-0 rounded-xl border bg-muted/20 p-4">
-      <div className="mb-3 flex items-center justify-between gap-3">
+    <div className="min-w-0 rounded-lg border bg-muted/20 p-2.5">
+      <div className="mb-2 flex items-center justify-between gap-2">
         <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</div>
-        <div className="rounded-lg bg-primary/10 p-2 text-primary">{icon}</div>
+        <div className="rounded bg-primary/10 p-1.5 text-primary">{icon}</div>
       </div>
-      <div className="break-words text-xl font-semibold tabular-nums text-foreground sm:text-2xl">{fmtColdPro(value)}</div>
+      <div className="break-words text-lg font-semibold tabular-nums text-foreground">{fmtColdPro(value)}</div>
       <div className="mt-1 text-xs text-muted-foreground">{unit}{note ? ` · ${note}` : ""}</div>
     </div>
   );
@@ -33,7 +33,7 @@ function Kpi({ label, value, unit, icon, note }: { label: string; value: unknown
 
 function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (value: boolean) => void; label: string }) {
   return (
-    <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border px-3 py-1.5 text-sm hover:bg-muted">
+    <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border px-2 py-1 text-xs hover:bg-muted">
       <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} className="h-4 w-4 accent-current" />
       {label}
     </label>
@@ -42,12 +42,12 @@ function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (val
 
 function Details({ title, children, defaultOpen = false }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
   return (
-    <details className="rounded-xl border bg-background p-4" open={defaultOpen}>
+    <details className="rounded-lg border bg-background p-3" open={defaultOpen}>
       <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold">
         {title}
         <ChevronDown className="h-4 w-4 text-muted-foreground" />
       </summary>
-      <div className="mt-4 border-t pt-4">{children}</div>
+      <div className="mt-3 border-t pt-3">{children}</div>
     </details>
   );
 }
@@ -104,7 +104,7 @@ export function ColdProResultCard({ result, selection, environment, products = [
   const [showAI, setShowAI] = React.useState(true);
   const [showTables, setShowTables] = React.useState(false);
 
-  if (!result) return <div className="rounded-xl border border-dashed bg-background p-6 text-sm text-muted-foreground">Nenhum cálculo realizado. Preencha as etapas anteriores e clique em calcular carga térmica.</div>;
+  if (!result) return <div className="rounded-lg border border-dashed bg-background p-3 text-sm text-muted-foreground">Nenhum cálculo realizado. Preencha as etapas anteriores e clique em calcular carga térmica.</div>;
 
   const normalized = normalizeColdProEnvironmentResult({ environment, result, selection, products, advancedProcesses });
   const breakdown = result.calculation_breakdown ?? {};
@@ -117,11 +117,11 @@ export function ColdProResultCard({ result, selection, environment, products = [
   const groupedRows = environmentGroupedRows(normalized);
 
   return (
-    <div className="min-w-0 rounded-xl border bg-background p-3 shadow-sm sm:p-5">
-      <div className="mb-5 flex flex-col gap-3 border-b pb-4 md:flex-row md:items-start md:justify-between">
+    <div className="coldpro-card min-w-0">
+      <div className="mb-3 flex flex-col gap-2 border-b pb-3 md:flex-row md:items-start md:justify-between">
         <div>
-          <h3 className="text-lg font-semibold">Resultado do ambiente atual — {environment?.name ?? "Ambiente selecionado"}</h3>
-          <p className="mt-1 text-sm text-muted-foreground">Usa somente cálculo, produtos, processos e equipamento do ambiente selecionado.</p>
+          <h3 className="text-base font-semibold">Resultado do ambiente atual — {environment?.name ?? "Ambiente selecionado"}</h3>
+          <p className="mt-0.5 text-xs text-muted-foreground">Usa somente cálculo, produtos, processos e equipamento do ambiente selecionado.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Toggle checked={compact} onChange={setCompact} label="Visualização resumida" />
@@ -132,7 +132,7 @@ export function ColdProResultCard({ result, selection, environment, products = [
         </div>
       </div>
 
-      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="coldpro-grid">
         <Kpi label="Carga requerida" value={normalized.summary.requiredKcalH} unit="kcal/h" icon={<Calculator className="h-4 w-4" />} />
         <Kpi label="Potência" value={normalized.summary.requiredKW} unit="kW" icon={<Gauge className="h-4 w-4" />} />
         <Kpi label="Capacidade" value={normalized.summary.requiredTR} unit="TR" icon={<Snowflake className="h-4 w-4" />} />
@@ -144,45 +144,45 @@ export function ColdProResultCard({ result, selection, environment, products = [
       </section>
 
       {showCharts ? (
-        <section className="mt-5 grid grid-cols-1 gap-4 xl:grid-cols-2">
+        <section className="coldpro-section grid grid-cols-1 gap-3 xl:grid-cols-2">
           <InteractiveLoadPieChart title="Distribuição da carga térmica" subtitle="Percentual por origem da carga do ambiente." data={detailedRows} total={normalized.summary.requiredKcalH} />
           <LoadRankingBarChart title="Maiores componentes da carga" subtitle="Ranking técnico do que mais pesa no dimensionamento." data={detailedRows} total={normalized.summary.requiredKcalH} />
         </section>
       ) : null}
 
-      {showAudit ? <section className="mt-5"><ResultConsistencyAudit normalized={normalized} /></section> : null}
+      {showAudit ? <section className="coldpro-section"><ResultConsistencyAudit normalized={normalized} /></section> : null}
 
       {!compact ? (
         <>
-          <section className="mt-5 grid grid-cols-1 gap-4 xl:grid-cols-2">
+          <section className="coldpro-section grid grid-cols-1 gap-3 xl:grid-cols-2">
             <LoadWaterfallChart title="Formação da carga requerida" subtitle="Subtotal técnico + segurança até a carga final." components={groupedRows.filter((item) => item.name !== "Segurança")} subtotal={normalized.summary.subtotalKcalH} safety={normalized.summary.safetyKcalH} total={normalized.summary.requiredKcalH} />
             <EquipmentCapacityGauge title="Sobra técnica do equipamento" requiredKcalH={normalized.equipment.requiredCapacityKcalH || normalized.summary.requiredKcalH} selectedCapacityKcalH={normalized.equipment.totalCapacityKcalH} surplusPercent={normalized.equipment.surplusPercent} />
             <CapacityComparisonChart title="Carga requerida x capacidade selecionada" requiredKcalH={normalized.summary.requiredKcalH} capacityKcalH={normalized.equipment.totalCapacityKcalH} surplusPercent={normalized.equipment.surplusPercent} />
             <ThermalProfileLineChart title="Perfil térmico do produto" normalized={normalized} />
             <SimulationMatrixChart title="Matriz de simulação operacional" normalized={normalized} />
           </section>
-          <section className="mt-5"><TunnelValidationCharts normalized={normalized} /></section>
+          <section className="coldpro-section"><TunnelValidationCharts normalized={normalized} /></section>
 
-          <section className="mt-5 rounded-xl border bg-background p-4">
+          <section className="coldpro-section coldpro-card">
             <div className="mb-3 flex items-center gap-2"><Snowflake className="h-4 w-4 text-primary" /><h4 className="text-sm font-semibold">Análise de gelo, umidade e degelo</h4></div>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="coldpro-grid">
               <Kpi label="Gelo por dia" value={frost.frostKgDay} unit="kg/dia" icon={<Droplets className="h-4 w-4" />} />
               <Kpi label="Perda rendimento" value={frost.efficiencyLossPercent} unit="%" icon={<Gauge className="h-4 w-4" />} />
               <Kpi label="Carga adicional" value={frost.additionalLoadKcalH} unit="kcal/h" icon={<Calculator className="h-4 w-4" />} />
               <Kpi label="Degelo preventivo" value={frost.recommendedDefrostIntervalH} unit="h" icon={<Snowflake className="h-4 w-4" />} />
             </div>
-            <div className="mt-4 grid grid-cols-1 gap-3 text-sm md:grid-cols-3">
+            <div className="mt-3 grid grid-cols-1 gap-2 text-sm md:grid-cols-3">
               <div className="rounded-lg bg-muted/30 p-3">Operação normal: <b>{frost.normalBlockHours ? `${fmtColdPro(frost.normalBlockHours)} h` : "sem bloqueio estimado"}</b></div>
               <div className="rounded-lg bg-muted/30 p-3">Operação arriscada: <b>{frost.riskyBlockHours ? `${fmtColdPro(frost.riskyBlockHours)} h` : "sem bloqueio estimado"}</b></div>
               <div className="rounded-lg bg-muted/30 p-3">Operação complexa: <b>{frost.complexBlockHours ? `${fmtColdPro(frost.complexBlockHours)} h` : "sem bloqueio estimado"}</b></div>
             </div>
           </section>
 
-          {showAI ? <section className="mt-5"><ColdProAIInsightPanel normalized={normalized} onAnalyze={onAnalyze} isAnalyzing={isAnalyzing} /></section> : null}
+          {showAI ? <section className="coldpro-section"><ColdProAIInsightPanel normalized={normalized} onAnalyze={onAnalyze} isAnalyzing={isAnalyzing} /></section> : null}
         </>
       ) : null}
 
-      <div className="mt-5 space-y-3">
+      <div className="coldpro-section space-y-2">
         <Details title="Decomposição técnica consolidada" defaultOpen={showTables}>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             <Group title="Ambiente" rows={[{ label: "Transmissão", value: normalized.loadDistribution.environmentKcalH }]} />

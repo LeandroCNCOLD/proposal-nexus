@@ -36,9 +36,9 @@ function formatKw(value: unknown) {
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="min-w-0 rounded-lg border bg-muted/20 p-2.5">
+    <div className="min-w-0 rounded-lg border bg-muted/20 p-2">
       <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</div>
-      <div className="mt-1 text-sm font-semibold tabular-nums text-foreground sm:text-base">{value}</div>
+      <div className="mt-1 text-sm font-semibold tabular-nums text-foreground">{value}</div>
     </div>
   );
 }
@@ -49,9 +49,9 @@ export function EnergySummary({ result }: Props) {
   const warnings: string[] = Array.isArray(energy?.warnings) ? energy.warnings.filter(Boolean).map(String) : [];
 
   return (
-    <div className="rounded-xl border bg-background p-3">
+    <div className="coldpro-card">
       <h3 className="mb-2 text-sm font-semibold">Energia</h3>
-      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-8">
+      <div className="coldpro-grid">
         <Metric label="COP" value={formatNumber(firstFinite(result?.cop, result?.COP, result?.copData?.cop, result?.cop_data?.cop, energy?.cop, energy?.assumptions?.cop), 2)} />
         <Metric label="Potência elétrica" value={formatKw(energy?.electricalPowerKW ?? energy?.electrical_power_kw)} />
         <Metric label="Consumo diário" value={formatKwh(energy?.kWhDay ?? energy?.kwh_day)} />

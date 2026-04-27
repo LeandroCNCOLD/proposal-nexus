@@ -33,16 +33,16 @@ function listItems(value: unknown): string[] {
 
 function RecommendationBlock({ title, items }: { title: string; items: string[] }) {
   return (
-    <div className="rounded-lg border bg-muted/20 p-3">
+    <div className="rounded-lg border bg-muted/20 p-2.5">
       <h3 className="mb-2 text-sm font-semibold">{title}</h3>
       {items.length ? (
-        <ul className="space-y-1.5 text-sm text-muted-foreground">
+        <ul className="space-y-1 text-[13px] text-muted-foreground">
           {items.map((item, index) => (
             <li key={`${title}-${index}`} className="leading-relaxed">{item}</li>
           ))}
         </ul>
       ) : (
-        <div className="text-sm text-muted-foreground">—</div>
+        <div className="text-[13px] text-muted-foreground">—</div>
       )}
     </div>
   );
@@ -52,9 +52,9 @@ export function ProjectRecommendationSummary({ result }: Props) {
   const recommendation = result?.projectRecommendation ?? result?.recommendation ?? {};
 
   return (
-    <div className="rounded-xl border bg-background p-3">
+    <div className="coldpro-card">
       <h3 className="mb-2 text-sm font-semibold">Recomendações técnicas</h3>
-      <div className="grid gap-2 lg:grid-cols-2 2xl:grid-cols-3">
+      <div className="coldpro-grid">
         {BLOCKS.map((block) => (
           <RecommendationBlock key={block.key} title={block.title} items={listItems(recommendation?.[block.key])} />
         ))}

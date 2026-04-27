@@ -39,21 +39,21 @@ export function EquipmentOptimizationSummary({ result, selection }: Props) {
   ].filter(Boolean).map(String)));
 
   return (
-    <div className="rounded-xl border bg-background p-3">
+    <div className="coldpro-card">
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-sm font-semibold">Otimização de equipamento</h3>
         <div className="text-sm text-muted-foreground">Melhor equipamento: <b className="text-foreground">{equipmentName(bestEquipment)}</b></div>
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[640px] text-xs sm:text-sm">
+        <table className="coldpro-table">
           <thead className="text-left text-xs uppercase tracking-wide text-muted-foreground">
             <tr className="border-b">
-              <th className="py-2 pr-2 font-medium">#</th>
-              <th className="py-2 pr-2 font-medium">Equipamento</th>
-              <th className="py-2 pr-2 font-medium">Margem</th>
-              <th className="py-2 pr-2 font-medium">Custo mensal</th>
-              <th className="py-2 pr-2 font-medium">Score</th>
-              <th className="py-2 pr-2 font-medium">Potência</th>
+              <th className="font-medium">#</th>
+              <th className="font-medium">Equipamento</th>
+              <th className="font-medium">Margem</th>
+              <th className="font-medium">Custo mensal</th>
+              <th className="font-medium">Score</th>
+              <th className="font-medium">Potência</th>
             </tr>
           </thead>
           <tbody>
