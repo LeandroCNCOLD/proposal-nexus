@@ -443,8 +443,10 @@ function ColdProProjectPage() {
     try {
       await calculate.mutateAsync(environmentId);
       toast.success(successMessage);
+      return true;
     } catch (e: any) {
       toast.warning(e?.message ? `Dados salvos, mas o recálculo falhou: ${e.message}` : "Dados salvos, mas o recálculo falhou.");
+      return true;
     }
   }
 
@@ -461,13 +463,15 @@ function ColdProProjectPage() {
   }
 
   async function handleSaveProduct(payload: any) {
-    if (!selectedEnv) return;
+    if (!selectedEnv) return false;
     try {
       const row = await upsertProduct.mutateAsync(payload);
       setEditingProductId(row?.id ?? null);
       await handleRecalculateEnvironment(selectedEnv.id, payload.id ? "Produto salvo e carga recalculada" : "Produto adicionado e carga recalculada");
+      return true;
     } catch (e: any) {
       toast.error(e?.message ?? "Erro ao salvar");
+      return false;
     }
   }
 
