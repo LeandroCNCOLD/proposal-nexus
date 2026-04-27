@@ -459,6 +459,7 @@ function ColdProProjectPage() {
 
   function handlePrintEnvironmentReport() {
     setShowEnvironmentReport(true);
+    setShowCommercialProposal(true);
     window.setTimeout(() => window.print(), 80);
   }
 
@@ -839,6 +840,9 @@ function ColdProProjectPage() {
                         <button type="button" className="inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm hover:bg-muted disabled:opacity-50" onClick={() => setShowEnvironmentReport((value) => !value)} disabled={!result}>
                           <FileText className="h-4 w-4" /> Gerar relatório
                         </button>
+                        <button type="button" className="inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm hover:bg-muted disabled:opacity-50" onClick={() => setShowCommercialProposal((value) => !value)} disabled={!result}>
+                          <FileText className="h-4 w-4" /> Gerar proposta
+                        </button>
                         <button type="button" className="inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm hover:bg-muted disabled:opacity-50" onClick={handlePrintEnvironmentReport} disabled={!result}>
                           <Printer className="h-4 w-4" /> Imprimir PDF
                         </button>
@@ -863,6 +867,16 @@ function ColdProProjectPage() {
                   </div>
 
                   <EnvironmentCommercialSummary commercial={commercialSummary} />
+                  {showCommercialProposal && result ? (
+                    <EnvironmentCommercialProposal
+                      project={data?.project}
+                      environment={selectedEnv}
+                      result={result}
+                      selection={selection}
+                      products={products}
+                      commercial={commercialSummary}
+                    />
+                  ) : null}
                   <ColdProResultCard result={result} selection={selection} environment={selectedEnv} products={products} advancedProcesses={data?.advancedProcesses ?? []} onAnalyze={handleAnalyzeMemorial} isAnalyzing={analyzeMemorial.isPending} />
                   <div className="coldpro-grid">
                     <ThermalLoadSummary result={result} />
