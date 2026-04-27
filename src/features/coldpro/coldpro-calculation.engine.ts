@@ -422,6 +422,14 @@ function thermalValueKcal(kcal: unknown, kj: unknown): number {
   return n(kcal) || kcalFromKj(kj);
 }
 
+function productThermalAlerts(product: ColdProEnvironmentProduct, specificEnergyKjKg: number, latentKjKg: number) {
+  const alerts: Array<{ level: "error" | "warning" | "info"; code: string; message: string }> = [];
+  if (n(product.outlet_temp_c) < 0 && latentKjKg <= 0) alerts.push({ level: "error", code: "latent_heat_zero_frozen_product", message: `Calor latente zerado em produto congelado: ${product.product_name}.` });
+  if (product.frozen_water_fraction === null || product.frozen_water_fraction === undefined) alerts.push({ level: "warning", code: "frozen_water_fraction_missing", message: `Fração congelável vazia em ${product.product_name}; foi aplicado default técnico.` });
+  if (specificEnergyKjKg > 0 && specificEnergyKjKg < 80) alerts.push({ level: "warning", code: "low_specific_energy", message: `Energia específica menor que 80 kJ/kg em ${product.product_name}; revisar unidades e propriedades térmicas.` });
+  return alerts;
+}
+
 function waterFreezeFraction(item: Pick<ColdProEnvironmentProduct | ColdProTunnel, "frozen_water_fraction" | "freezable_water_content_percent" | "water_content_percent">): number {
   const explicit = n(item.frozen_water_fraction, NaN);
   if (item.frozen_water_fraction !== null && item.frozen_water_fraction !== undefined && Number.isFinite(explicit) && explicit >= 0) return explicit > 1 ? explicit / 100 : explicit;
