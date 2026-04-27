@@ -3,11 +3,11 @@ import { COLDPRO_CALCULATION_METHOD_REGISTRY_VERSION, COLDPRO_CALCULATION_METHOD
 import { buildCalculationMethodReport } from "../reports/calculationMethodReport";
 import { kwToKcalH, kwToTr } from "../core/units";
 import { validateTunnelInput } from "../core/validators";
-import { calculateAirflowModel, calculateRequiredAirflowM3H } from "../physics/airflowModel";
+import { calculateAirflowModel, calculatePsychrometricInfiltrationKW, calculateRequiredAirflowM3H } from "../physics/airflowModel";
 import { calculateExposureFactor } from "../physics/arrangementModel";
 import { calculatePlankFreezingTimeMin, validateFreezingTime } from "../physics/freezingTime";
 import { calculateCharacteristicDimension } from "../physics/geometryModel";
-import { calculateConvectiveCoefficient } from "../physics/heatTransfer";
+import { calculateConvectiveCoefficient, resolveTransmissionLoad } from "../physics/heatTransfer";
 import {
   calculateBatchProductLoadKW,
   calculateContinuousProductLoadKW,
