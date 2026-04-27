@@ -942,7 +942,7 @@ export function calculateColdProLoad(params: {
       },
       calculationMethod: buildCalculationMethodReport(
         String((infiltrationBreakdown as { method?: unknown }).method ?? "simple_air_change"),
-        tunnelResult?.calculation_breakdown?.calculationMethod?.methods?.productLoad ?? "kg/h contínuo ou kg/batelada",
+        String(((tunnelResult?.calculation_breakdown?.calculationMethod as Record<string, Record<string, unknown>> | undefined)?.methods?.productLoad) ?? "kg/h contínuo ou kg/batelada"),
       ),
       ashraeComparison: listAshraeComparisons(),
       transmission_faces: transmissionBreakdown.faces,
