@@ -36,7 +36,11 @@ type ColdProTunnelFormProps = {
   product?: Record<string, unknown> | null;
   tunnel?: ColdProFormRecord | null;
   productCatalog?: ColdProProductRecord[];
-  onSave: (data: ColdProFormRecord) => void;
+  onSave: (data: ColdProFormRecord) => void | boolean | Promise<void | boolean>;
+};
+
+export type ColdProTunnelFormHandle = {
+  save: () => Promise<boolean>;
 };
 
 type NumericInputProps = {
@@ -419,7 +423,7 @@ const DENSITY_STATUS_LABEL = {
   missing: "faltam dados",
 } as const;
 
-export function ColdProTunnelForm({ environmentId, environment, product, tunnel, productCatalog = [], onSave }: ColdProTunnelFormProps) {
+export const ColdProTunnelForm = React.forwardRef<ColdProTunnelFormHandle, ColdProTunnelFormProps>(function ColdProTunnelForm({ environmentId, environment, product, tunnel, productCatalog = [], onSave }, ref) {
   const [form, setForm] = React.useState<ColdProFormRecord>(defaultTunnel(environmentId));
   const [selectedGroup, setSelectedGroup] = React.useState("");
   const [productSearch, setProductSearch] = React.useState("");
@@ -849,7 +853,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
     setShowProductSuggestions(false);
   };
 
-  const save = () => {
+  const save = async () => {
     const selectedCatalogKcal = selectedCatalogProduct ? normalizeProductForKcalEngine(selectedCatalogProduct) : null;
     const payload = {
     ...form,
@@ -1013,10 +1017,13 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
     const validatedPayload = coldProTunnelSaveSchema.safeParse(payload);
     if (!validatedPayload.success) {
       window.alert("Revise os campos obrigatórios do túnel antes de salvar.");
-      return;
+      return false;
     }
-    onSave(validatedPayload.data);
+    const result = await onSave(validatedPayload.data);
+    return result !== false;
   };
+
+  React.useImperativeHandle(ref, () => ({ save }));
 
   const statusLabel: Record<string, string> = {
     adequate: "Adequado",
@@ -1366,4 +1373,4 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
       </div>
     </div>
   );
-}
+});
