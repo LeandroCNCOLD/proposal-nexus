@@ -438,6 +438,10 @@ function ColdProProjectPage() {
 
   async function handleAutoSelect() {
     if (!selectedEnv) return;
+    if (technicalAudit.isBlocked) {
+      toast.error("Seleção baseada em carga preliminar inválida/incompleta.");
+      return;
+    }
     try {
       await autoSelect.mutateAsync({
         environmentId: selectedEnv.id,
@@ -961,7 +965,7 @@ function ColdProProjectPage() {
                       type="button"
                       className="rounded-md border bg-background px-4 py-2 text-sm hover:bg-muted"
                       onClick={handleAutoSelect}
-                      disabled={autoSelect.isPending}
+                      disabled={autoSelect.isPending || technicalAudit.isBlocked}
                     >
                       {autoSelect.isPending ? "Selecionando..." : "Selecionar melhor modelo"}
                     </button>
