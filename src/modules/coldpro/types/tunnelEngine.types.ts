@@ -111,6 +111,11 @@ export interface TunnelEngineInput {
   airExposureFactor?: number | null;
   airDeltaTK?: number | null;
   airDensityKgM3?: number | null;
+  airSpecificHeatKJkgK?: number | null;
+  waterLatentHeatKJkg?: number | null;
+  altitudeM?: number | null;
+  atmosphericPressureKPa?: number | null;
+  relativeHumidityPercent?: number | null;
   fanAirflowM3H?: number | null;
   tunnelCrossSectionWidthM?: number | null;
   tunnelCrossSectionHeightM?: number | null;
