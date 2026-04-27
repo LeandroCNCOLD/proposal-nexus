@@ -21,7 +21,7 @@ import { calculateAdvancedProcess } from "./advancedProcesses/advancedProcessEng
 import { calculateEvaporatorFrostRisk, suggestedInfiltrationFactor } from "./extra-loads-preview";
 import { calculateEvaporatorFanLoad, calculateMotorLoadKcalH, calculateTechnicalDefrost, calculateTechnicalInfiltration } from "./thermal-calculations";
 import { databaseToTunnelInput } from "@/modules/coldpro/adapters/databaseToTunnelInput";
-import { calculateTunnelEngine } from "@/modules/coldpro/engines/tunnelEngine";
+import { COLDPRO_TUNNEL_ENGINE_VERSION, calculateTunnelEngine } from "@/modules/coldpro/engines/tunnelEngine";
 
 const W_TO_KCAL_H = 0.859845;
 const R_INTERNAL_M2K_W = 0.12;
@@ -794,8 +794,8 @@ export function calculateTunnelLoad(tunnel: ColdProTunnel, env?: ColdProEnvironm
     tunnel_total_load_kw: round2(tunnelResult.totalKW),
     tunnel_total_load_kcal_h: round2(tunnelResult.totalKcalH),
     tunnel_total_load_tr: round2(tunnelResult.totalTR),
-    required_airflow_m3_h: calculateRecommendedAirFlowM3H(tunnelResult.totalKW, n((tunnel as any).air_delta_t_k, 6)),
-    required_airflow_m3_s: calculateRecommendedAirFlowM3H(tunnelResult.totalKW, n((tunnel as any).air_delta_t_k, 6)) / 3600,
+    required_airflow_m3_h: round2(tunnelResult.estimatedAirflowM3H ?? tunnelResult.airFlowM3H),
+    required_airflow_m3_s: round2((tunnelResult.estimatedAirflowM3H ?? tunnelResult.airFlowM3H) / 3600),
     cp_above_kcal_kg_c: round2(n(tunnelInput.cpAboveKJkgK) / KCAL_TO_KJ),
     cp_below_kcal_kg_c: round2(n(tunnelInput.cpBelowKJkgK) / KCAL_TO_KJ),
     latent_heat_kcal_kg: round2(n(tunnelInput.latentHeatKJkg) / KCAL_TO_KJ),
@@ -836,13 +836,15 @@ export function calculateTunnelLoad(tunnel: ColdProTunnel, env?: ColdProEnvironm
     calculation_log: tunnelResult.calculationLog,
     recommended_air_temp_c: null,
     recommended_air_velocity_m_s: null,
-    recommended_airflow_m3_h: calculateRecommendedAirFlowM3H(tunnelResult.totalKW, n((tunnel as any).air_delta_t_k, 6)),
+    recommended_airflow_m3_h: round2(tunnelResult.estimatedAirflowM3H ?? tunnelResult.airFlowM3H),
     optimization_status: tunnelResult.status === "adequate" ? "adequado" : "revisar aplicação",
     optimization_margin_percent: null,
     optimization_attempts_count: 0,
     optimization_attempts: [],
     optimization_memory: {
       source: "calculateTunnelEngine",
+      engine_version: tunnelResult.engineVersion ?? COLDPRO_TUNNEL_ENGINE_VERSION,
+      calculated_at: tunnelResult.calculatedAt ?? null,
       note: "Cálculo consolidado de túnel usa o mesmo motor modular do preview.",
     },
   };
