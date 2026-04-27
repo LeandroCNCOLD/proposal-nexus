@@ -339,6 +339,7 @@ function calculateTunnelCore(input: TunnelEngineInput) {
   const informedAirTempC = isProvided(input?.airTempC) ? toNumber(input?.airTempC, 0) : null;
   const suggestedAirTempComparisonC = informedAirTempC === null ? null : informedAirTempC - suggestedAirTempC;
   const informedAirFlowM3H = nullableNumber(input?.informedAirFlowM3H ?? input?.airflow_m3_h);
+  const infiltrationMethod = resolveInfiltrationMethod(input);
 
   const geometry = calculateCharacteristicDimension({ ...input, isStatic: tunnelMode.isStatic });
   const fallbackCharacteristicDimensionM = isStatic
@@ -380,9 +381,12 @@ function calculateTunnelCore(input: TunnelEngineInput) {
   };
 
   const packagingMassKgBatch = positiveNumber(input?.packagingMassKgBatch ?? input?.packaging_mass_kg_batch);
-  const packagingMassKgH = tunnelMode.operationRegime === "batch" && packagingMassKgBatch > 0 && positiveNumber(input?.batchTimeH) > 0 ? packagingMassKgBatch / positiveNumber(input?.batchTimeH) : positiveNumber(input?.packagingMassKgH);
+  const informedPackagingMassKgH = positiveNumber(input?.packagingMassKgH ?? input?.packaging_mass_kg_h ?? input?.packaging_mass_kg_hour);
+  const packagingMassKgH = tunnelMode.operationRegime === "batch" && packagingMassKgBatch > 0 && positiveNumber(input?.batchTimeH) > 0 ? packagingMassKgBatch / positiveNumber(input?.batchTimeH) : informedPackagingMassKgH;
   const packagingCpKJkgK = positiveNumber(input?.packagingCpKJkgK);
-  const packagingLoadKW = packagingMassKgH > 0 && packagingCpKJkgK > 0 ? packagingMassKgH * packagingCpKJkgK * Math.abs(toNumber(input?.initialTempC) - toNumber(input?.finalTempC)) / 3600 : 0;
+  const packagingLoadKW = tunnelMode.operationRegime === "batch"
+    ? packagingMassKgBatch > 0 && packagingCpKJkgK > 0 && positiveNumber(input?.batchTimeH) > 0 ? packagingMassKgBatch * packagingCpKJkgK * Math.abs(toNumber(input?.initialTempC) - toNumber(input?.finalTempC)) / (positiveNumber(input?.batchTimeH) * 3600) : packagingMassKgH > 0 && packagingCpKJkgK > 0 ? packagingMassKgH * packagingCpKJkgK * Math.abs(toNumber(input?.initialTempC) - toNumber(input?.finalTempC)) / 3600 : 0
+    : packagingMassKgH > 0 && packagingCpKJkgK > 0 ? packagingMassKgH * packagingCpKJkgK * Math.abs(toNumber(input?.initialTempC) - toNumber(input?.finalTempC)) / 3600 : 0;
   const internalLoadKW = toNumber(input?.beltMotorKW, 0) + toNumber(input?.internalFansKW, 0) + toNumber(input?.otherInternalKW, 0);
   const totalKW = productLoadKW + packagingLoadKW + internalLoadKW;
   const totalKcalH = kwToKcalH(totalKW);
@@ -430,6 +434,8 @@ function calculateTunnelCore(input: TunnelEngineInput) {
     physicalModel === "static_block" && characteristicDimensionM <= 0 ? "Dimensões do bloco/pallet ausentes para estático em pallet/bloco." : "",
     physicalModel === "static_block" ? "Modelo static_block é conservador para bloco compacto/pallet." : "",
     physicalModel === "static_block" && positiveNumber(input?.batchTimeH) <= 0 ? "Tempo de batelada ausente para estático em pallet/bloco." : "",
+    tunnelMode.operationRegime === "batch" && packagingMassKgBatch <= 0 && informedPackagingMassKgH > 0 ? "Em processo de batelada, informe massa total da embalagem na batelada para cálculo mais preciso." : "",
+    infiltrationMethod.warning,
   ];
 
   const freezingTimeMissingFields = [
