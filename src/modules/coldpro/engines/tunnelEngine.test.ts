@@ -1,4 +1,5 @@
 import { strict as assert } from "node:assert";
+import { tunnelResultToDatabasePayload } from "../adapters/tunnelInputToDatabasePayload";
 import { calculateTunnelEngine, COLDPRO_TUNNEL_ENGINE_VERSION } from "./tunnelEngine";
 
 function nearlyEqual(actual: number, expected: number, tolerance = 0.02) {
@@ -45,6 +46,13 @@ const thermalBase = {
   nearlyEqual(result.estimatedAirflowM3H, 36380.6, 0.1);
   assert.equal(result.engineVersion, COLDPRO_TUNNEL_ENGINE_VERSION);
   assert.equal(result.status, "insufficient");
+
+  const payload = tunnelResultToDatabasePayload({ environment_id: "00000000-0000-0000-0000-000000000000", air_flow_m3_h: 123, campo_desconhecido: "não salvar" }, result);
+  assert.equal(Object.hasOwn(payload, "campo_desconhecido"), false);
+  assert.equal(Object.hasOwn(payload, "air_flow_m3_h"), false);
+  assert.equal(payload.engine_version, COLDPRO_TUNNEL_ENGINE_VERSION);
+  nearlyEqual(Number(payload.tunnel_total_load_kw), result.totalKW, 0.01);
+  nearlyEqual(Number(payload.airflow_m3_h), result.airFlowM3H, 0.01);
 }
 
 {
