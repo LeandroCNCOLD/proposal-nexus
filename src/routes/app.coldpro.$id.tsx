@@ -404,7 +404,7 @@ function ColdProProjectPage() {
         {/* Conteúdo principal */}
         <div className="min-w-0 space-y-2">
           {showProjectReport && environments.length > 0 ? (
-            <div className="space-y-6">
+            <div className="space-y-3">
               <ColdProProjectResultDashboard
                 project={data?.project}
                 environments={environments}
@@ -446,7 +446,7 @@ function ColdProProjectPage() {
                 />
               </div>
 
-              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-background px-4 py-3 shadow-sm print:hidden">
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-background px-3 py-2 shadow-sm print:hidden">
                 <div className="min-w-0">
                   <div className="truncate text-sm font-semibold">{selectedEnv.name}</div>
                   <div className="text-xs text-muted-foreground">{selectedEnv.environment_type} · {fmt(selectedEnv.volume_m3)} m³ · {selectedEnv.internal_temp_c}°C</div>
@@ -458,7 +458,7 @@ function ColdProProjectPage() {
 
               {/* STEP 0 - AMBIENTE */}
               {stepIndex === 0 && (
-                <div className="space-y-4">
+                <div className="space-y-3">
                   <ColdProEnvironmentForm
                     environment={selectedEnv}
                     insulationMaterials={data?.insulationMaterials ?? []}
@@ -484,7 +484,7 @@ function ColdProProjectPage() {
 
               {/* STEP 1 - PRODUTOS / TÚNEL */}
               {stepIndex === 1 && (
-                <div className="space-y-6">
+                <div className="space-y-3">
                   {["blast_freezer", "cooling_tunnel"].includes(selectedEnv.environment_type) ? (
                     <ColdProTunnelForm
                       environmentId={selectedEnv.id}
@@ -526,7 +526,7 @@ function ColdProProjectPage() {
                     total={productLoad}
                   />
 
-                  <div className="rounded-2xl border bg-background p-4">
+                  <div className="rounded-lg border bg-background p-3">
                     <h3 className="mb-3 text-base font-semibold">Produtos cadastrados</h3>
                     {products.length === 0 ? (
                       <div className="text-sm text-muted-foreground">Nenhum produto/processo cadastrado.</div>
@@ -552,7 +552,7 @@ function ColdProProjectPage() {
 
               {/* STEP 2 - PROCESSOS ESPECIAIS */}
               {stepIndex === 2 && (
-                <div className="space-y-4">
+                <div className="space-y-3">
                   <ColdProAdvancedProcessForm
                     projectId={id}
                     environment={selectedEnv}
@@ -578,7 +578,7 @@ function ColdProProjectPage() {
 
               {/* STEP 3 - CARGAS EXTRAS */}
               {stepIndex === 3 && (
-                <div className="space-y-4">
+                <div className="space-y-3">
                   <ColdProExtraLoadsForm
                     environment={selectedEnv}
                     catalogFanLoadKcalH={catalogFanLoadKcalH}
@@ -612,8 +612,8 @@ function ColdProProjectPage() {
 
               {/* STEP 4 - RESULTADO */}
               {stepIndex === 4 && (
-                <div className="space-y-6">
-                  <div className="rounded-2xl border bg-background p-4">
+                <div className="space-y-3">
+                  <div className="rounded-lg border bg-background p-3">
                     <h3 className="mb-2 text-base font-semibold">Calcular carga térmica</h3>
                     <p className="mb-3 text-sm text-muted-foreground">
                       Use as informações cadastradas nas etapas anteriores para gerar o cálculo da carga térmica do ambiente.
@@ -628,7 +628,7 @@ function ColdProProjectPage() {
                     </button>
                   </div>
                   <ColdProResultCard result={result} selection={selection} environment={selectedEnv} products={products} advancedProcesses={data?.advancedProcesses ?? []} onAnalyze={handleAnalyzeMemorial} isAnalyzing={analyzeMemorial.isPending} />
-                  <div className="grid gap-4">
+                  <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(260px,1fr))]">
                     <ThermalLoadSummary result={result} />
                     <EnergySummary result={result} />
                     <EquipmentOptimizationSummary result={result} selection={selection} />
