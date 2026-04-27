@@ -1,6 +1,6 @@
 import * as React from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, ArrowRight, FileText, Loader2, Pencil, Plus, Snowflake, Sparkles, Thermometer, Trash2, Wind, Warehouse } from "lucide-react";
+import { ArrowLeft, ArrowRight, Calculator, Download, FileText, Loader2, Pencil, Plus, Printer, Snowflake, Sparkles, Thermometer, Trash2, Wind, Warehouse } from "lucide-react";
 import { toast } from "sonner";
 import {
   useColdProProjectBundle,
@@ -70,6 +70,67 @@ function formatNumber(value: unknown, decimals = 2) {
 
 function formatKw(value: unknown) {
   return toFiniteValue(value) !== null ? `${formatNumber(value, 2)} kW` : "—";
+}
+
+
+function formatCurrencyLocal(value: unknown) {
+  const parsed = toFiniteValue(value);
+  return parsed !== null ? new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(parsed) : "—";
+}
+
+function CommercialField({ label, value, onChange, prefix, suffix, min = 0, step = "0.01" }: { label: string; value: string; onChange: (value: string) => void; prefix?: string; suffix?: string; min?: number; step?: string }) {
+  return (
+    <label className="text-xs font-medium text-muted-foreground">
+      {label}
+      <div className="mt-1 flex h-8 items-center rounded-md border bg-background px-2 focus-within:ring-2 focus-within:ring-primary/20">
+        {prefix ? <span className="mr-1 text-[12px] text-muted-foreground">{prefix}</span> : null}
+        <input
+          type="number"
+          min={min}
+          step={step}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          className="min-w-0 flex-1 bg-transparent text-right text-[13px] font-medium outline-none"
+        />
+        {suffix ? <span className="ml-1 text-[12px] text-muted-foreground">{suffix}</span> : null}
+      </div>
+    </label>
+  );
+}
+
+function CommercialMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border bg-muted/20 p-2">
+      <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className="mt-1 text-sm font-semibold tabular-nums">{value}</div>
+    </div>
+  );
+}
+
+function EnvironmentCommercialSummary({ commercial }: { commercial: any }) {
+  return (
+    <div className="rounded-lg border bg-background p-3">
+      <div className="mb-2 flex items-center gap-2">
+        <Calculator className="h-4 w-4 text-primary" />
+        <h3 className="text-sm font-semibold">Resumo comercial local do ambiente</h3>
+      </div>
+      <div className="grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(180px,1fr))]">
+        <CommercialMetric label="Quantidade" value={formatNumber(commercial.quantity, 0)} />
+        <CommercialMetric label="Valor unitário" value={formatCurrencyLocal(commercial.unitPrice)} />
+        <CommercialMetric label="Investimento total" value={formatCurrencyLocal(commercial.investmentTotal)} />
+        <CommercialMetric label="COP" value={formatNumber(commercial.cop, 2)} />
+        <CommercialMetric label="Potência elétrica" value={formatKw(commercial.electricalPowerKW)} />
+        <CommercialMetric label="Consumo diário" value={`${formatNumber(commercial.kWhDay, 0)} kWh`} />
+        <CommercialMetric label="Consumo mensal" value={`${formatNumber(commercial.kWhMonth, 0)} kWh`} />
+        <CommercialMetric label="Custo mensal" value={formatCurrencyLocal(commercial.monthlyCost)} />
+        <CommercialMetric label="Custo anual" value={formatCurrencyLocal(commercial.annualCost)} />
+        <CommercialMetric label="Custo por kg" value={commercial.costPerKg !== null ? `${formatCurrencyLocal(commercial.costPerKg)}/kg` : "—"} />
+      </div>
+      <p className="mt-2 text-[11px] text-muted-foreground">
+        Simulação comercial local: não salva no banco, não altera o cálculo térmico, não altera COP e não altera a energia mensal original.
+      </p>
+    </div>
+  );
 }
 
 function ThermalLoadSummary({ result }: { result: any }) {
