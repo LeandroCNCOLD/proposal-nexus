@@ -20,12 +20,12 @@ function n(value: unknown) {
 
 function Kpi({ label, value, unit, icon, note }: { label: string; value: unknown; unit: string; icon: React.ReactNode; note?: string }) {
   return (
-    <div className="min-w-0 rounded-xl border bg-muted/20 p-4">
-      <div className="mb-3 flex items-center justify-between gap-3">
+    <div className="min-w-0 rounded-lg border bg-muted/20 p-2.5">
+      <div className="mb-2 flex items-center justify-between gap-2">
         <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</div>
-        <div className="rounded-lg bg-primary/10 p-2 text-primary">{icon}</div>
+        <div className="rounded bg-primary/10 p-1.5 text-primary">{icon}</div>
       </div>
-      <div className="break-words text-xl font-semibold tabular-nums text-foreground sm:text-2xl">{fmtColdPro(value)}</div>
+      <div className="break-words text-lg font-semibold tabular-nums text-foreground">{fmtColdPro(value)}</div>
       <div className="mt-1 text-xs text-muted-foreground">{unit}{note ? ` · ${note}` : ""}</div>
     </div>
   );
@@ -33,7 +33,7 @@ function Kpi({ label, value, unit, icon, note }: { label: string; value: unknown
 
 function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (value: boolean) => void; label: string }) {
   return (
-    <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border px-3 py-1.5 text-sm hover:bg-muted">
+    <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border px-2 py-1 text-xs hover:bg-muted">
       <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} className="h-4 w-4 accent-current" />
       {label}
     </label>
@@ -42,12 +42,12 @@ function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (val
 
 function Details({ title, children, defaultOpen = false }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
   return (
-    <details className="rounded-xl border bg-background p-4" open={defaultOpen}>
+    <details className="rounded-lg border bg-background p-3" open={defaultOpen}>
       <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold">
         {title}
         <ChevronDown className="h-4 w-4 text-muted-foreground" />
       </summary>
-      <div className="mt-4 border-t pt-4">{children}</div>
+      <div className="mt-3 border-t pt-3">{children}</div>
     </details>
   );
 }
