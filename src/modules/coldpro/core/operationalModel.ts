@@ -157,7 +157,7 @@ export function resolveProcessMass(input: any): ProcessMassResolution {
   const massByFeedRateKgH = positive(input?.feedRateKgH ?? input?.feed_rate_kg_h);
   const massByCycleKgH = unitWeightKg * positive(input?.unitsPerCycle ?? input?.units_per_cycle) * positive(input?.cyclesPerHour ?? input?.cycles_per_hour);
   const calculatedFlow = continuousMassMode === "calculated_by_trays" ? massByTraysKgH : continuousMassMode === "calculated_by_units_per_hour" ? massByUnitsHourKgH : continuousMassMode === "calculated_by_belt_loading" ? massByBeltKgH : continuousMassMode === "calculated_by_belt_surface_density" ? massByBeltSurfaceKgH : continuousMassMode === "calculated_by_feed_rate" ? massByFeedRateKgH : massByCycleKgH;
-  const massFlowKgH = processMode === "continuous" ? (directMassKgH > 0 ? directMassKgH : calculatedFlow) : 0;
+  const massFlowKgH = processMode === "continuous" ? (continuousMassMode === "direct_mass_flow" && directMassKgH > 0 ? directMassKgH : calculatedFlow) : 0;
   if (processMode === "continuous") massBasis = "conveyor_flow";
   if (processMode === "continuous" && continuousMassMode === "calculated_by_belt_surface_density") massBasis = "belt_surface_density";
   if (processMode === "storage") massBasis = "storage_turnover";
