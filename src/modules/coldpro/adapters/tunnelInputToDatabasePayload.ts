@@ -11,7 +11,10 @@ const INPUT_FIELDS = [
   "number_of_pallets", "batch_time_h", "units_per_tray", "trays_per_cart", "number_of_carts", "tray_packaging_weight_kg",
   "cart_structure_weight_kg", "calculated_cart_mass_kg", "batch_mass_mode", "direct_batch_mass_kg", "boxes_per_batch",
   "racks_count", "containers_count", "packaging_weight_kg", "calculated_batch_mass_kg", "continuous_mass_mode", "trays_per_hour",
-  "tray_weight_kg", "units_per_hour", "units_per_row", "rows_per_meter", "belt_speed_m_min", "mass_flow_mode", "feed_rate_kg_h",
+  "tray_weight_kg", "units_per_hour", "units_per_row", "rows_per_meter", "belt_speed_m_min", "belt_width_m",
+  "belt_effective_length_m", "belt_area_m2", "belt_surface_density_kg_m2", "belt_mass_on_belt_kg", "belt_linear_load_kg_m",
+  "belt_flow_by_retention_kg_h", "belt_flow_by_speed_kg_h", "belt_calculated_flow_kg_h", "belt_nominal_capacity_kg_h",
+  "belt_calculated_retention_min", "belt_capacity_deviation_percent", "belt_motor_inside_environment", "belt_motor_dissipation_factor", "mass_flow_mode", "feed_rate_kg_h",
   "bed_width_m", "bed_length_m", "bed_area_m2", "superficial_air_velocity_m_s", "layers_count", "boxes_count", "tray_spacing_m",
   "package_type", "physical_model", "product_geometry", "surface_exposure_model", "airflow_source", "fan_airflow_m3_h",
   "tunnel_cross_section_width_m", "tunnel_cross_section_height_m", "blockage_factor", "gross_air_area_m2", "free_air_area_m2",
@@ -80,6 +83,7 @@ export function validateTunnelCalculationConsistency(tunnelResult: TunnelEngineR
 export function tunnelResultToDatabasePayload(form: TunnelSourceRecord, tunnelResult: TunnelEngineResult): TunnelDatabasePayload {
   const calculatedAt = tunnelResult?.calculatedAt ?? new Date().toISOString();
   const breakdownLoads = (tunnelResult?.calculationBreakdown?.loads ?? {}) as Record<string, unknown>;
+  const beltSurface = (tunnelResult?.beltSurface ?? tunnelResult?.calculationBreakdown?.mass?.beltSurface ?? {}) as Record<string, unknown>;
   const persistedLoads = {
     productLoadKW: round(tunnelResult?.productLoadKW),
     packagingLoadKW: round(tunnelResult?.packagingLoadKW),
@@ -99,6 +103,14 @@ export function tunnelResultToDatabasePayload(form: TunnelSourceRecord, tunnelRe
     calculated_pallet_mass_kg: round(tunnelResult?.calculatedPalletMassKg),
     calculated_cart_mass_kg: round(tunnelResult?.calculatedCartMassKg),
     calculated_batch_mass_kg: round(tunnelResult?.calculatedBatchMassKg),
+    belt_area_m2: round(beltSurface.areaM2 ?? form?.belt_area_m2),
+    belt_mass_on_belt_kg: round(beltSurface.massOnBeltKg ?? form?.belt_mass_on_belt_kg),
+    belt_linear_load_kg_m: round(beltSurface.linearLoadKgM ?? form?.belt_linear_load_kg_m),
+    belt_flow_by_retention_kg_h: round(beltSurface.flowByRetentionKgH ?? form?.belt_flow_by_retention_kg_h),
+    belt_flow_by_speed_kg_h: round(beltSurface.flowBySpeedKgH ?? form?.belt_flow_by_speed_kg_h),
+    belt_calculated_flow_kg_h: round(beltSurface.calculatedFlowKgH ?? form?.belt_calculated_flow_kg_h),
+    belt_calculated_retention_min: round(beltSurface.calculatedRetentionMin ?? form?.belt_calculated_retention_min),
+    belt_capacity_deviation_percent: round(beltSurface.capacityDeviationPercent ?? form?.belt_capacity_deviation_percent),
     units_per_pallet: round(tunnelResult?.unitsPerPallet ?? form?.units_per_pallet, 2),
     product_mass_per_pallet_kg: round(tunnelResult?.productMassPerPalletKg),
     packaging_mass_per_pallet_kg: round(tunnelResult?.packagingMassPerPalletKg),
