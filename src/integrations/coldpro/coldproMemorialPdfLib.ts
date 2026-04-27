@@ -1,5 +1,6 @@
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage, type RGB } from "pdf-lib";
 import { calculateProductLoadBreakdown, estimateFreezingTimePlankMin } from "@/features/coldpro/coldpro-calculation.engine";
+import { auditColdProTechnicalConsistency, getColdProApplicationLabel } from "@/modules/coldpro/core/technicalAudit";
 
 const A4: [number, number] = [595.28, 841.89];
 const M = 36;
@@ -11,6 +12,7 @@ const COLORS = {
   border: rgb(0.82, 0.84, 0.87),
   soft: rgb(0.95, 0.97, 0.98),
   white: rgb(1, 1, 1),
+  danger: rgb(0.72, 0.12, 0.16),
 };
 const PIE_COLORS = [COLORS.accent, COLORS.primary, rgb(0.29, 0.62, 0.53), rgb(0.84, 0.55, 0.18), rgb(0.55, 0.37, 0.75), rgb(0.77, 0.31, 0.37), rgb(0.39, 0.45, 0.55), rgb(0.18, 0.48, 0.64)];
 
@@ -474,16 +476,18 @@ function drawFinalLaudo(ctx: Ctx, project: any, environments: any[], results: an
     const r = results.find((item: any) => item.environment_id === env.id);
     const s = selections.find((item: any) => item.environment_id === env.id);
     const audit = r?.calculation_breakdown?.thermalCalculationResult ?? r?.calculation_breakdown?.mathematical_audit;
+    const technicalAudit = auditColdProTechnicalConsistency({ environment: env, result: r, selection: s });
     const required = Number(audit?.carga_requerida_validada ?? r?.total_required_kcal_h ?? 0);
     const offered = Number(audit?.capacidade_total_corrigida ?? s?.capacity_total_kcal_h ?? 0);
-    const status = audit?.status_dimensionamento ? { label: audit.status_dimensionamento, note: `Sobra técnica validada: ${fmt(audit.sobra_percentual)}%. Emissão permitida: ${audit.emissao_permitida}.` } : selectionStatus(required, offered);
+    const status = technicalAudit.isBlocked ? { label: "BLOQUEADO", note: "Resultado preliminar. Corrigir dados obrigatórios antes da emissão técnica." } : audit?.status_dimensionamento ? { label: audit.status_dimensionamento, note: `Sobra técnica validada: ${fmt(audit.sobra_percentual)}%. Emissão permitida: ${audit.emissao_permitida}.` } : selectionStatus(required, offered);
     heading(ctx, env.name, 3);
-    paragraph(ctx, `1. Conclusão executiva: ambiente com carga requerida de ${fmt(required, 0)} kcal/h e capacidade ofertada de ${fmt(offered, 0)} kcal/h. Status: ${status.label}.`, { size: 8.5, bold: true, gap: 3 });
+    paragraph(ctx, `1. Conclusão executiva: ${getColdProApplicationLabel(env.environment_type)} com carga requerida de ${fmt(required, 0)} kcal/h e capacidade ofertada de ${fmt(offered, 0)} kcal/h. Status: ${status.label}.`, { size: 8.5, bold: true, gap: 3, color: technicalAudit.isBlocked ? COLORS.danger : COLORS.text });
+    if (technicalAudit.isPreliminary) table(ctx, ["Bloqueio/alerta técnico", "Mensagem"], [...technicalAudit.blockers, ...technicalAudit.warnings].map((item: any) => [item.code, item.message]), [0.34, 0.66]);
     paragraph(ctx, `2. Validação das premissas: dimensões ${fmt(env.length_m)} x ${fmt(env.width_m)} x ${fmt(env.height_m)} m, volume ${fmt(env.volume_m3)} m3, regime ${fmt(env.internal_temp_c)} °C interno e ${fmt(env.external_temp_c)} °C externo.`, { size: 8.2, gap: 3 });
     paragraph(ctx, `3. Análise de produto e mudança de estado: a parcela de produto representa ${fmt(r?.product_kcal_h, 0)} kcal/h; validar massa diária, temperatura de entrada, temperatura final, embalagem e tempo de processo.`, { size: 8.2, gap: 3 });
     paragraph(ctx, `4. Comparação requerida x oferecida: ${status.note}`, { size: 8.2, gap: 3 });
     paragraph(ctx, `5. Riscos e observações: revisar infiltração, abertura de portas, umidade externa, degelo, carga de ventiladores e operação real do compressor.`, { size: 8.2, gap: 3 });
-    paragraph(ctx, `6. Recomendação final: ${audit?.bloqueios?.length ? "emissão final bloqueada; emitir apenas preliminar até corrigir as divergências." : offered < required ? "selecionar equipamento maior ou múltiplas unidades." : status.label.includes("SOBREDIMENSIONADO") ? "avaliar alternativa menor/modulante para evitar superdimensionamento." : "seleção tecnicamente aplicável, sujeita à validação das premissas de campo."}`, { size: 8.2, gap: 5 });
+    paragraph(ctx, `6. Recomendação final: ${technicalAudit.isBlocked || audit?.bloqueios?.length ? "emissão final bloqueada; emitir apenas preliminar até corrigir as divergências." : offered < required ? "selecionar equipamento maior ou múltiplas unidades." : status.label.includes("SOBREDIMENSIONADO") ? "avaliar alternativa menor/modulante para evitar superdimensionamento." : "seleção tecnicamente aplicável, sujeita à validação das premissas de campo."}`, { size: 8.2, gap: 5 });
   });
   if (aiAnalysis) paragraph(ctx, `Análise complementar: ${aiAnalysis}`, { size: 8, gap: 4 });
   paragraph(ctx, "Rodapé técnico: Engenheiro responsável: Engenharia CN ColdPro | Data: " + ctx.generatedAt + " | Status: emissão preliminar auditável.", { size: 7.5, color: COLORS.muted });

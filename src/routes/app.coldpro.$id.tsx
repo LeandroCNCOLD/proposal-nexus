@@ -37,6 +37,7 @@ import { saveCatalogEquipmentSelection } from "@/features/coldpro/catalog-select
 import { calculateExtraLoadPreview } from "@/features/coldpro/extra-loads-preview";
 import { databaseToTunnelInput } from "@/modules/coldpro/adapters/databaseToTunnelInput";
 import { calculateTunnelEngine } from "@/modules/coldpro/engines/tunnelEngine";
+import { auditColdProTechnicalConsistency } from "@/modules/coldpro/core/technicalAudit";
 
 export const Route = createFileRoute("/app/coldpro/$id")({ component: ColdProProjectPage });
 
@@ -322,6 +323,7 @@ function ColdProProjectPage() {
     [data?.selections, selection, selectedEnv?.id],
   );
   const tunnelPreview = tunnel && selectedEnv ? calculateTunnelEngine(databaseToTunnelInput(tunnel, selectedEnv)) : null;
+  const technicalAudit = React.useMemo(() => auditColdProTechnicalConsistency({ environment: selectedEnv, result, tunnel: tunnelPreview ?? tunnel, products, advancedProcesses: advancedProcess ? [advancedProcess] : [], selection }), [selectedEnv, result, tunnelPreview, tunnel, products, advancedProcess, selection]);
   const environmentLoad = Number(result?.transmission_kcal_h ?? 0);
   const savedProductLoad = Number(result?.product_kcal_h ?? 0) + Number(result?.packaging_kcal_h ?? 0) + Number(result?.calculation_breakdown?.respiration_kcal_h ?? 0) + Number(result?.tunnel_internal_load_kcal_h ?? 0);
   const productLoad = savedProductLoad > 0 ? savedProductLoad : Number(tunnelPreview?.totalKcalH ?? 0);
@@ -414,10 +416,11 @@ function ColdProProjectPage() {
   async function handleCalculate() {
     if (!selectedEnv) return;
     try {
-      await calculate.mutateAsync(selectedEnv.id);
+      const calculated = await calculate.mutateAsync(selectedEnv.id);
       toast.success("Carga térmica calculada");
       setStepIndex(4);
-      if (["blast_freezer", "cooling_tunnel"].includes(String(selectedEnv.environment_type))) {
+      const postAudit = auditColdProTechnicalConsistency({ environment: selectedEnv, result: calculated, tunnel: tunnelPreview ?? tunnel, products, advancedProcesses: advancedProcess ? [advancedProcess] : [], selection });
+      if (["blast_freezer", "cooling_tunnel"].includes(String(selectedEnv.environment_type)) && !postAudit.isBlocked) {
         try {
           await autoSelect.mutateAsync({ environmentId: selectedEnv.id, minQuantity: 1, equipmentKind: null });
           toast.success("Melhor equipamento CN Cold pré-selecionado");
@@ -428,6 +431,8 @@ function ColdProProjectPage() {
           `Analise tecnicamente o túnel ${selectedEnv.name} após o cálculo e a pré-seleção de equipamento. Atue como especialista em túnel de congelamento/resfriamento: valide carga térmica, temperatura interna, temperatura de evaporação, vazão/velocidade de ar quando disponíveis, tempo estimado de processo, margem da seleção, COP e eficiência. Dê insights práticos sobre melhorar desempenho, reduzir tempo de congelamento, ajustar temperatura do túnel, aumentar ou reduzir porte do equipamento e riscos técnicos. Seja criterioso e não invente dados ausentes.`,
         );
         if (analysis) setTunnelExpertAnalysis(analysis);
+      } else if (postAudit.isBlocked) {
+        toast.warning("Cálculo preliminar/bloqueado: corrija produto/processo, infiltração e degelo antes da seleção final.");
       }
     } catch (e: any) {
       toast.error(e?.message ?? "Erro no cálculo");
@@ -436,6 +441,10 @@ function ColdProProjectPage() {
 
   async function handleAutoSelect() {
     if (!selectedEnv) return;
+    if (technicalAudit.isBlocked) {
+      toast.error("Seleção baseada em carga preliminar inválida/incompleta.");
+      return;
+    }
     try {
       await autoSelect.mutateAsync({
         environmentId: selectedEnv.id,
@@ -833,7 +842,7 @@ function ColdProProjectPage() {
                           {calculate.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Calculator className="h-4 w-4" />}
                           {calculate.isPending ? "Calculando..." : "Calcular carga"}
                         </button>
-                        <button type="button" className="inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm hover:bg-muted disabled:opacity-50" onClick={handleAutoSelect} disabled={!result || autoSelect.isPending}>
+                        <button type="button" className="inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm hover:bg-muted disabled:opacity-50" onClick={handleAutoSelect} disabled={!result || autoSelect.isPending || technicalAudit.isBlocked}>
                           {autoSelect.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Snowflake className="h-4 w-4" />}
                           {autoSelect.isPending ? "Selecionando..." : "Selecionar automático"}
                         </button>
@@ -853,6 +862,15 @@ function ColdProProjectPage() {
                       </div>
                     </div>
                   </div>
+
+                  {result && technicalAudit.isPreliminary ? (
+                    <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+                      <div className="font-semibold">Resultado preliminar. Corrigir dados obrigatórios antes da emissão técnica.</div>
+                      <ul className="mt-2 list-disc space-y-1 pl-5">
+                        {[...technicalAudit.blockers, ...technicalAudit.warnings].map((item) => <li key={item.code}>{item.message}</li>)}
+                      </ul>
+                    </div>
+                  ) : null}
 
                   <div className="rounded-lg border bg-background p-3 print:hidden">
                     <div className="mb-3">
@@ -959,7 +977,7 @@ function ColdProProjectPage() {
                       type="button"
                       className="rounded-md border bg-background px-4 py-2 text-sm hover:bg-muted"
                       onClick={handleAutoSelect}
-                      disabled={autoSelect.isPending}
+                      disabled={autoSelect.isPending || technicalAudit.isBlocked}
                     >
                       {autoSelect.isPending ? "Selecionando..." : "Selecionar melhor modelo"}
                     </button>

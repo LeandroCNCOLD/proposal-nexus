@@ -10,6 +10,7 @@ import { CapacityComparisonChart } from "@/modules/coldpro/components/charts/Cap
 import { ProjectEnvironmentPieChart } from "@/modules/coldpro/components/charts/ProjectEnvironmentPieChart";
 import { ProjectStackedLoadChart } from "@/modules/coldpro/components/charts/ProjectStackedLoadChart";
 import { environmentLoadRows, projectEnvironmentRows, projectGroupedRows } from "@/modules/coldpro/components/charts/chartData";
+import { auditColdProTechnicalConsistency } from "@/modules/coldpro/core/technicalAudit";
 
 function fmt(value: unknown, digits = 2) {
   return new Intl.NumberFormat("pt-BR", { maximumFractionDigits: digits }).format(Number(value ?? 0));
@@ -249,12 +250,19 @@ export function ColdProReport({
           const envProducts = products.filter((p: any) => p.environment_id === env.id);
           const envAdvancedProcesses = advancedProcesses.filter((p: any) => p.environment_id === env.id);
           const normalized = normalizeColdProResult(result, selection, env, envProducts);
+          const technicalAudit = auditColdProTechnicalConsistency({ environment: env, result, products: envProducts, advancedProcesses: envAdvancedProcesses, selection });
           return (
             <section key={env.id} className="space-y-3 border-t pt-4">
               <h2 className="text-base font-semibold">
                 {idx + 1}. {env.name}
                 <span className="ml-2 text-sm font-normal text-muted-foreground">({env.environment_type})</span>
               </h2>
+              {technicalAudit.isPreliminary ? (
+                <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+                  <div className="font-semibold">Resultado preliminar. Corrigir dados obrigatórios antes da emissão técnica.</div>
+                  <ul className="mt-1 list-disc pl-5">{[...technicalAudit.blockers, ...technicalAudit.warnings].map((item) => <li key={item.code}>{item.message}</li>)}</ul>
+                </div>
+              ) : null}
 
               <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm md:grid-cols-3">
                 <div>Dimensões: <b>{fmt(env.length_m)} × {fmt(env.width_m)} × {fmt(env.height_m)} m</b></div>

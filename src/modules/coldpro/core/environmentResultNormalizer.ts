@@ -21,6 +21,7 @@ export function normalizeColdProEnvironmentResult({
   const technicalAlerts = Array.from(new Set([
     ...(Array.isArray(result?.calculation_warnings) ? result.calculation_warnings : []),
     ...(Array.isArray(result?.calculation_breakdown?.validation_alerts) ? result.calculation_breakdown.validation_alerts.map((item: any) => item?.message ?? item) : []),
+    ...(Array.isArray(normalized.consistencyAudit?.warnings) ? normalized.consistencyAudit.warnings : []),
     ...(Array.isArray(normalized.tunnelValidation.warnings) ? normalized.tunnelValidation.warnings : []),
     ...(Array.isArray(normalized.calculationMethodSummary.warnings) ? normalized.calculationMethodSummary.warnings : []),
     ...(Array.isArray(normalized.energySimulation.warnings) ? normalized.energySimulation.warnings : []),
@@ -47,6 +48,10 @@ export function normalizeColdProEnvironmentResult({
       requiredTR: normalized.summary.requiredTR,
       source: "environment_total_required_load",
     },
+    technicalStatus: normalized.summary.technicalStatus,
+    isBlocked: normalized.summary.isBlocked,
+    isPreliminary: normalized.summary.isPreliminary,
+    displayApplicationLabel: normalized.summary.displayApplicationLabel,
     ...normalized,
   };
 }

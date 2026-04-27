@@ -1,5 +1,6 @@
 import { listAshraeColdProComparisons } from "./ashraeComparison";
 import { simulateMonthlyEnergyConsumption } from "../energy/monthlyEnergySimulation";
+import { auditColdProTechnicalConsistency } from "./technicalAudit";
 
 export type ColdProNormalizedResult = ReturnType<typeof normalizeColdProResult>;
 
@@ -86,6 +87,7 @@ export function normalizeColdProResult(rawResult: any, selection?: any | null, e
   const frost = breakdown.evaporator_frost ?? breakdown.infiltration_technical ?? {};
   const advanced = Array.isArray(breakdown.advanced_processes) ? breakdown.advanced_processes : [];
   const calculationMethodSummary = buildCalculationMethodSummary(result);
+  const technicalAudit = breakdown.technicalAudit ?? auditColdProTechnicalConsistency({ environment, result, tunnel, products, advancedProcesses: advanced, selection });
 
   const directProductKcalH = num(result.product_kcal_h);
   const tunnelProcessKcalH = tunnelLoads.totalKcalH || num(result.tunnel_internal_load_kcal_h || tunnel.total_kcal_h || tunnel.total_kw * KCAL_PER_KW);
@@ -166,6 +168,10 @@ export function normalizeColdProResult(rawResult: any, selection?: any | null, e
       safetyKcalH: round(safetyKcalH, 2),
       status: String(audit.status_dimensionamento ?? result.status ?? (requiredKcalH > 0 ? "calculado" : "pendente")),
       technicalSurplusPercent: round(surplusPercent, 2),
+      technicalStatus: technicalAudit.technicalStatus,
+      isBlocked: technicalAudit.isBlocked,
+      isPreliminary: technicalAudit.isPreliminary,
+      displayApplicationLabel: technicalAudit.displayApplicationLabel,
     },
     loadDistribution,
     tunnelLoadBreakdown: {
@@ -255,8 +261,10 @@ export function normalizeColdProResult(rawResult: any, selection?: any | null, e
       deltaComponentVsSubtotalPercent: round(deltaComponentVsSubtotalPercent, 2),
       tunnelVsProductTabDeltaKcalH: round(tunnelProcessKcalH - directProductKcalH, 2),
       tunnelVsProductTabDeltaPercent: pct(Math.abs(tunnelProcessKcalH - directProductKcalH), Math.max(tunnelProcessKcalH, directProductKcalH)),
-      hasCriticalDivergence: warnings.some((warning) => warning.includes("não fecha") || warning.includes("capacidade corrigida") || warning.includes("subdimensionado")),
-      warnings: Array.from(new Set([...warnings, ...energySimulation.warnings])),
+      hasCriticalDivergence: technicalAudit.isBlocked || warnings.some((warning) => warning.includes("não fecha") || warning.includes("capacidade corrigida") || warning.includes("subdimensionado")),
+      technicalStatus: technicalAudit.technicalStatus,
+      blockers: technicalAudit.blockers,
+      warnings: Array.from(new Set([...warnings, ...energySimulation.warnings, ...technicalAudit.criticalWarnings, ...technicalAudit.warnings.map((item: any) => item.message)])),
     },
     calculationMethod: breakdown.calculationMethod ?? null,
     calculationMethodSummary,

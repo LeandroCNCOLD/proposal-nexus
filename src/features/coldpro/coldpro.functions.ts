@@ -8,6 +8,7 @@ import { findEquipmentCandidates, suggestApplication, suggestEvaporationTemp } f
 import { formToTunnelInput } from "@/modules/coldpro/adapters/formToTunnelInput";
 import { tunnelResultToDatabasePayload } from "@/modules/coldpro/adapters/tunnelInputToDatabasePayload";
 import { calculateTunnelEngine } from "@/modules/coldpro/engines/tunnelEngine";
+import { auditColdProTechnicalConsistency } from "@/modules/coldpro/core/technicalAudit";
 
 const finiteNumber = z.coerce.number().finite();
 const nonNegativeNumber = finiteNumber.min(0);
@@ -341,6 +342,8 @@ export const autoSelectColdProEquipment = createServerFn({ method: "POST" })
     if (envError) throw new Error(envError.message);
     const { data: result, error: resultError } = await supabase.from("coldpro_results").select("*").eq("environment_id", data.environmentId).order("created_at", { ascending: false }).limit(1).single();
     if (resultError) throw new Error("Calcule a carga térmica antes de selecionar equipamento.");
+    const audit = auditColdProTechnicalConsistency({ environment: env, result });
+    if (audit.isBlocked) throw new Error("Seleção baseada em carga preliminar inválida/incompleta. Corrija os dados obrigatórios antes da seleção automática final.");
     const candidates = await findEquipmentCandidates({
       required_kcal_h: Number(result.total_required_kcal_h),
       internal_temp_c: Number(env.internal_temp_c),
