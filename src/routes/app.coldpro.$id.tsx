@@ -37,6 +37,7 @@ import { saveCatalogEquipmentSelection } from "@/features/coldpro/catalog-select
 import { calculateExtraLoadPreview } from "@/features/coldpro/extra-loads-preview";
 import { databaseToTunnelInput } from "@/modules/coldpro/adapters/databaseToTunnelInput";
 import { calculateTunnelEngine } from "@/modules/coldpro/engines/tunnelEngine";
+import { auditColdProTechnicalConsistency } from "@/modules/coldpro/core/technicalAudit";
 
 export const Route = createFileRoute("/app/coldpro/$id")({ component: ColdProProjectPage });
 
@@ -322,6 +323,7 @@ function ColdProProjectPage() {
     [data?.selections, selection, selectedEnv?.id],
   );
   const tunnelPreview = tunnel && selectedEnv ? calculateTunnelEngine(databaseToTunnelInput(tunnel, selectedEnv)) : null;
+  const technicalAudit = React.useMemo(() => auditColdProTechnicalConsistency({ environment: selectedEnv, result, tunnel: tunnelPreview ?? tunnel, products, advancedProcesses: advancedProcess ? [advancedProcess] : [], selection }), [selectedEnv, result, tunnelPreview, tunnel, products, advancedProcess, selection]);
   const environmentLoad = Number(result?.transmission_kcal_h ?? 0);
   const savedProductLoad = Number(result?.product_kcal_h ?? 0) + Number(result?.packaging_kcal_h ?? 0) + Number(result?.calculation_breakdown?.respiration_kcal_h ?? 0) + Number(result?.tunnel_internal_load_kcal_h ?? 0);
   const productLoad = savedProductLoad > 0 ? savedProductLoad : Number(tunnelPreview?.totalKcalH ?? 0);
