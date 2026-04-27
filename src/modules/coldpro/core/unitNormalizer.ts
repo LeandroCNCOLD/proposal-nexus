@@ -61,7 +61,7 @@ function normalizeEnergyForKj(kjValue: unknown, kcalValue: unknown, defaultKcalV
 
 export function normalizeProductForKcalEngine(input: any) {
   const defaults = productDefaults(input);
-  const preferKJ = input?.prefer_kj_source === true || input?.product_id || input?.is_ashrae_reference === true || String(input?.source ?? "").toLowerCase().includes("ashrae");
+  const preferKJ = input?.prefer_kj_source === true || input?.product_id || (input?.id && input?.name) || input?.is_ashrae_reference === true || String(input?.source ?? "").toLowerCase().includes("ashrae");
   const cpAbove = normalizeEnergyForKcal(input?.specific_heat_above_kj_kg_k ?? input?.cpAboveKJkgK, input?.specific_heat_above_kcal_kg_c ?? input?.cpAboveKcalKgC, preferKJ ? "prefer_kj" : defaults?.cpAboveKcalKgC, { kcal: "kcal/kg°C", kj: "kJ/kg.K" });
   const cpBelow = normalizeEnergyForKcal(input?.specific_heat_below_kj_kg_k ?? input?.cpBelowKJkgK, input?.specific_heat_below_kcal_kg_c ?? input?.cpBelowKcalKgC, preferKJ ? "prefer_kj" : defaults?.cpBelowKcalKgC, { kcal: "kcal/kg°C", kj: "kJ/kg.K" });
   const latentHeat = normalizeEnergyForKcal(input?.latent_heat_kj_kg ?? input?.latentHeatKJkg, input?.latent_heat_kcal_kg ?? input?.latentHeatKcalKg, preferKJ ? "prefer_kj" : defaults?.latentHeatKcalKg, { kcal: "kcal/kg", kj: "kJ/kg" });
