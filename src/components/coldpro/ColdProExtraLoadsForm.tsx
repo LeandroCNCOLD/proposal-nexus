@@ -71,6 +71,24 @@ export function ColdProExtraLoadsForm({ environment, catalogFanLoadKcalH = 0, on
       </div>
 
       <Accordion type="multiple" defaultValue={["infiltracao", "pessoas", "motores", "seguranca"]} className="space-y-3">
+        <AccordionItem value="operacao" className="rounded-xl border px-4">
+          <AccordionTrigger className="hover:no-underline"><span className="inline-flex items-center gap-2"><ShieldPlus className="h-4 w-4 text-primary" /> Configuração de Operação</span></AccordionTrigger>
+          <AccordionContent>
+            <ColdProFormSection title="Horas de Operação Diária" description="Defina as horas de operação para cálculo correto de infiltração, degelo e pessoas.">
+              <div className="grid grid-cols-1 gap-x-10 md:grid-cols-2">
+                <div>
+                  <ColdProField label="Horas de operação" unit="h/dia" description="Tempo total de funcionamento do ambiente por dia"><ColdProInput {...num("operating_hours_per_day")} /></ColdProField>
+                  <ColdProField label="Horas de recuperação infiltração" unit="h/dia" description="Tempo para recuperar temperatura após infiltração"><ColdProInput {...num("infiltration_recovery_hours_per_day")} /></ColdProField>
+                </div>
+                <div>
+                  <ColdProField label="Horas de recuperação degelo" unit="h/dia" description="Tempo para recuperar temperatura após degelo"><ColdProInput {...num("defrost_recovery_hours_per_day")} /></ColdProField>
+                  <ColdProField label="Horas compressor" unit="h/dia" description="Tempo de funcionamento do compressor (padrão: 16h)"><ColdProInput {...num("compressor_hours_per_day")} /></ColdProField>
+                </div>
+              </div>
+            </ColdProFormSection>
+          </AccordionContent>
+        </AccordionItem>
+
         <AccordionItem value="infiltracao" className="rounded-xl border px-4">
           <AccordionTrigger className="hover:no-underline"><span className="inline-flex items-center gap-2"><DoorOpen className="h-4 w-4 text-primary" /> Infiltração / renovação de ar</span></AccordionTrigger>
           <AccordionContent>
@@ -94,7 +112,7 @@ export function ColdProExtraLoadsForm({ environment, catalogFanLoadKcalH = 0, on
                   </ColdProField>
                   <ColdProField label="Trocas de ar adicionais" unit="vol/h"><ColdProInput {...num("air_changes_per_hour")} /></ColdProField>
                   <ColdProField label="Ar externo contínuo" unit="m³/h"><ColdProInput {...num("fresh_air_m3_h")} /></ColdProField>
-                  <ColdProField label="Infiltração porta adicional" unit="m³/h"><ColdProInput {...num("door_infiltration_m3_h")} /></ColdProField>
+                  <ColdProField label="Infiltração porta adicional" unit="m³/dia"><ColdProInput {...num("door_infiltration_m3_h")} /></ColdProField>
                   <ColdProCalculatedInfo label="Carga de infiltração" value={`${fmtColdPro(preview.infiltration_kcal_h)} kcal/h`} description={`Sensível ${fmtColdPro(preview.infiltration_breakdown.sensibleKcalH)} · latente ${fmtColdPro(preview.infiltration_breakdown.latentKcalH)} · ar ${fmtColdPro(preview.infiltration_breakdown.totalInfiltrationM3Day)} m³/dia`} tone={preview.infiltration_kcal_h > 0 ? "success" : "warning"} />
                 </div>
               </div>
