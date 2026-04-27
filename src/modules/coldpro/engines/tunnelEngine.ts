@@ -102,12 +102,12 @@ function buildThermalReliabilityAlerts(input: TunnelEngineInput, energy: ReturnT
   const conversions = (input?.unitConversions ?? {}) as Record<string, unknown>;
   const alerts: Array<{ level: "error" | "warning" | "info"; code: string; message: string }> = [];
   const unitMissing = (key: string) => !conversions[key] || conversions[key] === "missing";
-  if (toNumber(input?.finalTempC) < 0 && toNumber(input?.latentHeatKJkg) <= 0) alerts.push({ level: "error", code: "latent_heat_zero_frozen_product", message: "Calor latente zerado em produto congelado; a carga térmica fica subestimada." });
+  if (toNumber(input?.finalTempC) < 0 && toNumber(input?.latentHeatKcalKg) <= 0) alerts.push({ level: "error", code: "latent_heat_zero_frozen_product", message: "Calor latente zerado em produto congelado; a carga térmica fica subestimada." });
   if (!isProvided(input?.frozenWaterFraction)) alerts.push({ level: "warning", code: "frozen_water_fraction_missing", message: "Fração congelável vazia; foi aplicado default técnico." });
-  if (energy.totalKJkg > 0 && energy.totalKJkg < 80) alerts.push({ level: "warning", code: "low_specific_energy", message: "Energia específica menor que 80 kJ/kg; revisar Cp, latente e unidades." });
-  if (toNumber(input?.cpBelowKJkgK) > 0 && toNumber(input?.cpBelowKJkgK) < 1 && unitMissing("cpBelowKJkgK")) alerts.push({ level: "warning", code: "cp_below_low_without_unit", message: "Cp abaixo menor que 1 sem unidade declarada; pode ter sido informado em kcal/kg°C." });
-  if (toNumber(input?.latentHeatKJkg) > 0 && toNumber(input?.latentHeatKJkg) < 100 && unitMissing("latentHeatKJkg")) alerts.push({ level: "warning", code: "latent_low_without_unit", message: "Calor latente menor que 100 kJ/kg sem unidade declarada; pode ter sido informado em kcal/kg." });
-  const expectedKW = timeH > 0 ? massForLoad * energy.totalKJkg / (timeH * 3600) : massForLoad * energy.totalKJkg / 3600;
+  if (energy.totalKcalKg > 0 && energy.totalKcalKg < 19.1) alerts.push({ level: "warning", code: "low_specific_energy", message: "Energia específica menor que 19,1 kcal/kg; revisar Cp, latente e unidades." });
+  if (toNumber(input?.cpBelowKcalKgC) > 0 && toNumber(input?.cpBelowKcalKgC) < 0.12 && unitMissing("cpBelowKcalKgC")) alerts.push({ level: "warning", code: "cp_below_low_without_unit", message: "Cp abaixo menor que 0,12 kcal/kg°C sem unidade declarada." });
+  if (toNumber(input?.latentHeatKcalKg) > 0 && toNumber(input?.latentHeatKcalKg) < 24 && unitMissing("latentHeatKcalKg")) alerts.push({ level: "warning", code: "latent_low_without_unit", message: "Calor latente menor que 24 kcal/kg sem unidade declarada." });
+  const expectedKW = timeH > 0 ? (massForLoad * energy.totalKcalKg / timeH) / 859.845 : (massForLoad * energy.totalKcalKg) / 859.845;
   if (expectedKW > 0 && Math.abs(expectedKW - productLoadKW) / expectedKW > 0.05) alerts.push({ level: "error", code: "final_load_mass_time_incompatible", message: "Carga final incompatível com massa, tempo e energia específica." });
   return alerts;
 }
@@ -213,8 +213,8 @@ function resolveStaticMass(input: TunnelEngineInput) {
 
 function requiredPositiveFields(input: TunnelEngineInput, isStatic: boolean, staticMassKg: number, characteristicDimensionM: number, crossesFreezing: boolean, airVelocityUsedMS: number, continuousMassMode: string): string[] {
   const commonNumericFields = ["initialTempC", "finalTempC", "freezingPointC"];
-  const commonPositiveFields = ["cpAboveKJkgK"];
-  const freezingPositiveFields = crossesFreezing ? ["cpBelowKJkgK", "latentHeatKJkg", "frozenWaterFraction"] : [];
+  const commonPositiveFields = ["cpAboveKcalKgC"];
+  const freezingPositiveFields = crossesFreezing ? ["cpBelowKcalKgC", "latentHeatKcalKg", "frozenWaterFraction"] : [];
   const missingNumericFields = commonNumericFields.filter((field) => !isProvided(input?.[field]) || !Number.isFinite(Number(input?.[field])));
   const missingPositiveFields = [...commonPositiveFields, ...freezingPositiveFields].filter((field) => !isProvided(input?.[field]) || toNumber(input?.[field], 0) <= 0);
   const hasHInput = positiveNumber(input?.manualConvectiveCoefficientWM2K) > 0 || airVelocityUsedMS > 0;
@@ -258,7 +258,7 @@ function requiredPositiveFields(input: TunnelEngineInput, isStatic: boolean, sta
 function canEstimateFreezingTime(input: TunnelEngineInput, distanceToCoreM: number, hEffectiveWM2K: number | null, kEffectiveWMK: number): boolean {
   return (
     positiveNumber(input?.densityKgM3) > 0 &&
-    positiveNumber(input?.latentHeatKJkg) > 0 &&
+    positiveNumber(input?.latentHeatKcalKg) > 0 &&
     positiveNumber(input?.frozenWaterFraction) > 0 &&
     distanceToCoreM > 0 &&
     toNumber(hEffectiveWM2K, 0) > 0 &&
@@ -276,9 +276,9 @@ function productLoadMissingFields(input: TunnelEngineInput, isStatic: boolean, s
     !isProvided(input?.initialTempC) ? "temperatura inicial do produto" : "",
     !isProvided(input?.finalTempC) ? "temperatura final do produto" : "",
     !isProvided(input?.freezingPointC) ? "temperatura de congelamento" : "",
-    positiveNumber(input?.cpAboveKJkgK) <= 0 ? "Cp acima do congelamento" : "",
-    energy.crossesFreezingPoint && positiveNumber(input?.cpBelowKJkgK) <= 0 ? "Cp abaixo do congelamento" : "",
-    energy.crossesFreezingPoint && positiveNumber(input?.latentHeatKJkg) <= 0 ? "calor latente" : "",
+    positiveNumber(input?.cpAboveKcalKgC) <= 0 ? "Cp acima do congelamento" : "",
+    energy.crossesFreezingPoint && positiveNumber(input?.cpBelowKcalKgC) <= 0 ? "Cp abaixo do congelamento" : "",
+    energy.crossesFreezingPoint && positiveNumber(input?.latentHeatKcalKg) <= 0 ? "calor latente" : "",
     energy.crossesFreezingPoint && positiveNumber(input?.frozenWaterFraction) <= 0 ? "fração congelável" : "",
   ]);
 }
@@ -314,7 +314,7 @@ function resolveInfiltrationMethod(input: TunnelEngineInput) {
 
 function resolvePackagingLoad(input: TunnelEngineInput, operationRegime: "continuous" | "batch") {
   const deltaT = Math.abs(toNumber(input?.initialTempC) - toNumber(input?.finalTempC));
-  const cp = positiveNumber(input?.packagingCpKJkgK ?? input?.packaging_cp_kj_kg_k);
+  const cp = positiveNumber(input?.packagingCpKcalKgC ?? input?.packaging_cp_kcal_kg_c ?? (positiveNumber(input?.packagingCpKJkgK ?? input?.packaging_cp_kj_kg_k) / 4.1868));
   const batchTimeH = positiveNumber(input?.batchTimeH ?? input?.batch_time_h);
   const continuousMassKgH = positiveNumber(input?.packagingMassKgH ?? input?.packaging_mass_kg_h ?? input?.packaging_mass_kg_hour);
   const numberOfPallets = positiveNumber(input?.numberOfPallets ?? input?.number_of_pallets) || 1;
@@ -327,10 +327,10 @@ function resolvePackagingLoad(input: TunnelEngineInput, operationRegime: "contin
   ];
   const batchCandidate = candidates.find((candidate) => candidate.mass > 0);
   if (operationRegime === "batch") {
-    const loadKW = batchCandidate && cp > 0 && batchTimeH > 0 ? (batchCandidate.mass * cp * deltaT) / (batchTimeH * 3600) : 0;
+    const loadKW = batchCandidate && cp > 0 && batchTimeH > 0 ? (batchCandidate.mass * cp * deltaT / batchTimeH) / 859.845 : 0;
     return { packagingLoadKW: loadKW, packagingMassKgH: continuousMassKgH, packagingMassBatchKg: batchCandidate?.mass ?? 0, packagingLoadMethod: "batch_total_mass" as const, packagingMassSource: batchCandidate?.source ?? "none" };
   }
-  const loadKW = continuousMassKgH > 0 && cp > 0 ? (continuousMassKgH * cp * deltaT) / 3600 : 0;
+  const loadKW = continuousMassKgH > 0 && cp > 0 ? (continuousMassKgH * cp * deltaT) / 859.845 : 0;
   return { packagingLoadKW: loadKW, packagingMassKgH: continuousMassKgH, packagingMassBatchKg: 0, packagingLoadMethod: "continuous_mass_flow" as const, packagingMassSource: "packagingMassKgH" };
 }
 
@@ -407,23 +407,27 @@ function calculateTunnelCore(input: TunnelEngineInput) {
     initialTempC: input?.initialTempC,
     finalTempC: input?.finalTempC,
     freezingPointC: input?.freezingPointC,
-    cpAboveKJkgK: input?.cpAboveKJkgK,
-    cpBelowKJkgK: input?.cpBelowKJkgK,
-    latentHeatKJkg: input?.latentHeatKJkg,
+    cpAboveKcalKgC: nullableNumber(input?.cpAboveKcalKgC),
+    cpBelowKcalKgC: nullableNumber(input?.cpBelowKcalKgC),
+    latentHeatKcalKg: nullableNumber(input?.latentHeatKcalKg),
     frozenWaterFraction: input?.frozenWaterFraction,
     latentResidualFactor: input?.latentResidualFactor,
     allowPhaseChange: input?.allowPhaseChange,
   });
 
   const productLoadKW = tunnelMode.operationRegime === "batch"
-    ? calculateBatchProductLoadKW({ massKg: staticMassKg, specificEnergyKJkg: energy.totalKJkg, timeH: input?.batchTimeH })
-    : calculateContinuousProductLoadKW({ massKgH: usedMassKgH, specificEnergyKJkg: energy.totalKJkg });
+    ? calculateBatchProductLoadKW({ massKg: staticMassKg, specificEnergyKcalKg: energy.totalKcalKg, timeH: input?.batchTimeH })
+    : calculateContinuousProductLoadKW({ massKgH: usedMassKgH, specificEnergyKcalKg: energy.totalKcalKg });
   const productLoadMissing = productLoadMissingFields(input, tunnelMode.operationRegime === "batch", staticMassKg, usedMassKgH, energy);
   const thermalReliabilityAlerts = buildThermalReliabilityAlerts(input, energy, productLoadKW, tunnelMode.operationRegime === "batch" ? staticMassKg : usedMassKgH, tunnelMode.operationRegime === "batch" ? positiveNumber(input?.batchTimeH) : 0);
 
   const productEnergyBreakdown = {
     unitAudit: input?.unitAudit ?? null,
-    effectiveCalculationUnit: "kJ/kg.K para Cp e kJ/kg para calor latente",
+    effectiveCalculationUnit: "kcal/kg°C para Cp e kcal/kg para calor latente",
+    sensibleAboveKcalKg: energy.sensibleAboveKcalKg,
+    latentKcalKg: energy.latentKcalKg,
+    sensibleBelowKcalKg: energy.sensibleBelowKcalKg,
+    totalKcalKg: energy.totalKcalKg,
     sensibleAboveKJkg: energy.sensibleAboveKJkg,
     latentKJkg: energy.latentKJkg,
     sensibleBelowKJkg: energy.sensibleBelowKJkg,
@@ -453,7 +457,7 @@ function calculateTunnelCore(input: TunnelEngineInput) {
   const estimatedTimeMin = canEstimateFreezingTime(input, distanceToCoreM, h.hEffectiveWM2K, kEffectiveWMK)
     ? calculatePlankFreezingTimeMin({
         densityKgM3: input?.densityKgM3,
-        latentHeatKJkg: input?.latentHeatKJkg,
+        latentHeatKJkg: input?.latentHeatKcalKg ? Number(input.latentHeatKcalKg) * 4.1868 : 0,
         frozenWaterFraction: input?.frozenWaterFraction,
         freezingPointC: input?.freezingPointC,
         airTempC: input?.airTempC,
@@ -497,7 +501,7 @@ function calculateTunnelCore(input: TunnelEngineInput) {
 
   const freezingTimeMissingFields = [
     positiveNumber(input?.densityKgM3) <= 0 ? "densidade do produto" : "",
-    energy.crossesFreezingPoint && positiveNumber(input?.latentHeatKJkg) <= 0 ? "calor latente" : "",
+    energy.crossesFreezingPoint && positiveNumber(input?.latentHeatKcalKg) <= 0 ? "calor latente" : "",
     energy.crossesFreezingPoint && positiveNumber(input?.frozenWaterFraction) <= 0 ? "fração congelável" : "",
     !isProvided(input?.freezingPointC) ? "temperatura de congelamento" : "",
     !isProvided(input?.airTempC) ? "temperatura do ar" : "",
@@ -614,7 +618,7 @@ function calculateTunnelCore(input: TunnelEngineInput) {
     kEffectiveWMK: "frozenConductivityWMK × thermalPenetrationFactor",
     continuousProductLoadKW: "massKgH × specificEnergyKJkg / 3600",
     batchProductLoadKW: "massKg × specificEnergyKJkg / (timeH × 3600)",
-    packagingLoadKW: tunnelMode.operationRegime === "batch" ? "packagingMassKgBatch × packagingCpKJkgK × abs(initialTempC - finalTempC) / (batchTimeH × 3600)" : "packagingMassKgH × packagingCpKJkgK × abs(initialTempC - finalTempC) / 3600",
+    packagingLoadKW: tunnelMode.operationRegime === "batch" ? "packagingMassKgBatch × packagingCpKcalKgC × abs(initialTempC - finalTempC) / batchTimeH / 859,845" : "packagingMassKgH × packagingCpKcalKgC × abs(initialTempC - finalTempC) / 859,845",
     internalLoadKW: "beltMotorKW + internalFansKW + otherInternalKW",
     transmissionLoadKW: "U × A × ΔT / 1000",
     infiltrationLoadKW: "m_ar × (h_externo - h_interno), h = 1.006*T + W*(2501 + 1.86*T)",

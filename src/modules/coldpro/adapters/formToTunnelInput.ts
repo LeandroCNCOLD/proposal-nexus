@@ -1,4 +1,4 @@
-import { normalizeThermalProperties } from "../core/unitNormalizer";
+import { normalizeProductForKcalEngine } from "../core/unitNormalizer";
 import { safeNumber } from "../core/units";
 import type { TunnelEngineInput, TunnelSourceRecord } from "../types/tunnelEngine.types";
 
@@ -38,7 +38,7 @@ function calculateStaticMass(source: TunnelSourceRecord, isStatic: boolean) {
 }
 
 export function formToTunnelInput(form: TunnelSourceRecord, environment: TunnelSourceRecord | null | undefined): TunnelEngineInput {
-  const thermal = normalizeThermalProperties(form);
+  const thermal = normalizeProductForKcalEngine(form);
   const airTempSource = form?.air_temp_source ?? "environment";
   const packagingSpecificHeatKJkgK = safeNumber(form?.packaging_specific_heat_kj_kg_k);
   const approved = false;
@@ -153,9 +153,9 @@ export function formToTunnelInput(form: TunnelSourceRecord, environment: TunnelS
     initialTempC: safeNumber(form?.inlet_temp_c),
     finalTempC: safeNumber(form?.outlet_temp_c),
     freezingPointC: safeNumber(form?.freezing_temp_c, -1.5),
-    cpAboveKJkgK: thermal.cpAboveKJkgK,
-    cpBelowKJkgK: thermal.cpBelowKJkgK,
-    latentHeatKJkg: thermal.latentHeatKJkg,
+    cpAboveKcalKgC: thermal.cpAboveKcalKgC,
+    cpBelowKcalKgC: thermal.cpBelowKcalKgC,
+    latentHeatKcalKg: thermal.latentHeatKcalKg,
     unitConversions: thermal.conversionSources,
     unitAudit: thermal.unitAudit,
     thermalDefaultsApplied: thermal.defaultsApplied,
@@ -165,9 +165,7 @@ export function formToTunnelInput(form: TunnelSourceRecord, environment: TunnelS
     densityKgM3: safeNumber(form?.density_kg_m3),
     packagingMassKgH,
     packagingMassKgBatch,
-    packagingCpKJkgK: packagingSpecificHeatKJkgK > 0
-      ? packagingSpecificHeatKJkgK
-      : safeNumber(form?.packaging_specific_heat_kcal_kg_c) * KCAL_TO_KJ,
+    packagingCpKcalKgC: safeNumber(form?.packaging_specific_heat_kcal_kg_c, packagingSpecificHeatKJkgK > 0 ? packagingSpecificHeatKJkgK / KCAL_TO_KJ : 0),
     beltMotorKW: safeNumber(form?.belt_motor_kw),
     internalFansKW: safeNumber(form?.internal_fans_kw),
     otherInternalKW: safeNumber(form?.other_internal_kw),

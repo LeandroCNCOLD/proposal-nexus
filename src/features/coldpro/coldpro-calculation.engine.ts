@@ -23,7 +23,7 @@ import { calculateEvaporatorFanLoad, calculateMotorLoadKcalH, calculatePsychrome
 import { databaseToTunnelInput } from "@/modules/coldpro/adapters/databaseToTunnelInput";
 import { listAshraeColdProComparisons } from "@/modules/coldpro/core/ashraeComparison";
 import { COLDPRO_CALCULATION_METHODS } from "@/modules/coldpro/core/calculationMethodRegistry";
-import { normalizeThermalProperties } from "@/modules/coldpro/core/unitNormalizer";
+import { normalizeProductForKcalEngine } from "@/modules/coldpro/core/unitNormalizer";
 import { buildCalculationMethodReport } from "@/modules/coldpro/reports/calculationMethodReport";
 import { COLDPRO_TUNNEL_ENGINE_VERSION, calculateTunnelEngine } from "@/modules/coldpro/engines/tunnelEngine";
 import { auditColdProTechnicalConsistency } from "@/modules/coldpro/core/technicalAudit";
@@ -658,10 +658,10 @@ export function calculateProductLoadBreakdown(product: ColdProEnvironmentProduct
   const tout = n(product.outlet_temp_c);
   const tfreeze = product.initial_freezing_temp_c;
 
-  const thermal = normalizeThermalProperties(product);
-  const cpAbove = thermal.cpAboveKJkgK / KCAL_TO_KJ;
-  const cpBelow = thermal.cpBelowKJkgK / KCAL_TO_KJ;
-  const latent = thermal.latentHeatKJkg / KCAL_TO_KJ;
+  const thermal = normalizeProductForKcalEngine(product);
+  const cpAbove = thermal.cpAboveKcalKgC;
+  const cpBelow = thermal.cpBelowKcalKgC;
+  const latent = thermal.latentHeatKcalKg;
   const allowPhaseChange = product.allow_phase_change !== false;
   const frozenFraction = thermal.frozenWaterFraction;
   const latentResidualFactor = thermal.latentResidualFactor;
@@ -789,15 +789,19 @@ export function calculateTunnelLoad(tunnel: ColdProTunnel, env?: ColdProEnvironm
     used_mass_kg_h: round2(tunnelResult.usedMassKgH),
     static_mass_kg: round2(tunnelResult.staticMassKg),
     batch_time_h: round2(n(tunnelInput.batchTimeH)),
-    total_energy_kcal: round2((energy.totalKJkg ?? 0) / KCAL_TO_KJ * (isStatic ? tunnelResult.staticMassKg : tunnelResult.usedMassKgH)),
+    total_energy_kcal: round2((energy.totalKcalKg ?? 0) * (isStatic ? tunnelResult.staticMassKg : tunnelResult.usedMassKgH)),
+    q_specific_kcal_kg: round2(energy.totalKcalKg ?? 0),
+    q_specific_above_kcal_kg: round2(energy.sensibleAboveKcalKg ?? 0),
+    q_specific_latent_kcal_kg: round2(energy.latentKcalKg ?? 0),
+    q_specific_below_kcal_kg: round2(energy.sensibleBelowKcalKg ?? 0),
     q_specific_kj_kg: round2(energy.totalKJkg ?? 0),
     q_specific_above_kj_kg: round2(energy.sensibleAboveKJkg ?? 0),
     q_specific_latent_kj_kg: round2(energy.latentKJkg ?? 0),
     q_specific_below_kj_kg: round2(energy.sensibleBelowKJkg ?? 0),
     q_specific_total_kj_kg: round2(energy.totalKJkg ?? 0),
-    sensible_above_kcal_h: round2(((energy.sensibleAboveKJkg ?? 0) / Math.max(energy.totalKJkg ?? 0, 1)) * productKcalH),
-    latent_kcal_h: round2(((energy.latentKJkg ?? 0) / Math.max(energy.totalKJkg ?? 0, 1)) * productKcalH),
-    sensible_below_kcal_h: round2(((energy.sensibleBelowKJkg ?? 0) / Math.max(energy.totalKJkg ?? 0, 1)) * productKcalH),
+    sensible_above_kcal_h: round2(((energy.sensibleAboveKcalKg ?? 0) / Math.max(energy.totalKcalKg ?? 0, 1)) * productKcalH),
+    latent_kcal_h: round2(((energy.latentKcalKg ?? 0) / Math.max(energy.totalKcalKg ?? 0, 1)) * productKcalH),
+    sensible_below_kcal_h: round2(((energy.sensibleBelowKcalKg ?? 0) / Math.max(energy.totalKcalKg ?? 0, 1)) * productKcalH),
     product_kcal_h: round2(productKcalH),
     product_load_kw: round2(tunnelResult.productLoadKW),
     tunnel_product_load_kw: round2(tunnelResult.productLoadKW),
@@ -818,9 +822,9 @@ export function calculateTunnelLoad(tunnel: ColdProTunnel, env?: ColdProEnvironm
     tunnel_total_load_tr: round2(tunnelResult.totalTR),
     required_airflow_m3_h: round2(tunnelResult.estimatedAirflowM3H ?? tunnelResult.airFlowM3H),
     required_airflow_m3_s: round2((tunnelResult.estimatedAirflowM3H ?? tunnelResult.airFlowM3H) / 3600),
-    cp_above_kcal_kg_c: round2(n(tunnelInput.cpAboveKJkgK) / KCAL_TO_KJ),
-    cp_below_kcal_kg_c: round2(n(tunnelInput.cpBelowKJkgK) / KCAL_TO_KJ),
-    latent_heat_kcal_kg: round2(n(tunnelInput.latentHeatKJkg) / KCAL_TO_KJ),
+    cp_above_kcal_kg_c: round2(n(tunnelInput.cpAboveKcalKgC)),
+    cp_below_kcal_kg_c: round2(n(tunnelInput.cpBelowKcalKgC)),
+    latent_heat_kcal_kg: round2(n(tunnelInput.latentHeatKcalKg)),
     frozen_water_fraction: round2(n(tunnelInput.frozenWaterFraction)),
     composition_percent: {
       water: tunnel.water_content_percent ?? null,

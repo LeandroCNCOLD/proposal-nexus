@@ -1,105 +1,83 @@
-Plano para ajustar o botão "Calcular ar" da Etapa 5 do ColdPro
+Plano de correção da normalização de unidades do ColdPro
 
-Escopo
-- Alterar somente o cálculo local/frontend da Etapa 5 do formulário de túnel/blast freezer.
-- Não alterar banco, backend, motor térmico principal, fórmulas já validadas nem seleção de equipamento.
-- O clique apenas preencherá campos locais da tela; o usuário continuará salvando manualmente depois.
+Vou implementar a separação explícita entre dados normalizados para motor em kcal e dados normalizados para motor em kJ, garantindo que o motor legado/ambiente receba apenas kcal e que nenhum campo ambíguo entre em cálculo.
 
-Arquivos previstos
-- `src/components/coldpro/ColdProTunnelForm.tsx`
-- Opcional, se ficar mais limpo: `src/modules/coldpro/physics/airflowModel.ts` para funções puras auxiliares de ar, sem mexer no motor térmico.
+1. Criar normalizadores explícitos em `unitNormalizer.ts`
+- Adicionar `normalizeProductForKcalEngine(input)`:
+  - retorna somente valores efetivos em kcal:
+    - `cpAboveKcalKgC`
+    - `cpBelowKcalKgC`
+    - `latentHeatKcalKg`
+  - se vier kJ, converte por `/ 4,1868`;
+  - se vier kcal, usa direto;
+  - registra auditoria com valor original, unidade original, valor convertido, unidade usada e fonte.
+- Adicionar `normalizeProductForKjEngine(input)`:
+  - retorna somente valores efetivos em kJ:
+    - `cpAboveKJkgK`
+    - `cpBelowKJkgK`
+    - `latentHeatKJkg`
+  - se vier kcal, converte por `× 4,1868`;
+  - se vier kJ, usa direto;
+  - registra auditoria equivalente.
+- Manter compatibilidade temporária de `normalizeThermalProperties`, mas fazendo ela delegar para o normalizador correto em vez de conter lógica própria ambígua.
 
-Implementação
-1. Reescrever a lógica usada por `Calcular ar`
-   - Hoje o botão monta um preset simples por velocidade-alvo.
-   - Vou substituir por uma recomendação técnica local que usa:
-     - carga térmica em kW já calculada pelo formulário;
-     - ΔT do ar informado, padrão 6 K;
-     - densidade do ar, padrão 1,2 kg/m³;
-     - Cp do ar = 1,005 kJ/kg.K;
-     - fórmula: `vazao_m3h = carga_kW × 3600 / (densidade_ar × Cp_ar × deltaT_ar)`.
+2. Corrigir motor legado/ambiente em `coldpro-calculation.engine.ts`
+- O cálculo de carga térmica do ambiente/legado deve chamar `normalizeProductForKcalEngine`.
+- As fórmulas devem usar diretamente:
+  - `cpAboveKcalKgC`
+  - `cpBelowKcalKgC`
+  - `latentHeatKcalKg`
+- O motor legado/ambiente não receberá kJ para cálculo.
+- O breakdown continuará mostrando equivalentes em kJ somente como informação/auditoria.
 
-2. Buscar dimensões automaticamente
-   - Resolver comprimento, largura, altura, volume e temperatura interna a partir de `environment`, `form` e `tunnel`, aceitando variações como:
-     - `length_m`, `width_m`, `height_m`;
-     - `comprimento_m`, `largura_m`, `altura_m`;
-     - valores aninhados como `environment.length`, `environment.width`, `environment.height` quando existirem.
-   - Usar as dimensões da aba Ambiente como prioridade.
+3. Corrigir motor físico do túnel em `productThermal.ts`
+- Separar claramente o contrato do motor:
+  - se este motor continuar operando em kJ, ele receberá apenas campos kJ vindos de `normalizeProductForKjEngine`;
+  - se for alterado para kcal, ele receberá apenas campos kcal vindos de `normalizeProductForKcalEngine`.
+- Pela sua regra atual, a parte principal que calcula carga térmica em kcal será alimentada em kcal antes do cálculo, evitando calcular baixo por unidade errada.
+- Ajustar nomes de retorno/breakdown para não mascarar kcal como kJ.
 
-3. Sugerir parede e sentido de sopro
-   - Calcular duas opções:
-     - Parede menor: seção = menor dimensão horizontal; sopro no maior comprimento.
-     - Parede maior: seção = maior dimensão horizontal; sopro no menor comprimento.
-   - Para túnel/blast_freezer, preferir parede menor soprando no sentido do maior comprimento.
-   - Avaliar a velocidade de cada opção e escolher a mais adequada tecnicamente.
+4. Corrigir adaptadores de entrada
+- Em `formToTunnelInput.ts`:
+  - quando preparar input para motor em kcal, usar `normalizeProductForKcalEngine`;
+  - quando preparar input para motor em kJ, usar `normalizeProductForKjEngine`;
+  - remover passagem ambígua de `cpAboveKJkgK`, `cpBelowKJkgK`, `latentHeatKJkg` para motor kcal.
+- Em `databaseToTunnelInput.ts`:
+  - aplicar a mesma regra para dados vindos do banco/base oficial;
+  - exemplo obrigatório validado:
+    - `2,85 kJ/kg.K / 4,1868 = 0,6807 kcal/kg°C`
+    - `1,55 kJ/kg.K / 4,1868 = 0,3702 kcal/kg°C`
+    - `134 kJ/kg / 4,1868 = 32,01 kcal/kg`
 
-4. Calcular seção real de passagem de ar
-   - Não usar a altura total automaticamente.
-   - Calcular `altura_util_ar` com regra local:
-     - padrão: `altura_camara × 0,60`;
-     - se houver altura de carga/pallet: `max(altura_camara - altura_carga, altura_camara × 0,30)`;
-     - limitar a altura útil para evitar usar os 3 m completos em túnel/blast freezer, favorecendo uma faixa mais realista quando há carga/pallet.
-   - Calcular:
-     - `area_bruta_m2 = largura_secao × altura_util_ar`;
-     - `area_livre_m2 = area_bruta_m2 × (1 - fator_bloqueio)`.
+5. Corrigir payload de saída em `tunnelInputToDatabasePayload.ts`
+- Persistir o breakdown com a auditoria completa de unidade.
+- Garantir que valores salvos não confundam unidade efetiva do motor:
+  - campos kcal em campos kcal;
+  - campos kJ em campos kJ apenas quando forem equivalentes/auditáveis.
+- Não salvar automaticamente: manter o comportamento atual de salvar somente quando o usuário confirmar.
 
-5. Sugerir fator de bloqueio
-   - Túnel com pallet/bloco/caixas paletizadas: 50%.
-   - Túnel vazio/carrinho/rack: 35%.
-   - Câmara comum: 20%.
-   - Exibir/preencher o campo existente de fator de bloqueio em % via valor decimal interno, mantendo o padrão atual da tela.
+6. Atualizar breakdown na tela
+- Mostrar no resumo:
+  - valor original;
+  - unidade original;
+  - valor convertido;
+  - unidade usada no motor;
+  - fonte da conversão (`kJ_to_kcal`, `kcal_native`, `kcal_to_kJ`, `kJ_native`, default técnico etc.).
+- Deixar explícito quando o motor está calculando em kcal.
+- Remover mensagens que indiquem que kcal foi convertido para kJ para cálculo no motor kcal.
 
-6. Calcular velocidade do ar no produto
-   - Usar: `velocidade_m_s = vazao_m3h / 3600 / area_livre_m2`.
-   - Preencher localmente:
-     - fonte da velocidade = vazão por ventiladores;
-     - vazão dos ventiladores informada;
-     - vazão informada;
-     - largura seção de passagem;
-     - altura seção de passagem;
-     - fator de bloqueio;
-     - velocidade calculada/manual de referência.
+7. Validação técnica
+- Adicionar/ajustar verificações para confirmar:
+  - sem dupla conversão;
+  - sem usar kJ em motor kcal;
+  - sem usar kcal em motor kJ;
+  - exemplo base oficial converte corretamente para kcal.
+- Rodar `typecheck` e `build` ao final.
 
-7. Exibir campos técnicos novos na Etapa 5
-   - Adicionar campos/valores locais para:
-     - parede sugerida;
-     - sentido de sopro;
-     - justificativa técnica.
-   - Esses valores ficam no estado local do formulário e só entram em persistência se o usuário clicar em salvar, mantendo o comportamento pedido.
-
-8. Exibir card técnico após cálculo
-   - Card: "Recomendação de instalação do equipamento".
-   - Mostrar:
-     - parede sugerida: parede menor/parede maior;
-     - sentido de sopro;
-     - largura útil considerada;
-     - altura útil considerada;
-     - área livre;
-     - vazão necessária;
-     - velocidade estimada no produto;
-     - status: baixa/adequada/alta;
-     - observação técnica.
-
-9. Alertas de velocidade
-   - Para túnel/blast_freezer:
-     - < 1,5 m/s: alerta de velocidade baixa;
-     - 2,0 a 5,0 m/s: adequada/ideal;
-     - > 6,0 m/s: alerta de velocidade alta.
-   - Para câmara fria:
-     - ideal 0,2 a 0,8 m/s;
-     - > 1,5 m/s: alerta de excesso.
-   - Se a vazão atende ao balanço térmico, mas a velocidade ficar baixa, mostrar exatamente a mensagem solicitada sobre avaliar maior vazão, dutos, plenum, menor seção livre ou alteração da posição do equipamento.
-
-10. Caso da imagem / validação esperada
-   - Para largura 4,28 m, altura 3 m, vazão 1.658 m³/h e bloqueio 50%, o cálculo não usará 3 m como altura útil automaticamente.
-   - A altura útil ficará reduzida pela regra técnica, por exemplo pela altura de carga/pallet ou fração útil, gerando velocidade mais realista.
-
-Validação final
-- Rodar typecheck/build após implementar.
-- Retornar:
-  - arquivos alterados;
-  - regras implementadas;
-  - campos preenchidos pelo botão;
-  - comportamento do card técnico;
-  - confirmação de que motor térmico, banco e seleção de equipamento não foram alterados;
-  - confirmação de typecheck/build.
+Resultado esperado
+- Para base oficial:
+  - Cp acima `2,85 kJ/kg.K` entra no motor kcal como `0,6807 kcal/kg°C`;
+  - Cp abaixo `1,55 kJ/kg.K` entra como `0,3702 kcal/kg°C`;
+  - Latente `134 kJ/kg` entra como `32,01 kcal/kg`.
+- O motor legado/ambiente não calculará com kJ.
+- O breakdown mostrará claramente a conversão e a unidade efetivamente usada no cálculo.

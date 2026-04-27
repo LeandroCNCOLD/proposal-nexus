@@ -31,9 +31,9 @@ export function validateTunnelInput(input: any): { missingFields: string[]; warn
   const warnings: string[] = [];
   const invalidFields: string[] = [];
 
-  validateRange({ field: "cpAboveKJkgK", value: input?.cpAboveKJkgK, min: 0.5, max: 5, unit: "kJ/kg.K", warnings, invalidFields });
-  validateRange({ field: "cpBelowKJkgK", value: input?.cpBelowKJkgK, min: 0.5, max: 5, unit: "kJ/kg.K", warnings, invalidFields });
-  validateRange({ field: "latentHeatKJkg", value: input?.latentHeatKJkg, min: 50, max: 450, unit: "kJ/kg", warnings, invalidFields });
+  validateRange({ field: "cpAboveKcalKgC", value: input?.cpAboveKcalKgC, min: 0.12, max: 1.2, unit: "kcal/kg°C", warnings, invalidFields });
+  validateRange({ field: "cpBelowKcalKgC", value: input?.cpBelowKcalKgC, min: 0.12, max: 1.2, unit: "kcal/kg°C", warnings, invalidFields });
+  validateRange({ field: "latentHeatKcalKg", value: input?.latentHeatKcalKg, min: 12, max: 108, unit: "kcal/kg", warnings, invalidFields });
   validateRange({ field: "densityKgM3", value: input?.densityKgM3, min: 100, max: 1800, unit: "kg/m³", warnings, invalidFields });
   validateRange({ field: "frozenWaterFraction", value: input?.frozenWaterFraction, min: 0, max: 1, unit: "", warnings, invalidFields });
   validateRange({ field: "frozenConductivityWMK", value: input?.frozenConductivityWMK, min: 0.02, max: 3, unit: "W/m.K", warnings, invalidFields });

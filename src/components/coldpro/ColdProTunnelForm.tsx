@@ -980,7 +980,6 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
   const cpAboveAudit = (unitAudit.cpAbove ?? {}) as Record<string, unknown>;
   const cpBelowAudit = (unitAudit.cpBelow ?? {}) as Record<string, unknown>;
   const latentAudit = (unitAudit.latentHeat ?? {}) as Record<string, unknown>;
-  const unitAuditWarning = Number(latentAudit.originalValue ?? 0) > 0 && String(latentAudit.originalUnit ?? "").includes("kcal") && Math.abs(Number(latentAudit.convertedValue ?? 0) - Number(latentAudit.originalValue ?? 0) * 4.1868) > 0.05;
   const tunnelResultCards = (
     <>
       <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -998,16 +997,16 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
         <ColdProCalculatedInfo label={isStatic ? "Menor dimensão da carga" : "Dimensão característica"} value={`${fmtColdPro(tunnelResult.characteristicDimensionM, 3)} m`} description={isStatic ? "menor dimensão do pallet/carga" : "espessura do produto"} tone={tunnelResult.characteristicDimensionM > 0 ? "info" : "warning"} />
         <ColdProCalculatedInfo label="Distância até o núcleo" value={`${fmtColdPro(tunnelResult.distanceToCoreM * 1000, 1)} mm`} description="dimensão característica ÷ 2" tone={tunnelResult.distanceToCoreM > 0 ? "info" : "warning"} />
         <ColdProCalculatedInfo label="Cp acima original" value={`${fmtColdPro(cpAboveAudit.originalValue, 4)} ${cpAboveAudit.originalUnit ?? "—"}`} description={`fonte: ${cpAboveAudit.source ?? "—"}`} tone={Number(cpAboveAudit.originalValue ?? 0) > 0 ? "info" : "warning"} />
-        <ColdProCalculatedInfo label="Cp acima convertido" value={`${fmtColdPro(cpAboveAudit.convertedValue, 4)} kJ/kg.K`} description="1 kcal = 4,1868 kJ" tone={Number(cpAboveAudit.convertedValue ?? 0) > 0 ? "success" : "warning"} />
+        <ColdProCalculatedInfo label="Cp acima usado" value={`${fmtColdPro(cpAboveAudit.convertedValue, 4)} ${cpAboveAudit.usedUnit ?? "kcal/kg°C"}`} description="entrada efetiva do motor" tone={Number(cpAboveAudit.convertedValue ?? 0) > 0 ? "success" : "warning"} />
         <ColdProCalculatedInfo label="Cp abaixo original" value={`${fmtColdPro(cpBelowAudit.originalValue, 4)} ${cpBelowAudit.originalUnit ?? "—"}`} description={`fonte: ${cpBelowAudit.source ?? "—"}`} tone={Number(cpBelowAudit.originalValue ?? 0) > 0 ? "info" : "warning"} />
-        <ColdProCalculatedInfo label="Cp abaixo convertido" value={`${fmtColdPro(cpBelowAudit.convertedValue, 4)} kJ/kg.K`} description="unidade usada no cálculo" tone={Number(cpBelowAudit.convertedValue ?? 0) > 0 ? "success" : "warning"} />
+        <ColdProCalculatedInfo label="Cp abaixo usado" value={`${fmtColdPro(cpBelowAudit.convertedValue, 4)} ${cpBelowAudit.usedUnit ?? "kcal/kg°C"}`} description="unidade usada no cálculo" tone={Number(cpBelowAudit.convertedValue ?? 0) > 0 ? "success" : "warning"} />
         <ColdProCalculatedInfo label="Latente original" value={`${fmtColdPro(latentAudit.originalValue, 4)} ${latentAudit.originalUnit ?? "—"}`} description={`fonte: ${latentAudit.source ?? "—"}`} tone={Number(latentAudit.originalValue ?? 0) > 0 ? "info" : "warning"} />
-        <ColdProCalculatedInfo label="Latente convertido" value={`${fmtColdPro(latentAudit.convertedValue, 2)} kJ/kg`} description="ex.: 32,01 kcal/kg = 134,02 kJ/kg" tone={Number(latentAudit.convertedValue ?? 0) > 0 && !unitAuditWarning ? "success" : "warning"} />
-        <ColdProCalculatedInfo label="Unidade efetiva" value={String(productEnergyAudit.effectiveCalculationUnit ?? "kJ/kg.K e kJ/kg")} description="cálculo interno normalizado" tone="success" />
-        <ColdProCalculatedInfo label="Energia específica total" value={`${fmtColdPro(tunnelResult.energy.totalKJkg, 2)} kJ/kg`} description="sensível + latente" tone={tunnelResult.energy.totalKJkg > 0 ? "success" : "warning"} />
-        <ColdProCalculatedInfo label="Sensível acima" value={`${fmtColdPro(tunnelResult.energy.sensibleAboveKJkg, 2)} kJ/kg`} description="Cp acima × ΔT" tone="info" />
-        <ColdProCalculatedInfo label="Latente" value={`${fmtColdPro(tunnelResult.energy.latentKJkg, 2)} kJ/kg`} description="calor latente × fração" tone="info" />
-        <ColdProCalculatedInfo label="Sensível abaixo" value={`${fmtColdPro(tunnelResult.energy.sensibleBelowKJkg, 2)} kJ/kg`} description="Cp abaixo × ΔT" tone="info" />
+        <ColdProCalculatedInfo label="Latente usado" value={`${fmtColdPro(latentAudit.convertedValue, 2)} ${latentAudit.usedUnit ?? "kcal/kg"}`} description="ex.: 134 kJ/kg = 32,01 kcal/kg" tone={Number(latentAudit.convertedValue ?? 0) > 0 ? "success" : "warning"} />
+        <ColdProCalculatedInfo label="Unidade efetiva" value={String(productEnergyAudit.effectiveCalculationUnit ?? "kcal/kg°C e kcal/kg")} description="cálculo interno normalizado" tone="success" />
+        <ColdProCalculatedInfo label="Energia específica total" value={`${fmtColdPro(tunnelResult.energy.totalKcalKg, 2)} kcal/kg`} description={`${fmtColdPro(tunnelResult.energy.totalKJkg, 2)} kJ/kg eq.`} tone={tunnelResult.energy.totalKcalKg > 0 ? "success" : "warning"} />
+        <ColdProCalculatedInfo label="Sensível acima" value={`${fmtColdPro(tunnelResult.energy.sensibleAboveKcalKg, 2)} kcal/kg`} description="Cp acima × ΔT" tone="info" />
+        <ColdProCalculatedInfo label="Latente" value={`${fmtColdPro(tunnelResult.energy.latentKcalKg, 2)} kcal/kg`} description="calor latente × fração" tone="info" />
+        <ColdProCalculatedInfo label="Sensível abaixo" value={`${fmtColdPro(tunnelResult.energy.sensibleBelowKcalKg, 2)} kcal/kg`} description="Cp abaixo × ΔT" tone="info" />
         <ColdProCalculatedInfo label="Carga do produto" value={`${fmtColdPro(tunnelResult.productLoadKW, 2)} kW`} description={`${fmtColdPro(tunnelResult.productLoadKW * 859.845, 0)} kcal/h`} tone={tunnelResult.productLoadKW > 0 ? "success" : "warning"} />
         <ColdProCalculatedInfo label="Carga embalagem" value={`${fmtColdPro(tunnelResult.packagingLoadKW, 2)} kW`} description="massa embalagem × Cp × ΔT" tone="info" />
         <ColdProCalculatedInfo label="Carga interna" value={`${fmtColdPro(tunnelResult.internalLoadKW, 2)} kW`} description="motores + ventiladores + outras" tone="info" />
