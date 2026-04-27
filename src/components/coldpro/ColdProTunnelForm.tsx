@@ -491,6 +491,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
   const productSourceKcalH = positiveValue(product?.total_load_kcal_h, product?.product_load_kcal_h, product?.total_kcal_h, product?.load_kcal_h);
   const loadDifferenceKcalH = productSourceKcalH > 0 ? tunnelResult.totalKcalH - productSourceKcalH : 0;
   const loadDifferencePercent = productSourceKcalH > 0 ? Math.abs(loadDifferenceKcalH) / productSourceKcalH * 100 : 0;
+  const firstThermalLoadReady = tunnelResult.productLoadKW > 0 && (isStatic ? staticMass > 0 && Number(form.batch_time_h ?? 0) > 0 : massHour > 0);
   const loadStableTimeChanged = initialScenario.totalKW > 0 && Math.abs(adjustedScenario.totalKW - initialScenario.totalKW) / initialScenario.totalKW < 0.02 && initialScenario.estimatedTimeMin && adjustedScenario.estimatedTimeMin && Math.abs(adjustedScenario.estimatedTimeMin - initialScenario.estimatedTimeMin) / initialScenario.estimatedTimeMin > 0.05;
   const scenarioDelta = {
     time: adjustedScenario.estimatedTimeMin !== null && initialScenario.estimatedTimeMin !== null ? adjustedScenario.estimatedTimeMin - initialScenario.estimatedTimeMin : null,
@@ -1175,6 +1176,11 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
             </div><div>
               <ColdProField label="Cp acima" helpKey="specificHeatAbove"><ColdProInput {...lockedNum("specific_heat_above_kcal_kg_c")} /></ColdProField><ColdProField label="Cp abaixo" helpKey="specificHeatBelow"><ColdProInput {...lockedNum("specific_heat_below_kcal_kg_c")} /></ColdProField><ColdProField label="Calor latente" helpKey="latentHeat"><ColdProInput {...lockedNum("latent_heat_kcal_kg")} /></ColdProField><ColdProField label="Fração congelável" helpKey="frozenWaterFraction"><ColdProInput {...lockedNum("frozen_water_fraction")} /></ColdProField><ColdProField label="Densidade" helpKey="density" unit="kg/m³"><ColdProInput {...lockedNum("density_kg_m3")} /></ColdProField><ColdProField label="Condutividade congelado" helpKey="thermalConductivityFrozen"><ColdProInput {...lockedNum("thermal_conductivity_frozen_w_m_k")} /></ColdProField>
             </div></div>
+            <div className="mt-4 grid gap-3 lg:grid-cols-3">
+              <ColdProCalculatedInfo label="Prévia da carga do produto" value={firstThermalLoadReady ? `${fmtColdPro(tunnelResult.productLoadKW * 860.421, 0)} kcal/h` : "Aguardando massa e tempo"} description={`${fmtColdPro(tunnelResult.productLoadKW, 2)} kW`} tone={firstThermalLoadReady ? "success" : "warning"} />
+              <ColdProCalculatedInfo label="Carga térmica total prévia" value={firstThermalLoadReady ? `${fmtColdPro(tunnelResult.totalKcalH, 0)} kcal/h` : "—"} description={`${fmtColdPro(tunnelResult.totalKW, 2)} kW · ${fmtColdPro(tunnelResult.totalTR, 2)} TR`} tone={firstThermalLoadReady ? "success" : "warning"} />
+              <ColdProCalculatedInfo label="Base do cálculo" value={isStatic ? `${fmtColdPro(staticMass)} kg / ${fmtColdPro(Number(form.batch_time_h ?? 0), 2)} h` : `${fmtColdPro(massHour)} kg/h`} description="produto + propriedades térmicas informadas" tone={firstThermalLoadReady ? "info" : "warning"} />
+            </div>
             {catalogLocked ? <ColdProValidationMessage>Dados térmicos bloqueados por virem do catálogo oficial. Para alterar, edite o cadastro técnico do produto.</ColdProValidationMessage> : null}
           </ColdProFormSection>
 
