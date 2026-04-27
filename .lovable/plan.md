@@ -1,90 +1,114 @@
-Plano para corrigir definitivamente a modelagem de latente dos produtos ColdPro
+Plano ajustado: aplicar propriedades dinâmicas do ar na Etapa 5 — Ar, vazão e ventilação
 
-1. Padronizar o contrato térmico do produto em kJ
-- Atualizar `src/modules/coldpro/physics/productThermal.ts` para aceitar e retornar explicitamente:
-  - `cpAboveKJkgK`
-  - `cpBelowKJkgK`
-  - `latentHeatKJkg`
-  - `latentMode: "effective" | "full"`
-  - `latentEffectiveKJkg`
-- Manter os campos antigos em kcal no retorno para compatibilidade, mas fazer o cálculo principal em kJ e só converter para kcal no final.
+Escopo confirmado
+- A aplicação principal será na Etapa 5 mostrada no print: cálculo de vazão pela carga, recomendação de vazão, seção livre e validação de ventilação.
+- Não vou alterar cálculo do produto, base de produtos, seleção de equipamento, banco de dados ou lógica de velocidade por túnel.
+- A lógica de velocidade continua igual: vazão ÷ seção livre. O que muda é a vazão por carga térmica, que hoje usa `ρ = 1,2` e `Cp = 1,005` fixos.
 
-2. Implementar `latentMode` sem dupla redução
-- Regra central:
-  - `latentMode = "effective"`: usar `latentHeatKJkg` diretamente como latente efetivo.
-  - `latentMode = "full"`: usar `latentHeatKJkg × frozenWaterFraction`.
-- Default/retrocompatibilidade:
-  - se não vier `latentMode`, assumir `"effective"`.
-  - se existir `latentHeatKJkg` e também `frozenWaterFraction`, continuar assumindo `"effective"`, ou seja, não multiplicar novamente pela fração.
-  - só aplicar a fração quando `latentMode` vier explicitamente como `"full"`.
-- `latentResidualFactor` não será aplicado no modo `effective`; para não quebrar chamadas antigas, ele pode continuar existindo no input/breakdown, mas não reduzirá o latente efetivo padrão.
+1. Criar propriedades dinâmicas do ar
+- Criar `src/modules/coldpro/physics/airProperties.ts` com funções puras, sem singleton global:
+  - `getAirDensityKgM3(params)`
+  - `getAirSpecificHeatKJkgK(params)`
+  - `getWaterLatentHeatKJkg(params)`
+  - `createAirPropertiesContext(params)`
+- O contexto retornará:
+  - densidade usada
+  - Cp usado
+  - calor latente da água por modo
+  - pressão usada
+  - temperatura em Kelvin
+  - fonte: automático, override manual ou fallback
+  - warnings técnicos.
 
-3. Corrigir normalização de unidades
-- Atualizar `src/modules/coldpro/core/unitNormalizer.ts` para enriquecer a normalização com:
-  - `latentMode`
-  - `cpAboveKJkgK`
-  - `cpBelowKJkgK`
-  - `latentHeatKJkg`
-- Garantir que kcal → kJ aconteça uma única vez (`× 4,1868`).
-- Evitar que `normalizeThermalProperties` faça conversão em cima de valor já convertido.
-- Preservar `normalizeProductForKcalEngine` para compatibilidade, mas alimentar o motor preferencialmente com o pacote em kJ.
+2. Aplicar na Etapa 5 do formulário
+Arquivo principal:
+- `src/components/coldpro/ColdProTunnelForm.tsx`
 
-4. Ajustar adapters de entrada
-- Atualizar:
-  - `src/modules/coldpro/adapters/databaseToTunnelInput.ts`
-  - `src/modules/coldpro/adapters/formToTunnelInput.ts`
-- Passar ao motor os campos em kJ e o `latentMode` normalizado.
-- Manter campos em kcal também quando necessário para compatibilidade com código existente, sem criar dupla conversão.
+Alterações na Etapa 5:
+- Trocar o cálculo atual:
+  - `carga ÷ densidade × Cp × ΔT`
+  - com `densidade = 1,2` e `Cp = 1,005`
+- Por:
+  - `carga ÷ densidade dinâmica × Cp dinâmico × ΔT`
+- A função local `requiredAirflowForLoadM3H` passará a aceitar também `cpAirKJkgK`.
+- O card “3. Vazão por carga térmica” passará a usar o contexto dinâmico.
+- O botão “Calcular ar” também usará o mesmo contexto ao gerar a recomendação.
 
-5. Atualizar o motor de túnel/breakdown sem alterar UI
-- Ajustar `src/modules/coldpro/engines/tunnelEngine.ts` para usar a nova saída de `calculateProductSpecificEnergy`.
-- Enriquecer `calculationBreakdown.productEnergy` com os campos obrigatórios:
-  - `cpAboveKJkgK`
-  - `cpBelowKJkgK`
-  - `latentHeatKJkg` original
-  - `frozenWaterFraction`
-  - `latentMode`
-  - `latentEffectiveKJkg`
-  - `sensibleAboveKJkg`
-  - `latentKJkg`
-  - `sensibleBelowKJkg`
-  - `totalKJkg`
-- Não alterar layout, telas ou componentes de UI nesta etapa.
+3. Origem dos dados usados na Etapa 5
+Usar os dados disponíveis no próprio cálculo/ambiente:
+- temperatura do ar: `air_temp_c`, no print `-25°C`
+- ΔT do ar: `air_delta_t_k`, no print `6 K`
+- altitude: `environment.altitude_m`, se existir
+- pressão: `environment.atmospheric_pressure_kpa`, se existir
+- UR interna: `environment.relative_humidity_percent` ou campos equivalentes, se existir
+- override manual: `air_density_kg_m3`, se informado pelo usuário.
 
-6. Validações e warnings
-- Adicionar warning quando `finalTemp < freezingPoint` e `latentEffectiveKJkg < 80`:
-  - `Calor latente baixo para congelamento. Verificar base do produto.`
-- Adicionar warning quando `frozenWaterFraction < 0,4`:
-  - `Fração congelável baixa. Validar origem do dado.`
-- Manter os alertas existentes, ajustando-os para olhar o latente efetivo em kJ quando aplicável.
+Regra de prioridade:
+1. Se `air_density_kg_m3` manual existir, usar manual e marcar fonte como `manual_override`.
+2. Se pressão existir, calcular com pressão.
+3. Se não houver pressão mas houver altitude, estimar pressão pela altitude.
+4. Se faltar dado crítico, usar fallback seguro `ρ = 1,2` e `Cp = 1,005` com warning.
 
-7. Caso de teste obrigatório
-- Atualizar/adicionar teste em `src/modules/coldpro/engines/tunnelEngine.test.ts` com produto tipo pão de queijo:
-  - `cpAbove ≈ 2,0 kJ/kgK`
-  - `cpBelow ≈ 1,1 kJ/kgK`
-  - `latent ≈ 140 kJ/kg`
-  - `latentMode` omitido ou `effective`
-  - `frozenWaterFraction` preenchido
-- Validar que a energia específica fica aproximadamente em `200–220 kJ/kg`, equivalente a `48–52 kcal/kg`.
-- Validar explicitamente que o latente retornado no breakdown é próximo de `140 kJ/kg`, não `140 × frozenWaterFraction`.
-- Adicionar também um teste com `latentMode: "full"` para confirmar que somente nesse modo a fração é aplicada.
+4. Exibir o breakdown na Etapa 5
+Na própria Etapa 5, adicionar cards técnicos próximos ao card de vazão por carga:
+- Densidade do ar usada, ex.: `1,35 kg/m³`
+- Cp do ar usado, ex.: `1,006 kJ/kg.K`
+- Temperatura base, ex.: `-25°C / 248,15 K`
+- Pressão/altitude usada, ex.: `93,2 kPa / 700 m`
+- UR usada, ex.: `85%`
+- Fonte: `automático`, `manual_override` ou `fallback`
+- Warnings, se houver.
 
-8. Garantias finais
-- Executar:
-  - `bun run test`
-  - `bunx tsc --noEmit`
-  - `bun run build`
-- Retornar ao final:
-  - arquivos alterados
-  - diff/resumo das funções críticas
-  - validação numérica do caso pão de queijo
-  - confirmação explícita de que o latente não está mais sendo reduzido duas vezes
-
-Arquivos previstos para alteração
-- `src/modules/coldpro/physics/productThermal.ts`
-- `src/modules/coldpro/core/unitNormalizer.ts`
-- `src/modules/coldpro/adapters/databaseToTunnelInput.ts`
-- `src/modules/coldpro/adapters/formToTunnelInput.ts`
-- `src/modules/coldpro/types/tunnelEngine.types.ts`
+5. Atualizar o motor para manter coerência
+Arquivos envolvidos:
 - `src/modules/coldpro/engines/tunnelEngine.ts`
-- `src/modules/coldpro/engines/tunnelEngine.test.ts`
+- `src/modules/coldpro/physics/airflowModel.ts`
+- `src/modules/coldpro/types/tunnelEngine.types.ts`
+- `src/modules/coldpro/adapters/formToTunnelInput.ts`
+- `src/modules/coldpro/adapters/databaseToTunnelInput.ts`
+
+Objetivo:
+- A Etapa 5 e o motor devem usar a mesma densidade/Cp.
+- `calculationBreakdown.air` terá o contexto de propriedades do ar para auditoria.
+- A vazão exibida na interface será a mesma vazão calculada no motor.
+
+6. Aplicar também em infiltração/psicrometria, sem alterar produto
+- Em `calculatePsychrometricInfiltrationKW`, usar densidade/Cp/latente vindos do contexto quando disponíveis.
+- Em funções psicrométricas auxiliares, substituir uso rígido de constantes por contexto ou parâmetros opcionais.
+- Manter fallback para chamadas antigas.
+
+7. Validação do caso do print / Túnel Rafa
+Caso base:
+- Carga usada na vazão: `12,09 kW`
+- ΔT ar: `6 K`
+- Temperatura do ar: `-25°C`
+- Altitude: `700 m`, se disponível
+- UR interna: `85%`
+
+Comparação esperada:
+- Hardcoded atual:
+  - `ρ = 1,2 kg/m³`
+  - `Cp = 1,005 kJ/kg.K`
+  - vazão ≈ `6.015 m³/h`, que bate com o print.
+- Dinâmico esperado:
+  - densidade aproximada na faixa `1,30–1,42 kg/m³`, dependendo da pressão/altitude/UR
+  - Cp próximo de `1,005–1,01 kJ/kg.K`
+  - vazão por carga deve cair coerentemente em relação aos `6.015 m³/h`, porque o ar mais denso carrega mais energia por m³.
+
+8. Testes finais
+- Atualizar testes do motor ColdPro para cobrir:
+  - fallback antigo preservado
+  - override manual
+  - cálculo automático com `-25°C`, `700 m`, `85% UR`
+  - vazão dinâmica menor que a vazão hardcoded para a mesma carga e ΔT.
+- Rodar:
+  - typecheck
+  - build
+  - testes do motor.
+
+Entrega final após implementação
+- Arquivos criados/alterados.
+- Fórmulas usadas.
+- Comparação hardcoded vs dinâmico.
+- Resultado do caso Túnel Rafa/Etapa 5.
+- Confirmação de que produto, base de produtos, seleção de equipamento, banco e lógica por velocidade não foram alterados.
