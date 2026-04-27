@@ -325,10 +325,10 @@ function ColdProProjectPage() {
         </div>
       </div>
 
-      <div className="mx-auto grid max-w-[1400px] grid-cols-1 gap-4 p-3 sm:p-5 lg:grid-cols-[260px_minmax(0,1fr)] lg:gap-6">
+      <div className="mx-auto grid max-w-[1600px] grid-cols-1 gap-3 p-2 sm:p-4 lg:grid-cols-[220px_minmax(0,1fr)] xl:grid-cols-[240px_minmax(0,1fr)]">
         {/* Sidebar de ambientes */}
         <aside className="space-y-4 print:hidden lg:sticky lg:top-4 lg:self-start">
-          <div className="rounded-xl border bg-background p-4 shadow-sm">
+          <div className="rounded-xl border bg-background p-3 shadow-sm">
             <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
               Novo ambiente
             </h2>
@@ -354,7 +354,7 @@ function ColdProProjectPage() {
             </div>
           </div>
 
-          <div className="rounded-xl border bg-background p-4 shadow-sm">
+          <div className="rounded-xl border bg-background p-3 shadow-sm">
             <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
               Ambientes do projeto
             </h2>
@@ -401,7 +401,7 @@ function ColdProProjectPage() {
         </aside>
 
         {/* Conteúdo principal */}
-        <div className="min-w-0 space-y-4">
+        <div className="min-w-0 space-y-3">
           {showProjectReport && environments.length > 0 ? (
             <div className="space-y-6">
               <ColdProProjectResultDashboard
