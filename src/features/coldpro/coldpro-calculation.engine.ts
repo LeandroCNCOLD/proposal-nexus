@@ -21,6 +21,8 @@ import { calculateAdvancedProcess } from "./advancedProcesses/advancedProcessEng
 import { calculateEvaporatorFrostRisk, suggestedInfiltrationFactor } from "./extra-loads-preview";
 import { calculateEvaporatorFanLoad, calculateMotorLoadKcalH, calculateTechnicalDefrost, calculateTechnicalInfiltration } from "./thermal-calculations";
 import { databaseToTunnelInput } from "@/modules/coldpro/adapters/databaseToTunnelInput";
+import { listAshraeComparisons } from "@/modules/coldpro/core/ashraeComparison";
+import { buildCalculationMethodReport } from "@/modules/coldpro/reports/calculationMethodReport";
 import { COLDPRO_TUNNEL_ENGINE_VERSION, calculateTunnelEngine } from "@/modules/coldpro/engines/tunnelEngine";
 
 const W_TO_KCAL_H = 0.859845;
