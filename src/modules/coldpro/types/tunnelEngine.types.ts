@@ -93,6 +93,9 @@ export interface TunnelEngineInput {
   finalTempC?: number | null;
   airTempC?: number | null;
   freezingPointC?: number | null;
+  cpAboveKcalKgC?: number | null;
+  cpBelowKcalKgC?: number | null;
+  latentHeatKcalKg?: number | null;
   cpAboveKJkgK?: number | null;
   cpBelowKJkgK?: number | null;
   latentHeatKJkg?: number | null;
@@ -115,6 +118,7 @@ export interface TunnelEngineInput {
   packagingMassKgBatch?: number | null;
   packagingMassKg?: number | null;
   trayMassPerCartKg?: number | null;
+  packagingCpKcalKgC?: number | null;
   packagingCpKJkgK?: number | null;
   infiltrationCalculationMethod?: InfiltrationCalculationMethod | string | null;
   externalTempC?: number | null;
@@ -129,6 +133,10 @@ export interface TunnelEngineInput {
 }
 
 export interface TunnelEnergyBreakdown {
+  sensibleAboveKcalKg: number;
+  latentKcalKg: number;
+  sensibleBelowKcalKg: number;
+  totalKcalKg: number;
   sensibleAboveKJkg: number;
   latentKJkg: number;
   sensibleBelowKJkg: number;
