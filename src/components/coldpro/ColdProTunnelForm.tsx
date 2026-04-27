@@ -9,6 +9,7 @@ import { calculateTunnelEngine } from "@/modules/coldpro/engines/tunnelEngine";
 import { calculateContinuousGirofreezer } from "@/modules/coldpro/services/continuousGirofreezerService";
 import { filterAndRankColdProProducts } from "@/modules/coldpro/core/productSearch";
 import { normalizeProductForKcalEngine } from "@/modules/coldpro/core/unitNormalizer";
+import { createAirPropertiesContext } from "@/modules/coldpro/physics/airProperties";
 
 const ARRANGEMENT_DEFAULTS: Record<string, { air: number; penetration: number; label: string }> = {
   individual_units: { air: 1, penetration: 1, label: "Produto individual sobre esteira" }, single_layer_blocks: { air: 0.8, penetration: 0.85, label: "Blocos em camada única" }, trays: { air: 0.65, penetration: 0.75, label: "Bandejas" }, stacked_packages: { air: 0.45, penetration: 0.55, label: "Pacotes empilhados" }, packaged_units: { air: 0.55, penetration: 0.65, label: "Produto embalado" }, trays_on_racks: { air: 0.65, penetration: 0.75, label: "Bandejas em racks/carrinhos" }, boxes_on_cart: { air: 0.35, penetration: 0.45, label: "Caixas em carrinho" }, hanging_product: { air: 0.8, penetration: 0.85, label: "Produto suspenso" }, palletized_boxes: { air: 0.35, penetration: 0.45, label: "Caixas paletizadas" }, palletized_blocks: { air: 0.25, penetration: 0.35, label: "Blocos paletizados" }, bulk_on_pallet: { air: 0.2, penetration: 0.3, label: "Produto a granel sobre pallet" }, loose_particles: { air: 0.9, penetration: 0.95, label: "Partículas soltas" }, small_individual_units: { air: 0.9, penetration: 0.95, label: "Unidades pequenas individuais" }, boxes: { air: 0.35, penetration: 0.45, label: "Caixas" }, racks: { air: 0.65, penetration: 0.75, label: "Racks" }, bulk_container: { air: 0.4, penetration: 0.5, label: "Contentores" },
@@ -320,9 +321,9 @@ function airflowVelocityStatus(velocityMS: number, tunnelLike: boolean) {
   return { status: "fora da faixa", tone: "warning" as const, warning: "Velocidade fora da faixa usual para câmara fria." };
 }
 
-function requiredAirflowForLoadM3H(loadKW: number, airDeltaTK: number, airDensityKgM3: number) {
-  if (loadKW <= 0 || airDeltaTK <= 0 || airDensityKgM3 <= 0) return 0;
-  return loadKW * 3600 / (airDensityKgM3 * 1.005 * airDeltaTK);
+function requiredAirflowForLoadM3H(loadKW: number, airDeltaTK: number, airDensityKgM3: number, cpAirKJkgK = 1.005) {
+  if (loadKW <= 0 || airDeltaTK <= 0 || airDensityKgM3 <= 0 || cpAirKJkgK <= 0) return 0;
+  return loadKW * 3600 / (airDensityKgM3 * cpAirKJkgK * airDeltaTK);
 }
 
 function airflowForVelocityM3H(freeAreaM2: number, velocityMS: number) {
