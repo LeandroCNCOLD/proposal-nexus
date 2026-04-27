@@ -850,17 +850,39 @@ function ColdProProjectPage() {
                   {selection ? (
                     <div className="rounded-lg border bg-background p-3">
                       <h3 className="mb-3 text-base font-semibold">Equipamento selecionado</h3>
-                      <div className="grid gap-2 text-[13px] [grid-template-columns:repeat(auto-fit,minmax(260px,1fr))]">
+                      <div className="grid gap-2 text-[13px] [grid-template-columns:repeat(auto-fit,minmax(220px,1fr))]">
                         <div>Modelo: <b>{selection.model}</b></div>
-                        <div>Qtd.: <b>{fmt(selection.quantity)}</b></div>
+                        <div>Qtd. seleção: <b>{fmt(selection.quantity)}</b></div>
+                        <div>Qtd. comercial: <b>{formatNumber(commercialQuantityNumber, 0)}</b></div>
                         <div>Capacidade total: <b>{fmt(selection.capacity_total_kcal_h)} kcal/h</b></div>
                         <div>Sobra: <b>{fmt(selection.surplus_percent)}%</b></div>
                         <div>Vazão total: <b>{fmt(selection.air_flow_total_m3_h)} m³/h</b></div>
                         <div>Trocas/h: <b>{fmt(selection.air_changes_hour)}</b></div>
                         <div>Potência: <b>{selection.total_power_kw ? `${fmt(selection.total_power_kw)} kW` : "—"}</b></div>
                         <div>COP: <b>{selection.cop ? fmt(selection.cop) : "—"}</b></div>
+                        <div>Valor unitário: <b>{formatCurrencyLocal(commercialUnitPrice)}</b></div>
+                        <div>Investimento total: <b>{formatCurrencyLocal(commercialSummary.investmentTotal)}</b></div>
                         <div>Método: <b>{selection.selection_method === "polynomial" ? "Curva polinomial" : selection.selection_method === "interpolated" ? "Interpolado" : "Ponto de curva"}</b></div>
                       </div>
+                    </div>
+                  ) : null}
+
+                  {showEnvironmentReport && result ? (
+                    <div id="coldpro-environment-report" className="space-y-3 rounded-lg border bg-background p-3">
+                      <div className="print:hidden">
+                        <h3 className="text-base font-semibold">Relatório do ambiente — {selectedEnv.name}</h3>
+                        <p className="text-sm text-muted-foreground">Relatório filtrado para o ambiente atual com dados térmicos, equipamento e simulação comercial local.</p>
+                      </div>
+                      <EnvironmentCommercialSummary commercial={commercialSummary} />
+                      <ColdProReport
+                        project={data?.project}
+                        environments={[selectedEnv]}
+                        results={[result]}
+                        selections={selection ? [selection] : []}
+                        products={products}
+                        advancedProcesses={(data?.advancedProcesses ?? []).filter((item: any) => item.environment_id === selectedEnv.id)}
+                        lastPdfUrl={lastPdfUrl}
+                      />
                     </div>
                   ) : null}
 
