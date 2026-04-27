@@ -502,7 +502,7 @@ function calculateTunnelCore(input: TunnelEngineInput) {
     ...requiredPositiveFields(input, isStatic, staticMassKg, characteristicDimensionM, energy.crossesFreezingPoint, airVelocityUsedMS, continuousMassMode),
     ...freezingTimeMissingFields,
   ]);
-  const warnings = unique([...validation.warnings, ...tunnelMode.warnings, ...geometry.warnings, ...exposure.warnings, ...airflow.warnings, ...engineWarnings]);
+  const warnings = unique([...validation.warnings, ...tunnelMode.warnings, ...geometry.warnings, ...exposure.warnings, ...airflow.warnings, ...engineWarnings, ...thermalReliabilityAlerts.map((alert) => alert.message)]);
 
   const status: TunnelScenarioStatus = invalidFields.length > 0
     ? "invalid_input"
@@ -587,7 +587,7 @@ function calculateTunnelCore(input: TunnelEngineInput) {
     loads: { productLoadKW, packagingLoadKW, internalLoadKW, totalKW, totalKcalH, totalTR, packagingMassKgH, packagingMassKgBatch, packagingMassBatchKg: packagingMassKgBatch, packagingLoadMethod: packaging.packagingLoadMethod, packagingMassSource: packaging.packagingMassSource, productLoadMissingFields: productLoadMissing, loadCalculationReady: productLoadMissing.length === 0, massUsedForProductLoad: tunnelMode.operationRegime === "batch" ? staticMassKg : usedMassKgH, massUnitForProductLoad: tunnelMode.operationRegime === "batch" ? "kg/batelada" : "kg/h", airFlowThermalBalanceM3H },
     infiltration: { requestedMethod: infiltrationMethod.requested, usedMethod: infiltrationMethod.used, fallbackApplied: Boolean(infiltrationMethod.warning) },
     timing: { estimatedTimeMin, availableTimeMin, status },
-    validation: { warnings, missingFields, invalidFields },
+    validation: { warnings, missingFields, invalidFields, thermalReliabilityAlerts },
   };
 
   const formulasUsed = {
