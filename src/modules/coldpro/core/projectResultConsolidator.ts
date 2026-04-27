@@ -54,6 +54,15 @@ export function consolidateColdProProjectResult({
     totalSelectedCapacityKcalH: round(sum(environmentResults.map((item) => item.equipment.totalCapacityKcalH))),
     totalEstimatedPowerKW: round(sum(environmentResults.map((item) => item.equipment.estimatedPowerKW))),
   };
+  const energySimulation = {
+    electricalPowerKW: round(sum(environmentResults.map((item) => Number(item.energySimulation?.electricalPowerKW ?? 0))), 6),
+    kWhDay: round(sum(environmentResults.map((item) => Number(item.energySimulation?.kWhDay ?? 0))), 6),
+    kWhMonth: round(sum(environmentResults.map((item) => Number(item.energySimulation?.kWhMonth ?? 0))), 6),
+    monthlyCost: round(sum(environmentResults.map((item) => Number(item.energySimulation?.monthlyCost ?? 0))), 2),
+    annualCost: round(sum(environmentResults.map((item) => Number(item.energySimulation?.annualCost ?? 0))), 2),
+    costPerKg: round(sum(environmentResults.map((item) => Number(item.energySimulation?.monthlyCost ?? 0))) / Math.max(sum(environmentResults.map((item) => Number(item.energySimulation?.assumptions?.monthlyProcessedMassKg ?? 0))), 1), 2),
+    warnings: Array.from(new Set(environmentResults.flatMap((item) => Array.isArray(item.energySimulation?.warnings) ? item.energySimulation.warnings : []))),
+  };
 
   const equipmentSurplusPercent = summary.requiredKcalH > 0 ? round(((summary.totalSelectedCapacityKcalH - summary.requiredKcalH) / summary.requiredKcalH) * 100, 2) : 0;
   const criticalEnvironments = environmentResults.filter((item) => item.consistencyAudit.hasCriticalDivergence);
@@ -73,6 +82,7 @@ export function consolidateColdProProjectResult({
     project: { id: project?.id ?? null, name: project?.name ?? "Projeto", applicationType: project?.application_type ?? null },
     summary: { ...summary, equipmentSurplusPercent, environmentCount: environments.length, calculatedEnvironmentCount: environmentResults.filter((item) => item.summary.requiredKcalH > 0).length },
     groupedLoads,
+    energySimulation,
     environmentResults,
     calculationMethodSummary: methodSummary,
     ranking: [...environmentResults].sort((a, b) => b.summary.requiredKcalH - a.summary.requiredKcalH).map((item, index) => ({

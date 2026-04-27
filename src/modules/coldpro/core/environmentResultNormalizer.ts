@@ -23,6 +23,7 @@ export function normalizeColdProEnvironmentResult({
     ...(Array.isArray(result?.calculation_breakdown?.validation_alerts) ? result.calculation_breakdown.validation_alerts.map((item: any) => item?.message ?? item) : []),
     ...(Array.isArray(normalized.tunnelValidation.warnings) ? normalized.tunnelValidation.warnings : []),
     ...(Array.isArray(normalized.calculationMethodSummary.warnings) ? normalized.calculationMethodSummary.warnings : []),
+    ...(Array.isArray(normalized.energySimulation.warnings) ? normalized.energySimulation.warnings : []),
   ].filter(Boolean).map(String)));
 
   return {
