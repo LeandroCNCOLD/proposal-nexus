@@ -651,6 +651,13 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
   const airflowDeltaM3H = informedFanAirflowM3H - requiredAirflowM3H;
   const airflowDeltaPercent = requiredAirflowM3H > 0 ? Math.abs(airflowDeltaM3H) / requiredAirflowM3H * 100 : 0;
   const showAirflowMismatch = form.airflow_source === "airflow_by_fans" && requiredAirflowM3H > 0 && informedFanAirflowM3H > 0 && airflowDeltaPercent > 5;
+  const chamberDimensions = resolveChamberDimensions(environment, { ...(tunnel ?? {}), ...form });
+  const displayedAirVelocityMS = positiveValue(form.air_velocity_m_s, tunnelResult.calculatedAirVelocityMS);
+  const displayedAirStatus = airflowVelocityStatus(displayedAirVelocityMS, ["continuous_belt", "spiral_girofreezer", "static_cart", "static_pallet", "fluidized_bed", "blast_freezer"].includes(tunnelType));
+  const displayedFreeAirAreaM2 = positiveValue(form.airflow_free_area_m2, tunnelResult.freeAirAreaM2);
+  const displayedAirWall = textValue(form.airflow_installation_wall, tunnelType === "blast_freezer" ? "Parede menor" : "—");
+  const displayedAirDirection = textValue(form.airflow_blow_direction, tunnelType === "blast_freezer" ? "Sopro no sentido do comprimento maior" : "—");
+  const displayedAirNote = textValue(form.airflow_technical_note, displayedAirStatus.warning || "Clique em Calcular ar para atualizar a recomendação pela carga térmica e dimensões do ambiente.");
   const loadBreakdown = tunnelResult.calculationBreakdown.loads ?? {};
   const modelBreakdown = tunnelResult.calculationBreakdown.model ?? {};
   const airBreakdown = tunnelResult.calculationBreakdown.air ?? {};
