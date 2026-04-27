@@ -1,4 +1,5 @@
 import { buildCalculationLog } from "../core/calculationLogger";
+import { buildCalculationMethodReport } from "../reports/calculationMethodReport";
 import { kwToKcalH, kwToTr } from "../core/units";
 import { validateTunnelInput } from "../core/validators";
 import { calculateAirflowModel } from "../physics/airflowModel";
@@ -272,6 +273,26 @@ function calculateModelH(input: TunnelEngineInput, _physicalModel: TunnelPhysica
     airExposureFactor: input?.airExposureFactor,
     exposureFactor,
   });
+}
+
+function hasPsychrometricInfiltrationData(input: TunnelEngineInput): boolean {
+  return positiveNumber(input?.infiltrationAirflowM3H ?? input?.infiltration_airflow_m3_h) > 0 &&
+    isProvided(input?.externalTempC ?? input?.external_temp_c) &&
+    isProvided(input?.airTempC ?? input?.internalTempC ?? input?.internal_temp_c) &&
+    isProvided(input?.externalRelativeHumidityPercent ?? input?.external_relative_humidity_percent) &&
+    isProvided(input?.internalRelativeHumidityPercent ?? input?.internal_relative_humidity_percent);
+}
+
+function resolveInfiltrationMethod(input: TunnelEngineInput) {
+  const requested = String(input?.infiltrationCalculationMethod ?? input?.infiltration_calculation_method ?? "simple_air_change");
+  const canUsePsychrometric = requested === "psychrometric_enthalpy" && hasPsychrometricInfiltrationData(input);
+  return {
+    requested,
+    used: canUsePsychrometric ? "psychrometric_enthalpy" : "simple_air_change",
+    warning: requested === "psychrometric_enthalpy" && !canUsePsychrometric
+      ? "Método psicrométrico solicitado, mas faltam dados de umidade/entalpia. Usando método simplificado."
+      : "",
+  };
 }
 
 function calculateTunnelCore(input: TunnelEngineInput) {
