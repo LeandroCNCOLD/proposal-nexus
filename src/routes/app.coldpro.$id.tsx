@@ -86,6 +86,14 @@ function ColdProProjectPage() {
   const savedSelection = (data?.selections ?? []).find((s: any) => s.environment_id === selectedEnv?.id);
   const mutationSelection = autoSelect.data?.environment_id === selectedEnv?.id ? autoSelect.data : saveCatalogSel.data?.environment_id === selectedEnv?.id ? saveCatalogSel.data : null;
   const selection = mutationSelection ?? savedSelection;
+  const currentResults = React.useMemo(
+    () => (result && selectedEnv?.id ? [result, ...(data?.results ?? []).filter((item: any) => item.environment_id !== selectedEnv.id)] : data?.results ?? []),
+    [data?.results, result, selectedEnv?.id],
+  );
+  const currentSelections = React.useMemo(
+    () => (selection && selectedEnv?.id ? [selection, ...(data?.selections ?? []).filter((item: any) => item.environment_id !== selectedEnv.id)] : data?.selections ?? []),
+    [data?.selections, selection, selectedEnv?.id],
+  );
   const tunnelPreview = tunnel && selectedEnv ? calculateTunnelEngine(databaseToTunnelInput(tunnel, selectedEnv)) : null;
   const environmentLoad = Number(result?.transmission_kcal_h ?? 0);
   const savedProductLoad = Number(result?.product_kcal_h ?? 0) + Number(result?.packaging_kcal_h ?? 0) + Number(result?.calculation_breakdown?.respiration_kcal_h ?? 0) + Number(result?.tunnel_internal_load_kcal_h ?? 0);
