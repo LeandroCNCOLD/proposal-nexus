@@ -474,6 +474,7 @@ function calculateTunnelCore(input: TunnelEngineInput) {
     suggestedAirTempComparisonC !== null && suggestedAirTempComparisonC > 5 ? "Temperatura do ar informada pode ser insuficiente para atingir a temperatura final do produto no tempo desejado." : "",
     airFlowDeviation > 0.2 ? "Vazão de ar informada diverge da vazão necessária pela carga térmica em mais de 20%." : "",
     informedAirFlowM3H !== null && airFlowM3H > 0 && informedAirFlowM3H < airFlowM3H * 0.95 ? "Vazão dos ventiladores informada abaixo da vazão necessária pela carga térmica." : "",
+    productLoadKW <= 0 ? "Produto/processo zerado em túnel ou blast freezer. Carga térmica inválida." : "",
     productLoadKW <= 0 && productLoadMissing.length > 0 ? `Carga térmica do produto não calculada: falta ${productLoadMissing.join(", ")}.` : "",
     hasManualH && positiveNumber(input?.manualConvectiveCoefficientWM2K) < 25 && energy.crossesFreezingPoint ? "h manual muito baixo para congelamento rápido." : "",
     isProvided(input?.thermalPenetrationFactor) && toNumber(input?.thermalPenetrationFactor) <= 0 ? "Fator de penetração térmica deve ser maior que zero." : "",
