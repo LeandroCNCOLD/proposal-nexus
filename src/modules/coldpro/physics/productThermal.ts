@@ -13,6 +13,7 @@ type ProductSpecificEnergyInput = {
   frozenWaterFraction?: number | null;
   latentResidualFactor?: number | null;
   allowPhaseChange?: boolean | null;
+  latentMode?: "effective" | "full" | null; // NOVO: Modo de interpretação do latente
 };
 
 function clampFraction(value: number, fallback = 1) {
@@ -35,9 +36,15 @@ export function calculateProductSpecificEnergy(params: ProductSpecificEnergyInpu
 
   if (crossesFreezingPoint) {
     const sensibleAboveKcalKg = cpAboveKcalKgC * Math.max(initialTempC - freezingPointC, 0);
-    // CORREÇÃO: Se latente já está preenchido na base, usar direto SEM multiplicar por fração
-    // Fração congelável deve ser usada APENAS como origem/auditoria
-    const latentKcalKg = latentHeatKcalKg * latentResidualFactor;
+    
+    // LÓGICA DE LATENT_MODE:
+    // - "effective": latente já está corrigido na base → usar direto (SEM multiplicar por fração)
+    // - "full": latente é total → multiplicar por frozenWaterFraction
+    // - default: "effective" (maioria dos produtos ASHRAE)
+    const latentMode = params?.latentMode ?? "effective";
+    const latentKcalKg = latentMode === "full"
+      ? latentHeatKcalKg * frozenWaterFraction * latentResidualFactor  // Método ASHRAE puro
+      : latentHeatKcalKg * latentResidualFactor;  // Latente já efetivo na base
     const belowStartC = Math.min(initialTempC, freezingPointC);
     const sensibleBelowKcalKg = cpBelowKcalKgC * Math.max(belowStartC - finalTempC, 0);
     return {
