@@ -280,9 +280,9 @@ function productLoadMissingFields(input: TunnelEngineInput, isStatic: boolean, s
     !isProvided(input?.initialTempC) ? "temperatura inicial do produto" : "",
     !isProvided(input?.finalTempC) ? "temperatura final do produto" : "",
     !isProvided(input?.freezingPointC) ? "temperatura de congelamento" : "",
-    positiveNumber(input?.cpAboveKcalKgC) <= 0 ? "Cp acima do congelamento" : "",
-    energy.crossesFreezingPoint && positiveNumber(input?.cpBelowKcalKgC) <= 0 ? "Cp abaixo do congelamento" : "",
-    energy.crossesFreezingPoint && positiveNumber(input?.latentHeatKcalKg) <= 0 ? "calor latente" : "",
+    thermalKcal(input, "cpAboveKcalKgC", "cpAboveKJkgK") <= 0 ? "Cp acima do congelamento" : "",
+    energy.crossesFreezingPoint && thermalKcal(input, "cpBelowKcalKgC", "cpBelowKJkgK") <= 0 ? "Cp abaixo do congelamento" : "",
+    energy.crossesFreezingPoint && thermalKcal(input, "latentHeatKcalKg", "latentHeatKJkg") <= 0 ? "calor latente" : "",
     energy.crossesFreezingPoint && positiveNumber(input?.frozenWaterFraction) <= 0 ? "fração congelável" : "",
   ]);
 }
