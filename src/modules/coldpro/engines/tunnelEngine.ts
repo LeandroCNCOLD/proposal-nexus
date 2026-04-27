@@ -275,7 +275,7 @@ function calculateModelH(input: TunnelEngineInput, _physicalModel: TunnelPhysica
 }
 
 function calculateTunnelCore(input: TunnelEngineInput) {
-  const processType = input?.processType ?? input?.process_type ?? null;
+  const processType = typeof input?.processType === "string" ? input.processType : typeof input?.process_type === "string" ? input.process_type : null;
   const tunnelMode = resolveTunnelMode(input);
   const physicalModel = normalizePhysicalModel(input);
   const modelMeta = MODEL_META[physicalModel];
