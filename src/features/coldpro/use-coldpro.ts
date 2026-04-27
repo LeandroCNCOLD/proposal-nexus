@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { listColdProProjects, createColdProProject, updateColdProProject, getColdProProjectBundle, createColdProEnvironment, updateColdProEnvironment, deleteColdProEnvironment, upsertColdProEnvironmentProduct, deleteColdProEnvironmentProduct, upsertColdProTunnel, upsertColdProAdvancedProcess, calculateColdProEnvironment, autoSelectColdProEquipment } from "./coldpro.functions";
+import { listColdProProjects, createColdProProject, updateColdProProject, listColdProLinkableProposals, linkColdProProjectToProposal, deleteColdProProject, getColdProProjectBundle, createColdProEnvironment, updateColdProEnvironment, deleteColdProEnvironment, upsertColdProEnvironmentProduct, deleteColdProEnvironmentProduct, upsertColdProTunnel, upsertColdProAdvancedProcess, calculateColdProEnvironment, autoSelectColdProEquipment } from "./coldpro.functions";
 import { pushColdProToProposal } from "./push-coldpro-to-proposal.functions";
 import { analyzeColdProMemorial, generateColdProMemorialPdf } from "@/integrations/coldpro/coldpro-memorial.functions";
 
@@ -20,6 +20,17 @@ export function useCreateColdProProject() {
 export function useUpdateColdProProject(projectId: string) {
   const qc = useQueryClient();
   return useMutation({ mutationFn: (data: { id: string; name: string }) => updateColdProProject({ data }), onSuccess: () => { qc.invalidateQueries({ queryKey: ["coldpro-project", projectId] }); qc.invalidateQueries({ queryKey: ["coldpro-projects"] }); } });
+}
+export function useColdProLinkableProposals() {
+  return useQuery({ queryKey: ["coldpro-linkable-proposals"], queryFn: () => listColdProLinkableProposals() });
+}
+export function useLinkColdProProjectToProposal() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: (data: { id: string; proposal_id: string | null }) => linkColdProProjectToProposal({ data }), onSuccess: () => qc.invalidateQueries({ queryKey: ["coldpro-projects"] }) });
+}
+export function useDeleteColdProProject() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: (id: string) => deleteColdProProject({ data: { id } }), onSuccess: () => qc.invalidateQueries({ queryKey: ["coldpro-projects"] }) });
 }
 export function useColdProProjectBundle(projectId: string) {
   return useQuery({ queryKey: ["coldpro-project", projectId], queryFn: () => getColdProProjectBundle({ data: { projectId } }), enabled: !!projectId });
