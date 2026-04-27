@@ -29,6 +29,7 @@ import { ColdProReport } from "@/components/coldpro/ColdProReport";
 import { ColdProProjectResultDashboard } from "@/modules/coldpro/components/results/ColdProProjectResultDashboard";
 import { EnergySummary } from "@/modules/coldpro/components/results/EnergySummary";
 import { EquipmentOptimizationSummary } from "@/modules/coldpro/components/results/EquipmentOptimizationSummary";
+import { ProjectRecommendationSummary } from "@/modules/coldpro/components/results/ProjectRecommendationSummary";
 import { ColdProRealSelection } from "@/components/coldpro/ColdProRealSelection";
 import { ColdProSectionLoadSummary } from "@/components/coldpro/ColdProSectionLoadSummary";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -631,6 +632,7 @@ function ColdProProjectPage() {
                     <ThermalLoadSummary result={result} />
                     <EnergySummary result={result} />
                     <EquipmentOptimizationSummary result={result} selection={selection} />
+                    <ProjectRecommendationSummary result={result} />
                   </div>
 
                   {/* Seleção por curva real do catálogo */}
