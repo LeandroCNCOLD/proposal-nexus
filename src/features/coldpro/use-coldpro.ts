@@ -11,7 +11,18 @@ function upsertByEnvironment<T extends { environment_id?: string | null }>(rows:
 }
 
 export function useColdProProjects() {
-  return useQuery({ queryKey: ["coldpro-projects"], queryFn: () => listColdProProjects() });
+  return useQuery({
+    queryKey: ["coldpro-projects"],
+    queryFn: async () => {
+      try {
+        return (await listColdProProjects()) ?? [];
+      } catch (error) {
+        console.error("[coldpro-projects] Falha ao carregar projetos", error);
+        return [];
+      }
+    },
+    retry: false,
+  });
 }
 export function useCreateColdProProject() {
   const qc = useQueryClient();
@@ -22,7 +33,18 @@ export function useUpdateColdProProject(projectId: string) {
   return useMutation({ mutationFn: (data: { id: string; name: string }) => updateColdProProject({ data }), onSuccess: () => { qc.invalidateQueries({ queryKey: ["coldpro-project", projectId] }); qc.invalidateQueries({ queryKey: ["coldpro-projects"] }); } });
 }
 export function useColdProLinkableProposals() {
-  return useQuery({ queryKey: ["coldpro-linkable-proposals"], queryFn: () => listColdProLinkableProposals() });
+  return useQuery({
+    queryKey: ["coldpro-linkable-proposals"],
+    queryFn: async () => {
+      try {
+        return (await listColdProLinkableProposals()) ?? [];
+      } catch (error) {
+        console.error("[coldpro-linkable-proposals] Falha ao carregar propostas", error);
+        return [];
+      }
+    },
+    retry: false,
+  });
 }
 export function useLinkColdProProjectToProposal() {
   const qc = useQueryClient();
