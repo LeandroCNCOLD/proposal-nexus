@@ -99,6 +99,7 @@ export interface TunnelEngineInput {
   cpAboveKJkgK?: number | null;
   cpBelowKJkgK?: number | null;
   latentHeatKJkg?: number | null;
+  latentMode?: "effective" | "full" | string | null;
   frozenWaterFraction?: number | null;
   latentResidualFactor?: number | null;
   densityKgM3?: number | null;
@@ -133,6 +134,12 @@ export interface TunnelEngineInput {
 }
 
 export interface TunnelEnergyBreakdown {
+  cpAboveKJkgK?: number;
+  cpBelowKJkgK?: number;
+  latentHeatKJkg?: number;
+  frozenWaterFraction?: number;
+  latentMode?: "effective" | "full" | string;
+  latentEffectiveKJkg?: number;
   sensibleAboveKcalKg: number;
   latentKcalKg: number;
   sensibleBelowKcalKg: number;

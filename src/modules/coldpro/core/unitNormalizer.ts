@@ -2,6 +2,7 @@ import { safeNumber } from "./units";
 
 export const KCAL_TO_KJ = 4.1868;
 type ConversionSource = "kcal_native" | "kJ_native" | "kJ_to_kcal" | "kcal_to_kJ" | "default_kcal_native" | "default_kcal_to_kJ" | "missing";
+export type ProductLatentMode = "effective" | "full";
 
 const PRODUCT_THERMAL_DEFAULTS = [
   {
@@ -28,6 +29,10 @@ function normalizeFraction(value: unknown, fallback: number) {
 
 function firstProvided(...values: unknown[]) {
   return values.find((value) => value !== null && value !== undefined && value !== "");
+}
+
+function normalizeLatentMode(value: unknown): ProductLatentMode {
+  return value === "full" ? "full" : "effective";
 }
 
 function normalizeEnergyForKcal(kjValue: unknown, kcalValue: unknown, defaultKcalValue: unknown, units: { kcal: string; kj: string }) {
@@ -65,6 +70,7 @@ export function normalizeProductForKcalEngine(input: any) {
   const cpAbove = normalizeEnergyForKcal(input?.specific_heat_above_kj_kg_k ?? input?.cpAboveKJkgK, input?.specific_heat_above_kcal_kg_c ?? input?.cpAboveKcalKgC, preferKJ ? "prefer_kj" : defaults?.cpAboveKcalKgC, { kcal: "kcal/kg°C", kj: "kJ/kg.K" });
   const cpBelow = normalizeEnergyForKcal(input?.specific_heat_below_kj_kg_k ?? input?.cpBelowKJkgK, input?.specific_heat_below_kcal_kg_c ?? input?.cpBelowKcalKgC, preferKJ ? "prefer_kj" : defaults?.cpBelowKcalKgC, { kcal: "kcal/kg°C", kj: "kJ/kg.K" });
   const latentHeat = normalizeEnergyForKcal(input?.latent_heat_kj_kg ?? input?.latentHeatKJkg, input?.latent_heat_kcal_kg ?? input?.latentHeatKcalKg, preferKJ ? "prefer_kj" : defaults?.latentHeatKcalKg, { kcal: "kcal/kg", kj: "kJ/kg" });
+  const latentMode = normalizeLatentMode(input?.latent_mode ?? input?.latentMode);
   const frozenWaterFraction = normalizeFraction(
     firstProvided(input?.frozen_water_fraction, input?.frozenWaterFraction, input?.freezable_water_content_percent, input?.water_content_percent),
     defaults?.frozenWaterFraction ?? 1,
@@ -75,6 +81,10 @@ export function normalizeProductForKcalEngine(input: any) {
     cpAboveKcalKgC: cpAbove.value,
     cpBelowKcalKgC: cpBelow.value,
     latentHeatKcalKg: latentHeat.value,
+    cpAboveKJkgK: cpAbove.equivalentKJ,
+    cpBelowKJkgK: cpBelow.equivalentKJ,
+    latentHeatKJkg: latentHeat.equivalentKJ,
+    latentMode,
     frozenWaterFraction,
     latentResidualFactor,
     defaultsApplied: defaults?.productType ?? null,
@@ -101,6 +111,10 @@ export function normalizeProductForKjEngine(input: any) {
     cpAboveKJkgK: cpAbove.value,
     cpBelowKJkgK: cpBelow.value,
     latentHeatKJkg: latentHeat.value,
+    cpAboveKcalKgC: cpAbove.value / KCAL_TO_KJ,
+    cpBelowKcalKgC: cpBelow.value / KCAL_TO_KJ,
+    latentHeatKcalKg: latentHeat.value / KCAL_TO_KJ,
+    latentMode: kcal.latentMode,
     frozenWaterFraction: kcal.frozenWaterFraction,
     latentResidualFactor: kcal.latentResidualFactor,
     defaultsApplied: kcal.defaultsApplied,
@@ -110,11 +124,5 @@ export function normalizeProductForKjEngine(input: any) {
 }
 
 export function normalizeThermalProperties(input: any) {
-  const kcal = normalizeProductForKcalEngine(input);
-  return {
-    ...kcal,
-    cpAboveKJkgK: kcal.cpAboveKcalKgC * KCAL_TO_KJ,
-    cpBelowKJkgK: kcal.cpBelowKcalKgC * KCAL_TO_KJ,
-    latentHeatKJkg: kcal.latentHeatKcalKg * KCAL_TO_KJ,
-  };
+  return normalizeProductForKjEngine(input);
 }

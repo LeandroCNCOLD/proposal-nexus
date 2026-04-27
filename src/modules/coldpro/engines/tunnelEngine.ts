@@ -101,9 +101,11 @@ function buildThermalReliabilityAlerts(input: TunnelEngineInput, energy: ReturnT
   const conversions = (input?.unitConversions ?? {}) as Record<string, unknown>;
   const alerts: Array<{ level: "error" | "warning" | "info"; code: string; message: string }> = [];
   const unitMissing = (key: string) => !conversions[key] || conversions[key] === "missing";
-  if (toNumber(input?.finalTempC) < 0 && thermalKcal(input, "latentHeatKcalKg", "latentHeatKJkg") <= 0) alerts.push({ level: "error", code: "latent_heat_zero_frozen_product", message: "Calor latente zerado em produto congelado; a carga térmica fica subestimada." });
+  if (toNumber(input?.finalTempC) < 0 && toNumber(energy.latentEffectiveKJkg) <= 0) alerts.push({ level: "error", code: "latent_heat_zero_frozen_product", message: "Calor latente zerado em produto congelado; a carga térmica fica subestimada." });
   if (!isProvided(input?.frozenWaterFraction)) alerts.push({ level: "warning", code: "frozen_water_fraction_missing", message: "Fração congelável vazia; foi aplicado default técnico." });
   if (energy.totalKcalKg > 0 && energy.totalKcalKg < 19.1) alerts.push({ level: "warning", code: "low_specific_energy", message: "Energia específica menor que 19,1 kcal/kg; revisar Cp, latente e unidades." });
+  if (energy.crossesFreezingPoint && toNumber(energy.latentEffectiveKJkg) > 0 && toNumber(energy.latentEffectiveKJkg) < 80) alerts.push({ level: "warning", code: "latent_effective_low", message: "Calor latente baixo para congelamento. Verificar base do produto." });
+  if (isProvided(input?.frozenWaterFraction) && toNumber(input?.frozenWaterFraction) < 0.4) alerts.push({ level: "warning", code: "frozen_fraction_low", message: "Fração congelável baixa. Validar origem do dado." });
   if (toNumber(input?.cpBelowKcalKgC) > 0 && toNumber(input?.cpBelowKcalKgC) < 0.12 && unitMissing("cpBelowKcalKgC")) alerts.push({ level: "warning", code: "cp_below_low_without_unit", message: "Cp abaixo menor que 0,12 kcal/kg°C sem unidade declarada." });
   if (toNumber(input?.latentHeatKcalKg) > 0 && toNumber(input?.latentHeatKcalKg) < 24 && unitMissing("latentHeatKcalKg")) alerts.push({ level: "warning", code: "latent_low_without_unit", message: "Calor latente menor que 24 kcal/kg sem unidade declarada." });
   const expectedKW = timeH > 0 ? (massForLoad * energy.totalKcalKg / timeH) / 859.845 : (massForLoad * energy.totalKcalKg) / 859.845;
@@ -263,7 +265,6 @@ function canEstimateFreezingTime(input: TunnelEngineInput, distanceToCoreM: numb
   return (
     positiveNumber(input?.densityKgM3) > 0 &&
     thermalKcal(input, "latentHeatKcalKg", "latentHeatKJkg") > 0 &&
-    positiveNumber(input?.frozenWaterFraction) > 0 &&
     distanceToCoreM > 0 &&
     toNumber(hEffectiveWM2K, 0) > 0 &&
     kEffectiveWMK > 0 &&
@@ -283,7 +284,7 @@ function productLoadMissingFields(input: TunnelEngineInput, isStatic: boolean, s
     thermalKcal(input, "cpAboveKcalKgC", "cpAboveKJkgK") <= 0 ? "Cp acima do congelamento" : "",
     energy.crossesFreezingPoint && thermalKcal(input, "cpBelowKcalKgC", "cpBelowKJkgK") <= 0 ? "Cp abaixo do congelamento" : "",
     energy.crossesFreezingPoint && thermalKcal(input, "latentHeatKcalKg", "latentHeatKJkg") <= 0 ? "calor latente" : "",
-    energy.crossesFreezingPoint && positiveNumber(input?.frozenWaterFraction) <= 0 ? "fração congelável" : "",
+    energy.crossesFreezingPoint && energy.latentMode === "full" && positiveNumber(input?.frozenWaterFraction) <= 0 ? "fração congelável" : "",
   ]);
 }
 
@@ -413,6 +414,7 @@ function calculateTunnelCore(input: TunnelEngineInput) {
     cpAboveKJkgK: positiveNumber(input?.cpAboveKJkgK) || undefined,
     cpBelowKJkgK: positiveNumber(input?.cpBelowKJkgK) || undefined,
     latentHeatKJkg: positiveNumber(input?.latentHeatKJkg) || undefined,
+    latentMode: input?.latentMode,
     frozenWaterFraction: input?.frozenWaterFraction,
     latentResidualFactor: input?.latentResidualFactor,
     allowPhaseChange: input?.allowPhaseChange,
@@ -425,7 +427,12 @@ function calculateTunnelCore(input: TunnelEngineInput) {
 
   const productEnergyBreakdown = {
     unitAudit: input?.unitAudit ?? null,
-    effectiveCalculationUnit: "kcal/kg°C para Cp e kcal/kg para calor latente",
+    effectiveCalculationUnit: "kJ/kg.K para Cp e kJ/kg para calor latente; kcal apenas compatibilidade",
+    cpAboveKJkgK: energy.cpAboveKJkgK,
+    cpBelowKJkgK: energy.cpBelowKJkgK,
+    latentHeatKJkg: energy.latentHeatKJkg,
+    latentMode: energy.latentMode,
+    latentEffectiveKJkg: energy.latentEffectiveKJkg,
     sensibleAboveKcalKg: energy.sensibleAboveKcalKg,
     latentKcalKg: energy.latentKcalKg,
     sensibleBelowKcalKg: energy.sensibleBelowKcalKg,
@@ -435,8 +442,8 @@ function calculateTunnelCore(input: TunnelEngineInput) {
     sensibleBelowKJkg: energy.sensibleBelowKJkg,
     totalKJkg: energy.totalKJkg,
     crossesFreezing: energy.crossesFreezingPoint,
-    frozenWaterFraction: input?.frozenWaterFraction ?? null,
-    latentResidualFactor: input?.latentResidualFactor ?? null,
+    frozenWaterFraction: energy.frozenWaterFraction ?? null,
+    latentResidualFactor: energy.latentResidualFactor ?? null,
     unitConversions: input?.unitConversions ?? null,
   };
 
@@ -459,8 +466,8 @@ function calculateTunnelCore(input: TunnelEngineInput) {
   const estimatedTimeMin = canEstimateFreezingTime(input, distanceToCoreM, h.hEffectiveWM2K, kEffectiveWMK)
     ? calculatePlankFreezingTimeMin({
         densityKgM3: input?.densityKgM3,
-        latentHeatKJkg: thermalKcal(input, "latentHeatKcalKg", "latentHeatKJkg") * 4.1868,
-        frozenWaterFraction: input?.frozenWaterFraction,
+        latentHeatKJkg: energy.latentEffectiveKJkg,
+        frozenWaterFraction: 1,
         freezingPointC: input?.freezingPointC,
         airTempC: input?.airTempC,
         distanceToCoreM,
@@ -506,8 +513,8 @@ function calculateTunnelCore(input: TunnelEngineInput) {
 
   const freezingTimeMissingFields = [
     positiveNumber(input?.densityKgM3) <= 0 ? "densidade do produto" : "",
-    energy.crossesFreezingPoint && thermalKcal(input, "latentHeatKcalKg", "latentHeatKJkg") <= 0 ? "calor latente" : "",
-    energy.crossesFreezingPoint && positiveNumber(input?.frozenWaterFraction) <= 0 ? "fração congelável" : "",
+    energy.crossesFreezingPoint && toNumber(energy.latentEffectiveKJkg) <= 0 ? "calor latente" : "",
+    energy.crossesFreezingPoint && energy.latentMode === "full" && positiveNumber(input?.frozenWaterFraction) <= 0 ? "fração congelável" : "",
     !isProvided(input?.freezingPointC) ? "temperatura de congelamento" : "",
     !isProvided(input?.airTempC) ? "temperatura do ar" : "",
     distanceToCoreM <= 0 ? "dimensão crítica para tempo até o núcleo" : "",

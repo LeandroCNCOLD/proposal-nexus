@@ -4,6 +4,7 @@ import { compareColdProFormulaWithAshrae, getHighPriorityAshraeActions } from ".
 import { COLDPRO_CALCULATION_METHODS } from "../core/calculationMethodRegistry";
 import { buildCalculationMethodSummary } from "../core/resultNormalizer";
 import { tunnelResultToDatabasePayload } from "../adapters/tunnelInputToDatabasePayload";
+import { calculateProductSpecificEnergy } from "../physics/productThermal";
 import type { TunnelEngineInput, TunnelEngineResult } from "../types/tunnelEngine.types";
 import { calculateTunnelEngine, COLDPRO_TUNNEL_ENGINE_VERSION } from "./tunnelEngine";
 
@@ -18,6 +19,7 @@ const thermalBase = {
   cpAboveKJkgK: 3.5,
   cpBelowKJkgK: 1.8,
   latentHeatKJkg: 250,
+  latentMode: "full" as const,
   frozenWaterFraction: 0.8,
   frozenConductivityWMK: 1.5,
   densityKgM3: 1000,
@@ -62,6 +64,37 @@ const thermalBase = {
   assert.equal(payload.engine_version, COLDPRO_TUNNEL_ENGINE_VERSION);
   nearlyEqual(Number(payload.tunnel_total_load_kw), result.totalKW, 0.01);
   nearlyEqual(Number(payload.airflow_m3_h), result.airFlowM3H, 0.01);
+}
+
+{
+  const paoDeQueijo = calculateProductSpecificEnergy({
+    initialTempC: 24,
+    finalTempC: -18,
+    freezingPointC: -2.83,
+    cpAboveKJkgK: 2.0,
+    cpBelowKJkgK: 1.1,
+    latentHeatKJkg: 140,
+    frozenWaterFraction: 0.7,
+  });
+  assert.equal(paoDeQueijo.latentMode, "effective");
+  nearlyEqual(paoDeQueijo.latentEffectiveKJkg, 140, 0.001);
+  nearlyEqual(paoDeQueijo.latentKJkg, 140, 0.001);
+  assert.ok(paoDeQueijo.totalKJkg >= 200 && paoDeQueijo.totalKJkg <= 220, `expected pão de queijo total kJ/kg between 200 and 220, got ${paoDeQueijo.totalKJkg}`);
+  assert.ok(paoDeQueijo.totalKcalKg >= 48 && paoDeQueijo.totalKcalKg <= 52, `expected pão de queijo total kcal/kg between 48 and 52, got ${paoDeQueijo.totalKcalKg}`);
+
+  const fullLatent = calculateProductSpecificEnergy({
+    initialTempC: 24,
+    finalTempC: -18,
+    freezingPointC: -2.83,
+    cpAboveKJkgK: 2.0,
+    cpBelowKJkgK: 1.1,
+    latentHeatKJkg: 140,
+    frozenWaterFraction: 0.7,
+    latentMode: "full",
+  });
+  assert.equal(fullLatent.latentMode, "full");
+  nearlyEqual(fullLatent.latentEffectiveKJkg, 98, 0.001);
+  assert.ok(fullLatent.totalKJkg < paoDeQueijo.totalKJkg, "latentMode full must be lower than effective when fraction < 1");
 }
 
 {
