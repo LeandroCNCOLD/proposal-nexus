@@ -31,11 +31,11 @@ function firstProvided(...values: unknown[]) {
 }
 
 function normalizeEnergyForKcal(kjValue: unknown, kcalValue: unknown, defaultKcalValue: unknown, units: { kcal: string; kj: string }) {
-  const kcal = safeNumber(kcalValue, 0);
-  if (kcal > 0) return { value: kcal, source: "kcal_native" as ConversionSource, originalValue: kcal, originalUnit: units.kcal, convertedValue: kcal, usedUnit: units.kcal, equivalentKJ: kcal * KCAL_TO_KJ };
-
   const kj = safeNumber(kjValue, 0);
   if (kj > 0) return { value: kj / KCAL_TO_KJ, source: "kJ_to_kcal" as ConversionSource, originalValue: kj, originalUnit: units.kj, convertedValue: kj / KCAL_TO_KJ, usedUnit: units.kcal, equivalentKJ: kj };
+
+  const kcal = safeNumber(kcalValue, 0);
+  if (kcal > 0) return { value: kcal, source: "kcal_native" as ConversionSource, originalValue: kcal, originalUnit: units.kcal, convertedValue: kcal, usedUnit: units.kcal, equivalentKJ: kcal * KCAL_TO_KJ };
 
   const defaultKcal = safeNumber(defaultKcalValue, 0);
   if (defaultKcal > 0) return { value: defaultKcal, source: "default_kcal_native" as ConversionSource, originalValue: defaultKcal, originalUnit: units.kcal, convertedValue: defaultKcal, usedUnit: units.kcal, equivalentKJ: defaultKcal * KCAL_TO_KJ };
