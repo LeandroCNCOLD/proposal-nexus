@@ -614,6 +614,11 @@ export function calculateTunnelEngine(input: any) {
 
   const calculationBreakdown = {
     ...adjusted.calculationBreakdown,
+    engine: {
+      version: COLDPRO_TUNNEL_ENGINE_VERSION,
+      calculatedAt: new Date().toISOString(),
+      source: "calculateTunnelEngine",
+    },
     scenarios: {
       initialScenario: initial.scenario,
       adjustedScenario: adjusted.scenario,
@@ -632,6 +637,10 @@ export function calculateTunnelEngine(input: any) {
 
   return {
     ...adjusted,
+    engineVersion: COLDPRO_TUNNEL_ENGINE_VERSION,
+    calculatedAt: calculationBreakdown.engine.calculatedAt,
+    estimatedAirflowM3H: adjusted.airFlowM3H,
+    airFlowThermalBalanceM3H: adjusted.airFlowM3H,
     initialScenario: initial.scenario,
     adjustedScenario: adjusted.scenario,
     approvedScenario,
