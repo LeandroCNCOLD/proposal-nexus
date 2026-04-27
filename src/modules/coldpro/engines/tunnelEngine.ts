@@ -378,7 +378,7 @@ function calculateTunnelCore(input: TunnelEngineInput) {
   const informedAirFlowM3H = nullableNumber(input?.informedAirFlowM3H ?? input?.airflow_m3_h);
   const infiltrationMethod = resolveInfiltrationMethod(input);
 
-  const geometry = calculateCharacteristicDimension({ ...input, isStatic: tunnelMode.isStatic });
+  const geometry = calculateCharacteristicDimension({ ...input, isStatic: tunnelMode.isStatic, tunnelType: tunnelMode.tunnelType, arrangementType: tunnelMode.arrangementType });
   const fallbackCharacteristicDimensionM = isStatic
     ? getSmallestValidDimension([input?.palletLengthM, input?.palletWidthM, input?.palletHeightM])
     : positiveNumber(input?.productThicknessM);
@@ -430,7 +430,7 @@ function calculateTunnelCore(input: TunnelEngineInput) {
   const totalKW = productLoadKW + packagingLoadKW + internalLoadKW;
   const totalKcalH = kwToKcalH(totalKW);
   const totalTR = kwToTr(totalKW);
-  const airFlowM3H = airDeltaTK > 0 && airDensityKgM3 > 0 ? (totalKW * 3600) / (airDensityKgM3 * cpAirKJkgK * airDeltaTK) : 0;
+  const airFlowM3H = calculateRequiredAirflowM3H({ loadKW: totalKW, airDeltaTK, airDensityKgM3, cpAirKJkgK });
   const airFlowThermalBalanceM3H = airFlowM3H;
 
   const estimatedTimeMin = canEstimateFreezingTime(input, distanceToCoreM, h.hEffectiveWM2K, kEffectiveWMK)
@@ -488,6 +488,7 @@ function calculateTunnelCore(input: TunnelEngineInput) {
     positiveNumber(input?.frozenConductivityWMK) <= 0 ? "condutividade congelada" : "",
     positiveNumber(input?.thermalPenetrationFactor) <= 0 ? "fator de penetração térmica" : "",
   ];
+  const freezingValidation = validateFreezingTime({ estimatedTimeMin, availableTimeMin, missingFields: freezingTimeMissingFields, invalidFields: [] });
   const invalidFields = unique([
     ...validation.invalidFields,
     ...airflow.invalidFields,
@@ -508,11 +509,7 @@ function calculateTunnelCore(input: TunnelEngineInput) {
     ? "invalid_input"
     : missingFields.length > 0
       ? "missing_data"
-      : estimatedTimeMin !== null && estimatedTimeMin <= availableTimeMin
-        ? "adequate"
-        : estimatedTimeMin !== null && estimatedTimeMin > availableTimeMin
-          ? "insufficient"
-          : "missing_data";
+      : freezingValidation.status;
 
   const scenario: TunnelThermalScenario = {
     airTempC: nullableNumber(input?.airTempC),
