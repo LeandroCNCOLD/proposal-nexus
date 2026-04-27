@@ -764,6 +764,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
   const applyProduct = (id: string) => {
     const p = productCatalog.find((item) => item.id === id);
     if (!p) return;
+    const kcalProduct = normalizeProductForKcalEngine(p);
     const catalogGeometry = geometryFromCatalogShape(p.geometry_shape);
     const lengthM = Number(p.length_mm ?? 0) > 0 ? Number(p.length_mm) / 1000 : null;
     const widthM = Number(p.width_mm ?? 0) > 0 ? Number(p.width_mm) / 1000 : null;
@@ -792,10 +793,10 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
       ashrae_density_kg_m3: p.density_kg_m3 ?? prev.ashrae_density_kg_m3 ?? 0,
       specific_heat_above_kj_kg_k: p.specific_heat_above_kj_kg_k ?? null,
       specific_heat_below_kj_kg_k: p.specific_heat_below_kj_kg_k ?? null,
-      specific_heat_above_kcal_kg_c: Number(p.specific_heat_above_kcal_kg_c ?? prev.specific_heat_above_kcal_kg_c),
-      specific_heat_below_kcal_kg_c: Number(p.specific_heat_below_kcal_kg_c ?? prev.specific_heat_below_kcal_kg_c),
+      specific_heat_above_kcal_kg_c: kcalProduct.cpAboveKcalKgC || Number(p.specific_heat_above_kcal_kg_c ?? prev.specific_heat_above_kcal_kg_c),
+      specific_heat_below_kcal_kg_c: kcalProduct.cpBelowKcalKgC || Number(p.specific_heat_below_kcal_kg_c ?? prev.specific_heat_below_kcal_kg_c),
       latent_heat_kj_kg: p.latent_heat_kj_kg ?? null,
-      latent_heat_kcal_kg: Number(p.latent_heat_kcal_kg ?? prev.latent_heat_kcal_kg),
+      latent_heat_kcal_kg: kcalProduct.latentHeatKcalKg || Number(p.latent_heat_kcal_kg ?? prev.latent_heat_kcal_kg),
       thermal_conductivity_unfrozen_w_m_k: p.thermal_conductivity_unfrozen_w_m_k ?? null,
       thermal_conductivity_frozen_w_m_k: p.thermal_conductivity_frozen_w_m_k ?? prev.thermal_conductivity_frozen_w_m_k,
       water_content_percent: p.water_content_percent ?? null,
