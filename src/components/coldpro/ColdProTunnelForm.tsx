@@ -308,7 +308,7 @@ function continuousModeOptions(tunnelType: string) {
   return [{ value: "direct_mass_flow", label: "Informar kg/h diretamente" }, { value: "calculated_by_units_per_hour", label: "Calcular por unidades/h" }, { value: "calculated_by_belt_loading", label: "Calcular por carregamento da esteira" }];
 }
 
-function simulationDraftFromTunnel(source: any) {
+function simulationDraftFromTunnel(source: Partial<ColdProFormRecord>) {
   return {
     air_temp_c: source?.air_temp_c ?? -35,
     airflow_source: source?.airflow_source ?? "manual_velocity",
@@ -341,8 +341,8 @@ const DENSITY_STATUS_LABEL = {
   missing: "faltam dados",
 } as const;
 
-export function ColdProTunnelForm({ environmentId, environment, product, tunnel, productCatalog = [], onSave }: { environmentId: string; environment?: any; product?: any | null; tunnel?: any; productCatalog?: any[]; onSave: (data: any) => void }) {
-  const [form, setForm] = React.useState<any>(defaultTunnel(environmentId));
+export function ColdProTunnelForm({ environmentId, environment, product, tunnel, productCatalog = [], onSave }: ColdProTunnelFormProps) {
+  const [form, setForm] = React.useState<ColdProFormRecord>(defaultTunnel(environmentId));
   const [selectedGroup, setSelectedGroup] = React.useState("");
   const [productSearch, setProductSearch] = React.useState("");
   const [showProductSuggestions, setShowProductSuggestions] = React.useState(false);
@@ -352,7 +352,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
   const [cycleUnit, setCycleUnit] = React.useState<CycleUnit>("h");
   const [retentionUnit, setRetentionUnit] = React.useState<RetentionUnit>("min");
   const [activeTab, setActiveTab] = React.useState("modelo");
-  const [simulation, setSimulation] = React.useState<any>(() => simulationDraftFromTunnel(defaultTunnel(environmentId)));
+  const [simulation, setSimulation] = React.useState<ColdProFormRecord>(() => simulationDraftFromTunnel(defaultTunnel(environmentId)) as ColdProFormRecord);
   const autoAirPresetKeyRef = React.useRef("");
 
   React.useEffect(() => {
@@ -361,9 +361,9 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
     setSimulation(simulationDraftFromTunnel(next));
   }, [environmentId, tunnel?.id]);
 
-  const set = (key: string, value: unknown) => setForm((prev: any) => ({ ...prev, [key]: value }));
+  const set = (key: string, value: unknown) => setForm((prev) => ({ ...prev, [key]: value }));
   const num = (key: string) => ({ type: "number" as const, step: "0.0001", value: form?.[key] ?? "", onChange: (e: React.ChangeEvent<HTMLInputElement>) => set(key, numberOrNull(e.target.value)) });
-  const setSim = (key: string, value: unknown) => setSimulation((prev: any) => ({ ...prev, [key]: value }));
+  const setSim = (key: string, value: unknown) => setSimulation((prev) => ({ ...prev, [key]: value }));
   const simNum = (key: string) => ({ type: "number" as const, step: "0.0001", value: simulation?.[key] ?? "", onChange: (e: React.ChangeEvent<HTMLInputElement>) => setSim(key, numberOrNull(e.target.value)) });
   const dimensionValueM = (key: string) => key === "product_thickness_m" ? (Number(form.product_thickness_m ?? 0) || Number(form.product_thickness_mm ?? 0) / 1000) : Number(form?.[key] ?? 0);
   const dimensionNum = (key: string, unit: DimensionUnit) => {
