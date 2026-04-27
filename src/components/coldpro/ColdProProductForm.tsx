@@ -4,6 +4,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { ColdProField, ColdProInput, ColdProSelect } from "./ColdProField";
 import { ColdProCalculatedInfo, ColdProFormSection, ColdProValidationMessage, fmtColdPro, numberOrNull } from "./ColdProFormPrimitives";
 import { filterAndRankColdProProducts } from "@/modules/coldpro/core/productSearch";
+import { normalizeProductForKcalEngine } from "@/modules/coldpro/core/unitNormalizer";
 
 type Props = { environmentId: string; product?: any | null; productCatalog?: any[]; saving?: boolean; onSave: (data: any) => void };
 
@@ -144,6 +145,7 @@ export function ColdProProductForm({ environmentId, product, productCatalog = []
   const selectedCatalogProduct = productCatalog.find((item) => item.id === form.product_id) ?? null;
   const catalogLocked = Boolean(selectedCatalogProduct);
   const lockedNum = (key: keyof ReturnType<typeof initialForm>) => ({ ...num(key), readOnly: catalogLocked, readOnlyValue: catalogLocked, title: catalogLocked ? "Propriedade técnica carregada do catálogo; edite no cadastro de produtos." : undefined });
+  const thermalForKcalEngine = normalizeProductForKcalEngine(form);
 
   const save = () => {
     if (saving) return;
@@ -154,10 +156,10 @@ export function ColdProProductForm({ environmentId, product, productCatalog = []
         product_name: selectedCatalogProduct.name,
         specific_heat_above_kj_kg_k: selectedCatalogProduct.specific_heat_above_kj_kg_k ?? null,
         specific_heat_below_kj_kg_k: selectedCatalogProduct.specific_heat_below_kj_kg_k ?? null,
-        specific_heat_above_kcal_kg_c: Number(selectedCatalogProduct.specific_heat_above_kcal_kg_c ?? form.specific_heat_above_kcal_kg_c),
-        specific_heat_below_kcal_kg_c: Number(selectedCatalogProduct.specific_heat_below_kcal_kg_c ?? form.specific_heat_below_kcal_kg_c),
+        specific_heat_above_kcal_kg_c: normalizeProductForKcalEngine(selectedCatalogProduct).cpAboveKcalKgC,
+        specific_heat_below_kcal_kg_c: normalizeProductForKcalEngine(selectedCatalogProduct).cpBelowKcalKgC,
         latent_heat_kj_kg: selectedCatalogProduct.latent_heat_kj_kg ?? null,
-        latent_heat_kcal_kg: Number(selectedCatalogProduct.latent_heat_kcal_kg ?? form.latent_heat_kcal_kg),
+        latent_heat_kcal_kg: normalizeProductForKcalEngine(selectedCatalogProduct).latentHeatKcalKg,
         initial_freezing_temp_c: selectedCatalogProduct.initial_freezing_temp_c ?? form.initial_freezing_temp_c,
         density_kg_m3: selectedCatalogProduct.density_kg_m3 ?? null,
         thermal_conductivity_frozen_w_m_k: selectedCatalogProduct.thermal_conductivity_frozen_w_m_k ?? null,
