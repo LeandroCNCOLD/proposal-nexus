@@ -102,12 +102,12 @@ function buildThermalReliabilityAlerts(input: TunnelEngineInput, energy: ReturnT
   const conversions = (input?.unitConversions ?? {}) as Record<string, unknown>;
   const alerts: Array<{ level: "error" | "warning" | "info"; code: string; message: string }> = [];
   const unitMissing = (key: string) => !conversions[key] || conversions[key] === "missing";
-  if (toNumber(input?.finalTempC) < 0 && toNumber(input?.latentHeatKJkg) <= 0) alerts.push({ level: "error", code: "latent_heat_zero_frozen_product", message: "Calor latente zerado em produto congelado; a carga térmica fica subestimada." });
+  if (toNumber(input?.finalTempC) < 0 && toNumber(input?.latentHeatKcalKg) <= 0) alerts.push({ level: "error", code: "latent_heat_zero_frozen_product", message: "Calor latente zerado em produto congelado; a carga térmica fica subestimada." });
   if (!isProvided(input?.frozenWaterFraction)) alerts.push({ level: "warning", code: "frozen_water_fraction_missing", message: "Fração congelável vazia; foi aplicado default técnico." });
-  if (energy.totalKJkg > 0 && energy.totalKJkg < 80) alerts.push({ level: "warning", code: "low_specific_energy", message: "Energia específica menor que 80 kJ/kg; revisar Cp, latente e unidades." });
-  if (toNumber(input?.cpBelowKJkgK) > 0 && toNumber(input?.cpBelowKJkgK) < 1 && unitMissing("cpBelowKJkgK")) alerts.push({ level: "warning", code: "cp_below_low_without_unit", message: "Cp abaixo menor que 1 sem unidade declarada; pode ter sido informado em kcal/kg°C." });
-  if (toNumber(input?.latentHeatKJkg) > 0 && toNumber(input?.latentHeatKJkg) < 100 && unitMissing("latentHeatKJkg")) alerts.push({ level: "warning", code: "latent_low_without_unit", message: "Calor latente menor que 100 kJ/kg sem unidade declarada; pode ter sido informado em kcal/kg." });
-  const expectedKW = timeH > 0 ? massForLoad * energy.totalKJkg / (timeH * 3600) : massForLoad * energy.totalKJkg / 3600;
+  if (energy.totalKcalKg > 0 && energy.totalKcalKg < 19.1) alerts.push({ level: "warning", code: "low_specific_energy", message: "Energia específica menor que 19,1 kcal/kg; revisar Cp, latente e unidades." });
+  if (toNumber(input?.cpBelowKcalKgC) > 0 && toNumber(input?.cpBelowKcalKgC) < 0.12 && unitMissing("cpBelowKcalKgC")) alerts.push({ level: "warning", code: "cp_below_low_without_unit", message: "Cp abaixo menor que 0,12 kcal/kg°C sem unidade declarada." });
+  if (toNumber(input?.latentHeatKcalKg) > 0 && toNumber(input?.latentHeatKcalKg) < 24 && unitMissing("latentHeatKcalKg")) alerts.push({ level: "warning", code: "latent_low_without_unit", message: "Calor latente menor que 24 kcal/kg sem unidade declarada." });
+  const expectedKW = timeH > 0 ? (massForLoad * energy.totalKcalKg / timeH) / 859.845 : (massForLoad * energy.totalKcalKg) / 859.845;
   if (expectedKW > 0 && Math.abs(expectedKW - productLoadKW) / expectedKW > 0.05) alerts.push({ level: "error", code: "final_load_mass_time_incompatible", message: "Carga final incompatível com massa, tempo e energia específica." });
   return alerts;
 }
@@ -213,8 +213,8 @@ function resolveStaticMass(input: TunnelEngineInput) {
 
 function requiredPositiveFields(input: TunnelEngineInput, isStatic: boolean, staticMassKg: number, characteristicDimensionM: number, crossesFreezing: boolean, airVelocityUsedMS: number, continuousMassMode: string): string[] {
   const commonNumericFields = ["initialTempC", "finalTempC", "freezingPointC"];
-  const commonPositiveFields = ["cpAboveKJkgK"];
-  const freezingPositiveFields = crossesFreezing ? ["cpBelowKJkgK", "latentHeatKJkg", "frozenWaterFraction"] : [];
+  const commonPositiveFields = ["cpAboveKcalKgC"];
+  const freezingPositiveFields = crossesFreezing ? ["cpBelowKcalKgC", "latentHeatKcalKg", "frozenWaterFraction"] : [];
   const missingNumericFields = commonNumericFields.filter((field) => !isProvided(input?.[field]) || !Number.isFinite(Number(input?.[field])));
   const missingPositiveFields = [...commonPositiveFields, ...freezingPositiveFields].filter((field) => !isProvided(input?.[field]) || toNumber(input?.[field], 0) <= 0);
   const hasHInput = positiveNumber(input?.manualConvectiveCoefficientWM2K) > 0 || airVelocityUsedMS > 0;
