@@ -1,3 +1,5 @@
+import { createAirPropertiesContext } from "@/modules/coldpro/physics/airProperties";
+
 export const AIR_DENSITY_KG_M3 = 1.2;
 export const AIR_CP_KJ_KG_K = 1.005;
 export const WATER_LATENT_HEAT_KJ_KG = 2500;
@@ -34,8 +36,14 @@ export function sensiblePurgeLoadKw(params: {
   airflowM3H?: number | null;
   externalTemperatureC?: number | null;
   internalTemperatureC?: number | null;
+  altitudeM?: number | null;
+  pressureKPa?: number | null;
+  relativeHumidityPercent?: number | null;
+  airDensityKgM3?: number | null;
+  airSpecificHeatKJkgK?: number | null;
 }) {
   const airflowM3S = Math.max(0, toNumber(params.airflowM3H)) / 3600;
   const deltaT = Math.max(0, toNumber(params.externalTemperatureC) - toNumber(params.internalTemperatureC));
-  return AIR_DENSITY_KG_M3 * airflowM3S * AIR_CP_KJ_KG_K * deltaT;
+  const airProps = createAirPropertiesContext({ temperatureC: params.internalTemperatureC, altitudeM: params.altitudeM, pressureKPa: params.pressureKPa, relativeHumidityPercent: params.relativeHumidityPercent, airDensityKgM3: params.airDensityKgM3, airSpecificHeatKJkgK: params.airSpecificHeatKJkgK });
+  return airProps.densityKgM3 * airflowM3S * airProps.specificHeatKJkgK * deltaT;
 }
