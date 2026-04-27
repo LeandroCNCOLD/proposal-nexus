@@ -131,6 +131,14 @@ export interface TunnelEngineResult {
   processType?: string | null;
   tunnelType?: string | null;
   arrangementType?: string | null;
+  physicalModel?: string;
+  physicalModelLabel?: string;
+  productGeometry?: string | null;
+  thermalModelForPallet?: string | null;
+  airflowSource?: string;
+  surfaceExposureModel?: string;
+  exposureFactor?: number;
+  blockageFactor?: number;
   operationRegime: TunnelOperationRegime;
   isStatic: boolean;
   calculatedMassKgH: number;
