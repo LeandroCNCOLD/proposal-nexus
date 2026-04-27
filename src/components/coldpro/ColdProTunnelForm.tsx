@@ -8,6 +8,7 @@ import { formToTunnelInput } from "@/modules/coldpro/adapters/formToTunnelInput"
 import { calculateTunnelEngine } from "@/modules/coldpro/engines/tunnelEngine";
 import { calculateContinuousGirofreezer } from "@/modules/coldpro/services/continuousGirofreezerService";
 import { filterAndRankColdProProducts } from "@/modules/coldpro/core/productSearch";
+import { normalizeProductForKcalEngine } from "@/modules/coldpro/core/unitNormalizer";
 
 const ARRANGEMENT_DEFAULTS: Record<string, { air: number; penetration: number; label: string }> = {
   individual_units: { air: 1, penetration: 1, label: "Produto individual sobre esteira" }, single_layer_blocks: { air: 0.8, penetration: 0.85, label: "Blocos em camada única" }, trays: { air: 0.65, penetration: 0.75, label: "Bandejas" }, stacked_packages: { air: 0.45, penetration: 0.55, label: "Pacotes empilhados" }, packaged_units: { air: 0.55, penetration: 0.65, label: "Produto embalado" }, trays_on_racks: { air: 0.65, penetration: 0.75, label: "Bandejas em racks/carrinhos" }, boxes_on_cart: { air: 0.35, penetration: 0.45, label: "Caixas em carrinho" }, hanging_product: { air: 0.8, penetration: 0.85, label: "Produto suspenso" }, palletized_boxes: { air: 0.35, penetration: 0.45, label: "Caixas paletizadas" }, palletized_blocks: { air: 0.25, penetration: 0.35, label: "Blocos paletizados" }, bulk_on_pallet: { air: 0.2, penetration: 0.3, label: "Produto a granel sobre pallet" }, loose_particles: { air: 0.9, penetration: 0.95, label: "Partículas soltas" }, small_individual_units: { air: 0.9, penetration: 0.95, label: "Unidades pequenas individuais" }, boxes: { air: 0.35, penetration: 0.45, label: "Caixas" }, racks: { air: 0.65, penetration: 0.75, label: "Racks" }, bulk_container: { air: 0.4, penetration: 0.5, label: "Contentores" },
@@ -332,8 +333,9 @@ function fmtAirflow(value: unknown, digits = 0) {
   return `${fmtColdPro(value, digits)} m³/h`;
 }
 
-function kcalFromThermal(kcal?: unknown, kj?: unknown) {
-  return positiveValue(kcal) || positiveValue(kj) / 4.1868;
+function kcalFromThermal(kcal?: unknown, kj?: unknown, preferKjSource = false) {
+  const normalized = normalizeProductForKcalEngine({ specific_heat_above_kcal_kg_c: kcal, specific_heat_above_kj_kg_k: kj, prefer_kj_source: preferKjSource });
+  return normalized.cpAboveKcalKgC;
 }
 
 function geometryFromCatalogShape(shape?: unknown) {
@@ -515,9 +517,10 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
     ? Number(environment?.internal_temp_c ?? form.air_temp_c ?? 0)
     : Number(form.air_temp_c ?? environment?.internal_temp_c ?? 0);
   const freezingPointC = Number(form.freezing_temp_c ?? thermodynamicProduct?.initial_freezing_temp_c ?? -1.5);
-  const cpAboveKcalKgC = kcalFromThermal(form.specific_heat_above_kcal_kg_c, form.specific_heat_above_kj_kg_k) || kcalFromThermal(thermodynamicProduct?.specific_heat_above_kcal_kg_c, thermodynamicProduct?.specific_heat_above_kj_kg_k);
-  const cpBelowKcalKgC = kcalFromThermal(form.specific_heat_below_kcal_kg_c, form.specific_heat_below_kj_kg_k) || kcalFromThermal(thermodynamicProduct?.specific_heat_below_kcal_kg_c, thermodynamicProduct?.specific_heat_below_kj_kg_k);
-  const latentHeatKcalKg = kcalFromThermal(form.latent_heat_kcal_kg, form.latent_heat_kj_kg) || kcalFromThermal(thermodynamicProduct?.latent_heat_kcal_kg, thermodynamicProduct?.latent_heat_kj_kg);
+  const preferCatalogKj = Boolean(form.product_id ?? selectedCatalogProduct?.id);
+  const cpAboveKcalKgC = kcalFromThermal(form.specific_heat_above_kcal_kg_c, form.specific_heat_above_kj_kg_k, preferCatalogKj) || kcalFromThermal(thermodynamicProduct?.specific_heat_above_kcal_kg_c, thermodynamicProduct?.specific_heat_above_kj_kg_k, Boolean(thermodynamicProduct?.id));
+  const cpBelowKcalKgC = kcalFromThermal(form.specific_heat_below_kcal_kg_c, form.specific_heat_below_kj_kg_k, preferCatalogKj) || kcalFromThermal(thermodynamicProduct?.specific_heat_below_kcal_kg_c, thermodynamicProduct?.specific_heat_below_kj_kg_k, Boolean(thermodynamicProduct?.id));
+  const latentHeatKcalKg = kcalFromThermal(form.latent_heat_kcal_kg, form.latent_heat_kj_kg, preferCatalogKj) || kcalFromThermal(thermodynamicProduct?.latent_heat_kcal_kg, thermodynamicProduct?.latent_heat_kj_kg, Boolean(thermodynamicProduct?.id));
   const frozenConductivityWmK = positiveValue(form.thermal_conductivity_frozen_w_m_k, thermodynamicProduct?.thermal_conductivity_frozen_w_m_k, thermodynamicProduct?.thermal_conductivity_w_m_k);
   const frozenWaterFraction = definedNumber(form.frozen_water_fraction, thermodynamicProduct?.frozen_water_fraction, thermodynamicProduct?.freezable_water_content_percent == null ? null : Number(thermodynamicProduct.freezable_water_content_percent) / 100, thermodynamicProduct?.water_content_percent == null ? null : Number(thermodynamicProduct.water_content_percent) / 100, 0.9);
   const tunnelInput = formToTunnelInput(form, environment ?? {});
@@ -761,6 +764,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
   const applyProduct = (id: string) => {
     const p = productCatalog.find((item) => item.id === id);
     if (!p) return;
+    const kcalProduct = normalizeProductForKcalEngine(p);
     const catalogGeometry = geometryFromCatalogShape(p.geometry_shape);
     const lengthM = Number(p.length_mm ?? 0) > 0 ? Number(p.length_mm) / 1000 : null;
     const widthM = Number(p.width_mm ?? 0) > 0 ? Number(p.width_mm) / 1000 : null;
@@ -789,10 +793,10 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
       ashrae_density_kg_m3: p.density_kg_m3 ?? prev.ashrae_density_kg_m3 ?? 0,
       specific_heat_above_kj_kg_k: p.specific_heat_above_kj_kg_k ?? null,
       specific_heat_below_kj_kg_k: p.specific_heat_below_kj_kg_k ?? null,
-      specific_heat_above_kcal_kg_c: Number(p.specific_heat_above_kcal_kg_c ?? prev.specific_heat_above_kcal_kg_c),
-      specific_heat_below_kcal_kg_c: Number(p.specific_heat_below_kcal_kg_c ?? prev.specific_heat_below_kcal_kg_c),
+      specific_heat_above_kcal_kg_c: kcalProduct.cpAboveKcalKgC || Number(p.specific_heat_above_kcal_kg_c ?? prev.specific_heat_above_kcal_kg_c),
+      specific_heat_below_kcal_kg_c: kcalProduct.cpBelowKcalKgC || Number(p.specific_heat_below_kcal_kg_c ?? prev.specific_heat_below_kcal_kg_c),
       latent_heat_kj_kg: p.latent_heat_kj_kg ?? null,
-      latent_heat_kcal_kg: Number(p.latent_heat_kcal_kg ?? prev.latent_heat_kcal_kg),
+      latent_heat_kcal_kg: kcalProduct.latentHeatKcalKg || Number(p.latent_heat_kcal_kg ?? prev.latent_heat_kcal_kg),
       thermal_conductivity_unfrozen_w_m_k: p.thermal_conductivity_unfrozen_w_m_k ?? null,
       thermal_conductivity_frozen_w_m_k: p.thermal_conductivity_frozen_w_m_k ?? prev.thermal_conductivity_frozen_w_m_k,
       water_content_percent: p.water_content_percent ?? null,
@@ -816,6 +820,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
   };
 
   const save = () => {
+    const selectedCatalogKcal = selectedCatalogProduct ? normalizeProductForKcalEngine(selectedCatalogProduct) : null;
     const payload = {
     ...form,
     ...(selectedCatalogProduct ? {
@@ -825,10 +830,10 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
       ashrae_density_kg_m3: selectedCatalogProduct.density_kg_m3 ?? form.ashrae_density_kg_m3,
       specific_heat_above_kj_kg_k: selectedCatalogProduct.specific_heat_above_kj_kg_k ?? null,
       specific_heat_below_kj_kg_k: selectedCatalogProduct.specific_heat_below_kj_kg_k ?? null,
-      specific_heat_above_kcal_kg_c: Number(selectedCatalogProduct.specific_heat_above_kcal_kg_c ?? form.specific_heat_above_kcal_kg_c),
-      specific_heat_below_kcal_kg_c: Number(selectedCatalogProduct.specific_heat_below_kcal_kg_c ?? form.specific_heat_below_kcal_kg_c),
+      specific_heat_above_kcal_kg_c: selectedCatalogKcal?.cpAboveKcalKgC ?? Number(selectedCatalogProduct.specific_heat_above_kcal_kg_c ?? form.specific_heat_above_kcal_kg_c),
+      specific_heat_below_kcal_kg_c: selectedCatalogKcal?.cpBelowKcalKgC ?? Number(selectedCatalogProduct.specific_heat_below_kcal_kg_c ?? form.specific_heat_below_kcal_kg_c),
       latent_heat_kj_kg: selectedCatalogProduct.latent_heat_kj_kg ?? null,
-      latent_heat_kcal_kg: Number(selectedCatalogProduct.latent_heat_kcal_kg ?? form.latent_heat_kcal_kg),
+      latent_heat_kcal_kg: selectedCatalogKcal?.latentHeatKcalKg ?? Number(selectedCatalogProduct.latent_heat_kcal_kg ?? form.latent_heat_kcal_kg),
       thermal_conductivity_frozen_w_m_k: selectedCatalogProduct.thermal_conductivity_frozen_w_m_k ?? form.thermal_conductivity_frozen_w_m_k,
       thermal_conductivity_unfrozen_w_m_k: selectedCatalogProduct.thermal_conductivity_unfrozen_w_m_k ?? selectedCatalogProduct.thermal_conductivity_w_m_k ?? null,
       water_content_percent: selectedCatalogProduct.water_content_percent ?? null,
@@ -1277,7 +1282,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
             <div className="grid grid-cols-1 gap-x-10 xl:grid-cols-2"><div>
               <ColdProField label="Temp. entrada" helpKey="initialProductTemp" unit="°C"><ColdProInput {...num("inlet_temp_c")} /></ColdProField><ColdProField label="Temp. final" helpKey="finalProductTemp" unit="°C"><ColdProInput {...num("outlet_temp_c")} /></ColdProField><ColdProField label="Temp. congelamento" helpKey="freezingPoint" unit="°C"><ColdProInput {...lockedNum("freezing_temp_c")} /></ColdProField><ColdProField label="Temperatura do ar" helpKey="airTemp" unit="°C"><ColdProInput {...num("air_temp_c")} /></ColdProField><ColdProField label="Fator penetração térmica" helpKey="thermalPenetrationFactor"><ColdProInput {...num("thermal_penetration_factor")} /></ColdProField>
             </div><div>
-              <ColdProField label="Cp acima" helpKey="specificHeatAbove" unit="kcal/kg·°C"><ColdProInput {...lockedNum("specific_heat_above_kcal_kg_c")} /></ColdProField><ColdProField label="Cp abaixo" helpKey="specificHeatBelow" unit="kcal/kg·°C"><ColdProInput {...lockedNum("specific_heat_below_kcal_kg_c")} /></ColdProField><ColdProField label="Calor latente" helpKey="latentHeat" unit="kcal/kg"><ColdProInput {...lockedNum("latent_heat_kcal_kg")} /></ColdProField><ColdProField label="Fração congelável" helpKey="frozenWaterFraction" unit="0–1"><ColdProInput {...lockedNum("frozen_water_fraction")} /></ColdProField><ColdProField label="Densidade" helpKey="density" unit="kg/m³"><ColdProInput {...lockedNum("density_kg_m3")} /></ColdProField><ColdProField label="Condutividade congelado" helpKey="thermalConductivityFrozen" unit="W/m·K"><ColdProInput {...lockedNum("thermal_conductivity_frozen_w_m_k")} /></ColdProField>
+              <ColdProField label="Cp acima" helpKey="specificHeatAbove" unit="kcal/kg·°C"><ColdProInput {...lockedNum("specific_heat_above_kcal_kg_c")} value={catalogLocked ? cpAboveKcalKgC : String(form.specific_heat_above_kcal_kg_c ?? "")} /></ColdProField><ColdProField label="Cp abaixo" helpKey="specificHeatBelow" unit="kcal/kg·°C"><ColdProInput {...lockedNum("specific_heat_below_kcal_kg_c")} value={catalogLocked ? cpBelowKcalKgC : String(form.specific_heat_below_kcal_kg_c ?? "")} /></ColdProField><ColdProField label="Calor latente" helpKey="latentHeat" unit="kcal/kg"><ColdProInput {...lockedNum("latent_heat_kcal_kg")} value={catalogLocked ? latentHeatKcalKg : String(form.latent_heat_kcal_kg ?? "")} /></ColdProField><ColdProField label="Fração congelável" helpKey="frozenWaterFraction" unit="0–1"><ColdProInput {...lockedNum("frozen_water_fraction")} /></ColdProField><ColdProField label="Densidade" helpKey="density" unit="kg/m³"><ColdProInput {...lockedNum("density_kg_m3")} /></ColdProField><ColdProField label="Condutividade congelado" helpKey="thermalConductivityFrozen" unit="W/m·K"><ColdProInput {...lockedNum("thermal_conductivity_frozen_w_m_k")} /></ColdProField>
             </div></div>
             <div className="mt-4 grid gap-3 lg:grid-cols-3">
               <ColdProCalculatedInfo label="Prévia da carga do produto" value={firstThermalLoadReady ? `${fmtColdPro(tunnelResult.productLoadKW * 860.421, 0)} kcal/h` : "Aguardando massa e tempo"} description={`${fmtColdPro(tunnelResult.productLoadKW, 2)} kW`} tone={firstThermalLoadReady ? "success" : "warning"} />
