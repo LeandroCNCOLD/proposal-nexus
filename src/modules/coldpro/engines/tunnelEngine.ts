@@ -113,7 +113,7 @@ function nullableNumber(value: unknown): number | null {
 
 function continuousMassRequirement(input: any, continuousMassMode: string): string {
   const unitWeightKg = positiveNumber(input?.unitWeightKg);
-  if (continuousMassMode === "direct_mass_flow") return positiveNumber(input?.directMassKgH) > 0 ? "" : "massa direta em kg/h";
+  if (continuousMassMode === "direct_mass_flow") return positiveNumber(input?.directMassKgH ?? input?.massKgH) > 0 ? "" : "massa direta em kg/h";
   if (continuousMassMode === "calculated_by_units_per_hour") return unitWeightKg * positiveNumber(input?.unitsPerHour) > 0 ? "" : "peso unitário e unidades por hora";
   if (continuousMassMode === "calculated_by_belt_loading") return unitWeightKg * positiveNumber(input?.unitsPerRow) * positiveNumber(input?.rowsPerMeter) * positiveNumber(input?.beltSpeedMMin) > 0 ? "" : "peso unitário, unidades por fileira, fileiras por metro e velocidade da esteira";
   if (continuousMassMode === "calculated_by_trays") return (unitWeightKg * positiveNumber(input?.unitsPerTray) + positiveNumber(input?.trayWeightKg)) * positiveNumber(input?.traysPerHour) > 0 ? "" : "unidades por bandeja, bandejas por hora e massa da bandeja";
@@ -300,7 +300,7 @@ function calculateTunnelCore(input: any) {
   const massByBeltKgH = beltUnitsPerHour * unitWeightKg;
   const massByFeedRateKgH = positiveNumber(input?.feedRateKgH);
   const calculatedMassKgH = continuousMassMode === "calculated_by_trays" ? massByTrayKgH : continuousMassMode === "calculated_by_units_per_hour" ? massByUnitsHourKgH : continuousMassMode === "calculated_by_belt_loading" ? massByBeltKgH : continuousMassMode === "calculated_by_feed_rate" ? massByFeedRateKgH : massByCycleKgH;
-  const directMassKgH = positiveNumber(input?.directMassKgH);
+  const directMassKgH = positiveNumber(input?.directMassKgH ?? input?.massKgH);
   const usedMassKgH = tunnelMode.operationRegime === "batch" ? 0 : continuousMassMode === "direct_mass_flow" && directMassKgH > 0 ? directMassKgH : calculatedMassKgH;
   const staticMass = resolveStaticMass(input);
   const palletMassKg = staticMass.palletMassKg;
@@ -537,7 +537,7 @@ function calculateTunnelCore(input: any) {
     thermalModelForPallet: geometry.thermalModelForPallet ?? input?.thermalModelForPallet ?? input?.thermal_model_for_pallet ?? null,
     isStatic,
     calculatedMassKgH,
-    usedMassKgH,
+    usedMassKgH: tunnelMode.operationRegime === "batch" ? null : usedMassKgH,
     continuousMassMode,
     staticMassKg,
     staticMassMode: input?.staticMassMode ?? input?.static_mass_mode ?? "direct_pallet_mass",
