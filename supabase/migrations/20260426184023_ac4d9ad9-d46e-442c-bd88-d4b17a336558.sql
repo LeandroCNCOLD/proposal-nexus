@@ -1,0 +1,17 @@
+ALTER TABLE public.coldpro_tunnels
+ADD COLUMN IF NOT EXISTS informed_air_flow_m3_h NUMERIC,
+ADD COLUMN IF NOT EXISTS approved_air_temp_c NUMERIC,
+ADD COLUMN IF NOT EXISTS approved_air_velocity_m_s NUMERIC,
+ADD COLUMN IF NOT EXISTS approved_air_delta_t_k NUMERIC,
+ADD COLUMN IF NOT EXISTS approved_air_flow_m3_h NUMERIC,
+ADD COLUMN IF NOT EXISTS approved_convective_coefficient_w_m2_k NUMERIC,
+ADD COLUMN IF NOT EXISTS approved_packaging_type TEXT,
+ADD COLUMN IF NOT EXISTS approved_air_exposure_factor NUMERIC,
+ADD COLUMN IF NOT EXISTS approved_thermal_penetration_factor NUMERIC,
+ADD COLUMN IF NOT EXISTS approved_process_status TEXT,
+ADD COLUMN IF NOT EXISTS approved_estimated_time_min NUMERIC,
+ADD COLUMN IF NOT EXISTS approved_total_kw NUMERIC,
+ADD COLUMN IF NOT EXISTS approved_total_kcal_h NUMERIC,
+ADD COLUMN IF NOT EXISTS approved_total_tr NUMERIC,
+ADD COLUMN IF NOT EXISTS thermal_condition_approved BOOLEAN DEFAULT false,
+ADD COLUMN IF NOT EXISTS thermal_condition_approved_at TIMESTAMPTZ;

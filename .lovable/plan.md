@@ -1,56 +1,83 @@
+Plano de correção da normalização de unidades do ColdPro
 
+Vou implementar a separação explícita entre dados normalizados para motor em kcal e dados normalizados para motor em kJ, garantindo que o motor legado/ambiente receba apenas kcal e que nenhum campo ambíguo entre em cálculo.
 
-# Análise: Configurações Nomus vs. Integração Atual
+1. Criar normalizadores explícitos em `unitNormalizer.ts`
+- Adicionar `normalizeProductForKcalEngine(input)`:
+  - retorna somente valores efetivos em kcal:
+    - `cpAboveKcalKgC`
+    - `cpBelowKcalKgC`
+    - `latentHeatKcalKg`
+  - se vier kJ, converte por `/ 4,1868`;
+  - se vier kcal, usa direto;
+  - registra auditoria com valor original, unidade original, valor convertido, unidade usada e fonte.
+- Adicionar `normalizeProductForKjEngine(input)`:
+  - retorna somente valores efetivos em kJ:
+    - `cpAboveKJkgK`
+    - `cpBelowKJkgK`
+    - `latentHeatKJkg`
+  - se vier kcal, converte por `× 4,1868`;
+  - se vier kJ, usa direto;
+  - registra auditoria equivalente.
+- Manter compatibilidade temporária de `normalizeThermalProperties`, mas fazendo ela delegar para o normalizador correto em vez de conter lógica própria ambígua.
 
-## O que a tela do Nomus mostra
+2. Corrigir motor legado/ambiente em `coldpro-calculation.engine.ts`
+- O cálculo de carga térmica do ambiente/legado deve chamar `normalizeProductForKcalEngine`.
+- As fórmulas devem usar diretamente:
+  - `cpAboveKcalKgC`
+  - `cpBelowKcalKgC`
+  - `latentHeatKcalKg`
+- O motor legado/ambiente não receberá kJ para cálculo.
+- O breakdown continuará mostrando equivalentes em kJ somente como informação/auditoria.
 
-A tela é a configuração do ERP **dentro do Nomus** (não do nosso sistema). Pontos relevantes:
+3. Corrigir motor físico do túnel em `productThermal.ts`
+- Separar claramente o contrato do motor:
+  - se este motor continuar operando em kJ, ele receberá apenas campos kJ vindos de `normalizeProductForKjEngine`;
+  - se for alterado para kcal, ele receberá apenas campos kcal vindos de `normalizeProductForKcalEngine`.
+- Pela sua regra atual, a parte principal que calcula carga térmica em kcal será alimentada em kcal antes do cálculo, evitando calcular baixo por unidade errada.
+- Ajustar nomes de retorno/breakdown para não mascarar kcal como kJ.
 
-| Configuração no Nomus | Valor atual | Impacto na nossa integração |
-|---|---|---|
-| **Chave de acesso REST** | `aW50ZWdyYWRvcmVycDppTFBrSnRMY1p3WjdLUks=` | É a chave que usamos como `NOMUS_API_KEY` (Basic Auth). **Confere com a que você enviou.** |
-| Integração via SOAP | Não | OK — usamos REST |
-| Seleção de ERP por SOAP | (vazio) | OK — irrelevante |
-| **Autenticação da Integração Habilitada** | **Não** | ⚠️ Precisa verificar — ver abaixo |
-| Data para buscar registros (dias para trás) | 0 | Limita o que a API retorna (ver abaixo) |
-| Intervalo de busca | 5 min | OK — só afeta cron |
-| Bloqueio de campos de pedidos da integração | Sim | OK |
-| **URL de acesso ao webservice ERP** | (vazio) | Esse campo é para SOAP/ERP externo, **não** afeta nossa REST |
-| Habilitar criação/edição de pedidos no Nomus mesmo com Alterdata | Não | Só relevante se houver Alterdata |
+4. Corrigir adaptadores de entrada
+- Em `formToTunnelInput.ts`:
+  - quando preparar input para motor em kcal, usar `normalizeProductForKcalEngine`;
+  - quando preparar input para motor em kJ, usar `normalizeProductForKjEngine`;
+  - remover passagem ambígua de `cpAboveKJkgK`, `cpBelowKJkgK`, `latentHeatKJkg` para motor kcal.
+- Em `databaseToTunnelInput.ts`:
+  - aplicar a mesma regra para dados vindos do banco/base oficial;
+  - exemplo obrigatório validado:
+    - `2,85 kJ/kg.K / 4,1868 = 0,6807 kcal/kg°C`
+    - `1,55 kJ/kg.K / 4,1868 = 0,3702 kcal/kg°C`
+    - `134 kJ/kg / 4,1868 = 32,01 kcal/kg`
 
-## Diagnóstico do problema atual
+5. Corrigir payload de saída em `tunnelInputToDatabasePayload.ts`
+- Persistir o breakdown com a auditoria completa de unidade.
+- Garantir que valores salvos não confundam unidade efetiva do motor:
+  - campos kcal em campos kcal;
+  - campos kJ em campos kJ apenas quando forem equivalentes/auditáveis.
+- Não salvar automaticamente: manter o comportamento atual de salvar somente quando o usuário confirmar.
 
-A chave **bate** com `aW50ZWdyYWRvcmVycDppTFBrSnRMY1p3WjdLUks=` (decodificada: `integradorerp:iLPkJtLcZwZ7KRK`). Os erros vinham de questões diferentes (Seroval/serverFn ID), agora resolvidos.
+6. Atualizar breakdown na tela
+- Mostrar no resumo:
+  - valor original;
+  - unidade original;
+  - valor convertido;
+  - unidade usada no motor;
+  - fonte da conversão (`kJ_to_kcal`, `kcal_native`, `kcal_to_kJ`, `kJ_native`, default técnico etc.).
+- Deixar explícito quando o motor está calculando em kcal.
+- Remover mensagens que indiquem que kcal foi convertido para kJ para cálculo no motor kcal.
 
-**Dois pontos da tela do Nomus que merecem ação:**
+7. Validação técnica
+- Adicionar/ajustar verificações para confirmar:
+  - sem dupla conversão;
+  - sem usar kJ em motor kcal;
+  - sem usar kcal em motor kJ;
+  - exemplo base oficial converte corretamente para kcal.
+- Rodar `typecheck` e `build` ao final.
 
-1. **"Autenticação da Integração Habilitada = Não"** — Em algumas versões do Nomus, esse toggle define se a chave REST acima será exigida. Se estiver "Não", a API pode aceitar sem auth (ou rejeitar tudo). Vale conferir com o suporte Nomus qual o comportamento esperado e, se for o caso, **mudar para "Sim"**.
-
-2. **"Data para buscar registros (dias para trás) = 0"** — Em alguns endpoints isso significa "trazer só do dia atual", deixando `/propostas` retornar vazio. Recomendo **aumentar para 30 ou 90 dias** pelo menos para a sincronização inicial.
-
-## O que NÃO precisa mudar no nosso sistema
-
-- A chave Basic Auth está correta no formato (`Authorization: Basic <chave>`)
-- A `NOMUS_BASE_URL` deve apontar para a URL REST do Nomus (algo como `https://<empresa>.nomus.com.br/nomusweb/integracaoErp` — confirme com o suporte; **não** é o "URL de acesso ao webservice ERP" da tela, que é para SOAP de saída)
-- O fluxo de pull (clientes, vendedores, propostas, itens) já está mapeado
-
-## Ações recomendadas
-
-### Do seu lado, no Nomus (tela do print):
-1. Mudar **"Autenticação da Integração Habilitada"** para **Sim** (confirmar com suporte Nomus)
-2. Aumentar **"Data para buscar registros"** para **30** ou **90** dias
-3. Salvar
-
-### Do meu lado (após confirmação):
-1. Rodar **Buscar do Nomus** novamente
-2. Inspecionar a primeira linha de `nomus_proposals.raw` (e `nomus_sync_log`) para confirmar nomes reais dos campos JSON e ajustar os `pickStr/pickNum` se necessário (ex.: `valorTotal` vs `valor_total`, `idCliente` vs `cliente.id`)
-3. Validar que o `NOMUS_BASE_URL` cadastrado é a URL correta da REST do Nomus (caminho `integracaoErp`)
-
-## Próximo passo sugerido
-
-Confirme dois pontos para eu seguir:
-- Qual o valor atual de `NOMUS_BASE_URL`? (pode colar aqui — não é segredo)
-- Você consegue ajustar os 2 campos no Nomus (autenticação habilitada + dias para trás)?
-
-Com isso eu rodo o sync e mostro o que voltou no `raw` para fecharmos o mapeamento de campos.
-
+Resultado esperado
+- Para base oficial:
+  - Cp acima `2,85 kJ/kg.K` entra no motor kcal como `0,6807 kcal/kg°C`;
+  - Cp abaixo `1,55 kJ/kg.K` entra como `0,3702 kcal/kg°C`;
+  - Latente `134 kJ/kg` entra como `32,01 kcal/kg`.
+- O motor legado/ambiente não calculará com kJ.
+- O breakdown mostrará claramente a conversão e a unidade efetivamente usada no cálculo.

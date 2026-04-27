@@ -1,11 +1,25 @@
 // Nomus integration server functions (TanStack Start)
 import { createServerFn } from "@tanstack/react-start";
+import { getRequest } from "@tanstack/react-start/server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { nomusFetch, listAll, testNomusConnection } from "./client";
-import { NOMUS_ENDPOINTS, proposalSubpath } from "./endpoints";
+import { nomusFetch, listAll, listPage, getOne, testNomusConnection } from "./client";
+import { DEFAULT_PROTECTED_SYNC_FIELDS, diffChangedFields, hashNormalizedPayload, isValidCnpj, normalizeCnColdModelCode, normalizeDocument, normalizeEmail, normalizeModel, normalizeProposalNumber, omitProtectedFields } from "@/services/sync/normalization";
+import { acquireSyncLock, finishSyncRun, getSyncCheckpoint, logFieldChanges, logSyncRow, quarantineSyncRow, recordPendingIssue, releaseSyncLock, startSyncRun, upsertSyncCheckpoint, writeSyncQualityReport, type SyncAction } from "@/services/sync/syncAuditService";
+import {
+  NOMUS_ENDPOINTS,
+  pessoaContatosPath,
+  proposalSubpath,
+  proposalItemDetailPath,
+  proposalItemDetailFallbackPaths,
+} from "./endpoints";
 
 type Json = Record<string, unknown>;
+type ProcessResult = "ok" | "skip" | "unmatched" | "no_change" | "quarantined";
+
+type SyncWindow = "incremental" | "7d" | "30d" | "custom" | "all";
+
+type ExistingRow = { id: string; nomus_id?: string | null; sync_hash?: string | null; [key: string]: unknown };
 
 const pickStr = (o: Json, ...keys: string[]): string | null => {
   for (const k of keys) {
@@ -25,6 +39,221 @@ const pickNum = (o: Json, ...keys: string[]): number | null => {
   return null;
 };
 
+const pickNestedStr = (o: Json, nestedKey: string, ...keys: string[]): string | null => {
+  const nested = o[nestedKey];
+  if (!nested || typeof nested !== "object") return null;
+  return pickStr(nested as Json, ...keys);
+};
+
+const pickBool = (o: Json, ...keys: string[]): boolean | null => {
+  for (const k of keys) {
+    const v = o[k];
+    if (typeof v === "boolean") return v;
+    if (typeof v === "number") return v !== 0;
+    if (typeof v === "string" && v.trim()) return /^(true|sim|s|1)$/i.test(v.trim());
+  }
+  return null;
+};
+
+const firstArrayObj = (o: Json, key: string): Json | null => {
+  const v = o[key];
+  return Array.isArray(v) && v[0] && typeof v[0] === "object" ? (v[0] as Json) : null;
+};
+
+const extractNomusList = <T,>(payload: unknown): T[] => {
+  if (!payload) return [];
+  if (Array.isArray(payload)) return payload as T[];
+  const env = payload as Json;
+  for (const k of ["items", "resultados", "data", "content", "registros", "lista", "contatos"]) {
+    const v = env[k];
+    if (Array.isArray(v)) return v as T[];
+  }
+  return [];
+};
+
+const cleanPayload = (input: Json): Json => Object.fromEntries(
+  Object.entries(input).filter(([, v]) => v !== null && v !== undefined && v !== "")
+);
+
+const toOptionalNumber = (value: unknown): number | null => {
+  if (value === null || value === undefined || value === "") return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+};
+
+function asSyncAction(exists: boolean): SyncAction {
+  return exists ? "updated" : "inserted";
+}
+
+function stableNaturalItemId(position: number, productCode: string | null, description: string | null): string {
+  const code = normalizeModel(productCode) ?? "SEM-CODIGO";
+  const desc = normalizeProposalNumber(description)?.slice(0, 80) ?? "SEM-DESCRICAO";
+  return `natural:${position}:${code}:${desc}`;
+}
+
+function pickExternalUpdatedAt(raw: Json): string | null {
+  return pickStr(raw, "updatedAt", "updated_at", "dataAlteracao", "dataModificacao", "dataHoraAlteracao", "alteradoEm");
+}
+
+function windowQuery(window?: SyncWindow, startDate?: string | null, endDate?: string | null) {
+  if (!window || window === "all") return {};
+  const end = endDate ? new Date(endDate) : new Date();
+  const start = startDate ? new Date(startDate) : new Date(end);
+  if (window === "7d") start.setDate(end.getDate() - 7);
+  if (window === "30d") start.setDate(end.getDate() - 30);
+  if (window === "incremental" && !startDate) return {};
+  return {
+    dataModificacaoInicial: start.toISOString().slice(0, 10),
+    dataModificacaoFinal: end.toISOString().slice(0, 10),
+  };
+}
+
+async function bulkReadByNomusId(table: string, ids: string[]) {
+  const unique = Array.from(new Set(ids.filter(Boolean)));
+  if (unique.length === 0) return new Map<string, ExistingRow>();
+  const { data, error } = await supabaseAdmin.from(table as never).select("*").in("nomus_id", unique as never);
+  if (error) throw new Error(error.message);
+  return new Map(((data as ExistingRow[] | null) ?? []).map((row) => [String(row.nomus_id), row]));
+}
+
+function buildUpdatePayload<T extends Record<string, unknown>>(previous: Record<string, unknown> | null | undefined, next: T, table: keyof typeof DEFAULT_PROTECTED_SYNC_FIELDS) {
+  const safeNext = omitProtectedFields(next, DEFAULT_PROTECTED_SYNC_FIELDS[table] ?? []);
+  const changed = diffChangedFields(previous, safeNext);
+  return { changed, payload: Object.fromEntries(changed.map((field) => [field, safeNext[field]])) as Partial<T> };
+}
+
+async function readCurrentHash(table: string, externalId: string): Promise<{ id?: string | null; sync_hash?: string | null } | null> {
+  const { data } = await supabaseAdmin.from(table as never).select("id, sync_hash").eq("nomus_id", externalId).maybeSingle();
+  return data as { id?: string | null; sync_hash?: string | null } | null;
+}
+
+async function syncPersonContacts(args: { clientId: string; pessoaId: string; triggeredBy: string | null }) {
+  const res = await nomusFetch<unknown>(pessoaContatosPath(args.pessoaId), {
+    method: "GET",
+    entity: "contatos",
+    operation: "list-person-contacts",
+    direction: "pull",
+    triggeredBy: args.triggeredBy,
+    timeoutMs: 8_000,
+    maxAttempts: 1,
+  });
+  if (!res.ok) {
+    if (res.status === 400 || res.status === 404 || res.status === 429 || /limitou|thrott|timeout|aborted|unknown/i.test(res.error)) return 0;
+    console.warn(`[nomus] contatos ignorados para pessoa ${args.pessoaId}: ${res.error}`);
+    return 0;
+  }
+
+  let count = 0;
+  for (const raw of extractNomusList<Json>(res.data)) {
+    const nomus_id = pickStr(raw, "id", "codigo", "idContato", "idPessoaContato");
+    const name = pickStr(raw, "nome", "nomeContato", "contato", "razaoSocial");
+    const email = pickStr(raw, "email", "emailPrincipal");
+    const phone = pickStr(raw, "telefone", "fone", "telefonePrincipal");
+    const mobile = pickStr(raw, "celular", "telefoneCelular", "mobile");
+    if (!name && !email && !phone && !mobile) continue;
+
+    const payload = {
+      client_id: args.clientId,
+      nomus_id,
+      name: name ?? email ?? phone ?? mobile ?? "Contato Nomus",
+      role: pickStr(raw, "cargo", "funcao", "função", "departamento", "tipoContato"),
+      email,
+      phone,
+      mobile,
+      is_primary: pickBool(raw, "principal", "contatoPrincipal", "isPrimary") ?? false,
+      nomus_raw: raw as never,
+    };
+
+    let existingId: string | null = null;
+    if (nomus_id) {
+      const { data } = await supabaseAdmin
+        .from("client_contacts")
+        .select("id")
+        .eq("client_id", args.clientId)
+        .eq("nomus_id", nomus_id)
+        .maybeSingle();
+      existingId = (data as { id?: string } | null)?.id ?? null;
+    } else if (email || phone || mobile) {
+      let query = supabaseAdmin.from("client_contacts").select("id").eq("client_id", args.clientId);
+      if (email) query = query.eq("email", email);
+      else if (phone) query = query.eq("phone", phone);
+      else if (mobile) query = query.eq("mobile", mobile);
+      const { data } = await query.maybeSingle();
+      existingId = (data as { id?: string } | null)?.id ?? null;
+    }
+
+    const { error } = existingId
+      ? await supabaseAdmin.from("client_contacts").update(payload).eq("id", existingId)
+      : await supabaseAdmin.from("client_contacts").insert(payload);
+    if (error) throw new Error(error.message);
+    count += 1;
+  }
+  return count;
+}
+
+async function syncSellerItem(raw: Json): Promise<ProcessResult> {
+  const nomus_id = pickStr(raw, "id", "codigo", "idVendedor");
+  const name = pickStr(raw, "nome", "razaoSocial");
+  if (!nomus_id || !name) return "skip";
+  const { error } = await supabaseAdmin.from("nomus_sellers").upsert({
+    nomus_id, name,
+    email: pickStr(raw, "email"),
+    document: pickStr(raw, "cpf", "cnpj", "documento"),
+    raw: raw as never,
+    synced_at: new Date().toISOString(),
+    last_synced_at: new Date().toISOString(),
+    sync_status: "synced",
+  } as never, { onConflict: "nomus_id" });
+  if (error) throw new Error(error.message);
+  return "ok";
+}
+
+async function syncRepresentativeItem(raw: Json): Promise<ProcessResult> {
+  const nomus_id = pickStr(raw, "id", "codigo");
+  const name = pickStr(raw, "nome", "razaoSocial");
+  if (!nomus_id || !name) return "skip";
+  const { error } = await supabaseAdmin.from("nomus_representatives").upsert({
+    nomus_id, name,
+    email: pickStr(raw, "email"),
+    document: pickStr(raw, "cnpj", "cpf"),
+    region: pickStr(raw, "regiao", "uf"),
+    raw: raw as never,
+    synced_at: new Date().toISOString(),
+    last_synced_at: new Date().toISOString(),
+    sync_status: "synced",
+  } as never, { onConflict: "nomus_id" });
+  if (error) throw new Error(error.message);
+  return "ok";
+}
+
+async function syncProductItem(raw: Json, syncRunId: string | null): Promise<ProcessResult> {
+  const nomus_id = pickStr(raw, "id", "codigo", "idProduto");
+  const model = pickStr(raw, "codigo", "modelo", "descricao");
+  if (!nomus_id || !model) {
+    await quarantineSyncRow({ syncRunId, entityType: "produtos", externalId: nomus_id, errorCode: !nomus_id ? "MISSING_EXTERNAL_ID" : "MISSING_REQUIRED_FIELD", reason: "Produto sem ID ou modelo", rawPayload: raw });
+    return "quarantined";
+  }
+  const normalizedModel = normalizeModel(model);
+  const normalizedModelCode = normalizeCnColdModelCode(model);
+  const syncHash = await hashNormalizedPayload({ nomus_id, model, normalizedModel, normalizedModelCode });
+  let { data: existing } = await supabaseAdmin.from("equipments").select("id, sync_hash").eq("nomus_id", nomus_id).maybeSingle();
+  let matchType: "exact_model" | "normalized_model" | "normalized_model_code" | "unmatched" = "exact_model";
+  if (!existing) existing = (await supabaseAdmin.from("equipments").select("id, sync_hash").eq("model", model).maybeSingle()).data;
+  if (!existing && normalizedModel) { existing = (await supabaseAdmin.from("equipments").select("id, sync_hash").eq("normalized_model", normalizedModel).maybeSingle()).data; matchType = "normalized_model"; }
+  if (!existing && normalizedModelCode) { existing = (await supabaseAdmin.from("equipments").select("id, sync_hash").eq("normalized_model_code", normalizedModelCode).maybeSingle()).data; matchType = "normalized_model_code"; }
+  if (!existing) {
+    await supabaseAdmin.from("nomus_product_equipment_links").upsert({ nomus_product_id: nomus_id, equipment_id: null, match_type: "unmatched", confidence_score: 0 }, { onConflict: "nomus_product_id" });
+    await recordPendingIssue({ syncRunId, entityType: "produtos", issueType: "unmatched_equipment", externalId: nomus_id, title: "Produto Nomus sem equipamento vinculado", payload: { model, normalizedModel, normalizedModelCode } });
+    await quarantineSyncRow({ syncRunId, entityType: "produtos", externalId: nomus_id, errorCode: "UNMATCHED_EQUIPMENT", reason: "Produto sem equipamento correspondente", rawPayload: raw, normalizedPayload: { model, normalizedModel, normalizedModelCode } });
+    return "unmatched";
+  }
+  if ((existing as { sync_hash?: string | null }).sync_hash === syncHash) return "no_change";
+  const { error } = await supabaseAdmin.from("equipments").update({ nomus_id, nomus_synced_at: new Date().toISOString(), last_synced_at: new Date().toISOString(), external_updated_at: pickExternalUpdatedAt(raw), sync_hash: syncHash, normalized_model_code: normalizedModelCode, sync_status: "synced", last_sync_run_id: syncRunId }).eq("id", (existing as { id: string }).id);
+  if (error) throw new Error(error.message);
+  await supabaseAdmin.from("nomus_product_equipment_links").upsert({ nomus_product_id: nomus_id, equipment_id: (existing as { id: string }).id, match_type: matchType, confidence_score: matchType === "exact_model" ? 1 : 0.92 }, { onConflict: "nomus_product_id" });
+  return "ok";
+}
+
 async function setState(entity: string, patch: Record<string, unknown>) {
   await supabaseAdmin.from("nomus_sync_state").upsert({
     entity,
@@ -34,7 +263,7 @@ async function setState(entity: string, patch: Record<string, unknown>) {
 }
 
 type SyncResult =
-  | { ok: true; count: number; skipped: number; unmatched: number }
+  | { ok: true; count: number; skipped: number; unmatched: number; done?: boolean; nextPage?: number | null }
   | { ok: false; error: string };
 
 /**
@@ -54,14 +283,23 @@ async function runEntitySync(args: {
   entity: string;
   endpoint: string;
   triggeredBy: string | null;
-  processItem: (raw: Json) => Promise<"ok" | "skip" | "unmatched">;
+  processItem: (raw: Json, syncRunId: string | null, options: { dryRun: boolean }) => Promise<ProcessResult>;
   /** Query extra para o listAll (ex.: dataModificacaoInicial p/ incremental). */
   query?: Record<string, string | number | undefined>;
   /** Página máxima de itens — passado adiante para listAll. */
   pageSize?: number;
+  dryRun?: boolean;
 }): Promise<SyncResult> {
-  const { entity, endpoint, triggeredBy, processItem, query, pageSize } = args;
+  const { entity, endpoint, triggeredBy, processItem, query, pageSize, dryRun = false } = args;
   await setState(entity, { running: true, last_error: null });
+  let syncRunId: string | null = null;
+  let lockKey: string | null = null;
+  let count = 0;
+  let skipped = 0;
+  let unmatched = 0;
+  let noChange = 0;
+  let quarantined = 0;
+  let errors = 0;
   try {
     const res = await listAll<Json>(endpoint, query ?? {}, { entity, triggeredBy, pageSize });
     if (!res.ok) {
@@ -69,19 +307,29 @@ async function runEntitySync(args: {
       await setState(entity, { running: false, last_error: error });
       return { ok: false, error };
     }
-    let count = 0;
-    let skipped = 0;
-    let unmatched = 0;
+    syncRunId = await startSyncRun(entity, triggeredBy, res.items.length, { dryRun, lockKey: `nomus:${entity}` });
+    const lock = await acquireSyncLock({ entityType: entity, syncRunId, userId: triggeredBy });
+    if (!lock.ok) {
+      await logSyncRow({ syncRunId, entityType: entity, action: "skipped", status: "skipped", errorCode: "LOCK_ALREADY_RUNNING", errorMessage: lock.error });
+      await finishSyncRun({ syncRunId, status: "partial_success", totalReceived: res.items.length, totalSkipped: res.items.length, totalErrors: 1, errorMessage: lock.error });
+      await setState(entity, { running: false, last_error: lock.error });
+      return { ok: false, error: lock.error };
+    }
+    lockKey = lock.lockKey;
     const itemErrors: string[] = [];
     for (const raw of res.items) {
       try {
-        const r = await processItem(raw);
+        const r = await processItem(raw, syncRunId, { dryRun });
         if (r === "ok") count += 1;
         else if (r === "unmatched") { unmatched += 1; skipped += 1; }
+        else if (r === "no_change") { noChange += 1; skipped += 1; }
+        else if (r === "quarantined") { quarantined += 1; skipped += 1; }
         else skipped += 1;
       } catch (e) {
         skipped += 1;
+        errors += 1;
         const msg = e instanceof Error ? e.message : String(e);
+        await logSyncRow({ syncRunId, entityType: entity, action: "error", status: "error", errorMessage: msg, rawPayload: raw });
         if (itemErrors.length < 3) itemErrors.push(msg);
       }
     }
@@ -94,10 +342,23 @@ async function runEntitySync(args: {
       total_synced: count,
       last_error: noteParts.length > 0 ? noteParts.join(" • ") : null,
     });
+    await finishSyncRun({
+      syncRunId,
+      totalReceived: res.items.length,
+      totalInserted: count,
+      totalSkipped: skipped,
+      totalErrors: errors,
+      totalQuarantined: quarantined,
+      totalNoChange: noChange,
+      errorMessage: noteParts.length > 0 ? noteParts.join(" • ") : null,
+    });
+    await releaseSyncLock(lockKey);
     return { ok: true, count, skipped, unmatched };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     await setState(entity, { running: false, last_error: msg });
+    await finishSyncRun({ syncRunId, status: "error", totalInserted: count, totalSkipped: skipped, totalErrors: errors + 1, errorMessage: msg });
+    await releaseSyncLock(lockKey);
     return { ok: false, error: msg };
   }
 }
@@ -122,6 +383,7 @@ export const nomusTestConnection = createServerFn({ method: "POST" })
         status: result.status,
         durationMs: result.durationMs,
         baseUrl: result.baseUrl,
+        probes: result.probes,
       };
     }
     const reason = result.error ?? "Falha ao conectar ao Nomus";
@@ -133,42 +395,258 @@ export const nomusTestConnection = createServerFn({ method: "POST" })
       status: result.status,
       endpoint: result.endpoint,
       durationMs: result.durationMs,
+      probes: result.probes,
     };
   });
 
 /** Pull clients from Nomus and upsert locally. */
 export const nomusSyncClients = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((input?: { window?: SyncWindow; startDate?: string | null; endDate?: string | null }) => input ?? {})
+  .handler(async ({ data, context }) => {
     const userId = (context as { userId?: string }).userId ?? null;
-    return runEntitySync({
-      entity: "clientes",
-      endpoint: NOMUS_ENDPOINTS.clientes,
-      triggeredBy: userId,
-      processItem: async (raw) => {
-        const nomus_id = pickStr(raw, "id", "codigo", "idCliente");
-        const name = pickStr(raw, "nome", "razaoSocial", "nomeFantasia");
-        if (!nomus_id || !name) return "skip";
-        const { error } = await supabaseAdmin
+    const now = new Date().toISOString();
+    await setState("clientes", { running: true, last_error: null });
+    let syncRunId: string | null = null;
+    let lockKey: string | null = null;
+    try {
+      const { data: state } = await supabaseAdmin
+        .from("nomus_sync_state")
+        .select("last_cursor, total_synced")
+        .eq("entity", "clientes")
+        .maybeSingle();
+      const cursor = String((state as { last_cursor?: string | null } | null)?.last_cursor ?? "1:0");
+      const [cursorPage, cursorOffset] = cursor.includes(":") ? cursor.split(":") : [cursor, "0"];
+      const checkpoint = await getSyncCheckpoint("clientes");
+      const checkpointPage = Number(checkpoint?.last_page ?? 0) || 0;
+      const page = Math.max(1, checkpointPage || Number(cursorPage) || 1);
+      const offset = Math.max(0, Number(cursorOffset) || 0);
+      const previousTotal = page === 1 && offset === 0 ? 0 : Number((state as { total_synced?: number | null } | null)?.total_synced ?? 0) || 0;
+      const perClick = 20;
+      const res = await listPage<Json>(NOMUS_ENDPOINTS.clientes, windowQuery(data.window, data.startDate, data.endDate), { entity: "clientes", page, pageSize: perClick, triggeredBy: userId });
+      if (!res.ok) {
+        await setState("clientes", { running: false, last_error: res.error });
+        return { ok: false as const, error: res.error };
+      }
+
+      let count = 0;
+      let contactsCount = 0;
+      let skipped = 0;
+      let noChange = 0;
+      let quarantined = 0;
+      const batch = res.items.slice(offset, offset + perClick);
+      syncRunId = await startSyncRun("clientes", userId, batch.length, { lockKey: "nomus:clientes" });
+      await upsertSyncCheckpoint({ entityType: "clientes", syncRunId, lastPage: page, status: "running", cursorPayload: { window: data.window ?? "incremental", batchSize: perClick } });
+      const lock = await acquireSyncLock({ entityType: "clientes", syncRunId, userId, ttlMinutes: 5 });
+      if (!lock.ok) {
+        await setState("clientes", { running: false, last_error: lock.error });
+        return { ok: false as const, error: lock.error };
+      }
+      lockKey = lock.lockKey;
+      const summaryIds = batch.map((raw) => pickStr(raw, "id", "codigo", "idCliente", "idPessoa")).filter((id): id is string => Boolean(id));
+      const existingByNomusId = await bulkReadByNomusId("clients", summaryIds);
+      for (const raw of batch) {
+        const summaryId = pickStr(raw, "id", "codigo", "idCliente", "idPessoa");
+        const detailRes = summaryId
+          ? await nomusFetch<Json>(`${NOMUS_ENDPOINTS.clientes}/${encodeURIComponent(summaryId)}`, { method: "GET", entity: "clientes", operation: "get", direction: "pull", triggeredBy: userId, timeoutMs: 6_000, maxAttempts: 1 })
+          : { ok: false as const, error: "Cliente sem ID" };
+        const full = detailRes.ok ? { ...raw, ...detailRes.data } : raw;
+        const nomus_id = pickStr(full, "id", "codigo", "idCliente", "idPessoa") ?? summaryId;
+        const name = pickStr(full, "nome", "razaoSocial", "nomeFantasia");
+        if (!nomus_id || !name) {
+          await quarantineSyncRow({ syncRunId, entityType: "clientes", externalId: nomus_id, errorCode: !nomus_id ? "MISSING_EXTERNAL_ID" : "MISSING_REQUIRED_FIELD", reason: !nomus_id ? "Cliente sem ID Nomus" : "Cliente sem nome/razão social", rawPayload: full });
+          await recordPendingIssue({ syncRunId, entityType: "clientes", issueType: !nomus_id ? "missing_external_id" : "missing_name", externalId: nomus_id, title: !nomus_id ? "Cliente Nomus sem ID" : "Cliente Nomus sem nome", payload: full });
+          skipped += 1;
+          quarantined += 1;
+          continue;
+        }
+        const document = pickStr(full, "cnpj", "cpf", "documento", "cpfCnpj");
+        const documentDigits = normalizeDocument(document);
+        if (documentDigits?.length === 14 && !isValidCnpj(documentDigits)) {
+          await quarantineSyncRow({ syncRunId, entityType: "clientes", externalId: nomus_id, errorCode: "INVALID_CNPJ", reason: "Cliente com CNPJ inválido", rawPayload: full });
+          await recordPendingIssue({ syncRunId, entityType: "clientes", issueType: "invalid_cnpj", externalId: nomus_id, title: "Cliente com CNPJ inválido", payload: { nomus_id, document } });
+          skipped += 1;
+          quarantined += 1;
+          continue;
+        }
+        const seller = firstArrayObj(full, "vendedores");
+        const representative = firstArrayObj(full, "representantes");
+        const cnae = pickStr(full, "cnaePrincipal", "classificacao", "classificação");
+        const situacaoEstadual = pickStr(full, "situacaoEstadual", "situaçãoEstadual", "situacaoIE", "statusInscricaoEstadual");
+        const notes = [pickStr(full, "observacoes", "observações"), cnae ? `CNAE/Classificação: ${cnae}` : null].filter(Boolean).join("\n") || null;
+
+        const syncPayload = {
+          nomus_id,
+          name,
+          document,
+          trade_name: pickStr(full, "nomeFantasia", "fantasia", "apelido"),
+          email: pickStr(full, "email", "emailPrincipal"),
+          phone: pickStr(full, "telefone", "fone", "telefonePrincipal", "celular"),
+          website: pickStr(full, "site", "website"),
+          zip_code: pickStr(full, "cep", "codigoPostal"),
+          address: pickStr(full, "logradouro", "endereco", "rua"),
+          address_number: pickStr(full, "numero", "numeroEndereco"),
+          address_complement: pickStr(full, "complemento"),
+          district: pickStr(full, "bairro"),
+          city: pickStr(full, "cidade", "municipio", "nomeCidade"),
+          state: pickStr(full, "uf", "estado", "siglaEstado"),
+          country: pickStr(full, "pais", "nomePais"),
+          segment: pickStr(full, "segmento", "ramo", "ramoAtividade", "segmentoMercado", "cnaePrincipal", "classificacao"),
+          region: pickStr(full, "regiao", "regiaoComercial", "territorio", "uf", "estado", "siglaEstado"),
+          state_registration: pickStr(full, "inscricaoEstadual", "ie", "situacaoEstadual", "situaçãoEstadual"),
+          municipal_registration: pickStr(full, "inscricaoMunicipal", "im"),
+          nomus_seller_id: pickStr(full, "idVendedor", "vendedorId") ?? pickNestedStr(full, "vendedor", "id", "codigo") ?? (seller ? pickStr(seller, "id", "codigo") : null),
+          nomus_seller_name: pickStr(full, "nomeVendedor", "vendedorNome") ?? pickNestedStr(full, "vendedor", "nome", "razaoSocial") ?? (seller ? pickStr(seller, "nome", "razaoSocial") : null),
+          nomus_representative_id: pickStr(full, "idRepresentante", "representanteId") ?? pickNestedStr(full, "representante", "id", "codigo") ?? (representative ? pickStr(representative, "id", "codigo") : null),
+          nomus_representative_name: pickStr(full, "nomeRepresentante", "representanteNome") ?? pickNestedStr(full, "representante", "nome", "razaoSocial") ?? (representative ? pickStr(representative, "nome", "razaoSocial") : null),
+          notes,
+          is_active: pickBool(full, "ativo", "isActive", "ativoCliente") ?? true,
+        };
+        const syncHash = await hashNormalizedPayload(syncPayload);
+        const current = existingByNomusId.get(nomus_id) ?? await readCurrentHash("clients", nomus_id);
+        if (current?.sync_hash === syncHash) {
+          await logSyncRow({ syncRunId, entityType: "clientes", externalId: nomus_id, localId: current.id, action: "skipped_no_change", status: "skipped", errorCode: "SKIPPED_NO_CHANGE", previousHash: syncHash, newHash: syncHash, rawPayload: full });
+          skipped += 1;
+          noChange += 1;
+          continue;
+        }
+        const previous = current?.id ? current : null;
+        const { payload: changedPayload } = buildUpdatePayload(previous, syncPayload, "clients");
+        const { data: upserted, error } = await supabaseAdmin
           .from("clients")
           .upsert(
-            {
+            ({
+              ...(current?.id ? changedPayload : syncPayload),
               nomus_id,
-              name,
-              document: pickStr(raw, "cnpj", "cpf", "documento"),
-              trade_name: pickStr(raw, "nomeFantasia", "fantasia"),
-              city: pickStr(raw, "cidade", "municipio"),
-              state: pickStr(raw, "uf", "estado"),
-              segment: pickStr(raw, "segmento", "ramo"),
+              nomus_raw: { ...full, situacaoEstadual } as never,
               origin: "nomus",
               nomus_synced_at: new Date().toISOString(),
-            },
+              last_synced_at: new Date().toISOString(),
+              external_updated_at: pickExternalUpdatedAt(full),
+              sync_hash: syncHash,
+              sync_status: "synced",
+              sync_error_code: null,
+              sync_error_message: null,
+              last_sync_run_id: syncRunId,
+            } as never),
             { onConflict: "nomus_id" }
-          );
+          )
+          .select("id")
+          .single();
         if (error) throw new Error(error.message);
-        return "ok";
-      },
+        const clientId = (upserted as { id?: string } | null)?.id;
+        await logFieldChanges({ syncRunId, entityType: "clientes", localId: clientId, externalId: nomus_id, previous: previous as Record<string, unknown> | null, next: syncPayload });
+        await logSyncRow({ syncRunId, entityType: "clientes", externalId: nomus_id, localId: clientId, action: current ? "updated" : "inserted", status: "success", previousHash: current?.sync_hash, newHash: syncHash, rawPayload: full });
+        if (clientId && nomus_id) contactsCount += await syncPersonContacts({ clientId, pessoaId: nomus_id, triggeredBy: userId });
+        count += 1;
+      }
+
+      const nextOffset = offset + batch.length;
+      const done = (!res.hasMore && nextOffset >= res.items.length) || res.items.length === 0;
+      const nextPage = done ? null : nextOffset < res.items.length ? `${page}:${nextOffset}` : `${page + 1}:0`;
+      const lastExternalId = batch.length > 0 ? pickStr(batch[batch.length - 1], "id", "codigo", "idCliente", "idPessoa") : null;
+      await upsertSyncCheckpoint({ entityType: "clientes", syncRunId, lastPage: done ? 1 : page + 1, lastExternalId, status: done ? "completed" : "running", cursorPayload: { done, nextPage } });
+      await setState("clientes", {
+        running: false,
+        last_synced_at: now,
+        total_synced: previousTotal + count,
+        last_cursor: nextPage,
+        last_error: null,
+      });
+      await finishSyncRun({ syncRunId, totalReceived: batch.length, totalInserted: count, totalSkipped: skipped, totalQuarantined: quarantined, totalNoChange: noChange });
+      await releaseSyncLock(lockKey);
+      return { ok: true as const, count, contactsCount, skipped, unmatched: 0, done, nextPage };
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      await upsertSyncCheckpoint({ entityType: "clientes", syncRunId, status: "failed", errorMessage: msg });
+      await setState("clientes", { running: false, last_error: msg });
+      await finishSyncRun({ syncRunId, status: "error", totalErrors: 1, errorMessage: msg });
+      await releaseSyncLock(lockKey);
+      return { ok: false as const, error: msg };
+    }
+  });
+
+export const nomusCreateClient = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: Json) => input)
+  .handler(async ({ data, context }) => {
+    const userId = (context as { userId?: string }).userId ?? null;
+    const name = pickStr(data, "name", "nome", "razaoSocial");
+    if (!name) return { ok: false as const, error: "Informe o nome/razão social do cliente." };
+
+    const payload = cleanPayload({
+      nome: name,
+      razaoSocial: pickStr(data, "razaoSocial", "legal_name") ?? name,
+      nomeFantasia: pickStr(data, "trade_name", "nomeFantasia"),
+      cnpj: pickStr(data, "cnpj", "document"),
+      cpf: pickStr(data, "cpf"),
+      inscricaoEstadual: pickStr(data, "state_registration", "inscricaoEstadual"),
+      situacaoEstadual: pickStr(data, "state_registration_status", "situacaoEstadual"),
+      inscricaoMunicipal: pickStr(data, "municipal_registration", "inscricaoMunicipal"),
+      tipoPessoa: toOptionalNumber(data.tipoPessoa),
+      tipoContribuinteICMS: toOptionalNumber(data.tipoContribuinteICMS),
+      crt: toOptionalNumber(data.crt),
+      email: pickStr(data, "email"),
+      telefone: pickStr(data, "phone", "telefone"),
+      site: pickStr(data, "website", "site"),
+      cep: pickStr(data, "zip_code", "cep"),
+      endereco: pickStr(data, "address", "endereco"),
+      numero: pickStr(data, "address_number", "numero"),
+      complemento: pickStr(data, "address_complement", "complemento"),
+      bairro: pickStr(data, "district", "bairro"),
+      municipio: pickStr(data, "city", "municipio"),
+      uf: pickStr(data, "state", "uf"),
+      pais: pickStr(data, "country", "pais") ?? "BRASIL",
+      codigoIBGEMunicipio: pickStr(data, "codigoIBGEMunicipio"),
+      cnaePrincipal: pickStr(data, "segment", "cnaePrincipal"),
+      classificacao: pickStr(data, "classification", "classificacao"),
+      regiao: pickStr(data, "region", "regiao"),
+      observacoes: pickStr(data, "notes", "observacoes"),
+      ativo: true,
     });
+
+    const res = await nomusFetch<Json>(NOMUS_ENDPOINTS.clientes, {
+      method: "POST",
+      body: payload,
+      entity: "clientes",
+      operation: "create",
+      direction: "push",
+      triggeredBy: userId,
+      timeoutMs: 12_000,
+      maxAttempts: 1,
+    });
+    if (!res.ok) return { ok: false as const, error: res.error };
+
+    const nomus_id = pickStr(res.data, "id", "codigo", "idCliente", "idPessoa") ?? pickStr(payload, "codigo");
+    const localPayload = {
+      nomus_id,
+      name,
+      trade_name: pickStr(data, "trade_name", "nomeFantasia"),
+      document: pickStr(data, "cnpj", "document") ?? pickStr(data, "cpf"),
+      email: pickStr(data, "email"),
+      phone: pickStr(data, "phone", "telefone"),
+      website: pickStr(data, "website", "site"),
+      zip_code: pickStr(data, "zip_code", "cep"),
+      address: pickStr(data, "address", "endereco"),
+      address_number: pickStr(data, "address_number", "numero"),
+      address_complement: pickStr(data, "address_complement", "complemento"),
+      district: pickStr(data, "district", "bairro"),
+      city: pickStr(data, "city", "municipio"),
+      state: pickStr(data, "state", "uf"),
+      country: pickStr(data, "country", "pais") ?? "BRASIL",
+      segment: pickStr(data, "segment", "cnaePrincipal"),
+      region: pickStr(data, "region", "regiao"),
+      state_registration: pickStr(data, "state_registration", "inscricaoEstadual"),
+      municipal_registration: pickStr(data, "municipal_registration", "inscricaoMunicipal"),
+      notes: pickStr(data, "notes", "observacoes"),
+      origin: "nomus",
+      created_by: userId,
+      nomus_raw: { ...payload, ...(res.data as Json) } as never,
+      nomus_synced_at: new Date().toISOString(),
+    };
+    const { error } = await supabaseAdmin.from("clients").upsert(localPayload, nomus_id ? { onConflict: "nomus_id" } : undefined);
+    if (error) return { ok: false as const, error: error.message };
+    return { ok: true as const, nomus_id };
   });
 
 /** Pull products and map to equipments via nomus_id. NÃO cria equipments automaticamente. */
@@ -180,31 +658,61 @@ export const nomusSyncProducts = createServerFn({ method: "POST" })
       entity: "produtos",
       endpoint: NOMUS_ENDPOINTS.produtos,
       triggeredBy: userId,
-      processItem: async (raw) => {
+      processItem: async (raw, syncRunId) => {
         const nomus_id = pickStr(raw, "id", "codigo", "idProduto");
         const model = pickStr(raw, "codigo", "modelo", "descricao");
-        if (!nomus_id || !model) return "skip";
+        if (!nomus_id || !model) {
+          await quarantineSyncRow({ syncRunId, entityType: "produtos", externalId: nomus_id, errorCode: !nomus_id ? "MISSING_EXTERNAL_ID" : "MISSING_REQUIRED_FIELD", reason: "Produto sem ID ou modelo", rawPayload: raw });
+          return "quarantined";
+        }
+        const normalizedModel = normalizeModel(model);
+        const normalizedModelCode = normalizeCnColdModelCode(model);
+        const syncHash = await hashNormalizedPayload({ nomus_id, model, normalizedModel, normalizedModelCode });
         // 1) match por nomus_id já vinculado
         let { data: existing } = await supabaseAdmin
-          .from("equipments").select("id").eq("nomus_id", nomus_id).maybeSingle();
+          .from("equipments").select("id, sync_hash").eq("nomus_id", nomus_id).maybeSingle();
+        let matchType: "exact_model" | "normalized_model" | "normalized_model_code" | "manual" | "unmatched" = "exact_model";
         // 2) match por model exato
         if (!existing) {
           const r = await supabaseAdmin
-            .from("equipments").select("id").eq("model", model).maybeSingle();
+            .from("equipments").select("id, sync_hash").eq("model", model).maybeSingle();
           existing = r.data;
         }
-        // 3) match case-insensitive
-        if (!existing) {
+        // 3) match por modelo normalizado, sem criar equipamento duplicado
+        if (!existing && normalizedModel) {
           const r = await supabaseAdmin
-            .from("equipments").select("id").ilike("model", model).maybeSingle();
+            .from("equipments").select("id, sync_hash").eq("normalized_model", normalizedModel).maybeSingle();
           existing = r.data;
+          matchType = "normalized_model";
         }
-        if (!existing) return "unmatched";
+        if (!existing && normalizedModelCode) {
+          const r = await supabaseAdmin
+            .from("equipments").select("id, sync_hash").eq("normalized_model_code", normalizedModelCode).maybeSingle();
+          existing = r.data;
+          matchType = "normalized_model_code";
+        }
+        if (!existing) {
+          await supabaseAdmin.from("nomus_product_equipment_links").upsert(
+            { nomus_product_id: nomus_id, equipment_id: null, match_type: "unmatched", confidence_score: 0 },
+            { onConflict: "nomus_product_id" },
+          );
+          await quarantineSyncRow({ syncRunId, entityType: "produtos", externalId: nomus_id, errorCode: "UNMATCHED_EQUIPMENT", reason: "Produto sem equipamento correspondente", rawPayload: raw, normalizedPayload: { model, normalizedModel, normalizedModelCode } });
+          return "unmatched";
+        }
+        if ((existing as { sync_hash?: string | null }).sync_hash === syncHash) {
+          await logSyncRow({ syncRunId, entityType: "produtos", externalId: nomus_id, localId: existing.id, action: "skipped_no_change", status: "skipped", errorCode: "SKIPPED_NO_CHANGE", previousHash: syncHash, newHash: syncHash, rawPayload: raw });
+          return "no_change";
+        }
         const { error } = await supabaseAdmin
           .from("equipments")
-          .update({ nomus_id, nomus_synced_at: new Date().toISOString() })
+          .update({ nomus_id, nomus_synced_at: new Date().toISOString(), last_synced_at: new Date().toISOString(), external_updated_at: pickExternalUpdatedAt(raw), sync_hash: syncHash, normalized_model_code: normalizedModelCode })
           .eq("id", existing.id);
         if (error) throw new Error(error.message);
+        await supabaseAdmin.from("nomus_product_equipment_links").upsert(
+          { nomus_product_id: nomus_id, equipment_id: existing.id, match_type: matchType, confidence_score: matchType === "exact_model" ? 1 : 0.92 },
+          { onConflict: "nomus_product_id" },
+        );
+        await logSyncRow({ syncRunId, entityType: "produtos", externalId: nomus_id, localId: existing.id, action: "updated", status: "success", previousHash: (existing as { sync_hash?: string | null }).sync_hash, newHash: syncHash, rawPayload: raw });
         return "ok";
       },
     });
@@ -391,6 +899,86 @@ export const nomusSyncRepresentatives = createServerFn({ method: "POST" })
       },
     });
   });
+/**
+ * Kick-off rápido: marca a entidade `propostas` como "running" e retorna
+ * imediatamente. O trabalho pesado (paginação Nomus + upserts) é feito de
+ * forma assíncrona pelo cron (`/hooks/nomus-cron`) — que dispara a cada
+ * N minutos via pg_cron e também é chamado em background aqui.
+ *
+ * Por que não rodar tudo aqui? O Worker tem limite de tempo de execução
+ * (~30s) e o pull completo de propostas estourava esse limite, devolvendo
+ * 504 ao cliente. Agora o usuário recebe resposta em < 1s e acompanha o
+ * progresso lendo `nomus_sync_state`.
+ */
+export const nomusKickoffSyncProposals = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const userId = (context as { userId?: string }).userId ?? null;
+
+    const LOVABLE_PROJECT_ID = "917813d5-8e5a-4655-8778-64228cb3d23e";
+    const stablePublishedOrigin = `https://project--${LOVABLE_PROJECT_ID}.lovable.app`;
+    const stablePreviewOrigin = `https://project--${LOVABLE_PROJECT_ID}-dev.lovable.app`;
+    const cronToken =
+      process.env.NOMUS_CRON_SECRET?.trim()
+      || process.env.SUPABASE_PUBLISHABLE_KEY?.trim()
+      || process.env.SUPABASE_ANON_KEY?.trim()
+      || "";
+
+    let origin: string = process.env.PUBLIC_BASE_URL?.trim() || stablePublishedOrigin;
+    try {
+      const req = getRequest();
+      const reqOrigin = new URL(req.url).origin;
+      if (/localhost|127\.0\.0\.1/i.test(reqOrigin)) {
+        origin = process.env.PUBLIC_BASE_URL?.trim() || stablePublishedOrigin;
+      } else if (/preview|id-preview--|-dev\.lovable\.app/i.test(reqOrigin)) {
+        origin = stablePreviewOrigin;
+      } else if (/^https:\/\//.test(reqOrigin)) {
+        origin = reqOrigin;
+      }
+    } catch { /* mantém origin */ }
+
+    await setState("propostas", { running: true, last_cursor: null, last_error: null });
+
+    let kickoffOk = false;
+    let kickoffError: string | null = null;
+    try {
+      const r = await fetch(`${origin}/api/public/hooks/nomus-cron`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${cronToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ entity: "propostas" }),
+        signal: AbortSignal.timeout(900),
+      }).catch((e) => {
+        console.error("[nomus] kickoff fetch failed", e);
+        kickoffError = e instanceof Error ? e.message : String(e);
+        return null;
+      });
+
+      if (r) {
+        kickoffOk = r.ok;
+        if (!r.ok) {
+          const body = await r.text().catch(() => "");
+          kickoffError = `cron HTTP ${r.status}${body ? `: ${body.slice(0, 180)}` : ""}`;
+          console.warn("[nomus] kickoff recusado", kickoffError);
+        }
+      }
+    } catch (e) {
+      console.error("[nomus] kickoff fetch threw", e);
+      kickoffError = e instanceof Error ? e.message : String(e);
+    }
+
+    if (!kickoffOk) console.warn(`[nomus] kickoff assíncrono não confirmou (${kickoffError ?? "sem detalhes"}); cron automático continuará a fila`);
+    return {
+      ok: true as const,
+      queued: true as const,
+      message: "Sincronização agendada. A rotina automática buscará as propostas mais recentes sem travar a tela.",
+      triggered_by: userId,
+    };
+  });
+
+/** @deprecated Use `nomusKickoffSyncProposals`. Mantido para compatibilidade. */
 export const nomusSyncProposalsFull = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -406,24 +994,56 @@ export const nomusSyncProposalsFull = createServerFn({ method: "POST" })
       entity: "propostas",
       endpoint: NOMUS_ENDPOINTS.propostas,
       triggeredBy: userId,
-      processItem: async (raw) => {
-        const nomus_id = pickStr(raw, "id", "idProposta", "codigo");
-        if (!nomus_id) return "skip";
+      processItem: async (raw, syncRunId) => {
+        const { mapNomusProposal, extractProposalItems } = await import("./parse");
+        const mapped = mapNomusProposal(raw);
+        if (!mapped) {
+          await quarantineSyncRow({ syncRunId, entityType: "propostas", errorCode: "MISSING_REQUIRED_FIELD", reason: "Proposta sem campos mínimos para mapeamento", rawPayload: raw });
+          return "quarantined";
+        }
+        const nomus_id = mapped.nomus_id;
+        if (!nomus_id || !mapped.numero) {
+          await quarantineSyncRow({ syncRunId, entityType: "propostas", externalId: nomus_id, errorCode: !nomus_id ? "MISSING_EXTERNAL_ID" : "MISSING_REQUIRED_FIELD", reason: !nomus_id ? "Proposta sem ID Nomus" : "Proposta sem número", rawPayload: raw });
+          return "quarantined";
+        }
+        if (mapped.valor_total !== null && mapped.valor_total < 0) {
+          await quarantineSyncRow({ syncRunId, entityType: "propostas", externalId: nomus_id, errorCode: "INVALID_PROPOSAL_TOTAL", reason: "Proposta com valor total inválido", rawPayload: raw });
+          return "quarantined";
+        }
 
         const upsertPayload = {
           nomus_id,
-          numero: pickStr(raw, "numero", "numeroProposta"),
-          cliente_nomus_id: pickStr(raw, "idCliente", "clienteId"),
-          vendedor_nomus_id: pickStr(raw, "idVendedor", "vendedorId"),
-          representante_nomus_id: pickStr(raw, "idRepresentante", "representanteId"),
-          valor_total: pickNum(raw, "valorTotal", "valor", "total"),
-          status_nomus: pickStr(raw, "status", "situacao"),
-          validade: pickStr(raw, "validade", "dataValidade"),
-          data_emissao: pickStr(raw, "dataEmissao", "data"),
-          observacoes: pickStr(raw, "observacoes", "obs"),
+          numero: mapped.numero,
+          cliente_nomus_id: mapped.cliente_nomus_id,
+          vendedor_nomus_id: mapped.vendedor_nomus_id,
+          representante_nomus_id: mapped.representante_nomus_id,
+          valor_total: mapped.valor_total,
+          status_nomus: mapped.status_nomus,
+          validade: mapped.validade,
+          data_emissao: mapped.data_emissao,
+          observacoes: mapped.observacoes,
           raw: raw as never,
           synced_at: new Date().toISOString(),
+          last_synced_at: new Date().toISOString(),
+          external_updated_at: pickExternalUpdatedAt(raw),
+          sync_hash: await hashNormalizedPayload({
+            nomus_id,
+            numero: mapped.numero,
+            cliente_nomus_id: mapped.cliente_nomus_id,
+            vendedor_nomus_id: mapped.vendedor_nomus_id,
+            representante_nomus_id: mapped.representante_nomus_id,
+            valor_total: mapped.valor_total,
+            status_nomus: mapped.status_nomus,
+            validade: mapped.validade,
+            data_emissao: mapped.data_emissao,
+            observacoes: mapped.observacoes,
+          }),
         };
+        const currentMirror = await readCurrentHash("nomus_proposals", nomus_id);
+        if (currentMirror?.sync_hash === upsertPayload.sync_hash) {
+          await logSyncRow({ syncRunId, entityType: "propostas", externalId: nomus_id, localId: currentMirror.id, action: "skipped_no_change", status: "skipped", errorCode: "SKIPPED_NO_CHANGE", previousHash: currentMirror.sync_hash, newHash: upsertPayload.sync_hash, rawPayload: raw });
+          return "no_change";
+        }
         const { data: mirror, error: mErr } = await supabaseAdmin
           .from("nomus_proposals")
           .upsert(upsertPayload, { onConflict: "nomus_id" })
@@ -432,65 +1052,119 @@ export const nomusSyncProposalsFull = createServerFn({ method: "POST" })
         if (mErr || !mirror) throw new Error(mErr?.message ?? "Falha ao gravar nomus_proposals");
         const mirrorId = (mirror as { id: string }).id;
 
-        // Itens (se vierem inline no payload)
-        const itensRaw = (raw["itens"] ?? raw["items"]) as Json[] | undefined;
-        if (Array.isArray(itensRaw)) {
-          await supabaseAdmin.from("nomus_proposal_items").delete().eq("nomus_proposal_id", mirrorId);
-          const rows = itensRaw.map((it, idx) => ({
-            nomus_proposal_id: mirrorId,
-            nomus_item_id: pickStr(it, "id", "idItem"),
-            nomus_product_id: pickStr(it, "idProduto", "produtoId"),
-            product_code: pickStr(it, "codigo", "codigoProduto"),
-            description: pickStr(it, "descricao", "nome") ?? "",
-            quantity: pickNum(it, "quantidade", "qtd"),
-            unit_price: pickNum(it, "valorUnitario", "preco"),
-            discount: pickNum(it, "desconto"),
-            total: pickNum(it, "total", "valorTotal"),
-            position: idx,
-            raw: it as never,
-          }));
-          if (rows.length > 0) await supabaseAdmin.from("nomus_proposal_items").insert(rows);
+        // Itens da proposta (itensProposta)
+        const items = extractProposalItems(raw);
+        if (items.length > 0) {
+          for (let idx = 0; idx < items.length; idx += 1) {
+            const it = items[idx];
+            const naturalItemId = it.nomus_item_id
+              ?? stableNaturalItemId(idx, it.product_code, it.description);
+            const itemPayload = {
+              nomus_proposal_id: mirrorId,
+              nomus_item_id: naturalItemId,
+              nomus_product_id: it.nomus_product_id,
+              product_code: it.product_code,
+              description: it.description,
+              quantity: it.quantity,
+              unit_price: it.unit_price,
+              discount: it.discount,
+              total: it.total,
+              position: idx,
+              raw: it as never,
+              synced_at: new Date().toISOString(),
+              last_synced_at: new Date().toISOString(),
+              normalized_model_code: normalizeCnColdModelCode(it.product_code ?? it.description),
+              sync_hash: await hashNormalizedPayload({
+                nomus_proposal_id: mirrorId,
+                nomus_item_id: naturalItemId,
+                nomus_product_id: it.nomus_product_id,
+                product_code: it.product_code,
+                description: it.description,
+                quantity: it.quantity,
+                unit_price: it.unit_price,
+                discount: it.discount,
+                total: it.total,
+                position: idx,
+              }),
+            };
+            const { error: itemErr } = await supabaseAdmin
+              .from("nomus_proposal_items")
+              .upsert(itemPayload, { onConflict: "nomus_proposal_id,nomus_item_id" });
+            if (itemErr) throw new Error(itemErr.message);
+          }
         }
 
         // Espelha em proposals (cria ou atualiza)
         if (autoCreate) {
           let clientId: string | null = null;
-          if (upsertPayload.cliente_nomus_id) {
-            const cached = clientCache.get(upsertPayload.cliente_nomus_id);
+          if (mapped.cliente_nomus_id) {
+            const cached = clientCache.get(mapped.cliente_nomus_id);
             if (cached !== undefined) {
               clientId = cached;
             } else {
               const { data: c } = await supabaseAdmin
-                .from("clients").select("id").eq("nomus_id", upsertPayload.cliente_nomus_id).maybeSingle();
+                .from("clients").select("id").eq("nomus_id", mapped.cliente_nomus_id).maybeSingle();
               clientId = (c as { id: string } | null)?.id ?? null;
-              clientCache.set(upsertPayload.cliente_nomus_id, clientId);
+              clientCache.set(mapped.cliente_nomus_id, clientId);
             }
           }
+          const baseTitle = mapped.nome_cliente
+            ? `${mapped.numero ?? nomus_id} — ${mapped.nome_cliente}`
+            : mapped.numero ?? `Proposta Nomus ${nomus_id}`;
+
           const { data: existing } = await supabaseAdmin
             .from("proposals").select("id, client_id").eq("nomus_id", nomus_id).maybeSingle();
           if (!existing) {
-            const { error } = await supabaseAdmin.from("proposals").insert({
+            const { data: byNumber } = mapped.numero
+              ? await supabaseAdmin.from("proposals").select("id, client_id").eq("number", mapped.numero).maybeSingle()
+              : { data: null };
+            if (byNumber) {
+              const ex = byNumber as { id: string; client_id: string | null };
+              const { error } = await supabaseAdmin.from("proposals")
+                .update({
+                  nomus_id,
+                  nomus_proposal_id: mirrorId,
+                  title: baseTitle,
+                  total_value: mapped.valor_total ?? 0,
+                  valid_until: mapped.validade,
+                  ...(ex.client_id || !clientId ? {} : { client_id: clientId }),
+                  nomus_synced_at: new Date().toISOString(),
+                  last_synced_at: new Date().toISOString(),
+                  external_updated_at: pickExternalUpdatedAt(raw),
+                  sync_hash: upsertPayload.sync_hash,
+                })
+                .eq("id", ex.id);
+              if (error) throw new Error(error.message);
+            } else {
+              const { error } = await supabaseAdmin.from("proposals").upsert({
               nomus_id,
               nomus_proposal_id: mirrorId,
               nomus_synced_at: new Date().toISOString(),
+              last_synced_at: new Date().toISOString(),
+              external_updated_at: pickExternalUpdatedAt(raw),
+              sync_hash: upsertPayload.sync_hash,
               source: "nomus",
-              title: upsertPayload.numero ?? `Proposta Nomus ${nomus_id}`,
+              title: baseTitle,
               client_id: clientId,
-              total_value: upsertPayload.valor_total ?? 0,
-              valid_until: upsertPayload.validade,
+              total_value: mapped.valor_total ?? 0,
+              valid_until: mapped.validade,
               status: "em_elaboracao",
-            });
+            }, { onConflict: "nomus_id" });
             if (error) throw new Error(error.message);
+            }
           } else {
             const ex = existing as { id: string; client_id: string | null };
             const { error } = await supabaseAdmin.from("proposals")
               .update({
                 nomus_proposal_id: mirrorId,
-                total_value: upsertPayload.valor_total ?? 0,
-                valid_until: upsertPayload.validade,
-                // só preenche client_id se ainda estava nulo (não sobrescreve match manual)
+                title: baseTitle,
+                total_value: mapped.valor_total ?? 0,
+                valid_until: mapped.validade,
                 ...(ex.client_id || !clientId ? {} : { client_id: clientId }),
                 nomus_synced_at: new Date().toISOString(),
+                last_synced_at: new Date().toISOString(),
+                external_updated_at: pickExternalUpdatedAt(raw),
+                sync_hash: upsertPayload.sync_hash,
               })
               .eq("id", ex.id);
             if (error) throw new Error(error.message);
@@ -499,6 +1173,33 @@ export const nomusSyncProposalsFull = createServerFn({ method: "POST" })
         return "ok";
       },
     });
+  });
+
+export const nomusSyncAll = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input?: { window?: SyncWindow; startDate?: string | null; endDate?: string | null }) => input ?? {})
+  .handler(async ({ data, context }) => {
+    const userId = (context as { userId?: string }).userId ?? null;
+    const parentRunId = await startSyncRun("sync_geral", userId, 0, { lockKey: "nomus:sync_geral" });
+    await upsertSyncCheckpoint({ entityType: "sync_geral", syncRunId: parentRunId, status: "running", cursorPayload: { window: data.window ?? "incremental" } });
+    const steps: Array<{ entity: string; run: () => Promise<SyncResult> }> = [
+      { entity: "vendedores", run: () => runEntitySync({ entity: "vendedores", endpoint: NOMUS_ENDPOINTS.vendedores, triggeredBy: userId, processItem: syncSellerItem }) },
+      { entity: "representantes", run: () => runEntitySync({ entity: "representantes", endpoint: NOMUS_ENDPOINTS.representantes, triggeredBy: userId, processItem: syncRepresentativeItem }) },
+      { entity: "produtos", run: () => runEntitySync({ entity: "produtos", endpoint: NOMUS_ENDPOINTS.produtos, triggeredBy: userId, processItem: syncProductItem }) },
+    ];
+    const results: Record<string, string> = {};
+    let errors = 0;
+    for (const step of steps) {
+      const result = await step.run();
+      results[step.entity] = result.ok ? `ok:${result.count}` : `erro:${result.error}`;
+      if (!result.ok) errors += 1;
+    }
+    const clients = await nomusSyncClients({ data });
+    results.clientes = clients.ok ? `ok:${clients.count}` : `erro:${clients.error}`;
+    if (!clients.ok) errors += 1;
+    await upsertSyncCheckpoint({ entityType: "sync_geral", syncRunId: parentRunId, status: errors > 0 ? "failed" : "completed", cursorPayload: results });
+    await finishSyncRun({ syncRunId: parentRunId, status: errors > 0 ? "partial_success" : "success", totalErrors: errors, errorMessage: errors > 0 ? "Sync geral concluída com falhas parciais." : null });
+    return { ok: errors === 0, count: Object.keys(results).length, skipped: errors, unmatched: 0, results };
   });
 export const nomusSyncPedidos = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -640,128 +1341,8 @@ export const nomusPushSendEvent = createServerFn({ method: "POST" })
     return res.ok ? { ok: true as const } : { ok: false as const, error: res.error };
   });
 
-/** Gera arquivo PDF da proposta e cria nova versão. */
-export const generateProposalFile = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input: { proposalId: string }) => input)
-  .handler(async ({ data, context }) => {
-    const userId = (context as { userId?: string }).userId ?? null;
-    const { proposalId } = data;
-
-    // Busca proposta + cliente + itens (mirror Nomus se existir, senão proposal_items)
-    const { data: prop } = await supabaseAdmin
-      .from("proposals")
-      .select("*, clients(name, document, city, state), nomus_proposal_id")
-      .eq("id", proposalId).maybeSingle();
-    if (!prop) return { ok: false as const, error: "Proposta não encontrada." };
-    const propAny = prop as unknown as {
-      id: string; title: string; number: string; total_value: number | null;
-      valid_until: string | null; nomus_proposal_id: string | null;
-      clients: { name: string; document: string | null; city: string | null; state: string | null } | null;
-    };
-
-    let items: Array<{ description: string; quantity: number; unit_price: number; total: number }> = [];
-    if (propAny.nomus_proposal_id) {
-      const { data: nItems } = await supabaseAdmin
-        .from("nomus_proposal_items").select("*").eq("nomus_proposal_id", propAny.nomus_proposal_id)
-        .order("position");
-      items = ((nItems as Array<{ description: string | null; quantity: number | null; unit_price: number | null; total: number | null }>) ?? []).map((it) => ({
-        description: it.description ?? "",
-        quantity: Number(it.quantity ?? 0),
-        unit_price: Number(it.unit_price ?? 0),
-        total: Number(it.total ?? 0),
-      }));
-    }
-    if (items.length === 0) {
-      const { data: localItems } = await supabaseAdmin
-        .from("proposal_items").select("description, quantity, unit_price, total_price").eq("proposal_id", proposalId)
-        .order("position");
-      items = ((localItems as Array<{ description: string; quantity: number; unit_price: number; total_price: number | null }>) ?? []).map((it) => ({
-        description: it.description, quantity: Number(it.quantity), unit_price: Number(it.unit_price),
-        total: Number(it.total_price ?? it.quantity * it.unit_price),
-      }));
-    }
-
-    // Render PDF
-    const React = await import("react");
-    const { renderToBuffer, Document, Page, Text, View, StyleSheet } = await import("@react-pdf/renderer");
-    const h = React.createElement;
-    const styles = StyleSheet.create({
-      page: { padding: 32, fontSize: 10, fontFamily: "Helvetica" },
-      header: { borderBottomWidth: 2, borderBottomColor: "#1e40af", paddingBottom: 12, marginBottom: 16 },
-      title: { fontSize: 18, fontWeight: 700 },
-      subtitle: { fontSize: 10, color: "#6b7280", marginTop: 4 },
-      section: { marginTop: 12, marginBottom: 8 },
-      label: { color: "#6b7280", fontSize: 9, textTransform: "uppercase" as const },
-      value: { fontSize: 11, marginTop: 2 },
-      row: { flexDirection: "row" as const, borderBottomWidth: 0.5, borderBottomColor: "#e5e7eb", paddingVertical: 6 },
-      th: { fontWeight: 700, fontSize: 9, color: "#374151" },
-      cellDesc: { flex: 4 }, cellQty: { flex: 1, textAlign: "right" as const },
-      cellPrice: { flex: 1.5, textAlign: "right" as const }, cellTotal: { flex: 1.5, textAlign: "right" as const },
-      total: { marginTop: 16, padding: 12, backgroundColor: "#f3f4f6", flexDirection: "row" as const, justifyContent: "space-between" as const },
-    });
-    const fmt = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-    const totalSum = items.reduce((s, it) => s + it.total, 0) || (propAny.total_value ?? 0);
-    const subtitleParts = [propAny.clients?.document, propAny.clients?.city, propAny.clients?.state].filter(Boolean).join(" • ");
-
-    const doc = h(Document, null,
-      h(Page, { size: "A4", style: styles.page },
-        h(View, { style: styles.header },
-          h(Text, { style: styles.title }, "CN COLD — Proposta Comercial"),
-          h(Text, { style: styles.subtitle }, `Nº ${propAny.number} • ${propAny.title}`),
-        ),
-        h(View, { style: styles.section },
-          h(Text, { style: styles.label }, "Cliente"),
-          h(Text, { style: styles.value }, propAny.clients?.name ?? "—"),
-          h(Text, { style: styles.subtitle }, subtitleParts),
-        ),
-        h(View, { style: { marginTop: 16 } },
-          h(View, { style: styles.row },
-            h(Text, { style: [styles.th, styles.cellDesc] }, "Descrição"),
-            h(Text, { style: [styles.th, styles.cellQty] }, "Qtde"),
-            h(Text, { style: [styles.th, styles.cellPrice] }, "Unitário"),
-            h(Text, { style: [styles.th, styles.cellTotal] }, "Total"),
-          ),
-          ...items.map((it, idx) => h(View, { style: styles.row, key: idx },
-            h(Text, { style: styles.cellDesc }, it.description),
-            h(Text, { style: styles.cellQty }, String(it.quantity)),
-            h(Text, { style: styles.cellPrice }, fmt(it.unit_price)),
-            h(Text, { style: styles.cellTotal }, fmt(it.total)),
-          )),
-        ),
-        h(View, { style: styles.total },
-          h(Text, null, "Total da proposta"),
-          h(Text, { style: { fontWeight: 700, fontSize: 14 } }, fmt(totalSum)),
-        ),
-        propAny.valid_until ? h(View, { style: { marginTop: 24 } },
-          h(Text, { style: styles.label }, "Validade"),
-          h(Text, { style: styles.value }, new Date(propAny.valid_until).toLocaleDateString("pt-BR")),
-        ) : null,
-      ),
-    );
-
-    const buffer = await renderToBuffer(doc as never);
-
-    // Versão
-    const { data: lastVer } = await supabaseAdmin
-      .from("proposal_send_versions").select("version_number")
-      .eq("proposal_id", proposalId).order("version_number", { ascending: false }).limit(1).maybeSingle();
-    const nextVer = ((lastVer as { version_number: number } | null)?.version_number ?? 0) + 1;
-    const path = `${proposalId}/v${nextVer}-${Date.now()}.pdf`;
-
-    const { error: upErr } = await supabaseAdmin.storage.from("proposal-files")
-      .upload(path, buffer, { contentType: "application/pdf", upsert: false });
-    if (upErr) return { ok: false as const, error: upErr.message };
-
-    await supabaseAdmin.from("proposal_send_versions").update({ is_current: false }).eq("proposal_id", proposalId);
-    const { data: ver } = await supabaseAdmin.from("proposal_send_versions").insert({
-      proposal_id: proposalId, version_number: nextVer, pdf_storage_path: path,
-      generated_by: userId, is_current: true,
-      template_snapshot: { items_count: items.length, total: totalSum } as never,
-    }).select("id").single();
-
-    return { ok: true as const, version_id: (ver as { id: string }).id, path, version_number: nextVer };
-  });
+// `generateProposalFile` (legado) substituído por `createProposalSendVersion`
+// em `@/integrations/proposal-editor/server.functions` — Page Builder com blocos.
 
 /**
  * Registra envio da proposta:
@@ -908,4 +1489,360 @@ export const nomusCreatePedido = createServerFn({ method: "POST" })
       return { ok: false as const, error: `Pedido criado (${pedidoId}) mas falhou ao gravar local: ${updErr.message}` };
     }
     return { ok: true as const, pedido_id: pedidoId, already_existed: false as const };
+  });
+
+/**
+ * Busca SOB DEMANDA o detalhe completo de um item de proposta.
+ *
+ * Combina:
+ *  - JSON original do item espelhado (`nomus_proposal_items.raw`)
+ *  - JSON original da proposta (`nomus_proposals.raw`)
+ *  - `GET /propostas/{idProposta}/itens/{idItem}` no Nomus — traz tributos
+ *    discriminados (ICMS/IPI/PIS/COFINS/IBS/CBS), Análise de Lucro com
+ *    23 campos, atributos do produto, centros de custo, frete/seguro/pesos
+ *  - `GET /produtos/{id}` para enriquecer o cadastro do produto
+ *  - Equipamento local mapeado e preços por tabela (já estão no Supabase)
+ *
+ * Persiste no banco o que conseguir (raw._detail, analise_lucro, impostos)
+ * para que próximas aberturas saiam instantâneas.
+ */
+export const nomusGetItemDetail = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { itemId: string }) => input)
+  .handler(async ({ data, context }) => {
+    const userId = (context as { userId?: string }).userId ?? null;
+
+    // 1) Carrega o item espelho (com raw original do Nomus)
+    const { data: itemRow, error: itemErr } = await supabaseAdmin
+      .from("nomus_proposal_items")
+      .select("*, nomus_proposals(nomus_id, raw)")
+      .eq("id", data.itemId)
+      .maybeSingle();
+
+    if (itemErr || !itemRow) {
+      return { ok: false as const, error: itemErr?.message ?? "Item não encontrado." };
+    }
+
+    const item = itemRow as unknown as {
+      id: string;
+      nomus_item_id: string | null;
+      nomus_product_id: string | null;
+      product_code: string | null;
+      raw: Json | null;
+      nomus_proposals: { nomus_id: string; raw: Json | null } | null;
+    };
+
+    // 2) Detalhe COMPLETO do item no Nomus (sob demanda).
+    // Tenta o caminho canônico e, se 404, percorre os fallbacks documentados.
+    let itemDetail: Json | null = null;
+    let itemDetailError: string | null = null;
+    const propostaNomusId = item.nomus_proposals?.nomus_id ?? null;
+    const itemNomusId = item.nomus_item_id ?? null;
+
+    if (propostaNomusId && itemNomusId) {
+      const candidatePaths: string[] = [
+        proposalItemDetailPath(propostaNomusId, itemNomusId),
+        ...proposalItemDetailFallbackPaths(itemNomusId),
+      ];
+      for (const path of candidatePaths) {
+        const res = await nomusFetch<Json>(path, {
+          method: "GET",
+          entity: "propostas",
+          operation: "get_item_detail",
+          direction: "pull",
+          triggeredBy: userId,
+        });
+        if (res.ok) {
+          itemDetail = res.data;
+          itemDetailError = null;
+          break;
+        }
+        // se for 404, tenta o próximo; se for outro erro, mantém a mensagem
+        itemDetailError = res.error;
+        const status = (res as { status?: number }).status;
+        if (status && status !== 404) break;
+      }
+    } else {
+      itemDetailError = "IDs de proposta/item ausentes — não é possível buscar detalhe completo no Nomus.";
+    }
+
+    // 2b) Persiste o detalhe no item para acelerar próximas aberturas
+    if (itemDetail && typeof itemDetail === "object") {
+      const detailObj = itemDetail as Record<string, unknown>;
+      const analiseLucro = (detailObj.analiseLucro ?? detailObj.analise_lucro ?? null) as Json | null;
+      const impostos =
+        (detailObj.impostos ??
+          detailObj.tributos ??
+          detailObj.totalTributacao ??
+          null) as Json | null;
+
+      const baseRaw = (item.raw && typeof item.raw === "object" ? (item.raw as Record<string, unknown>) : {});
+      const mergedRaw: Record<string, unknown> = { ...baseRaw, _detail: detailObj };
+
+      const { error: upErr } = await supabaseAdmin
+        .from("nomus_proposal_items")
+        .update({
+          raw: mergedRaw as never,
+          analise_lucro: analiseLucro as never,
+          impostos: impostos as never,
+          synced_at: new Date().toISOString(),
+        })
+        .eq("id", item.id);
+      if (upErr) {
+        // não interrompe — apenas loga implicitamente via retorno
+        itemDetailError = `Detalhe carregado, mas falhou ao gravar local: ${upErr.message}`;
+      }
+    }
+
+    // 3) Detalhe do produto no Nomus (sob demanda) — só se tivermos id
+    let produto: Json | null = null;
+    let produtoError: string | null = null;
+    if (item.nomus_product_id) {
+      const res = await nomusFetch<Json>(
+        `${NOMUS_ENDPOINTS.produtos}/${encodeURIComponent(item.nomus_product_id)}`,
+        {
+          method: "GET",
+          entity: "produtos",
+          operation: "get",
+          direction: "pull",
+          triggeredBy: userId,
+        }
+      );
+      if (res.ok) {
+        produto = res.data;
+      } else {
+        produtoError = `Não foi possível carregar produto ${item.nomus_product_id}: ${res.error}`;
+      }
+    }
+
+    // 4) Equipamento local mapeado (se houver)
+    let equipment: Json | null = null;
+    if (item.nomus_product_id) {
+      const { data: eq } = await supabaseAdmin
+        .from("equipments")
+        .select("*, equipment_lines(code, name, family, application)")
+        .eq("nomus_id", item.nomus_product_id)
+        .maybeSingle();
+      if (eq) equipment = eq as unknown as Json;
+    }
+
+    // 5) Preços do produto em todas as tabelas de preço (Nomus)
+    let priceTableItems: Json[] = [];
+    if (item.nomus_product_id) {
+      const { data: pti } = await supabaseAdmin
+        .from("nomus_price_table_items")
+        .select("*, nomus_price_tables(nomus_id, name, code, currency, is_active)")
+        .eq("nomus_product_id", item.nomus_product_id);
+      if (pti && Array.isArray(pti)) priceTableItems = pti as unknown as Json[];
+    }
+
+    // TanStack Start exige tipos serializáveis estritos. Como o conteúdo aqui
+    // é JSON arbitrário do Nomus (estrutura desconhecida), serializamos como
+    // string e o cliente faz JSON.parse — assim atravessa o validador sem
+    // arrastar `unknown` pela inferência.
+    return {
+      ok: true as const,
+      item_raw_json: JSON.stringify(item.raw ?? null),
+      item_detail_json: JSON.stringify(itemDetail ?? null),
+      item_detail_error: itemDetailError,
+      proposta_raw_json: JSON.stringify(item.nomus_proposals?.raw ?? null),
+      proposta_nomus_id: item.nomus_proposals?.nomus_id ?? null,
+      produto_raw_json: JSON.stringify(produto ?? null),
+      produto_error: produtoError,
+      equipment_json: JSON.stringify(equipment ?? null),
+      price_table_items_json: JSON.stringify(priceTableItems),
+    };
+  });
+
+// ============================================================================
+// Importação de custos via CSV (relatório do Nomus)
+// ============================================================================
+
+type CsvRowInput = {
+  productCode: string;
+  description: string | null;
+  unidadeMedida: string | null;
+  unitPrice: number | null;
+  margemDesejadaPct: number | null;
+  precoCalculado: number | null;
+  custosVenda: number | null;
+  precoLiquido: number | null;
+  custoProducaoTotal: number | null;
+  custoMateriais: number | null;
+  custoMod: number | null;
+  custoCif: number | null;
+  lucroBruto: number | null;
+  custosAdm: number | null;
+  lucroLiquido: number | null;
+  margemContribuicao: number | null;
+  hasCostData: boolean;
+};
+
+type ImportInput = {
+  priceTableId: string;
+  filename: string;
+  rows: CsvRowInput[];
+  dryRun: boolean;
+};
+
+const ALLOWED_IMPORT_ROLES = ["admin", "gerente_comercial", "diretoria", "engenharia"] as const;
+
+/**
+ * Importa custos para uma tabela de preço a partir de linhas pré-parseadas
+ * pelo csv-parser (cliente). Faz upsert por (price_table_id, nomus_product_id).
+ *
+ * Em modo dry-run, apenas calcula contagens e devolve preview — não toca no banco.
+ */
+export const nomusImportPriceTableCosts = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: ImportInput) => {
+    if (!input || typeof input !== "object") throw new Error("Payload inválido.");
+    if (!input.priceTableId) throw new Error("priceTableId obrigatório.");
+    if (!input.filename) throw new Error("filename obrigatório.");
+    if (!Array.isArray(input.rows)) throw new Error("rows deve ser array.");
+    if (input.rows.length > 10_000) throw new Error("Excede 10.000 linhas — divida o arquivo.");
+    return input;
+  })
+  .handler(async ({ data, context }) => {
+    const { userId } = context;
+
+    // 1) Verificar role
+    const { data: roles, error: rolesErr } = await supabaseAdmin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId);
+    if (rolesErr) {
+      return { ok: false as const, error: `Falha ao verificar permissões: ${rolesErr.message}` };
+    }
+    const userRoles = (roles ?? []).map((r) => r.role);
+    const allowed = userRoles.some((r) => (ALLOWED_IMPORT_ROLES as readonly string[]).includes(r));
+    if (!allowed) {
+      return { ok: false as const, error: "Sem permissão para importar custos. Necessário: admin, gerente comercial, diretoria ou engenharia." };
+    }
+
+    // 2) Validar tabela de preço existe
+    const { data: priceTable, error: ptErr } = await supabaseAdmin
+      .from("nomus_price_tables")
+      .select("id, name")
+      .eq("id", data.priceTableId)
+      .maybeSingle();
+    if (ptErr || !priceTable) {
+      return { ok: false as const, error: "Tabela de preço não encontrada." };
+    }
+
+    // 3) Buscar itens existentes da tabela para classificar update vs insert
+    const { data: existing, error: exErr } = await supabaseAdmin
+      .from("nomus_price_table_items")
+      .select("id, nomus_product_id")
+      .eq("price_table_id", data.priceTableId);
+    if (exErr) {
+      return { ok: false as const, error: `Falha ao ler itens existentes: ${exErr.message}` };
+    }
+    const existingByCode = new Map<string, string>(); // nomus_product_id -> id
+    for (const r of existing ?? []) {
+      existingByCode.set(String(r.nomus_product_id), r.id);
+    }
+
+    let toUpdate = 0;
+    let toInsert = 0;
+    let withCost = 0;
+    for (const row of data.rows) {
+      if (existingByCode.has(row.productCode)) toUpdate++;
+      else toInsert++;
+      if (row.hasCostData) withCost++;
+    }
+
+    if (data.dryRun) {
+      return {
+        ok: true as const,
+        dryRun: true,
+        priceTableName: priceTable.name,
+        totalRows: data.rows.length,
+        toUpdate,
+        toInsert,
+        withCost,
+        existingNotInCsv: (existing?.length ?? 0) - toUpdate,
+      };
+    }
+
+    // 4) Executar upsert
+    const now = new Date().toISOString();
+    let inserted = 0;
+    let updated = 0;
+    let skipped = 0;
+
+    for (const row of data.rows) {
+      const payload = {
+        price_table_id: data.priceTableId,
+        nomus_product_id: row.productCode,
+        unit_price: row.unitPrice ?? row.precoCalculado ?? 0,
+        custo_materiais: row.custoMateriais,
+        custo_mod: row.custoMod,
+        custo_cif: row.custoCif,
+        custos_adm: row.custosAdm,
+        custo_producao_total: row.custoProducaoTotal,
+        custos_venda: row.custosVenda,
+        preco_calculado: row.precoCalculado,
+        preco_liquido: row.precoLiquido,
+        margem_desejada_pct: row.margemDesejadaPct,
+        lucro_bruto: row.lucroBruto,
+        lucro_liquido: row.lucroLiquido,
+        margem_contribuicao: row.margemContribuicao,
+        unidade_medida: row.unidadeMedida,
+        import_source: "csv",
+        imported_at: now,
+        has_cost_data: row.hasCostData,
+        synced_at: now,
+      };
+
+      const existingId = existingByCode.get(row.productCode);
+      if (existingId) {
+        const { error } = await supabaseAdmin
+          .from("nomus_price_table_items")
+          .update(payload)
+          .eq("id", existingId);
+        if (error) {
+          skipped++;
+          console.error(`[import-costs] update falhou para ${row.productCode}:`, error.message);
+        } else {
+          updated++;
+        }
+      } else {
+        const { error } = await supabaseAdmin
+          .from("nomus_price_table_items")
+          .insert(payload);
+        if (error) {
+          skipped++;
+          console.error(`[import-costs] insert falhou para ${row.productCode}:`, error.message);
+        } else {
+          inserted++;
+        }
+      }
+    }
+
+    // 5) Auditoria
+    const { error: auditErr } = await supabaseAdmin.from("nomus_cost_imports").insert({
+      price_table_id: data.priceTableId,
+      filename: data.filename,
+      total_rows: data.rows.length,
+      inserted_count: inserted,
+      updated_count: updated,
+      skipped_count: skipped,
+      with_cost_count: withCost,
+      imported_by: userId,
+    });
+    if (auditErr) {
+      console.error("[import-costs] falha ao gravar auditoria:", auditErr.message);
+    }
+
+    return {
+      ok: true as const,
+      dryRun: false,
+      priceTableName: priceTable.name,
+      totalRows: data.rows.length,
+      inserted,
+      updated,
+      skipped,
+      withCost,
+    };
   });

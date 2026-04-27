@@ -13,23 +13,39 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppIndexRouteImport } from './routes/app.index'
-import { Route as HooksNomusCronRouteImport } from './routes/hooks/nomus-cron'
 import { Route as AppTarefasRouteImport } from './routes/app.tarefas'
-import { Route as AppSeletorRouteImport } from './routes/app.seletor'
 import { Route as AppRelatoriosRouteImport } from './routes/app.relatorios'
 import { Route as AppEquipamentosRouteImport } from './routes/app.equipamentos'
 import { Route as AppDocumentosRouteImport } from './routes/app.documentos'
+import { Route as AppCrmRouteImport } from './routes/app.crm'
 import { Route as AppConfiguracoesRouteImport } from './routes/app.configuracoes'
 import { Route as AppConcorrentesRouteImport } from './routes/app.concorrentes'
 import { Route as AppCompetitivaRouteImport } from './routes/app.competitiva'
 import { Route as AppClientesRouteImport } from './routes/app.clientes'
 import { Route as AppAprovacoesRouteImport } from './routes/app.aprovacoes'
 import { Route as AppPropostasIndexRouteImport } from './routes/app.propostas.index'
+import { Route as AppConfiguracoesIndexRouteImport } from './routes/app.configuracoes.index'
+import { Route as AppColdproIndexRouteImport } from './routes/app.coldpro.index'
 import { Route as AppPropostasPedidosNfRouteImport } from './routes/app.propostas.pedidos-nf'
 import { Route as AppPropostasNovaRouteImport } from './routes/app.propostas.nova'
 import { Route as AppPropostasIdRouteImport } from './routes/app.propostas.$id'
+import { Route as AppCrmIdRouteImport } from './routes/app.crm.$id'
 import { Route as AppConfiguracoesNomusRouteImport } from './routes/app.configuracoes.nomus'
+import { Route as AppConfiguracoesApiNomusRouteImport } from './routes/app.configuracoes.api-nomus'
+import { Route as AppColdproProdutosRouteImport } from './routes/app.coldpro.produtos'
+import { Route as AppColdproCatalogoRouteImport } from './routes/app.coldpro.catalogo'
+import { Route as AppColdproIdRouteImport } from './routes/app.coldpro.$id'
 import { Route as ApiNomusTestRouteImport } from './routes/api.nomus.test'
+import { Route as AppPropostasIdIndexRouteImport } from './routes/app.propostas.$id.index'
+import { Route as AppConfiguracoesTemplatesIndexRouteImport } from './routes/app.configuracoes.templates.index'
+import { Route as AppPropostasIdEditorRouteImport } from './routes/app.propostas.$id.editor'
+import { Route as AppConfiguracoesTemplatesIdRouteImport } from './routes/app.configuracoes.templates.$id'
+import { Route as AppConfiguracoesNomusImportarCustosRouteImport } from './routes/app.configuracoes.nomus.importar-custos'
+import { Route as ApiPublicNomusTabelaPrecoProbeRouteImport } from './routes/api.public.nomus.tabela-preco-probe'
+import { Route as ApiPublicNomusTabelaPrecoDeepProbeRouteImport } from './routes/api.public.nomus.tabela-preco-deep-probe'
+import { Route as ApiPublicNomusProdutoProbeRouteImport } from './routes/api.public.nomus.produto-probe'
+import { Route as ApiPublicNomusExhaustiveProbeRouteImport } from './routes/api.public.nomus.exhaustive-probe'
+import { Route as ApiPublicHooksNomusCronRouteImport } from './routes/api.public.hooks.nomus-cron'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -51,19 +67,9 @@ const AppIndexRoute = AppIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppRoute,
 } as any)
-const HooksNomusCronRoute = HooksNomusCronRouteImport.update({
-  id: '/hooks/nomus-cron',
-  path: '/hooks/nomus-cron',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AppTarefasRoute = AppTarefasRouteImport.update({
   id: '/tarefas',
   path: '/tarefas',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppSeletorRoute = AppSeletorRouteImport.update({
-  id: '/seletor',
-  path: '/seletor',
   getParentRoute: () => AppRoute,
 } as any)
 const AppRelatoriosRoute = AppRelatoriosRouteImport.update({
@@ -79,6 +85,11 @@ const AppEquipamentosRoute = AppEquipamentosRouteImport.update({
 const AppDocumentosRoute = AppDocumentosRouteImport.update({
   id: '/documentos',
   path: '/documentos',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCrmRoute = AppCrmRouteImport.update({
+  id: '/crm',
+  path: '/crm',
   getParentRoute: () => AppRoute,
 } as any)
 const AppConfiguracoesRoute = AppConfiguracoesRouteImport.update({
@@ -111,6 +122,16 @@ const AppPropostasIndexRoute = AppPropostasIndexRouteImport.update({
   path: '/propostas/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppConfiguracoesIndexRoute = AppConfiguracoesIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppConfiguracoesRoute,
+} as any)
+const AppColdproIndexRoute = AppColdproIndexRouteImport.update({
+  id: '/coldpro/',
+  path: '/coldpro/',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppPropostasPedidosNfRoute = AppPropostasPedidosNfRouteImport.update({
   id: '/propostas/pedidos-nf',
   path: '/propostas/pedidos-nf',
@@ -126,14 +147,97 @@ const AppPropostasIdRoute = AppPropostasIdRouteImport.update({
   path: '/propostas/$id',
   getParentRoute: () => AppRoute,
 } as any)
+const AppCrmIdRoute = AppCrmIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => AppCrmRoute,
+} as any)
 const AppConfiguracoesNomusRoute = AppConfiguracoesNomusRouteImport.update({
   id: '/nomus',
   path: '/nomus',
   getParentRoute: () => AppConfiguracoesRoute,
 } as any)
+const AppConfiguracoesApiNomusRoute =
+  AppConfiguracoesApiNomusRouteImport.update({
+    id: '/api-nomus',
+    path: '/api-nomus',
+    getParentRoute: () => AppConfiguracoesRoute,
+  } as any)
+const AppColdproProdutosRoute = AppColdproProdutosRouteImport.update({
+  id: '/coldpro/produtos',
+  path: '/coldpro/produtos',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppColdproCatalogoRoute = AppColdproCatalogoRouteImport.update({
+  id: '/coldpro/catalogo',
+  path: '/coldpro/catalogo',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppColdproIdRoute = AppColdproIdRouteImport.update({
+  id: '/coldpro/$id',
+  path: '/coldpro/$id',
+  getParentRoute: () => AppRoute,
+} as any)
 const ApiNomusTestRoute = ApiNomusTestRouteImport.update({
   id: '/api/nomus/test',
   path: '/api/nomus/test',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppPropostasIdIndexRoute = AppPropostasIdIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppPropostasIdRoute,
+} as any)
+const AppConfiguracoesTemplatesIndexRoute =
+  AppConfiguracoesTemplatesIndexRouteImport.update({
+    id: '/templates/',
+    path: '/templates/',
+    getParentRoute: () => AppConfiguracoesRoute,
+  } as any)
+const AppPropostasIdEditorRoute = AppPropostasIdEditorRouteImport.update({
+  id: '/editor',
+  path: '/editor',
+  getParentRoute: () => AppPropostasIdRoute,
+} as any)
+const AppConfiguracoesTemplatesIdRoute =
+  AppConfiguracoesTemplatesIdRouteImport.update({
+    id: '/templates/$id',
+    path: '/templates/$id',
+    getParentRoute: () => AppConfiguracoesRoute,
+  } as any)
+const AppConfiguracoesNomusImportarCustosRoute =
+  AppConfiguracoesNomusImportarCustosRouteImport.update({
+    id: '/importar-custos',
+    path: '/importar-custos',
+    getParentRoute: () => AppConfiguracoesNomusRoute,
+  } as any)
+const ApiPublicNomusTabelaPrecoProbeRoute =
+  ApiPublicNomusTabelaPrecoProbeRouteImport.update({
+    id: '/api/public/nomus/tabela-preco-probe',
+    path: '/api/public/nomus/tabela-preco-probe',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicNomusTabelaPrecoDeepProbeRoute =
+  ApiPublicNomusTabelaPrecoDeepProbeRouteImport.update({
+    id: '/api/public/nomus/tabela-preco-deep-probe',
+    path: '/api/public/nomus/tabela-preco-deep-probe',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicNomusProdutoProbeRoute =
+  ApiPublicNomusProdutoProbeRouteImport.update({
+    id: '/api/public/nomus/produto-probe',
+    path: '/api/public/nomus/produto-probe',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicNomusExhaustiveProbeRoute =
+  ApiPublicNomusExhaustiveProbeRouteImport.update({
+    id: '/api/public/nomus/exhaustive-probe',
+    path: '/api/public/nomus/exhaustive-probe',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicHooksNomusCronRoute = ApiPublicHooksNomusCronRouteImport.update({
+  id: '/api/public/hooks/nomus-cron',
+  path: '/api/public/hooks/nomus-cron',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -146,19 +250,35 @@ export interface FileRoutesByFullPath {
   '/app/competitiva': typeof AppCompetitivaRoute
   '/app/concorrentes': typeof AppConcorrentesRoute
   '/app/configuracoes': typeof AppConfiguracoesRouteWithChildren
+  '/app/crm': typeof AppCrmRouteWithChildren
   '/app/documentos': typeof AppDocumentosRoute
   '/app/equipamentos': typeof AppEquipamentosRoute
   '/app/relatorios': typeof AppRelatoriosRoute
-  '/app/seletor': typeof AppSeletorRoute
   '/app/tarefas': typeof AppTarefasRoute
-  '/hooks/nomus-cron': typeof HooksNomusCronRoute
   '/app/': typeof AppIndexRoute
   '/api/nomus/test': typeof ApiNomusTestRoute
-  '/app/configuracoes/nomus': typeof AppConfiguracoesNomusRoute
-  '/app/propostas/$id': typeof AppPropostasIdRoute
+  '/app/coldpro/$id': typeof AppColdproIdRoute
+  '/app/coldpro/catalogo': typeof AppColdproCatalogoRoute
+  '/app/coldpro/produtos': typeof AppColdproProdutosRoute
+  '/app/configuracoes/api-nomus': typeof AppConfiguracoesApiNomusRoute
+  '/app/configuracoes/nomus': typeof AppConfiguracoesNomusRouteWithChildren
+  '/app/crm/$id': typeof AppCrmIdRoute
+  '/app/propostas/$id': typeof AppPropostasIdRouteWithChildren
   '/app/propostas/nova': typeof AppPropostasNovaRoute
   '/app/propostas/pedidos-nf': typeof AppPropostasPedidosNfRoute
+  '/app/coldpro/': typeof AppColdproIndexRoute
+  '/app/configuracoes/': typeof AppConfiguracoesIndexRoute
   '/app/propostas/': typeof AppPropostasIndexRoute
+  '/api/public/hooks/nomus-cron': typeof ApiPublicHooksNomusCronRoute
+  '/api/public/nomus/exhaustive-probe': typeof ApiPublicNomusExhaustiveProbeRoute
+  '/api/public/nomus/produto-probe': typeof ApiPublicNomusProdutoProbeRoute
+  '/api/public/nomus/tabela-preco-deep-probe': typeof ApiPublicNomusTabelaPrecoDeepProbeRoute
+  '/api/public/nomus/tabela-preco-probe': typeof ApiPublicNomusTabelaPrecoProbeRoute
+  '/app/configuracoes/nomus/importar-custos': typeof AppConfiguracoesNomusImportarCustosRoute
+  '/app/configuracoes/templates/$id': typeof AppConfiguracoesTemplatesIdRoute
+  '/app/propostas/$id/editor': typeof AppPropostasIdEditorRoute
+  '/app/configuracoes/templates/': typeof AppConfiguracoesTemplatesIndexRoute
+  '/app/propostas/$id/': typeof AppPropostasIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -167,20 +287,34 @@ export interface FileRoutesByTo {
   '/app/clientes': typeof AppClientesRoute
   '/app/competitiva': typeof AppCompetitivaRoute
   '/app/concorrentes': typeof AppConcorrentesRoute
-  '/app/configuracoes': typeof AppConfiguracoesRouteWithChildren
+  '/app/crm': typeof AppCrmRouteWithChildren
   '/app/documentos': typeof AppDocumentosRoute
   '/app/equipamentos': typeof AppEquipamentosRoute
   '/app/relatorios': typeof AppRelatoriosRoute
-  '/app/seletor': typeof AppSeletorRoute
   '/app/tarefas': typeof AppTarefasRoute
-  '/hooks/nomus-cron': typeof HooksNomusCronRoute
   '/app': typeof AppIndexRoute
   '/api/nomus/test': typeof ApiNomusTestRoute
-  '/app/configuracoes/nomus': typeof AppConfiguracoesNomusRoute
-  '/app/propostas/$id': typeof AppPropostasIdRoute
+  '/app/coldpro/$id': typeof AppColdproIdRoute
+  '/app/coldpro/catalogo': typeof AppColdproCatalogoRoute
+  '/app/coldpro/produtos': typeof AppColdproProdutosRoute
+  '/app/configuracoes/api-nomus': typeof AppConfiguracoesApiNomusRoute
+  '/app/configuracoes/nomus': typeof AppConfiguracoesNomusRouteWithChildren
+  '/app/crm/$id': typeof AppCrmIdRoute
   '/app/propostas/nova': typeof AppPropostasNovaRoute
   '/app/propostas/pedidos-nf': typeof AppPropostasPedidosNfRoute
+  '/app/coldpro': typeof AppColdproIndexRoute
+  '/app/configuracoes': typeof AppConfiguracoesIndexRoute
   '/app/propostas': typeof AppPropostasIndexRoute
+  '/api/public/hooks/nomus-cron': typeof ApiPublicHooksNomusCronRoute
+  '/api/public/nomus/exhaustive-probe': typeof ApiPublicNomusExhaustiveProbeRoute
+  '/api/public/nomus/produto-probe': typeof ApiPublicNomusProdutoProbeRoute
+  '/api/public/nomus/tabela-preco-deep-probe': typeof ApiPublicNomusTabelaPrecoDeepProbeRoute
+  '/api/public/nomus/tabela-preco-probe': typeof ApiPublicNomusTabelaPrecoProbeRoute
+  '/app/configuracoes/nomus/importar-custos': typeof AppConfiguracoesNomusImportarCustosRoute
+  '/app/configuracoes/templates/$id': typeof AppConfiguracoesTemplatesIdRoute
+  '/app/propostas/$id/editor': typeof AppPropostasIdEditorRoute
+  '/app/configuracoes/templates': typeof AppConfiguracoesTemplatesIndexRoute
+  '/app/propostas/$id': typeof AppPropostasIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -192,19 +326,35 @@ export interface FileRoutesById {
   '/app/competitiva': typeof AppCompetitivaRoute
   '/app/concorrentes': typeof AppConcorrentesRoute
   '/app/configuracoes': typeof AppConfiguracoesRouteWithChildren
+  '/app/crm': typeof AppCrmRouteWithChildren
   '/app/documentos': typeof AppDocumentosRoute
   '/app/equipamentos': typeof AppEquipamentosRoute
   '/app/relatorios': typeof AppRelatoriosRoute
-  '/app/seletor': typeof AppSeletorRoute
   '/app/tarefas': typeof AppTarefasRoute
-  '/hooks/nomus-cron': typeof HooksNomusCronRoute
   '/app/': typeof AppIndexRoute
   '/api/nomus/test': typeof ApiNomusTestRoute
-  '/app/configuracoes/nomus': typeof AppConfiguracoesNomusRoute
-  '/app/propostas/$id': typeof AppPropostasIdRoute
+  '/app/coldpro/$id': typeof AppColdproIdRoute
+  '/app/coldpro/catalogo': typeof AppColdproCatalogoRoute
+  '/app/coldpro/produtos': typeof AppColdproProdutosRoute
+  '/app/configuracoes/api-nomus': typeof AppConfiguracoesApiNomusRoute
+  '/app/configuracoes/nomus': typeof AppConfiguracoesNomusRouteWithChildren
+  '/app/crm/$id': typeof AppCrmIdRoute
+  '/app/propostas/$id': typeof AppPropostasIdRouteWithChildren
   '/app/propostas/nova': typeof AppPropostasNovaRoute
   '/app/propostas/pedidos-nf': typeof AppPropostasPedidosNfRoute
+  '/app/coldpro/': typeof AppColdproIndexRoute
+  '/app/configuracoes/': typeof AppConfiguracoesIndexRoute
   '/app/propostas/': typeof AppPropostasIndexRoute
+  '/api/public/hooks/nomus-cron': typeof ApiPublicHooksNomusCronRoute
+  '/api/public/nomus/exhaustive-probe': typeof ApiPublicNomusExhaustiveProbeRoute
+  '/api/public/nomus/produto-probe': typeof ApiPublicNomusProdutoProbeRoute
+  '/api/public/nomus/tabela-preco-deep-probe': typeof ApiPublicNomusTabelaPrecoDeepProbeRoute
+  '/api/public/nomus/tabela-preco-probe': typeof ApiPublicNomusTabelaPrecoProbeRoute
+  '/app/configuracoes/nomus/importar-custos': typeof AppConfiguracoesNomusImportarCustosRoute
+  '/app/configuracoes/templates/$id': typeof AppConfiguracoesTemplatesIdRoute
+  '/app/propostas/$id/editor': typeof AppPropostasIdEditorRoute
+  '/app/configuracoes/templates/': typeof AppConfiguracoesTemplatesIndexRoute
+  '/app/propostas/$id/': typeof AppPropostasIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -217,19 +367,35 @@ export interface FileRouteTypes {
     | '/app/competitiva'
     | '/app/concorrentes'
     | '/app/configuracoes'
+    | '/app/crm'
     | '/app/documentos'
     | '/app/equipamentos'
     | '/app/relatorios'
-    | '/app/seletor'
     | '/app/tarefas'
-    | '/hooks/nomus-cron'
     | '/app/'
     | '/api/nomus/test'
+    | '/app/coldpro/$id'
+    | '/app/coldpro/catalogo'
+    | '/app/coldpro/produtos'
+    | '/app/configuracoes/api-nomus'
     | '/app/configuracoes/nomus'
+    | '/app/crm/$id'
     | '/app/propostas/$id'
     | '/app/propostas/nova'
     | '/app/propostas/pedidos-nf'
+    | '/app/coldpro/'
+    | '/app/configuracoes/'
     | '/app/propostas/'
+    | '/api/public/hooks/nomus-cron'
+    | '/api/public/nomus/exhaustive-probe'
+    | '/api/public/nomus/produto-probe'
+    | '/api/public/nomus/tabela-preco-deep-probe'
+    | '/api/public/nomus/tabela-preco-probe'
+    | '/app/configuracoes/nomus/importar-custos'
+    | '/app/configuracoes/templates/$id'
+    | '/app/propostas/$id/editor'
+    | '/app/configuracoes/templates/'
+    | '/app/propostas/$id/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -238,20 +404,34 @@ export interface FileRouteTypes {
     | '/app/clientes'
     | '/app/competitiva'
     | '/app/concorrentes'
-    | '/app/configuracoes'
+    | '/app/crm'
     | '/app/documentos'
     | '/app/equipamentos'
     | '/app/relatorios'
-    | '/app/seletor'
     | '/app/tarefas'
-    | '/hooks/nomus-cron'
     | '/app'
     | '/api/nomus/test'
+    | '/app/coldpro/$id'
+    | '/app/coldpro/catalogo'
+    | '/app/coldpro/produtos'
+    | '/app/configuracoes/api-nomus'
     | '/app/configuracoes/nomus'
-    | '/app/propostas/$id'
+    | '/app/crm/$id'
     | '/app/propostas/nova'
     | '/app/propostas/pedidos-nf'
+    | '/app/coldpro'
+    | '/app/configuracoes'
     | '/app/propostas'
+    | '/api/public/hooks/nomus-cron'
+    | '/api/public/nomus/exhaustive-probe'
+    | '/api/public/nomus/produto-probe'
+    | '/api/public/nomus/tabela-preco-deep-probe'
+    | '/api/public/nomus/tabela-preco-probe'
+    | '/app/configuracoes/nomus/importar-custos'
+    | '/app/configuracoes/templates/$id'
+    | '/app/propostas/$id/editor'
+    | '/app/configuracoes/templates'
+    | '/app/propostas/$id'
   id:
     | '__root__'
     | '/'
@@ -262,27 +442,47 @@ export interface FileRouteTypes {
     | '/app/competitiva'
     | '/app/concorrentes'
     | '/app/configuracoes'
+    | '/app/crm'
     | '/app/documentos'
     | '/app/equipamentos'
     | '/app/relatorios'
-    | '/app/seletor'
     | '/app/tarefas'
-    | '/hooks/nomus-cron'
     | '/app/'
     | '/api/nomus/test'
+    | '/app/coldpro/$id'
+    | '/app/coldpro/catalogo'
+    | '/app/coldpro/produtos'
+    | '/app/configuracoes/api-nomus'
     | '/app/configuracoes/nomus'
+    | '/app/crm/$id'
     | '/app/propostas/$id'
     | '/app/propostas/nova'
     | '/app/propostas/pedidos-nf'
+    | '/app/coldpro/'
+    | '/app/configuracoes/'
     | '/app/propostas/'
+    | '/api/public/hooks/nomus-cron'
+    | '/api/public/nomus/exhaustive-probe'
+    | '/api/public/nomus/produto-probe'
+    | '/api/public/nomus/tabela-preco-deep-probe'
+    | '/api/public/nomus/tabela-preco-probe'
+    | '/app/configuracoes/nomus/importar-custos'
+    | '/app/configuracoes/templates/$id'
+    | '/app/propostas/$id/editor'
+    | '/app/configuracoes/templates/'
+    | '/app/propostas/$id/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
-  HooksNomusCronRoute: typeof HooksNomusCronRoute
   ApiNomusTestRoute: typeof ApiNomusTestRoute
+  ApiPublicHooksNomusCronRoute: typeof ApiPublicHooksNomusCronRoute
+  ApiPublicNomusExhaustiveProbeRoute: typeof ApiPublicNomusExhaustiveProbeRoute
+  ApiPublicNomusProdutoProbeRoute: typeof ApiPublicNomusProdutoProbeRoute
+  ApiPublicNomusTabelaPrecoDeepProbeRoute: typeof ApiPublicNomusTabelaPrecoDeepProbeRoute
+  ApiPublicNomusTabelaPrecoProbeRoute: typeof ApiPublicNomusTabelaPrecoProbeRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -315,25 +515,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
     }
-    '/hooks/nomus-cron': {
-      id: '/hooks/nomus-cron'
-      path: '/hooks/nomus-cron'
-      fullPath: '/hooks/nomus-cron'
-      preLoaderRoute: typeof HooksNomusCronRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/app/tarefas': {
       id: '/app/tarefas'
       path: '/tarefas'
       fullPath: '/app/tarefas'
       preLoaderRoute: typeof AppTarefasRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/seletor': {
-      id: '/app/seletor'
-      path: '/seletor'
-      fullPath: '/app/seletor'
-      preLoaderRoute: typeof AppSeletorRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/relatorios': {
@@ -355,6 +541,13 @@ declare module '@tanstack/react-router' {
       path: '/documentos'
       fullPath: '/app/documentos'
       preLoaderRoute: typeof AppDocumentosRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/crm': {
+      id: '/app/crm'
+      path: '/crm'
+      fullPath: '/app/crm'
+      preLoaderRoute: typeof AppCrmRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/configuracoes': {
@@ -399,6 +592,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPropostasIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/configuracoes/': {
+      id: '/app/configuracoes/'
+      path: '/'
+      fullPath: '/app/configuracoes/'
+      preLoaderRoute: typeof AppConfiguracoesIndexRouteImport
+      parentRoute: typeof AppConfiguracoesRoute
+    }
+    '/app/coldpro/': {
+      id: '/app/coldpro/'
+      path: '/coldpro'
+      fullPath: '/app/coldpro/'
+      preLoaderRoute: typeof AppColdproIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/propostas/pedidos-nf': {
       id: '/app/propostas/pedidos-nf'
       path: '/propostas/pedidos-nf'
@@ -420,12 +627,47 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPropostasIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/crm/$id': {
+      id: '/app/crm/$id'
+      path: '/$id'
+      fullPath: '/app/crm/$id'
+      preLoaderRoute: typeof AppCrmIdRouteImport
+      parentRoute: typeof AppCrmRoute
+    }
     '/app/configuracoes/nomus': {
       id: '/app/configuracoes/nomus'
       path: '/nomus'
       fullPath: '/app/configuracoes/nomus'
       preLoaderRoute: typeof AppConfiguracoesNomusRouteImport
       parentRoute: typeof AppConfiguracoesRoute
+    }
+    '/app/configuracoes/api-nomus': {
+      id: '/app/configuracoes/api-nomus'
+      path: '/api-nomus'
+      fullPath: '/app/configuracoes/api-nomus'
+      preLoaderRoute: typeof AppConfiguracoesApiNomusRouteImport
+      parentRoute: typeof AppConfiguracoesRoute
+    }
+    '/app/coldpro/produtos': {
+      id: '/app/coldpro/produtos'
+      path: '/coldpro/produtos'
+      fullPath: '/app/coldpro/produtos'
+      preLoaderRoute: typeof AppColdproProdutosRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/coldpro/catalogo': {
+      id: '/app/coldpro/catalogo'
+      path: '/coldpro/catalogo'
+      fullPath: '/app/coldpro/catalogo'
+      preLoaderRoute: typeof AppColdproCatalogoRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/coldpro/$id': {
+      id: '/app/coldpro/$id'
+      path: '/coldpro/$id'
+      fullPath: '/app/coldpro/$id'
+      preLoaderRoute: typeof AppColdproIdRouteImport
+      parentRoute: typeof AppRoute
     }
     '/api/nomus/test': {
       id: '/api/nomus/test'
@@ -434,19 +676,136 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiNomusTestRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/app/propostas/$id/': {
+      id: '/app/propostas/$id/'
+      path: '/'
+      fullPath: '/app/propostas/$id/'
+      preLoaderRoute: typeof AppPropostasIdIndexRouteImport
+      parentRoute: typeof AppPropostasIdRoute
+    }
+    '/app/configuracoes/templates/': {
+      id: '/app/configuracoes/templates/'
+      path: '/templates'
+      fullPath: '/app/configuracoes/templates/'
+      preLoaderRoute: typeof AppConfiguracoesTemplatesIndexRouteImport
+      parentRoute: typeof AppConfiguracoesRoute
+    }
+    '/app/propostas/$id/editor': {
+      id: '/app/propostas/$id/editor'
+      path: '/editor'
+      fullPath: '/app/propostas/$id/editor'
+      preLoaderRoute: typeof AppPropostasIdEditorRouteImport
+      parentRoute: typeof AppPropostasIdRoute
+    }
+    '/app/configuracoes/templates/$id': {
+      id: '/app/configuracoes/templates/$id'
+      path: '/templates/$id'
+      fullPath: '/app/configuracoes/templates/$id'
+      preLoaderRoute: typeof AppConfiguracoesTemplatesIdRouteImport
+      parentRoute: typeof AppConfiguracoesRoute
+    }
+    '/app/configuracoes/nomus/importar-custos': {
+      id: '/app/configuracoes/nomus/importar-custos'
+      path: '/importar-custos'
+      fullPath: '/app/configuracoes/nomus/importar-custos'
+      preLoaderRoute: typeof AppConfiguracoesNomusImportarCustosRouteImport
+      parentRoute: typeof AppConfiguracoesNomusRoute
+    }
+    '/api/public/nomus/tabela-preco-probe': {
+      id: '/api/public/nomus/tabela-preco-probe'
+      path: '/api/public/nomus/tabela-preco-probe'
+      fullPath: '/api/public/nomus/tabela-preco-probe'
+      preLoaderRoute: typeof ApiPublicNomusTabelaPrecoProbeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/nomus/tabela-preco-deep-probe': {
+      id: '/api/public/nomus/tabela-preco-deep-probe'
+      path: '/api/public/nomus/tabela-preco-deep-probe'
+      fullPath: '/api/public/nomus/tabela-preco-deep-probe'
+      preLoaderRoute: typeof ApiPublicNomusTabelaPrecoDeepProbeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/nomus/produto-probe': {
+      id: '/api/public/nomus/produto-probe'
+      path: '/api/public/nomus/produto-probe'
+      fullPath: '/api/public/nomus/produto-probe'
+      preLoaderRoute: typeof ApiPublicNomusProdutoProbeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/nomus/exhaustive-probe': {
+      id: '/api/public/nomus/exhaustive-probe'
+      path: '/api/public/nomus/exhaustive-probe'
+      fullPath: '/api/public/nomus/exhaustive-probe'
+      preLoaderRoute: typeof ApiPublicNomusExhaustiveProbeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/nomus-cron': {
+      id: '/api/public/hooks/nomus-cron'
+      path: '/api/public/hooks/nomus-cron'
+      fullPath: '/api/public/hooks/nomus-cron'
+      preLoaderRoute: typeof ApiPublicHooksNomusCronRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
+interface AppConfiguracoesNomusRouteChildren {
+  AppConfiguracoesNomusImportarCustosRoute: typeof AppConfiguracoesNomusImportarCustosRoute
+}
+
+const AppConfiguracoesNomusRouteChildren: AppConfiguracoesNomusRouteChildren = {
+  AppConfiguracoesNomusImportarCustosRoute:
+    AppConfiguracoesNomusImportarCustosRoute,
+}
+
+const AppConfiguracoesNomusRouteWithChildren =
+  AppConfiguracoesNomusRoute._addFileChildren(
+    AppConfiguracoesNomusRouteChildren,
+  )
+
 interface AppConfiguracoesRouteChildren {
-  AppConfiguracoesNomusRoute: typeof AppConfiguracoesNomusRoute
+  AppConfiguracoesApiNomusRoute: typeof AppConfiguracoesApiNomusRoute
+  AppConfiguracoesNomusRoute: typeof AppConfiguracoesNomusRouteWithChildren
+  AppConfiguracoesIndexRoute: typeof AppConfiguracoesIndexRoute
+  AppConfiguracoesTemplatesIdRoute: typeof AppConfiguracoesTemplatesIdRoute
+  AppConfiguracoesTemplatesIndexRoute: typeof AppConfiguracoesTemplatesIndexRoute
 }
 
 const AppConfiguracoesRouteChildren: AppConfiguracoesRouteChildren = {
-  AppConfiguracoesNomusRoute: AppConfiguracoesNomusRoute,
+  AppConfiguracoesApiNomusRoute: AppConfiguracoesApiNomusRoute,
+  AppConfiguracoesNomusRoute: AppConfiguracoesNomusRouteWithChildren,
+  AppConfiguracoesIndexRoute: AppConfiguracoesIndexRoute,
+  AppConfiguracoesTemplatesIdRoute: AppConfiguracoesTemplatesIdRoute,
+  AppConfiguracoesTemplatesIndexRoute: AppConfiguracoesTemplatesIndexRoute,
 }
 
 const AppConfiguracoesRouteWithChildren =
   AppConfiguracoesRoute._addFileChildren(AppConfiguracoesRouteChildren)
+
+interface AppCrmRouteChildren {
+  AppCrmIdRoute: typeof AppCrmIdRoute
+}
+
+const AppCrmRouteChildren: AppCrmRouteChildren = {
+  AppCrmIdRoute: AppCrmIdRoute,
+}
+
+const AppCrmRouteWithChildren =
+  AppCrmRoute._addFileChildren(AppCrmRouteChildren)
+
+interface AppPropostasIdRouteChildren {
+  AppPropostasIdEditorRoute: typeof AppPropostasIdEditorRoute
+  AppPropostasIdIndexRoute: typeof AppPropostasIdIndexRoute
+}
+
+const AppPropostasIdRouteChildren: AppPropostasIdRouteChildren = {
+  AppPropostasIdEditorRoute: AppPropostasIdEditorRoute,
+  AppPropostasIdIndexRoute: AppPropostasIdIndexRoute,
+}
+
+const AppPropostasIdRouteWithChildren = AppPropostasIdRoute._addFileChildren(
+  AppPropostasIdRouteChildren,
+)
 
 interface AppRouteChildren {
   AppAprovacoesRoute: typeof AppAprovacoesRoute
@@ -454,15 +813,19 @@ interface AppRouteChildren {
   AppCompetitivaRoute: typeof AppCompetitivaRoute
   AppConcorrentesRoute: typeof AppConcorrentesRoute
   AppConfiguracoesRoute: typeof AppConfiguracoesRouteWithChildren
+  AppCrmRoute: typeof AppCrmRouteWithChildren
   AppDocumentosRoute: typeof AppDocumentosRoute
   AppEquipamentosRoute: typeof AppEquipamentosRoute
   AppRelatoriosRoute: typeof AppRelatoriosRoute
-  AppSeletorRoute: typeof AppSeletorRoute
   AppTarefasRoute: typeof AppTarefasRoute
   AppIndexRoute: typeof AppIndexRoute
-  AppPropostasIdRoute: typeof AppPropostasIdRoute
+  AppColdproIdRoute: typeof AppColdproIdRoute
+  AppColdproCatalogoRoute: typeof AppColdproCatalogoRoute
+  AppColdproProdutosRoute: typeof AppColdproProdutosRoute
+  AppPropostasIdRoute: typeof AppPropostasIdRouteWithChildren
   AppPropostasNovaRoute: typeof AppPropostasNovaRoute
   AppPropostasPedidosNfRoute: typeof AppPropostasPedidosNfRoute
+  AppColdproIndexRoute: typeof AppColdproIndexRoute
   AppPropostasIndexRoute: typeof AppPropostasIndexRoute
 }
 
@@ -472,15 +835,19 @@ const AppRouteChildren: AppRouteChildren = {
   AppCompetitivaRoute: AppCompetitivaRoute,
   AppConcorrentesRoute: AppConcorrentesRoute,
   AppConfiguracoesRoute: AppConfiguracoesRouteWithChildren,
+  AppCrmRoute: AppCrmRouteWithChildren,
   AppDocumentosRoute: AppDocumentosRoute,
   AppEquipamentosRoute: AppEquipamentosRoute,
   AppRelatoriosRoute: AppRelatoriosRoute,
-  AppSeletorRoute: AppSeletorRoute,
   AppTarefasRoute: AppTarefasRoute,
   AppIndexRoute: AppIndexRoute,
-  AppPropostasIdRoute: AppPropostasIdRoute,
+  AppColdproIdRoute: AppColdproIdRoute,
+  AppColdproCatalogoRoute: AppColdproCatalogoRoute,
+  AppColdproProdutosRoute: AppColdproProdutosRoute,
+  AppPropostasIdRoute: AppPropostasIdRouteWithChildren,
   AppPropostasNovaRoute: AppPropostasNovaRoute,
   AppPropostasPedidosNfRoute: AppPropostasPedidosNfRoute,
+  AppColdproIndexRoute: AppColdproIndexRoute,
   AppPropostasIndexRoute: AppPropostasIndexRoute,
 }
 
@@ -490,8 +857,13 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
-  HooksNomusCronRoute: HooksNomusCronRoute,
   ApiNomusTestRoute: ApiNomusTestRoute,
+  ApiPublicHooksNomusCronRoute: ApiPublicHooksNomusCronRoute,
+  ApiPublicNomusExhaustiveProbeRoute: ApiPublicNomusExhaustiveProbeRoute,
+  ApiPublicNomusProdutoProbeRoute: ApiPublicNomusProdutoProbeRoute,
+  ApiPublicNomusTabelaPrecoDeepProbeRoute:
+    ApiPublicNomusTabelaPrecoDeepProbeRoute,
+  ApiPublicNomusTabelaPrecoProbeRoute: ApiPublicNomusTabelaPrecoProbeRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

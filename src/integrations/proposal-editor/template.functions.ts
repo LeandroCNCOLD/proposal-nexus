@@ -1,0 +1,521 @@
+// Server functions para templates de proposta
+import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import type { TemplateAsset, ProposalTemplate, TemplateBundle } from "./template.types";
+
+const TEMPLATE_BUCKET = "proposal-template-assets";
+
+async function buildAssetsWithUrls(
+  supabase: { storage: { from: (b: string) => { getPublicUrl: (p: string) => { data: { publicUrl: string } } } } },
+  rows: Array<{
+    id: string;
+    template_id: string;
+    asset_kind: string;
+    label: string | null;
+    storage_path: string;
+    position: number | null;
+  }>,
+): Promise<TemplateAsset[]> {
+  return rows.map((r) => ({
+    ...r,
+    url: supabase.storage.from(TEMPLATE_BUCKET).getPublicUrl(r.storage_path).data.publicUrl,
+  }));
+}
+
+/** Lista todos os templates com seus assets. */
+export const listTemplates = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase } = context;
+    const { data: templates, error } = await supabase
+      .from("proposal_templates")
+      .select("*")
+      .order("is_default", { ascending: false })
+      .order("name", { ascending: true });
+    if (error) throw new Error(error.message);
+
+    const ids = (templates ?? []).map((t) => t.id);
+    const { data: assets } = ids.length
+      ? await supabase
+          .from("proposal_template_assets")
+          .select("*")
+          .in("template_id", ids)
+          .order("position", { ascending: true, nullsFirst: false })
+      : { data: [] };
+
+    const enrichedAssets = await buildAssetsWithUrls(
+      supabase,
+      (assets ?? []) as never,
+    );
+
+    return {
+      templates: (templates ?? []) as unknown as ProposalTemplate[],
+      assets: enrichedAssets,
+    };
+  });
+
+/** Carrega template padrão (ou um template específico) com seus assets. */
+const getTemplateSchema = z.object({
+  templateId: z.string().uuid().optional(),
+});
+
+export const getTemplate = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => getTemplateSchema.parse(input ?? {}))
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+
+    let query = supabase.from("proposal_templates").select("*");
+    if (data.templateId) {
+      query = query.eq("id", data.templateId);
+    } else {
+      query = query.eq("is_default", true).eq("is_active", true);
+    }
+    const { data: tmpl, error } = await query.maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!tmpl) return null;
+
+    const { data: assets } = await supabase
+      .from("proposal_template_assets")
+      .select("*")
+      .eq("template_id", tmpl.id)
+      .order("position", { ascending: true, nullsFirst: false });
+
+    const result: TemplateBundle = {
+      template: tmpl as unknown as ProposalTemplate,
+      assets: await buildAssetsWithUrls(supabase, (assets ?? []) as never),
+    };
+    return result;
+  });
+
+/** Atualiza textos/cores de um template. */
+const updateTemplateSchema = z.object({
+  templateId: z.string().uuid(),
+  patch: z.object({
+    name: z.string().min(1).optional(),
+    description: z.string().nullable().optional(),
+    primary_color: z.string().optional(),
+    accent_color: z.string().optional(),
+    accent_color_2: z.string().optional(),
+    empresa_nome: z.string().optional(),
+    empresa_cidade: z.string().optional(),
+    empresa_telefone: z.string().optional(),
+    empresa_email: z.string().optional(),
+    empresa_site: z.string().optional(),
+    capa_titulo: z.string().nullable().optional(),
+    capa_subtitulo: z.string().nullable().optional(),
+    capa_tagline: z.string().nullable().optional(),
+    sobre_titulo: z.string().nullable().optional(),
+    sobre_paragrafos: z.array(z.string()).optional(),
+    sobre_diferenciais: z.array(z.any()).optional(),
+    cases_titulo: z.string().nullable().optional(),
+    cases_subtitulo: z.string().nullable().optional(),
+    cases_itens: z.array(z.any()).optional(),
+    clientes_titulo: z.string().nullable().optional(),
+    clientes_lista: z.array(z.string()).optional(),
+    escopo_apresentacao_itens: z.array(z.string()).optional(),
+    garantia_texto: z.string().nullable().optional(),
+    garantia_itens: z.array(z.any()).optional(),
+    // Aceita array OU objeto único (compat com dados antigos no banco).
+    dados_bancarios: z.union([z.array(z.any()), z.record(z.any())]).optional(),
+    pages_template: z.array(z.any()).optional(),
+    prazo_entrega_padrao: z.string().nullable().optional(),
+    validade_padrao_dias: z.number().int().nullable().optional(),
+    pages_config: z.array(z.any()).optional(),
+    is_active: z.boolean().optional(),
+  }),
+});
+
+export const updateTemplate = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => updateTemplateSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const { error } = await supabase
+      .from("proposal_templates")
+      .update(data.patch as never)
+      .eq("id", data.templateId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+/** Marca um template como padrão (e desmarca os demais). */
+export const setDefaultTemplate = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ templateId: z.string().uuid() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const { error: e1 } = await supabase
+      .from("proposal_templates")
+      .update({ is_default: false } as never)
+      .neq("id", data.templateId);
+    if (e1) throw new Error(e1.message);
+    const { error: e2 } = await supabase
+      .from("proposal_templates")
+      .update({ is_default: true } as never)
+      .eq("id", data.templateId);
+    if (e2) throw new Error(e2.message);
+    return { ok: true };
+  });
+
+/** Duplica um template existente. */
+export const duplicateTemplate = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ templateId: z.string().uuid() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: src, error } = await supabase
+      .from("proposal_templates")
+      .select("*")
+      .eq("id", data.templateId)
+      .single();
+    if (error) throw new Error(error.message);
+
+    const srcRec = src as unknown as Record<string, unknown>;
+    const rest: Record<string, unknown> = { ...srcRec };
+    delete rest.id;
+    delete rest.created_at;
+    delete rest.updated_at;
+
+    const { data: created, error: insErr } = await supabase
+      .from("proposal_templates")
+      .insert({
+        ...rest,
+        name: `${(src as { name: string }).name} (cópia)`,
+        is_default: false,
+        created_by: userId,
+      } as never)
+      .select("id")
+      .single();
+    if (insErr) throw new Error(insErr.message);
+    return { templateId: (created as { id: string }).id };
+  });
+
+/** Remove um asset (registro + objeto no storage). */
+export const deleteTemplateAsset = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ assetId: z.string().uuid() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const { data: row, error: selErr } = await supabase
+      .from("proposal_template_assets")
+      .select("id, storage_path")
+      .eq("id", data.assetId)
+      .single();
+    if (selErr) throw new Error(selErr.message);
+
+    await supabase.storage.from(TEMPLATE_BUCKET).remove([(row as { storage_path: string }).storage_path]);
+
+    const { error: delErr } = await supabase
+      .from("proposal_template_assets")
+      .delete()
+      .eq("id", data.assetId);
+    if (delErr) throw new Error(delErr.message);
+    return { ok: true };
+  });
+
+/** Registra um asset já enviado ao bucket. */
+const registerAssetSchema = z.object({
+  templateId: z.string().uuid(),
+  storagePath: z.string().min(1),
+  assetKind: z.string().min(1),
+  label: z.string().optional(),
+  mimeType: z.string().optional(),
+  sizeBytes: z.number().int().optional(),
+});
+
+export const registerTemplateAsset = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => registerAssetSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: created, error } = await supabase
+      .from("proposal_template_assets")
+      .insert({
+        template_id: data.templateId,
+        asset_kind: data.assetKind,
+        label: data.label ?? null,
+        storage_path: data.storagePath,
+        mime_type: data.mimeType ?? null,
+        size_bytes: data.sizeBytes ?? null,
+        uploaded_by: userId,
+      } as never)
+      .select("id")
+      .single();
+    if (error) throw new Error(error.message);
+    return { assetId: (created as { id: string }).id };
+  });
+
+/**
+ * Faz upload de imagem (base64) para o bucket e registra o asset.
+ * Para asset_kinds de página-imagem (cover_full, about_full, clients_full,
+ * logo, about_photo, equipment_photo) remove o asset anterior do mesmo kind
+ * antes de salvar o novo, garantindo que só exista um por template.
+ */
+const SINGLETON_KINDS = new Set([
+  "cover_full",
+  "about_full",
+  "clients_full",
+  "logo",
+  "about_photo",
+  "equipment_photo",
+  "header_banner",
+  "footer_banner",
+]);
+
+const uploadAssetSchema = z.object({
+  templateId: z.string().uuid(),
+  assetKind: z.string().min(1),
+  fileName: z.string().min(1),
+  mimeType: z.string().min(1),
+  /** Conteúdo do arquivo em base64 (sem prefixo data:). */
+  base64: z.string().min(1),
+  label: z.string().optional(),
+});
+
+export const uploadTemplateAsset = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => uploadAssetSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+
+    // Se for um kind único, remove os anteriores
+    if (SINGLETON_KINDS.has(data.assetKind)) {
+      const { data: prev } = await supabase
+        .from("proposal_template_assets")
+        .select("id, storage_path")
+        .eq("template_id", data.templateId)
+        .eq("asset_kind", data.assetKind);
+
+      const rows = (prev ?? []) as Array<{ id: string; storage_path: string }>;
+      if (rows.length > 0) {
+        await supabase.storage
+          .from(TEMPLATE_BUCKET)
+          .remove(rows.map((r) => r.storage_path));
+        await supabase
+          .from("proposal_template_assets")
+          .delete()
+          .in(
+            "id",
+            rows.map((r) => r.id),
+          );
+      }
+    }
+
+    // Decodifica base64 → Uint8Array
+    const binary = Uint8Array.from(atob(data.base64), (c) => c.charCodeAt(0));
+    const ext = (data.fileName.split(".").pop() || "bin").toLowerCase();
+    const safeName = `${data.assetKind}-${Date.now()}.${ext}`;
+    const storagePath = `${data.templateId}/${safeName}`;
+
+    const { error: upErr } = await supabase.storage
+      .from(TEMPLATE_BUCKET)
+      .upload(storagePath, binary, {
+        contentType: data.mimeType,
+        upsert: true,
+      });
+    if (upErr) throw new Error(upErr.message);
+
+    const { data: created, error } = await supabase
+      .from("proposal_template_assets")
+      .insert({
+        template_id: data.templateId,
+        asset_kind: data.assetKind,
+        label: data.label ?? null,
+        storage_path: storagePath,
+        mime_type: data.mimeType,
+        size_bytes: binary.byteLength,
+        uploaded_by: userId,
+      } as never)
+      .select("id")
+      .single();
+    if (error) throw new Error(error.message);
+
+    return {
+      assetId: (created as { id: string }).id,
+      storagePath,
+    };
+  });
+
+/* ============================================================ */
+/*  Salvar layout da proposta como TEMPLATE reutilizável         */
+/* ============================================================ */
+
+const PROPOSAL_FILES_BUCKET = "proposal-files";
+
+/**
+ * Cria (ou atualiza) um template a partir do layout atual de uma proposta.
+ * Copia as imagens de fundo das páginas (proposal-files → proposal-template-assets)
+ * para que o template seja reutilizável em outras propostas.
+ */
+const saveAsTemplateSchema = z.object({
+  proposalId: z.string().uuid(),
+  name: z.string().min(1).max(120),
+  description: z.string().max(500).optional(),
+  /** Quando informado, atualiza um template existente ao invés de criar novo. */
+  templateId: z.string().uuid().optional(),
+});
+
+export const saveProposalAsTemplate = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => saveAsTemplateSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+
+    // 1. Carrega o documento da proposta com pages
+    const { data: doc, error: docErr } = await supabase
+      .from("proposal_documents")
+      .select("pages, template_id")
+      .eq("proposal_id", data.proposalId)
+      .maybeSingle();
+    if (docErr) throw new Error(docErr.message);
+    if (!doc) throw new Error("Proposta sem documento.");
+
+    const pages = (doc.pages ?? []) as Array<Record<string, unknown>>;
+
+    // 2. Decide template alvo: novo ou existente
+    let targetId = data.templateId;
+
+    if (!targetId) {
+      // Cria novo, herdando dados visuais do template atual da proposta (se houver)
+      let baseTpl: Record<string, unknown> = {};
+      if (doc.template_id) {
+        const { data: src } = await supabase
+          .from("proposal_templates")
+          .select("*")
+          .eq("id", doc.template_id)
+          .maybeSingle();
+        if (src) {
+          baseTpl = { ...(src as unknown as Record<string, unknown>) };
+          delete baseTpl.id;
+          delete baseTpl.created_at;
+          delete baseTpl.updated_at;
+        }
+      }
+      const { data: created, error: insErr } = await supabase
+        .from("proposal_templates")
+        .insert({
+          ...baseTpl,
+          name: data.name,
+          description: data.description ?? null,
+          is_default: false,
+          is_active: true,
+          created_by: userId,
+        } as never)
+        .select("id")
+        .single();
+      if (insErr) throw new Error(insErr.message);
+      targetId = (created as { id: string }).id;
+    }
+
+    // 3. Copia imagens de fundo das páginas para o bucket público de templates.
+    //    pages que apontam para "proposal-files" são copiadas; outras ficam.
+    const copiedPages = await Promise.all(
+      pages.map(async (page) => {
+        const path = page.backgroundImagePath as string | undefined;
+        if (!path) return page;
+        // Se já está no bucket de templates, mantém
+        if (path.startsWith("template-bg/")) return page;
+        try {
+          const { data: blob, error: dlErr } = await supabase.storage
+            .from(PROPOSAL_FILES_BUCKET)
+            .download(path);
+          if (dlErr || !blob) return page;
+          const ext = path.split(".").pop() || "bin";
+          const newPath = `template-bg/${targetId}/${crypto.randomUUID()}.${ext}`;
+          const buf = new Uint8Array(await blob.arrayBuffer());
+          const { error: upErr } = await supabase.storage
+            .from(TEMPLATE_BUCKET)
+            .upload(newPath, buf, {
+              contentType: blob.type || "image/png",
+              upsert: true,
+            });
+          if (upErr) return page;
+          const { data: pub } = supabase.storage
+            .from(TEMPLATE_BUCKET)
+            .getPublicUrl(newPath);
+          return {
+            ...page,
+            backgroundImagePath: newPath,
+            backgroundImageUrl: pub.publicUrl,
+          };
+        } catch {
+          return page;
+        }
+      }),
+    );
+
+    // 4. Salva o snapshot completo em pages_template
+    const { error: updErr } = await supabase
+      .from("proposal_templates")
+      .update({
+        pages_template: copiedPages as never,
+        ...(data.templateId ? { name: data.name, description: data.description ?? null } : {}),
+      } as never)
+      .eq("id", targetId);
+    if (updErr) throw new Error(updErr.message);
+
+    return { templateId: targetId, pageCount: copiedPages.length };
+  });
+
+/**
+ * Aplica o pages_template de um modelo na proposta atual (substitui as páginas).
+ * Mantém referências às imagens de fundo do bucket público de templates.
+ */
+const applyTemplateLayoutSchema = z.object({
+  proposalId: z.string().uuid(),
+  templateId: z.string().uuid(),
+});
+
+export const applyTemplateLayoutToProposal = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => applyTemplateLayoutSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+
+    const { data: tpl, error: tplErr } = await supabase
+      .from("proposal_templates")
+      .select("pages_template")
+      .eq("id", data.templateId)
+      .maybeSingle();
+    if (tplErr) throw new Error(tplErr.message);
+    if (!tpl) throw new Error("Template não encontrado.");
+
+    const pages = (tpl.pages_template ?? []) as Array<Record<string, unknown>>;
+    if (!Array.isArray(pages) || pages.length === 0) {
+      throw new Error("Este template ainda não tem um layout salvo.");
+    }
+
+    // Gera novos IDs para evitar colisões caso o usuário aplique o mesmo template
+    // múltiplas vezes ou edite após aplicar.
+    const stamp = Date.now().toString(36);
+    const reIded = pages.map((p, i) => ({
+      ...p,
+      id: `page-${stamp}-${i}`,
+      blocks: Array.isArray(p.blocks)
+        ? (p.blocks as Array<Record<string, unknown>>).map((b, j) => ({
+            ...b,
+            id: `blk-${stamp}-${i}-${j}`,
+          }))
+        : [],
+    }));
+
+    const { error } = await supabase
+      .from("proposal_documents")
+      .update({
+        pages: reIded as never,
+        last_edited_by: userId,
+        last_edited_at: new Date().toISOString(),
+      } as never)
+      .eq("proposal_id", data.proposalId);
+    if (error) throw new Error(error.message);
+
+    return { ok: true, pageCount: reIded.length };
+  });

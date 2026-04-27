@@ -1,7 +1,12 @@
 // Server-only Nomus ERP HTTP client
 // Do NOT import from client-side code.
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { NOMUS_ENDPOINTS, NOMUS_HEALTHCHECK_ENTITY, type NomusEntity } from "./endpoints";
+import {
+  NOMUS_ENDPOINTS,
+  NOMUS_HEALTHCHECK_ENTITY,
+  NOMUS_PROBE_ENTITIES,
+  type NomusEntity,
+} from "./endpoints";
 
 export { NOMUS_ENDPOINTS, type NomusEntity };
 
@@ -9,6 +14,8 @@ export type NomusFetchOptions = {
   method?: "GET" | "POST" | "PUT" | "DELETE";
   query?: Record<string, string | number | undefined>;
   body?: unknown;
+  timeoutMs?: number;
+  maxAttempts?: number;
   /** Logical entity name for log/audit (e.g. "clientes", "produtos") */
   entity?: string;
   /** Operation label for log (e.g. "list", "get", "create", "push") */
@@ -16,6 +23,8 @@ export type NomusFetchOptions = {
   /** "pull" | "push" | "test" */
   direction?: "pull" | "push" | "test";
   triggeredBy?: string | null;
+  retryAfterSeconds?: number;
+  backoffMultiplier?: number;
 };
 
 const DEBUG = String(process.env.NOMUS_DEBUG ?? "").toLowerCase() === "true";
@@ -26,30 +35,38 @@ function maskKey(key: string): string {
   return `******${tail}`;
 }
 
-/** Validate and normalize NOMUS_BASE_URL. Ensures it ends with /api. */
+/** Validate and normalize NOMUS_BASE_URL. */
 export function getNomusBaseUrl(): string {
   const raw = (process.env.NOMUS_BASE_URL ?? "").trim();
   if (!raw) {
     throw new Error("NOMUS_BASE_URL não configurada. Defina nas Lovable Cloud secrets.");
+  }
+  // Defensive: detect when an API key was pasted into the URL field.
+  // Heuristics: no scheme, or looks like base64 / "user:pass" credential string.
+  const looksLikeUrl = /^https?:\/\//i.test(raw);
+  const looksLikeBase64 = /^[A-Za-z0-9+/=]{16,}$/.test(raw);
+  const looksLikeCredential = !looksLikeUrl && /^[^\s/]+:[^\s/]+$/.test(raw);
+  if (!looksLikeUrl || looksLikeBase64 || looksLikeCredential) {
+    throw new Error(
+      `NOMUS_BASE_URL parece ser uma chave de API, não uma URL ("${raw.slice(0, 24)}..."). ` +
+      `Mova esse valor para NOMUS_API_KEY e configure NOMUS_BASE_URL com a URL REST do Nomus, ` +
+      `ex.: https://SEU_DOMINIO.nomus.com.br/SEU_DOMINIO/rest`
+    );
   }
   let url: URL;
   try {
     url = new URL(raw);
   } catch {
     throw new Error(
-      `NOMUS_BASE_URL inválida: "${raw}". Use o formato https://SEU_DOMINIO.nomus.com.br/api`
+      `NOMUS_BASE_URL inválida: "${raw}". Use o formato https://SEU_DOMINIO.nomus.com.br/SEU_DOMINIO/rest`
     );
   }
   if (url.protocol !== "https:" && url.protocol !== "http:") {
     throw new Error(`NOMUS_BASE_URL com protocolo inválido: ${url.protocol}`);
   }
-  // Normalize: strip trailing slashes
-  let normalized = `${url.origin}${url.pathname.replace(/\/+$/, "")}`;
-  // Auto-append /api if missing
-  if (!/\/api(\/|$)/.test(normalized)) {
-    normalized = `${normalized}/api`;
-  }
-  return normalized;
+  // Normalize: strip trailing slashes. Respect whatever path the user provided
+  // (Nomus REST often lives at /<empresa>/rest, not /api).
+  return `${url.origin}${url.pathname.replace(/\/+$/, "")}`;
 }
 
 function getCreds() {
@@ -147,9 +164,11 @@ export async function nomusFetch<T = unknown>(
   const operation = opts.operation ?? method.toLowerCase();
   const direction = opts.direction ?? (method === "GET" ? "pull" : "push");
 
-  // Nomus uses raw API key in Authorization header (no Basic/Bearer prefix).
+  // Nomus exige header `Authorization: Basic <chave-integracao-rest>`.
+  // A chave já vem em base64 do ERP — só anexamos o prefixo "Basic " se ainda não estiver presente.
+  const authValue = /^basic\s+/i.test(apiKey) ? apiKey : `Basic ${apiKey}`;
   const headers: Record<string, string> = {
-    Authorization: apiKey,
+    Authorization: authValue,
     "Content-Type": "application/json",
     Accept: "application/json",
   };
@@ -160,7 +179,10 @@ export async function nomusFetch<T = unknown>(
     if (opts.body) console.log("[nomus] payload:", JSON.stringify(opts.body));
   }
 
-  const maxAttempts = 3;
+  const maxAttempts = opts.maxAttempts ?? 3;
+  const timeoutMs = opts.timeoutMs ?? REQUEST_TIMEOUT_MS;
+  const retryAfterSeconds = opts.retryAfterSeconds ?? 2;
+  const backoffMultiplier = opts.backoffMultiplier ?? 2;
   let attempt = 0;
   let lastErr: string | null = null;
   let lastStatus = 0;
@@ -169,7 +191,7 @@ export async function nomusFetch<T = unknown>(
     attempt += 1;
     const started = Date.now();
     const ac = new AbortController();
-    const timer = setTimeout(() => ac.abort(), REQUEST_TIMEOUT_MS);
+    const timer = setTimeout(() => ac.abort(), timeoutMs);
     try {
       const res = await fetch(url, {
         method,
@@ -187,7 +209,8 @@ export async function nomusFetch<T = unknown>(
 
       if (res.status === 429) {
         const retryHeader = res.headers.get("tempoAteLiberar") || res.headers.get("retry-after");
-        const wait = Math.min(Number(retryHeader) || 2 * attempt, 15) * 1000;
+        const wait = Math.min(Number(retryHeader) || retryAfterSeconds * Math.pow(backoffMultiplier, attempt - 1), 60) * 1000;
+        lastErr = `Nomus limitou as requisições (429). Tente novamente em alguns segundos.`;
         await logCall({
           entity, operation, direction,
           status: "throttled",
@@ -197,6 +220,9 @@ export async function nomusFetch<T = unknown>(
           error: `Throttled, retrying in ${wait}ms`,
           triggered_by: opts.triggeredBy ?? null,
         });
+        if (attempt >= maxAttempts) {
+          return { ok: false, error: lastErr, status: res.status };
+        }
         await new Promise((r) => setTimeout(r, wait));
         continue;
       }
@@ -220,7 +246,7 @@ export async function nomusFetch<T = unknown>(
         });
         if (DEBUG) console.error(`[nomus] error response:`, parsed);
         if (res.status >= 500 && attempt < maxAttempts) {
-          await new Promise((r) => setTimeout(r, 500 * attempt));
+          await new Promise((r) => setTimeout(r, retryAfterSeconds * Math.pow(backoffMultiplier, attempt - 1) * 1000));
           continue;
         }
         return { ok: false, error: lastErr, status: res.status };
@@ -251,12 +277,35 @@ export async function nomusFetch<T = unknown>(
       });
       if (DEBUG) console.error(`[nomus] network error:`, lastErr);
       if (attempt < maxAttempts) {
-        await new Promise((r) => setTimeout(r, 500 * attempt));
+        await new Promise((r) => setTimeout(r, retryAfterSeconds * Math.pow(backoffMultiplier, attempt - 1) * 1000));
         continue;
       }
     }
   }
   return { ok: false, error: lastErr ?? "Unknown error", status: lastStatus };
+}
+
+/**
+ * GET /endpoint/{id} — busca um único registro com payload completo.
+ * Diferente de listAll que só retorna o "envelope" da listagem.
+ */
+export async function getOne<T = unknown>(
+  endpoint: string,
+  id: string | number,
+  opts: { entity: string; triggeredBy?: string | null; timeoutMs?: number; maxAttempts?: number } = { entity: "unknown" },
+): Promise<{ ok: true; data: T } | { ok: false; error: string }> {
+  const path = `${endpoint}/${encodeURIComponent(String(id))}`;
+  const res = await nomusFetch<T>(path, {
+    method: "GET",
+    entity: opts.entity,
+    operation: "get",
+    direction: "pull",
+    triggeredBy: opts.triggeredBy ?? null,
+    timeoutMs: opts.timeoutMs,
+    maxAttempts: opts.maxAttempts,
+  });
+  if (!res.ok) return { ok: false, error: res.error };
+  return { ok: true, data: res.data };
 }
 
 /**
@@ -281,6 +330,37 @@ function extractBatch<T>(payload: unknown): T[] {
     if (Array.isArray(v)) return v as T[];
   }
   return [];
+}
+
+export async function listPage<T = unknown>(
+  endpoint: string,
+  query: Record<string, string | number | undefined> = {},
+  opts: {
+    entity: string;
+    triggeredBy?: string | null;
+    pageSize?: number;
+    page: number;
+    timeoutMs?: number;
+    maxAttempts?: number;
+  },
+): Promise<{ ok: true; items: T[]; hasMore: boolean } | { ok: false; error: string }> {
+  const pageSize = opts.pageSize ?? LIST_DEFAULT_PAGE_SIZE;
+  const res = await nomusFetch<unknown>(endpoint, {
+    method: "GET",
+    query: { ...query, pagina: opts.page },
+    entity: opts.entity,
+    operation: "list-page",
+    direction: "pull",
+    triggeredBy: opts.triggeredBy ?? null,
+    timeoutMs: opts.timeoutMs ?? 6_000,
+    maxAttempts: opts.maxAttempts ?? 1,
+  });
+  if (!res.ok) {
+    if (res.status === 400) return { ok: true, items: [], hasMore: false };
+    return { ok: false, error: res.error };
+  }
+  const items = extractBatch<T>(res.data);
+  return { ok: true, items, hasMore: items.length > 0 };
 }
 
 /**
@@ -308,13 +388,27 @@ export async function listAll<T = unknown>(
   for (let pagina = 1; pagina <= LIST_MAX_PAGES; pagina++) {
     const res = await nomusFetch<unknown>(endpoint, {
       method: "GET",
-      query: { ...query, pagina, tamanhoPagina: pageSize },
+      // Nomus só documenta `pagina` e `query` como parâmetros de listagem.
+      query: { ...query, pagina },
       entity: opts.entity,
       operation: "list",
       direction: "pull",
       triggeredBy: opts.triggeredBy ?? null,
     });
-    if (!res.ok) return { ok: false, error: res.error };
+    if (!res.ok) {
+      // Nomus às vezes responde 400 quando a página não existe (fim da paginação).
+      // Tratamos como "acabou" em vez de derrubar o sync inteiro.
+      if (res.status === 400) {
+        if (DEBUG) console.warn(`[nomus] listAll(${opts.entity}) page=${pagina} retornou 400, encerrando paginação`);
+        break;
+      }
+      // Se já coletamos algo nas páginas anteriores, devolve parcial em vez de perder tudo.
+      if (items.length > 0) {
+        console.warn(`[nomus] listAll(${opts.entity}) erro na página ${pagina} após coletar ${items.length} itens: ${res.error}`);
+        break;
+      }
+      return { ok: false, error: res.error };
+    }
 
     const batch = extractBatch<T>(res.data);
     if (batch.length === 0) break;
@@ -343,7 +437,23 @@ export async function listAll<T = unknown>(
   return { ok: true, items };
 }
 
-/** Quick connectivity test against the stable health-check endpoint. */
+export type NomusProbe = {
+  entity: NomusEntity;
+  endpoint: string;
+  ok: boolean;
+  status: number;
+  durationMs: number;
+  error?: string;
+};
+
+/**
+ * Multi-recurso connectivity test. Bate em cada entidade de NOMUS_PROBE_ENTITIES
+ * em sequência (sem query params, para isolar problemas de auth/URL/permissão).
+ *
+ * O contrato de retorno mantém os campos antigos (`success`, `status`, `endpoint`,
+ * `durationMs`, `baseUrl`, `error`) referentes ao health-check primário, e
+ * adiciona `probes[]` com o resultado por recurso.
+ */
 export async function testNomusConnection(triggeredBy: string | null = null): Promise<{
   success: boolean;
   message: string;
@@ -352,9 +462,11 @@ export async function testNomusConnection(triggeredBy: string | null = null): Pr
   endpoint: string;
   baseUrl?: string;
   error?: string;
+  probes: NomusProbe[];
 }> {
-  const started = Date.now();
-  const endpoint = NOMUS_ENDPOINTS[NOMUS_HEALTHCHECK_ENTITY];
+  const overallStarted = Date.now();
+  const primaryEndpoint = NOMUS_ENDPOINTS[NOMUS_HEALTHCHECK_ENTITY];
+
   let baseUrl: string | undefined;
   try {
     baseUrl = getNomusBaseUrl();

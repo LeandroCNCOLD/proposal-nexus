@@ -1,0 +1,1 @@
+UPDATE public.nomus_sync_state SET running = false, last_cursor = NULL, last_error = NULL, updated_at = now() WHERE entity = 'propostas';

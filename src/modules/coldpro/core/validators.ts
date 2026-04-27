@@ -1,0 +1,51 @@
+import { safeNumber } from "./units";
+
+function isProvided(value: unknown): boolean {
+  return value !== null && value !== undefined && value !== "";
+}
+
+function validateRange(params: {
+  field: string;
+  value: unknown;
+  min: number;
+  max: number;
+  unit: string;
+  warnings: string[];
+  invalidFields: string[];
+}) {
+  if (!isProvided(params.value)) return;
+  const value = safeNumber(params.value, Number.NaN);
+  if (!Number.isFinite(value)) {
+    params.invalidFields.push(params.field);
+    params.warnings.push(`${params.field} não é numérico.`);
+    return;
+  }
+  if (value < params.min || value > params.max) {
+    params.invalidFields.push(params.field);
+    params.warnings.push(`${params.field} fora da faixa técnica ${params.min} a ${params.max} ${params.unit}.`);
+  }
+}
+
+export function validateTunnelInput(input: any): { missingFields: string[]; warnings: string[]; invalidFields: string[] } {
+  const missingFields: string[] = [];
+  const warnings: string[] = [];
+  const invalidFields: string[] = [];
+
+  validateRange({ field: "cpAboveKcalKgC", value: input?.cpAboveKcalKgC, min: 0.12, max: 1.2, unit: "kcal/kg°C", warnings, invalidFields });
+  validateRange({ field: "cpBelowKcalKgC", value: input?.cpBelowKcalKgC, min: 0.12, max: 1.2, unit: "kcal/kg°C", warnings, invalidFields });
+  validateRange({ field: "latentHeatKcalKg", value: input?.latentHeatKcalKg, min: 12, max: 108, unit: "kcal/kg", warnings, invalidFields });
+  validateRange({ field: "densityKgM3", value: input?.densityKgM3, min: 100, max: 1800, unit: "kg/m³", warnings, invalidFields });
+  validateRange({ field: "frozenWaterFraction", value: input?.frozenWaterFraction, min: 0, max: 1, unit: "", warnings, invalidFields });
+  validateRange({ field: "frozenConductivityWMK", value: input?.frozenConductivityWMK, min: 0.02, max: 3, unit: "W/m.K", warnings, invalidFields });
+
+  const manualCoefficient = safeNumber(input?.manualCoefficientWM2K ?? input?.manualConvectiveCoefficientWM2K, 0);
+  if (manualCoefficient <= 0) {
+    validateRange({ field: "airVelocityMS", value: input?.airVelocityMS, min: 0.1, max: 15, unit: "m/s", warnings, invalidFields });
+  }
+
+  return {
+    missingFields: Array.from(new Set(missingFields)),
+    warnings: Array.from(new Set(warnings)),
+    invalidFields: Array.from(new Set(invalidFields)),
+  };
+}

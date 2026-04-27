@@ -15,7 +15,9 @@ import { ALL_STATUSES, STATUS_LABELS, TEMPERATURE_LABELS, type ProposalStatus } 
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/app/propostas/$id")({ component: ProposalDetail });
+export const Route = createFileRoute("/app/propostas/$id")({
+  component: ProposalRouteLayout,
+});
 
 function ProposalDetail() {
   const { id } = Route.useParams();

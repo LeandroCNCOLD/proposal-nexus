@@ -5,10 +5,10 @@ export function PageHeader({
   title, subtitle, actions, className,
 }: { title: string; subtitle?: string; actions?: ReactNode; className?: string }) {
   return (
-    <div className={cn("mb-6 flex flex-wrap items-end justify-between gap-4", className)}>
+    <div className={cn("mb-3 flex flex-wrap items-end justify-between gap-3", className)}>
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">{title}</h1>
-        {subtitle && <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>}
+        <h1 className="text-xl font-semibold tracking-tight text-foreground">{title}</h1>
+        {subtitle && <p className="mt-0.5 text-[13px] text-muted-foreground">{subtitle}</p>}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
     </div>
