@@ -3,6 +3,13 @@ import { listColdProProjects, createColdProProject, updateColdProProject, getCol
 import { pushColdProToProposal } from "./push-coldpro-to-proposal.functions";
 import { analyzeColdProMemorial, generateColdProMemorialPdf } from "@/integrations/coldpro/coldpro-memorial.functions";
 
+function upsertByEnvironment<T extends { environment_id?: string | null }>(rows: T[] = [], next: T) {
+  const environmentId = next.environment_id;
+  if (!environmentId) return rows;
+  const filtered = rows.filter((row) => row.environment_id !== environmentId);
+  return [next, ...filtered];
+}
+
 export function useColdProProjects() {
   return useQuery({ queryKey: ["coldpro-projects"], queryFn: () => listColdProProjects() });
 }
@@ -47,7 +54,15 @@ export function useUpsertColdProAdvancedProcess(projectId: string) {
 }
 export function useCalculateColdProEnvironment(projectId: string) {
   const qc = useQueryClient();
-  return useMutation({ mutationFn: (environmentId: string) => calculateColdProEnvironment({ data: { environmentId } }), onSuccess: () => qc.invalidateQueries({ queryKey: ["coldpro-project", projectId] }) });
+  return useMutation({
+    mutationFn: (environmentId: string) => calculateColdProEnvironment({ data: { environmentId } }),
+    onSuccess: (result: any) => {
+      qc.setQueryData(["coldpro-project", projectId], (current: any) =>
+        current ? { ...current, results: upsertByEnvironment(current.results ?? [], result) } : current,
+      );
+      return qc.invalidateQueries({ queryKey: ["coldpro-project", projectId] });
+    },
+  });
 }
 export function useAutoSelectColdProEquipment(projectId: string) {
   const qc = useQueryClient();
@@ -56,7 +71,12 @@ export function useAutoSelectColdProEquipment(projectId: string) {
       const payload = typeof input === "string" ? { environmentId: input } : input;
       return autoSelectColdProEquipment({ data: payload });
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["coldpro-project", projectId] }),
+    onSuccess: (selection: any) => {
+      qc.setQueryData(["coldpro-project", projectId], (current: any) =>
+        current ? { ...current, selections: upsertByEnvironment(current.selections ?? [], selection) } : current,
+      );
+      return qc.invalidateQueries({ queryKey: ["coldpro-project", projectId] });
+    },
   });
 }
 export function usePushColdProToProposal(projectId: string) {
