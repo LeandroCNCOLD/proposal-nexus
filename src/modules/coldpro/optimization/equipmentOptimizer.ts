@@ -161,7 +161,7 @@ export function optimizeColdProEquipment(input: EquipmentOptimizerInput): Equipm
     const marginPercent = requiredCoolingKW > 0 ? ((capacityKW - requiredCoolingKW) / requiredCoolingKW) * 100 : 0;
     const meetsRequiredLoad = requiredCoolingKW > 0 && capacityKW >= requiredCoolingKW;
     const isExtremelyOversized = marginPercent > 45;
-    const cop = positiveNumber(equipment.cop) || baseCOP;
+    const cop = positiveNumber(equipment.cop);
     const hasValidOperatingBasis = capacityKW > 0 && cop > 0;
     const explicitPowerKW = positiveNumber(equipment.powerKW ?? equipment.power_kw);
     const explicitMonthlyCost = positiveNumber(equipment.monthlyCost ?? equipment.monthly_cost);
