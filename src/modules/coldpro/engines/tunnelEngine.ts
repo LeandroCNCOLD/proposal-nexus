@@ -501,7 +501,7 @@ function calculateTunnelCore(input: TunnelEngineInput) {
 
   const freezingTimeMissingFields = [
     positiveNumber(input?.densityKgM3) <= 0 ? "densidade do produto" : "",
-    energy.crossesFreezingPoint && positiveNumber(input?.latentHeatKJkg) <= 0 ? "calor latente" : "",
+    energy.crossesFreezingPoint && positiveNumber(input?.latentHeatKcalKg) <= 0 ? "calor latente" : "",
     energy.crossesFreezingPoint && positiveNumber(input?.frozenWaterFraction) <= 0 ? "fração congelável" : "",
     !isProvided(input?.freezingPointC) ? "temperatura de congelamento" : "",
     !isProvided(input?.airTempC) ? "temperatura do ar" : "",
@@ -618,7 +618,7 @@ function calculateTunnelCore(input: TunnelEngineInput) {
     kEffectiveWMK: "frozenConductivityWMK × thermalPenetrationFactor",
     continuousProductLoadKW: "massKgH × specificEnergyKJkg / 3600",
     batchProductLoadKW: "massKg × specificEnergyKJkg / (timeH × 3600)",
-    packagingLoadKW: tunnelMode.operationRegime === "batch" ? "packagingMassKgBatch × packagingCpKJkgK × abs(initialTempC - finalTempC) / (batchTimeH × 3600)" : "packagingMassKgH × packagingCpKJkgK × abs(initialTempC - finalTempC) / 3600",
+    packagingLoadKW: tunnelMode.operationRegime === "batch" ? "packagingMassKgBatch × packagingCpKcalKgC × abs(initialTempC - finalTempC) / batchTimeH / 859,845" : "packagingMassKgH × packagingCpKcalKgC × abs(initialTempC - finalTempC) / 859,845",
     internalLoadKW: "beltMotorKW + internalFansKW + otherInternalKW",
     transmissionLoadKW: "U × A × ΔT / 1000",
     infiltrationLoadKW: "m_ar × (h_externo - h_interno), h = 1.006*T + W*(2501 + 1.86*T)",
