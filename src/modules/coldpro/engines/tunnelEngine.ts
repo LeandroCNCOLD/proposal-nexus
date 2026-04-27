@@ -483,7 +483,7 @@ function calculateTunnelCore(input: any) {
       convectionAssumption: modelMeta.convectionAssumption,
     },
     mass: tunnelMode.operationRegime === "batch"
-      ? { mode: "batch", staticMassMode: input?.staticMassMode ?? input?.static_mass_mode ?? "direct_pallet_mass", numberOfPallets, numberOfCarts: staticMass.numberOfCarts, palletMassKg, calculatedPalletMassKg, calculatedCartMassKg: staticMass.calculatedCartMassKg, calculatedBatchMassKg: staticMass.calculatedBatchMassKg, unitsPerPallet: input?.unitsPerPallet ?? input?.units_per_pallet ?? null, productMassPerPalletKg: input?.productMassPerPalletKg ?? input?.product_mass_per_pallet_kg ?? null, packagingMassPerPalletKg: input?.packagingMassPerPalletKg ?? input?.packaging_mass_per_pallet_kg ?? null, staticMassKg, calculatedMassKgH: null, usedMassKgH: null, batchTimeH: input?.batchTimeH ?? null }
+      ? { mode: "batch", staticMassMode: input?.staticMassMode ?? input?.static_mass_mode ?? "direct_pallet_mass", numberOfPallets, numberOfCarts: staticMass.numberOfCarts, palletMassKg, calculatedPalletMassKg, calculatedCartMassKg: staticMass.calculatedCartMassKg, calculatedBatchMassKg: staticMass.calculatedBatchMassKg, unitsPerPallet: staticMass.unitsPerPallet, productMassPerPalletKg: staticMass.productMassPerPalletKg, packagingMassPerPalletKg: staticMass.packagingMassPerPalletKg, staticMassKg, calculatedMassKgH: null, usedMassKgH: null, batchTimeH: input?.batchTimeH ?? null }
       : { mode: "continuous", continuousMassMode, calculatedMassKgH, directMassKgH, usedMassKgH, beltUnitsPerHour, retentionTimeMin: input?.retentionTimeMin ?? null },
     geometry: { tunnelType: tunnelMode.tunnelType, arrangementType: tunnelMode.arrangementType, productGeometry: input?.productGeometry ?? input?.product_geometry ?? null, surfaceExposureModel: exposure.surfaceExposureModel, thermalModelForPallet: geometry.thermalModelForPallet ?? input?.thermalModelForPallet ?? input?.thermal_model_for_pallet ?? null, characteristicDimensionM, distanceToCoreM, geometrySource: geometry.source },
     productEnergy: productEnergyBreakdown,
@@ -545,9 +545,9 @@ function calculateTunnelCore(input: any) {
     calculatedPalletMassKg,
     calculatedCartMassKg: staticMass.calculatedCartMassKg,
     calculatedBatchMassKg: staticMass.calculatedBatchMassKg,
-    unitsPerPallet: input?.unitsPerPallet ?? input?.units_per_pallet ?? null,
-    productMassPerPalletKg: input?.productMassPerPalletKg ?? input?.product_mass_per_pallet_kg ?? null,
-    packagingMassPerPalletKg: input?.packagingMassPerPalletKg ?? input?.packaging_mass_per_pallet_kg ?? null,
+    unitsPerPallet: staticMass.unitsPerPallet,
+    productMassPerPalletKg: staticMass.productMassPerPalletKg,
+    packagingMassPerPalletKg: staticMass.packagingMassPerPalletKg,
     characteristicDimensionM,
     distanceToCoreM,
     energy,
