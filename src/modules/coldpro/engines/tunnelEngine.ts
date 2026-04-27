@@ -235,6 +235,21 @@ function canEstimateFreezingTime(input: any, distanceToCoreM: number, hEffective
   );
 }
 
+function productLoadMissingFields(input: any, isStatic: boolean, staticMassKg: number, usedMassKgH: number, energy: ReturnType<typeof calculateProductSpecificEnergy>): string[] {
+  return unique([
+    isStatic && staticMassKg <= 0 ? "massa total da batelada" : "",
+    isStatic && positiveNumber(input?.batchTimeH) <= 0 ? "tempo de batelada" : "",
+    !isStatic && usedMassKgH <= 0 ? "massa processada em kg/h" : "",
+    !isProvided(input?.initialTempC) ? "temperatura inicial do produto" : "",
+    !isProvided(input?.finalTempC) ? "temperatura final do produto" : "",
+    !isProvided(input?.freezingPointC) ? "temperatura de congelamento" : "",
+    positiveNumber(input?.cpAboveKJkgK) <= 0 ? "Cp acima do congelamento" : "",
+    energy.crossesFreezingPoint && positiveNumber(input?.cpBelowKJkgK) <= 0 ? "Cp abaixo do congelamento" : "",
+    energy.crossesFreezingPoint && positiveNumber(input?.latentHeatKJkg) <= 0 ? "calor latente" : "",
+    energy.crossesFreezingPoint && positiveNumber(input?.frozenWaterFraction) <= 0 ? "fração congelável" : "",
+  ]);
+}
+
 function calculateModelH(input: any, _physicalModel: TunnelPhysicalModel, airVelocityUsedMS: number, exposureFactor: number) {
   return calculateConvectiveCoefficient({
     airVelocityMS: airVelocityUsedMS,
