@@ -294,7 +294,7 @@ function ColdProProjectPage() {
   }
 
   return (
-    <div className="coldpro-compact min-h-screen min-w-0 bg-muted/30">
+    <div className="coldpro-page min-h-screen min-w-0 bg-muted/30">
       {/* HEADER ESTILO SELECT COLD: faixa escura com identidade */}
       <div className="border-b border-sidebar-border bg-sidebar text-sidebar-foreground print:hidden">
         <div className="flex flex-col gap-1.5 px-3 py-2 sm:px-4 md:flex-row md:items-center md:justify-between">
@@ -326,7 +326,7 @@ function ColdProProjectPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-2 p-2 sm:p-3 lg:grid-cols-[220px_minmax(0,1fr)]">
+      <div className="grid grid-cols-1 gap-2 p-2 sm:p-3 lg:grid-cols-[210px_minmax(0,1fr)]">
         {/* Sidebar de ambientes */}
         <aside className="space-y-2 print:hidden lg:sticky lg:top-3 lg:self-start">
           <div className="rounded-lg border bg-background p-2.5 shadow-sm">
@@ -628,7 +628,7 @@ function ColdProProjectPage() {
                     </button>
                   </div>
                   <ColdProResultCard result={result} selection={selection} environment={selectedEnv} products={products} advancedProcesses={data?.advancedProcesses ?? []} onAnalyze={handleAnalyzeMemorial} isAnalyzing={analyzeMemorial.isPending} />
-                  <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(260px,1fr))]">
+                  <div className="coldpro-grid">
                     <ThermalLoadSummary result={result} />
                     <EnergySummary result={result} />
                     <EquipmentOptimizationSummary result={result} selection={selection} />
