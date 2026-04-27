@@ -937,6 +937,26 @@ export const nomusKickoffSyncProposals = createServerFn({ method: "POST" })
       }
     } catch { /* mantém origin */ }
 
+    const { data: currentState } = await supabaseAdmin
+      .from("nomus_sync_state")
+      .select("running, updated_at")
+      .eq("entity", "propostas")
+      .maybeSingle();
+    const runningUpdatedAt = (currentState as { running?: boolean | null; updated_at?: string | null } | null)?.updated_at;
+    const isFreshRun = !!(currentState as { running?: boolean | null } | null)?.running
+      && !!runningUpdatedAt
+      && Date.now() - new Date(runningUpdatedAt).getTime() < 10 * 60_000;
+
+    if (isFreshRun) {
+      return {
+        ok: true as const,
+        queued: true as const,
+        already_running: true as const,
+        message: "Sincronização de propostas já está em andamento.",
+        triggered_by: userId,
+      };
+    }
+
     await setState("propostas", { running: true, last_cursor: null, last_error: null });
 
     let kickoffOk = false;
@@ -949,7 +969,7 @@ export const nomusKickoffSyncProposals = createServerFn({ method: "POST" })
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ entity: "propostas" }),
-        signal: AbortSignal.timeout(900),
+        signal: AbortSignal.timeout(25_000),
       }).catch((e) => {
         console.error("[nomus] kickoff fetch failed", e);
         kickoffError = e instanceof Error ? e.message : String(e);
@@ -969,11 +989,16 @@ export const nomusKickoffSyncProposals = createServerFn({ method: "POST" })
       kickoffError = e instanceof Error ? e.message : String(e);
     }
 
-    if (!kickoffOk) console.warn(`[nomus] kickoff assíncrono não confirmou (${kickoffError ?? "sem detalhes"}); cron automático continuará a fila`);
+    if (!kickoffOk) {
+      console.warn(`[nomus] kickoff não confirmou (${kickoffError ?? "sem detalhes"})`);
+      await setState("propostas", { running: false, last_error: kickoffError ?? "Falha ao iniciar sincronização de propostas" });
+    }
     return {
-      ok: true as const,
-      queued: true as const,
-      message: "Sincronização agendada. A rotina automática buscará as propostas mais recentes sem travar a tela.",
+      ok: kickoffOk as boolean,
+      queued: kickoffOk as boolean,
+      message: kickoffOk
+        ? "Sincronização de propostas concluída/atualizada. Consulte o status na tela."
+        : kickoffError ?? "Falha ao iniciar sincronização de propostas.",
       triggered_by: userId,
     };
   });
