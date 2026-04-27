@@ -516,7 +516,7 @@ function calculateTunnelCore(input: TunnelEngineInput) {
     ...requiredPositiveFields(input, isStatic, staticMassKg, characteristicDimensionM, energy.crossesFreezingPoint, airVelocityUsedMS, continuousMassMode),
     ...freezingTimeMissingFields,
   ]);
-  const warnings = unique([...validation.warnings, ...tunnelMode.warnings, ...geometry.warnings, ...exposure.warnings, ...airflow.warnings, ...engineWarnings, ...freezingValidation.warnings, ...thermalReliabilityAlerts.map((alert) => alert.message)]);
+  const warnings = unique([...validation.warnings, ...tunnelMode.warnings, ...geometry.warnings, ...exposure.warnings, ...airflow.warnings, ...engineWarnings, ...freezingValidation.warnings, ...infiltration.warnings, ...thermalReliabilityAlerts.map((alert) => alert.message)]);
 
   const status: TunnelScenarioStatus = invalidFields.length > 0
     ? "invalid_input"
@@ -536,6 +536,8 @@ function calculateTunnelCore(input: TunnelEngineInput) {
     hSource: h.source,
     productLoadKW,
     packagingLoadKW,
+    transmissionLoadKW,
+    infiltrationLoadKW,
     internalLoadKW,
     totalKW,
     totalKcalH,
@@ -591,11 +593,11 @@ function calculateTunnelCore(input: TunnelEngineInput) {
     productEnergy: productEnergyBreakdown,
     convection: { source: h.source, hBaseWM2K: h.hBaseWM2K, hEffectiveWM2K: h.hEffectiveWM2K, airVelocityMS: airflow.airVelocityUsedMS, airExposureFactor: input?.airExposureFactor ?? null, exposureFactor: exposure.exposureFactor, spiralTurbulenceFactor, blockExposureFactor },
     airflow: { airflowSource: airflow.airflowSource, fanAirflowM3H: airflow.fanAirflowM3H, grossAirAreaM2: airflow.grossAreaM2, freeAirAreaM2: airflow.freeAreaM2, blockageFactor: airflow.blockageFactor, calculatedAirVelocityMS: airflow.calculatedAirVelocityMS, airVelocityUsedMS: airflow.airVelocityUsedMS },
-    heatTransfer: { hBaseWM2K: h.hBaseWM2K, exposureFactor: exposure.exposureFactor, airExposureFactor: input?.airExposureFactor ?? null, hEffectiveWM2K: h.hEffectiveWM2K, hSource: h.source },
+    heatTransfer: { hBaseWM2K: h.hBaseWM2K, exposureFactor: exposure.exposureFactor, airExposureFactor: input?.airExposureFactor ?? null, hEffectiveWM2K: h.hEffectiveWM2K, hSource: h.source, transmission },
     air: { airTempC: input?.airTempC ?? null, airDeltaTK, airDensityKgM3, airFlowM3H, informedAirFlowM3H, airFlowMethod, suggestedAirTempC, suggestedAirMethod, suggestedAirApproachK, comparison: suggestedAirTempComparisonC },
     scenarios: { adjustedScenario: scenario },
-    loads: { productLoadKW, packagingLoadKW, internalLoadKW, totalKW, totalKcalH, totalTR, packagingMassKgH, packagingMassKgBatch, packagingMassBatchKg: packagingMassKgBatch, packagingLoadMethod: packaging.packagingLoadMethod, packagingMassSource: packaging.packagingMassSource, productLoadMissingFields: productLoadMissing, loadCalculationReady: productLoadMissing.length === 0, massUsedForProductLoad: tunnelMode.operationRegime === "batch" ? staticMassKg : usedMassKgH, massUnitForProductLoad: tunnelMode.operationRegime === "batch" ? "kg/batelada" : "kg/h", airFlowThermalBalanceM3H },
-    infiltration: { requestedMethod: infiltrationMethod.requested, usedMethod: infiltrationMethod.used, fallbackApplied: Boolean(infiltrationMethod.warning) },
+    loads: { productLoadKW, packagingLoadKW, transmissionLoadKW, infiltrationLoadKW, internalLoadKW, totalKW, totalKcalH, totalTR, internalLoads, packagingMassKgH, packagingMassKgBatch, packagingMassBatchKg: packagingMassKgBatch, packagingLoadMethod: packaging.packagingLoadMethod, packagingMassSource: packaging.packagingMassSource, productLoadMissingFields: productLoadMissing, loadCalculationReady: productLoadMissing.length === 0, massUsedForProductLoad: tunnelMode.operationRegime === "batch" ? staticMassKg : usedMassKgH, massUnitForProductLoad: tunnelMode.operationRegime === "batch" ? "kg/batelada" : "kg/h", airFlowThermalBalanceM3H },
+    infiltration: { requestedMethod: infiltrationMethod.requested, usedMethod: infiltration.method, fallbackApplied: false, ...infiltration },
     timing: { estimatedTimeMin, availableTimeMin, status, validationStatus: freezingValidation.status, marginPercent: freezingValidation.marginPercent },
     validation: { warnings, missingFields, invalidFields, thermalReliabilityAlerts },
   };
@@ -609,13 +611,15 @@ function calculateTunnelCore(input: TunnelEngineInput) {
     batchProductLoadKW: "massKg × specificEnergyKJkg / (timeH × 3600)",
     packagingLoadKW: tunnelMode.operationRegime === "batch" ? "packagingMassKgBatch × packagingCpKJkgK × abs(initialTempC - finalTempC) / (batchTimeH × 3600)" : "packagingMassKgH × packagingCpKJkgK × abs(initialTempC - finalTempC) / 3600",
     internalLoadKW: "beltMotorKW + internalFansKW + otherInternalKW",
-    totalKW: "productLoadKW + packagingLoadKW + internalLoadKW",
+    transmissionLoadKW: "U × A × ΔT / 1000",
+    infiltrationLoadKW: "m_ar × (h_externo - h_interno), h = 1.006*T + W*(2501 + 1.86*T)",
+    totalKW: "productLoadKW + packagingLoadKW + transmissionLoadKW + infiltrationLoadKW + internalLoadKW",
     airFlowM3H: "calculateRequiredAirflowM3H(totalKW, airDensityKgM3, 1.005, airDeltaTK)",
     suggestedAirTempC: "finalTempC - suggestedAirApproachK",
     plankFreezingTime: "Plank equation using density, latent heat, core distance, h and effective k",
   };
 
-  const resultSummary = { physicalModel, processType, status, productLoadKW, packagingLoadKW, internalLoadKW, totalKW, estimatedTimeMin, availableTimeMin };
+  const resultSummary = { physicalModel, processType, status, productLoadKW, packagingLoadKW, transmissionLoadKW, infiltrationLoadKW, internalLoadKW, totalKW, estimatedTimeMin, availableTimeMin };
   const calculationLog = buildCalculationLog({ originalInput: input, normalizedInput: { ...input, physicalModel, mode }, unitConversions: input?.unitConversions ?? null, warnings, missingFields, invalidFields, formulasUsed, resultSummary, methodRegistryVersion: COLDPRO_CALCULATION_METHOD_REGISTRY_VERSION, methodsUsed });
 
   return {
