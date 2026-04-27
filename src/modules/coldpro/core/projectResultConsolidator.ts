@@ -75,6 +75,9 @@ export function consolidateColdProProjectResult({
 
   const equipmentSurplusPercent = summary.requiredKcalH > 0 ? round(((summary.totalSelectedCapacityKcalH - summary.requiredKcalH) / summary.requiredKcalH) * 100, 2) : 0;
   const criticalEnvironments = environmentResults.filter((item) => item.consistencyAudit.hasCriticalDivergence);
+  const blockedEnvironments = environmentResults.filter((item: any) => item.summary?.isBlocked || item.consistencyAudit?.technicalStatus === "BLOCKED");
+  const warningEnvironments = environmentResults.filter((item: any) => item.summary?.isPreliminary || item.consistencyAudit?.technicalStatus === "WARNING");
+  const technicalStatus = blockedEnvironments.length ? "BLOCKED" : warningEnvironments.length ? "WARNING" : "VALID";
   const warnings = environmentResults.flatMap((item) => [
     ...item.consistencyAudit.warnings,
     ...(Array.isArray(item.technicalAlerts) ? item.technicalAlerts : []),
@@ -89,7 +92,7 @@ export function consolidateColdProProjectResult({
   return {
     scope: "project" as const,
     project: { id: project?.id ?? null, name: project?.name ?? "Projeto", applicationType: project?.application_type ?? null },
-    summary: { ...summary, equipmentSurplusPercent, environmentCount: environments.length, calculatedEnvironmentCount: environmentResults.filter((item) => item.summary.requiredKcalH > 0).length },
+    summary: { ...summary, equipmentSurplusPercent, environmentCount: environments.length, calculatedEnvironmentCount: environmentResults.filter((item) => item.summary.requiredKcalH > 0).length, technicalStatus, blockedEnvironmentCount: blockedEnvironments.length },
     groupedLoads,
     energySimulation,
     environmentResults,
@@ -106,6 +109,8 @@ export function consolidateColdProProjectResult({
       equipmentRequiredKcalH: item.equipment.requiredCapacityKcalH || item.summary.requiredKcalH,
       selectionUsesTotalEnvironmentLoad: (item.equipment.requiredCapacityKcalH || item.summary.requiredKcalH) >= item.summary.requiredKcalH * 0.99,
       hasCriticalDivergence: item.consistencyAudit.hasCriticalDivergence,
+      technicalStatus: item.consistencyAudit.technicalStatus,
+      isBlocked: Boolean((item as any).summary?.isBlocked),
     })),
     consistencyAudit: {
       hasCriticalDivergence: criticalEnvironments.length > 0,
