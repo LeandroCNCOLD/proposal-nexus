@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, useMemo, useEffect } from "react";
-import { Plus, Search, RefreshCw } from "lucide-react";
+import { AlertCircle, CheckCircle2, Clock3, Plus, Search, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { nomusKickoffSyncProposals } from "@/integrations/nomus/server.functions";
@@ -32,12 +32,12 @@ function ProposalsList() {
     queryFn: async () => {
       const { data } = await supabase
         .from("nomus_sync_state")
-        .select("running, last_synced_at, total_synced, last_error")
+        .select("running, last_synced_at, total_synced, last_error, updated_at, last_cursor")
         .eq("entity", "propostas")
         .maybeSingle();
       return data;
     },
-    refetchInterval: (query) => (query.state.data?.running ? 4000 : false),
+    refetchInterval: (query) => (query.state.data?.running ? 3000 : 12000),
   });
 
   useEffect(() => {
@@ -49,13 +49,22 @@ function ProposalsList() {
   const syncMutation = useMutation({
     mutationFn: async () => kickoffSync(),
     onSuccess: () => {
-      toast.success("Sincronização iniciada — atualizando em segundo plano.");
+      toast.success("Sincronização de propostas atualizada.");
       queryClient.invalidateQueries({ queryKey: ["nomus-sync-state", "propostas"] });
     },
     onError: (err: Error) => toast.error(`Erro ao iniciar sincronização: ${err.message}`),
   });
 
   const isSyncing = syncMutation.isPending || !!syncState?.running;
+  const syncUpdatedAt = syncState?.updated_at ? new Date(syncState.updated_at) : null;
+  const syncFinishedAt = syncState?.last_synced_at ? new Date(syncState.last_synced_at) : null;
+  const syncStatusLabel = syncState?.running
+    ? `Sincronizando propostas desde ${syncUpdatedAt?.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) ?? "agora"}`
+    : syncState?.last_error
+      ? `Falha na última sincronização: ${syncState.last_error}`
+      : syncFinishedAt
+        ? `Última sincronização: ${syncFinishedAt.toLocaleString("pt-BR")} · ${syncState?.total_synced ?? 0} alterações acumuladas`
+        : "Propostas ainda não sincronizadas";
 
   const { data: proposals = [], isLoading } = useQuery({
     queryKey: ["proposals-list"],
@@ -261,6 +270,24 @@ function ProposalsList() {
           </>
         }
       />
+
+      <div className="mb-4 rounded-xl border bg-card p-3 shadow-[var(--shadow-sm)]">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2 text-sm">
+            {syncState?.running ? (
+              <Clock3 className="h-4 w-4 animate-pulse text-primary" />
+            ) : syncState?.last_error ? (
+              <AlertCircle className="h-4 w-4 text-destructive" />
+            ) : (
+              <CheckCircle2 className="h-4 w-4 text-primary" />
+            )}
+            <span className="truncate text-muted-foreground">{syncStatusLabel}</span>
+          </div>
+          {syncState?.last_cursor && (
+            <span className="rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground">Cursor: {syncState.last_cursor}</span>
+          )}
+        </div>
+      </div>
 
       <div className="mb-4 flex flex-wrap gap-3">
         <div className="relative flex-1 min-w-[260px]">
