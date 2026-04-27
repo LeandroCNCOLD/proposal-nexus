@@ -975,6 +975,12 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
     missing_data: "Faltam dados",
     invalid_input: "Dados inválidos",
   };
+  const productEnergyAudit = (tunnelResult.calculationBreakdown.productEnergy ?? {}) as Record<string, any>;
+  const unitAudit = (productEnergyAudit.unitAudit ?? {}) as Record<string, any>;
+  const cpAboveAudit = (unitAudit.cpAbove ?? {}) as Record<string, unknown>;
+  const cpBelowAudit = (unitAudit.cpBelow ?? {}) as Record<string, unknown>;
+  const latentAudit = (unitAudit.latentHeat ?? {}) as Record<string, unknown>;
+  const unitAuditWarning = Number(latentAudit.originalValue ?? 0) > 0 && String(latentAudit.originalUnit ?? "").includes("kcal") && Math.abs(Number(latentAudit.convertedValue ?? 0) - Number(latentAudit.originalValue ?? 0) * 4.1868) > 0.05;
   const tunnelResultCards = (
     <>
       <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
