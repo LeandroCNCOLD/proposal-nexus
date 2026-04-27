@@ -8,5 +8,7 @@ export function buildCalculationLog(params: any) {
     invalidFields: params?.invalidFields ?? [],
     formulasUsed: params?.formulasUsed ?? {},
     resultSummary: params?.resultSummary ?? {},
+    methodRegistryVersion: params?.methodRegistryVersion ?? null,
+    methodsUsed: params?.methodsUsed ?? [],
   };
 }

@@ -395,6 +395,22 @@ function drawDimensioningAudit(ctx: Ctx, result: any, selection: any) {
   if (audit.bloqueios?.length) table(ctx, ["Bloqueio de memorial final", "Mensagem"], audit.bloqueios.map((b: any) => [b.code, b.message]), [0.34, 0.66]);
 }
 
+function drawCalculationMethodology(ctx: Ctx, result?: any | null) {
+  heading(ctx, "Metodologia de cálculo", 3);
+  table(ctx, ["Área", "Método aplicado"], [
+    ["Transmissão", "Q = U x A x DeltaT por face construtiva."],
+    ["Produto", "Calor sensível + calor latente + calor sensível abaixo do congelamento."],
+    ["Processo contínuo", "Carga por massa horária: kg/h."],
+    ["Processo em batelada", "Carga por massa total dividida pelo tempo de processo."],
+    ["Vazão de ar", "Estimativa por balanço térmico sensível."],
+    ["Velocidade real", "Vazão dividida pela área livre de passagem."],
+    ["Tempo até núcleo", "Modelo tipo Plank/ASHRAE; depende de geometria, h efetivo, condutividade e arranjo."],
+    ["Seleção", "Carga requerida e curva real de catálogo quando disponível."],
+  ], [0.32, 0.68]);
+  const engine = result?.calculation_breakdown?.tunnel_engine ?? result?.calculation_breakdown?.tunnel;
+  if (engine) drawKeyGrid(ctx, [["engine_version", engine.engine_version ?? engine.engineVersion ?? "—"], ["calculated_at", engine.calculated_at ?? engine.calculatedAt ?? "—"], ["fonte", "calculateTunnelEngine"]], 3);
+}
+
 function pieChart(ctx: Ctx, result: any) {
   const rows = loadRows(result);
   const total = rows.reduce((sum, [, value]) => sum + value, 0);
@@ -581,6 +597,7 @@ export async function buildColdProMemorialPdfBuffer({ project, environments, res
     if (result) {
       heading(ctx, "2. Cálculo executado", 3);
       paragraph(ctx, "O cálculo considera as trocas térmicas pela envoltória, a retirada de calor do produto e embalagem, a entrada de ar por infiltração e as cargas internas informadas para o ambiente.", { size: 8.5, gap: 4 });
+      drawCalculationMethodology(ctx, result);
       temperatureCurveChart(ctx, env, envProducts);
       barChart(ctx, result);
       stackedLoadChart(ctx, result);

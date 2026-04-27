@@ -1,4 +1,5 @@
 import { buildCalculationLog } from "../core/calculationLogger";
+import { COLDPRO_CALCULATION_METHOD_REGISTRY_VERSION, COLDPRO_CALCULATION_METHODS } from "../core/calculationMethodRegistry";
 import { buildCalculationMethodReport } from "../reports/calculationMethodReport";
 import { kwToKcalH, kwToTr } from "../core/units";
 import { validateTunnelInput } from "../core/validators";
@@ -295,6 +296,28 @@ function resolveInfiltrationMethod(input: TunnelEngineInput) {
   };
 }
 
+function resolvePackagingLoad(input: TunnelEngineInput, operationRegime: "continuous" | "batch") {
+  const deltaT = Math.abs(toNumber(input?.initialTempC) - toNumber(input?.finalTempC));
+  const cp = positiveNumber(input?.packagingCpKJkgK ?? input?.packaging_cp_kj_kg_k);
+  const batchTimeH = positiveNumber(input?.batchTimeH ?? input?.batch_time_h);
+  const continuousMassKgH = positiveNumber(input?.packagingMassKgH ?? input?.packaging_mass_kg_h ?? input?.packaging_mass_kg_hour);
+  const numberOfPallets = positiveNumber(input?.numberOfPallets ?? input?.number_of_pallets) || 1;
+  const numberOfCarts = positiveNumber(input?.numberOfCarts ?? input?.number_of_carts) || 1;
+  const candidates = [
+    { mass: positiveNumber(input?.packagingMassKgBatch ?? input?.packaging_mass_kg_batch), source: "packagingMassKgBatch" },
+    { mass: positiveNumber(input?.packagingMassKg ?? input?.packaging_mass_kg), source: "packagingMassKg" },
+    { mass: positiveNumber(input?.packagingMassPerPalletKg ?? input?.packaging_mass_per_pallet_kg) * numberOfPallets, source: "packagingMassPerPalletKg × numberOfPallets" },
+    { mass: positiveNumber(input?.trayMassPerCartKg ?? input?.tray_mass_per_cart_kg) * numberOfCarts, source: "trayMassPerCartKg × numberOfCarts" },
+  ];
+  const batchCandidate = candidates.find((candidate) => candidate.mass > 0);
+  if (operationRegime === "batch") {
+    const loadKW = batchCandidate && cp > 0 && batchTimeH > 0 ? (batchCandidate.mass * cp * deltaT) / (batchTimeH * 3600) : 0;
+    return { packagingLoadKW: loadKW, packagingMassKgH: continuousMassKgH, packagingMassBatchKg: batchCandidate?.mass ?? 0, packagingLoadMethod: "batch_total_mass" as const, packagingMassSource: batchCandidate?.source ?? "none" };
+  }
+  const loadKW = continuousMassKgH > 0 && cp > 0 ? (continuousMassKgH * cp * deltaT) / 3600 : 0;
+  return { packagingLoadKW: loadKW, packagingMassKgH: continuousMassKgH, packagingMassBatchKg: 0, packagingLoadMethod: "continuous_mass_flow" as const, packagingMassSource: "packagingMassKgH" };
+}
+
 function calculateTunnelCore(input: TunnelEngineInput) {
   const processType = typeof input?.processType === "string" ? input.processType : typeof input?.process_type === "string" ? input.process_type : null;
   const tunnelMode = resolveTunnelMode(input);
@@ -380,13 +403,10 @@ function calculateTunnelCore(input: TunnelEngineInput) {
     crossesFreezing: energy.crossesFreezingPoint,
   };
 
-  const packagingMassKgBatch = positiveNumber(input?.packagingMassKgBatch ?? input?.packaging_mass_kg_batch);
-  const informedPackagingMassKgH = positiveNumber(input?.packagingMassKgH ?? input?.packaging_mass_kg_h ?? input?.packaging_mass_kg_hour);
-  const packagingMassKgH = tunnelMode.operationRegime === "batch" && packagingMassKgBatch > 0 && positiveNumber(input?.batchTimeH) > 0 ? packagingMassKgBatch / positiveNumber(input?.batchTimeH) : informedPackagingMassKgH;
-  const packagingCpKJkgK = positiveNumber(input?.packagingCpKJkgK);
-  const packagingLoadKW = tunnelMode.operationRegime === "batch"
-    ? packagingMassKgBatch > 0 && packagingCpKJkgK > 0 && positiveNumber(input?.batchTimeH) > 0 ? packagingMassKgBatch * packagingCpKJkgK * Math.abs(toNumber(input?.initialTempC) - toNumber(input?.finalTempC)) / (positiveNumber(input?.batchTimeH) * 3600) : packagingMassKgH > 0 && packagingCpKJkgK > 0 ? packagingMassKgH * packagingCpKJkgK * Math.abs(toNumber(input?.initialTempC) - toNumber(input?.finalTempC)) / 3600 : 0
-    : packagingMassKgH > 0 && packagingCpKJkgK > 0 ? packagingMassKgH * packagingCpKJkgK * Math.abs(toNumber(input?.initialTempC) - toNumber(input?.finalTempC)) / 3600 : 0;
+  const packaging = resolvePackagingLoad(input, tunnelMode.operationRegime);
+  const packagingMassKgBatch = packaging.packagingMassBatchKg;
+  const packagingMassKgH = packaging.packagingMassKgH;
+  const packagingLoadKW = packaging.packagingLoadKW;
   const internalLoadKW = toNumber(input?.beltMotorKW, 0) + toNumber(input?.internalFansKW, 0) + toNumber(input?.otherInternalKW, 0);
   const totalKW = productLoadKW + packagingLoadKW + internalLoadKW;
   const totalKcalH = kwToKcalH(totalKW);
@@ -434,7 +454,7 @@ function calculateTunnelCore(input: TunnelEngineInput) {
     physicalModel === "static_block" && characteristicDimensionM <= 0 ? "Dimensões do bloco/pallet ausentes para estático em pallet/bloco." : "",
     physicalModel === "static_block" ? "Modelo static_block é conservador para bloco compacto/pallet." : "",
     physicalModel === "static_block" && positiveNumber(input?.batchTimeH) <= 0 ? "Tempo de batelada ausente para estático em pallet/bloco." : "",
-    tunnelMode.operationRegime === "batch" && packagingMassKgBatch <= 0 && informedPackagingMassKgH > 0 ? "Em processo de batelada, informe massa total da embalagem na batelada para cálculo mais preciso." : "",
+    tunnelMode.operationRegime === "batch" && packagingMassKgBatch <= 0 ? "Em processo de batelada, informe a massa total de embalagem da batelada para cálculo mais preciso." : "",
     infiltrationMethod.warning,
   ];
 
@@ -503,9 +523,28 @@ function calculateTunnelCore(input: TunnelEngineInput) {
     infiltrationMethod.used,
     tunnelMode.operationRegime === "batch" ? "kg/batelada" : "kg/h contínuo",
   );
+  const officialCalculationMethod = {
+    ...calculationMethod,
+    productEnergy: COLDPRO_CALCULATION_METHODS.productCoolingFreezing,
+    productLoad: tunnelMode.operationRegime === "batch" ? COLDPRO_CALCULATION_METHODS.batchProductLoad : COLDPRO_CALCULATION_METHODS.continuousProductLoad,
+    packaging: tunnelMode.operationRegime === "batch" ? COLDPRO_CALCULATION_METHODS.packagingBatch : COLDPRO_CALCULATION_METHODS.packagingContinuous,
+    airflow: COLDPRO_CALCULATION_METHODS.airFlowBalance,
+    airVelocity: COLDPRO_CALCULATION_METHODS.airVelocity,
+    convectiveCoefficient: COLDPRO_CALCULATION_METHODS.convectiveCoefficient,
+    freezingTime: COLDPRO_CALCULATION_METHODS.freezingTime,
+  };
+  const methodsUsed = [
+    officialCalculationMethod.productEnergy.name,
+    officialCalculationMethod.productLoad.name,
+    officialCalculationMethod.packaging.name,
+    officialCalculationMethod.airflow.name,
+    officialCalculationMethod.airVelocity.name,
+    officialCalculationMethod.convectiveCoefficient.name,
+    officialCalculationMethod.freezingTime.name,
+  ];
 
   const calculationBreakdown = {
-    calculationMethod,
+    calculationMethod: officialCalculationMethod,
     model: {
       tunnelType: tunnelMode.tunnelType,
       arrangementType: tunnelMode.arrangementType,
@@ -526,7 +565,7 @@ function calculateTunnelCore(input: TunnelEngineInput) {
     heatTransfer: { hBaseWM2K: h.hBaseWM2K, exposureFactor: exposure.exposureFactor, airExposureFactor: input?.airExposureFactor ?? null, hEffectiveWM2K: h.hEffectiveWM2K, hSource: h.source },
     air: { airTempC: input?.airTempC ?? null, airDeltaTK, airDensityKgM3, airFlowM3H, informedAirFlowM3H, airFlowMethod, suggestedAirTempC, suggestedAirMethod, suggestedAirApproachK, comparison: suggestedAirTempComparisonC },
     scenarios: { adjustedScenario: scenario },
-    loads: { productLoadKW, packagingLoadKW, internalLoadKW, totalKW, totalKcalH, totalTR, packagingMassKgH, packagingMassKgBatch, packagingMassSource: tunnelMode.operationRegime === "batch" && packagingMassKgBatch > 0 ? "kg/batelada" : "kg/h", productLoadMissingFields: productLoadMissing, loadCalculationReady: productLoadMissing.length === 0, massUsedForProductLoad: tunnelMode.operationRegime === "batch" ? staticMassKg : usedMassKgH, massUnitForProductLoad: tunnelMode.operationRegime === "batch" ? "kg/batelada" : "kg/h", airFlowThermalBalanceM3H },
+    loads: { productLoadKW, packagingLoadKW, internalLoadKW, totalKW, totalKcalH, totalTR, packagingMassKgH, packagingMassKgBatch, packagingMassBatchKg: packagingMassKgBatch, packagingLoadMethod: packaging.packagingLoadMethod, packagingMassSource: packaging.packagingMassSource, productLoadMissingFields: productLoadMissing, loadCalculationReady: productLoadMissing.length === 0, massUsedForProductLoad: tunnelMode.operationRegime === "batch" ? staticMassKg : usedMassKgH, massUnitForProductLoad: tunnelMode.operationRegime === "batch" ? "kg/batelada" : "kg/h", airFlowThermalBalanceM3H },
     infiltration: { requestedMethod: infiltrationMethod.requested, usedMethod: infiltrationMethod.used, fallbackApplied: Boolean(infiltrationMethod.warning) },
     timing: { estimatedTimeMin, availableTimeMin, status },
     validation: { warnings, missingFields, invalidFields },
@@ -548,7 +587,7 @@ function calculateTunnelCore(input: TunnelEngineInput) {
   };
 
   const resultSummary = { physicalModel, processType, status, productLoadKW, packagingLoadKW, internalLoadKW, totalKW, estimatedTimeMin, availableTimeMin };
-  const calculationLog = buildCalculationLog({ originalInput: input, normalizedInput: { ...input, physicalModel, mode }, unitConversions: input?.unitConversions ?? null, warnings, missingFields, invalidFields, formulasUsed, resultSummary });
+  const calculationLog = buildCalculationLog({ originalInput: input, normalizedInput: { ...input, physicalModel, mode }, unitConversions: input?.unitConversions ?? null, warnings, missingFields, invalidFields, formulasUsed, resultSummary, methodRegistryVersion: COLDPRO_CALCULATION_METHOD_REGISTRY_VERSION, methodsUsed });
 
   return {
     physicalModel,
@@ -600,6 +639,8 @@ function calculateTunnelCore(input: TunnelEngineInput) {
     airDeltaTK,
     productLoadKW,
     packagingLoadKW,
+    packagingMassBatchKg: packagingMassKgBatch,
+    packagingLoadMethod: packaging.packagingLoadMethod,
     internalLoadKW,
     totalKW,
     totalKcalH,
@@ -609,7 +650,7 @@ function calculateTunnelCore(input: TunnelEngineInput) {
     missingFields,
     invalidFields,
     scenario,
-    calculationMethod,
+    calculationMethod: officialCalculationMethod,
     calculationBreakdown,
     calculationLog,
   };
