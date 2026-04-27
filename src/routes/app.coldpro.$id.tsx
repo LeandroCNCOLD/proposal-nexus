@@ -193,6 +193,10 @@ function ColdProProjectPage() {
   const [autoEquipmentKind, setAutoEquipmentKind] = React.useState<"ALL" | "plugin" | "biblock" | "split">("ALL");
   const [tunnelExpertAnalysis, setTunnelExpertAnalysis] = React.useState<string | null>(null);
   const [showProjectReport, setShowProjectReport] = React.useState(false);
+  const [showEnvironmentReport, setShowEnvironmentReport] = React.useState(false);
+  const [energyTariff, setEnergyTariff] = React.useState("0.95");
+  const [commercialQuantity, setCommercialQuantity] = React.useState("1");
+  const [equipmentUnitPrice, setEquipmentUnitPrice] = React.useState("0");
 
   const environments = data?.environments ?? [];
   const selectedEnv = environments.find((env: any) => env.id === selectedEnvId) ?? environments[0];
@@ -221,6 +225,31 @@ function ColdProProjectPage() {
   const extraPreview = calculateExtraLoadPreview(selectedEnv ?? {});
   const extraLoad = result ? Number(result.infiltration_kcal_h ?? 0) + Number(result.people_kcal_h ?? 0) + Number(result.lighting_kcal_h ?? 0) + Number(result.motors_kcal_h ?? 0) + Number(result.fans_kcal_h ?? 0) + Number(result.defrost_kcal_h ?? 0) + Number(result.other_kcal_h ?? 0) : extraPreview.subtotal_kcal_h;
   const catalogFanLoadKcalH = Number(selection?.curve_metadata?.fan_power_kw ?? 0) * Number(selection?.quantity ?? 1) * 859.845;
+  const selectedQuantity = firstFinite(selection?.quantity, selection?.curve_metadata?.quantidade) ?? 1;
+  const energy = result?.energySimulation ?? result?.energy_simulation ?? result?.calculation_breakdown?.energySimulation ?? result?.calculation_breakdown?.energy_simulation ?? {};
+  const commercialQuantityNumber = Math.max(1, Math.ceil(firstFinite(commercialQuantity) ?? selectedQuantity ?? 1));
+  const commercialUnitPrice = Math.max(0, firstFinite(equipmentUnitPrice) ?? 0);
+  const commercialTariff = Math.max(0, firstFinite(energyTariff) ?? 0);
+  const commercialCop = firstFinite(selection?.cop, selection?.curve_metadata?.cop, result?.cop, result?.COP, result?.copData?.cop, result?.cop_data?.cop, energy?.cop, energy?.assumptions?.cop);
+  const commercialElectricalPowerKW = firstFinite(selection?.total_power_kw, selection?.curve_metadata?.potencia_eletrica_kw, energy?.electricalPowerKW, energy?.electrical_power_kw, commercialCop && result?.total_required_kw ? Number(result.total_required_kw) / commercialCop : null);
+  const commercialOperatingHours = firstFinite(energy?.assumptions?.operatingHoursPerDay, result?.operatingHoursPerDay, result?.operating_hours_per_day) ?? 8;
+  const commercialOperatingDays = firstFinite(energy?.assumptions?.operatingDaysPerMonth, result?.operatingDaysPerMonth, result?.operating_days_per_month) ?? 22;
+  const commercialProcessedMassMonth = firstFinite(energy?.processedMassKgMonth, energy?.processed_mass_kg_month, energy?.assumptions?.monthlyProcessedMassKg, energy?.assumptions?.monthly_processed_mass_kg);
+  const commercialKWhDay = commercialElectricalPowerKW !== null ? commercialElectricalPowerKW * commercialOperatingHours : null;
+  const commercialKWhMonth = commercialKWhDay !== null ? commercialKWhDay * commercialOperatingDays : null;
+  const commercialMonthlyCost = commercialKWhMonth !== null ? commercialKWhMonth * commercialTariff : null;
+  const commercialSummary = {
+    quantity: commercialQuantityNumber,
+    unitPrice: commercialUnitPrice,
+    investmentTotal: commercialQuantityNumber * commercialUnitPrice,
+    cop: commercialCop,
+    electricalPowerKW: commercialElectricalPowerKW,
+    kWhDay: commercialKWhDay,
+    kWhMonth: commercialKWhMonth,
+    monthlyCost: commercialMonthlyCost,
+    annualCost: commercialMonthlyCost !== null ? commercialMonthlyCost * 12 : null,
+    costPerKg: commercialMonthlyCost !== null && commercialProcessedMassMonth && commercialProcessedMassMonth > 0 ? commercialMonthlyCost / commercialProcessedMassMonth : null,
+  };
 
   React.useEffect(() => {
     if (!selectedEnvId && environments[0]?.id) setSelectedEnvId(environments[0].id);
@@ -228,6 +257,10 @@ function ColdProProjectPage() {
 
   React.useEffect(() => setProjectNameDraft(data?.project?.name ?? ""), [data?.project?.name]);
   React.useEffect(() => setTunnelExpertAnalysis(null), [selectedEnv?.id]);
+  React.useEffect(() => setShowEnvironmentReport(false), [selectedEnv?.id]);
+  React.useEffect(() => {
+    if (selection?.quantity) setCommercialQuantity(String(Math.max(1, Math.ceil(Number(selection.quantity) || 1))));
+  }, [selection?.quantity, selectedEnv?.id]);
 
   const completed: Record<number, boolean> = {
     0: !!selectedEnv?.length_m,
