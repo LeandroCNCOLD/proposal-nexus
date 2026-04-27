@@ -1,5 +1,6 @@
 import { buildCalculationLog } from "../core/calculationLogger";
 import { COLDPRO_CALCULATION_METHOD_REGISTRY_VERSION, COLDPRO_CALCULATION_METHODS } from "../core/calculationMethodRegistry";
+import { calculateProductLoadByProcessMode, resolveProcessMass } from "../core/operationalModel";
 import { buildCalculationMethodReport } from "../reports/calculationMethodReport";
 import { kwToKcalH, kwToTr } from "../core/units";
 import { validateTunnelInput } from "../core/validators";
@@ -9,8 +10,6 @@ import { calculatePlankFreezingTimeMin, validateFreezingTime } from "../physics/
 import { calculateCharacteristicDimension } from "../physics/geometryModel";
 import { calculateConvectiveCoefficient, resolveTransmissionLoad } from "../physics/heatTransfer";
 import {
-  calculateBatchProductLoadKW,
-  calculateContinuousProductLoadKW,
   calculateProductSpecificEnergy,
 } from "../physics/productThermal";
 import { resolveTunnelMode } from "../physics/tunnelModeModel";
@@ -102,7 +101,7 @@ function buildThermalReliabilityAlerts(input: TunnelEngineInput, energy: ReturnT
   const conversions = (input?.unitConversions ?? {}) as Record<string, unknown>;
   const alerts: Array<{ level: "error" | "warning" | "info"; code: string; message: string }> = [];
   const unitMissing = (key: string) => !conversions[key] || conversions[key] === "missing";
-  if (toNumber(input?.finalTempC) < 0 && toNumber(input?.latentHeatKcalKg) <= 0) alerts.push({ level: "error", code: "latent_heat_zero_frozen_product", message: "Calor latente zerado em produto congelado; a carga térmica fica subestimada." });
+  if (toNumber(input?.finalTempC) < 0 && thermalKcal(input, "latentHeatKcalKg", "latentHeatKJkg") <= 0) alerts.push({ level: "error", code: "latent_heat_zero_frozen_product", message: "Calor latente zerado em produto congelado; a carga térmica fica subestimada." });
   if (!isProvided(input?.frozenWaterFraction)) alerts.push({ level: "warning", code: "frozen_water_fraction_missing", message: "Fração congelável vazia; foi aplicado default técnico." });
   if (energy.totalKcalKg > 0 && energy.totalKcalKg < 19.1) alerts.push({ level: "warning", code: "low_specific_energy", message: "Energia específica menor que 19,1 kcal/kg; revisar Cp, latente e unidades." });
   if (toNumber(input?.cpBelowKcalKgC) > 0 && toNumber(input?.cpBelowKcalKgC) < 0.12 && unitMissing("cpBelowKcalKgC")) alerts.push({ level: "warning", code: "cp_below_low_without_unit", message: "Cp abaixo menor que 0,12 kcal/kg°C sem unidade declarada." });
@@ -128,6 +127,11 @@ function positiveNumber(value: unknown): number {
 
 function nullableNumber(value: unknown): number | null {
   return isProvided(value) && Number.isFinite(Number(value)) ? Number(value) : null;
+}
+
+function thermalKcal(input: TunnelEngineInput, kcalField: string, kjField: string): number {
+  const kcal = positiveNumber(input?.[kcalField]);
+  return kcal > 0 ? kcal : positiveNumber(input?.[kjField]) / 4.1868;
 }
 
 function continuousMassRequirement(input: TunnelEngineInput, continuousMassMode: string): string {
@@ -213,10 +217,10 @@ function resolveStaticMass(input: TunnelEngineInput) {
 
 function requiredPositiveFields(input: TunnelEngineInput, isStatic: boolean, staticMassKg: number, characteristicDimensionM: number, crossesFreezing: boolean, airVelocityUsedMS: number, continuousMassMode: string): string[] {
   const commonNumericFields = ["initialTempC", "finalTempC", "freezingPointC"];
-  const commonPositiveFields = ["cpAboveKcalKgC"];
-  const freezingPositiveFields = crossesFreezing ? ["cpBelowKcalKgC", "latentHeatKcalKg", "frozenWaterFraction"] : [];
+  const commonPositiveFields = [thermalKcal(input, "cpAboveKcalKgC", "cpAboveKJkgK") <= 0 ? "cpAboveKcalKgC" : ""];
+  const freezingPositiveFields = crossesFreezing ? [thermalKcal(input, "cpBelowKcalKgC", "cpBelowKJkgK") <= 0 ? "cpBelowKcalKgC" : "", thermalKcal(input, "latentHeatKcalKg", "latentHeatKJkg") <= 0 ? "latentHeatKcalKg" : "", positiveNumber(input?.frozenWaterFraction) <= 0 ? "frozenWaterFraction" : ""] : [];
   const missingNumericFields = commonNumericFields.filter((field) => !isProvided(input?.[field]) || !Number.isFinite(Number(input?.[field])));
-  const missingPositiveFields = [...commonPositiveFields, ...freezingPositiveFields].filter((field) => !isProvided(input?.[field]) || toNumber(input?.[field], 0) <= 0);
+  const missingPositiveFields = [...commonPositiveFields, ...freezingPositiveFields].filter(Boolean);
   const hasHInput = positiveNumber(input?.manualConvectiveCoefficientWM2K) > 0 || airVelocityUsedMS > 0;
   const geometry = String(input?.productGeometry ?? input?.product_geometry ?? "slab");
   const airflowSource = String(input?.airflowSource ?? input?.airflow_source ?? "manual_velocity");
@@ -258,7 +262,7 @@ function requiredPositiveFields(input: TunnelEngineInput, isStatic: boolean, sta
 function canEstimateFreezingTime(input: TunnelEngineInput, distanceToCoreM: number, hEffectiveWM2K: number | null, kEffectiveWMK: number): boolean {
   return (
     positiveNumber(input?.densityKgM3) > 0 &&
-    positiveNumber(input?.latentHeatKcalKg) > 0 &&
+    thermalKcal(input, "latentHeatKcalKg", "latentHeatKJkg") > 0 &&
     positiveNumber(input?.frozenWaterFraction) > 0 &&
     distanceToCoreM > 0 &&
     toNumber(hEffectiveWM2K, 0) > 0 &&
@@ -276,9 +280,9 @@ function productLoadMissingFields(input: TunnelEngineInput, isStatic: boolean, s
     !isProvided(input?.initialTempC) ? "temperatura inicial do produto" : "",
     !isProvided(input?.finalTempC) ? "temperatura final do produto" : "",
     !isProvided(input?.freezingPointC) ? "temperatura de congelamento" : "",
-    positiveNumber(input?.cpAboveKcalKgC) <= 0 ? "Cp acima do congelamento" : "",
-    energy.crossesFreezingPoint && positiveNumber(input?.cpBelowKcalKgC) <= 0 ? "Cp abaixo do congelamento" : "",
-    energy.crossesFreezingPoint && positiveNumber(input?.latentHeatKcalKg) <= 0 ? "calor latente" : "",
+    thermalKcal(input, "cpAboveKcalKgC", "cpAboveKJkgK") <= 0 ? "Cp acima do congelamento" : "",
+    energy.crossesFreezingPoint && thermalKcal(input, "cpBelowKcalKgC", "cpBelowKJkgK") <= 0 ? "Cp abaixo do congelamento" : "",
+    energy.crossesFreezingPoint && thermalKcal(input, "latentHeatKcalKg", "latentHeatKJkg") <= 0 ? "calor latente" : "",
     energy.crossesFreezingPoint && positiveNumber(input?.frozenWaterFraction) <= 0 ? "fração congelável" : "",
   ]);
 }
@@ -360,22 +364,18 @@ function calculateTunnelCore(input: TunnelEngineInput) {
   };
   const validation = validateTunnelInput(validationInput);
 
+  const processMass = resolveProcessMass(input);
   const continuousMassMode = String(input?.continuousMassMode ?? input?.continuous_mass_mode ?? input?.massFlowMode ?? input?.mass_flow_mode ?? "direct_mass_flow");
   const unitWeightKg = positiveNumber(input?.unitWeightKg);
-  const massByCycleKgH = unitWeightKg * positiveNumber(input?.unitsPerCycle) * positiveNumber(input?.cyclesPerHour);
-  const massByTrayKgH = (unitWeightKg * positiveNumber(input?.unitsPerTray) + positiveNumber(input?.trayWeightKg)) * positiveNumber(input?.traysPerHour);
-  const massByUnitsHourKgH = unitWeightKg * positiveNumber(input?.unitsPerHour);
   const beltUnitsPerHour = positiveNumber(input?.unitsPerRow) * positiveNumber(input?.rowsPerMeter) * positiveNumber(input?.beltSpeedMMin) * 60;
-  const massByBeltKgH = beltUnitsPerHour * unitWeightKg;
-  const massByFeedRateKgH = positiveNumber(input?.feedRateKgH);
-  const calculatedMassKgH = continuousMassMode === "calculated_by_trays" ? massByTrayKgH : continuousMassMode === "calculated_by_units_per_hour" ? massByUnitsHourKgH : continuousMassMode === "calculated_by_belt_loading" ? massByBeltKgH : continuousMassMode === "calculated_by_feed_rate" ? massByFeedRateKgH : massByCycleKgH;
+  const calculatedMassKgH = processMass.massFlowKgH;
   const directMassKgH = positiveNumber(input?.directMassKgH ?? input?.massKgH);
-  const usedMassKgH = tunnelMode.operationRegime === "batch" ? 0 : continuousMassMode === "direct_mass_flow" && directMassKgH > 0 ? directMassKgH : calculatedMassKgH;
+  const usedMassKgH = tunnelMode.operationRegime === "batch" ? 0 : processMass.massFlowKgH;
   const staticMass = resolveStaticMass(input);
   const palletMassKg = staticMass.palletMassKg;
   const numberOfPallets = staticMass.numberOfPallets;
   const calculatedPalletMassKg = staticMass.calculatedPalletMassKg;
-  const staticMassKg = tunnelMode.operationRegime === "batch" ? staticMass.staticMassKg : positiveNumber(input?.staticMassKg ?? input?.static_mass_kg) || palletMassKg * Math.max(1, numberOfPallets || 1);
+  const staticMassKg = tunnelMode.operationRegime === "batch" ? processMass.batchMassKg : positiveNumber(input?.staticMassKg ?? input?.static_mass_kg) || palletMassKg * Math.max(1, numberOfPallets || 1);
   const airDeltaTK = positiveNumber(input?.airDeltaTK) || 6;
   const airDensityKgM3 = positiveNumber(input?.airDensityKgM3) || 1.2;
   const suggestedAirApproachK = positiveNumber(input?.suggestedAirApproachK) || 8;
@@ -407,17 +407,19 @@ function calculateTunnelCore(input: TunnelEngineInput) {
     initialTempC: input?.initialTempC,
     finalTempC: input?.finalTempC,
     freezingPointC: input?.freezingPointC,
-    cpAboveKcalKgC: nullableNumber(input?.cpAboveKcalKgC),
-    cpBelowKcalKgC: nullableNumber(input?.cpBelowKcalKgC),
-    latentHeatKcalKg: nullableNumber(input?.latentHeatKcalKg),
+    cpAboveKcalKgC: positiveNumber(input?.cpAboveKcalKgC) || undefined,
+    cpBelowKcalKgC: positiveNumber(input?.cpBelowKcalKgC) || undefined,
+    latentHeatKcalKg: positiveNumber(input?.latentHeatKcalKg) || undefined,
+    cpAboveKJkgK: positiveNumber(input?.cpAboveKJkgK) || undefined,
+    cpBelowKJkgK: positiveNumber(input?.cpBelowKJkgK) || undefined,
+    latentHeatKJkg: positiveNumber(input?.latentHeatKJkg) || undefined,
     frozenWaterFraction: input?.frozenWaterFraction,
     latentResidualFactor: input?.latentResidualFactor,
     allowPhaseChange: input?.allowPhaseChange,
   });
 
-  const productLoadKW = tunnelMode.operationRegime === "batch"
-    ? calculateBatchProductLoadKW({ massKg: staticMassKg, specificEnergyKcalKg: energy.totalKcalKg, timeH: input?.batchTimeH })
-    : calculateContinuousProductLoadKW({ massKgH: usedMassKgH, specificEnergyKcalKg: energy.totalKcalKg });
+  const productLoadResolution = calculateProductLoadByProcessMode({ processMass, specificEnergyKcalKg: energy.totalKcalKg });
+  const productLoadKW = productLoadResolution.productLoadKW;
   const productLoadMissing = productLoadMissingFields(input, tunnelMode.operationRegime === "batch", staticMassKg, usedMassKgH, energy);
   const thermalReliabilityAlerts = buildThermalReliabilityAlerts(input, energy, productLoadKW, tunnelMode.operationRegime === "batch" ? staticMassKg : usedMassKgH, tunnelMode.operationRegime === "batch" ? positiveNumber(input?.batchTimeH) : 0);
 
@@ -457,7 +459,7 @@ function calculateTunnelCore(input: TunnelEngineInput) {
   const estimatedTimeMin = canEstimateFreezingTime(input, distanceToCoreM, h.hEffectiveWM2K, kEffectiveWMK)
     ? calculatePlankFreezingTimeMin({
         densityKgM3: input?.densityKgM3,
-        latentHeatKJkg: input?.latentHeatKcalKg ? Number(input.latentHeatKcalKg) * 4.1868 : 0,
+        latentHeatKJkg: thermalKcal(input, "latentHeatKcalKg", "latentHeatKJkg") * 4.1868,
         frozenWaterFraction: input?.frozenWaterFraction,
         freezingPointC: input?.freezingPointC,
         airTempC: input?.airTempC,
@@ -497,11 +499,14 @@ function calculateTunnelCore(input: TunnelEngineInput) {
     physicalModel === "static_block" && positiveNumber(input?.batchTimeH) <= 0 ? "Tempo de batelada ausente para estático em pallet/bloco." : "",
     tunnelMode.operationRegime === "batch" && packagingMassKgBatch <= 0 ? "Em processo de batelada, informe a massa total de embalagem da batelada para cálculo mais preciso." : "",
     infiltrationMethod.warning,
+    ...processMass.warnings,
+    productLoadKW > 0 && kwToKcalH(productLoadKW) < 10000 ? "Carga total do produto abaixo de 10.000 kcal/h; validar escala industrial e massa/tempo informados." : "",
+    productLoadKW > 0 && transmissionLoadKW > 0 && productLoadKW < transmissionLoadKW * 0.25 ? "Carga de produto muito baixa em relação à transmissão; revisar massa, tempo e energia específica." : "",
   ];
 
   const freezingTimeMissingFields = [
     positiveNumber(input?.densityKgM3) <= 0 ? "densidade do produto" : "",
-    energy.crossesFreezingPoint && positiveNumber(input?.latentHeatKcalKg) <= 0 ? "calor latente" : "",
+    energy.crossesFreezingPoint && thermalKcal(input, "latentHeatKcalKg", "latentHeatKJkg") <= 0 ? "calor latente" : "",
     energy.crossesFreezingPoint && positiveNumber(input?.frozenWaterFraction) <= 0 ? "fração congelável" : "",
     !isProvided(input?.freezingPointC) ? "temperatura de congelamento" : "",
     !isProvided(input?.airTempC) ? "temperatura do ar" : "",
@@ -524,14 +529,20 @@ function calculateTunnelCore(input: TunnelEngineInput) {
     ...airflow.missingFields,
     ...requiredPositiveFields(input, isStatic, staticMassKg, characteristicDimensionM, energy.crossesFreezingPoint, airVelocityUsedMS, continuousMassMode),
     ...freezingTimeMissingFields,
+    ...processMass.blockers,
+    ...productLoadResolution.blockers,
   ]);
   const warnings = unique([...validation.warnings, ...tunnelMode.warnings, ...geometry.warnings, ...exposure.warnings, ...airflow.warnings, ...engineWarnings, ...freezingValidation.warnings, ...infiltration.warnings, ...thermalReliabilityAlerts.map((alert) => alert.message)]);
 
-  const status: TunnelScenarioStatus = invalidFields.length > 0
+  const inputStatus: TunnelScenarioStatus = invalidFields.length > 0
     ? "invalid_input"
     : missingFields.length > 0
       ? "missing_data"
-      : freezingValidation.status;
+      : "adequate";
+  const thermalStatus: TunnelScenarioStatus = productLoadKW <= 0 || energy.totalKcalKg <= 0 ? "missing_data" : freezingValidation.status;
+  const equipmentStatus: TunnelScenarioStatus = inputStatus === "adequate" && thermalStatus === "adequate" ? "adequate" : inputStatus === "invalid_input" ? "invalid_input" : thermalStatus === "insufficient" ? "insufficient" : "missing_data";
+  const projectStatus: TunnelScenarioStatus = inputStatus === "invalid_input" || thermalStatus === "invalid_input" ? "invalid_input" : inputStatus !== "adequate" ? "missing_data" : thermalStatus === "insufficient" ? "insufficient" : equipmentStatus !== "adequate" ? "missing_data" : "adequate";
+  const status: TunnelScenarioStatus = projectStatus === "adequate" ? freezingValidation.status : projectStatus;
 
   const scenario: TunnelThermalScenario = {
     airTempC: nullableNumber(input?.airTempC),
@@ -589,6 +600,7 @@ function calculateTunnelCore(input: TunnelEngineInput) {
       tunnelType: tunnelMode.tunnelType,
       arrangementType: tunnelMode.arrangementType,
       operationRegime: tunnelMode.operationRegime,
+      operationalModel: processMass.processMode,
       physicalModel,
       physicalModelLabel: modelMeta.label,
       physicalDescription: modelMeta.physicalDescription,
@@ -596,8 +608,8 @@ function calculateTunnelCore(input: TunnelEngineInput) {
       convectionAssumption: modelMeta.convectionAssumption,
     },
     mass: tunnelMode.operationRegime === "batch"
-      ? { mode: "batch", staticMassMode: input?.staticMassMode ?? input?.static_mass_mode ?? "direct_pallet_mass", numberOfPallets, numberOfCarts: staticMass.numberOfCarts, palletMassKg, calculatedPalletMassKg, calculatedCartMassKg: staticMass.calculatedCartMassKg, calculatedBatchMassKg: staticMass.calculatedBatchMassKg, unitsPerPallet: staticMass.unitsPerPallet, productMassPerPalletKg: staticMass.productMassPerPalletKg, packagingMassPerPalletKg: staticMass.packagingMassPerPalletKg, staticMassKg, calculatedMassKgH: null, usedMassKgH: null, batchTimeH: input?.batchTimeH ?? null }
-      : { mode: "continuous", continuousMassMode, calculatedMassKgH, directMassKgH, usedMassKgH, beltUnitsPerHour, retentionTimeMin: input?.retentionTimeMin ?? null },
+      ? { mode: "batch", processMode: processMass.processMode, massBasis: processMass.massBasis, staticMassMode: input?.staticMassMode ?? input?.static_mass_mode ?? "direct_pallet_mass", numberOfPallets, numberOfCarts: processMass.numberOfCarts, palletMassKg, calculatedPalletMassKg: processMass.calculatedPalletMassKg, calculatedCartMassKg: processMass.calculatedCartMassKg, calculatedBatchMassKg: processMass.calculatedBatchMassKg, unitsPerPallet: processMass.unitsPerPallet, productMassPerPalletKg: processMass.productMassPerPalletKg, packagingMassPerPalletKg: processMass.packagingMassPerPalletKg, staticMassKg, calculatedMassKgH: null, usedMassKgH: null, batchTimeH: processMass.processTimeH }
+      : { mode: "continuous", processMode: processMass.processMode, massBasis: processMass.massBasis, continuousMassMode, calculatedMassKgH, directMassKgH, usedMassKgH, beltUnitsPerHour, retentionTimeMin: input?.retentionTimeMin ?? null, processTimeH: processMass.processTimeH },
     geometry: { tunnelType: tunnelMode.tunnelType, arrangementType: tunnelMode.arrangementType, productGeometry: input?.productGeometry ?? input?.product_geometry ?? null, surfaceExposureModel: exposure.surfaceExposureModel, thermalModelForPallet: geometry.thermalModelForPallet ?? input?.thermalModelForPallet ?? input?.thermal_model_for_pallet ?? null, characteristicDimensionM, distanceToCoreM, geometrySource: geometry.source },
     productEnergy: productEnergyBreakdown,
     convection: { source: h.source, hBaseWM2K: h.hBaseWM2K, hEffectiveWM2K: h.hEffectiveWM2K, airVelocityMS: airflow.airVelocityUsedMS, airExposureFactor: input?.airExposureFactor ?? null, exposureFactor: exposure.exposureFactor, spiralTurbulenceFactor, blockExposureFactor },
@@ -606,9 +618,9 @@ function calculateTunnelCore(input: TunnelEngineInput) {
     air: { airTempC: input?.airTempC ?? null, airDeltaTK, airDensityKgM3, airFlowM3H, informedAirFlowM3H, airFlowMethod, suggestedAirTempC, suggestedAirMethod, suggestedAirApproachK, comparison: suggestedAirTempComparisonC },
     scenarios: { adjustedScenario: scenario },
     loads: { productLoadKW, packagingLoadKW, transmissionLoadKW, infiltrationLoadKW, internalLoadKW, totalKW, totalKcalH, totalTR, internalLoads, packagingMassKgH, packagingMassKgBatch, packagingMassBatchKg: packagingMassKgBatch, packagingLoadMethod: packaging.packagingLoadMethod, packagingMassSource: packaging.packagingMassSource, productLoadMissingFields: productLoadMissing, loadCalculationReady: productLoadMissing.length === 0, massUsedForProductLoad: tunnelMode.operationRegime === "batch" ? staticMassKg : usedMassKgH, massUnitForProductLoad: tunnelMode.operationRegime === "batch" ? "kg/batelada" : "kg/h", airFlowThermalBalanceM3H },
-    infiltration: { requestedMethod: infiltrationMethod.requested, usedMethod: infiltration.method, fallbackApplied: false, ...infiltration },
+    infiltration: { ...infiltration, requestedMethod: infiltrationMethod.requested, usedMethod: infiltrationMethod.used, fallbackApplied: infiltrationMethod.used !== infiltrationMethod.requested },
     timing: { estimatedTimeMin, availableTimeMin, status, validationStatus: freezingValidation.status, marginPercent: freezingValidation.marginPercent },
-    validation: { warnings, missingFields, invalidFields, thermalReliabilityAlerts },
+    validation: { warnings, missingFields, invalidFields, thermalReliabilityAlerts, inputStatus, thermalStatus, equipmentStatus, projectStatus, blockers: [...processMass.blockers, ...productLoadResolution.blockers] },
   };
 
   const formulasUsed = {
@@ -628,7 +640,7 @@ function calculateTunnelCore(input: TunnelEngineInput) {
     plankFreezingTime: "Plank equation using density, latent heat, core distance, h and effective k",
   };
 
-  const resultSummary = { physicalModel, processType, status, productLoadKW, packagingLoadKW, transmissionLoadKW, infiltrationLoadKW, internalLoadKW, totalKW, estimatedTimeMin, availableTimeMin };
+  const resultSummary = { physicalModel, processType, status, inputStatus, thermalStatus, equipmentStatus, projectStatus, massBasis: processMass.massBasis, processMode: processMass.processMode, productLoadKW, packagingLoadKW, transmissionLoadKW, infiltrationLoadKW, internalLoadKW, totalKW, estimatedTimeMin, availableTimeMin };
   const calculationLog = buildCalculationLog({ originalInput: input, normalizedInput: { ...input, physicalModel, mode }, unitConversions: input?.unitConversions ?? null, warnings, missingFields, invalidFields, formulasUsed, resultSummary, methodRegistryVersion: COLDPRO_CALCULATION_METHOD_REGISTRY_VERSION, methodsUsed });
 
   return {
@@ -639,6 +651,12 @@ function calculateTunnelCore(input: TunnelEngineInput) {
     tunnelType: tunnelMode.tunnelType,
     arrangementType: tunnelMode.arrangementType,
     operationRegime: tunnelMode.operationRegime,
+    processMode: processMass.processMode,
+    massBasis: processMass.massBasis,
+    inputStatus,
+    thermalStatus,
+    equipmentStatus,
+    projectStatus,
     productGeometry: input?.productGeometry ?? input?.product_geometry ?? null,
     surfaceExposureModel: exposure.surfaceExposureModel,
     airflowSource: airflow.airflowSource,

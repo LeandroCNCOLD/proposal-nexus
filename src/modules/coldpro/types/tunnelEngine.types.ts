@@ -193,6 +193,8 @@ export interface TunnelEngineResult {
   exposureFactor?: number;
   blockageFactor?: number;
   operationRegime: TunnelOperationRegime;
+  processMode?: "batch" | "continuous" | "storage";
+  massBasis?: string;
   isStatic: boolean;
   calculatedMassKgH: number;
   usedMassKgH: number;
@@ -215,6 +217,10 @@ export interface TunnelEngineResult {
   estimatedTimeMin: number | null;
   availableTimeMin: number;
   status: TunnelProcessStatus;
+  inputStatus?: TunnelProcessStatus;
+  thermalStatus?: TunnelProcessStatus;
+  equipmentStatus?: TunnelProcessStatus;
+  projectStatus?: TunnelProcessStatus;
   productLoadKW: number;
   packagingLoadKW: number;
   internalLoadKW: number;
