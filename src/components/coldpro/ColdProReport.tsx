@@ -43,6 +43,13 @@ function TemperatureStrip({ env }: { env: any }) {
   return <div className="rounded-lg border bg-muted/20 p-3"><div className="mb-2 text-sm font-semibold">Temperaturas de projeto</div><div className="grid grid-cols-2 gap-3 text-sm"><div className="rounded-md bg-background p-2"><div className="text-xs text-muted-foreground">Interna</div><div className="text-lg font-bold">{fmt(env.internal_temp_c)} °C</div></div><div className="rounded-md bg-background p-2"><div className="text-xs text-muted-foreground">Externa</div><div className="text-lg font-bold">{fmt(env.external_temp_c)} °C</div></div></div></div>;
 }
 
+function ProductEnergyDetails({ result }: { result: any }) {
+  const tunnel = result?.calculation_breakdown?.tunnel;
+  const products = Array.isArray(result?.calculation_breakdown?.products) ? result.calculation_breakdown.products : [];
+  if (!tunnel && !products.length) return null;
+  return <div className="mt-3 rounded-md border bg-muted/20 p-3 text-xs"><div className="mb-2 text-sm font-semibold">Energia térmica do produto</div>{tunnel ? <div className="mb-3 grid gap-1 md:grid-cols-3"><span>Sensível acima: <b>{fmt(tunnel.q_specific_above_kj_kg)} kJ/kg</b></span><span>Latente: <b>{fmt(tunnel.q_specific_latent_kj_kg)} kJ/kg</b></span><span>Sensível abaixo: <b>{fmt(tunnel.q_specific_below_kj_kg)} kJ/kg</b></span><span>Energia total: <b>{fmt(tunnel.q_specific_total_kj_kg)} kJ/kg</b></span><span>Carga do produto: <b>{fmt(tunnel.product_load_kw)} kW</b></span><span>Embalagem: <b>{fmt(tunnel.packaging_load_kw)} kW</b></span></div> : null}{products.length ? <div className="space-y-1">{products.map((p: any) => <div key={p.product_name} className="grid gap-1 border-t pt-2 md:grid-cols-4"><span><b>{p.product_name}</b></span><span>Sensível acima: {fmt(p.sensible_above_kcal_h)} kcal/h</span><span>Latente: {fmt(p.latent_kcal_h)} kcal/h</span><span>Sensível abaixo: {fmt(p.sensible_below_kcal_h)} kcal/h</span><span>Energia: {fmt(p.specific_energy_kj_kg)} kJ/kg</span><span>Carga: {fmt(p.total_kcal_h)} kcal/h</span><span>Fração cong.: {fmt(p.frozen_water_fraction)}</span><span>Fator residual: {fmt(p.latent_residual_factor)}</span></div>)}</div> : null}</div>;
+}
+
 function CalculationMethodBox({ result }: { result: any }) {
   const method = result?.calculation_breakdown?.calculationMethod;
   const methods = method?.methods ?? {};
