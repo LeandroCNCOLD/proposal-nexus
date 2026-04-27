@@ -434,8 +434,13 @@ function calculateTunnelCore(input: TunnelEngineInput) {
   const packagingMassKgBatch = packaging.packagingMassBatchKg;
   const packagingMassKgH = packaging.packagingMassKgH;
   const packagingLoadKW = packaging.packagingLoadKW;
-  const internalLoadKW = toNumber(input?.beltMotorKW, 0) + toNumber(input?.internalFansKW, 0) + toNumber(input?.otherInternalKW, 0);
-  const totalKW = productLoadKW + packagingLoadKW + internalLoadKW;
+  const transmission = resolveTransmissionLoad({ ...input, airTempC: input?.airTempC ?? input?.finalTempC });
+  const infiltration = calculatePsychrometricInfiltrationKW({ ...input, internalTempC: input?.airTempC ?? input?.finalTempC, airDensityKgM3 });
+  const internalLoads = resolveInternalLoads(input);
+  const transmissionLoadKW = transmission.transmissionKW;
+  const infiltrationLoadKW = infiltration.totalKW;
+  const internalLoadKW = internalLoads.internalLoadKW;
+  const totalKW = productLoadKW + packagingLoadKW + transmissionLoadKW + infiltrationLoadKW + internalLoadKW;
   const totalKcalH = kwToKcalH(totalKW);
   const totalTR = kwToTr(totalKW);
   const airFlowM3H = calculateRequiredAirflowM3H({ loadKW: totalKW, airDeltaTK, airDensityKgM3, cpAirKJkgK });
