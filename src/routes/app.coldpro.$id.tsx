@@ -80,8 +80,12 @@ function ColdProProjectPage() {
   const products = allProducts.filter((p: any) => p.environment_id === selectedEnv?.id);
   const tunnel = (data?.tunnels ?? []).find((t: any) => t.environment_id === selectedEnv?.id);
   const advancedProcess = (data?.advancedProcesses ?? []).find((item: any) => item.environment_id === selectedEnv?.id);
-  const result = (data?.results ?? []).find((r: any) => r.environment_id === selectedEnv?.id);
-  const selection = (data?.selections ?? []).find((s: any) => s.environment_id === selectedEnv?.id);
+  const savedResult = (data?.results ?? []).find((r: any) => r.environment_id === selectedEnv?.id);
+  const calculatedResult = calculate.data?.environment_id === selectedEnv?.id ? calculate.data : null;
+  const result = calculatedResult ?? savedResult;
+  const savedSelection = (data?.selections ?? []).find((s: any) => s.environment_id === selectedEnv?.id);
+  const mutationSelection = autoSelect.data?.environment_id === selectedEnv?.id ? autoSelect.data : saveCatalogSel.data?.environment_id === selectedEnv?.id ? saveCatalogSel.data : null;
+  const selection = mutationSelection ?? savedSelection;
   const tunnelPreview = tunnel && selectedEnv ? calculateTunnelEngine(databaseToTunnelInput(tunnel, selectedEnv)) : null;
   const environmentLoad = Number(result?.transmission_kcal_h ?? 0);
   const savedProductLoad = Number(result?.product_kcal_h ?? 0) + Number(result?.packaging_kcal_h ?? 0) + Number(result?.calculation_breakdown?.respiration_kcal_h ?? 0) + Number(result?.tunnel_internal_load_kcal_h ?? 0);
