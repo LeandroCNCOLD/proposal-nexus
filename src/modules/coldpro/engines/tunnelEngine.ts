@@ -459,9 +459,13 @@ function calculateTunnelCore(input: TunnelEngineInput) {
     infiltrationRecoveryHoursPerDay: positiveNumber(input?.infiltrationRecoveryHoursPerDay),
     compressorHoursPerDay: positiveNumber(input?.compressorHoursPerDay),
   });
-  const infiltrationLoadKW = infiltration.totalKW > 0 && infiltrationRate.rateHours > 0
-    ? (infiltration.totalKW * 24) / infiltrationRate.rateHours
-    : infiltration.totalKW;
+  // Rateio correto: se infiltração é recuperada em X horas, distribuir ao longo do dia
+  // infiltration.totalKW é a carga de infiltração (em kW)
+  // Se recuperação é 16h/dia, então carga diária = infiltration.totalKW * (24/16) = infiltration.totalKW * 1.5
+  // Mas queremos a carga média horária, então: infiltration.totalKW * (24/16) / 24 = infiltration.totalKW / 16
+  // Simplificando: carga média = infiltration.totalKW (já é média horária!)
+  // O rateio deve ser feito ANTES de chegar aqui, não aqui!
+  const infiltrationLoadKW = infiltration.totalKW;
   const internalLoadKW = internalLoads.internalLoadKW;
   const totalKW = productLoadKW + packagingLoadKW + transmissionLoadKW + infiltrationLoadKW + internalLoadKW;
   const totalKcalH = kwToKcalH(totalKW);

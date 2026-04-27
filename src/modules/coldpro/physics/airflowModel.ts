@@ -103,7 +103,12 @@ export function calculatePsychrometricInfiltrationKW(input: any) {
   const internalTempC = safeNumber(input?.internalTempC ?? input?.internal_temp_c ?? input?.airTempC ?? input?.air_temp_c, 0);
   const externalRH = safeNumber(input?.externalRelativeHumidityPercent ?? input?.external_relative_humidity_percent, NaN);
   const internalRH = safeNumber(input?.internalRelativeHumidityPercent ?? input?.internal_relative_humidity_percent ?? input?.relative_humidity_percent, NaN);
-  const infiltrationAirflowM3H = positive(input?.infiltrationAirflowM3H ?? input?.infiltration_airflow_m3_h ?? input?.freshAirM3H ?? input?.fresh_air_m3_h ?? input?.doorInfiltrationM3H ?? input?.door_infiltration_m3_h);
+  // Converter m³/dia para m³/h se necessário
+  let infiltrationAirflowM3H = positive(input?.infiltrationAirflowM3H ?? input?.infiltration_airflow_m3_h ?? input?.freshAirM3H ?? input?.fresh_air_m3_h ?? input?.doorInfiltrationM3H ?? input?.door_infiltration_m3_h);
+  // Se a vazão vem em m³/dia (como do cálculo de porta), converter para m³/h
+  if (input?.door_infiltration_m3_h && input.door_infiltration_m3_h > 0 && infiltrationAirflowM3H > 0) {
+    infiltrationAirflowM3H = infiltrationAirflowM3H / 24; // Converter m³/dia → m³/h
+  }
   const airDensityKgM3 = positive(input?.airDensityKgM3 ?? input?.air_density_kg_m3) || 1.2;
   const atmosphericPressureKPa = positive(input?.atmosphericPressureKPa ?? input?.atmospheric_pressure_kpa) || 101.325;
   const missingFields = [
