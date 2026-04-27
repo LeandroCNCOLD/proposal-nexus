@@ -796,34 +796,8 @@ function ColdProProjectPage() {
                 </div>
               )}
 
-              {/* STEP 2 - PROCESSOS ESPECIAIS */}
+              {/* STEP 2 - CARGAS EXTRAS */}
               {stepIndex === 2 && (
-                <div className="space-y-3">
-                  <ColdProAdvancedProcessForm
-                    projectId={id}
-                    environment={selectedEnv}
-                    process={advancedProcess}
-                    productCatalog={data?.productCatalog ?? []}
-                    onSave={(payload) =>
-                      upsertAdvancedProcess.mutate(payload, {
-                        onSuccess: () => toast.success("Processo especial salvo"),
-                        onError: (e: any) => toast.error(e?.message ?? "Erro ao salvar processo especial"),
-                      })
-                    }
-                  />
-                  <ColdProSectionLoadSummary
-                    title="Prévia dos processos especiais"
-                    rows={[
-                      { label: "Umidade, respiração e purga", value: result?.calculation_breakdown?.advanced_processes_kcal_h },
-                    ]}
-                    totalLabel="Total calculado da aba Processos Especiais"
-                    total={Number(result?.calculation_breakdown?.advanced_processes_kcal_h ?? 0)}
-                  />
-                </div>
-              )}
-
-              {/* STEP 3 - CARGAS EXTRAS */}
-              {stepIndex === 3 && (
                 <div className="space-y-3">
                   <ColdProExtraLoadsForm
                     environment={selectedEnv}
@@ -856,8 +830,8 @@ function ColdProProjectPage() {
                 </div>
               )}
 
-              {/* STEP 4 - RESULTADO */}
-              {stepIndex === 4 && (
+              {/* STEP 3 - RESULTADO */}
+              {stepIndex === 3 && (
                 <div className="space-y-3">
                   <div className="rounded-lg border bg-background p-3">
                     <div className="flex flex-wrap items-start justify-between gap-3">
