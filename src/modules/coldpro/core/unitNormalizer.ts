@@ -31,11 +31,14 @@ function firstProvided(...values: unknown[]) {
 }
 
 function normalizeEnergyForKcal(kjValue: unknown, kcalValue: unknown, defaultKcalValue: unknown, units: { kcal: string; kj: string }) {
+  const shouldPreferKJ = defaultKcalValue === "prefer_kj";
   const kj = safeNumber(kjValue, 0);
-  if (kj > 0) return { value: kj / KCAL_TO_KJ, source: "kJ_to_kcal" as ConversionSource, originalValue: kj, originalUnit: units.kj, convertedValue: kj / KCAL_TO_KJ, usedUnit: units.kcal, equivalentKJ: kj };
+  if (shouldPreferKJ && kj > 0) return { value: kj / KCAL_TO_KJ, source: "kJ_to_kcal" as ConversionSource, originalValue: kj, originalUnit: units.kj, convertedValue: kj / KCAL_TO_KJ, usedUnit: units.kcal, equivalentKJ: kj };
 
   const kcal = safeNumber(kcalValue, 0);
   if (kcal > 0) return { value: kcal, source: "kcal_native" as ConversionSource, originalValue: kcal, originalUnit: units.kcal, convertedValue: kcal, usedUnit: units.kcal, equivalentKJ: kcal * KCAL_TO_KJ };
+
+  if (kj > 0) return { value: kj / KCAL_TO_KJ, source: "kJ_to_kcal" as ConversionSource, originalValue: kj, originalUnit: units.kj, convertedValue: kj / KCAL_TO_KJ, usedUnit: units.kcal, equivalentKJ: kj };
 
   const defaultKcal = safeNumber(defaultKcalValue, 0);
   if (defaultKcal > 0) return { value: defaultKcal, source: "default_kcal_native" as ConversionSource, originalValue: defaultKcal, originalUnit: units.kcal, convertedValue: defaultKcal, usedUnit: units.kcal, equivalentKJ: defaultKcal * KCAL_TO_KJ };
@@ -58,9 +61,10 @@ function normalizeEnergyForKj(kjValue: unknown, kcalValue: unknown, defaultKcalV
 
 export function normalizeProductForKcalEngine(input: any) {
   const defaults = productDefaults(input);
-  const cpAbove = normalizeEnergyForKcal(input?.specific_heat_above_kj_kg_k ?? input?.cpAboveKJkgK, input?.specific_heat_above_kcal_kg_c ?? input?.cpAboveKcalKgC, defaults?.cpAboveKcalKgC, { kcal: "kcal/kg°C", kj: "kJ/kg.K" });
-  const cpBelow = normalizeEnergyForKcal(input?.specific_heat_below_kj_kg_k ?? input?.cpBelowKJkgK, input?.specific_heat_below_kcal_kg_c ?? input?.cpBelowKcalKgC, defaults?.cpBelowKcalKgC, { kcal: "kcal/kg°C", kj: "kJ/kg.K" });
-  const latentHeat = normalizeEnergyForKcal(input?.latent_heat_kj_kg ?? input?.latentHeatKJkg, input?.latent_heat_kcal_kg ?? input?.latentHeatKcalKg, defaults?.latentHeatKcalKg, { kcal: "kcal/kg", kj: "kJ/kg" });
+  const preferKJ = input?.prefer_kj_source === true || input?.product_id || input?.is_ashrae_reference === true || String(input?.source ?? "").toLowerCase().includes("ashrae");
+  const cpAbove = normalizeEnergyForKcal(input?.specific_heat_above_kj_kg_k ?? input?.cpAboveKJkgK, input?.specific_heat_above_kcal_kg_c ?? input?.cpAboveKcalKgC, preferKJ ? "prefer_kj" : defaults?.cpAboveKcalKgC, { kcal: "kcal/kg°C", kj: "kJ/kg.K" });
+  const cpBelow = normalizeEnergyForKcal(input?.specific_heat_below_kj_kg_k ?? input?.cpBelowKJkgK, input?.specific_heat_below_kcal_kg_c ?? input?.cpBelowKcalKgC, preferKJ ? "prefer_kj" : defaults?.cpBelowKcalKgC, { kcal: "kcal/kg°C", kj: "kJ/kg.K" });
+  const latentHeat = normalizeEnergyForKcal(input?.latent_heat_kj_kg ?? input?.latentHeatKJkg, input?.latent_heat_kcal_kg ?? input?.latentHeatKcalKg, preferKJ ? "prefer_kj" : defaults?.latentHeatKcalKg, { kcal: "kcal/kg", kj: "kJ/kg" });
   const frozenWaterFraction = normalizeFraction(
     firstProvided(input?.frozen_water_fraction, input?.frozenWaterFraction, input?.freezable_water_content_percent, input?.water_content_percent),
     defaults?.frozenWaterFraction ?? 1,
