@@ -108,6 +108,16 @@ function nullableNumber(value: unknown): number | null {
   return isProvided(value) && Number.isFinite(Number(value)) ? Number(value) : null;
 }
 
+function continuousMassRequirement(input: any, continuousMassMode: string): string {
+  const unitWeightKg = positiveNumber(input?.unitWeightKg);
+  if (continuousMassMode === "direct_mass_flow") return positiveNumber(input?.directMassKgH) > 0 ? "" : "massa direta em kg/h";
+  if (continuousMassMode === "calculated_by_units_per_hour") return unitWeightKg * positiveNumber(input?.unitsPerHour) > 0 ? "" : "peso unitário e unidades por hora";
+  if (continuousMassMode === "calculated_by_belt_loading") return unitWeightKg * positiveNumber(input?.unitsPerRow) * positiveNumber(input?.rowsPerMeter) * positiveNumber(input?.beltSpeedMMin) > 0 ? "" : "peso unitário, unidades por fileira, fileiras por metro e velocidade da esteira";
+  if (continuousMassMode === "calculated_by_trays") return (unitWeightKg * positiveNumber(input?.unitsPerTray) + positiveNumber(input?.trayWeightKg)) * positiveNumber(input?.traysPerHour) > 0 ? "" : "unidades por bandeja, bandejas por hora e massa da bandeja";
+  if (continuousMassMode === "calculated_by_feed_rate") return positiveNumber(input?.feedRateKgH) > 0 ? "" : "taxa de alimentação em kg/h";
+  return unitWeightKg * positiveNumber(input?.unitsPerCycle) * positiveNumber(input?.cyclesPerHour) > 0 ? "" : "peso unitário, unidades por ciclo e ciclos por hora";
+}
+
 function unique(values: string[]): string[] {
   return Array.from(new Set(values.filter(Boolean)));
 }
@@ -168,7 +178,7 @@ function resolveStaticMass(input: any) {
   };
 }
 
-function requiredPositiveFields(input: any, isStatic: boolean, staticMassKg: number, characteristicDimensionM: number, crossesFreezing: boolean, airVelocityUsedMS: number): string[] {
+function requiredPositiveFields(input: any, isStatic: boolean, staticMassKg: number, characteristicDimensionM: number, crossesFreezing: boolean, airVelocityUsedMS: number, continuousMassMode: string): string[] {
   const commonNumericFields = ["initialTempC", "finalTempC", "freezingPointC"];
   const commonPositiveFields = ["cpAboveKJkgK"];
   const freezingPositiveFields = crossesFreezing ? ["cpBelowKJkgK", "latentHeatKJkg", "frozenWaterFraction"] : [];
@@ -179,7 +189,7 @@ function requiredPositiveFields(input: any, isStatic: boolean, staticMassKg: num
   const airflowSource = String(input?.airflowSource ?? input?.airflow_source ?? "manual_velocity");
 
   const continuousFields = [
-    positiveNumber(input?.directMassKgH) <= 0 && positiveNumber(input?.unitWeightKg) * positiveNumber(input?.unitsPerCycle) * positiveNumber(input?.cyclesPerHour) <= 0 ? "massa usada" : "",
+    continuousMassRequirement(input, continuousMassMode),
     positiveNumber(input?.retentionTimeMin) <= 0 ? "tempo de retenção" : "",
   ];
   const staticFields = [
@@ -196,7 +206,7 @@ function requiredPositiveFields(input: any, isStatic: boolean, staticMassKg: num
     airflowSource === "airflow_by_fans" && positiveNumber(input?.fanAirflowM3H ?? input?.fan_airflow_m3_h) <= 0 ? "fan_airflow_m3_h" : "",
     airflowSource === "airflow_by_fans" && positiveNumber(input?.tunnelCrossSectionWidthM ?? input?.tunnel_cross_section_width_m) <= 0 ? "tunnel_cross_section_width_m" : "",
     airflowSource === "airflow_by_fans" && positiveNumber(input?.tunnelCrossSectionHeightM ?? input?.tunnel_cross_section_height_m) <= 0 ? "tunnel_cross_section_height_m" : "",
-    geometry === "slab" && positiveNumber(input?.productThicknessM ?? input?.product_thickness_m) <= 0 ? "product_thickness_m" : "",
+    geometry === "slab" && positiveNumber(input?.productThicknessM ?? input?.product_thickness_m) <= 0 ? "espessura do produto" : "",
     geometry === "rectangular_prism" && positiveNumber(input?.productLengthM ?? input?.product_length_m) <= 0 ? "product_length_m" : "",
     geometry === "rectangular_prism" && positiveNumber(input?.productWidthM ?? input?.product_width_m) <= 0 ? "product_width_m" : "",
     geometry === "rectangular_prism" && positiveNumber(input?.productHeightM ?? input?.product_height_m) <= 0 ? "product_height_m" : "",
