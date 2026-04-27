@@ -1,6 +1,6 @@
 import * as React from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, ArrowRight, FileText, Loader2, Pencil, Plus, Snowflake, Sparkles, Thermometer, Trash2, Wind, Warehouse } from "lucide-react";
+import { ArrowLeft, ArrowRight, Calculator, Download, FileText, Loader2, Pencil, Printer, Snowflake, Sparkles, Thermometer, Trash2, Wind, Warehouse } from "lucide-react";
 import { toast } from "sonner";
 import {
   useColdProProjectBundle,
@@ -72,6 +72,67 @@ function formatKw(value: unknown) {
   return toFiniteValue(value) !== null ? `${formatNumber(value, 2)} kW` : "—";
 }
 
+
+function formatCurrencyLocal(value: unknown) {
+  const parsed = toFiniteValue(value);
+  return parsed !== null ? new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(parsed) : "—";
+}
+
+function CommercialField({ label, value, onChange, prefix, suffix, min = 0, step = "0.01" }: { label: string; value: string; onChange: (value: string) => void; prefix?: string; suffix?: string; min?: number; step?: string }) {
+  return (
+    <label className="text-xs font-medium text-muted-foreground">
+      {label}
+      <div className="mt-1 flex h-8 items-center rounded-md border bg-background px-2 focus-within:ring-2 focus-within:ring-primary/20">
+        {prefix ? <span className="mr-1 text-[12px] text-muted-foreground">{prefix}</span> : null}
+        <input
+          type="number"
+          min={min}
+          step={step}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          className="min-w-0 flex-1 bg-transparent text-right text-[13px] font-medium outline-none"
+        />
+        {suffix ? <span className="ml-1 text-[12px] text-muted-foreground">{suffix}</span> : null}
+      </div>
+    </label>
+  );
+}
+
+function CommercialMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border bg-muted/20 p-2">
+      <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className="mt-1 text-sm font-semibold tabular-nums">{value}</div>
+    </div>
+  );
+}
+
+function EnvironmentCommercialSummary({ commercial }: { commercial: any }) {
+  return (
+    <div className="rounded-lg border bg-background p-3">
+      <div className="mb-2 flex items-center gap-2">
+        <Calculator className="h-4 w-4 text-primary" />
+        <h3 className="text-sm font-semibold">Resumo comercial local do ambiente</h3>
+      </div>
+      <div className="grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(180px,1fr))]">
+        <CommercialMetric label="Quantidade" value={formatNumber(commercial.quantity, 0)} />
+        <CommercialMetric label="Valor unitário" value={formatCurrencyLocal(commercial.unitPrice)} />
+        <CommercialMetric label="Investimento total" value={formatCurrencyLocal(commercial.investmentTotal)} />
+        <CommercialMetric label="COP" value={formatNumber(commercial.cop, 2)} />
+        <CommercialMetric label="Potência elétrica" value={formatKw(commercial.electricalPowerKW)} />
+        <CommercialMetric label="Consumo diário" value={`${formatNumber(commercial.kWhDay, 0)} kWh`} />
+        <CommercialMetric label="Consumo mensal" value={`${formatNumber(commercial.kWhMonth, 0)} kWh`} />
+        <CommercialMetric label="Custo mensal" value={formatCurrencyLocal(commercial.monthlyCost)} />
+        <CommercialMetric label="Custo anual" value={formatCurrencyLocal(commercial.annualCost)} />
+        <CommercialMetric label="Custo por kg" value={commercial.costPerKg !== null ? `${formatCurrencyLocal(commercial.costPerKg)}/kg` : "—"} />
+      </div>
+      <p className="mt-2 text-[11px] text-muted-foreground">
+        Simulação comercial local: não salva no banco, não altera o cálculo térmico, não altera COP e não altera a energia mensal original.
+      </p>
+    </div>
+  );
+}
+
 function ThermalLoadSummary({ result }: { result: any }) {
   const tunnel = result?.calculation_breakdown?.tunnel ?? result?.calculationBreakdown?.tunnel ?? {};
   const loads = tunnel?.loads ?? tunnel?.persistedLoads ?? {};
@@ -132,6 +193,10 @@ function ColdProProjectPage() {
   const [autoEquipmentKind, setAutoEquipmentKind] = React.useState<"ALL" | "plugin" | "biblock" | "split">("ALL");
   const [tunnelExpertAnalysis, setTunnelExpertAnalysis] = React.useState<string | null>(null);
   const [showProjectReport, setShowProjectReport] = React.useState(false);
+  const [showEnvironmentReport, setShowEnvironmentReport] = React.useState(false);
+  const [energyTariff, setEnergyTariff] = React.useState("0.95");
+  const [commercialQuantity, setCommercialQuantity] = React.useState("1");
+  const [equipmentUnitPrice, setEquipmentUnitPrice] = React.useState("0");
 
   const environments = data?.environments ?? [];
   const selectedEnv = environments.find((env: any) => env.id === selectedEnvId) ?? environments[0];
@@ -160,6 +225,31 @@ function ColdProProjectPage() {
   const extraPreview = calculateExtraLoadPreview(selectedEnv ?? {});
   const extraLoad = result ? Number(result.infiltration_kcal_h ?? 0) + Number(result.people_kcal_h ?? 0) + Number(result.lighting_kcal_h ?? 0) + Number(result.motors_kcal_h ?? 0) + Number(result.fans_kcal_h ?? 0) + Number(result.defrost_kcal_h ?? 0) + Number(result.other_kcal_h ?? 0) : extraPreview.subtotal_kcal_h;
   const catalogFanLoadKcalH = Number(selection?.curve_metadata?.fan_power_kw ?? 0) * Number(selection?.quantity ?? 1) * 859.845;
+  const selectedQuantity = firstFinite(selection?.quantity, selection?.curve_metadata?.quantidade) ?? 1;
+  const energy = result?.energySimulation ?? result?.energy_simulation ?? result?.calculation_breakdown?.energySimulation ?? result?.calculation_breakdown?.energy_simulation ?? {};
+  const commercialQuantityNumber = Math.max(1, Math.ceil(firstFinite(commercialQuantity) ?? selectedQuantity ?? 1));
+  const commercialUnitPrice = Math.max(0, firstFinite(equipmentUnitPrice) ?? 0);
+  const commercialTariff = Math.max(0, firstFinite(energyTariff) ?? 0);
+  const commercialCop = firstFinite(selection?.cop, selection?.curve_metadata?.cop, result?.cop, result?.COP, result?.copData?.cop, result?.cop_data?.cop, energy?.cop, energy?.assumptions?.cop);
+  const commercialElectricalPowerKW = firstFinite(selection?.total_power_kw, selection?.curve_metadata?.potencia_eletrica_kw, energy?.electricalPowerKW, energy?.electrical_power_kw, commercialCop && result?.total_required_kw ? Number(result.total_required_kw) / commercialCop : null);
+  const commercialOperatingHours = firstFinite(energy?.assumptions?.operatingHoursPerDay, result?.operatingHoursPerDay, result?.operating_hours_per_day) ?? 8;
+  const commercialOperatingDays = firstFinite(energy?.assumptions?.operatingDaysPerMonth, result?.operatingDaysPerMonth, result?.operating_days_per_month) ?? 22;
+  const commercialProcessedMassMonth = firstFinite(energy?.processedMassKgMonth, energy?.processed_mass_kg_month, energy?.assumptions?.monthlyProcessedMassKg, energy?.assumptions?.monthly_processed_mass_kg);
+  const commercialKWhDay = commercialElectricalPowerKW !== null ? commercialElectricalPowerKW * commercialOperatingHours : null;
+  const commercialKWhMonth = commercialKWhDay !== null ? commercialKWhDay * commercialOperatingDays : null;
+  const commercialMonthlyCost = commercialKWhMonth !== null ? commercialKWhMonth * commercialTariff : null;
+  const commercialSummary = {
+    quantity: commercialQuantityNumber,
+    unitPrice: commercialUnitPrice,
+    investmentTotal: commercialQuantityNumber * commercialUnitPrice,
+    cop: commercialCop,
+    electricalPowerKW: commercialElectricalPowerKW,
+    kWhDay: commercialKWhDay,
+    kWhMonth: commercialKWhMonth,
+    monthlyCost: commercialMonthlyCost,
+    annualCost: commercialMonthlyCost !== null ? commercialMonthlyCost * 12 : null,
+    costPerKg: commercialMonthlyCost !== null && commercialProcessedMassMonth && commercialProcessedMassMonth > 0 ? commercialMonthlyCost / commercialProcessedMassMonth : null,
+  };
 
   React.useEffect(() => {
     if (!selectedEnvId && environments[0]?.id) setSelectedEnvId(environments[0].id);
@@ -167,6 +257,10 @@ function ColdProProjectPage() {
 
   React.useEffect(() => setProjectNameDraft(data?.project?.name ?? ""), [data?.project?.name]);
   React.useEffect(() => setTunnelExpertAnalysis(null), [selectedEnv?.id]);
+  React.useEffect(() => setShowEnvironmentReport(false), [selectedEnv?.id]);
+  React.useEffect(() => {
+    if (selection?.quantity) setCommercialQuantity(String(Math.max(1, Math.ceil(Number(selection.quantity) || 1))));
+  }, [selection?.quantity, selectedEnv?.id]);
 
   const completed: Record<number, boolean> = {
     0: !!selectedEnv?.length_m,
@@ -257,6 +351,11 @@ function ColdProProjectPage() {
     } catch (e: any) {
       toast.error(e?.message ?? "Erro ao enviar para proposta");
     }
+  }
+
+  function handlePrintEnvironmentReport() {
+    setShowEnvironmentReport(true);
+    window.setTimeout(() => window.print(), 80);
   }
 
   async function handleGeneratePdf(aiAnalysis?: string | null, reportType: "full" | "proposal_summary" = "full") {
@@ -614,19 +713,52 @@ function ColdProProjectPage() {
               {stepIndex === 4 && (
                 <div className="space-y-3">
                   <div className="rounded-lg border bg-background p-3">
-                    <h3 className="mb-2 text-base font-semibold">Calcular carga térmica</h3>
-                    <p className="mb-3 text-sm text-muted-foreground">
-                      Use as informações cadastradas nas etapas anteriores para gerar o cálculo da carga térmica do ambiente.
-                    </p>
-                    <button
-                      type="button"
-                      className="rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground"
-                      onClick={handleCalculate}
-                      disabled={calculate.isPending}
-                    >
-                      {calculate.isPending ? "Calculando..." : "Calcular carga térmica"}
-                    </button>
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <h3 className="mb-1 text-base font-semibold">Resultado e ações do ambiente</h3>
+                        <p className="text-sm text-muted-foreground">
+                          Calcule, selecione equipamento e gere o relatório do ambiente atual.
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <button type="button" className="inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm hover:bg-muted" onClick={() => setStepIndex(0)}>
+                          <Pencil className="h-4 w-4" /> Editar
+                        </button>
+                        <button type="button" className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-1.5 text-sm text-primary-foreground disabled:opacity-50" onClick={handleCalculate} disabled={calculate.isPending}>
+                          {calculate.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Calculator className="h-4 w-4" />}
+                          {calculate.isPending ? "Calculando..." : "Calcular carga"}
+                        </button>
+                        <button type="button" className="inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm hover:bg-muted disabled:opacity-50" onClick={handleAutoSelect} disabled={!result || autoSelect.isPending}>
+                          {autoSelect.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Snowflake className="h-4 w-4" />}
+                          {autoSelect.isPending ? "Selecionando..." : "Selecionar automático"}
+                        </button>
+                        <button type="button" className="inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm hover:bg-muted disabled:opacity-50" onClick={() => setShowEnvironmentReport((value) => !value)} disabled={!result}>
+                          <FileText className="h-4 w-4" /> Gerar relatório
+                        </button>
+                        <button type="button" className="inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm hover:bg-muted disabled:opacity-50" onClick={handlePrintEnvironmentReport} disabled={!result}>
+                          <Printer className="h-4 w-4" /> Imprimir PDF
+                        </button>
+                        <button type="button" className="inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm hover:bg-muted disabled:opacity-50" onClick={() => handleGeneratePdf(null, "full")} disabled={!result || generatePdf.isPending}>
+                          {generatePdf.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                          Gerar PDF
+                        </button>
+                      </div>
+                    </div>
                   </div>
+
+                  <div className="rounded-lg border bg-background p-3 print:hidden">
+                    <div className="mb-3">
+                      <h3 className="text-sm font-semibold">Parâmetros comerciais locais</h3>
+                      <p className="text-xs text-muted-foreground">Valores usados apenas para simulação nesta tela. Não são salvos e não alteram o resultado calculado.</p>
+                    </div>
+                    <div className="grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(180px,1fr))]">
+                      <CommercialField label="Valor da energia" value={energyTariff} onChange={setEnergyTariff} prefix="R$" suffix="/kWh" step="0.01" />
+                      <CommercialField label="Quantidade de equipamentos" value={commercialQuantity} onChange={setCommercialQuantity} suffix="un." min={1} step="1" />
+                      <CommercialField label="Valor unitário" value={equipmentUnitPrice} onChange={setEquipmentUnitPrice} prefix="R$" step="0.01" />
+                    </div>
+                  </div>
+
+                  <EnvironmentCommercialSummary commercial={commercialSummary} />
                   <ColdProResultCard result={result} selection={selection} environment={selectedEnv} products={products} advancedProcesses={data?.advancedProcesses ?? []} onAnalyze={handleAnalyzeMemorial} isAnalyzing={analyzeMemorial.isPending} />
                   <div className="coldpro-grid">
                     <ThermalLoadSummary result={result} />
@@ -718,17 +850,39 @@ function ColdProProjectPage() {
                   {selection ? (
                     <div className="rounded-lg border bg-background p-3">
                       <h3 className="mb-3 text-base font-semibold">Equipamento selecionado</h3>
-                      <div className="grid gap-2 text-[13px] [grid-template-columns:repeat(auto-fit,minmax(260px,1fr))]">
+                      <div className="grid gap-2 text-[13px] [grid-template-columns:repeat(auto-fit,minmax(220px,1fr))]">
                         <div>Modelo: <b>{selection.model}</b></div>
-                        <div>Qtd.: <b>{fmt(selection.quantity)}</b></div>
+                        <div>Qtd. seleção: <b>{fmt(selection.quantity)}</b></div>
+                        <div>Qtd. comercial: <b>{formatNumber(commercialQuantityNumber, 0)}</b></div>
                         <div>Capacidade total: <b>{fmt(selection.capacity_total_kcal_h)} kcal/h</b></div>
                         <div>Sobra: <b>{fmt(selection.surplus_percent)}%</b></div>
                         <div>Vazão total: <b>{fmt(selection.air_flow_total_m3_h)} m³/h</b></div>
                         <div>Trocas/h: <b>{fmt(selection.air_changes_hour)}</b></div>
                         <div>Potência: <b>{selection.total_power_kw ? `${fmt(selection.total_power_kw)} kW` : "—"}</b></div>
                         <div>COP: <b>{selection.cop ? fmt(selection.cop) : "—"}</b></div>
+                        <div>Valor unitário: <b>{formatCurrencyLocal(commercialUnitPrice)}</b></div>
+                        <div>Investimento total: <b>{formatCurrencyLocal(commercialSummary.investmentTotal)}</b></div>
                         <div>Método: <b>{selection.selection_method === "polynomial" ? "Curva polinomial" : selection.selection_method === "interpolated" ? "Interpolado" : "Ponto de curva"}</b></div>
                       </div>
+                    </div>
+                  ) : null}
+
+                  {showEnvironmentReport && result ? (
+                    <div id="coldpro-environment-report" className="space-y-3 rounded-lg border bg-background p-3">
+                      <div className="print:hidden">
+                        <h3 className="text-base font-semibold">Relatório do ambiente — {selectedEnv.name}</h3>
+                        <p className="text-sm text-muted-foreground">Relatório filtrado para o ambiente atual com dados térmicos, equipamento e simulação comercial local.</p>
+                      </div>
+                      <EnvironmentCommercialSummary commercial={commercialSummary} />
+                      <ColdProReport
+                        project={data?.project}
+                        environments={[selectedEnv]}
+                        results={[result]}
+                        selections={selection ? [selection] : []}
+                        products={products}
+                        advancedProcesses={(data?.advancedProcesses ?? []).filter((item: any) => item.environment_id === selectedEnv.id)}
+                        lastPdfUrl={lastPdfUrl}
+                      />
                     </div>
                   ) : null}
 

@@ -45,30 +45,30 @@ export function EquipmentOptimizationSummary({ result, selection }: Props) {
         <div className="text-sm text-muted-foreground">Melhor equipamento: <b className="text-foreground">{equipmentName(bestEquipment)}</b></div>
       </div>
       <div className="overflow-x-auto">
-        <table className="coldpro-table">
+        <table className="coldpro-table border-collapse">
           <thead>
             <tr>
-              <th>#</th>
-              <th>Equipamento</th>
-              <th>Margem</th>
-              <th>Custo mensal</th>
-              <th>Score</th>
-              <th>Potência</th>
+              <th scope="col" className="text-left">#</th>
+              <th scope="col" className="text-left">Equipamento</th>
+              <th scope="col" className="text-right">Margem</th>
+              <th scope="col" className="text-right">Custo mensal</th>
+              <th scope="col" className="text-right">Score</th>
+              <th scope="col" className="text-right">Potência</th>
             </tr>
           </thead>
           <tbody>
             {ranking.length ? ranking.map((item: any, index: number) => (
               <tr key={index}>
-                <td>{index + 1}</td>
-                <td>{equipmentName(item)}</td>
-                <td>
+                <td className="text-left">{index + 1}</td>
+                <td className="text-left">{equipmentName(item)}</td>
+                <td className="text-right tabular-nums">
                   {item?.capacityMarginPercent != null
                     ? `${formatNumber(item.capacityMarginPercent, 2)}%`
                     : "—"}
                 </td>
-                <td>{formatCurrency(item?.estimatedMonthlyCost)}</td>
-                <td>{formatNumber(item?.scores?.final, 2)}</td>
-                <td>{formatKw(item?.estimatedElectricalPowerKW)}</td>
+                <td className="text-right tabular-nums">{formatCurrency(item?.estimatedMonthlyCost)}</td>
+                <td className="text-right tabular-nums">{formatNumber(item?.scores?.final, 2)}</td>
+                <td className="text-right tabular-nums">{formatKw(item?.estimatedElectricalPowerKW)}</td>
               </tr>
             )) : (
               <tr>
