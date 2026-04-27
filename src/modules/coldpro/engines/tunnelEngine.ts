@@ -12,11 +12,12 @@ import {
   calculateProductSpecificEnergy,
 } from "../physics/productThermal";
 import { resolveTunnelMode } from "../physics/tunnelModeModel";
+import type { TunnelEngineInput, TunnelEngineResult, TunnelProcessStatus } from "../types/tunnelEngine.types";
 
 export const COLDPRO_TUNNEL_ENGINE_VERSION = "tunnel-engine-v1.0.0";
 
 export type TunnelPhysicalModel = "continuous_individual" | "continuous_spiral" | "static_cart" | "static_block" | "fluidized_bed" | "blast_freezer";
-export type TunnelScenarioStatus = "adequate" | "insufficient" | "missing_data" | "invalid_input";
+export type TunnelScenarioStatus = TunnelProcessStatus;
 
 export type TunnelThermalScenario = {
   airTempC: number | null;
