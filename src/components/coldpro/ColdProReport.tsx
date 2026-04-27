@@ -321,6 +321,13 @@ export function ColdProReport({
                     <b>Total requerido:</b> {fmt(result.total_required_kcal_h)} kcal/h ·{" "}
                     {fmt(result.total_required_kw)} kW · {fmt(result.total_required_tr)} TR
                   </div>
+                  <ProductEnergyDetails result={result} />
+                  {Array.isArray(result.calculation_breakdown?.validation_alerts) && result.calculation_breakdown.validation_alerts.length ? (
+                    <div className="mt-3 rounded-md border bg-muted/20 p-3 text-xs">
+                      <div className="mb-1 font-semibold">Alertas de confiabilidade</div>
+                      <ul className="list-disc space-y-1 pl-4">{result.calculation_breakdown.validation_alerts.map((alert: any, i: number) => <li key={`${alert.code}-${i}`}>{alert.message}</li>)}</ul>
+                    </div>
+                  ) : null}
                   <CalculationMethodBox result={result} />
                   <div className="mt-3 grid gap-3 lg:grid-cols-2">
                     <ResultConsistencyAudit normalized={normalized} />
