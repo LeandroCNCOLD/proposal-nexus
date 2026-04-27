@@ -416,10 +416,10 @@ function ColdProProjectPage() {
   async function handleCalculate() {
     if (!selectedEnv) return;
     try {
-      await calculate.mutateAsync(selectedEnv.id);
+      const calculated = await calculate.mutateAsync(selectedEnv.id);
       toast.success("Carga térmica calculada");
       setStepIndex(4);
-      const postAudit = auditColdProTechnicalConsistency({ environment: selectedEnv, result: calculate.data, tunnel: tunnelPreview ?? tunnel, products, advancedProcesses: advancedProcess ? [advancedProcess] : [], selection });
+      const postAudit = auditColdProTechnicalConsistency({ environment: selectedEnv, result: calculated, tunnel: tunnelPreview ?? tunnel, products, advancedProcesses: advancedProcess ? [advancedProcess] : [], selection });
       if (["blast_freezer", "cooling_tunnel"].includes(String(selectedEnv.environment_type)) && !postAudit.isBlocked) {
         try {
           await autoSelect.mutateAsync({ environmentId: selectedEnv.id, minQuantity: 1, equipmentKind: null });
