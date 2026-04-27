@@ -20,18 +20,14 @@ function productDefaults(input: any) {
   return PRODUCT_THERMAL_DEFAULTS.find((preset) => preset.match.test(text)) ?? null;
 }
 
-function firstPositive(...values: unknown[]) {
-  for (const value of values) {
-    const parsed = safeNumber(value, 0);
-    if (parsed > 0) return parsed;
-  }
-  return 0;
-}
-
 function normalizeFraction(value: unknown, fallback: number) {
   const parsed = safeNumber(value, NaN);
   if (!Number.isFinite(parsed) || parsed < 0) return Math.min(Math.max(fallback, 0), 1);
   return Math.min(parsed > 1 ? parsed / 100 : parsed, 1);
+}
+
+function firstProvided(...values: unknown[]) {
+  return values.find((value) => value !== null && value !== undefined && value !== "");
 }
 
 function normalizeEnergy(kjValue: unknown, kcalValue: unknown, defaultKcalValue?: unknown): { value: number; source: ConversionSource } {
@@ -53,7 +49,7 @@ export function normalizeThermalProperties(input: any) {
   const cpBelow = normalizeEnergy(input?.specific_heat_below_kj_kg_k ?? input?.cpBelowKJkgK, input?.specific_heat_below_kcal_kg_c, defaults?.cpBelowKcalKgC);
   const latentHeat = normalizeEnergy(input?.latent_heat_kj_kg ?? input?.latentHeatKJkg, input?.latent_heat_kcal_kg, defaults?.latentHeatKcalKg);
   const frozenWaterFraction = normalizeFraction(
-    firstPositive(input?.frozen_water_fraction, input?.frozenWaterFraction, input?.freezable_water_content_percent, input?.water_content_percent),
+    firstProvided(input?.frozen_water_fraction, input?.frozenWaterFraction, input?.freezable_water_content_percent, input?.water_content_percent),
     defaults?.frozenWaterFraction ?? 1,
   );
   const latentResidualFactor = normalizeFraction(input?.latent_residual_factor ?? input?.latentResidualFactor, defaults?.latentResidualFactor ?? 1);
