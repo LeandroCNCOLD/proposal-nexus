@@ -369,7 +369,8 @@ export function calculateSeedDehumidificationLoad(env: ColdProEnvironment) {
   const internalW = humidityRatioKgKg(n(env.internal_temp_c), internalRh, pressure);
   const deltaW = externalW - internalW;
   const volumeFlowM3H = n(env.volume_m3) * n(env.air_changes_per_hour) + n(env.fresh_air_m3_h) + n(env.door_infiltration_m3_h);
-  const airProps = createAirPropertiesContext({ temperatureC: env.internal_temp_c, relativeHumidityPercent: internalRh, pressureKPa: env.atmospheric_pressure_kpa, altitudeM: env.altitude_m, airDensityKgM3: env.air_density_kg_m3, mode: "evaporation" });
+  const envRecord = env as Record<string, unknown>;
+  const airProps = createAirPropertiesContext({ temperatureC: env.internal_temp_c, relativeHumidityPercent: internalRh, pressureKPa: env.atmospheric_pressure_kpa, altitudeM: Number(envRecord.altitude_m ?? 0) || null, airDensityKgM3: Number(envRecord.air_density_kg_m3 ?? 0) || null, mode: "evaporation" });
   const dryAirFlowKgH = volumeFlowM3H * airProps.densityKgM3;
   const waterFromAirKgH = deltaW > 0 ? dryAirFlowKgH * deltaW : 0;
   if (deltaW <= 0) warnings.push("Umidade externa menor ou igual à umidade interna desejada: não foi calculada remoção de umidade do ar externo.");
