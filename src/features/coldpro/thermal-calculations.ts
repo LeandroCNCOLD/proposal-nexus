@@ -1,3 +1,5 @@
+import { createAirPropertiesContext } from "@/modules/coldpro/physics/airProperties";
+
 export type OperationProfile = "light" | "normal" | "intense" | "critical";
 export type DoorProtection = "none" | "pvc_curtain" | "air_curtain" | "antechamber" | "fast_door" | "antechamber_fast_door";
 export type ApplicationType = "freezer_room" | "frozen_room" | "chilled_room" | "climatized_room" | "climatized" | "tunnel" | "cold_room";
@@ -56,7 +58,8 @@ export function calculatePsychrometricInfiltrationLoad(input: any, simpleFallbac
   const internalTempC = input.internalTempC ?? input.internal_temp_c ?? input.airTempC ?? input.air_temp_c;
   const internalRH = input.internalRelativeHumidityPercent ?? input.internal_relative_humidity_percent ?? input.relative_humidity_percent;
   const airflowM3H = input.infiltrationAirflowM3H ?? input.infiltration_airflow_m3_h;
-  const density = num(input.airDensityKgM3 ?? input.air_density_kg_m3, THERMAL_CONSTANTS.air.densityKgM3);
+  const airProps = createAirPropertiesContext({ temperatureC: internalTempC, relativeHumidityPercent: internalRH, pressureKPa: input.atmosphericPressureKPa ?? input.atmospheric_pressure_kpa, altitudeM: input.altitudeM ?? input.altitude_m, airDensityKgM3: input.airDensityKgM3 ?? input.air_density_kg_m3, mode: "sublimation" });
+  const density = airProps.densityKgM3;
   const missing = [externalTempC, externalRH, internalTempC, internalRH, airflowM3H].some((value) => value === null || value === undefined || value === "" || !Number.isFinite(Number(value)) || Number(value) <= 0 && value === airflowM3H);
   if (missing) {
     warnings.push("Método psicrométrico solicitado, mas faltam dados de umidade/entalpia. Usando método simplificado.");
@@ -67,9 +70,9 @@ export function calculatePsychrometricInfiltrationLoad(input: any, simpleFallbac
   const hIn = moistAirEnthalpyKJkgDryAir(num(internalTempC), num(internalRH));
   const massAirKgS = Math.max(0, num(airflowM3H)) * Math.max(0.1, density) / 3600;
   const totalKW = Math.max(0, massAirKgS * (hOut - hIn));
-  const sensibleKW = Math.max(0, massAirKgS * 1.005 * (num(externalTempC) - num(internalTempC)));
+  const sensibleKW = Math.max(0, massAirKgS * airProps.specificHeatKJkgK * (num(externalTempC) - num(internalTempC)));
   const latentKW = Math.max(0, totalKW - sensibleKW);
-  return { sensibleKcalH: round(sensibleKW * THERMAL_CONSTANTS.conversion.kcalPerKwH), latentKcalH: round(latentKW * THERMAL_CONSTANTS.conversion.kcalPerKwH), totalKcalH: round(totalKW * THERMAL_CONSTANTS.conversion.kcalPerKwH), methodUsed: "psychrometric_enthalpy", warnings, enthalpyExternalKJkg: round(hOut, 3), enthalpyInternalKJkg: round(hIn, 3), infiltrationAirflowM3H: round(num(airflowM3H)) };
+  return { sensibleKcalH: round(sensibleKW * THERMAL_CONSTANTS.conversion.kcalPerKwH), latentKcalH: round(latentKW * THERMAL_CONSTANTS.conversion.kcalPerKwH), totalKcalH: round(totalKW * THERMAL_CONSTANTS.conversion.kcalPerKwH), methodUsed: "psychrometric_enthalpy", warnings: [...warnings, ...airProps.warnings], enthalpyExternalKJkg: round(hOut, 3), enthalpyInternalKJkg: round(hIn, 3), infiltrationAirflowM3H: round(num(airflowM3H)), airProperties: airProps };
 }
 
 export function applicationTypeFromEnvironment(type?: string | null): ApplicationType {
@@ -105,7 +108,8 @@ export function calculateTechnicalInfiltration(env: any) {
   const continuousInfiltrationM3Day = (airChangesM3H + freshAirM3H + manualDoorM3H) * 24;
   const totalInfiltrationM3Day = doorInfiltrationM3Day + continuousInfiltrationM3Day;
   const deltaT = Math.max(0, externalTempC - internalTempC);
-  const sensibleKcalDay = totalInfiltrationM3Day * THERMAL_CONSTANTS.air.densityKgM3 * THERMAL_CONSTANTS.air.cpKcalKgC * deltaT;
+  const airProps = createAirPropertiesContext({ temperatureC: internalTempC, relativeHumidityPercent: internalRH * 100, pressureKPa: env.atmospheric_pressure_kpa, altitudeM: env.altitude_m, airDensityKgM3: env.air_density_kg_m3, mode: "sublimation" });
+  const sensibleKcalDay = totalInfiltrationM3Day * airProps.densityKgM3 * (airProps.specificHeatKJkgK / 4.1868) * deltaT;
   const externalAbsoluteHumidityKgM3 = absoluteHumidityKgM3(externalTempC, externalRH);
   const internalAbsoluteHumidityKgM3 = absoluteHumidityKgM3(internalTempC, internalRH);
   const deltaHumidityKgM3 = Math.max(0, externalAbsoluteHumidityKgM3 - internalAbsoluteHumidityKgM3);
@@ -148,6 +152,7 @@ export function calculateTechnicalInfiltration(env: any) {
     iceKgDay: round(iceKgDay),
     iceKgHour: round(iceKgDay / 24),
     compressorHoursDay: round(compressorHoursDay),
+    airProperties: airProps,
     infiltrationAveragingHoursDay,
     formulas: {
       door_area: "A = largura x altura",
