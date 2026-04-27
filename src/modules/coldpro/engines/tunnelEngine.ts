@@ -265,7 +265,6 @@ function canEstimateFreezingTime(input: TunnelEngineInput, distanceToCoreM: numb
   return (
     positiveNumber(input?.densityKgM3) > 0 &&
     thermalKcal(input, "latentHeatKcalKg", "latentHeatKJkg") > 0 &&
-    positiveNumber(input?.frozenWaterFraction) > 0 &&
     distanceToCoreM > 0 &&
     toNumber(hEffectiveWM2K, 0) > 0 &&
     kEffectiveWMK > 0 &&
@@ -285,7 +284,7 @@ function productLoadMissingFields(input: TunnelEngineInput, isStatic: boolean, s
     thermalKcal(input, "cpAboveKcalKgC", "cpAboveKJkgK") <= 0 ? "Cp acima do congelamento" : "",
     energy.crossesFreezingPoint && thermalKcal(input, "cpBelowKcalKgC", "cpBelowKJkgK") <= 0 ? "Cp abaixo do congelamento" : "",
     energy.crossesFreezingPoint && thermalKcal(input, "latentHeatKcalKg", "latentHeatKJkg") <= 0 ? "calor latente" : "",
-    energy.crossesFreezingPoint && positiveNumber(input?.frozenWaterFraction) <= 0 ? "fração congelável" : "",
+    energy.crossesFreezingPoint && energy.latentMode === "full" && positiveNumber(input?.frozenWaterFraction) <= 0 ? "fração congelável" : "",
   ]);
 }
 
