@@ -758,18 +758,11 @@ function ColdProProjectPage() {
               {stepIndex === 0 && (
                 <div className="space-y-3">
                   <ColdProEnvironmentForm
+                    ref={environmentFormRef}
                     environment={selectedEnv}
                     insulationMaterials={data?.insulationMaterials ?? []}
                     thermalMaterials={data?.thermalMaterials ?? []}
-                    onSave={(patch) => {
-                      updateEnv.mutate(
-                        { id: selectedEnv.id, patch },
-                        {
-                          onSuccess: () => toast.success("Ambiente salvo"),
-                          onError: (e: any) => toast.error(e?.message ?? "Erro ao salvar"),
-                        },
-                      );
-                    }}
+                    onSave={(patch) => handleSaveEnvironmentPatch(patch, "Ambiente salvo")}
                   />
                   <ColdProSectionLoadSummary
                     title="Prévia da carga do ambiente"
@@ -795,6 +788,7 @@ function ColdProProjectPage() {
                     />
                   ) : (
                     <ColdProProductForm
+                      ref={productFormRef}
                       environmentId={selectedEnv.id}
                       product={products.find((p: any) => p.id === editingProductId) ?? products[0] ?? null}
                       productCatalog={data?.productCatalog ?? []}
@@ -843,17 +837,10 @@ function ColdProProjectPage() {
               {stepIndex === 2 && (
                 <div className="space-y-3">
                   <ColdProExtraLoadsForm
+                    ref={extraLoadsFormRef}
                     environment={selectedEnv}
                     catalogFanLoadKcalH={catalogFanLoadKcalH}
-                    onSave={(patch) =>
-                      updateEnv.mutate(
-                        { id: selectedEnv.id, patch },
-                        {
-                          onSuccess: () => toast.success("Cargas extras salvas"),
-                          onError: (e: any) => toast.error(e?.message ?? "Erro ao salvar"),
-                        },
-                      )
-                    }
+                    onSave={(patch) => handleSaveEnvironmentPatch(patch, "Cargas extras salvas")}
                   />
                   <ColdProSectionLoadSummary
                     title="Prévia das cargas extras"
