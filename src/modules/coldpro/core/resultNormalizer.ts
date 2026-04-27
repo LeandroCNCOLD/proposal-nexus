@@ -1,3 +1,5 @@
+import { listAshraeColdProComparisons } from "./ashraeComparison";
+
 export type ColdProNormalizedResult = ReturnType<typeof normalizeColdProResult>;
 
 const KCAL_PER_KW = 859.845;
@@ -21,6 +23,21 @@ function sumAdvanced(list: any[], picker: (item: any) => unknown): number {
   return list.reduce((sum, item) => sum + num(picker(item)), 0);
 }
 
+export function buildCalculationMethodSummary(result: any) {
+  const breakdown = result?.calculation_breakdown ?? result?.calculationBreakdown ?? {};
+  const method = breakdown.calculationMethod ?? {};
+  const methodValues = Object.values(method).filter((item: any) => item?.name || item?.formula || typeof item === "string");
+  const methods = [...Object.values(method.methods ?? {}), ...methodValues.map((item: any) => item?.name ?? item)].filter(Boolean);
+  const limitations = [...(Array.isArray(method.limitations) ? method.limitations : []), ...methodValues.map((item: any) => item?.limitations).filter(Boolean)];
+  const ashraeComparison = Array.isArray(breakdown.ashraeComparison) ? breakdown.ashraeComparison : listAshraeColdProComparisons();
+  const warnings = [
+    ...(Array.isArray(breakdown.validation?.warnings) ? breakdown.validation.warnings : []),
+    ...(Array.isArray(breakdown.tunnel?.warnings) ? breakdown.tunnel.warnings : []),
+    ...(Array.isArray(breakdown.infiltration_technical?.psychrometric?.warnings) ? breakdown.infiltration_technical.psychrometric.warnings : []),
+  ];
+  return { methods: Array.from(new Set(methods.map(String))), limitations: Array.from(new Set(limitations.map(String))), warnings: Array.from(new Set(warnings.map(String))), ashraeComparison };
+}
+
 function selectedTunnelAttempt(tunnel: any) {
   const attempts = Array.isArray(tunnel?.optimization_attempts) ? tunnel.optimization_attempts : [];
   return attempts.find((attempt: any) => attempt?.meets) ?? attempts[0] ?? null;
@@ -35,6 +52,7 @@ export function normalizeColdProResult(rawResult: any, selection?: any | null, e
   const seed = breakdown.seed_dehumidification ?? {};
   const frost = breakdown.evaporator_frost ?? breakdown.infiltration_technical ?? {};
   const advanced = Array.isArray(breakdown.advanced_processes) ? breakdown.advanced_processes : [];
+  const calculationMethodSummary = buildCalculationMethodSummary(result);
 
   const directProductKcalH = num(result.product_kcal_h);
   const tunnelProcessKcalH = num(result.tunnel_internal_load_kcal_h || tunnel.total_kcal_h || tunnel.total_kw * KCAL_PER_KW);
@@ -166,5 +184,11 @@ export function normalizeColdProResult(rawResult: any, selection?: any | null, e
       hasCriticalDivergence: warnings.some((warning) => warning.includes("não fecha") || warning.includes("capacidade corrigida") || warning.includes("subdimensionado")),
       warnings,
     },
+    calculationMethod: breakdown.calculationMethod ?? null,
+    calculationMethodSummary,
+    engineVersion: result.engine_version ?? tunnel.engine_version ?? breakdown.tunnel_engine?.engine_version ?? null,
+    calculatedAt: result.calculated_at ?? tunnel.calculated_at ?? breakdown.tunnel_engine?.calculated_at ?? null,
+    ashraeComparisonWarnings: calculationMethodSummary.ashraeComparison.filter((item: any) => item.priority === "high"),
+    methodLimitations: calculationMethodSummary.limitations,
   };
 }
