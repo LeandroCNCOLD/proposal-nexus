@@ -412,8 +412,6 @@ function drawCalculationMethodology(ctx: Ctx, result?: any | null) {
 }
 
 function pieChart(ctx: Ctx, result: any) {
-
-function pieChart(ctx: Ctx, result: any) {
   const rows = loadRows(result);
   const total = rows.reduce((sum, [, value]) => sum + value, 0);
   if (!rows.length || total <= 0) return;
