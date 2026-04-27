@@ -16,6 +16,7 @@ export type TunnelSourceRecord = Record<string, unknown>;
 
 export interface TunnelCalculationRecord {
   [key: string]: unknown;
+  calculationMethod?: TunnelCalculationMethodReport;
   model?: {
     physicalDescription?: string;
     geometryAssumption?: string;
@@ -24,10 +25,22 @@ export interface TunnelCalculationRecord {
   loads?: {
     productLoadMissingFields?: string[];
     massUsedForProductLoad?: number;
+    packagingMassSource?: string;
   };
   air?: {
     comparison?: number | null;
   };
+  infiltration?: {
+    requestedMethod?: string;
+    usedMethod?: string;
+    fallbackApplied?: boolean;
+  };
+}
+
+export interface TunnelCalculationMethodReport {
+  title: string;
+  methods: Record<string, string | undefined>;
+  limitations: string[];
 }
 
 export interface TunnelEngineInput {
@@ -210,7 +223,7 @@ export interface TunnelEngineResult {
   invalidFields: string[];
   warnings: string[];
   scenario?: TunnelThermalScenarioResult;
-  calculationMethod: Record<string, unknown>;
+  calculationMethod: TunnelCalculationMethodReport;
   initialScenario: TunnelThermalScenarioResult;
   adjustedScenario: TunnelThermalScenarioResult;
   approvedScenario: TunnelThermalScenarioResult | null;
