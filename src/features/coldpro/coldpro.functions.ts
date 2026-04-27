@@ -3,6 +3,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { calculateColdProLoad } from "./coldpro-calculation.engine";
+import { calculateAdvancedProcess } from "./advancedProcesses/advancedProcessEngine";
 import { findEquipmentCandidates, suggestApplication, suggestEvaporationTemp } from "./equipment-selection.engine";
 import { formToTunnelInput } from "@/modules/coldpro/adapters/formToTunnelInput";
 import { tunnelResultToDatabasePayload } from "@/modules/coldpro/adapters/tunnelInputToDatabasePayload";
