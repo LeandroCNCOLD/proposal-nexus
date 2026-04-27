@@ -19,7 +19,7 @@ import {
 } from "@/features/coldpro/use-coldpro";
 import { ColdProEnvironmentForm } from "@/components/coldpro/ColdProEnvironmentForm";
 import { ColdProProductForm } from "@/components/coldpro/ColdProProductForm";
-import { ColdProTunnelForm } from "@/components/coldpro/ColdProTunnelForm";
+import { ColdProTunnelForm, type ColdProTunnelFormHandle } from "@/components/coldpro/ColdProTunnelForm";
 import { ColdProResultCard } from "@/components/coldpro/ColdProResultCard";
 import { ColdProExtraLoadsForm } from "@/components/coldpro/ColdProExtraLoadsForm";
 import { ColdProStepper, COLDPRO_STEPS } from "@/components/coldpro/ColdProStepper";
@@ -298,6 +298,7 @@ function ColdProProjectPage() {
   const [energyTariff, setEnergyTariff] = React.useState("0.95");
   const [commercialQuantity, setCommercialQuantity] = React.useState("1");
   const [equipmentUnitPrice, setEquipmentUnitPrice] = React.useState("0");
+  const tunnelFormRef = React.useRef<ColdProTunnelFormHandle | null>(null);
 
   const environments = data?.environments ?? [];
   const selectedEnv = environments.find((env: any) => env.id === selectedEnvId) ?? environments[0];
@@ -445,12 +446,14 @@ function ColdProProjectPage() {
   }
 
   async function handleSaveTunnel(payload: any) {
-    if (!selectedEnv) return;
+    if (!selectedEnv) return false;
     try {
       await upsertTunnel.mutateAsync(payload);
       await handleRecalculateEnvironment(selectedEnv.id, "Túnel salvo e carga recalculada");
+      return true;
     } catch (e: any) {
       toast.error(e?.message ?? "Erro ao salvar");
+      return false;
     }
   }
 
@@ -537,7 +540,17 @@ function ColdProProjectPage() {
     }
   }
 
-  function next() {
+  async function saveCurrentStepBeforeNavigation() {
+    if (!selectedEnv) return true;
+    if (stepIndex === 1 && ["blast_freezer", "cooling_tunnel"].includes(String(selectedEnv.environment_type))) {
+      return tunnelFormRef.current ? tunnelFormRef.current.save() : true;
+    }
+    return true;
+  }
+
+  async function next() {
+    const saved = await saveCurrentStepBeforeNavigation();
+    if (!saved) return;
     setStepIndex((i) => Math.min(i + 1, COLDPRO_STEPS.length - 1));
   }
   function prev() {
