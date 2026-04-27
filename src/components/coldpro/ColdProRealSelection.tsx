@@ -28,6 +28,7 @@ function fmt(n: number | null | undefined, digits = 1) {
 export function ColdProRealSelection({ environment, result, onSelect, isSelecting }: Props) {
   const tInt = Number(environment?.internal_temp_c ?? 0);
   const tExt = Number(environment?.external_temp_c ?? 35);
+  const internalTempLabel = Number.isFinite(tInt) ? String(tInt) : "—";
 
   const [tEvap, setTEvap] = useState<string>(String(suggestEvaporationTemp(tInt)));
   const [tCond, setTCond] = useState<string>(String(Math.max(40, Math.round(tExt + 10))));
@@ -92,7 +93,7 @@ export function ColdProRealSelection({ environment, result, onSelect, isSelectin
             <ColdProInput readOnly value={fmt(requiredKcal, 0)} />
           </ColdProField>
           <ColdProField label="Temperatura interna" unit="°C">
-            <ColdProInput readOnly value={String(tInt)} />
+            <ColdProInput readOnly value={internalTempLabel} />
           </ColdProField>
           <ColdProField label="Temperatura de evaporação" unit="°C">
             <ColdProInput
