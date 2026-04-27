@@ -2760,6 +2760,7 @@ export type Database = {
       coldpro_tunnels: {
         Row: {
           air_delta_t_k: number
+          air_density_kg_m3: number | null
           air_exposure_factor: number | null
           air_flow_method: string | null
           air_temp_c: number
@@ -2945,6 +2946,7 @@ export type Database = {
         }
         Insert: {
           air_delta_t_k?: number
+          air_density_kg_m3?: number | null
           air_exposure_factor?: number | null
           air_flow_method?: string | null
           air_temp_c?: number
@@ -3130,6 +3132,7 @@ export type Database = {
         }
         Update: {
           air_delta_t_k?: number
+          air_density_kg_m3?: number | null
           air_exposure_factor?: number | null
           air_flow_method?: string | null
           air_temp_c?: number
