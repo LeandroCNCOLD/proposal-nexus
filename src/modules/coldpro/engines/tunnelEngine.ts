@@ -258,7 +258,7 @@ function requiredPositiveFields(input: TunnelEngineInput, isStatic: boolean, sta
 function canEstimateFreezingTime(input: TunnelEngineInput, distanceToCoreM: number, hEffectiveWM2K: number | null, kEffectiveWMK: number): boolean {
   return (
     positiveNumber(input?.densityKgM3) > 0 &&
-    positiveNumber(input?.latentHeatKJkg) > 0 &&
+    positiveNumber(input?.latentHeatKcalKg) > 0 &&
     positiveNumber(input?.frozenWaterFraction) > 0 &&
     distanceToCoreM > 0 &&
     toNumber(hEffectiveWM2K, 0) > 0 &&
@@ -276,9 +276,9 @@ function productLoadMissingFields(input: TunnelEngineInput, isStatic: boolean, s
     !isProvided(input?.initialTempC) ? "temperatura inicial do produto" : "",
     !isProvided(input?.finalTempC) ? "temperatura final do produto" : "",
     !isProvided(input?.freezingPointC) ? "temperatura de congelamento" : "",
-    positiveNumber(input?.cpAboveKJkgK) <= 0 ? "Cp acima do congelamento" : "",
-    energy.crossesFreezingPoint && positiveNumber(input?.cpBelowKJkgK) <= 0 ? "Cp abaixo do congelamento" : "",
-    energy.crossesFreezingPoint && positiveNumber(input?.latentHeatKJkg) <= 0 ? "calor latente" : "",
+    positiveNumber(input?.cpAboveKcalKgC) <= 0 ? "Cp acima do congelamento" : "",
+    energy.crossesFreezingPoint && positiveNumber(input?.cpBelowKcalKgC) <= 0 ? "Cp abaixo do congelamento" : "",
+    energy.crossesFreezingPoint && positiveNumber(input?.latentHeatKcalKg) <= 0 ? "calor latente" : "",
     energy.crossesFreezingPoint && positiveNumber(input?.frozenWaterFraction) <= 0 ? "fração congelável" : "",
   ]);
 }
@@ -314,7 +314,7 @@ function resolveInfiltrationMethod(input: TunnelEngineInput) {
 
 function resolvePackagingLoad(input: TunnelEngineInput, operationRegime: "continuous" | "batch") {
   const deltaT = Math.abs(toNumber(input?.initialTempC) - toNumber(input?.finalTempC));
-  const cp = positiveNumber(input?.packagingCpKJkgK ?? input?.packaging_cp_kj_kg_k);
+  const cp = positiveNumber(input?.packagingCpKcalKgC ?? input?.packaging_cp_kcal_kg_c ?? (positiveNumber(input?.packagingCpKJkgK ?? input?.packaging_cp_kj_kg_k) / 4.1868));
   const batchTimeH = positiveNumber(input?.batchTimeH ?? input?.batch_time_h);
   const continuousMassKgH = positiveNumber(input?.packagingMassKgH ?? input?.packaging_mass_kg_h ?? input?.packaging_mass_kg_hour);
   const numberOfPallets = positiveNumber(input?.numberOfPallets ?? input?.number_of_pallets) || 1;
@@ -327,10 +327,10 @@ function resolvePackagingLoad(input: TunnelEngineInput, operationRegime: "contin
   ];
   const batchCandidate = candidates.find((candidate) => candidate.mass > 0);
   if (operationRegime === "batch") {
-    const loadKW = batchCandidate && cp > 0 && batchTimeH > 0 ? (batchCandidate.mass * cp * deltaT) / (batchTimeH * 3600) : 0;
+    const loadKW = batchCandidate && cp > 0 && batchTimeH > 0 ? (batchCandidate.mass * cp * deltaT / batchTimeH) / 859.845 : 0;
     return { packagingLoadKW: loadKW, packagingMassKgH: continuousMassKgH, packagingMassBatchKg: batchCandidate?.mass ?? 0, packagingLoadMethod: "batch_total_mass" as const, packagingMassSource: batchCandidate?.source ?? "none" };
   }
-  const loadKW = continuousMassKgH > 0 && cp > 0 ? (continuousMassKgH * cp * deltaT) / 3600 : 0;
+  const loadKW = continuousMassKgH > 0 && cp > 0 ? (continuousMassKgH * cp * deltaT) / 859.845 : 0;
   return { packagingLoadKW: loadKW, packagingMassKgH: continuousMassKgH, packagingMassBatchKg: 0, packagingLoadMethod: "continuous_mass_flow" as const, packagingMassSource: "packagingMassKgH" };
 }
 
