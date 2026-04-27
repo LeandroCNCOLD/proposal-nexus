@@ -97,6 +97,7 @@ export interface TunnelEngineInput {
   cpBelowKJkgK?: number | null;
   latentHeatKJkg?: number | null;
   frozenWaterFraction?: number | null;
+  latentResidualFactor?: number | null;
   densityKgM3?: number | null;
   frozenConductivityWMK?: number | null;
   thermalPenetrationFactor?: number | null;
