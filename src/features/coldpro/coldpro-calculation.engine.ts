@@ -657,20 +657,22 @@ export function calculateProductLoadBreakdown(product: ColdProEnvironmentProduct
   const tout = n(product.outlet_temp_c);
   const tfreeze = product.initial_freezing_temp_c;
 
-  const cpAbove = thermalValueKcal(product.specific_heat_above_kcal_kg_c, product.specific_heat_above_kj_kg_k);
-  const cpBelow = thermalValueKcal(product.specific_heat_below_kcal_kg_c, product.specific_heat_below_kj_kg_k);
-  const latent = thermalValueKcal(product.latent_heat_kcal_kg, product.latent_heat_kj_kg);
+  const thermal = normalizeThermalProperties(product);
+  const cpAbove = thermal.cpAboveKJkgK / KCAL_TO_KJ;
+  const cpBelow = thermal.cpBelowKJkgK / KCAL_TO_KJ;
+  const latent = thermal.latentHeatKJkg / KCAL_TO_KJ;
   const allowPhaseChange = product.allow_phase_change !== false;
-  const frozenFraction = waterFreezeFraction(product);
+  const frozenFraction = thermal.frozenWaterFraction;
+  const latentResidualFactor = thermal.latentResidualFactor;
 
   let sensibleAbove = 0;
   let latentLoad = 0;
   let sensibleBelow = 0;
 
-  if (allowPhaseChange && tfreeze !== null && tfreeze !== undefined && tin > tfreeze && tout < tfreeze) {
+  if (allowPhaseChange && tfreeze !== null && tfreeze !== undefined && tout < tfreeze) {
     sensibleAbove = massDay * cpAbove * positive(tin - tfreeze);
-    latentLoad = massDay * latent * frozenFraction;
-    sensibleBelow = massDay * cpBelow * positive(tfreeze - tout);
+    latentLoad = massDay * latent * frozenFraction * latentResidualFactor;
+    sensibleBelow = massDay * cpBelow * Math.abs(tout - Math.min(tin, tfreeze));
   } else {
     const cp = tin >= 0 && tout >= 0 ? cpAbove : cpBelow || cpAbove;
     sensibleAbove = massDay * cp * Math.abs(tin - tout);
