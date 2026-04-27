@@ -1,5 +1,6 @@
 import { buildCalculationLog } from "../core/calculationLogger";
 import { COLDPRO_CALCULATION_METHOD_REGISTRY_VERSION, COLDPRO_CALCULATION_METHODS } from "../core/calculationMethodRegistry";
+import { calculateProductLoadByProcessMode, resolveProcessMass } from "../core/operationalModel";
 import { buildCalculationMethodReport } from "../reports/calculationMethodReport";
 import { kwToKcalH, kwToTr } from "../core/units";
 import { validateTunnelInput } from "../core/validators";
@@ -9,8 +10,6 @@ import { calculatePlankFreezingTimeMin, validateFreezingTime } from "../physics/
 import { calculateCharacteristicDimension } from "../physics/geometryModel";
 import { calculateConvectiveCoefficient, resolveTransmissionLoad } from "../physics/heatTransfer";
 import {
-  calculateBatchProductLoadKW,
-  calculateContinuousProductLoadKW,
   calculateProductSpecificEnergy,
 } from "../physics/productThermal";
 import { resolveTunnelMode } from "../physics/tunnelModeModel";
