@@ -167,6 +167,17 @@ export function resolveProcessMass(input: any): ProcessMassResolution {
   if (isTunnelLike && processMode === "batch" && batchMassKg <= 0) blockers.push("massa total da batelada obrigatória para túnel/blast freezer");
   if (isTunnelLike && processMode === "continuous" && massFlowKgH <= 0) blockers.push("fluxo kg/h obrigatório para túnel contínuo/girofreezer/IQF");
   if (isTunnelLike && processTimeH <= 0) blockers.push(processMode === "continuous" ? "tempo de residência obrigatório" : "tempo de processo/batelada obrigatório");
+  if (beltSurface) {
+    if (beltSurface.surfaceDensityKgM2 <= 0) blockers.push("densidade superficial da esteira obrigatória em kg/m²");
+    if (beltSurface.areaM2 <= 0 && (beltSurface.widthM <= 0 || beltSurface.effectiveLengthM <= 0)) blockers.push("área útil ou largura × comprimento útil da esteira obrigatórios");
+    const retentionDeviation = pctDiff(beltSurface.calculatedRetentionMin, beltSurface.retentionTimeMin);
+    if (retentionDeviation !== null && retentionDeviation > 10) warnings.push("Tempo de retenção informado diverge do comprimento útil e velocidade da esteira.");
+    if (beltSurface.capacityDeviationPercent !== null && beltSurface.capacityDeviationPercent > 10) warnings.push("Capacidade calculada pela esteira diverge da capacidade nominal informada.");
+    if (beltSurface.flowByRetentionKgH > 0 && beltSurface.flowBySpeedKgH > 0) {
+      const flowDeviation = pctDiff(beltSurface.flowByRetentionKgH, beltSurface.flowBySpeedKgH);
+      if (flowDeviation !== null && flowDeviation > 10) warnings.push("Fluxo por retenção diverge do fluxo por velocidade da esteira em mais de 10%.");
+    }
+  }
   if (batchMassKg > 0 && batchMassKg < 200 && processMode === "batch") warnings.push("Massa menor que 200 kg para túnel industrial; validar se não há subdimensionamento por massa informada baixa.");
   if (type === "static_cart") {
     if (positive(input?.traysPerCart ?? input?.trays_per_cart) <= 0) warnings.push("Número de bandejas por carrinho não informado.");
