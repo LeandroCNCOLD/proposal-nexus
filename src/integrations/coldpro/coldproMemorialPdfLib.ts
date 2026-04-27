@@ -1,5 +1,6 @@
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage, type RGB } from "pdf-lib";
 import { calculateProductLoadBreakdown, estimateFreezingTimePlankMin } from "@/features/coldpro/coldpro-calculation.engine";
+import { auditColdProTechnicalConsistency, getColdProApplicationLabel } from "@/modules/coldpro/core/technicalAudit";
 
 const A4: [number, number] = [595.28, 841.89];
 const M = 36;
@@ -11,6 +12,7 @@ const COLORS = {
   border: rgb(0.82, 0.84, 0.87),
   soft: rgb(0.95, 0.97, 0.98),
   white: rgb(1, 1, 1),
+  danger: rgb(0.72, 0.12, 0.16),
 };
 const PIE_COLORS = [COLORS.accent, COLORS.primary, rgb(0.29, 0.62, 0.53), rgb(0.84, 0.55, 0.18), rgb(0.55, 0.37, 0.75), rgb(0.77, 0.31, 0.37), rgb(0.39, 0.45, 0.55), rgb(0.18, 0.48, 0.64)];
 
