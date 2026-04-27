@@ -18,7 +18,7 @@ const ARRANGEMENT_DEFAULTS: Record<string, { air: number; penetration: number; l
 const TUNNEL_TYPES = { continuous_belt: "Túnel contínuo de esteira", spiral_girofreezer: "Girofreezer / espiral", static_cart: "Túnel estático com carrinhos", static_pallet: "Túnel estático com pallets", fluidized_bed: "Leito fluidizado / IQF", blast_freezer: "Câmara/túnel de ar forçado" } as const;
 const ARRANGEMENTS_BY_TUNNEL: Record<string, string[]> = { continuous_belt: ["individual_units", "single_layer_blocks", "trays", "stacked_packages"], spiral_girofreezer: ["individual_units", "trays", "packaged_units"], static_cart: ["trays_on_racks", "boxes_on_cart", "hanging_product"], static_pallet: ["palletized_boxes", "palletized_blocks", "bulk_on_pallet"], fluidized_bed: ["loose_particles", "small_individual_units"], blast_freezer: ["boxes", "racks", "bulk_container", "palletized_boxes", "trays_on_racks"] };
 const STATIC_MASS_MODES = { static_pallet: ["direct_pallet_mass", "calculated_pallet_composition"], static_cart: ["direct_cart_mass", "calculated_cart_composition"], blast_freezer: ["direct_batch_mass", "calculated_batch_composition"] } as const;
-const CONTINUOUS_MASS_MODES = { continuous_belt: ["direct_mass_flow", "calculated_by_units_per_hour", "calculated_by_belt_loading"], spiral_girofreezer: ["direct_mass_flow", "calculated_by_units", "calculated_by_trays"], fluidized_bed: ["direct_mass_flow", "calculated_by_feed_rate"] } as const;
+const CONTINUOUS_MASS_MODES = { continuous_belt: ["direct_mass_flow", "calculated_by_units_per_hour", "calculated_by_belt_loading", "calculated_by_belt_surface_density"], spiral_girofreezer: ["direct_mass_flow", "calculated_by_units", "calculated_by_trays"], fluidized_bed: ["direct_mass_flow", "calculated_by_feed_rate"] } as const;
 const GEOMETRIES = { slab: "Placa / manta / hambúrguer achatado", rectangular_prism: "Bloco retangular", cube: "Cubo", cylinder: "Cilindro", sphere: "Esfera", irregular: "Irregular", packed_box: "Caixa / embalagem fechada", bulk: "Granel" } as const;
 const EXPOSURE_MODELS = { fully_exposed: "Produto totalmente exposto ao ar", one_side_contact: "Uma face em contato", tray_contact: "Produto em bandeja", boxed: "Produto dentro de caixa", stacked: "Produto empilhado", bulk_layer: "Camada de produto a granel" } as const;
 const PALLET_THERMAL_MODELS = { box_limited: "Limitado pela caixa individual", pallet_block_limited: "Pallet/bloco compacto conservador", hybrid: "Híbrido: caixa + penalização do pallet" } as const;
@@ -144,6 +144,12 @@ const defaultTunnel = (environmentId: string) => ({
   units_per_row: 0,
   rows_per_meter: 0,
   belt_speed_m_min: 0,
+  belt_width_m: 0,
+  belt_effective_length_m: 0,
+  belt_area_m2: 0,
+  belt_surface_density_kg_m2: 0,
+  belt_mass_on_belt_kg: 0,
+  belt_nominal_capacity_kg_h: 0,
   feed_rate_kg_h: 0,
   mass_kg_hour: 0,
   pallet_length_m: 0,
@@ -197,6 +203,8 @@ const defaultTunnel = (environmentId: string) => ({
   bed_area_m2: 0,
   superficial_air_velocity_m_s: 0,
   belt_motor_kw: 0,
+  belt_motor_inside_environment: true,
+  belt_motor_dissipation_factor: 1,
   internal_fans_kw: 0,
   other_internal_kw: 0,
 });
@@ -375,7 +383,7 @@ function staticModeOptions(tunnelType: string) {
 function continuousModeOptions(tunnelType: string) {
   if (tunnelType === "spiral_girofreezer") return [{ value: "direct_mass_flow", label: "Informar kg/h diretamente" }, { value: "calculated_by_units", label: "Calcular por unidades/ciclo" }, { value: "calculated_by_trays", label: "Calcular por bandejas/h" }];
   if (tunnelType === "fluidized_bed") return [{ value: "direct_mass_flow", label: "Informar kg/h diretamente" }, { value: "calculated_by_feed_rate", label: "Usar taxa de alimentação" }];
-  return [{ value: "direct_mass_flow", label: "Informar kg/h diretamente" }, { value: "calculated_by_units_per_hour", label: "Calcular por unidades/h" }, { value: "calculated_by_belt_loading", label: "Calcular por carregamento da esteira" }];
+  return [{ value: "direct_mass_flow", label: "Informar kg/h diretamente" }, { value: "calculated_by_units_per_hour", label: "Calcular por unidades/h" }, { value: "calculated_by_belt_loading", label: "Calcular por carregamento da esteira" }, { value: "calculated_by_belt_surface_density", label: "Calcular por densidade superficial da esteira" }];
 }
 
 function simulationDraftFromTunnel(source: Partial<ColdProFormRecord>) {
@@ -482,8 +490,16 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
   const throughputByUnitsHour = unitWeight * positiveValue(form.units_per_hour);
   const beltUnitsPerHour = positiveValue(form.units_per_row) * positiveValue(form.rows_per_meter) * positiveValue(form.belt_speed_m_min) * 60;
   const throughputByBelt = beltUnitsPerHour * unitWeight;
+  const beltSurfaceAreaM2 = positiveValue(form.belt_area_m2) || positiveValue(form.belt_width_m) * positiveValue(form.belt_effective_length_m);
+  const beltSurfaceMassKg = positiveValue(form.belt_mass_on_belt_kg) || beltSurfaceAreaM2 * positiveValue(form.belt_surface_density_kg_m2);
+  const beltLinearLoadKgM = positiveValue(form.belt_surface_density_kg_m2) * positiveValue(form.belt_width_m);
+  const beltFlowByRetentionKgH = beltSurfaceMassKg > 0 && positiveValue(form.process_time_min) > 0 ? beltSurfaceMassKg / positiveValue(form.process_time_min) * 60 : 0;
+  const beltFlowBySpeedKgH = beltLinearLoadKgM * positiveValue(form.belt_speed_m_min) * 60;
+  const beltSurfaceFlowKgH = beltFlowByRetentionKgH || beltFlowBySpeedKgH || positiveValue(form.belt_nominal_capacity_kg_h);
+  const beltCalculatedRetentionMin = positiveValue(form.belt_effective_length_m) > 0 && positiveValue(form.belt_speed_m_min) > 0 ? positiveValue(form.belt_effective_length_m) / positiveValue(form.belt_speed_m_min) : 0;
+  const beltCapacityDeviationPercent = beltSurfaceFlowKgH > 0 && positiveValue(form.belt_nominal_capacity_kg_h) > 0 ? Math.abs(beltSurfaceFlowKgH - positiveValue(form.belt_nominal_capacity_kg_h)) / positiveValue(form.belt_nominal_capacity_kg_h) * 100 : null;
   const throughputByFeedRate = positiveValue(form.feed_rate_kg_h);
-  const calculatedMassHour = continuousMassMode === "calculated_by_trays" ? throughputByTrays : continuousMassMode === "calculated_by_units_per_hour" ? throughputByUnitsHour : continuousMassMode === "calculated_by_belt_loading" ? throughputByBelt : continuousMassMode === "calculated_by_feed_rate" ? throughputByFeedRate : throughputByUnits;
+  const calculatedMassHour = continuousMassMode === "calculated_by_trays" ? throughputByTrays : continuousMassMode === "calculated_by_units_per_hour" ? throughputByUnitsHour : continuousMassMode === "calculated_by_belt_loading" ? throughputByBelt : continuousMassMode === "calculated_by_belt_surface_density" ? beltSurfaceFlowKgH : continuousMassMode === "calculated_by_feed_rate" ? throughputByFeedRate : throughputByUnits;
   const massHour = continuousMassMode === "direct_mass_flow" ? positiveValue(form.mass_kg_hour) : calculatedMassHour;
   const staticMassMode = String(form.static_mass_mode ?? defaultMassModeForTunnel(tunnelType));
   const unitsPerPallet = staticMassMode === "calculated_pallet_composition" ? (positiveValue(form.total_units_per_pallet) || positiveValue(form.units_per_box) * positiveValue(form.boxes_per_layer) * positiveValue(form.number_of_layers)) : positiveValue(form.units_per_pallet);
@@ -890,6 +906,20 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
     units_per_row: Number(form.units_per_row ?? 0) || null,
     rows_per_meter: Number(form.rows_per_meter ?? 0) || null,
     belt_speed_m_min: Number(form.belt_speed_m_min ?? 0) || null,
+    belt_width_m: Number(form.belt_width_m ?? 0) || null,
+    belt_effective_length_m: Number(form.belt_effective_length_m ?? 0) || null,
+    belt_area_m2: beltSurfaceAreaM2 || null,
+    belt_surface_density_kg_m2: Number(form.belt_surface_density_kg_m2 ?? 0) || null,
+    belt_mass_on_belt_kg: beltSurfaceMassKg || null,
+    belt_linear_load_kg_m: beltLinearLoadKgM || null,
+    belt_flow_by_retention_kg_h: beltFlowByRetentionKgH || null,
+    belt_flow_by_speed_kg_h: beltFlowBySpeedKgH || null,
+    belt_calculated_flow_kg_h: beltSurfaceFlowKgH || null,
+    belt_nominal_capacity_kg_h: Number(form.belt_nominal_capacity_kg_h ?? 0) || null,
+    belt_calculated_retention_min: beltCalculatedRetentionMin || null,
+    belt_capacity_deviation_percent: beltCapacityDeviationPercent,
+    belt_motor_inside_environment: form.belt_motor_inside_environment !== false,
+    belt_motor_dissipation_factor: form.belt_motor_inside_environment === false ? Number(form.belt_motor_dissipation_factor ?? 0) : 1,
     feed_rate_kg_h: Number(form.feed_rate_kg_h ?? 0) || null,
     units_per_pallet: (tunnelResult.unitsPerPallet ?? unitsPerPallet) || null,
     product_mass_per_pallet_kg: (tunnelResult.productMassPerPalletKg ?? productMassPerPalletKg) || null,
@@ -999,6 +1029,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
   const cpAboveAudit = (unitAudit.cpAbove ?? {}) as Record<string, unknown>;
   const cpBelowAudit = (unitAudit.cpBelow ?? {}) as Record<string, unknown>;
   const latentAudit = (unitAudit.latentHeat ?? {}) as Record<string, unknown>;
+  const beltSurfaceBreakdown = ((tunnelResult as any).beltSurface ?? (tunnelResult.calculationBreakdown.mass as any)?.beltSurface ?? {}) as Record<string, number | null | undefined>;
   const tunnelResultCards = (
     <>
       <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -1010,6 +1041,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
         <ColdProCalculatedInfo label="Premissa geométrica" value={tunnelResult.physicalModel === "static_block" ? "Bloco/pallet" : "Espessura"} description={modelBreakdown.geometryAssumption} tone="info" />
         <ColdProCalculatedInfo label={isStatic ? "Massa da batelada" : "Massa usada"} value={`${fmtColdPro(isStatic ? tunnelResult.staticMassKg : tunnelResult.usedMassKgH)} ${isStatic ? "kg" : "kg/h"}`} description={isStatic ? "massa usada na carga térmica" : "kg/h usado no motor"} tone={(isStatic ? tunnelResult.staticMassKg : tunnelResult.usedMassKgH) > 0 ? "success" : "warning"} />
         {isStatic ? <ColdProCalculatedInfo label="Massa total da batelada" value={`${fmtColdPro(tunnelResult.staticMassKg)} kg`} description="massa por pallet × número de pallets" tone={tunnelResult.staticMassKg > 0 ? "success" : "warning"} /> : <ColdProCalculatedInfo label="Massa por cadência" value={`${fmtColdPro(tunnelResult.calculatedMassKgH)} kg/h`} description="peso × unidades × ciclos/h" tone={tunnelResult.calculatedMassKgH > 0 ? "info" : "warning"} />}
+        {continuousMassMode === "calculated_by_belt_surface_density" ? <><ColdProCalculatedInfo label="Método esteira" value="Densidade superficial da esteira" description="kg/m² não tratado como kg/m³" tone="success" /><ColdProCalculatedInfo label="Área útil esteira" value={`${fmtColdPro(beltSurfaceBreakdown.areaM2, 2)} m²`} description="informada ou largura × comprimento" tone="info" /><ColdProCalculatedInfo label="Densidade superficial" value={`${fmtColdPro(beltSurfaceBreakdown.surfaceDensityKgM2, 2)} kg/m²`} description="validação própria de esteira" tone="info" /><ColdProCalculatedInfo label="Massa sobre esteira" value={`${fmtColdPro(beltSurfaceBreakdown.massOnBeltKg, 2)} kg`} description="área × densidade superficial" tone="info" /><ColdProCalculatedInfo label="Carga linear" value={`${fmtColdPro(beltSurfaceBreakdown.linearLoadKgM, 2)} kg/m`} description="densidade superficial × largura" tone="info" /><ColdProCalculatedInfo label="Velocidade esteira" value={`${fmtColdPro(beltSurfaceBreakdown.speedMMin, 2)} m/min`} description="velocidade operacional" tone="info" /><ColdProCalculatedInfo label="Retenção informada" value={`${fmtColdPro(beltSurfaceBreakdown.retentionTimeMin, 2)} min`} description="tempo usado na validação térmica" tone="info" /><ColdProCalculatedInfo label="Retenção calculada" value={`${fmtColdPro(beltSurfaceBreakdown.calculatedRetentionMin, 2)} min`} description="comprimento útil ÷ velocidade" tone="info" /><ColdProCalculatedInfo label="Fluxo por retenção" value={`${fmtColdPro(beltSurfaceBreakdown.flowByRetentionKgH, 1)} kg/h`} description="massa sobre esteira ÷ tempo × 60" tone="info" /><ColdProCalculatedInfo label="Fluxo por velocidade" value={`${fmtColdPro(beltSurfaceBreakdown.flowBySpeedKgH, 1)} kg/h`} description="carga linear × velocidade × 60" tone="info" /><ColdProCalculatedInfo label="Fluxo calculado" value={`${fmtColdPro(beltSurfaceBreakdown.calculatedFlowKgH, 1)} kg/h`} description="massa usada no modo contínuo" tone="success" /><ColdProCalculatedInfo label="Fluxo nominal" value={`${fmtColdPro(beltSurfaceBreakdown.nominalCapacityKgH, 1)} kg/h`} description="capacidade informada" tone="info" /><ColdProCalculatedInfo label="Diferença percentual" value={beltSurfaceBreakdown.capacityDeviationPercent == null ? "—" : `${fmtColdPro(beltSurfaceBreakdown.capacityDeviationPercent, 1)}%`} description="calculado × nominal" tone={Number(beltSurfaceBreakdown.capacityDeviationPercent ?? 0) > 10 ? "warning" : "success"} /></> : null}
         {!isStatic ? <ColdProCalculatedInfo label="Espessura do produto" value={`${fmtColdPro(productThicknessM, 3)} m`} description="dimensão informada" tone={productThicknessM > 0 ? "info" : "warning"} /> : null}
         {isStatic ? <ColdProCalculatedInfo label="Dimensões pallet/bloco" value={`${fmtColdPro(Number(form.pallet_length_m ?? 0), 2)} × ${fmtColdPro(Number(form.pallet_width_m ?? 0), 2)} × ${fmtColdPro(Number(form.pallet_height_m ?? 0), 2)} m`} description="C × L × A" tone={tunnelResult.characteristicDimensionM > 0 ? "info" : "warning"} /> : null}
         <ColdProCalculatedInfo label={isStatic ? "Tempo de batelada" : "Tempo de retenção"} value={`${fmtColdPro(tunnelResult.availableTimeMin, 1)} min`} description={isStatic ? `${fmtColdPro(Number(form.batch_time_h ?? 0), 2)} h` : "tempo disponível"} tone={tunnelResult.availableTimeMin > 0 ? "info" : "warning"} />
@@ -1121,6 +1153,8 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
       <ColdProField label="Cp embalagem" helpKey="packagingCp"><ColdProInput {...num("packaging_specific_heat_kcal_kg_c")} /></ColdProField>
     </div><div>
       <ColdProField label="Motor esteira" helpKey="beltMotorPower" unit="kW"><ColdProInput {...num("belt_motor_kw")} /></ColdProField>
+      <ColdProField label="Motor dentro do ambiente"><ColdProSelect value={form.belt_motor_inside_environment === false ? "outside" : "inside"} onChange={(e) => { const inside = e.target.value === "inside"; set("belt_motor_inside_environment", inside); set("belt_motor_dissipation_factor", inside ? 1 : form.belt_motor_dissipation_factor ?? 0); }}><option value="inside">Interno · 100% dissipado</option><option value="outside">Externo · fator manual</option></ColdProSelect></ColdProField>
+      {form.belt_motor_inside_environment === false ? <ColdProField label="Fator dissipação motor" unit="0–1"><ColdProInput {...num("belt_motor_dissipation_factor")} /></ColdProField> : null}
       <ColdProField label="Ventiladores internos" helpKey="internalFansPower" unit="kW"><ColdProInput {...num("internal_fans_kw")} /></ColdProField>
       <ColdProField label="Outras cargas" helpKey="otherInternalLoads" unit="kW"><ColdProInput {...num("other_internal_kw")} /></ColdProField>
     </div></div>
@@ -1240,9 +1274,10 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
                   {Object.entries(WEIGHT_UNITS).map(([key, item]) => <option key={key} value={key}>{item.label}</option>)}
                 </ColdProSelect>
               </ColdProField>
-              <ColdProField label="Peso unitário" helpKey="unitWeightKg" unit={WEIGHT_UNITS[weightUnit].label}><ColdProInput {...weightNum("unit_weight_kg", weightUnit)} /></ColdProField>
+              {continuousMassMode !== "calculated_by_belt_surface_density" ? <ColdProField label="Peso unitário" helpKey="unitWeightKg" unit={WEIGHT_UNITS[weightUnit].label}><ColdProInput {...weightNum("unit_weight_kg", weightUnit)} /></ColdProField> : null}
               {continuousMassMode === "calculated_by_units_per_hour" ? <ColdProField label="Unidades por hora"><ColdProInput {...num("units_per_hour")} /></ColdProField> : null}
               {continuousMassMode === "calculated_by_belt_loading" ? <><ColdProField label="Unidades por fileira"><ColdProInput {...num("units_per_row")} /></ColdProField><ColdProField label="Fileiras por metro"><ColdProInput {...num("rows_per_meter")} /></ColdProField><ColdProField label="Velocidade esteira" unit="m/min"><ColdProInput {...num("belt_speed_m_min")} /></ColdProField></> : null}
+              {continuousMassMode === "calculated_by_belt_surface_density" ? <><ColdProField label="Largura da esteira" unit="m"><ColdProInput {...num("belt_width_m")} /></ColdProField><ColdProField label="Comprimento útil" unit="m"><ColdProInput {...num("belt_effective_length_m")} /></ColdProField><ColdProField label="Área útil" unit="m²"><ColdProInput {...num("belt_area_m2")} /></ColdProField><ColdProField label="Densidade superficial" unit="kg/m²"><ColdProInput {...num("belt_surface_density_kg_m2")} /></ColdProField><ColdProField label="Velocidade esteira" unit="m/min"><ColdProInput {...num("belt_speed_m_min")} /></ColdProField><ColdProField label="Capacidade nominal" unit="kg/h"><ColdProInput {...num("belt_nominal_capacity_kg_h")} /></ColdProField></> : null}
               {continuousMassMode === "calculated_by_trays" ? <><ColdProField label="Unidades por bandeja"><ColdProInput {...num("units_per_tray")} /></ColdProField><ColdProField label="Bandejas por hora"><ColdProInput {...num("trays_per_hour")} /></ColdProField><ColdProField label="Peso da bandeja" unit="kg"><ColdProInput {...num("tray_weight_kg")} /></ColdProField></> : null}
               {continuousMassMode === "calculated_by_feed_rate" ? <ColdProField label="Taxa de alimentação" unit="kg/h"><ColdProInput {...num("feed_rate_kg_h")} /></ColdProField> : null}
             </div><div>
@@ -1262,7 +1297,7 @@ export function ColdProTunnelForm({ environmentId, environment, product, tunnel,
               </ColdProField>
               <ColdProField label="Tempo retenção" helpKey="retentionTime" unit={RETENTION_UNITS[retentionUnit].label}><ColdProInput {...retentionNum(retentionUnit)} /></ColdProField>
               {physicalModel === "continuous_spiral" ? <ColdProField label="Fator turbulência girofreezer"><ColdProInput {...num("spiral_turbulence_factor")} /></ColdProField> : null}
-              <ColdProCalculatedInfo label="Massa usada no motor" value={`${fmtColdPro(massHour)} kg/h`} description={continuousMassMode === "direct_mass_flow" ? "kg/h informado" : continuousMassMode === "calculated_by_belt_loading" ? "fileiras × esteira × peso" : continuousMassMode === "calculated_by_trays" ? "bandejas/h × massa da bandeja" : "cadência calculada"} tone={massHour > 0 ? "success" : "warning"} />
+              <ColdProCalculatedInfo label="Massa usada no motor" value={`${fmtColdPro(massHour)} kg/h`} description={continuousMassMode === "direct_mass_flow" ? "kg/h informado" : continuousMassMode === "calculated_by_belt_surface_density" ? "densidade superficial × área/retenção" : continuousMassMode === "calculated_by_belt_loading" ? "fileiras × esteira × peso" : continuousMassMode === "calculated_by_trays" ? "bandejas/h × massa da bandeja" : "cadência calculada"} tone={massHour > 0 ? "success" : "warning"} />
             </div></div> : <div className="grid grid-cols-1 gap-x-10 xl:grid-cols-2"><div>
               <ColdProField label="Como deseja informar a massa da batelada?" helpKey="staticMassMode"><ColdProSelect value={staticMassMode} onChange={(e) => set("static_mass_mode", e.target.value)}>{staticModeOptions(tunnelType).map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</ColdProSelect></ColdProField>
               <ColdProField label="Escala das medidas do bloco/carga" helpKey="measurementScale"><ColdProSelect value={staticUnit} onChange={(e) => setStaticUnit(e.target.value as DimensionUnit)}>{Object.entries(DIMENSION_UNITS).map(([key, item]) => <option key={key} value={key}>{item.label}</option>)}</ColdProSelect></ColdProField>

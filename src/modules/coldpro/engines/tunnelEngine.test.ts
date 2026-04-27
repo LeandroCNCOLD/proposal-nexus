@@ -127,6 +127,37 @@ const thermalBase = {
 {
   const result = calculateTunnelEngine({
     ...thermalBase,
+    initialTempC: 40,
+    finalTempC: -12,
+    processType: "continuous_individual_freezing",
+    operationMode: "continuous",
+    tunnelType: "continuous_belt",
+    arrangementType: "individual_exposed",
+    productGeometry: "slab",
+    continuousMassMode: "calculated_by_belt_surface_density",
+    beltAreaM2: 32.5,
+    beltSurfaceDensityKgM2: 6,
+    beltWidthM: 2,
+    beltSpeedMMin: 1.38,
+    retentionTimeMin: 12,
+    beltNominalCapacityKgH: 1000,
+    beltMotorKW: 20,
+    beltMotorInsideEnvironment: true,
+    productThicknessM: 0.03,
+  });
+  const belt = (result.calculationBreakdown.mass as any).beltSurface;
+  nearlyEqual(belt.massOnBeltKg, 195, 0.001);
+  nearlyEqual(belt.flowByRetentionKgH, 975, 0.001);
+  nearlyEqual(belt.flowBySpeedKgH, 993.6, 0.001);
+  nearlyEqual(result.usedMassKgH, 975, 0.001);
+  nearlyEqual(((result.calculationBreakdown.loads as any)?.internalLoads)?.beltMotorDissipatedKW, 20, 0.001);
+  assert.equal(result.massBasis, "belt_surface_density");
+  assert.equal(result.warnings.some((warning) => warning.includes("densityKgM3 fora da faixa") || warning.includes("densidade volumétrica")), false);
+}
+
+{
+  const result = calculateTunnelEngine({
+    ...thermalBase,
     processType: "static_pallet_freezing",
     operationMode: "batch",
     tunnelType: "static_pallet",
