@@ -294,11 +294,11 @@ function ColdProProjectPage() {
   }
 
   return (
-    <div className="min-h-screen min-w-0 bg-muted/30">
+    <div className="coldpro-compact min-h-screen min-w-0 bg-muted/30">
       {/* HEADER ESTILO SELECT COLD: faixa escura com identidade */}
       <div className="border-b border-sidebar-border bg-sidebar text-sidebar-foreground print:hidden">
-        <div className="mx-auto flex max-w-[1400px] flex-col gap-2 px-3 py-3 sm:px-6 md:flex-row md:items-center md:justify-between">
-          <div className="flex min-w-0 items-center gap-3 sm:gap-6">
+        <div className="flex flex-col gap-1.5 px-3 py-2 sm:px-4 md:flex-row md:items-center md:justify-between">
+          <div className="flex min-w-0 items-center gap-3">
             <Link to="/app/coldpro" className="text-xs text-sidebar-foreground/70 hover:text-sidebar-foreground">
               ← Projetos
             </Link>
@@ -326,10 +326,10 @@ function ColdProProjectPage() {
         </div>
       </div>
 
-      <div className="mx-auto grid max-w-[1600px] grid-cols-1 gap-3 p-2 sm:p-4 lg:grid-cols-[220px_minmax(0,1fr)] xl:grid-cols-[240px_minmax(0,1fr)]">
+      <div className="grid grid-cols-1 gap-2 p-2 sm:p-3 lg:grid-cols-[220px_minmax(0,1fr)]">
         {/* Sidebar de ambientes */}
-        <aside className="space-y-4 print:hidden lg:sticky lg:top-4 lg:self-start">
-          <div className="rounded-xl border bg-background p-3 shadow-sm">
+        <aside className="space-y-2 print:hidden lg:sticky lg:top-3 lg:self-start">
+          <div className="rounded-lg border bg-background p-2.5 shadow-sm">
             <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
               Novo ambiente
             </h2>
@@ -355,7 +355,7 @@ function ColdProProjectPage() {
             </div>
           </div>
 
-          <div className="rounded-xl border bg-background p-3 shadow-sm">
+          <div className="rounded-lg border bg-background p-2.5 shadow-sm">
             <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
               Ambientes do projeto
             </h2>
@@ -402,9 +402,9 @@ function ColdProProjectPage() {
         </aside>
 
         {/* Conteúdo principal */}
-        <div className="min-w-0 space-y-3">
+        <div className="min-w-0 space-y-2">
           {showProjectReport && environments.length > 0 ? (
-            <div className="space-y-6">
+            <div className="space-y-3">
               <ColdProProjectResultDashboard
                 project={data?.project}
                 environments={environments}
@@ -446,7 +446,7 @@ function ColdProProjectPage() {
                 />
               </div>
 
-              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-background px-4 py-3 shadow-sm print:hidden">
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-background px-3 py-2 shadow-sm print:hidden">
                 <div className="min-w-0">
                   <div className="truncate text-sm font-semibold">{selectedEnv.name}</div>
                   <div className="text-xs text-muted-foreground">{selectedEnv.environment_type} · {fmt(selectedEnv.volume_m3)} m³ · {selectedEnv.internal_temp_c}°C</div>
@@ -458,7 +458,7 @@ function ColdProProjectPage() {
 
               {/* STEP 0 - AMBIENTE */}
               {stepIndex === 0 && (
-                <div className="space-y-4">
+                <div className="space-y-3">
                   <ColdProEnvironmentForm
                     environment={selectedEnv}
                     insulationMaterials={data?.insulationMaterials ?? []}
@@ -484,7 +484,7 @@ function ColdProProjectPage() {
 
               {/* STEP 1 - PRODUTOS / TÚNEL */}
               {stepIndex === 1 && (
-                <div className="space-y-6">
+                <div className="space-y-3">
                   {["blast_freezer", "cooling_tunnel"].includes(selectedEnv.environment_type) ? (
                     <ColdProTunnelForm
                       environmentId={selectedEnv.id}
@@ -526,7 +526,7 @@ function ColdProProjectPage() {
                     total={productLoad}
                   />
 
-                  <div className="rounded-2xl border bg-background p-4">
+                  <div className="rounded-lg border bg-background p-3">
                     <h3 className="mb-3 text-base font-semibold">Produtos cadastrados</h3>
                     {products.length === 0 ? (
                       <div className="text-sm text-muted-foreground">Nenhum produto/processo cadastrado.</div>
@@ -552,7 +552,7 @@ function ColdProProjectPage() {
 
               {/* STEP 2 - PROCESSOS ESPECIAIS */}
               {stepIndex === 2 && (
-                <div className="space-y-4">
+                <div className="space-y-3">
                   <ColdProAdvancedProcessForm
                     projectId={id}
                     environment={selectedEnv}
@@ -578,7 +578,7 @@ function ColdProProjectPage() {
 
               {/* STEP 3 - CARGAS EXTRAS */}
               {stepIndex === 3 && (
-                <div className="space-y-4">
+                <div className="space-y-3">
                   <ColdProExtraLoadsForm
                     environment={selectedEnv}
                     catalogFanLoadKcalH={catalogFanLoadKcalH}
@@ -612,8 +612,8 @@ function ColdProProjectPage() {
 
               {/* STEP 4 - RESULTADO */}
               {stepIndex === 4 && (
-                <div className="space-y-6">
-                  <div className="rounded-2xl border bg-background p-4">
+                <div className="space-y-3">
+                  <div className="rounded-lg border bg-background p-3">
                     <h3 className="mb-2 text-base font-semibold">Calcular carga térmica</h3>
                     <p className="mb-3 text-sm text-muted-foreground">
                       Use as informações cadastradas nas etapas anteriores para gerar o cálculo da carga térmica do ambiente.
@@ -628,7 +628,7 @@ function ColdProProjectPage() {
                     </button>
                   </div>
                   <ColdProResultCard result={result} selection={selection} environment={selectedEnv} products={products} advancedProcesses={data?.advancedProcesses ?? []} onAnalyze={handleAnalyzeMemorial} isAnalyzing={analyzeMemorial.isPending} />
-                  <div className="grid gap-4">
+                  <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(260px,1fr))]">
                     <ThermalLoadSummary result={result} />
                     <EnergySummary result={result} />
                     <EquipmentOptimizationSummary result={result} selection={selection} />
@@ -674,12 +674,12 @@ function ColdProProjectPage() {
                   />
 
                   {/* Auto-select pela curva */}
-                  <div className="rounded-2xl border bg-background p-4">
+                  <div className="rounded-lg border bg-background p-3">
                     <h3 className="mb-2 text-base font-semibold">Seleção automática pela curva</h3>
                     <p className="mb-3 text-sm text-muted-foreground">
                       Seleciona automaticamente o melhor modelo usando a curva de rendimento, COP, potência e sobra técnica.
                     </p>
-                    <div className="mb-4 grid gap-3 sm:grid-cols-2">
+                    <div className="mb-3 grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(260px,1fr))]">
                       <label className="text-sm font-medium">
                         Qtd. mínima de equipamentos
                         <input
@@ -688,7 +688,7 @@ function ColdProProjectPage() {
                           step={1}
                           value={autoMinQuantity}
                           onChange={(event) => setAutoMinQuantity(event.target.value)}
-                          className="mt-1 h-10 w-full rounded-md border bg-background px-3 text-right text-sm"
+                          className="mt-1 h-8 w-full rounded-md border bg-background px-2 text-right text-[13px]"
                         />
                       </label>
                       <label className="text-sm font-medium">
@@ -696,7 +696,7 @@ function ColdProProjectPage() {
                         <select
                           value={autoEquipmentKind}
                           onChange={(event) => setAutoEquipmentKind(event.target.value as any)}
-                          className="mt-1 h-10 w-full rounded-md border bg-background px-3 text-sm"
+                          className="mt-1 h-8 w-full rounded-md border bg-background px-2 text-[13px]"
                         >
                           <option value="ALL">Todos</option>
                           <option value="plugin">Plug-in</option>
@@ -716,9 +716,9 @@ function ColdProProjectPage() {
                   </div>
 
                   {selection ? (
-                    <div className="rounded-2xl border bg-background p-4">
+                    <div className="rounded-lg border bg-background p-3">
                       <h3 className="mb-3 text-base font-semibold">Equipamento selecionado</h3>
-                      <div className="grid grid-cols-2 gap-3 text-sm md:grid-cols-3">
+                      <div className="grid gap-2 text-[13px] [grid-template-columns:repeat(auto-fit,minmax(260px,1fr))]">
                         <div>Modelo: <b>{selection.model}</b></div>
                         <div>Qtd.: <b>{fmt(selection.quantity)}</b></div>
                         <div>Capacidade total: <b>{fmt(selection.capacity_total_kcal_h)} kcal/h</b></div>
@@ -733,7 +733,7 @@ function ColdProProjectPage() {
                   ) : null}
 
                   {["blast_freezer", "cooling_tunnel"].includes(String(selectedEnv.environment_type)) ? (
-                    <div className="rounded-2xl border bg-background p-4">
+                    <div className="rounded-lg border bg-background p-3">
                       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
                         <div>
                           <h3 className="flex items-center gap-2 text-base font-semibold">
@@ -760,15 +760,15 @@ function ColdProProjectPage() {
                         </button>
                       </div>
                       {!result ? (
-                        <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                        <div className="rounded-lg border border-dashed p-3 text-[13px] text-muted-foreground">
                           Calcule a carga térmica para liberar a análise técnica do túnel.
                         </div>
                       ) : tunnelExpertAnalysis ? (
-                        <div className="max-h-[520px] overflow-y-auto whitespace-pre-wrap rounded-lg bg-muted/40 p-4 text-sm leading-relaxed">
+                        <div className="max-h-[420px] overflow-y-auto whitespace-pre-wrap rounded-lg bg-muted/40 p-3 text-[13px] leading-relaxed">
                           {tunnelExpertAnalysis}
                         </div>
                       ) : (
-                        <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                        <div className="rounded-lg border border-dashed p-3 text-[13px] text-muted-foreground">
                           Após calcular, a IA avalia se a seleção está adequada e sugere ajustes de temperatura, vazão, margem e porte do equipamento.
                         </div>
                       )}
@@ -779,7 +779,7 @@ function ColdProProjectPage() {
               )}
 
               {/* Navegação inferior */}
-              <div className="flex items-center justify-between rounded-xl border bg-background px-4 py-3 shadow-sm print:hidden">
+              <div className="flex items-center justify-between rounded-lg border bg-background px-3 py-2 shadow-sm print:hidden">
                 <button
                   type="button"
                   onClick={prev}
