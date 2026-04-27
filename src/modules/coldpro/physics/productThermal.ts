@@ -12,6 +12,11 @@ type ProductSpecificEnergyInput = {
   allowPhaseChange?: boolean | null;
 };
 
+function clampFraction(value: number, fallback = 1) {
+  if (!Number.isFinite(value) || value < 0) return fallback;
+  return Math.min(value, 1);
+}
+
 export function calculateProductSpecificEnergy(params: ProductSpecificEnergyInput) {
   const initialTempC = safeNumber(params?.initialTempC, 0);
   const finalTempC = safeNumber(params?.finalTempC, 0);
@@ -19,18 +24,17 @@ export function calculateProductSpecificEnergy(params: ProductSpecificEnergyInpu
   const cpAboveKJkgK = safeNumber(params?.cpAboveKJkgK, 0);
   const cpBelowKJkgK = safeNumber(params?.cpBelowKJkgK, 0);
   const latentHeatKJkg = safeNumber(params?.latentHeatKJkg, 0);
-  const frozenWaterFraction = safeNumber(params?.frozenWaterFraction, 1);
-  const latentResidualFactor = safeNumber(params?.latentResidualFactor, 1);
+  const frozenWaterFraction = clampFraction(safeNumber(params?.frozenWaterFraction, 1));
+  const latentResidualFactor = clampFraction(safeNumber(params?.latentResidualFactor, 1));
   const hasCoolingProcess = initialTempC > finalTempC;
-  const hasPhaseChangeProperties = latentHeatKJkg > 0 && frozenWaterFraction > 0;
-  const reachesFreezingRegion = finalTempC < freezingPointC || finalTempC <= 0;
-  const crossesFreezingPoint = params?.allowPhaseChange !== false && hasCoolingProcess && hasPhaseChangeProperties && reachesFreezingRegion;
+  const reachesFreezingRegion = finalTempC < freezingPointC;
+  const crossesFreezingPoint = params?.allowPhaseChange !== false && hasCoolingProcess && latentHeatKJkg > 0 && frozenWaterFraction > 0 && reachesFreezingRegion;
 
   if (crossesFreezingPoint) {
     const sensibleAboveKJkg = cpAboveKJkgK * Math.max(initialTempC - freezingPointC, 0);
     const latentKJkg = latentHeatKJkg * frozenWaterFraction * latentResidualFactor;
     const belowStartC = Math.min(initialTempC, freezingPointC);
-    const sensibleBelowKJkg = cpBelowKJkgK * Math.abs(finalTempC - belowStartC);
+    const sensibleBelowKJkg = cpBelowKJkgK * Math.max(belowStartC - finalTempC, 0);
     return {
       crossesFreezingPoint,
       sensibleAboveKJkg,
@@ -40,7 +44,7 @@ export function calculateProductSpecificEnergy(params: ProductSpecificEnergyInpu
     };
   }
 
-  const cp = finalTempC < freezingPointC ? cpBelowKJkgK : cpAboveKJkgK;
+  const cp = initialTempC <= freezingPointC && finalTempC < freezingPointC ? cpBelowKJkgK : cpAboveKJkgK;
   const sensibleKJkg = cp * Math.abs(initialTempC - finalTempC);
   return {
     crossesFreezingPoint,
