@@ -294,11 +294,11 @@ function ColdProProjectPage() {
   }
 
   return (
-    <div className="min-h-screen min-w-0 bg-muted/30">
+    <div className="coldpro-compact min-h-screen min-w-0 bg-muted/30">
       {/* HEADER ESTILO SELECT COLD: faixa escura com identidade */}
       <div className="border-b border-sidebar-border bg-sidebar text-sidebar-foreground print:hidden">
-        <div className="mx-auto flex max-w-[1400px] flex-col gap-2 px-3 py-3 sm:px-6 md:flex-row md:items-center md:justify-between">
-          <div className="flex min-w-0 items-center gap-3 sm:gap-6">
+        <div className="flex flex-col gap-1.5 px-3 py-2 sm:px-4 md:flex-row md:items-center md:justify-between">
+          <div className="flex min-w-0 items-center gap-3">
             <Link to="/app/coldpro" className="text-xs text-sidebar-foreground/70 hover:text-sidebar-foreground">
               ← Projetos
             </Link>
@@ -326,10 +326,10 @@ function ColdProProjectPage() {
         </div>
       </div>
 
-      <div className="mx-auto grid max-w-[1600px] grid-cols-1 gap-3 p-2 sm:p-4 lg:grid-cols-[220px_minmax(0,1fr)] xl:grid-cols-[240px_minmax(0,1fr)]">
+      <div className="grid grid-cols-1 gap-2 p-2 sm:p-3 lg:grid-cols-[220px_minmax(0,1fr)]">
         {/* Sidebar de ambientes */}
-        <aside className="space-y-4 print:hidden lg:sticky lg:top-4 lg:self-start">
-          <div className="rounded-xl border bg-background p-3 shadow-sm">
+        <aside className="space-y-2 print:hidden lg:sticky lg:top-3 lg:self-start">
+          <div className="rounded-lg border bg-background p-2.5 shadow-sm">
             <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
               Novo ambiente
             </h2>
@@ -355,7 +355,7 @@ function ColdProProjectPage() {
             </div>
           </div>
 
-          <div className="rounded-xl border bg-background p-3 shadow-sm">
+          <div className="rounded-lg border bg-background p-2.5 shadow-sm">
             <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
               Ambientes do projeto
             </h2>
@@ -402,7 +402,7 @@ function ColdProProjectPage() {
         </aside>
 
         {/* Conteúdo principal */}
-        <div className="min-w-0 space-y-3">
+        <div className="min-w-0 space-y-2">
           {showProjectReport && environments.length > 0 ? (
             <div className="space-y-6">
               <ColdProProjectResultDashboard
