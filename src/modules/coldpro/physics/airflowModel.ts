@@ -1,4 +1,5 @@
 import { safeNumber } from "../core/units";
+import { resolveAirflowSection } from "../core/airflowSection";
 
 export type AirflowSource = "manual_velocity" | "airflow_by_fans";
 
@@ -41,19 +42,16 @@ export function calculateAirflowModel(input: any) {
   }
 
   const fanAirflowM3H = positive(input?.fanAirflowM3H ?? input?.fan_airflow_m3_h);
-  const width = positive(input?.tunnelCrossSectionWidthM ?? input?.tunnel_cross_section_width_m);
-  const height = positive(input?.tunnelCrossSectionHeightM ?? input?.tunnel_cross_section_height_m);
-  const rawBlockage = input?.blockageFactor ?? input?.blockage_factor;
-  const blockageInputMode = (input?.blockageFactorInputMode ?? input?.blockage_factor_input_mode ?? "auto") as "percent" | "decimal" | "auto";
-  const blockageFactorDecimal = normalizeBlockageFactor(rawBlockage, blockageInputMode);
+  const section = resolveAirflowSection(input);
+  const blockageFactorDecimal = section.blockageFactor;
   const blockageFactor = Math.min(Math.max(blockageFactorDecimal, 0), 0.95);
   if (blockageFactorDecimal >= 0.95) invalidFields.push("fator de bloqueio excessivo");
   if (fanAirflowM3H <= 0) missingFields.push("vazão de ar dos ventiladores");
-  if (width <= 0) missingFields.push("largura da seção de passagem do ar");
-  if (height <= 0) missingFields.push("altura da seção de passagem do ar");
+  missingFields.push(...section.missingFields);
+  warnings.push(...section.warnings);
 
-  const grossAreaM2 = width > 0 && height > 0 ? width * height : null;
-  const freeAreaM2 = grossAreaM2 !== null ? grossAreaM2 * (1 - blockageFactor) : null;
+  const grossAreaM2 = section.grossAreaM2;
+  const freeAreaM2 = section.freeAreaM2;
   if (grossAreaM2 !== null && (!freeAreaM2 || freeAreaM2 <= 0)) invalidFields.push("área livre de passagem do ar");
   const calculatedAirVelocityMS = fanAirflowM3H > 0 && freeAreaM2 && freeAreaM2 > 0 ? fanAirflowM3H / 3600 / freeAreaM2 : null;
   if (calculatedAirVelocityMS !== null && calculatedAirVelocityMS > 15) warnings.push("Velocidade de ar calculada muito alta. Verificar vazão, seção livre e bloqueio.");
@@ -67,7 +65,8 @@ export function calculateAirflowModel(input: any) {
     blockageFactor,
     calculatedAirVelocityMS,
     airVelocityUsedMS: calculatedAirVelocityMS,
-    source: "airflow_by_fans",
+    source: section.source,
+    sectionSource: section.source,
     warnings,
     missingFields,
     invalidFields,
