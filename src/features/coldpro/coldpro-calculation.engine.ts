@@ -950,7 +950,7 @@ export function calculateColdProLoad(params: {
         ),
         transmission: COLDPRO_CALCULATION_METHODS.transmission,
         product: COLDPRO_CALCULATION_METHODS.productCoolingFreezing,
-        packaging: tunnelResult?.operation_regime === "batch" || tunnelResult?.operationRegime === "batch" ? COLDPRO_CALCULATION_METHODS.packagingBatch : COLDPRO_CALCULATION_METHODS.packagingContinuous,
+        packaging: (tunnelResult as any)?.operation_regime === "batch" || (tunnelResult as any)?.operationRegime === "batch" ? COLDPRO_CALCULATION_METHODS.packagingBatch : COLDPRO_CALCULATION_METHODS.packagingContinuous,
         infiltration: psychrometricInfiltration?.methodUsed === "psychrometric_enthalpy" ? COLDPRO_CALCULATION_METHODS.infiltrationPsychrometric : COLDPRO_CALCULATION_METHODS.infiltrationSimple,
         internalLoads: COLDPRO_CALCULATION_METHODS.internalLoads,
         tunnel: "calculateTunnelEngine official result",
