@@ -32,6 +32,8 @@ import { ColdProSectionLoadSummary } from "@/components/coldpro/ColdProSectionLo
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { saveCatalogEquipmentSelection } from "@/features/coldpro/catalog-selection.functions";
 import { calculateExtraLoadPreview } from "@/features/coldpro/extra-loads-preview";
+import { databaseToTunnelInput } from "@/modules/coldpro/adapters/databaseToTunnelInput";
+import { calculateTunnelEngine } from "@/modules/coldpro/engines/tunnelEngine";
 
 export const Route = createFileRoute("/app/coldpro/$id")({ component: ColdProProjectPage });
 
@@ -80,8 +82,10 @@ function ColdProProjectPage() {
   const advancedProcess = (data?.advancedProcesses ?? []).find((item: any) => item.environment_id === selectedEnv?.id);
   const result = (data?.results ?? []).find((r: any) => r.environment_id === selectedEnv?.id);
   const selection = (data?.selections ?? []).find((s: any) => s.environment_id === selectedEnv?.id);
+  const tunnelPreview = tunnel && selectedEnv ? calculateTunnelEngine(databaseToTunnelInput(tunnel, selectedEnv)) : null;
   const environmentLoad = Number(result?.transmission_kcal_h ?? 0);
-  const productLoad = Number(result?.product_kcal_h ?? 0) + Number(result?.packaging_kcal_h ?? 0) + Number(result?.calculation_breakdown?.respiration_kcal_h ?? 0) + Number(result?.tunnel_internal_load_kcal_h ?? 0);
+  const savedProductLoad = Number(result?.product_kcal_h ?? 0) + Number(result?.packaging_kcal_h ?? 0) + Number(result?.calculation_breakdown?.respiration_kcal_h ?? 0) + Number(result?.tunnel_internal_load_kcal_h ?? 0);
+  const productLoad = savedProductLoad > 0 ? savedProductLoad : Number(tunnelPreview?.totalKcalH ?? 0);
   const extraPreview = calculateExtraLoadPreview(selectedEnv ?? {});
   const extraLoad = result ? Number(result.infiltration_kcal_h ?? 0) + Number(result.people_kcal_h ?? 0) + Number(result.lighting_kcal_h ?? 0) + Number(result.motors_kcal_h ?? 0) + Number(result.fans_kcal_h ?? 0) + Number(result.defrost_kcal_h ?? 0) + Number(result.other_kcal_h ?? 0) : extraPreview.subtotal_kcal_h;
   const catalogFanLoadKcalH = Number(selection?.curve_metadata?.fan_power_kw ?? 0) * Number(selection?.quantity ?? 1) * 859.845;
