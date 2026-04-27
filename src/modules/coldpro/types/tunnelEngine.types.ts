@@ -131,10 +131,10 @@ export interface TunnelEngineResult {
   processType?: string | null;
   tunnelType?: string | null;
   arrangementType?: string | null;
-  physicalModel?: string;
-  physicalModelLabel?: string;
-  productGeometry?: string | null;
-  thermalModelForPallet?: string | null;
+  physicalModel: string;
+  physicalModelLabel: string;
+  productGeometry?: unknown;
+  thermalModelForPallet?: unknown;
   airflowSource?: string;
   surfaceExposureModel?: string;
   exposureFactor?: number;
