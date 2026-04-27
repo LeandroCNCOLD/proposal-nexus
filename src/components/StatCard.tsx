@@ -23,14 +23,14 @@ export function StatCard({
 
   return (
     <div className={cn(
-      "rounded-xl border bg-card p-5 shadow-[var(--shadow-sm)] transition-shadow hover:shadow-[var(--shadow-md)]",
+      "rounded-lg border bg-card p-3 shadow-[var(--shadow-sm)] transition-shadow hover:shadow-[var(--shadow-sm)]",
       className
     )}>
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex items-start justify-between gap-2">
         <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</div>
         {icon && <div className={cn("rounded-md bg-secondary/60 p-1.5", accentColor)}>{icon}</div>}
       </div>
-      <div className="mt-3 text-3xl font-semibold tracking-tight tabular-nums">{value}</div>
+      <div className="mt-2 text-xl font-semibold tracking-tight tabular-nums">{value}</div>
       {(hint || trend) && (
         <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
           {trend && (
