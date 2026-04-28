@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
 import { useAuth } from "@/hooks/useAuth";
 import { ROLE_LABELS, type AppRole } from "@/lib/proposal";
-import { nomusImportInternalUsersToAccessQueue } from "@/integrations/nomus/server.functions";
+import { approveUserAccessQueueItem, nomusImportInternalUsersToAccessQueue } from "@/integrations/nomus/server.functions";
 import { useServerFn } from "@tanstack/react-start";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +30,7 @@ function SettingsPage() {
   const { user, roles, hasAnyRole } = useAuth();
   const qc = useQueryClient();
   const importInternalUsers = useServerFn(nomusImportInternalUsersToAccessQueue);
+  const approvePendingUser = useServerFn(approveUserAccessQueueItem);
   const canManageAccess = hasAnyRole(MANAGER_ROLES);
   const [newUser, setNewUser] = useState({ full_name: "", email: "", suggested_role: "coldpro" as AppRole });
   const [accessSearch, setAccessSearch] = useState("");
@@ -129,10 +130,17 @@ function SettingsPage() {
   };
 
   const updateQueueStatus = async (queueId: string, status: "approved" | "rejected" | "pending") => {
-    const { error } = await supabase.from("user_access_queue").update({ status, approved_by: status === "approved" ? user?.id : null, approved_at: status === "approved" ? new Date().toISOString() : null }).eq("id", queueId);
+    if (status === "approved") {
+      const result = await approvePendingUser({ data: { queueId } });
+      if (!result.ok) return toast.error(result.error);
+      refreshAccess();
+      toast.success(result.message);
+      return;
+    }
+    const { error } = await supabase.from("user_access_queue").update({ status, approved_by: null, approved_at: null }).eq("id", queueId);
     if (error) return toast.error(error.message);
     refreshAccess();
-    toast.success(status === "approved" ? "Pré-liberação aprovada." : status === "rejected" ? "Pré-liberação rejeitada." : "Pré-liberação voltou para pendente.");
+    toast.success(status === "rejected" ? "Pré-liberação rejeitada." : "Pré-liberação voltou para pendente.");
   };
 
   return (
@@ -222,7 +230,7 @@ function SettingsPage() {
                         <TableCell><div className="font-medium">{item.full_name}</div><div className="text-xs text-muted-foreground">{item.email}</div></TableCell>
                         <TableCell className="capitalize">{item.source}</TableCell>
                         <TableCell>{ROLE_LABELS[item.suggested_role]}</TableCell>
-                        <TableCell><Badge variant={item.status === "pending" ? "outline" : item.status === "approved" ? "default" : "secondary"}>{item.status === "pending" ? "Pendente" : item.status === "approved" ? "Aprovado" : "Rejeitado"}</Badge></TableCell>
+                        <TableCell><Badge variant={item.status === "pending" ? "outline" : item.status === "approved" ? "default" : "secondary"}>{item.status === "pending" ? "Pendente" : item.status === "approved" ? "Aprovado / convite enviado" : "Rejeitado"}</Badge></TableCell>
                         <TableCell className="text-right"><Button size="sm" variant="outline" onClick={() => updateQueueStatus(item.id, item.status === "approved" ? "pending" : "approved")}>{item.status === "approved" ? "Reabrir" : "Aprovar"}</Button></TableCell>
                       </TableRow>
                     ))}
