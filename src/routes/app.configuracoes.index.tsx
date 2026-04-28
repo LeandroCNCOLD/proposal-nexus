@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
 import { useAuth } from "@/hooks/useAuth";
 import { ROLE_LABELS, type AppRole } from "@/lib/proposal";
-import { APP_MODULES, MODULE_ACCESS_DESCRIPTION, roleCanAccessPath } from "@/lib/module-access";
+import { APP_MODULES, MODULE_ACCESS_DESCRIPTION, roleCanAccessPath, type RoleModuleAccess } from "@/lib/module-access";
 import { approveUserAccessQueueItem, nomusImportInternalUsersToAccessQueue, resetUserTemporaryPassword } from "@/integrations/nomus/server.functions";
 import { useServerFn } from "@tanstack/react-start";
 import { Button } from "@/components/ui/button";
@@ -57,6 +57,12 @@ function SettingsPage() {
     enabled: canManageAccess,
   });
 
+  const { data: moduleAccess = [] } = useQuery<RoleModuleAccess[]>({
+    queryKey: ["role-module-access"],
+    queryFn: async () => (await supabase.from("role_module_access").select("role, module_key, module_path, allowed")).data ?? [],
+    enabled: canManageAccess,
+  });
+
   const { data: accessQueue = [] } = useQuery({
     queryKey: ["user-access-queue"],
     queryFn: async () => (await supabase.from("user_access_queue").select("*").order("created_at", { ascending: false })).data ?? [],
@@ -83,6 +89,7 @@ function SettingsPage() {
     qc.invalidateQueries({ queryKey: ["access-profiles"] });
     qc.invalidateQueries({ queryKey: ["access-user-roles"] });
     qc.invalidateQueries({ queryKey: ["user-access-queue"] });
+    qc.invalidateQueries({ queryKey: ["role-module-access"] });
   };
 
   const addPendingUser = async () => {
@@ -131,6 +138,13 @@ function SettingsPage() {
         : { error: null };
     if (error) return toast.error(error.message);
     refreshAccess();
+  };
+
+  const toggleModuleAccess = async (role: AppRole, module: (typeof APP_MODULES)[number], allowed: boolean) => {
+    const { error } = await supabase.from("role_module_access").upsert({ role, module_key: module.key, module_path: module.path, allowed }, { onConflict: "role,module_key" });
+    if (error) return toast.error(error.message);
+    refreshAccess();
+    toast.success(allowed ? "Acesso liberado para este perfil." : "Acesso removido deste perfil.");
   };
 
   const updateQueueStatus = async (queueId: string, status: "approved" | "rejected" | "pending") => {
