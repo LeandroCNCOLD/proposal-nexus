@@ -44,7 +44,7 @@ function UnitAuditPanel({ audit }: { audit: any }) {
   const rows = [
     ["Motor interno", audit?.engineFlow ?? "kJ/kg → kJ/h → kW"],
     ["Unidade padrão exibida", audit?.defaultDisplayUnit ?? "kcal/h"],
-    ["Fonte dos dados térmicos", audit?.source ?? "ASHRAE / CN ColdPro"],
+    ["Fonte dos dados térmicos", audit?.source ?? "Catálogo do produto"],
     ["Conversão", "Aplicada somente na saída"],
     ["Cp acima", audit?.cpAboveKJkgK ? `${fmtColdPro(audit.cpAboveKJkgK, 4)} kJ/kg.K` : "—"],
     ["Cp abaixo", audit?.cpBelowKJkgK ? `${fmtColdPro(audit.cpBelowKJkgK, 4)} kJ/kg.K` : "—"],
