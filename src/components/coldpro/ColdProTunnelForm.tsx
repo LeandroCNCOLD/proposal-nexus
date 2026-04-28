@@ -342,6 +342,12 @@ function airflowForVelocityM3H(freeAreaM2: number, velocityMS: number) {
   return freeAreaM2 > 0 && velocityMS > 0 ? freeAreaM2 * velocityMS * 3600 : 0;
 }
 
+function freeAirAreaFromControls(source: ColdProFormRecord) {
+  const grossAreaM2 = positiveValue(source.tunnel_cross_section_width_m) * positiveValue(source.tunnel_cross_section_height_m);
+  const blockageFactor = clamp(definedNumber(source.blockage_factor), 0, 0.95);
+  return grossAreaM2 > 0 ? grossAreaM2 * (1 - blockageFactor) : 0;
+}
+
 function fmtAirflow(value: unknown, digits = 0) {
   return `${fmtColdPro(value, digits)} m³/h`;
 }
