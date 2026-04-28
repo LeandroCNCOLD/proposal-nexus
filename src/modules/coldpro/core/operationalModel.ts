@@ -141,7 +141,8 @@ export function resolveProcessMass(input: any): ProcessMassResolution {
   const beltWidthM = positive(input?.beltWidthM ?? input?.belt_width_m ?? input?.largura_esteira_m);
   const beltEffectiveLengthM = positive(input?.beltEffectiveLengthM ?? input?.belt_effective_length_m ?? input?.comprimento_util_esteira_m);
   const informedBeltAreaM2 = positive(input?.beltAreaM2 ?? input?.belt_area_m2 ?? input?.area_util_esteira_m2);
-  const beltAreaM2 = informedBeltAreaM2 || beltWidthM * beltEffectiveLengthM;
+  const calculatedBeltAreaM2 = beltWidthM * beltEffectiveLengthM;
+  const beltAreaM2 = calculatedBeltAreaM2 || informedBeltAreaM2;
   const beltSurfaceDensityKgM2 = positive(input?.beltSurfaceDensityKgM2 ?? input?.belt_surface_density_kg_m2 ?? input?.densidade_superficial_kg_m2);
   const beltSpeedMMin = positive(input?.beltSpeedMMin ?? input?.belt_speed_m_min ?? input?.velocidade_esteira_m_min);
   const retentionTimeMin = positive(input?.retentionTimeMin ?? input?.retention_time_min ?? input?.process_time_min ?? input?.tempo_retencao_min);
@@ -151,9 +152,9 @@ export function resolveProcessMass(input: any): ProcessMassResolution {
   const linearLoadKgM = beltSurfaceDensityKgM2 * beltWidthM;
   const flowByRetentionKgH = massOnBeltKg > 0 && retentionTimeMin > 0 ? massOnBeltKg / retentionTimeMin * 60 : 0;
   const flowBySpeedKgH = linearLoadKgM > 0 && beltSpeedMMin > 0 ? linearLoadKgM * beltSpeedMMin * 60 : 0;
-  const massByBeltSurfaceKgH = flowByRetentionKgH || flowBySpeedKgH || nominalCapacityKgH;
+  const massByBeltSurfaceKgH = flowBySpeedKgH || nominalCapacityKgH || flowByRetentionKgH;
   const calculatedRetentionMin = beltEffectiveLengthM > 0 && beltSpeedMMin > 0 ? beltEffectiveLengthM / beltSpeedMMin : 0;
-  const beltSurface = continuousMassMode === "calculated_by_belt_surface_density" ? { method: "belt_surface_density" as const, areaM2: beltAreaM2, widthM: beltWidthM, effectiveLengthM: beltEffectiveLengthM, surfaceDensityKgM2: beltSurfaceDensityKgM2, massOnBeltKg, linearLoadKgM, speedMMin: beltSpeedMMin, retentionTimeMin, calculatedRetentionMin, flowByRetentionKgH, flowBySpeedKgH, calculatedFlowKgH: massByBeltSurfaceKgH, nominalCapacityKgH, capacityDeviationPercent: pctDiff(massByBeltSurfaceKgH, nominalCapacityKgH) } : null;
+  const beltSurface = continuousMassMode === "calculated_by_belt_surface_density" ? { method: "belt_surface_density" as const, areaM2: beltAreaM2, calculatedAreaM2: calculatedBeltAreaM2, informedAreaM2: informedBeltAreaM2, widthM: beltWidthM, effectiveLengthM: beltEffectiveLengthM, surfaceDensityKgM2: beltSurfaceDensityKgM2, massOnBeltKg, linearLoadKgM, speedMMin: beltSpeedMMin, retentionTimeMin, calculatedRetentionMin, flowByRetentionKgH, flowBySpeedKgH, calculatedFlowKgH: massByBeltSurfaceKgH, nominalCapacityKgH, capacityDeviationPercent: pctDiff(massByBeltSurfaceKgH, nominalCapacityKgH), flowMethodDeviationPercent: pctDiff(flowBySpeedKgH, flowByRetentionKgH), areaDeviationPercent: pctDiff(informedBeltAreaM2, calculatedBeltAreaM2) } : null;
   const massByFeedRateKgH = positive(input?.feedRateKgH ?? input?.feed_rate_kg_h);
   const massByCycleKgH = unitWeightKg * positive(input?.unitsPerCycle ?? input?.units_per_cycle) * positive(input?.cyclesPerHour ?? input?.cycles_per_hour);
   const calculatedFlow = continuousMassMode === "calculated_by_trays" ? massByTraysKgH : continuousMassMode === "calculated_by_units_per_hour" ? massByUnitsHourKgH : continuousMassMode === "calculated_by_belt_loading" ? massByBeltKgH : continuousMassMode === "calculated_by_belt_surface_density" ? massByBeltSurfaceKgH : continuousMassMode === "calculated_by_feed_rate" ? massByFeedRateKgH : massByCycleKgH;
@@ -169,7 +170,8 @@ export function resolveProcessMass(input: any): ProcessMassResolution {
   if (isTunnelLike && processTimeH <= 0) blockers.push(processMode === "continuous" ? "tempo de residência obrigatório" : "tempo de processo/batelada obrigatório");
   if (beltSurface) {
     if (beltSurface.surfaceDensityKgM2 <= 0) blockers.push("densidade superficial da esteira obrigatória em kg/m²");
-    if (beltSurface.areaM2 <= 0 && (beltSurface.widthM <= 0 || beltSurface.effectiveLengthM <= 0)) blockers.push("área útil ou largura × comprimento útil da esteira obrigatórios");
+    if (beltSurface.widthM <= 0 || beltSurface.effectiveLengthM <= 0) blockers.push("largura e comprimento útil da esteira são obrigatórios para o cálculo físico principal");
+    if (beltSurface.informedAreaM2 > 0 && beltSurface.calculatedAreaM2 > 0 && Number(beltSurface.areaDeviationPercent ?? 0) > 5) warnings.push("Área útil informada diverge de largura × comprimento útil da esteira.");
     const retentionDeviation = pctDiff(beltSurface.calculatedRetentionMin, beltSurface.retentionTimeMin);
     if (retentionDeviation !== null && retentionDeviation > 10) warnings.push("Tempo de retenção informado diverge do comprimento útil e velocidade da esteira.");
     if (beltSurface.capacityDeviationPercent !== null && beltSurface.capacityDeviationPercent > 10) warnings.push("Capacidade calculada pela esteira diverge da capacidade nominal informada.");
