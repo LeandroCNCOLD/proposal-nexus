@@ -1,6 +1,5 @@
 // Nomus integration server functions (TanStack Start)
 import { createServerFn } from "@tanstack/react-start";
-import { getRequest } from "@tanstack/react-start/server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { nomusFetch, listAll, listPage, getOne, testNomusConnection } from "./client";
