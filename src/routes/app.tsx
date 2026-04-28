@@ -5,6 +5,7 @@ import * as React from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { AppShell } from "@/components/AppShell";
 import { supabase } from "@/integrations/supabase/client";
+import { getAllowedModulePaths, isAppRouteAllowed } from "@/lib/module-access";
 
 export const Route = createFileRoute("/app")({
   component: AppLayout,
@@ -78,9 +79,9 @@ function AppLayout() {
       </div>
     );
   }
-  const coldProOnly = roles.length > 0 && roles.every((role) => role === "coldpro");
-  if (coldProOnly && !pathname.startsWith("/app/coldpro") && !pathname.startsWith("/app/configuracoes")) {
-    return <Navigate to="/app/coldpro" />;
+  if (!isAppRouteAllowed(pathname, roles)) {
+    const fallbackPath = getAllowedModulePaths(roles).find((path) => path !== "*") ?? "/app/configuracoes";
+    return <Navigate to={fallbackPath} />;
   }
   return <AppShell><Outlet /></AppShell>;
 }
