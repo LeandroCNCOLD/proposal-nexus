@@ -698,8 +698,9 @@ export const ColdProTunnelForm = React.forwardRef<ColdProTunnelFormHandle, ColdP
   const productDensityKgM3 = positiveValue(thermodynamicProduct?.density_kg_m3);
   const manualDensityKgM3 = densityFieldKgM3 > 0 && (!ashraeDensityKgM3 || Math.abs(densityFieldKgM3 - ashraeDensityKgM3) > 0.0001) ? densityFieldKgM3 : productDensityKgM3;
   const airTempSource = form.air_temp_source ?? "environment";
+  const environmentInternalTempC = environmentAirTempOverrideC ?? Number(environment?.internal_temp_c ?? form.air_temp_c ?? 0);
   const airTemperatureC = airTempSource === "environment"
-    ? Number(environment?.internal_temp_c ?? form.air_temp_c ?? 0)
+    ? environmentInternalTempC
     : Number(form.air_temp_c ?? environment?.internal_temp_c ?? 0);
   const freezingPointC = Number(catalogLocked ? selectedCatalogProduct?.initial_freezing_temp_c ?? form.freezing_temp_c ?? -1.5 : form.freezing_temp_c ?? thermodynamicProduct?.initial_freezing_temp_c ?? -1.5);
   const catalogKcalProduct = selectedCatalogProduct ? normalizeProductForKcalEngine(selectedCatalogProduct) : null;
