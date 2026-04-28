@@ -149,7 +149,6 @@ export const ColdProProductForm = React.forwardRef<ColdProProductFormHandle, Pro
   const canSave = !requiredError && !modeError && !negativeError;
   const selectedCatalogProduct = productCatalog.find((item) => item.id === form.product_id) ?? null;
   const thermalNum = (key: keyof ReturnType<typeof initialForm>) => num(key);
-  const thermalForKcalEngine = normalizeProductForKcalEngine(form);
 
   const save = async () => {
     if (saving || !canSave) return false;
