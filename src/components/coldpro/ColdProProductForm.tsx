@@ -149,7 +149,7 @@ export const ColdProProductForm = React.forwardRef<ColdProProductFormHandle, Pro
   const canSave = !requiredError && !modeError && !negativeError;
   const selectedCatalogProduct = productCatalog.find((item) => item.id === form.product_id) ?? null;
   const thermalNum = (key: keyof ReturnType<typeof initialForm>) => num(key);
-  const catalogThermalInput = (key: keyof ReturnType<typeof initialForm>) => ({ ...thermalNum(key), readOnly: Boolean(form.product_id), title: form.product_id ? "Valor vindo do catálogo do produto" : undefined });
+  const catalogThermalInput = (key: keyof ReturnType<typeof initialForm>) => ({ ...thermalNum(key), readOnly: Boolean(form.product_id), readOnlyValue: Boolean(form.product_id), title: form.product_id ? "Valor vindo do catálogo do produto" : undefined });
 
   const save = async () => {
     if (saving || !canSave) return false;
