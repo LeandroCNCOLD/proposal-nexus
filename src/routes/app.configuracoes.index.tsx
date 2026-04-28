@@ -283,12 +283,12 @@ function SettingsPage() {
                         <TableRow key={module.key}>
                           <TableCell className="font-medium">{module.label}</TableCell>
                           {ACCESS_ROLES.map((role) => {
-                            const allowed = roleCanAccessPath(role, module.path);
+                            const allowed = roleCanAccessPath(role, module.path, moduleAccess);
                             return (
                               <TableCell key={`${module.key}-${role}`} className="text-center">
-                                <span className={`inline-flex h-7 w-7 items-center justify-center rounded-full border ${allowed ? "border-success/30 bg-success/10 text-success" : "border-destructive/20 bg-destructive/5 text-destructive/70 opacity-70"}`} title={allowed ? "Pode acessar" : "Sem acesso"}>
+                                <button type="button" onClick={() => toggleModuleAccess(role, module, !allowed)} className={`inline-flex h-7 w-7 items-center justify-center rounded-full border transition-colors hover:opacity-100 ${allowed ? "border-success/30 bg-success/10 text-success hover:bg-success/20" : "border-destructive/20 bg-destructive/5 text-destructive/70 opacity-70 hover:bg-destructive/10"}`} title={allowed ? "Clique para remover o acesso" : "Clique para liberar o acesso"} aria-label={allowed ? `Remover acesso de ${ROLE_LABELS[role]} ao módulo ${module.label}` : `Liberar acesso de ${ROLE_LABELS[role]} ao módulo ${module.label}`}>
                                   {allowed ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
-                                </span>
+                                </button>
                               </TableCell>
                             );
                           })}
