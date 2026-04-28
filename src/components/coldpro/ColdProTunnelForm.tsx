@@ -883,12 +883,6 @@ export const ColdProTunnelForm = React.forwardRef<ColdProTunnelFormHandle, ColdP
     });
   }, [airOperationMode, airProperties.densityKgM3, airProperties.specificHeatKJkgK, airTemperatureC, ashraeDensityKgM3, buildAirflowPreset, freezingPointC, frozenWaterFraction, isStatic, latentHeatKcalKg, manualDensityKgM3, productDensityKgM3, tunnelResult.availableTimeMin, tunnelResult.distanceToCoreM, tunnelResult.h.airExposureFactor, tunnelResult.h.exposureFactor, tunnelResult.kEffectiveWMK, tunnelResult.totalKW, tunnelType]);
 
-  const setAirTemperatureSource = (value: string) => setForm((prev) => ({ ...prev, air_temp_source: value, air_temp_c: value === "environment" ? environmentInternalTempC : prev.air_temp_c }));
-  const evapTempNum = (): NumericInputProps => ({ type: "number", step: "0.0001", value: inputValue(evaporatorTempC), onChange: (e: React.ChangeEvent<HTMLInputElement>) => { const nextEvap = numberOrNull(e.target.value); setAirTempCalcBase("edit_evap"); setForm((prev) => ({ ...prev, air_temp_source: "manual", air_temp_c: nextEvap === null ? null : nextEvap + (positiveValue(prev.air_delta_t_k) || 6) })); } });
-  const airDeltaNum = (): NumericInputProps => ({ type: "number", step: "0.0001", value: inputValue(form?.air_delta_t_k), onChange: (e: React.ChangeEvent<HTMLInputElement>) => { const nextDelta = numberOrNull(e.target.value); setForm((prev) => { const delta = nextDelta ?? 0; const nextAir = airTempCalcBase === "edit_evap" ? evaporatorTempC + delta : prev.air_temp_c; return { ...prev, air_delta_t_k: nextDelta, air_temp_c: nextAir }; }); } });
-  const useSuggestedH = () => setForm((prev) => ({ ...prev, convective_coefficient_manual_w_m2_k: roundPreset(hSuggestedWM2K, 2) }));
-  const applyTunnelTempToEnvironment = () => setEnvironmentAirTempOverrideC(airTemperatureC);
-
   const loadBreakdown = tunnelResult.calculationBreakdown.loads ?? {};
   const modelBreakdown = tunnelResult.calculationBreakdown.model ?? {};
   const airBreakdown = (tunnelResult.calculationBreakdown.air ?? {}) as Record<string, any>;
@@ -919,6 +913,11 @@ export const ColdProTunnelForm = React.forwardRef<ColdProTunnelFormHandle, ColdP
   const maxSuggestedHWM2K = suggestedConvectiveCoefficientWM2K(maxDesignVelocityMS, Number(tunnelResult.h.airExposureFactor ?? form.air_exposure_factor ?? 1), Number(tunnelResult.h.exposureFactor ?? 1));
   const designWithinLimits = requiredHForRetentionWM2K > 0 && maxSuggestedHWM2K > 0 ? requiredHForRetentionWM2K <= maxSuggestedHWM2K : true;
   const processStatusText = manualHWM2K <= 0 ? "Preliminar" : tunnelResult.status === "adequate" ? "Suficiente" : tunnelResult.status === "missing_data" ? "Faltam dados" : "Insuficiente";
+  const setAirTemperatureSource = (value: string) => setForm((prev) => ({ ...prev, air_temp_source: value, air_temp_c: value === "environment" ? environmentInternalTempC : prev.air_temp_c }));
+  const evapTempNum = (): NumericInputProps => ({ type: "number", step: "0.0001", value: inputValue(evaporatorTempC), onChange: (e: React.ChangeEvent<HTMLInputElement>) => { const nextEvap = numberOrNull(e.target.value); setAirTempCalcBase("edit_evap"); setForm((prev) => ({ ...prev, air_temp_source: "manual", air_temp_c: nextEvap === null ? null : nextEvap + (positiveValue(prev.air_delta_t_k) || 6) })); } });
+  const airDeltaNum = (): NumericInputProps => ({ type: "number", step: "0.0001", value: inputValue(form?.air_delta_t_k), onChange: (e: React.ChangeEvent<HTMLInputElement>) => { const nextDelta = numberOrNull(e.target.value); setForm((prev) => { const delta = nextDelta ?? 0; const nextAir = airTempCalcBase === "edit_evap" ? evaporatorTempC + delta : prev.air_temp_c; return { ...prev, air_delta_t_k: nextDelta, air_temp_c: nextAir }; }); } });
+  const useSuggestedH = () => setForm((prev) => ({ ...prev, convective_coefficient_manual_w_m2_k: roundPreset(hSuggestedWM2K, 2) }));
+  const applyTunnelTempToEnvironment = () => setEnvironmentAirTempOverrideC(airTemperatureC);
   const airflowValidationIssues = [
     tunnelResult.totalKW <= 0 ? { tone: "error" as const, text: "Carga térmica total zerada ou inválida; revise massa, tempo, propriedades térmicas e cargas internas antes de dimensionar ar." } : null,
     tunnelResult.productLoadKW <= 0 ? { tone: "error" as const, text: "Carga térmica do produto zerada; a vazão pode ficar subestimada." } : null,
