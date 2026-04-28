@@ -16,8 +16,11 @@ import {
 
 type Json = Record<string, unknown>;
 type ProcessResult = "ok" | "skip" | "unmatched" | "no_change" | "quarantined";
+type AccessRole = "vendedor" | "gerente_comercial" | "engenharia" | "orcamentista" | "diretoria" | "administrativo" | "admin" | "coldpro";
 
 type SyncWindow = "incremental" | "7d" | "30d" | "custom" | "all";
+
+const ACCESS_ROLES: AccessRole[] = ["vendedor", "gerente_comercial", "engenharia", "orcamentista", "diretoria", "administrativo", "admin", "coldpro"];
 
 type ExistingRow = { id: string; nomus_id?: string | null; sync_hash?: string | null; [key: string]: unknown };
 
@@ -459,6 +462,77 @@ export const nomusImportInternalUsersToAccessQueue = createServerFn({ method: "P
     const { error } = await supabaseAdmin.from("user_access_queue").upsert([...byEmail.values()] as never, { onConflict: "email" });
     if (error) return { ok: false as const, error: error.message };
     return { ok: true as const, count: byEmail.size, attempted, message: `${byEmail.size} usuário(s) internos enviados para liberação.` };
+  });
+
+/** Aprova um usuário pendente: ativa login existente ou envia convite para criação de senha. */
+export const approveUserAccessQueueItem = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { queueId: string }) => {
+    if (!input?.queueId) throw new Error("Liberação inválida.");
+    return input;
+  })
+  .handler(async ({ data, context }) => {
+    const managerId = (context as { userId?: string }).userId ?? null;
+    if (!managerId) return { ok: false as const, error: "Usuário não autenticado." };
+
+    const { data: canManage, error: managerError } = await supabaseAdmin.rpc("can_manage_user_access", { _user_id: managerId });
+    if (managerError) return { ok: false as const, error: managerError.message };
+    if (!canManage) return { ok: false as const, error: "Seu perfil não permite liberar usuários." };
+
+    const { data: queueItem, error: queueError } = await supabaseAdmin
+      .from("user_access_queue")
+      .select("id, full_name, email, suggested_role, source, nomus_user_id")
+      .eq("id", data.queueId)
+      .maybeSingle();
+    if (queueError) return { ok: false as const, error: queueError.message };
+    if (!queueItem) return { ok: false as const, error: "Usuário pendente não encontrado." };
+
+    const email = String(queueItem.email ?? "").trim().toLowerCase();
+    const fullName = String(queueItem.full_name ?? email.split("@")[0]).trim();
+    const suggestedRole = ACCESS_ROLES.includes(queueItem.suggested_role as AccessRole) ? queueItem.suggested_role as AccessRole : "vendedor";
+    const { data: existingProfile } = await supabaseAdmin.from("profiles").select("id").eq("email", email).maybeSingle();
+    let authUserId = existingProfile?.id ?? null;
+    let invited = false;
+
+    if (!authUserId) {
+      const origin = new URL(getRequest().url).origin;
+      const invitedUser = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
+        redirectTo: `${origin}/login`,
+        data: { full_name: fullName, access_source: queueItem.source, nomus_user_id: queueItem.nomus_user_id },
+      });
+      if (invitedUser.error) return { ok: false as const, error: invitedUser.error.message };
+      authUserId = invitedUser.data.user?.id ?? null;
+      invited = true;
+    }
+
+    if (!authUserId) return { ok: false as const, error: "Não foi possível criar ou localizar o login do usuário." };
+
+    const { error: profileError } = await supabaseAdmin.from("profiles").upsert({
+      id: authUserId,
+      full_name: fullName,
+      email,
+      access_status: "active",
+      access_source: queueItem.source ?? "manual",
+      nomus_user_id: queueItem.nomus_user_id ?? null,
+      blocked_reason: null,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "id" });
+    if (profileError) return { ok: false as const, error: profileError.message };
+
+    const { error: clearRolesError } = await supabaseAdmin.from("user_roles").delete().eq("user_id", authUserId);
+    if (clearRolesError) return { ok: false as const, error: clearRolesError.message };
+    const { error: roleError } = await supabaseAdmin.from("user_roles").insert({ user_id: authUserId, role: suggestedRole });
+    if (roleError) return { ok: false as const, error: roleError.message };
+
+    const { error: updateQueueError } = await supabaseAdmin.from("user_access_queue").update({
+      status: "approved",
+      approved_by: managerId,
+      approved_at: new Date().toISOString(),
+      notes: invited ? "Convite enviado para criação de senha." : "Usuário existente ativado pelo gestor.",
+    }).eq("id", data.queueId);
+    if (updateQueueError) return { ok: false as const, error: updateQueueError.message };
+
+    return { ok: true as const, invited, message: invited ? "Aprovado: convite enviado para o usuário criar a senha." : "Aprovado: usuário existente já pode acessar." };
   });
 
 /** Pull clients from Nomus and upsert locally. */
