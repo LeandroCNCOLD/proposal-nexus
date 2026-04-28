@@ -875,10 +875,6 @@ export const ColdProTunnelForm = React.forwardRef<ColdProTunnelFormHandle, ColdP
         const airflowM3H = airflowForVelocityM3H(freeAreaM2, requiredVelocityMS) || requiredAirflowForLoadM3H(tunnelResult.totalKW, positiveValue(prev.air_delta_t_k) || 6, airProperties.densityKgM3, airProperties.specificHeatKJkgK);
         return { ...prev, airflow_source: "airflow_by_fans", air_temp_source: "manual", air_temp_c: Number(prev.air_temp_c ?? airTemperatureC), fan_airflow_m3_h: roundPreset(airflowM3H, 2), informed_air_flow_m3_h: roundPreset(airflowM3H, 2), airflow_m3_h: roundPreset(airflowM3H, 2), air_velocity_m_s: roundPreset(requiredVelocityMS, 3), airflow_free_area_m2: freeAreaM2 > 0 ? roundPreset(freeAreaM2, 3) : prev.airflow_free_area_m2 };
       }
-      const freeAreaM2 = freeAirAreaFromControls(prev);
-      const velocityMS = positiveValue(prev.air_velocity_m_s);
-      const airflowM3H = airflowForVelocityM3H(freeAreaM2, velocityMS);
-      if (airflowM3H > 0) return { ...prev, airflow_source: "airflow_by_fans", fan_airflow_m3_h: roundPreset(airflowM3H, 2), informed_air_flow_m3_h: roundPreset(airflowM3H, 2), airflow_m3_h: roundPreset(airflowM3H, 2), airflow_free_area_m2: roundPreset(freeAreaM2, 3) };
       return { ...prev, ...buildAirflowPreset(prev) };
     });
   }, [airOperationMode, airProperties.densityKgM3, airProperties.specificHeatKJkgK, airTemperatureC, ashraeDensityKgM3, buildAirflowPreset, freezingPointC, frozenWaterFraction, isStatic, latentHeatKcalKg, manualDensityKgM3, productDensityKgM3, tunnelResult.availableTimeMin, tunnelResult.distanceToCoreM, tunnelResult.h.airExposureFactor, tunnelResult.h.exposureFactor, tunnelResult.kEffectiveWMK, tunnelResult.totalKW, tunnelType]);
