@@ -693,8 +693,7 @@ export const ColdProTunnelForm = React.forwardRef<ColdProTunnelFormHandle, ColdP
   const densityFieldKgM3 = Number(form.density_kg_m3 ?? 0);
   const selectedCatalogProduct = productCatalog.find((item) => item.id === form.product_id) ?? null;
   const thermodynamicProduct = selectedCatalogProduct ?? product ?? null;
-  const catalogLocked = Boolean(selectedCatalogProduct);
-  const lockedNum = (key: string) => ({ ...num(key), readOnly: catalogLocked, readOnlyValue: catalogLocked, title: catalogLocked ? "Propriedade técnica carregada do catálogo; edite no cadastro de produtos." : undefined });
+  const thermalNum = (key: string) => num(key);
   const productDensityKgM3 = positiveValue(thermodynamicProduct?.density_kg_m3);
   const manualDensityKgM3 = densityFieldKgM3 > 0 && (!ashraeDensityKgM3 || Math.abs(densityFieldKgM3 - ashraeDensityKgM3) > 0.0001) ? densityFieldKgM3 : productDensityKgM3;
   const airTempSource = form.air_temp_source ?? "environment";
@@ -702,13 +701,13 @@ export const ColdProTunnelForm = React.forwardRef<ColdProTunnelFormHandle, ColdP
   const airTemperatureC = airTempSource === "environment"
     ? environmentInternalTempC
     : Number(form.air_temp_c ?? environment?.internal_temp_c ?? 0);
-  const freezingPointC = Number(catalogLocked ? selectedCatalogProduct?.initial_freezing_temp_c ?? form.freezing_temp_c ?? -1.5 : form.freezing_temp_c ?? thermodynamicProduct?.initial_freezing_temp_c ?? -1.5);
+  const freezingPointC = Number(form.freezing_temp_c ?? thermodynamicProduct?.initial_freezing_temp_c ?? -1.5);
   const catalogKcalProduct = selectedCatalogProduct ? normalizeProductForKcalEngine(selectedCatalogProduct) : null;
   const preferCatalogKj = Boolean(form.product_id ?? selectedCatalogProduct?.id);
-  const cpAboveKcalKgC = catalogKcalProduct?.cpAboveKcalKgC || kcalFromThermal(form.specific_heat_above_kcal_kg_c, form.specific_heat_above_kj_kg_k, preferCatalogKj) || kcalFromThermal(thermodynamicProduct?.specific_heat_above_kcal_kg_c, thermodynamicProduct?.specific_heat_above_kj_kg_k, Boolean(thermodynamicProduct?.id));
-  const cpBelowKcalKgC = catalogKcalProduct?.cpBelowKcalKgC || kcalFromThermal(form.specific_heat_below_kcal_kg_c, form.specific_heat_below_kj_kg_k, preferCatalogKj) || kcalFromThermal(thermodynamicProduct?.specific_heat_below_kcal_kg_c, thermodynamicProduct?.specific_heat_below_kj_kg_k, Boolean(thermodynamicProduct?.id));
-  const latentHeatKcalKg = catalogKcalProduct?.latentHeatKcalKg || kcalFromThermal(form.latent_heat_kcal_kg, form.latent_heat_kj_kg, preferCatalogKj) || kcalFromThermal(thermodynamicProduct?.latent_heat_kcal_kg, thermodynamicProduct?.latent_heat_kj_kg, Boolean(thermodynamicProduct?.id));
-  const frozenConductivityWmK = catalogLocked ? positiveValue(selectedCatalogProduct?.thermal_conductivity_frozen_w_m_k, selectedCatalogProduct?.thermal_conductivity_w_m_k, form.thermal_conductivity_frozen_w_m_k) : positiveValue(form.thermal_conductivity_frozen_w_m_k, thermodynamicProduct?.thermal_conductivity_frozen_w_m_k, thermodynamicProduct?.thermal_conductivity_w_m_k);
+  const cpAboveKcalKgC = kcalFromThermal(form.specific_heat_above_kcal_kg_c, form.specific_heat_above_kj_kg_k, preferCatalogKj) || catalogKcalProduct?.cpAboveKcalKgC || kcalFromThermal(thermodynamicProduct?.specific_heat_above_kcal_kg_c, thermodynamicProduct?.specific_heat_above_kj_kg_k, Boolean(thermodynamicProduct?.id));
+  const cpBelowKcalKgC = kcalFromThermal(form.specific_heat_below_kcal_kg_c, form.specific_heat_below_kj_kg_k, preferCatalogKj) || catalogKcalProduct?.cpBelowKcalKgC || kcalFromThermal(thermodynamicProduct?.specific_heat_below_kcal_kg_c, thermodynamicProduct?.specific_heat_below_kj_kg_k, Boolean(thermodynamicProduct?.id));
+  const latentHeatKcalKg = kcalFromThermal(form.latent_heat_kcal_kg, form.latent_heat_kj_kg, preferCatalogKj) || catalogKcalProduct?.latentHeatKcalKg || kcalFromThermal(thermodynamicProduct?.latent_heat_kcal_kg, thermodynamicProduct?.latent_heat_kj_kg, Boolean(thermodynamicProduct?.id));
+  const frozenConductivityWmK = positiveValue(form.thermal_conductivity_frozen_w_m_k, thermodynamicProduct?.thermal_conductivity_frozen_w_m_k, thermodynamicProduct?.thermal_conductivity_w_m_k);
   const frozenWaterFraction = catalogKcalProduct?.frozenWaterFraction ?? definedNumber(form.frozen_water_fraction, thermodynamicProduct?.frozen_water_fraction, thermodynamicProduct?.freezable_water_content_percent == null ? null : Number(thermodynamicProduct.freezable_water_content_percent) / 100, thermodynamicProduct?.water_content_percent == null ? null : Number(thermodynamicProduct.water_content_percent) / 100, 0.9);
   const manualAirDensityKgM3 = positiveValue(form.air_density_kg_m3) > 0 && Math.abs(positiveValue(form.air_density_kg_m3) - 1.2) > 0.0001 ? positiveValue(form.air_density_kg_m3) : null;
   const airProperties = createAirPropertiesContext({
@@ -721,7 +720,7 @@ export const ColdProTunnelForm = React.forwardRef<ColdProTunnelFormHandle, ColdP
     waterLatentHeatKJkg: positiveValue(form.water_latent_heat_kj_kg) || null,
     mode: "sublimation",
   });
-  const effectiveForm = catalogLocked ? { ...form, product_name: selectedCatalogProduct?.name ?? form.product_name, freezing_temp_c: freezingPointC, density_kg_m3: selectedCatalogProduct?.density_kg_m3 ?? form.density_kg_m3, ashrae_density_kg_m3: selectedCatalogProduct?.density_kg_m3 ?? form.ashrae_density_kg_m3, specific_heat_above_kj_kg_k: selectedCatalogProduct?.specific_heat_above_kj_kg_k ?? null, specific_heat_below_kj_kg_k: selectedCatalogProduct?.specific_heat_below_kj_kg_k ?? null, specific_heat_above_kcal_kg_c: cpAboveKcalKgC, specific_heat_below_kcal_kg_c: cpBelowKcalKgC, latent_heat_kj_kg: selectedCatalogProduct?.latent_heat_kj_kg ?? null, latent_heat_kcal_kg: latentHeatKcalKg, thermal_conductivity_frozen_w_m_k: frozenConductivityWmK, frozen_water_fraction: frozenWaterFraction, thermal_conductivity_unfrozen_w_m_k: selectedCatalogProduct?.thermal_conductivity_unfrozen_w_m_k ?? selectedCatalogProduct?.thermal_conductivity_w_m_k ?? null, water_content_percent: selectedCatalogProduct?.water_content_percent ?? null } : form;
+  const effectiveForm = { ...form, product_name: selectedCatalogProduct?.name ?? form.product_name, freezing_temp_c: freezingPointC, specific_heat_above_kcal_kg_c: cpAboveKcalKgC, specific_heat_below_kcal_kg_c: cpBelowKcalKgC, latent_heat_kcal_kg: latentHeatKcalKg, thermal_conductivity_frozen_w_m_k: frozenConductivityWmK, frozen_water_fraction: frozenWaterFraction };
   const tunnelInput = formToTunnelInput(effectiveForm, environment ?? {});
   const baseResult = calculateTunnelEngine(tunnelInput);
   const simulationForm = { ...effectiveForm, ...simulation, initial_scenario_input: tunnelInput.initialScenarioInput, thermal_condition_approved: false };
