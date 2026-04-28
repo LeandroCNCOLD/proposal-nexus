@@ -22,6 +22,8 @@ export type ProcessMassResolution = {
   beltSurface?: {
     method: "belt_surface_density";
     areaM2: number;
+    calculatedAreaM2: number;
+    informedAreaM2: number;
     widthM: number;
     effectiveLengthM: number;
     surfaceDensityKgM2: number;
@@ -35,6 +37,8 @@ export type ProcessMassResolution = {
     calculatedFlowKgH: number;
     nominalCapacityKgH: number;
     capacityDeviationPercent: number | null;
+    flowMethodDeviationPercent: number | null;
+    areaDeviationPercent: number | null;
   } | null;
 };
 
