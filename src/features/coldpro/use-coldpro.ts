@@ -79,7 +79,15 @@ export function useDeleteColdProProduct(projectId: string) {
 }
 export function useUpsertColdProTunnel(projectId: string) {
   const qc = useQueryClient();
-  return useMutation({ mutationFn: (data: any) => upsertColdProTunnel({ data }), onSuccess: () => qc.invalidateQueries({ queryKey: ["coldpro-project", projectId] }) });
+  return useMutation({
+    mutationFn: (data: any) => upsertColdProTunnel({ data }),
+    onSuccess: (tunnel: any) => {
+      qc.setQueryData(["coldpro-project", projectId], (current: any) =>
+        current ? { ...current, tunnels: upsertByEnvironment(current.tunnels ?? [], tunnel) } : current,
+      );
+      return qc.invalidateQueries({ queryKey: ["coldpro-project", projectId] });
+    },
+  });
 }
 export function useUpsertColdProAdvancedProcess(projectId: string) {
   const qc = useQueryClient();

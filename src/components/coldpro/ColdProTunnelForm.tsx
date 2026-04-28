@@ -390,6 +390,22 @@ function continuousModeOptions(tunnelType: string) {
   return [{ value: "direct_mass_flow", label: "Informar kg/h diretamente" }, { value: "calculated_by_units_per_hour", label: "Calcular por unidades/h" }, { value: "calculated_by_belt_loading", label: "Calcular por carregamento da esteira" }, { value: "calculated_by_belt_surface_density", label: "Calcular por densidade superficial da esteira" }];
 }
 
+function resolveContinuousMassMode(source: ColdProFormRecord, tunnelType: string) {
+  const allowed = new Set(continuousModeOptions(tunnelType).map((option) => option.value));
+  const candidates = [source.continuous_mass_mode, source.mass_flow_mode].map((value) => String(value ?? ""));
+  const explicit = candidates.find((value) => allowed.has(value));
+  if (explicit) return explicit;
+  if (tunnelType === "fluidized_bed" && positiveValue(source.feed_rate_kg_h) > 0) return "calculated_by_feed_rate";
+  if (tunnelType === "spiral_girofreezer") {
+    if (positiveValue(source.trays_per_hour, source.tray_weight_kg) > 0) return "calculated_by_trays";
+    if (positiveValue(source.units_per_cycle, source.cycles_per_hour) > 0) return "calculated_by_units";
+  }
+  if (positiveValue(source.belt_surface_density_kg_m2, source.belt_area_m2, source.belt_width_m, source.belt_effective_length_m, source.belt_nominal_capacity_kg_h) > 0) return "calculated_by_belt_surface_density";
+  if (positiveValue(source.units_per_row, source.rows_per_meter, source.belt_speed_m_min) > 0) return "calculated_by_belt_loading";
+  if (positiveValue(source.units_per_hour) > 0) return "calculated_by_units_per_hour";
+  return "direct_mass_flow";
+}
+
 function simulationDraftFromTunnel(source: Partial<ColdProFormRecord>) {
   return {
     air_temp_c: source?.air_temp_c ?? -35,
@@ -438,7 +454,14 @@ export const ColdProTunnelForm = React.forwardRef<ColdProTunnelFormHandle, ColdP
   const autoAirPresetKeyRef = React.useRef("");
 
   React.useEffect(() => {
-    const next = { ...defaultTunnel(environmentId), ...(tunnel ?? {}), environment_id: environmentId };
+    const base = { ...defaultTunnel(environmentId), ...(tunnel ?? {}), environment_id: environmentId };
+    const nextTunnelType = String(base.tunnel_type ?? legacyTunnelType(String(base.process_type ?? "continuous_belt")));
+    const savedContinuousMassMode = resolveContinuousMassMode(base, nextTunnelType);
+    const next = {
+      ...base,
+      continuous_mass_mode: nextTunnelType === "fluidized_bed" ? base.continuous_mass_mode : savedContinuousMassMode,
+      mass_flow_mode: nextTunnelType === "fluidized_bed" ? savedContinuousMassMode : base.mass_flow_mode,
+    };
     setForm(next);
     setSimulation(simulationDraftFromTunnel(next));
   }, [environmentId, tunnel?.id]);
@@ -510,7 +533,7 @@ export const ColdProTunnelForm = React.forwardRef<ColdProTunnelFormHandle, ColdP
   const isStatic = ["static_cart", "static_pallet", "blast_freezer"].includes(tunnelType) || isStaticTunnel(processType, form.operation_mode);
   const modelTab = isStatic ? "estatico" : "continuo";
   const unitWeight = Number(form.unit_weight_kg ?? 0) || Number(form.product_unit_weight_kg ?? 0);
-  const continuousMassMode = tunnelType === "fluidized_bed" ? String(form.mass_flow_mode ?? "direct_mass_flow") : String(form.continuous_mass_mode ?? "direct_mass_flow");
+  const continuousMassMode = resolveContinuousMassMode(form, tunnelType);
   const throughputByUnits = unitWeight * positiveValue(form.units_per_cycle) * positiveValue(form.cycles_per_hour);
   const throughputByTrays = (unitWeight * positiveValue(form.units_per_tray) + positiveValue(form.tray_weight_kg)) * positiveValue(form.trays_per_hour);
   const throughputByUnitsHour = unitWeight * positiveValue(form.units_per_hour);
@@ -776,7 +799,10 @@ export const ColdProTunnelForm = React.forwardRef<ColdProTunnelFormHandle, ColdP
     const arrangement = defaultArrangement(value);
     const defaults = ARRANGEMENT_DEFAULTS[arrangement];
     const nextIsStatic = isStaticProcess(value);
-    setForm((prev) => ({ ...prev, tunnel_type: value, process_type: value, physical_model: physicalModelFromProcess(value), operation_mode: nextIsStatic ? "batch" : "continuous", tunnel_mode: nextIsStatic ? "static" : "continuous", arrangement_type: arrangement, static_mass_mode: nextIsStatic ? defaultMassModeForTunnel(value) : prev.static_mass_mode, continuous_mass_mode: !nextIsStatic ? "direct_mass_flow" : prev.continuous_mass_mode, mass_flow_mode: value === "fluidized_bed" ? "direct_mass_flow" : prev.mass_flow_mode, air_exposure_factor: defaults.air, thermal_penetration_factor: defaults.penetration, ...suggestedStaticArrangementFields(value, arrangement) }));
+    setForm((prev) => {
+      const nextMode = nextIsStatic ? String(prev.continuous_mass_mode ?? "direct_mass_flow") : resolveContinuousMassMode(prev, value);
+      return { ...prev, tunnel_type: value, process_type: value, physical_model: physicalModelFromProcess(value), operation_mode: nextIsStatic ? "batch" : "continuous", tunnel_mode: nextIsStatic ? "static" : "continuous", arrangement_type: arrangement, static_mass_mode: nextIsStatic ? defaultMassModeForTunnel(value) : prev.static_mass_mode, continuous_mass_mode: value !== "fluidized_bed" ? nextMode : prev.continuous_mass_mode, mass_flow_mode: value === "fluidized_bed" ? nextMode : prev.mass_flow_mode, air_exposure_factor: defaults.air, thermal_penetration_factor: defaults.penetration, ...suggestedStaticArrangementFields(value, arrangement) };
+    });
     setActiveTab(nextIsStatic ? "estatico" : "continuo");
   };
 
