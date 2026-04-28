@@ -1257,6 +1257,10 @@ export const ColdProTunnelForm = React.forwardRef<ColdProTunnelFormHandle, ColdP
   const showBeltFlowMismatch = continuousMassMode === "calculated_by_belt_surface_density" && positiveValue(beltSurfaceBreakdown.flowBySpeedKgH) > 0 && positiveValue(beltSurfaceBreakdown.flowByRetentionKgH) > 0 && beltFlowMethodDeviationPercent > 5;
   const estimatedEquivalentMassKg = continuousCapacityKgH > 0 && estimatedTimeForMassMin > 0 ? continuousCapacityKgH * estimatedTimeForMassMin / 60 : 0;
   const timeRatioEstimatedVsAvailable = estimatedTimeForMassMin > 0 && availableTimeForMassMin > 0 ? estimatedTimeForMassMin / availableTimeForMassMin : null;
+  const retentionRequiredForInstantMassMin = estimatedTimeForMassMin;
+  const retentionAdjustmentMin = retentionRequiredForInstantMassMin > 0 && availableTimeForMassMin > 0 ? retentionRequiredForInstantMassMin - availableTimeForMassMin : 0;
+  const retentionAdjustmentPercent = retentionAdjustmentMin > 0 && availableTimeForMassMin > 0 ? retentionAdjustmentMin / availableTimeForMassMin * 100 : 0;
+  const timeAtRealCapacityMin = instantTunnelMassKg > 0 && realCapacityByThermalTimeKgH > 0 ? instantTunnelMassKg * 60 / realCapacityByThermalTimeKgH : retentionRequiredForInstantMassMin;
   const beltMassDifferencePercent = hasBeltPhysicalMass && massInAvailableTimeKg > 0 ? Math.abs(massInAvailableTimeKg - beltPhysicalMassKg) / Math.max(massInAvailableTimeKg, beltPhysicalMassKg) * 100 : 0;
   const showBeltMassMismatch = hasBeltPhysicalMass && massInAvailableTimeKg > 0 && beltMassDifferencePercent > 5;
   const showInsufficientTimeDiagnostic = !isStatic && continuousCapacityKgH > 0 && instantTunnelMassKg > 0 && estimatedTimeForMassMin > availableTimeForMassMin && availableTimeForMassMin > 0;
