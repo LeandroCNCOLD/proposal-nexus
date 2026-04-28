@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
 import { useAuth } from "@/hooks/useAuth";
 import { ROLE_LABELS, type AppRole } from "@/lib/proposal";
-import { nomusSyncRepresentatives, nomusSyncSellers } from "@/integrations/nomus/server.functions";
+import { nomusImportInternalUsersToAccessQueue } from "@/integrations/nomus/server.functions";
 import { useServerFn } from "@tanstack/react-start";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -29,8 +29,7 @@ const ACCESS_STATUS_LABELS: Record<string, string> = {
 function SettingsPage() {
   const { user, roles, hasAnyRole } = useAuth();
   const qc = useQueryClient();
-  const syncSellers = useServerFn(nomusSyncSellers);
-  const syncRepresentatives = useServerFn(nomusSyncRepresentatives);
+  const importInternalUsers = useServerFn(nomusImportInternalUsersToAccessQueue);
   const canManageAccess = hasAnyRole(MANAGER_ROLES);
   const [newUser, setNewUser] = useState({ full_name: "", email: "", suggested_role: "coldpro" as AppRole });
   const [accessSearch, setAccessSearch] = useState("");
@@ -99,28 +98,11 @@ function SettingsPage() {
   const importNomusUsers = async () => {
     setImportingNomus(true);
     try {
-      await Promise.all([syncSellers({}), syncRepresentatives({})]);
-      const [{ data: sellers }, { data: representatives }] = await Promise.all([
-        supabase.from("nomus_sellers").select("nomus_id, name, email").not("email", "is", null),
-        supabase.from("nomus_representatives").select("nomus_id, name, email").not("email", "is", null),
-      ]);
-      const byEmail = new Map<string, { full_name: string; email: string; source: string; nomus_user_id: string | null; suggested_role: AppRole; status: string }>();
-      for (const item of [...(sellers ?? []), ...(representatives ?? [])]) {
-        if (!item.email) continue;
-        byEmail.set(item.email.toLowerCase(), {
-          full_name: item.name,
-          email: item.email.toLowerCase(),
-          source: "nomus",
-          nomus_user_id: item.nomus_id,
-          suggested_role: "vendedor",
-          status: "pending",
-        });
-      }
-      if (byEmail.size === 0) return toast.info("Nenhum usuário com e-mail encontrado no Nomus.");
-      const { error } = await supabase.from("user_access_queue").upsert([...byEmail.values()], { onConflict: "email" });
-      if (error) return toast.error(error.message);
+      const result = await importInternalUsers({});
+      if (!result.ok) return toast.error(result.error);
       refreshAccess();
-      toast.success(`${byEmail.size} usuário(s) do Nomus enviados para liberação.`);
+      if (result.count === 0) toast.info(result.message);
+      else toast.success(result.message);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Falha ao buscar usuários no Nomus.");
     } finally {
@@ -203,7 +185,7 @@ function SettingsPage() {
                 </div>
                 <Button variant="outline" onClick={importNomusUsers} disabled={importingNomus}>
                   <RefreshCw className={`mr-2 h-4 w-4 ${importingNomus ? "animate-spin" : ""}`} />
-                  {importingNomus ? "Buscando no Nomus" : "Buscar usuários no Nomus"}
+                  {importingNomus ? "Buscando usuários internos" : "Buscar usuários internos no Nomus"}
                 </Button>
               </div>
 

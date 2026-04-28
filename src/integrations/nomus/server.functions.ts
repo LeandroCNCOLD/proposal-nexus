@@ -45,6 +45,13 @@ const pickNestedStr = (o: Json, nestedKey: string, ...keys: string[]): string | 
   return pickStr(nested as Json, ...keys);
 };
 
+const pickEmail = (o: Json): string | null => {
+  const direct = pickStr(o, "email", "e-mail", "emailPrincipal", "emailCorporativo", "login", "usuario");
+  if (direct?.includes("@")) return direct.trim().toLowerCase();
+  const nested = pickNestedStr(o, "contato", "email", "emailPrincipal") ?? pickNestedStr(o, "pessoa", "email", "emailPrincipal");
+  return nested?.includes("@") ? nested.trim().toLowerCase() : null;
+};
+
 const pickBool = (o: Json, ...keys: string[]): boolean | null => {
   for (const k of keys) {
     const v = o[k];
@@ -397,6 +404,61 @@ export const nomusTestConnection = createServerFn({ method: "POST" })
       durationMs: result.durationMs,
       probes: result.probes,
     };
+  });
+
+/** Importa usuários internos do Nomus para a fila de liberação de acesso. */
+export const nomusImportInternalUsersToAccessQueue = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const userId = (context as { userId?: string }).userId ?? null;
+    if (!userId) return { ok: false as const, error: "Usuário não autenticado." };
+
+    const { data: canManage, error: managerError } = await supabaseAdmin.rpc("can_manage_user_access", { _user_id: userId });
+    if (managerError) return { ok: false as const, error: managerError.message };
+    if (!canManage) return { ok: false as const, error: "Seu perfil não permite buscar usuários do Nomus." };
+
+    const candidateEndpoints = [
+      { entity: "usuarios", endpoint: "/usuarios" },
+      { entity: "users", endpoint: "/users" },
+      { entity: "colaboradores", endpoint: "/colaboradores" },
+      { entity: "funcionarios", endpoint: "/funcionarios" },
+      { entity: "funcionarios", endpoint: "/funcionários" },
+      { entity: "pessoas", endpoint: "/pessoas" },
+    ];
+    const byEmail = new Map<string, { full_name: string; email: string; source: string; nomus_user_id: string | null; suggested_role: "vendedor"; status: "pending"; notes: string }>();
+    const attempted: string[] = [];
+
+    for (const candidate of candidateEndpoints) {
+      const res = await listAll<Json>(candidate.endpoint, {}, { entity: candidate.entity, triggeredBy: userId, maxItems: 5000 });
+      attempted.push(candidate.endpoint);
+      if (!res.ok || res.items.length === 0) continue;
+
+      for (const raw of res.items) {
+        const email = pickEmail(raw);
+        if (!email) continue;
+        const name = pickStr(raw, "nome", "nomeCompleto", "fullName", "name", "razaoSocial") ?? pickNestedStr(raw, "pessoa", "nome", "razaoSocial") ?? email.split("@")[0];
+        const nomusId = pickStr(raw, "id", "codigo", "idUsuario", "idPessoa", "idColaborador", "idFuncionario");
+        byEmail.set(email, {
+          full_name: name,
+          email,
+          source: `nomus:${candidate.entity}`,
+          nomus_user_id: nomusId,
+          suggested_role: "vendedor",
+          status: "pending",
+          notes: `Importado da base interna do Nomus via ${candidate.endpoint}.`,
+        });
+      }
+
+      if (byEmail.size > 0) break;
+    }
+
+    if (byEmail.size === 0) {
+      return { ok: true as const, count: 0, attempted, message: "Nenhum usuário interno com e-mail foi encontrado no Nomus." };
+    }
+
+    const { error } = await supabaseAdmin.from("user_access_queue").upsert([...byEmail.values()] as never, { onConflict: "email" });
+    if (error) return { ok: false as const, error: error.message };
+    return { ok: true as const, count: byEmail.size, attempted, message: `${byEmail.size} usuário(s) internos enviados para liberação.` };
   });
 
 /** Pull clients from Nomus and upsert locally. */
