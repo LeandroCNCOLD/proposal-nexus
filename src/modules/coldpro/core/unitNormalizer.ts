@@ -3,6 +3,7 @@ import { safeNumber } from "./units";
 export const KCAL_TO_KJ = 4.1868;
 type ConversionSource = "kcal_native" | "kJ_native" | "kJ_to_kcal" | "kcal_to_kJ" | "default_kcal_native" | "default_kcal_to_kJ" | "missing";
 export type ProductLatentMode = "effective" | "full";
+export type ThermalUnitConsistencyAlert = { level: "critical"; code: string; field: string; message: string; kjValue: number; kcalValue: number; kcalExpected: number; deviationPercent: number };
 
 const PRODUCT_THERMAL_DEFAULTS = [
   {
@@ -64,6 +65,24 @@ function normalizeEnergyForKj(kjValue: unknown, kcalValue: unknown, defaultKcalV
   return { value: 0, source: "missing" as ConversionSource, originalValue: 0, originalUnit: "ausente", convertedValue: 0, usedUnit: units.kj, equivalentKcal: 0 };
 }
 
+function buildConsistencyAlert(field: string, kjValue: unknown, kcalValue: unknown): ThermalUnitConsistencyAlert | null {
+  const kj = safeNumber(kjValue, 0);
+  const kcal = safeNumber(kcalValue, 0);
+  if (kj <= 0 || kcal <= 0) return null;
+  const kcalExpected = kj / KCAL_TO_KJ;
+  const deviationPercent = kcalExpected > 0 ? Math.abs(kcal - kcalExpected) / kcalExpected * 100 : 0;
+  if (deviationPercent <= 1) return null;
+  return { level: "critical", code: "thermal_unit_kj_kcal_mismatch", field, message: `Inconsistência entre kJ e kcal em ${field}: kJ é a fonte oficial e foi priorizado; revisar cadastro antes de emissão final.`, kjValue: kj, kcalValue: kcal, kcalExpected, deviationPercent };
+}
+
+export function validateThermalUnitConsistency(input: any): ThermalUnitConsistencyAlert[] {
+  return [
+    buildConsistencyAlert("specific_heat_above", input?.specific_heat_above_kj_kg_k ?? input?.cpAboveKJkgK, input?.specific_heat_above_kcal_kg_c ?? input?.cpAboveKcalKgC),
+    buildConsistencyAlert("specific_heat_below", input?.specific_heat_below_kj_kg_k ?? input?.cpBelowKJkgK, input?.specific_heat_below_kcal_kg_c ?? input?.cpBelowKcalKgC),
+    buildConsistencyAlert("latent_heat", input?.latent_heat_kj_kg ?? input?.latentHeatKJkg, input?.latent_heat_kcal_kg ?? input?.latentHeatKcalKg),
+  ].filter((alert): alert is ThermalUnitConsistencyAlert => Boolean(alert));
+}
+
 export function normalizeProductForKcalEngine(input: any) {
   const defaults = productDefaults(input);
   const preferKJ = input?.prefer_kj_source === true || input?.product_id || (input?.id && input?.name) || input?.is_ashrae_reference === true || String(input?.source ?? "").toLowerCase().includes("ashrae");
@@ -119,7 +138,8 @@ export function normalizeProductForKjEngine(input: any) {
     latentResidualFactor: kcal.latentResidualFactor,
     defaultsApplied: kcal.defaultsApplied,
     conversionSources: { cpAboveKJkgK: cpAbove.source, cpBelowKJkgK: cpBelow.source, latentHeatKJkg: latentHeat.source },
-    unitAudit: { conversionFactor: KCAL_TO_KJ, cpAbove: { ...cpAbove }, cpBelow: { ...cpBelow }, latentHeat: { ...latentHeat } },
+    consistencyAlerts: validateThermalUnitConsistency(input),
+    unitAudit: { conversionFactor: KCAL_TO_KJ, engineEnergyUnit: "kJ", enginePowerUnit: "kW", cpAbove: { ...cpAbove }, cpBelow: { ...cpBelow }, latentHeat: { ...latentHeat } },
   };
 }
 
