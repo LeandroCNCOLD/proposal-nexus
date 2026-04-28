@@ -6,6 +6,7 @@ import { buildCalculationMethodSummary } from "../core/resultNormalizer";
 import { tunnelResultToDatabasePayload } from "../adapters/tunnelInputToDatabasePayload";
 import { createAirPropertiesContext } from "../physics/airProperties";
 import { calculateProductSpecificEnergy } from "../physics/productThermal";
+import { normalizeProductForKjEngine } from "../core/unitNormalizer";
 import type { TunnelEngineInput, TunnelEngineResult } from "../types/tunnelEngine.types";
 import { calculateTunnelEngine, COLDPRO_TUNNEL_ENGINE_VERSION } from "./tunnelEngine";
 
@@ -122,6 +123,52 @@ const thermalBase = {
   });
   assert.ok(Number((result.calculationBreakdown.air as any)?.airProperties?.densityKgM3) >= 1.3);
   assert.ok(result.airFlowM3H > 0);
+}
+
+{
+  const batata = calculateTunnelEngine({
+    processType: "continuous_individual_freezing",
+    operationMode: "continuous",
+    tunnelType: "continuous_belt",
+    arrangementType: "individual_exposed",
+    productGeometry: "slab",
+    continuousMassMode: "direct_mass_flow",
+    directMassKgH: 1063.636,
+    retentionTimeMin: 30,
+    productThicknessM: 0.03,
+    initialTempC: 40,
+    freezingPointC: -5,
+    finalTempC: -12,
+    cpAboveKJkgK: 3.2,
+    cpBelowKJkgK: 1.8,
+    latentHeatKJkg: 260.2,
+    latentMode: "effective",
+    frozenWaterFraction: 1,
+    latentResidualFactor: 1,
+    airTempC: -30,
+    airVelocityMS: 3,
+    airDeltaTK: 6,
+    frozenConductivityWMK: 1.5,
+    densityKgM3: 1000,
+    thermalPenetrationFactor: 1,
+    airExposureFactor: 1,
+  });
+  nearlyEqual(batata.energy.totalKJkg, 416.8, 0.001);
+  nearlyEqual(batata.productLoadKW, 123.152, 0.02);
+  nearlyEqual(batata.productLoadKW * 859.845, 105887, 25);
+  assert.ok(batata.productLoadKW * 859.845 > 100000, "Batata pré-frita não pode ficar abaixo de 100.000 kcal/h neste cenário");
+
+  const inconsistent = normalizeProductForKjEngine({
+    specific_heat_above_kj_kg_k: 3.2,
+    specific_heat_above_kcal_kg_c: 0.7643,
+    specific_heat_below_kj_kg_k: 1.8,
+    specific_heat_below_kcal_kg_c: 0.4299,
+    latent_heat_kj_kg: 52.55,
+    latent_heat_kcal_kg: 220,
+    source: "ASHRAE",
+  });
+  assert.equal(inconsistent.latentHeatKJkg, 52.55);
+  assert.ok(inconsistent.consistencyAlerts.some((alert) => alert.field === "latent_heat"));
 }
 
 {
