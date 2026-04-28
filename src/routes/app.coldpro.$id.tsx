@@ -845,6 +845,7 @@ function ColdProProjectPage() {
                     ref={extraLoadsFormRef}
                     environment={selectedEnv}
                     catalogFanLoadKcalH={catalogFanLoadKcalH}
+                    projectBaseLoadKcalH={projectBaseLoadKcalH}
                     onSave={(patch) => handleSaveEnvironmentPatch(patch, "Cargas extras salvas")}
                   />
                   <ColdProSectionLoadSummary
@@ -856,11 +857,12 @@ function ColdProProjectPage() {
                       { label: "Motores", value: result?.motors_kcal_h ?? extraPreview.motors_kcal_h },
                       { label: "Ventiladores", value: result?.fans_kcal_h ?? extraPreview.fans_kcal_h },
                       { label: "Degelo", value: result?.defrost_kcal_h ?? extraPreview.defrost_kcal_h },
+                      { label: "Impacto gelo", value: result?.calculation_breakdown?.evaporator_frost?.additional_load_kcal_h ?? extraPreview.evaporator_frost.additional_load_kcal_h },
                       { label: "Outras cargas", value: result?.other_kcal_h ?? extraPreview.other_kcal_h },
-                      { label: "Segurança", value: result?.safety_kcal_h ?? extraPreview.safety_kcal_h, muted: true },
+                      { label: "Segurança global", value: projectSafetyPreviewKcalH, muted: true },
                     ]}
-                    totalLabel="Total calculado da aba Cargas extras + segurança"
-                    total={result ? extraLoad + Number(result.safety_kcal_h ?? 0) : extraPreview.total_with_safety_kcal_h}
+                    totalLabel="Total do projeto com segurança"
+                    total={projectTotalWithSafetyPreviewKcalH}
                   />
                 </div>
               )}
