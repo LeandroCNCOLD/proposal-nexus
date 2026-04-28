@@ -72,7 +72,7 @@ function buildConsistencyAlert(field: string, kjValue: unknown, kcalValue: unkno
   const kcalExpected = kj / KCAL_TO_KJ;
   const deviationPercent = kcalExpected > 0 ? Math.abs(kcal - kcalExpected) / kcalExpected * 100 : 0;
   if (deviationPercent <= 1) return null;
-  return { level: "critical", code: "thermal_unit_kj_kcal_mismatch", field, message: `Inconsistência entre kJ e kcal em ${field}: kJ é a fonte oficial e foi priorizado; revisar cadastro antes de emissão final.`, kjValue: kj, kcalValue: kcal, kcalExpected, deviationPercent };
+  return { level: "critical", code: "thermal_unit_kj_kcal_mismatch", field, message: `Inconsistência entre kJ e kcal em ${field}; foi usada a conversão normalizada para o cálculo.`, kjValue: kj, kcalValue: kcal, kcalExpected, deviationPercent };
 }
 
 export function validateThermalUnitConsistency(input: any): ThermalUnitConsistencyAlert[] {
