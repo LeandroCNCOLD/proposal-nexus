@@ -156,13 +156,15 @@ export function resolveProcessMass(input: any): ProcessMassResolution {
   const linearLoadKgM = beltSurfaceDensityKgM2 * beltWidthM;
   const flowByRetentionKgH = massOnBeltKg > 0 && retentionTimeMin > 0 ? massOnBeltKg / retentionTimeMin * 60 : 0;
   const flowBySpeedKgH = linearLoadKgM > 0 && beltSpeedMMin > 0 ? linearLoadKgM * beltSpeedMMin * 60 : 0;
-  const massByBeltSurfaceKgH = flowBySpeedKgH || nominalCapacityKgH || flowByRetentionKgH;
+  const massByBeltSurfaceKgH = flowByRetentionKgH || flowBySpeedKgH || nominalCapacityKgH;
   const calculatedRetentionMin = beltEffectiveLengthM > 0 && beltSpeedMMin > 0 ? beltEffectiveLengthM / beltSpeedMMin : 0;
   const beltSurface = continuousMassMode === "calculated_by_belt_surface_density" ? { method: "belt_surface_density" as const, areaM2: beltAreaM2, calculatedAreaM2: calculatedBeltAreaM2, informedAreaM2: informedBeltAreaM2, widthM: beltWidthM, effectiveLengthM: beltEffectiveLengthM, surfaceDensityKgM2: beltSurfaceDensityKgM2, massOnBeltKg, linearLoadKgM, speedMMin: beltSpeedMMin, retentionTimeMin, calculatedRetentionMin, flowByRetentionKgH, flowBySpeedKgH, calculatedFlowKgH: massByBeltSurfaceKgH, nominalCapacityKgH, capacityDeviationPercent: pctDiff(massByBeltSurfaceKgH, nominalCapacityKgH), flowMethodDeviationPercent: pctDiff(flowBySpeedKgH, flowByRetentionKgH), areaDeviationPercent: pctDiff(informedBeltAreaM2, calculatedBeltAreaM2) } : null;
   const massByFeedRateKgH = positive(input?.feedRateKgH ?? input?.feed_rate_kg_h);
   const massByCycleKgH = unitWeightKg * positive(input?.unitsPerCycle ?? input?.units_per_cycle) * positive(input?.cyclesPerHour ?? input?.cycles_per_hour);
   const calculatedFlow = continuousMassMode === "calculated_by_trays" ? massByTraysKgH : continuousMassMode === "calculated_by_units_per_hour" ? massByUnitsHourKgH : continuousMassMode === "calculated_by_belt_loading" ? massByBeltKgH : continuousMassMode === "calculated_by_belt_surface_density" ? massByBeltSurfaceKgH : continuousMassMode === "calculated_by_feed_rate" ? massByFeedRateKgH : massByCycleKgH;
-  const massFlowKgH = processMode === "continuous" ? (continuousMassMode === "direct_mass_flow" && directMassKgH > 0 ? directMassKgH : calculatedFlow) : 0;
+  const fallbackDirectMassKgH = processMode === "continuous" && continuousMassMode !== "direct_mass_flow" && calculatedFlow <= 0 && directMassKgH > 0 ? directMassKgH : 0;
+  const massFlowKgH = processMode === "continuous" ? (continuousMassMode === "direct_mass_flow" && directMassKgH > 0 ? directMassKgH : calculatedFlow || fallbackDirectMassKgH) : 0;
+  if (fallbackDirectMassKgH > 0) warnings.push("Modo de massa calculada incompleto; fluxo kg/h informado foi usado como fallback para não zerar o produto/processo.");
   if (processMode === "continuous") massBasis = "conveyor_flow";
   if (processMode === "continuous" && continuousMassMode === "calculated_by_belt_surface_density") massBasis = "belt_surface_density";
   if (processMode === "storage") massBasis = "storage_turnover";
