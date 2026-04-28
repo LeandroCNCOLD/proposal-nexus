@@ -1,4 +1,4 @@
-import { normalizeProductForKcalEngine } from "../core/unitNormalizer";
+import { normalizeProductForKjEngine } from "../core/unitNormalizer";
 import { safeNumber } from "../core/units";
 import type { TunnelEngineInput, TunnelSourceRecord } from "../types/tunnelEngine.types";
 
@@ -36,7 +36,7 @@ function calculateStaticMass(source: TunnelSourceRecord, isStatic: boolean) {
 }
 
 export function databaseToTunnelInput(tunnel: TunnelSourceRecord, environment: TunnelSourceRecord | null | undefined): TunnelEngineInput {
-  const thermal = normalizeProductForKcalEngine(tunnel);
+  const thermal = normalizeProductForKjEngine(tunnel);
   const airTempSource = tunnel?.air_temp_source ?? "environment";
   const packagingSpecificHeatKJkgK = safeNumber(tunnel?.packaging_specific_heat_kj_kg_k);
   const approved = tunnel?.thermal_condition_approved === true;
