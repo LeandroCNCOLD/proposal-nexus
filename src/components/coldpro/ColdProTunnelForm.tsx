@@ -1124,6 +1124,19 @@ export const ColdProTunnelForm = React.forwardRef<ColdProTunnelFormHandle, ColdP
   const cpBelowAudit = (unitAudit.cpBelow ?? {}) as Record<string, unknown>;
   const latentAudit = (unitAudit.latentHeat ?? {}) as Record<string, unknown>;
   const beltSurfaceBreakdown = ((tunnelResult as any).beltSurface ?? (tunnelResult.calculationBreakdown.mass as any)?.beltSurface ?? {}) as Record<string, number | null | undefined>;
+  const continuousCapacityKgH = !isStatic ? positiveValue(tunnelResult.usedMassKgH, massHour) : 0;
+  const availableTimeForMassMin = positiveValue(tunnelResult.availableTimeMin);
+  const estimatedTimeForMassMin = tunnelResult.estimatedTimeMin !== null && tunnelResult.estimatedTimeMin !== undefined ? positiveValue(tunnelResult.estimatedTimeMin) : 0;
+  const massInAvailableTimeKg = continuousCapacityKgH > 0 && availableTimeForMassMin > 0 ? continuousCapacityKgH * availableTimeForMassMin / 60 : 0;
+  const beltSurfaceAreaForMassM2 = positiveValue(beltSurfaceBreakdown.areaM2);
+  const beltSurfaceDensityForMassKgM2 = positiveValue(beltSurfaceBreakdown.surfaceDensityKgM2);
+  const beltPhysicalMassKg = positiveValue(beltSurfaceBreakdown.massOnBeltKg) || (beltSurfaceAreaForMassM2 > 0 && beltSurfaceDensityForMassKgM2 > 0 ? beltSurfaceAreaForMassM2 * beltSurfaceDensityForMassKgM2 : 0);
+  const hasBeltPhysicalMass = continuousMassMode === "calculated_by_belt_surface_density" && beltPhysicalMassKg > 0;
+  const estimatedEquivalentMassKg = continuousCapacityKgH > 0 && estimatedTimeForMassMin > 0 ? continuousCapacityKgH * estimatedTimeForMassMin / 60 : 0;
+  const timeRatioEstimatedVsAvailable = estimatedTimeForMassMin > 0 && availableTimeForMassMin > 0 ? estimatedTimeForMassMin / availableTimeForMassMin : null;
+  const beltMassDifferencePercent = hasBeltPhysicalMass && massInAvailableTimeKg > 0 ? Math.abs(massInAvailableTimeKg - beltPhysicalMassKg) / Math.max(massInAvailableTimeKg, beltPhysicalMassKg) * 100 : 0;
+  const showBeltMassMismatch = hasBeltPhysicalMass && massInAvailableTimeKg > 0 && beltMassDifferencePercent > 5;
+  const showInsufficientTimeDiagnostic = !isStatic && continuousCapacityKgH > 0 && massInAvailableTimeKg > 0 && estimatedTimeForMassMin > availableTimeForMassMin && availableTimeForMassMin > 0;
   const tunnelResultCards = (
     <>
       <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
