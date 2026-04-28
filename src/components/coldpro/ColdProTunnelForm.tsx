@@ -456,6 +456,9 @@ export const ColdProTunnelForm = React.forwardRef<ColdProTunnelFormHandle, ColdP
   const [cycleUnit, setCycleUnit] = React.useState<CycleUnit>("h");
   const [retentionUnit, setRetentionUnit] = React.useState<RetentionUnit>("min");
   const [activeTab, setActiveTab] = React.useState("modelo");
+  const [airOperationMode, setAirOperationMode] = React.useState("validate_current");
+  const [airTempCalcBase, setAirTempCalcBase] = React.useState("edit_air");
+  const [environmentAirTempOverrideC, setEnvironmentAirTempOverrideC] = React.useState<number | null>(null);
   const [simulation, setSimulation] = React.useState<ColdProFormRecord>(() => simulationDraftFromTunnel(defaultTunnel(environmentId)));
   const autoAirPresetKeyRef = React.useRef("");
 
