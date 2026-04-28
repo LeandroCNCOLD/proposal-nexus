@@ -604,7 +604,7 @@ export const ColdProTunnelForm = React.forwardRef<ColdProTunnelFormHandle, ColdP
   const effectiveForm = catalogLocked ? { ...form, product_name: selectedCatalogProduct?.name ?? form.product_name, freezing_temp_c: freezingPointC, density_kg_m3: selectedCatalogProduct?.density_kg_m3 ?? form.density_kg_m3, ashrae_density_kg_m3: selectedCatalogProduct?.density_kg_m3 ?? form.ashrae_density_kg_m3, specific_heat_above_kj_kg_k: selectedCatalogProduct?.specific_heat_above_kj_kg_k ?? null, specific_heat_below_kj_kg_k: selectedCatalogProduct?.specific_heat_below_kj_kg_k ?? null, specific_heat_above_kcal_kg_c: cpAboveKcalKgC, specific_heat_below_kcal_kg_c: cpBelowKcalKgC, latent_heat_kj_kg: selectedCatalogProduct?.latent_heat_kj_kg ?? null, latent_heat_kcal_kg: latentHeatKcalKg, thermal_conductivity_frozen_w_m_k: frozenConductivityWmK, frozen_water_fraction: frozenWaterFraction, thermal_conductivity_unfrozen_w_m_k: selectedCatalogProduct?.thermal_conductivity_unfrozen_w_m_k ?? selectedCatalogProduct?.thermal_conductivity_w_m_k ?? null, water_content_percent: selectedCatalogProduct?.water_content_percent ?? null } : form;
   const tunnelInput = formToTunnelInput(effectiveForm, environment ?? {});
   const baseResult = calculateTunnelEngine(tunnelInput);
-  const simulationForm = { ...form, ...simulation, initial_scenario_input: tunnelInput.initialScenarioInput, thermal_condition_approved: false };
+  const simulationForm = { ...effectiveForm, ...simulation, initial_scenario_input: tunnelInput.initialScenarioInput, thermal_condition_approved: false };
   const simulationInput = formToTunnelInput(simulationForm, environment ?? {});
   const simulationResult = calculateTunnelEngine(simulationInput);
   const tunnelResult = baseResult;
@@ -982,7 +982,7 @@ export const ColdProTunnelForm = React.forwardRef<ColdProTunnelFormHandle, ColdP
     pallet_mass_kg: staticMassMode === "calculated_pallet_composition" ? (tunnelResult.calculatedPalletMassKg ?? calculatedPalletMassKg) : Number(form.pallet_mass_kg ?? 0),
     staticMassKg: tunnelResult.staticMassKg ?? null,
     static_mass_kg: tunnelResult.staticMassKg ?? null,
-    product_name: String(form.product_name ?? "").trim(),
+    product_name: String((selectedCatalogProduct?.name ?? form.product_name) ?? "").trim(),
     product_thickness_m: productThicknessM,
     product_thickness_mm: productThicknessM * 1000,
     product_unit_weight_kg: Number(form.product_unit_weight_kg ?? 0) || Number(form.unit_weight_kg ?? 0),
@@ -1399,7 +1399,7 @@ export const ColdProTunnelForm = React.forwardRef<ColdProTunnelFormHandle, ColdP
               <ColdProCalculatedInfo label="Carga térmica total prévia" value={firstThermalLoadReady ? `${fmtColdPro(tunnelResult.totalKcalH, 0)} kcal/h` : "—"} description={`${fmtColdPro(tunnelResult.totalKW, 2)} kW · ${fmtColdPro(tunnelResult.totalTR, 2)} TR`} tone={firstThermalLoadReady ? "success" : "warning"} />
               <ColdProCalculatedInfo label="Base do cálculo" value={isStatic ? `${fmtColdPro(staticMass)} kg / ${fmtColdPro(Number(form.batch_time_h ?? 0), 2)} h` : `${fmtColdPro(massHour)} kg/h`} description="produto + propriedades térmicas informadas" tone={firstThermalLoadReady ? "info" : "warning"} />
             </div>
-            {catalogLocked ? <ColdProValidationMessage>Dados térmicos bloqueados por virem do catálogo oficial. Para alterar, edite o cadastro técnico do produto.</ColdProValidationMessage> : null}
+            {catalogLocked ? <ColdProValidationMessage>Dados térmicos sincronizados com o cadastro técnico oficial. Salve o túnel para recalcular com a versão mais recente do produto.</ColdProValidationMessage> : null}
           </ColdProFormSection>
 
           <ColdProFormSection title="Etapa 5 — Ar, vazão e ventilação" description="A velocidade real pode ser manual ou calculada por vazão e seção livre." icon={<Fan className="h-4 w-4" />}>{airflowFields}</ColdProFormSection>
