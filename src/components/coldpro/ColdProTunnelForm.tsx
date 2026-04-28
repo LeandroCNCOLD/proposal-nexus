@@ -547,6 +547,37 @@ export const ColdProTunnelForm = React.forwardRef<ColdProTunnelFormHandle, ColdP
     const valueMin = Number(form.process_time_min ?? 0);
     return { type: "number" as const, step: unitConfig.step, value: Number.isFinite(valueMin) && valueMin !== 0 ? valueMin / unitConfig.toMinutes : form.process_time_min === 0 ? 0 : "", onChange: (e: React.ChangeEvent<HTMLInputElement>) => { const value = numberOrNull(e.target.value); set("process_time_min", value === null ? null : value * unitConfig.toMinutes); } };
   };
+  const beltSurfaceRetentionNum = (unit: RetentionUnit) => {
+    const unitConfig = RETENTION_UNITS[unit];
+    const valueMin = Number(form.process_time_min ?? 0);
+    return {
+      type: "number" as const,
+      step: unitConfig.step,
+      value: Number.isFinite(valueMin) && valueMin !== 0 ? valueMin / unitConfig.toMinutes : form.process_time_min === 0 ? 0 : "",
+      onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = numberOrNull(e.target.value);
+        const nextRetentionMin = value === null ? null : value * unitConfig.toMinutes;
+        setForm((prev) => {
+          const lengthM = positiveValue(prev.belt_effective_length_m);
+          const nextSpeed = nextRetentionMin && nextRetentionMin > 0 && lengthM > 0 ? lengthM / nextRetentionMin : prev.belt_speed_m_min;
+          return { ...prev, process_time_min: nextRetentionMin, belt_speed_m_min: nextSpeed };
+        });
+      },
+    };
+  };
+  const beltSpeedNum = (): NumericInputProps => ({
+    type: "number",
+    step: "0.0001",
+    value: inputValue(form?.belt_speed_m_min),
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
+      const nextSpeed = numberOrNull(e.target.value);
+      setForm((prev) => {
+        const lengthM = positiveValue(prev.belt_effective_length_m);
+        const nextRetentionMin = nextSpeed && nextSpeed > 0 && lengthM > 0 ? lengthM / nextSpeed : prev.process_time_min;
+        return { ...prev, belt_speed_m_min: nextSpeed, process_time_min: nextRetentionMin };
+      });
+    },
+  });
   const blockagePercentNum = (key: string) => {
     const value = Number(form?.[key] ?? 0);
     return { type: "number" as const, step: "0.0001", value: Number.isFinite(value) && value !== 0 ? value * 100 : form?.[key] === 0 ? 0 : "", onChange: (e: React.ChangeEvent<HTMLInputElement>) => { const parsed = numberOrNull(e.target.value); set(key, parsed === null ? null : parsed / 100); } };
@@ -568,12 +599,14 @@ export const ColdProTunnelForm = React.forwardRef<ColdProTunnelFormHandle, ColdP
   const throughputByUnitsHour = unitWeight * positiveValue(form.units_per_hour);
   const beltUnitsPerHour = positiveValue(form.units_per_row) * positiveValue(form.rows_per_meter) * positiveValue(form.belt_speed_m_min) * 60;
   const throughputByBelt = beltUnitsPerHour * unitWeight;
-  const beltSurfaceAreaM2 = positiveValue(form.belt_area_m2) || positiveValue(form.belt_width_m) * positiveValue(form.belt_effective_length_m);
+  const beltSurfaceCalculatedAreaM2 = positiveValue(form.belt_width_m) * positiveValue(form.belt_effective_length_m);
+  const beltSurfaceInformedAreaM2 = positiveValue(form.belt_area_m2);
+  const beltSurfaceAreaM2 = beltSurfaceCalculatedAreaM2 || beltSurfaceInformedAreaM2;
   const beltSurfaceMassKg = positiveValue(form.belt_mass_on_belt_kg) || beltSurfaceAreaM2 * positiveValue(form.belt_surface_density_kg_m2);
   const beltLinearLoadKgM = positiveValue(form.belt_surface_density_kg_m2) * positiveValue(form.belt_width_m);
   const beltFlowByRetentionKgH = beltSurfaceMassKg > 0 && positiveValue(form.process_time_min) > 0 ? beltSurfaceMassKg / positiveValue(form.process_time_min) * 60 : 0;
   const beltFlowBySpeedKgH = beltLinearLoadKgM * positiveValue(form.belt_speed_m_min) * 60;
-  const beltSurfaceFlowKgH = beltFlowByRetentionKgH || beltFlowBySpeedKgH || positiveValue(form.belt_nominal_capacity_kg_h);
+  const beltSurfaceFlowKgH = beltFlowBySpeedKgH || positiveValue(form.belt_nominal_capacity_kg_h) || beltFlowByRetentionKgH;
   const beltCalculatedRetentionMin = positiveValue(form.belt_effective_length_m) > 0 && positiveValue(form.belt_speed_m_min) > 0 ? positiveValue(form.belt_effective_length_m) / positiveValue(form.belt_speed_m_min) : 0;
   const beltCapacityDeviationPercent = beltSurfaceFlowKgH > 0 && positiveValue(form.belt_nominal_capacity_kg_h) > 0 ? Math.abs(beltSurfaceFlowKgH - positiveValue(form.belt_nominal_capacity_kg_h)) / positiveValue(form.belt_nominal_capacity_kg_h) * 100 : null;
   const throughputByFeedRate = positiveValue(form.feed_rate_kg_h);
