@@ -799,7 +799,10 @@ export const ColdProTunnelForm = React.forwardRef<ColdProTunnelFormHandle, ColdP
     const arrangement = defaultArrangement(value);
     const defaults = ARRANGEMENT_DEFAULTS[arrangement];
     const nextIsStatic = isStaticProcess(value);
-    setForm((prev) => ({ ...prev, tunnel_type: value, process_type: value, physical_model: physicalModelFromProcess(value), operation_mode: nextIsStatic ? "batch" : "continuous", tunnel_mode: nextIsStatic ? "static" : "continuous", arrangement_type: arrangement, static_mass_mode: nextIsStatic ? defaultMassModeForTunnel(value) : prev.static_mass_mode, continuous_mass_mode: !nextIsStatic ? "direct_mass_flow" : prev.continuous_mass_mode, mass_flow_mode: value === "fluidized_bed" ? "direct_mass_flow" : prev.mass_flow_mode, air_exposure_factor: defaults.air, thermal_penetration_factor: defaults.penetration, ...suggestedStaticArrangementFields(value, arrangement) }));
+    setForm((prev) => {
+      const nextMode = nextIsStatic ? String(prev.continuous_mass_mode ?? "direct_mass_flow") : resolveContinuousMassMode(prev, value);
+      return { ...prev, tunnel_type: value, process_type: value, physical_model: physicalModelFromProcess(value), operation_mode: nextIsStatic ? "batch" : "continuous", tunnel_mode: nextIsStatic ? "static" : "continuous", arrangement_type: arrangement, static_mass_mode: nextIsStatic ? defaultMassModeForTunnel(value) : prev.static_mass_mode, continuous_mass_mode: value !== "fluidized_bed" ? nextMode : prev.continuous_mass_mode, mass_flow_mode: value === "fluidized_bed" ? nextMode : prev.mass_flow_mode, air_exposure_factor: defaults.air, thermal_penetration_factor: defaults.penetration, ...suggestedStaticArrangementFields(value, arrangement) };
+    });
     setActiveTab(nextIsStatic ? "estatico" : "continuo");
   };
 
