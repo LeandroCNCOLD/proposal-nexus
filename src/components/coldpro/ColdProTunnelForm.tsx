@@ -486,12 +486,36 @@ export const ColdProTunnelForm = React.forwardRef<ColdProTunnelFormHandle, ColdP
     setForm((prev) => {
       const next = { ...prev, [key]: value };
       const freeAreaM2 = freeAirAreaFromControls(next);
+      if (key === "air_velocity_m_s") {
+        const velocityMS = positiveValue(next.air_velocity_m_s);
+        const airflowM3H = airflowForVelocityM3H(freeAreaM2, velocityMS);
+        return airflowM3H > 0 ? { ...next, airflow_source: "airflow_by_fans", fan_airflow_m3_h: roundPreset(airflowM3H, 2), informed_air_flow_m3_h: roundPreset(airflowM3H, 2), airflow_m3_h: roundPreset(airflowM3H, 2), airflow_free_area_m2: roundPreset(freeAreaM2, 3) } : next;
+      }
+      const fanAirflowM3H = positiveValue(next.fan_airflow_m3_h, next.informed_air_flow_m3_h, next.airflow_m3_h);
+      if (fanAirflowM3H > 0 && freeAreaM2 > 0) {
+        const velocityMS = fanAirflowM3H / 3600 / freeAreaM2;
+        return { ...next, airflow_source: "airflow_by_fans", air_velocity_m_s: roundPreset(velocityMS, 3), airflow_free_area_m2: roundPreset(freeAreaM2, 3) };
+      }
       const velocityMS = positiveValue(next.air_velocity_m_s);
       const airflowM3H = airflowForVelocityM3H(freeAreaM2, velocityMS);
-      return airflowM3H > 0 ? { ...next, airflow_source: "airflow_by_fans", fan_airflow_m3_h: roundPreset(airflowM3H, 2), informed_air_flow_m3_h: roundPreset(airflowM3H, 2), airflow_m3_h: roundPreset(airflowM3H, 2) } : next;
+      return airflowM3H > 0 ? { ...next, airflow_source: "airflow_by_fans", fan_airflow_m3_h: roundPreset(airflowM3H, 2), informed_air_flow_m3_h: roundPreset(airflowM3H, 2), airflow_m3_h: roundPreset(airflowM3H, 2), airflow_free_area_m2: roundPreset(freeAreaM2, 3) } : next;
     });
   };
   const airControlNum = (key: string): NumericInputProps => ({ type: "number", step: "0.0001", value: inputValue(form?.[key]), onChange: (e: React.ChangeEvent<HTMLInputElement>) => setAirControl(key, numberOrNull(e.target.value)) });
+  const fanAirflowNum = (): NumericInputProps => ({
+    type: "number",
+    step: "0.0001",
+    value: inputValue(form?.fan_airflow_m3_h),
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
+      const nextAirflow = numberOrNull(e.target.value);
+      setForm((prev) => {
+        const next = { ...prev, airflow_source: "airflow_by_fans", fan_airflow_m3_h: nextAirflow, informed_air_flow_m3_h: nextAirflow, airflow_m3_h: nextAirflow };
+        const freeAreaM2 = freeAirAreaFromControls(next);
+        const velocityMS = nextAirflow !== null && nextAirflow > 0 && freeAreaM2 > 0 ? nextAirflow / 3600 / freeAreaM2 : prev.air_velocity_m_s;
+        return { ...next, air_velocity_m_s: velocityMS, airflow_free_area_m2: freeAreaM2 > 0 ? roundPreset(freeAreaM2, 3) : prev.airflow_free_area_m2 };
+      });
+    },
+  });
   const airControlBlockagePercentNum = (key: string) => {
     const value = Number(form?.[key] ?? 0);
     return { type: "number" as const, step: "0.0001", value: Number.isFinite(value) && value !== 0 ? value * 100 : form?.[key] === 0 ? 0 : "", onChange: (e: React.ChangeEvent<HTMLInputElement>) => { const parsed = numberOrNull(e.target.value); setAirControl(key, parsed === null ? null : parsed / 100); } };
@@ -1183,6 +1207,11 @@ export const ColdProTunnelForm = React.forwardRef<ColdProTunnelFormHandle, ColdP
   const beltSurfaceDensityForMassKgM2 = positiveValue(beltSurfaceBreakdown.surfaceDensityKgM2);
   const beltPhysicalMassKg = positiveValue(beltSurfaceBreakdown.massOnBeltKg) || (beltSurfaceAreaForMassM2 > 0 && beltSurfaceDensityForMassKgM2 > 0 ? beltSurfaceAreaForMassM2 * beltSurfaceDensityForMassKgM2 : 0);
   const hasBeltPhysicalMass = continuousMassMode === "calculated_by_belt_surface_density" && beltPhysicalMassKg > 0;
+  const instantTunnelMassKg = hasBeltPhysicalMass ? beltPhysicalMassKg : massInAvailableTimeKg;
+  const operatingCapacityFromInstantMassKgH = instantTunnelMassKg > 0 && availableTimeForMassMin > 0 ? instantTunnelMassKg * 60 / availableTimeForMassMin : continuousCapacityKgH;
+  const realCapacityByThermalTimeKgH = instantTunnelMassKg > 0 && estimatedTimeForMassMin > 0 ? instantTunnelMassKg * 60 / estimatedTimeForMassMin : 0;
+  const capacityDeficitRatio = continuousCapacityKgH > 0 && realCapacityByThermalTimeKgH > 0 ? realCapacityByThermalTimeKgH / continuousCapacityKgH : null;
+  const capacityDeficitPercent = capacityDeficitRatio !== null ? capacityDeficitRatio * 100 : null;
   const beltAreaDeviationPercent = beltSurfaceInformedAreaForMassM2 > 0 && beltSurfaceCalculatedAreaForMassM2 > 0 ? Math.abs(beltSurfaceInformedAreaForMassM2 - beltSurfaceCalculatedAreaForMassM2) / Math.max(beltSurfaceInformedAreaForMassM2, beltSurfaceCalculatedAreaForMassM2) * 100 : 0;
   const showBeltAreaMismatch = continuousMassMode === "calculated_by_belt_surface_density" && beltSurfaceInformedAreaForMassM2 > 0 && beltSurfaceCalculatedAreaForMassM2 > 0 && beltAreaDeviationPercent > 5;
   const beltFlowMethodDeviationPercent = positiveValue(beltSurfaceBreakdown.flowMethodDeviationPercent) || (positiveValue(beltSurfaceBreakdown.flowBySpeedKgH) > 0 && positiveValue(beltSurfaceBreakdown.flowByRetentionKgH) > 0 ? Math.abs(positiveValue(beltSurfaceBreakdown.flowBySpeedKgH) - positiveValue(beltSurfaceBreakdown.flowByRetentionKgH)) / Math.max(positiveValue(beltSurfaceBreakdown.flowBySpeedKgH), positiveValue(beltSurfaceBreakdown.flowByRetentionKgH)) * 100 : 0);
@@ -1191,7 +1220,7 @@ export const ColdProTunnelForm = React.forwardRef<ColdProTunnelFormHandle, ColdP
   const timeRatioEstimatedVsAvailable = estimatedTimeForMassMin > 0 && availableTimeForMassMin > 0 ? estimatedTimeForMassMin / availableTimeForMassMin : null;
   const beltMassDifferencePercent = hasBeltPhysicalMass && massInAvailableTimeKg > 0 ? Math.abs(massInAvailableTimeKg - beltPhysicalMassKg) / Math.max(massInAvailableTimeKg, beltPhysicalMassKg) * 100 : 0;
   const showBeltMassMismatch = hasBeltPhysicalMass && massInAvailableTimeKg > 0 && beltMassDifferencePercent > 5;
-  const showInsufficientTimeDiagnostic = !isStatic && continuousCapacityKgH > 0 && massInAvailableTimeKg > 0 && estimatedTimeForMassMin > availableTimeForMassMin && availableTimeForMassMin > 0;
+  const showInsufficientTimeDiagnostic = !isStatic && continuousCapacityKgH > 0 && instantTunnelMassKg > 0 && estimatedTimeForMassMin > availableTimeForMassMin && availableTimeForMassMin > 0;
   const tunnelResultCards = (
     <>
       <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -1330,7 +1359,7 @@ export const ColdProTunnelForm = React.forwardRef<ColdProTunnelFormHandle, ColdP
         <button type="button" className="inline-flex items-center justify-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm font-medium shadow-sm transition hover:bg-muted" onClick={applyAirflowPreset}><Calculator className="h-4 w-4" /> Calcular ar</button>
       </div>
       {productLoadMissingFields.length > 0 ? <ColdProValidationMessage tone="warning">Carga do produto pendente: falta {productLoadMissingFields.join(", ")}.</ColdProValidationMessage> : null}
-      <ColdProField label="Vazão dos ventiladores" helpKey="fanAirflow" unit="m³/h"><ColdProInput {...num("fan_airflow_m3_h")} /></ColdProField>
+      <ColdProField label="Vazão dos ventiladores" helpKey="fanAirflow" unit="m³/h"><ColdProInput {...fanAirflowNum()} /></ColdProField>
       {showAirflowMismatch ? <ColdProValidationMessage>A vazão informada está {airflowDeltaM3H > 0 ? "acima" : "abaixo"} da necessária em {fmtColdPro(Math.abs(airflowDeltaM3H), 0)} m³/h ({fmtColdPro(airflowDeltaPercent, 1)}%). Use “Calcular ar” para igualar ao cálculo atual.</ColdProValidationMessage> : null}
       <ColdProField label="Fonte da velocidade" helpKey="airflowSource"><ColdProSelect value={textValue(form.airflow_source, "manual_velocity")} onChange={(e) => setAirflowSource(e.target.value)}><option value="manual_velocity">Velocidade manual</option><option value="airflow_by_fans">Vazão por ventiladores</option></ColdProSelect></ColdProField>
       <ColdProField label="Velocidade do ar" helpKey="airVelocity" unit="m/s"><ColdProInput {...airVelocityControl} /></ColdProField>
@@ -1341,18 +1370,19 @@ export const ColdProTunnelForm = React.forwardRef<ColdProTunnelFormHandle, ColdP
       <ColdProField label="Sentido de sopro"><ColdProInput readOnly value={displayedAirDirection} /></ColdProField>
     </div><div>
       <div className="mb-3 grid gap-3 sm:grid-cols-2">
-        <ColdProCalculatedInfo label="1. Carga térmica do produto" value={`${fmtColdPro(tunnelResult.productLoadKW, 2)} kW`} description={`${fmtColdPro(tunnelResult.productLoadKW * 859.845, 0)} kcal/h · ${productLoadMassDescription}`} tone={tunnelResult.productLoadKW > 0 ? "success" : "warning"} />
-        <ColdProCalculatedInfo label="2. Capacidade nominal" value={`${fmtColdPro(continuousCapacityKgH, 1)} kg/h`} description="capacidade usada no motor" tone={continuousCapacityKgH > 0 ? "success" : "warning"} />
-        <ColdProCalculatedInfo label="3. Tempo disponível" value={`${fmtColdPro(availableTimeForMassMin, 1)} min`} description={isStatic ? "tempo de batelada" : "tempo de retenção"} tone={availableTimeForMassMin > 0 ? "info" : "warning"} />
-        <ColdProCalculatedInfo label="4. Massa no tempo disponível" value={`${fmtColdPro(massInAvailableTimeKg, 1)} kg`} description="kg/h × retenção ÷ 60" tone={massInAvailableTimeKg > 0 ? "success" : "warning"} />
-        {hasBeltPhysicalMass ? <ColdProCalculatedInfo label="5. Massa sobre a esteira" value={`${fmtColdPro(beltPhysicalMassKg, 1)} kg`} description={`${fmtColdPro(beltSurfaceAreaForMassM2, 2)} m² × ${fmtColdPro(beltSurfaceDensityForMassKgM2, 2)} kg/m²`} tone="success" /> : null}
-        <ColdProCalculatedInfo label={hasBeltPhysicalMass ? "6. Tempo estimado" : "5. Tempo estimado"} value={fmtMaybe(tunnelResult.estimatedTimeMin, 1, " min")} description="modelo térmico até o núcleo" tone={tunnelResult.status === "adequate" ? "success" : "warning"} />
-        <ColdProCalculatedInfo label={hasBeltPhysicalMass ? "7. Massa equivalente no tempo estimado" : "6. Massa equivalente no tempo estimado"} value={`${fmtColdPro(estimatedEquivalentMassKg, 1)} kg`} description={timeRatioEstimatedVsAvailable === null ? "kg/h × tempo estimado ÷ 60" : `${fmtColdPro(timeRatioEstimatedVsAvailable, 2)}× o tempo disponível`} tone={estimatedEquivalentMassKg > 0 ? "info" : "warning"} />
+        <ColdProCalculatedInfo label="1. Carga térmica horária" value={`${fmtColdPro(tunnelResult.productLoadKW, 2)} kW`} description={`${fmtColdPro(tunnelResult.productLoadKW * 859.845, 0)} kcal/h para ${fmtColdPro(continuousCapacityKgH, 1)} kg/h`} tone={tunnelResult.productLoadKW > 0 ? "success" : "warning"} />
+        <ColdProCalculatedInfo label="2. Capacidade nominal/operacional" value={`${fmtColdPro(continuousCapacityKgH, 1)} kg/h`} description="fluxo horário dimensionado" tone={continuousCapacityKgH > 0 ? "success" : "warning"} />
+        <ColdProCalculatedInfo label="3. Massa instantânea no túnel" value={`${fmtColdPro(instantTunnelMassKg, 1)} kg`} description={hasBeltPhysicalMass ? "massa física sobre a esteira" : "kg/h × retenção ÷ 60"} tone={instantTunnelMassKg > 0 ? "success" : "warning"} />
+        <ColdProCalculatedInfo label="4. Tempo disponível" value={`${fmtColdPro(availableTimeForMassMin, 1)} min`} description={isStatic ? "tempo de batelada" : "retenção/exposição térmica"} tone={availableTimeForMassMin > 0 ? "info" : "warning"} />
+        <ColdProCalculatedInfo label="5. Tempo estimado até o núcleo" value={fmtMaybe(tunnelResult.estimatedTimeMin, 1, " min")} description="modelo térmico físico" tone={tunnelResult.status === "adequate" ? "success" : "warning"} />
+        <ColdProCalculatedInfo label="6. Capacidade real pelo tempo térmico" value={`${fmtColdPro(realCapacityByThermalTimeKgH, 1)} kg/h`} description="massa instantânea × 60 ÷ tempo estimado" tone={realCapacityByThermalTimeKgH >= continuousCapacityKgH && continuousCapacityKgH > 0 ? "success" : "warning"} />
+        <ColdProCalculatedInfo label="7. Déficit de capacidade" value={capacityDeficitPercent === null ? "—" : `${fmtColdPro(capacityDeficitPercent, 1)}%`} description="capacidade real ÷ nominal" tone={capacityDeficitPercent !== null && capacityDeficitPercent >= 100 ? "success" : "warning"} />
+        <ColdProCalculatedInfo label="8. Status do processo" value={tunnelResult.status === "adequate" ? "Suficiente" : "Insuficiente"} description={`Com ${fmtColdPro(instantTunnelMassKg, 1)} kg por ${fmtColdPro(availableTimeForMassMin, 1)} min`} tone={tunnelResult.status === "adequate" ? "success" : "warning"} />
       </div>
       {showBeltAreaMismatch ? <ColdProValidationMessage tone="warning">Área útil manual diverge de largura × comprimento útil. O cálculo físico principal usa largura × comprimento útil.</ColdProValidationMessage> : null}
       {showBeltFlowMismatch ? <ColdProValidationMessage tone="warning">Inconsistência entre fluxo por velocidade e fluxo por retenção. Verifique velocidade, tempo ou área útil.</ColdProValidationMessage> : null}
       {showBeltMassMismatch ? <ColdProValidationMessage tone="warning">Diferença entre massa calculada por fluxo e massa física na esteira. Verificar velocidade, área útil ou densidade superficial.</ColdProValidationMessage> : null}
-      {showInsufficientTimeDiagnostic ? <div className="mb-3 rounded-lg border border-warning/20 bg-warning/10 p-3 text-sm text-warning"><div className="mb-1 flex items-center gap-2 font-semibold"><AlertTriangle className="h-4 w-4" /> Tempo de congelamento insuficiente</div><p>Com {fmtColdPro(continuousCapacityKgH, 1)} kg/h e {fmtColdPro(availableTimeForMassMin, 1)} min de retenção, há aproximadamente {fmtColdPro(massInAvailableTimeKg, 1)} kg dentro do túnel.</p><p className="mt-1">O modelo estima {fmtColdPro(estimatedTimeForMassMin, 1)} min para congelar até o núcleo.</p><p className="mt-1 font-semibold">Portanto, o tempo atual não é suficiente para congelamento completo.</p></div> : null}
+      {showInsufficientTimeDiagnostic ? <div className="mb-3 rounded-lg border border-warning/20 bg-warning/10 p-3 text-sm text-warning"><div className="mb-1 flex items-center gap-2 font-semibold"><AlertTriangle className="h-4 w-4" /> Com {fmtColdPro(instantTunnelMassKg, 1)} kg dentro do túnel por {fmtColdPro(availableTimeForMassMin, 1)} min, o produto congela até o núcleo?</div><p>Com {fmtColdPro(continuousCapacityKgH, 1)} kg/h, há aproximadamente {fmtColdPro(instantTunnelMassKg, 1)} kg sobre a esteira durante {fmtColdPro(availableTimeForMassMin, 1)} min.</p><p className="mt-1">O modelo térmico estima {fmtColdPro(estimatedTimeForMassMin, 1)} min para congelar até o núcleo.</p><p className="mt-1">Nessas condições, a capacidade real para congelamento completo é de aproximadamente {fmtColdPro(realCapacityByThermalTimeKgH, 1)} kg/h.</p><p className="mt-1 font-semibold">Para atingir {fmtColdPro(continuousCapacityKgH, 1)} kg/h, será necessário aumentar a transferência térmica, reduzir espessura/camada, reduzir temperatura do ar, aumentar velocidade/vazão de ar ou aumentar o tempo de retenção.</p></div> : null}
       <ColdProField label="ΔT do ar" helpKey="airDeltaT" unit="K"><ColdProInput {...num("air_delta_t_k")} /></ColdProField>
       <ColdProField label="Temperatura do ar" helpKey="airTemp" unit="°C"><ColdProInput {...airTempNum()} /></ColdProField>
       <ColdProField label="Coeficiente convectivo manual" helpKey="manualConvectiveCoefficient" unit="W/m²K"><ColdProInput {...num("convective_coefficient_manual_w_m2_k")} /></ColdProField>
