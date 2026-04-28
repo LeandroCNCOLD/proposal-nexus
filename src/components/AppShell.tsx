@@ -6,6 +6,8 @@ import {
   LayoutTemplate, Kanban, Thermometer, PackageSearch,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { ROLE_LABELS } from "@/lib/proposal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -79,7 +81,11 @@ function NavItem({ to, label, icon: Icon, exact }: { to: string; label: string; 
 
 function AppNavigationSidebar() {
   const { roles } = useAuth();
-  const groups = NAV.map((group) => ({ ...group, items: group.items.filter((item) => isAppRouteAllowed(item.to, roles)) })).filter((group) => group.items.length > 0);
+  const { data: moduleAccess = [] } = useQuery({
+    queryKey: ["role-module-access"],
+    queryFn: async () => (await supabase.from("role_module_access").select("role, module_key, module_path, allowed")).data ?? [],
+  });
+  const groups = NAV.map((group) => ({ ...group, items: group.items.filter((item) => isAppRouteAllowed(item.to, roles, moduleAccess)) })).filter((group) => group.items.length > 0);
 
   return (
     <Sidebar collapsible="icon" className="app-sidebar border-sidebar-border bg-sidebar text-sidebar-foreground">
