@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
 import { useAuth } from "@/hooks/useAuth";
 import { ROLE_LABELS, type AppRole } from "@/lib/proposal";
+import { MODULE_ACCESS_DESCRIPTION } from "@/lib/module-access";
 import { approveUserAccessQueueItem, nomusImportInternalUsersToAccessQueue, resetUserTemporaryPassword } from "@/integrations/nomus/server.functions";
 import { useServerFn } from "@tanstack/react-start";
 import { Button } from "@/components/ui/button";
@@ -169,7 +170,7 @@ function SettingsPage() {
 
   return (
     <>
-      <PageHeader title="Configurações" subtitle="Sua conta e perfis do sistema" />
+      <PageHeader title="Configurações" subtitle="Perfis, módulos liberados e senhas provisórias dos usuários" />
       <div className="grid gap-6 lg:grid-cols-[minmax(280px,380px)_1fr]">
         <div className="rounded-xl border bg-card p-6 shadow-[var(--shadow-sm)]">
           <h2 className="mb-4 text-sm font-semibold">Minha conta</h2>
@@ -198,8 +199,8 @@ function SettingsPage() {
         <section className="rounded-xl border bg-card p-6 shadow-[var(--shadow-sm)]">
           <div className="mb-4 flex items-start justify-between gap-3">
             <div>
-              <h2 className="text-sm font-semibold">Gestão de perfis e usuários</h2>
-              <p className="mt-1 text-xs text-muted-foreground">Usuários do Nomus entram pendentes; gestor libera acesso e define perfis.</p>
+              <h2 className="text-sm font-semibold">Gestão de usuários, perfis e módulos</h2>
+              <p className="mt-1 text-xs text-muted-foreground">Ao marcar um perfil, o sistema libera automaticamente os módulos correspondentes para o usuário.</p>
             </div>
             <Badge variant={canManageAccess ? "default" : "outline"}>{canManageAccess ? "Gestor" : "Sem gestão"}</Badge>
           </div>
@@ -241,6 +242,15 @@ function SettingsPage() {
                 </div>
               </div>
 
+              <div className="grid gap-2 rounded-lg border bg-background/40 p-4 sm:grid-cols-2 xl:grid-cols-4">
+                {ACCESS_ROLES.map((role) => (
+                  <div key={role} className="rounded-md border bg-card p-3">
+                    <div className="text-xs font-semibold">{ROLE_LABELS[role]}</div>
+                    <div className="mt-1 text-xs text-muted-foreground">{MODULE_ACCESS_DESCRIPTION[role]}</div>
+                  </div>
+                ))}
+              </div>
+
               <div>
               <div className="mb-2 flex items-center justify-between gap-3">
                 <h3 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground"><Clock3 className="h-3.5 w-3.5" /> Pendentes de liberação</h3>
@@ -266,7 +276,7 @@ function SettingsPage() {
               <div>
                 <h3 className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground"><ShieldCheck className="h-3.5 w-3.5" /> Usuários com login</h3>
                 <Table>
-                  <TableHeader><TableRow><TableHead>Usuário</TableHead><TableHead>Acesso</TableHead><TableHead>Perfis</TableHead><TableHead>Senha provisória</TableHead><TableHead className="text-right">Controle</TableHead></TableRow></TableHeader>
+                  <TableHeader><TableRow><TableHead>Usuário</TableHead><TableHead>Acesso</TableHead><TableHead>Perfis / módulos liberados</TableHead><TableHead>Senha provisória</TableHead><TableHead className="text-right">Controle</TableHead></TableRow></TableHeader>
                   <TableBody>
                     {filteredProfiles.map((item) => {
                       const assignedRoles = rolesByUser.get(item.id) ?? [];
