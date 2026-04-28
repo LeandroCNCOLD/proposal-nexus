@@ -166,31 +166,40 @@
 
 @layer base {
   * { border-color: var(--color-border); }
-  html { font-size: 14px; }
+  html {
+    font-size: 100%;
+    text-size-adjust: 100%;
+  }
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
-    font-size: 13px;
+    font-size: 14px;
     font-feature-settings: "cv11", "ss01";
     -webkit-font-smoothing: antialiased;
   }
   h1, h2, h3, h4 { letter-spacing: 0; }
 
   .app-shell {
-    font-size: 13px;
+    font-size: 14px;
   }
 
   .app-sidebar {
-    font-size: 12.5px;
+    font-size: 13px;
   }
 
   .app-topbar {
-    min-height: 48px;
+    min-height: 52px;
   }
 
   .app-main {
     width: 100%;
-    padding: 0.75rem;
+    min-width: 0;
+    padding: clamp(0.875rem, 1.4vw, 1.25rem);
+  }
+
+  .app-main > * {
+    min-width: 0;
+    width: 100%;
   }
 
   .coldpro-page,
