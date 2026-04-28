@@ -22,7 +22,8 @@ import { calculateEvaporatorFanLoad, calculateMotorLoadKcalH, calculatePsychrome
 import { databaseToTunnelInput } from "@/modules/coldpro/adapters/databaseToTunnelInput";
 import { listAshraeColdProComparisons } from "@/modules/coldpro/core/ashraeComparison";
 import { COLDPRO_CALCULATION_METHODS } from "@/modules/coldpro/core/calculationMethodRegistry";
-import { normalizeProductForKcalEngine } from "@/modules/coldpro/core/unitNormalizer";
+import { normalizeProductForKjEngine } from "@/modules/coldpro/core/unitNormalizer";
+import { DEFAULT_THERMAL_DISPLAY_UNIT, ENGINE_ENERGY_UNIT, ENGINE_POWER_UNIT, convertThermalLoad } from "@/modules/coldpro/core/units";
 import { buildCalculationMethodReport } from "@/modules/coldpro/reports/calculationMethodReport";
 import { COLDPRO_TUNNEL_ENGINE_VERSION, calculateTunnelEngine } from "@/modules/coldpro/engines/tunnelEngine";
 import { auditColdProTechnicalConsistency } from "@/modules/coldpro/core/technicalAudit";
@@ -660,10 +661,10 @@ export function calculateProductLoadBreakdown(product: ColdProEnvironmentProduct
   const tout = n(product.outlet_temp_c);
   const tfreeze = product.initial_freezing_temp_c;
 
-  const thermal = normalizeProductForKcalEngine(product);
-  const cpAbove = thermal.cpAboveKcalKgC;
-  const cpBelow = thermal.cpBelowKcalKgC;
-  const latent = thermal.latentHeatKcalKg;
+  const thermal = normalizeProductForKjEngine(product);
+  const cpAboveKJ = thermal.cpAboveKJkgK;
+  const cpBelowKJ = thermal.cpBelowKJkgK;
+  const latentKJ = thermal.latentHeatKJkg;
   const allowPhaseChange = product.allow_phase_change !== false;
   const frozenFraction = thermal.frozenWaterFraction;
   const latentResidualFactor = thermal.latentResidualFactor;
@@ -673,18 +674,20 @@ export function calculateProductLoadBreakdown(product: ColdProEnvironmentProduct
   let sensibleBelow = 0;
 
   if (allowPhaseChange && tfreeze !== null && tfreeze !== undefined && tout < tfreeze) {
-    sensibleAbove = massDay * cpAbove * positive(tin - tfreeze);
-    latentLoad = massDay * latent * frozenFraction * latentResidualFactor;
-    sensibleBelow = massDay * cpBelow * Math.abs(tout - Math.min(tin, tfreeze));
+    sensibleAbove = massDay * cpAboveKJ * positive(tin - tfreeze);
+    latentLoad = massDay * (thermal.latentMode === "full" ? latentKJ * frozenFraction * latentResidualFactor : latentKJ);
+    sensibleBelow = massDay * cpBelowKJ * Math.max(tfreeze - tout, 0);
   } else {
-    const cp = tin >= 0 && tout >= 0 ? cpAbove : cpBelow || cpAbove;
+    const cp = tin >= 0 && tout >= 0 ? cpAboveKJ : cpBelowKJ || cpAboveKJ;
     sensibleAbove = massDay * cp * Math.abs(tin - tout);
   }
 
-  const totalEnergy = sensibleAbove + latentLoad + sensibleBelow;
-  const total = loadMode === "hourly_intake" ? totalEnergy / 24 : totalEnergy / hours;
-  const specificEnergyKjKg = massDay > 0 ? (totalEnergy / massDay) * KCAL_TO_KJ : 0;
-  const thermalAlerts = productThermalAlerts(product, specificEnergyKjKg, latent * KCAL_TO_KJ);
+  const totalEnergyKJ = sensibleAbove + latentLoad + sensibleBelow;
+  const loadKJH = loadMode === "hourly_intake" ? totalEnergyKJ / 24 : totalEnergyKJ / hours;
+  const loadKW = loadKJH / 3600;
+  const total = convertThermalLoad(loadKW, "kcal/h");
+  const specificEnergyKjKg = massDay > 0 ? totalEnergyKJ / massDay : 0;
+  const thermalAlerts = [...productThermalAlerts(product, specificEnergyKjKg, latentKJ), ...thermal.consistencyAlerts.map((alert) => ({ level: alert.level, code: alert.code, message: alert.message }))];
   const warnings = [loadMode === "room_pull_down_or_freezing" ? "Câmara de armazenagem usada para resfriar/congelar produto novo: validar circulação de ar, empilhamento, embalagem, área exposta e tempo disponível; para cargas intensas ou recorrentes, considerar túnel dedicado." : null, ...thermalAlerts.map((alert) => alert.message)].filter(Boolean);
   return {
     product_name: product.product_name,
