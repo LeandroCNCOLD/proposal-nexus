@@ -13,6 +13,8 @@ import { environmentGroupedRows, environmentLoadRows } from "@/modules/coldpro/c
 import { TunnelValidationCharts } from "@/modules/coldpro/components/results/TunnelValidationCharts";
 import { ResultConsistencyAudit } from "@/modules/coldpro/components/results/ResultConsistencyAudit";
 import { ColdProAIInsightPanel } from "@/modules/coldpro/components/results/ColdProAIInsightPanel";
+import { convertThermalLoad, type ThermalLoadUnit } from "@/modules/coldpro/core/units";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 function n(value: unknown) {
   return Number(value ?? 0);
@@ -29,6 +31,27 @@ function Kpi({ label, value, unit, icon, note }: { label: string; value: unknown
       <div className="mt-1 text-xs text-muted-foreground">{unit}{note ? ` · ${note}` : ""}</div>
     </div>
   );
+}
+
+function formatLoadFromKW(valueKW: number, unit: ThermalLoadUnit) {
+  const digits = unit === "kcal/h" || unit === "BTU/h" ? 0 : unit === "TR" ? 2 : 1;
+  return fmtColdPro(convertThermalLoad(valueKW, unit), digits);
+}
+
+function UnitAuditPanel({ audit }: { audit: any }) {
+  const alerts = Array.isArray(audit?.consistencyAlerts) ? audit.consistencyAlerts : [];
+  const rows = [
+    ["Motor interno", audit?.engineFlow ?? "kJ/kg → kJ/h → kW"],
+    ["Unidade padrão exibida", audit?.defaultDisplayUnit ?? "kcal/h"],
+    ["Fonte dos dados térmicos", audit?.source ?? "ASHRAE / CN ColdPro"],
+    ["Conversão", "Aplicada somente na saída"],
+    ["Cp acima", audit?.cpAboveKJkgK ? `${fmtColdPro(audit.cpAboveKJkgK, 4)} kJ/kg.K` : "—"],
+    ["Cp abaixo", audit?.cpBelowKJkgK ? `${fmtColdPro(audit.cpBelowKJkgK, 4)} kJ/kg.K` : "—"],
+    ["Calor latente", audit?.latentHeatKJkg ? `${fmtColdPro(audit.latentHeatKJkg, 4)} kJ/kg` : "—"],
+    ["Energia específica", audit?.specificEnergyKJkg ? `${fmtColdPro(audit.specificEnergyKJkg, 4)} kJ/kg` : "—"],
+    ["Carga produto", audit?.productLoadKW ? `${fmtColdPro(audit.productLoadKJH, 0)} kJ/h · ${fmtColdPro(audit.productLoadKW, 2)} kW · ${fmtColdPro(audit.productLoadKcalH, 0)} kcal/h` : "—"],
+  ];
+  return <div className="space-y-3"><div className="grid gap-2 text-sm md:grid-cols-2">{rows.map(([label, value]) => <div key={label} className="rounded-lg bg-muted/30 p-3"><span className="text-muted-foreground">{label}: </span><b>{value}</b></div>)}</div>{alerts.length ? <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{alerts.map((alert: any) => <div key={`${alert.field}-${alert.deviationPercent}`}>{alert.message}</div>)}</div> : null}</div>;
 }
 
 function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (value: boolean) => void; label: string }) {
