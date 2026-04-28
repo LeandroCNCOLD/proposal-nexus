@@ -5462,31 +5462,46 @@ export type Database = {
       }
       profiles: {
         Row: {
+          access_source: string
+          access_status: string
           avatar_url: string | null
+          blocked_reason: string | null
           created_at: string
+          email: string | null
           full_name: string
           id: string
           job_title: string | null
+          nomus_user_id: string | null
           nomus_vendedor_id: string | null
           phone: string | null
           updated_at: string
         }
         Insert: {
+          access_source?: string
+          access_status?: string
           avatar_url?: string | null
+          blocked_reason?: string | null
           created_at?: string
+          email?: string | null
           full_name: string
           id: string
           job_title?: string | null
+          nomus_user_id?: string | null
           nomus_vendedor_id?: string | null
           phone?: string | null
           updated_at?: string
         }
         Update: {
+          access_source?: string
+          access_status?: string
           avatar_url?: string | null
+          blocked_reason?: string | null
           created_at?: string
+          email?: string | null
           full_name?: string
           id?: string
           job_title?: string | null
+          nomus_user_id?: string | null
           nomus_vendedor_id?: string | null
           phone?: string | null
           updated_at?: string
@@ -7122,6 +7137,51 @@ export type Database = {
           },
         ]
       }
+      user_access_queue: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          nomus_user_id: string | null
+          notes: string | null
+          source: string
+          status: string
+          suggested_role: Database["public"]["Enums"]["app_role"]
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          email: string
+          full_name: string
+          id?: string
+          nomus_user_id?: string | null
+          notes?: string | null
+          source?: string
+          status?: string
+          suggested_role?: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          email?: string
+          full_name?: string
+          id?: string
+          nomus_user_id?: string | null
+          notes?: string | null
+          source?: string
+          status?: string
+          suggested_role?: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -7149,6 +7209,7 @@ export type Database = {
     }
     Functions: {
       _parse_nomus_date: { Args: { s: string }; Returns: string }
+      can_manage_user_access: { Args: { _user_id: string }; Returns: boolean }
       coldpro_calculate_coil_volume_l: {
         Args: {
           p_correction_factor?: number
@@ -7211,6 +7272,7 @@ export type Database = {
         | "diretoria"
         | "administrativo"
         | "admin"
+        | "coldpro"
       proposal_source: "nomus" | "manual"
       proposal_status:
         | "rascunho"
@@ -7387,6 +7449,7 @@ export const Constants = {
         "diretoria",
         "administrativo",
         "admin",
+        "coldpro",
       ],
       proposal_source: ["nomus", "manual"],
       proposal_status: [

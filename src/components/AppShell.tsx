@@ -77,6 +77,12 @@ function NavItem({ to, label, icon: Icon, exact }: { to: string; label: string; 
 }
 
 function AppNavigationSidebar() {
+  const { roles } = useAuth();
+  const coldProOnly = roles.length > 0 && roles.every((role) => role === "coldpro");
+  const groups = coldProOnly
+    ? NAV.map((group) => ({ ...group, items: group.items.filter((item) => item.to.startsWith("/app/coldpro") || item.to === "/app/configuracoes") })).filter((group) => group.items.length > 0)
+    : NAV;
+
   return (
     <Sidebar collapsible="icon" className="app-sidebar border-sidebar-border bg-sidebar text-sidebar-foreground">
       <SidebarHeader className="border-b border-sidebar-border p-2">
@@ -91,7 +97,7 @@ function AppNavigationSidebar() {
         </div>
       </SidebarHeader>
       <SidebarContent className="p-1">
-        {NAV.map((g) => (
+        {groups.map((g) => (
           <SidebarGroup key={g.group}>
             <SidebarGroupLabel>{g.group}</SidebarGroupLabel>
             <SidebarGroupContent>
