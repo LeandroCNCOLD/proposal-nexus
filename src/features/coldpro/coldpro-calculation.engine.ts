@@ -743,9 +743,9 @@ export function calculateProductLoadBreakdown(product: ColdProEnvironmentProduct
     energy_consistency_delta_kcal: round2(Math.abs(totalEnergyKJ - (sensibleAbove + latentLoad + sensibleBelow)) / KCAL_TO_KJ),
     specific_energy_kcal_kg: massDay > 0 ? round2((totalEnergyKJ / massDay) / KCAL_TO_KJ) : 0,
     specific_energy_kj_kg: round2(specificEnergyKjKg),
-    sensible_above_kcal_h: round2(loadMode === "hourly_intake" ? sensibleAbove / 24 : sensibleAbove / hours),
-    latent_kcal_h: round2(loadMode === "hourly_intake" ? latentLoad / 24 : latentLoad / hours),
-    sensible_below_kcal_h: round2(loadMode === "hourly_intake" ? sensibleBelow / 24 : sensibleBelow / hours),
+    sensible_above_kcal_h: round2((loadMode === "hourly_intake" ? sensibleAbove / 24 : sensibleAbove / hours) / KCAL_TO_KJ),
+    latent_kcal_h: round2((loadMode === "hourly_intake" ? latentLoad / 24 : latentLoad / hours) / KCAL_TO_KJ),
+    sensible_below_kcal_h: round2((loadMode === "hourly_intake" ? sensibleBelow / 24 : sensibleBelow / hours) / KCAL_TO_KJ),
     total_kcal_h: round2(total),
     source: product.product_id ? "Catálogo ASHRAE/CN ColdPro" : "Manual",
   };
