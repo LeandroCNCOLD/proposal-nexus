@@ -329,7 +329,12 @@ function ColdProProjectPage() {
   const productLoad = savedProductLoad > 0 ? savedProductLoad : Number(tunnelPreview?.totalKcalH ?? 0);
   const hasTunnelProduct = Boolean(tunnel && [tunnel.product_name, tunnel.product_id, tunnelPreview?.productLoadKW].some((value) => (typeof value === "number" ? value > 0 : String(value ?? "").trim().length > 0)));
   const extraPreview = calculateExtraLoadPreview(selectedEnv ?? {});
-  const extraLoad = result ? Number(result.infiltration_kcal_h ?? 0) + Number(result.people_kcal_h ?? 0) + Number(result.lighting_kcal_h ?? 0) + Number(result.motors_kcal_h ?? 0) + Number(result.fans_kcal_h ?? 0) + Number(result.defrost_kcal_h ?? 0) + Number(result.other_kcal_h ?? 0) : extraPreview.subtotal_kcal_h;
+  const savedExtraLoad = result ? Number(result.infiltration_kcal_h ?? 0) + Number(result.people_kcal_h ?? 0) + Number(result.lighting_kcal_h ?? 0) + Number(result.motors_kcal_h ?? 0) + Number(result.fans_kcal_h ?? 0) + Number(result.defrost_kcal_h ?? 0) + Number(result.other_kcal_h ?? 0) + Number(result.calculation_breakdown?.evaporator_frost?.additional_load_kcal_h ?? 0) : 0;
+  const extraLoad = result ? savedExtraLoad : extraPreview.subtotal_kcal_h;
+  const projectBaseLoadKcalH = environmentLoad + productLoad;
+  const projectSubtotalPreviewKcalH = result ? Number(result.subtotal_kcal_h ?? projectBaseLoadKcalH + extraLoad) : projectBaseLoadKcalH + extraPreview.subtotal_kcal_h;
+  const projectSafetyPreviewKcalH = result ? Number(result.safety_kcal_h ?? 0) : projectSubtotalPreviewKcalH * (Number(selectedEnv?.safety_factor_percent ?? 0) / 100);
+  const projectTotalWithSafetyPreviewKcalH = result ? Number(result.total_required_kcal_h ?? projectSubtotalPreviewKcalH + projectSafetyPreviewKcalH) : projectSubtotalPreviewKcalH + projectSafetyPreviewKcalH;
   const catalogFanLoadKcalH = Number(selection?.curve_metadata?.fan_power_kw ?? 0) * Number(selection?.quantity ?? 1) * 859.845;
   const selectedQuantity = firstFinite(selection?.quantity, selection?.curve_metadata?.quantidade) ?? 1;
   const energy = result?.energySimulation ?? result?.energy_simulation ?? result?.calculation_breakdown?.energySimulation ?? result?.calculation_breakdown?.energy_simulation ?? {};
