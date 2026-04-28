@@ -390,6 +390,22 @@ function continuousModeOptions(tunnelType: string) {
   return [{ value: "direct_mass_flow", label: "Informar kg/h diretamente" }, { value: "calculated_by_units_per_hour", label: "Calcular por unidades/h" }, { value: "calculated_by_belt_loading", label: "Calcular por carregamento da esteira" }, { value: "calculated_by_belt_surface_density", label: "Calcular por densidade superficial da esteira" }];
 }
 
+function resolveContinuousMassMode(source: ColdProFormRecord, tunnelType: string) {
+  const allowed = new Set(continuousModeOptions(tunnelType).map((option) => option.value));
+  const candidates = [source.continuous_mass_mode, source.mass_flow_mode].map((value) => String(value ?? ""));
+  const explicit = candidates.find((value) => allowed.has(value));
+  if (explicit) return explicit;
+  if (tunnelType === "fluidized_bed" && positiveValue(source.feed_rate_kg_h) > 0) return "calculated_by_feed_rate";
+  if (tunnelType === "spiral_girofreezer") {
+    if (positiveValue(source.trays_per_hour, source.tray_weight_kg) > 0) return "calculated_by_trays";
+    if (positiveValue(source.units_per_cycle, source.cycles_per_hour) > 0) return "calculated_by_units";
+  }
+  if (positiveValue(source.belt_surface_density_kg_m2, source.belt_area_m2, source.belt_width_m, source.belt_effective_length_m, source.belt_nominal_capacity_kg_h) > 0) return "calculated_by_belt_surface_density";
+  if (positiveValue(source.units_per_row, source.rows_per_meter, source.belt_speed_m_min) > 0) return "calculated_by_belt_loading";
+  if (positiveValue(source.units_per_hour) > 0) return "calculated_by_units_per_hour";
+  return "direct_mass_flow";
+}
+
 function simulationDraftFromTunnel(source: Partial<ColdProFormRecord>) {
   return {
     air_temp_c: source?.air_temp_c ?? -35,
