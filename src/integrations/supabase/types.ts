@@ -7137,6 +7137,51 @@ export type Database = {
           },
         ]
       }
+      user_access_queue: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          nomus_user_id: string | null
+          notes: string | null
+          source: string
+          status: string
+          suggested_role: Database["public"]["Enums"]["app_role"]
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          email: string
+          full_name: string
+          id?: string
+          nomus_user_id?: string | null
+          notes?: string | null
+          source?: string
+          status?: string
+          suggested_role?: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          email?: string
+          full_name?: string
+          id?: string
+          nomus_user_id?: string | null
+          notes?: string | null
+          source?: string
+          status?: string
+          suggested_role?: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
