@@ -1,12 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { CheckCircle2, Clock3, RefreshCw, Search, ShieldCheck, UserPlus, XCircle } from "lucide-react";
+import { CheckCircle2, Clock3, Eye, EyeOff, RefreshCw, Search, ShieldCheck, UserPlus, XCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
 import { useAuth } from "@/hooks/useAuth";
 import { ROLE_LABELS, type AppRole } from "@/lib/proposal";
-import { MODULE_ACCESS_DESCRIPTION } from "@/lib/module-access";
+import { APP_MODULES, MODULE_ACCESS_DESCRIPTION, roleCanAccessPath } from "@/lib/module-access";
 import { approveUserAccessQueueItem, nomusImportInternalUsersToAccessQueue, resetUserTemporaryPassword } from "@/integrations/nomus/server.functions";
 import { useServerFn } from "@tanstack/react-start";
 import { Button } from "@/components/ui/button";
@@ -249,6 +249,40 @@ function SettingsPage() {
                     <div className="mt-1 text-xs text-muted-foreground">{MODULE_ACCESS_DESCRIPTION[role]}</div>
                   </div>
                 ))}
+              </div>
+
+              <div className="rounded-lg border bg-background/40 p-4">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Matriz de acesso por módulo</h3>
+                  <Badge variant="outline">{APP_MODULES.length} módulos</Badge>
+                </div>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="min-w-44">Módulo</TableHead>
+                        {ACCESS_ROLES.map((role) => <TableHead key={role} className="min-w-32 text-center">{ROLE_LABELS[role]}</TableHead>)}
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {APP_MODULES.map((module) => (
+                        <TableRow key={module.key}>
+                          <TableCell className="font-medium">{module.label}</TableCell>
+                          {ACCESS_ROLES.map((role) => {
+                            const allowed = roleCanAccessPath(role, module.path);
+                            return (
+                              <TableCell key={`${module.key}-${role}`} className="text-center">
+                                <span className={`inline-flex h-7 w-7 items-center justify-center rounded-full border ${allowed ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`} title={allowed ? "Pode acessar" : "Sem acesso"}>
+                                  {allowed ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+                                </span>
+                              </TableCell>
+                            );
+                          })}
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               </div>
 
               <div>
