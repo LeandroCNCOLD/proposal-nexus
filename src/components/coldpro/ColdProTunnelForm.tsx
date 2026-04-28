@@ -492,6 +492,20 @@ export const ColdProTunnelForm = React.forwardRef<ColdProTunnelFormHandle, ColdP
     });
   };
   const airControlNum = (key: string): NumericInputProps => ({ type: "number", step: "0.0001", value: inputValue(form?.[key]), onChange: (e: React.ChangeEvent<HTMLInputElement>) => setAirControl(key, numberOrNull(e.target.value)) });
+  const fanAirflowNum = (): NumericInputProps => ({
+    type: "number",
+    step: "0.0001",
+    value: inputValue(form?.fan_airflow_m3_h),
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
+      const nextAirflow = numberOrNull(e.target.value);
+      setForm((prev) => {
+        const next = { ...prev, airflow_source: "airflow_by_fans", fan_airflow_m3_h: nextAirflow, informed_air_flow_m3_h: nextAirflow, airflow_m3_h: nextAirflow };
+        const freeAreaM2 = freeAirAreaFromControls(next);
+        const velocityMS = nextAirflow !== null && nextAirflow > 0 && freeAreaM2 > 0 ? nextAirflow / 3600 / freeAreaM2 : prev.air_velocity_m_s;
+        return { ...next, air_velocity_m_s: velocityMS, airflow_free_area_m2: freeAreaM2 > 0 ? roundPreset(freeAreaM2, 3) : prev.airflow_free_area_m2 };
+      });
+    },
+  });
   const airControlBlockagePercentNum = (key: string) => {
     const value = Number(form?.[key] ?? 0);
     return { type: "number" as const, step: "0.0001", value: Number.isFinite(value) && value !== 0 ? value * 100 : form?.[key] === 0 ? 0 : "", onChange: (e: React.ChangeEvent<HTMLInputElement>) => { const parsed = numberOrNull(e.target.value); setAirControl(key, parsed === null ? null : parsed / 100); } };
@@ -1330,7 +1344,7 @@ export const ColdProTunnelForm = React.forwardRef<ColdProTunnelFormHandle, ColdP
         <button type="button" className="inline-flex items-center justify-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm font-medium shadow-sm transition hover:bg-muted" onClick={applyAirflowPreset}><Calculator className="h-4 w-4" /> Calcular ar</button>
       </div>
       {productLoadMissingFields.length > 0 ? <ColdProValidationMessage tone="warning">Carga do produto pendente: falta {productLoadMissingFields.join(", ")}.</ColdProValidationMessage> : null}
-      <ColdProField label="Vazão dos ventiladores" helpKey="fanAirflow" unit="m³/h"><ColdProInput {...num("fan_airflow_m3_h")} /></ColdProField>
+      <ColdProField label="Vazão dos ventiladores" helpKey="fanAirflow" unit="m³/h"><ColdProInput {...fanAirflowNum()} /></ColdProField>
       {showAirflowMismatch ? <ColdProValidationMessage>A vazão informada está {airflowDeltaM3H > 0 ? "acima" : "abaixo"} da necessária em {fmtColdPro(Math.abs(airflowDeltaM3H), 0)} m³/h ({fmtColdPro(airflowDeltaPercent, 1)}%). Use “Calcular ar” para igualar ao cálculo atual.</ColdProValidationMessage> : null}
       <ColdProField label="Fonte da velocidade" helpKey="airflowSource"><ColdProSelect value={textValue(form.airflow_source, "manual_velocity")} onChange={(e) => setAirflowSource(e.target.value)}><option value="manual_velocity">Velocidade manual</option><option value="airflow_by_fans">Vazão por ventiladores</option></ColdProSelect></ColdProField>
       <ColdProField label="Velocidade do ar" helpKey="airVelocity" unit="m/s"><ColdProInput {...airVelocityControl} /></ColdProField>
