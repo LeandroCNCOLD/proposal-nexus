@@ -26,6 +26,28 @@ const MODULE_PATHS_BY_ROLE: Record<AppRole, string[]> = {
   coldpro: ["/app/coldpro", "/app/coldpro/produtos", "/app/coldpro/catalogo", "/app/configuracoes"],
 };
 
+export const APP_MODULES = [
+  { key: "dashboard", label: "Dashboard", path: "/app" },
+  { key: "crm", label: "Funil / CRM", path: "/app/crm" },
+  { key: "propostas", label: "Propostas", path: "/app/propostas" },
+  { key: "pedidos", label: "Pedidos & NF", path: "/app/propostas/pedidos-nf" },
+  { key: "tarefas", label: "Tarefas", path: "/app/tarefas" },
+  { key: "clientes", label: "Clientes", path: "/app/clientes" },
+  { key: "concorrentes", label: "Concorrentes", path: "/app/concorrentes" },
+  { key: "equipamentos", label: "Equipamentos", path: "/app/equipamentos" },
+  { key: "coldpro", label: "ColdPro", path: "/app/coldpro" },
+  { key: "produtos", label: "Produtos Ashrae", path: "/app/coldpro/produtos" },
+  { key: "catalogo", label: "Catálogo ColdPro", path: "/app/coldpro/catalogo" },
+  { key: "competitiva", label: "Head-to-Head", path: "/app/competitiva" },
+  { key: "documentos", label: "Documentos & IA", path: "/app/documentos" },
+  { key: "relatorios", label: "Relatórios", path: "/app/relatorios" },
+  { key: "aprovacoes", label: "Aprovações", path: "/app/aprovacoes" },
+  { key: "templates", label: "Templates", path: "/app/configuracoes/templates" },
+  { key: "nomus", label: "Integração Nomus", path: "/app/configuracoes/nomus" },
+  { key: "api_nomus", label: "Catálogo API Nomus", path: "/app/configuracoes/api-nomus" },
+  { key: "configuracoes", label: "Configurações", path: "/app/configuracoes" },
+] as const;
+
 export function getAllowedModulePaths(roles: AppRole[]) {
   if (roles.some((role) => FULL_ACCESS_ROLES.includes(role))) return ["*"];
   return Array.from(new Set(roles.flatMap((role) => MODULE_PATHS_BY_ROLE[role] ?? [])));
@@ -36,6 +58,10 @@ export function isAppRouteAllowed(pathname: string, roles: AppRole[]) {
   const allowedPaths = getAllowedModulePaths(roles);
   if (allowedPaths.includes("*")) return true;
   return allowedPaths.some((path) => (path === "/app" ? pathname === "/app" : pathname === path || pathname.startsWith(path + "/")));
+}
+
+export function roleCanAccessPath(role: AppRole, path: string) {
+  return isAppRouteAllowed(path, [role]);
 }
 
 export const MODULE_ACCESS_DESCRIPTION: Record<AppRole, string> = {
