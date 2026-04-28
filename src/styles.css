@@ -321,6 +321,20 @@
   .coldpro-compact table {
     font-size: 12.5px;
   }
+
+  @media (min-width: 1024px) {
+    .app-main {
+      padding: clamp(1rem, 1.2vw, 1.5rem);
+    }
+
+    .app-main :where(.grid) {
+      min-width: 0;
+    }
+
+    .app-main :where(.rounded-xl, .rounded-lg, .rounded-md):not([role="dialog"]) {
+      min-width: 0;
+    }
+  }
 }
 
 @layer utilities {
