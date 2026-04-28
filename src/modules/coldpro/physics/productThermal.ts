@@ -1,6 +1,8 @@
 import { safeNumber } from "../core/units";
 
 const KCAL_TO_KJ = 4.1868;
+export const ENGINE_ENERGY_UNIT = "kJ" as const;
+export const ENGINE_POWER_UNIT = "kW" as const;
 
 export type ProductLatentMode = "effective" | "full";
 
@@ -46,7 +48,7 @@ export function calculateProductSpecificEnergy(params: ProductSpecificEnergyInpu
   const latentMode = resolveLatentMode(params?.latentMode);
   const frozenWaterFraction = clampFraction(safeNumber(params?.frozenWaterFraction, 1));
   const latentResidualFactor = clampFraction(safeNumber(params?.latentResidualFactor, 1));
-  const latentEffectiveKJkg = latentMode === "full" ? latentHeatKJkg * frozenWaterFraction : latentHeatKJkg;
+  const latentEffectiveKJkg = latentMode === "full" ? latentHeatKJkg * frozenWaterFraction * latentResidualFactor : latentHeatKJkg;
   const hasCoolingProcess = initialTempC > finalTempC;
   const reachesFreezingRegion = finalTempC < freezingPointC;
   const crossesFreezingPoint = params?.allowPhaseChange !== false && hasCoolingProcess && latentEffectiveKJkg > 0 && reachesFreezingRegion;
@@ -59,6 +61,8 @@ export function calculateProductSpecificEnergy(params: ProductSpecificEnergyInpu
     const totalKJkg = sensibleAboveKJkg + latentKJkg + sensibleBelowKJkg;
     return {
       crossesFreezingPoint,
+      engineEnergyUnit: ENGINE_ENERGY_UNIT,
+      enginePowerUnit: ENGINE_POWER_UNIT,
       cpAboveKJkgK,
       cpBelowKJkgK,
       latentHeatKJkg,
@@ -81,6 +85,8 @@ export function calculateProductSpecificEnergy(params: ProductSpecificEnergyInpu
   const sensibleKJkg = cpKJkgK * Math.abs(initialTempC - finalTempC);
   return {
     crossesFreezingPoint,
+    engineEnergyUnit: ENGINE_ENERGY_UNIT,
+    enginePowerUnit: ENGINE_POWER_UNIT,
     cpAboveKJkgK,
     cpBelowKJkgK,
     latentHeatKJkg,
