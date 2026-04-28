@@ -1048,7 +1048,7 @@ export const ColdProTunnelForm = React.forwardRef<ColdProTunnelFormHandle, ColdP
     belt_speed_m_min: Number(form.belt_speed_m_min ?? 0) || null,
     belt_width_m: Number(form.belt_width_m ?? 0) || null,
     belt_effective_length_m: Number(form.belt_effective_length_m ?? 0) || null,
-    belt_area_m2: beltSurfaceAreaM2 || null,
+    belt_area_m2: beltSurfaceInformedAreaM2 || beltSurfaceAreaM2 || null,
     belt_surface_density_kg_m2: Number(form.belt_surface_density_kg_m2 ?? 0) || null,
     belt_mass_on_belt_kg: beltSurfaceMassKg || null,
     belt_linear_load_kg_m: beltLinearLoadKgM || null,
