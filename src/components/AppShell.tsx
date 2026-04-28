@@ -22,6 +22,7 @@ import {
   Kanban,
   Thermometer,
   PackageSearch,
+  type LucideIcon,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
@@ -106,7 +107,7 @@ function NavItem({
 }: {
   to: string;
   label: string;
-  icon: any;
+  icon: LucideIcon;
   exact?: boolean;
 }) {
   const { pathname } = useLocation();
