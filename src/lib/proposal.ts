@@ -68,6 +68,7 @@ export const ROLE_LABELS: Record<AppRole, string> = {
   diretoria: "Diretoria",
   administrativo: "Administrativo",
   admin: "Administrador",
+  coldpro: "ColdPro",
 };
 
 export const ALL_STATUSES = Object.keys(STATUS_LABELS) as ProposalStatus[];
