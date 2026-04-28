@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { CheckCircle2, Clock3, ShieldCheck, UserPlus, XCircle } from "lucide-react";
+import { CheckCircle2, Clock3, RefreshCw, ShieldCheck, UserPlus, XCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
 import { useAuth } from "@/hooks/useAuth";
@@ -78,6 +78,30 @@ function SettingsPage() {
     setNewUser({ full_name: "", email: "", suggested_role: "coldpro" });
     refreshAccess();
     toast.success("Usuário colocado como pendente para liberação.");
+  };
+
+  const importNomusUsers = async () => {
+    const [{ data: sellers = [] }, { data: representatives = [] }] = await Promise.all([
+      supabase.from("nomus_sellers").select("nomus_id, name, email").not("email", "is", null),
+      supabase.from("nomus_representatives").select("nomus_id, name, email").not("email", "is", null),
+    ]);
+    const byEmail = new Map<string, { full_name: string; email: string; source: string; nomus_user_id: string | null; suggested_role: AppRole; status: string }>();
+    for (const item of [...sellers, ...representatives]) {
+      if (!item.email) continue;
+      byEmail.set(item.email.toLowerCase(), {
+        full_name: item.name,
+        email: item.email.toLowerCase(),
+        source: "nomus",
+        nomus_user_id: item.nomus_id,
+        suggested_role: "vendedor",
+        status: "pending",
+      });
+    }
+    if (byEmail.size === 0) return toast.info("Nenhum usuário com e-mail encontrado no Nomus sincronizado.");
+    const { error } = await supabase.from("user_access_queue").upsert([...byEmail.values()], { onConflict: "email" });
+    if (error) return toast.error(error.message);
+    refreshAccess();
+    toast.success(`${byEmail.size} usuário(s) do Nomus enviados para liberação.`);
   };
 
   const updateProfileStatus = async (profileId: string, access_status: "active" | "blocked" | "pending") => {
