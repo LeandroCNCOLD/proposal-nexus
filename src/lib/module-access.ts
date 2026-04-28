@@ -26,10 +26,44 @@ const MODULE_PATHS_BY_ROLE: Record<AppRole, string[]> = {
     "/app/aprovacoes",
     "/app/configuracoes",
   ],
-  vendedor: ["/app", "/app/crm", "/app/propostas", "/app/tarefas", "/app/clientes", "/app/concorrentes", "/app/documentos", "/app/configuracoes"],
-  engenharia: ["/app", "/app/propostas", "/app/equipamentos", "/app/coldpro", "/app/coldpro/produtos", "/app/coldpro/catalogo", "/app/documentos", "/app/configuracoes"],
-  orcamentista: ["/app", "/app/propostas", "/app/equipamentos", "/app/coldpro", "/app/coldpro/produtos", "/app/coldpro/catalogo", "/app/documentos", "/app/configuracoes"],
-  administrativo: ["/app", "/app/propostas/pedidos-nf", "/app/clientes", "/app/documentos", "/app/relatorios", "/app/configuracoes"],
+  vendedor: [
+    "/app",
+    "/app/crm",
+    "/app/propostas",
+    "/app/tarefas",
+    "/app/clientes",
+    "/app/concorrentes",
+    "/app/documentos",
+    "/app/configuracoes",
+  ],
+  engenharia: [
+    "/app",
+    "/app/propostas",
+    "/app/equipamentos",
+    "/app/coldpro",
+    "/app/coldpro/produtos",
+    "/app/coldpro/catalogo",
+    "/app/documentos",
+    "/app/configuracoes",
+  ],
+  orcamentista: [
+    "/app",
+    "/app/propostas",
+    "/app/equipamentos",
+    "/app/coldpro",
+    "/app/coldpro/produtos",
+    "/app/coldpro/catalogo",
+    "/app/documentos",
+    "/app/configuracoes",
+  ],
+  administrativo: [
+    "/app",
+    "/app/propostas/pedidos-nf",
+    "/app/clientes",
+    "/app/documentos",
+    "/app/relatorios",
+    "/app/configuracoes",
+  ],
   coldpro: ["/app/coldpro", "/app/coldpro/produtos", "/app/coldpro/catalogo", "/app/configuracoes"],
 };
 
@@ -57,17 +91,29 @@ export const APP_MODULES = [
 
 export function getAllowedModulePaths(roles: AppRole[], moduleAccess?: RoleModuleAccess[]) {
   if (moduleAccess?.length) {
-    return Array.from(new Set(moduleAccess.filter((item) => roles.includes(item.role) && item.allowed).map((item) => item.module_path)));
+    return Array.from(
+      new Set(
+        moduleAccess
+          .filter((item) => roles.includes(item.role) && item.allowed)
+          .map((item) => item.module_path),
+      ),
+    );
   }
   if (roles.some((role) => FULL_ACCESS_ROLES.includes(role))) return ["*"];
   return Array.from(new Set(roles.flatMap((role) => MODULE_PATHS_BY_ROLE[role] ?? [])));
 }
 
-export function isAppRouteAllowed(pathname: string, roles: AppRole[], moduleAccess?: RoleModuleAccess[]) {
+export function isAppRouteAllowed(
+  pathname: string,
+  roles: AppRole[],
+  moduleAccess?: RoleModuleAccess[],
+) {
   if (roles.length === 0) return true;
   const allowedPaths = getAllowedModulePaths(roles, moduleAccess);
   if (allowedPaths.includes("*")) return true;
-  return allowedPaths.some((path) => (path === "/app" ? pathname === "/app" : pathname === path || pathname.startsWith(path + "/")));
+  return allowedPaths.some((path) =>
+    path === "/app" ? pathname === "/app" : pathname === path || pathname.startsWith(path + "/"),
+  );
 }
 
 export function roleCanAccessPath(role: AppRole, path: string, moduleAccess?: RoleModuleAccess[]) {
