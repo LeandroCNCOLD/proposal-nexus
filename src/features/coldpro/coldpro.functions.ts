@@ -81,13 +81,14 @@ function applyCatalogThermal(payload: any, catalog: any) {
   const next = { ...payload, product_id: catalog.id, product_name: catalog.name };
   for (const key of catalogThermalKeys) if (catalog[key] !== undefined) next[key] = catalog[key];
   next.thermal_conductivity_unfrozen_w_m_k = catalog.thermal_conductivity_unfrozen_w_m_k ?? catalog.thermal_conductivity_w_m_k ?? next.thermal_conductivity_unfrozen_w_m_k;
-  next.freezing_temp_c = catalog.initial_freezing_temp_c ?? next.freezing_temp_c;
+  next.initial_freezing_temp_c = catalog.initial_freezing_temp_c ?? next.initial_freezing_temp_c;
   return next;
 }
 
 function stripLegacyEnvironmentProductFields(payload: any) {
-  const { ashrae_density_kg_m3: legacyDensity, ...next } = payload;
+  const { ashrae_density_kg_m3: legacyDensity, freezing_temp_c: freezingTempC, ...next } = payload;
   if (next.density_kg_m3 == null && legacyDensity != null) next.density_kg_m3 = legacyDensity;
+  if (next.initial_freezing_temp_c == null && freezingTempC != null) next.initial_freezing_temp_c = freezingTempC;
   return next;
 }
 
