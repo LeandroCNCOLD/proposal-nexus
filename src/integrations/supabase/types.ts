@@ -5471,6 +5471,7 @@ export type Database = {
           full_name: string
           id: string
           job_title: string | null
+          must_change_password: boolean
           nomus_user_id: string | null
           nomus_vendedor_id: string | null
           phone: string | null
@@ -5486,6 +5487,7 @@ export type Database = {
           full_name: string
           id: string
           job_title?: string | null
+          must_change_password?: boolean
           nomus_user_id?: string | null
           nomus_vendedor_id?: string | null
           phone?: string | null
@@ -5501,6 +5503,7 @@ export type Database = {
           full_name?: string
           id?: string
           job_title?: string | null
+          must_change_password?: boolean
           nomus_user_id?: string | null
           nomus_vendedor_id?: string | null
           phone?: string | null
