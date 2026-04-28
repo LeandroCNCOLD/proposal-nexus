@@ -6488,6 +6488,36 @@ export type Database = {
           },
         ]
       }
+      role_module_access: {
+        Row: {
+          allowed: boolean
+          created_at: string
+          id: string
+          module_key: string
+          module_path: string
+          role: Database["public"]["Enums"]["app_role"]
+          updated_at: string
+        }
+        Insert: {
+          allowed?: boolean
+          created_at?: string
+          id?: string
+          module_key: string
+          module_path: string
+          role: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+        }
+        Update: {
+          allowed?: boolean
+          created_at?: string
+          id?: string
+          module_key?: string
+          module_path?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       sync_checkpoints: {
         Row: {
           created_at: string
