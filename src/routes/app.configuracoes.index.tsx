@@ -25,12 +25,85 @@ const ACCESS_STATUS_LABELS: Record<string, string> = {
 };
 
 function SettingsPage() {
-  const { user, roles } = useAuth();
+  const { user, roles, hasAnyRole } = useAuth();
+  const qc = useQueryClient();
+  const canManageAccess = hasAnyRole(MANAGER_ROLES);
+  const [newUser, setNewUser] = useState({ full_name: "", email: "", suggested_role: "coldpro" as AppRole });
   const { data: profile } = useQuery({
     queryKey: ["profile", user?.id],
     queryFn: async () => (await supabase.from("profiles").select("*").eq("id", user!.id).single()).data,
     enabled: !!user,
   });
+
+  const { data: allProfiles = [] } = useQuery({
+    queryKey: ["access-profiles"],
+    queryFn: async () => (await supabase.from("profiles").select("id, full_name, email, access_status, access_source, nomus_user_id, blocked_reason").order("full_name")).data ?? [],
+    enabled: canManageAccess,
+  });
+
+  const { data: userRoles = [] } = useQuery({
+    queryKey: ["access-user-roles"],
+    queryFn: async () => (await supabase.from("user_roles").select("id, user_id, role")).data ?? [],
+    enabled: canManageAccess,
+  });
+
+  const { data: accessQueue = [] } = useQuery({
+    queryKey: ["user-access-queue"],
+    queryFn: async () => (await supabase.from("user_access_queue").select("*").order("created_at", { ascending: false })).data ?? [],
+    enabled: canManageAccess,
+  });
+
+  const rolesByUser = useMemo(() => {
+    const grouped = new Map<string, AppRole[]>();
+    for (const item of userRoles) grouped.set(item.user_id, [...(grouped.get(item.user_id) ?? []), item.role]);
+    return grouped;
+  }, [userRoles]);
+
+  const refreshAccess = () => {
+    qc.invalidateQueries({ queryKey: ["access-profiles"] });
+    qc.invalidateQueries({ queryKey: ["access-user-roles"] });
+    qc.invalidateQueries({ queryKey: ["user-access-queue"] });
+  };
+
+  const addPendingUser = async () => {
+    if (!newUser.full_name.trim() || !newUser.email.trim()) return toast.error("Informe nome e e-mail.");
+    const { error } = await supabase.from("user_access_queue").upsert({
+      full_name: newUser.full_name.trim(),
+      email: newUser.email.trim().toLowerCase(),
+      source: "manual",
+      status: "pending",
+      suggested_role: newUser.suggested_role,
+    }, { onConflict: "email" });
+    if (error) return toast.error(error.message);
+    setNewUser({ full_name: "", email: "", suggested_role: "coldpro" });
+    refreshAccess();
+    toast.success("Usuário colocado como pendente para liberação.");
+  };
+
+  const updateProfileStatus = async (profileId: string, access_status: "active" | "blocked" | "pending") => {
+    const { error } = await supabase.from("profiles").update({ access_status, blocked_reason: access_status === "blocked" ? "Bloqueado pelo gestor" : null }).eq("id", profileId);
+    if (error) return toast.error(error.message);
+    refreshAccess();
+    toast.success(access_status === "active" ? "Acesso liberado." : access_status === "blocked" ? "Acesso bloqueado." : "Acesso marcado como pendente.");
+  };
+
+  const toggleRole = async (profileId: string, role: AppRole, checked: boolean) => {
+    const currentRole = userRoles.find((item) => item.user_id === profileId && item.role === role);
+    const { error } = checked
+      ? await supabase.from("user_roles").insert({ user_id: profileId, role })
+      : currentRole
+        ? await supabase.from("user_roles").delete().eq("id", currentRole.id)
+        : { error: null };
+    if (error) return toast.error(error.message);
+    refreshAccess();
+  };
+
+  const updateQueueStatus = async (queueId: string, status: "approved" | "rejected" | "pending") => {
+    const { error } = await supabase.from("user_access_queue").update({ status, approved_by: status === "approved" ? user?.id : null, approved_at: status === "approved" ? new Date().toISOString() : null }).eq("id", queueId);
+    if (error) return toast.error(error.message);
+    refreshAccess();
+    toast.success(status === "approved" ? "Pré-liberação aprovada." : status === "rejected" ? "Pré-liberação rejeitada." : "Pré-liberação voltou para pendente.");
+  };
 
   return (
     <>
