@@ -81,12 +81,12 @@ function SettingsPage() {
   };
 
   const importNomusUsers = async () => {
-    const [{ data: sellers = [] }, { data: representatives = [] }] = await Promise.all([
+    const [{ data: sellers }, { data: representatives }] = await Promise.all([
       supabase.from("nomus_sellers").select("nomus_id, name, email").not("email", "is", null),
       supabase.from("nomus_representatives").select("nomus_id, name, email").not("email", "is", null),
     ]);
     const byEmail = new Map<string, { full_name: string; email: string; source: string; nomus_user_id: string | null; suggested_role: AppRole; status: string }>();
-    for (const item of [...sellers, ...representatives]) {
+    for (const item of [...(sellers ?? []), ...(representatives ?? [])]) {
       if (!item.email) continue;
       byEmail.set(item.email.toLowerCase(), {
         full_name: item.name,
@@ -190,7 +190,10 @@ function SettingsPage() {
               </div>
 
               <div>
-                <h3 className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground"><Clock3 className="h-3.5 w-3.5" /> Pendentes de liberação</h3>
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <h3 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground"><Clock3 className="h-3.5 w-3.5" /> Pendentes de liberação</h3>
+                <Button size="sm" variant="outline" onClick={importNomusUsers}><RefreshCw className="mr-2 h-3.5 w-3.5" />Importar Nomus</Button>
+              </div>
                 <Table>
                   <TableHeader><TableRow><TableHead>Usuário</TableHead><TableHead>Origem</TableHead><TableHead>Perfil</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Ação</TableHead></TableRow></TableHeader>
                   <TableBody>
