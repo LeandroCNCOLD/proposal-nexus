@@ -1,11 +1,28 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
+import { CheckCircle2, Clock3, ShieldCheck, UserPlus, XCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
 import { useAuth } from "@/hooks/useAuth";
-import { ROLE_LABELS } from "@/lib/proposal";
+import { ROLE_LABELS, type AppRole } from "@/lib/proposal";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/app/configuracoes/")({ component: SettingsPage });
+
+const MANAGER_ROLES: AppRole[] = ["admin", "gerente_comercial", "diretoria"];
+const ACCESS_ROLES: AppRole[] = ["admin", "diretoria", "gerente_comercial", "engenharia", "orcamentista", "administrativo", "vendedor", "coldpro"];
+
+const ACCESS_STATUS_LABELS: Record<string, string> = {
+  active: "Liberado",
+  pending: "Pendente",
+  blocked: "Bloqueado",
+};
 
 function SettingsPage() {
   const { user, roles } = useAuth();
