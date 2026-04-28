@@ -272,7 +272,7 @@ function SettingsPage() {
                             const allowed = roleCanAccessPath(role, module.path);
                             return (
                               <TableCell key={`${module.key}-${role}`} className="text-center">
-                                <span className={`inline-flex h-7 w-7 items-center justify-center rounded-full border ${allowed ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`} title={allowed ? "Pode acessar" : "Sem acesso"}>
+                                <span className={`inline-flex h-7 w-7 items-center justify-center rounded-full border ${allowed ? "border-success/30 bg-success/10 text-success" : "border-destructive/20 bg-destructive/5 text-destructive/70 opacity-70"}`} title={allowed ? "Pode acessar" : "Sem acesso"}>
                                   {allowed ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
                                 </span>
                               </TableCell>
