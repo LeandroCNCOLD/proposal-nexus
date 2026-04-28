@@ -1162,9 +1162,15 @@ export const ColdProTunnelForm = React.forwardRef<ColdProTunnelFormHandle, ColdP
   const estimatedTimeForMassMin = tunnelResult.estimatedTimeMin !== null && tunnelResult.estimatedTimeMin !== undefined ? positiveValue(tunnelResult.estimatedTimeMin) : 0;
   const massInAvailableTimeKg = continuousCapacityKgH > 0 && availableTimeForMassMin > 0 ? continuousCapacityKgH * availableTimeForMassMin / 60 : 0;
   const beltSurfaceAreaForMassM2 = positiveValue(beltSurfaceBreakdown.areaM2);
+  const beltSurfaceCalculatedAreaForMassM2 = positiveValue(beltSurfaceBreakdown.calculatedAreaM2) || positiveValue(form.belt_width_m) * positiveValue(form.belt_effective_length_m);
+  const beltSurfaceInformedAreaForMassM2 = positiveValue(beltSurfaceBreakdown.informedAreaM2, form.belt_area_m2);
   const beltSurfaceDensityForMassKgM2 = positiveValue(beltSurfaceBreakdown.surfaceDensityKgM2);
   const beltPhysicalMassKg = positiveValue(beltSurfaceBreakdown.massOnBeltKg) || (beltSurfaceAreaForMassM2 > 0 && beltSurfaceDensityForMassKgM2 > 0 ? beltSurfaceAreaForMassM2 * beltSurfaceDensityForMassKgM2 : 0);
   const hasBeltPhysicalMass = continuousMassMode === "calculated_by_belt_surface_density" && beltPhysicalMassKg > 0;
+  const beltAreaDeviationPercent = beltSurfaceInformedAreaForMassM2 > 0 && beltSurfaceCalculatedAreaForMassM2 > 0 ? Math.abs(beltSurfaceInformedAreaForMassM2 - beltSurfaceCalculatedAreaForMassM2) / Math.max(beltSurfaceInformedAreaForMassM2, beltSurfaceCalculatedAreaForMassM2) * 100 : 0;
+  const showBeltAreaMismatch = continuousMassMode === "calculated_by_belt_surface_density" && beltSurfaceInformedAreaForMassM2 > 0 && beltSurfaceCalculatedAreaForMassM2 > 0 && beltAreaDeviationPercent > 5;
+  const beltFlowMethodDeviationPercent = positiveValue(beltSurfaceBreakdown.flowMethodDeviationPercent) || (positiveValue(beltSurfaceBreakdown.flowBySpeedKgH) > 0 && positiveValue(beltSurfaceBreakdown.flowByRetentionKgH) > 0 ? Math.abs(positiveValue(beltSurfaceBreakdown.flowBySpeedKgH) - positiveValue(beltSurfaceBreakdown.flowByRetentionKgH)) / Math.max(positiveValue(beltSurfaceBreakdown.flowBySpeedKgH), positiveValue(beltSurfaceBreakdown.flowByRetentionKgH)) * 100 : 0);
+  const showBeltFlowMismatch = continuousMassMode === "calculated_by_belt_surface_density" && positiveValue(beltSurfaceBreakdown.flowBySpeedKgH) > 0 && positiveValue(beltSurfaceBreakdown.flowByRetentionKgH) > 0 && beltFlowMethodDeviationPercent > 5;
   const estimatedEquivalentMassKg = continuousCapacityKgH > 0 && estimatedTimeForMassMin > 0 ? continuousCapacityKgH * estimatedTimeForMassMin / 60 : 0;
   const timeRatioEstimatedVsAvailable = estimatedTimeForMassMin > 0 && availableTimeForMassMin > 0 ? estimatedTimeForMassMin / availableTimeForMassMin : null;
   const beltMassDifferencePercent = hasBeltPhysicalMass && massInAvailableTimeKg > 0 ? Math.abs(massInAvailableTimeKg - beltPhysicalMassKg) / Math.max(massInAvailableTimeKg, beltPhysicalMassKg) * 100 : 0;
