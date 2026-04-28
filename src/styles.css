@@ -204,21 +204,22 @@
 
   .coldpro-page,
   .coldpro-compact {
-    font-size: 13px;
+    font-size: 13.5px;
   }
 
   .coldpro-card {
     border-radius: var(--radius-md);
     border: 1px solid var(--color-border);
     background: var(--color-background);
-    padding: 0.75rem;
+    min-width: 0;
+    padding: clamp(0.75rem, 1vw, 1rem);
     box-shadow: var(--shadow-sm);
   }
 
   .coldpro-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-    gap: 0.75rem;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+    gap: clamp(0.75rem, 1vw, 1rem);
   }
 
   .coldpro-section {
@@ -227,8 +228,8 @@
 
   .coldpro-table {
     width: 100%;
-    min-width: 640px;
-    font-size: 12px;
+    min-width: 720px;
+    font-size: 12.5px;
   }
 
   .coldpro-table th,
