@@ -546,6 +546,26 @@ export const approveUserAccessQueueItem = createServerFn({ method: "POST" })
     return { ok: true as const, created, message: created ? "Aprovado: usuário criado com senha provisória." : "Aprovado: senha provisória atualizada para usuário existente." };
   });
 
+export const resetUserTemporaryPassword = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { profileId: string; temporaryPassword: string }) => {
+    if (!input?.profileId) throw new Error("Usuário inválido.");
+    if (!input.temporaryPassword || input.temporaryPassword.length < 8) throw new Error("A senha provisória deve ter pelo menos 8 caracteres.");
+    return input;
+  })
+  .handler(async ({ data, context }) => {
+    const managerId = (context as { userId?: string }).userId ?? null;
+    if (!managerId) return { ok: false as const, error: "Usuário não autenticado." };
+    const { data: canManage, error: managerError } = await supabaseAdmin.rpc("can_manage_user_access", { _user_id: managerId });
+    if (managerError) return { ok: false as const, error: managerError.message };
+    if (!canManage) return { ok: false as const, error: "Seu perfil não permite resetar senhas." };
+    const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(data.profileId, { password: data.temporaryPassword });
+    if (authError) return { ok: false as const, error: authError.message };
+    const { error: profileError } = await supabaseAdmin.from("profiles").update({ must_change_password: true, access_status: "active", blocked_reason: null }).eq("id", data.profileId);
+    if (profileError) return { ok: false as const, error: profileError.message };
+    return { ok: true as const, message: "Senha provisória definida. O usuário deverá trocar no próximo acesso." };
+  });
+
 /** Pull clients from Nomus and upsert locally. */
 export const nomusSyncClients = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
