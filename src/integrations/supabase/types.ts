@@ -5467,6 +5467,7 @@ export type Database = {
           avatar_url: string | null
           blocked_reason: string | null
           created_at: string
+          email: string | null
           full_name: string
           id: string
           job_title: string | null
@@ -5481,6 +5482,7 @@ export type Database = {
           avatar_url?: string | null
           blocked_reason?: string | null
           created_at?: string
+          email?: string | null
           full_name: string
           id: string
           job_title?: string | null
@@ -5495,6 +5497,7 @@ export type Database = {
           avatar_url?: string | null
           blocked_reason?: string | null
           created_at?: string
+          email?: string | null
           full_name?: string
           id?: string
           job_title?: string | null
