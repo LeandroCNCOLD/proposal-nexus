@@ -13,22 +13,46 @@ import { environmentGroupedRows, environmentLoadRows } from "@/modules/coldpro/c
 import { TunnelValidationCharts } from "@/modules/coldpro/components/results/TunnelValidationCharts";
 import { ResultConsistencyAudit } from "@/modules/coldpro/components/results/ResultConsistencyAudit";
 import { ColdProAIInsightPanel } from "@/modules/coldpro/components/results/ColdProAIInsightPanel";
+import { convertThermalLoad, type ThermalLoadUnit } from "@/modules/coldpro/core/units";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 function n(value: unknown) {
   return Number(value ?? 0);
 }
 
 function Kpi({ label, value, unit, icon, note }: { label: string; value: unknown; unit: string; icon: React.ReactNode; note?: string }) {
+  const displayValue = typeof value === "string" ? value : fmtColdPro(value);
   return (
     <div className="min-w-0 rounded-lg border bg-muted/20 p-2.5">
       <div className="mb-2 flex items-center justify-between gap-2">
         <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</div>
         <div className="rounded bg-primary/10 p-1.5 text-primary">{icon}</div>
       </div>
-      <div className="break-words text-lg font-semibold tabular-nums text-foreground">{fmtColdPro(value)}</div>
+      <div className="break-words text-lg font-semibold tabular-nums text-foreground">{displayValue}</div>
       <div className="mt-1 text-xs text-muted-foreground">{unit}{note ? ` · ${note}` : ""}</div>
     </div>
   );
+}
+
+function formatLoadFromKW(valueKW: number, unit: ThermalLoadUnit) {
+  const digits = unit === "kcal/h" || unit === "BTU/h" ? 0 : unit === "TR" ? 2 : 1;
+  return fmtColdPro(convertThermalLoad(valueKW, unit), digits);
+}
+
+function UnitAuditPanel({ audit }: { audit: any }) {
+  const alerts = Array.isArray(audit?.consistencyAlerts) ? audit.consistencyAlerts : [];
+  const rows = [
+    ["Motor interno", audit?.engineFlow ?? "kJ/kg → kJ/h → kW"],
+    ["Unidade padrão exibida", audit?.defaultDisplayUnit ?? "kcal/h"],
+    ["Fonte dos dados térmicos", audit?.source ?? "ASHRAE / CN ColdPro"],
+    ["Conversão", "Aplicada somente na saída"],
+    ["Cp acima", audit?.cpAboveKJkgK ? `${fmtColdPro(audit.cpAboveKJkgK, 4)} kJ/kg.K` : "—"],
+    ["Cp abaixo", audit?.cpBelowKJkgK ? `${fmtColdPro(audit.cpBelowKJkgK, 4)} kJ/kg.K` : "—"],
+    ["Calor latente", audit?.latentHeatKJkg ? `${fmtColdPro(audit.latentHeatKJkg, 4)} kJ/kg` : "—"],
+    ["Energia específica", audit?.specificEnergyKJkg ? `${fmtColdPro(audit.specificEnergyKJkg, 4)} kJ/kg` : "—"],
+    ["Carga produto", audit?.productLoadKW ? `${fmtColdPro(audit.productLoadKJH, 0)} kJ/h · ${fmtColdPro(audit.productLoadKW, 2)} kW · ${fmtColdPro(audit.productLoadKcalH, 0)} kcal/h` : "—"],
+  ];
+  return <div className="space-y-3"><div className="grid gap-2 text-sm md:grid-cols-2">{rows.map(([label, value]) => <div key={label} className="rounded-lg bg-muted/30 p-3"><span className="text-muted-foreground">{label}: </span><b>{value}</b></div>)}</div>{alerts.length ? <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{alerts.map((alert: any) => <div key={`${alert.field}-${alert.deviationPercent}`}>{alert.message}</div>)}</div> : null}</div>;
 }
 
 function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (value: boolean) => void; label: string }) {
@@ -103,6 +127,7 @@ export function ColdProResultCard({ result, selection, environment, products = [
   const [showCharts, setShowCharts] = React.useState(true);
   const [showAI, setShowAI] = React.useState(true);
   const [showTables, setShowTables] = React.useState(false);
+  const [displayUnit, setDisplayUnit] = React.useState<ThermalLoadUnit>("kcal/h");
 
   if (!result) return <div className="rounded-lg border border-dashed bg-background p-3 text-sm text-muted-foreground">Nenhum cálculo realizado. Preencha as etapas anteriores e clique em calcular carga térmica.</div>;
 
@@ -124,6 +149,12 @@ export function ColdProResultCard({ result, selection, environment, products = [
           <p className="mt-0.5 text-xs text-muted-foreground">Usa somente cálculo, produtos, processos e equipamento do ambiente selecionado.</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <div className="flex items-center gap-2 rounded-md border px-2 py-1 text-xs">
+            <span className="text-muted-foreground">Unidade de exibição</span>
+            <ToggleGroup type="single" value={displayUnit} onValueChange={(value) => value && setDisplayUnit(value as ThermalLoadUnit)} size="sm" className="justify-start">
+              {(["kcal/h", "kW", "TR", "BTU/h"] as ThermalLoadUnit[]).map((unit) => <ToggleGroupItem key={unit} value={unit} aria-label={unit}>{unit}</ToggleGroupItem>)}
+            </ToggleGroup>
+          </div>
           <Toggle checked={compact} onChange={setCompact} label="Visualização resumida" />
           <Toggle checked={showCharts} onChange={setShowCharts} label="Gráficos" />
           <Toggle checked={showAudit} onChange={setShowAudit} label="Auditoria" />
@@ -133,14 +164,14 @@ export function ColdProResultCard({ result, selection, environment, products = [
       </div>
 
       <section className="coldpro-grid">
-        <Kpi label="Carga requerida" value={normalized.summary.requiredKcalH} unit="kcal/h" icon={<Calculator className="h-4 w-4" />} />
-        <Kpi label="Potência" value={normalized.summary.requiredKW} unit="kW" icon={<Gauge className="h-4 w-4" />} />
-        <Kpi label="Capacidade" value={normalized.summary.requiredTR} unit="TR" icon={<Snowflake className="h-4 w-4" />} />
-        <Kpi label="Segurança" value={normalized.summary.safetyKcalH} unit="kcal/h" note={`${fmtColdPro(normalized.summary.safetyFactorPercent)}%`} icon={<BarChart3 className="h-4 w-4" />} />
+        <Kpi label="Carga requerida" value={formatLoadFromKW(normalized.summary.requiredKW, displayUnit)} unit={displayUnit} icon={<Calculator className="h-4 w-4" />} />
+        <Kpi label="Potência" value={fmtColdPro(normalized.summary.requiredKW, 1)} unit="kW interno" icon={<Gauge className="h-4 w-4" />} />
+        <Kpi label="Capacidade" value={formatLoadFromKW(normalized.summary.requiredKW, displayUnit)} unit={displayUnit} icon={<Snowflake className="h-4 w-4" />} />
+        <Kpi label="Segurança" value={formatLoadFromKW(normalized.summary.safetyKcalH / 859.845, displayUnit)} unit={displayUnit} note={`${fmtColdPro(normalized.summary.safetyFactorPercent)}%`} icon={<BarChart3 className="h-4 w-4" />} />
         <Kpi label="Status" value={normalized.summary.status} unit="dimensionamento" icon={<Gauge className="h-4 w-4" />} />
         <Kpi label="Sobra técnica" value={normalized.equipment.surplusPercent} unit="%" icon={<Gauge className="h-4 w-4" />} />
         <Kpi label="Equipamento" value={normalized.equipment.selectedModel ?? "—"} unit={normalized.equipment.quantity ? `${fmtColdPro(normalized.equipment.quantity, 0)} unidade(s)` : "seleção"} icon={<Snowflake className="h-4 w-4" />} />
-        <Kpi label="Capacidade selecionada" value={normalized.equipment.totalCapacityKcalH} unit="kcal/h" icon={<Calculator className="h-4 w-4" />} />
+        <Kpi label="Capacidade selecionada" value={formatLoadFromKW(normalized.equipment.totalCapacityKcalH / 859.845, displayUnit)} unit={displayUnit} icon={<Calculator className="h-4 w-4" />} />
       </section>
 
       {showCharts ? (
@@ -150,7 +181,7 @@ export function ColdProResultCard({ result, selection, environment, products = [
         </section>
       ) : null}
 
-      {showAudit ? <section className="coldpro-section"><ResultConsistencyAudit normalized={normalized} /></section> : null}
+      {showAudit ? <section className="coldpro-section space-y-3"><ResultConsistencyAudit normalized={normalized} /><Details title="Auditoria de unidades" defaultOpen><UnitAuditPanel audit={(normalized as any).unitAudit} /></Details></section> : null}
 
       {!compact ? (
         <>

@@ -22,7 +22,8 @@ import { calculateEvaporatorFanLoad, calculateMotorLoadKcalH, calculatePsychrome
 import { databaseToTunnelInput } from "@/modules/coldpro/adapters/databaseToTunnelInput";
 import { listAshraeColdProComparisons } from "@/modules/coldpro/core/ashraeComparison";
 import { COLDPRO_CALCULATION_METHODS } from "@/modules/coldpro/core/calculationMethodRegistry";
-import { normalizeProductForKcalEngine } from "@/modules/coldpro/core/unitNormalizer";
+import { normalizeProductForKjEngine } from "@/modules/coldpro/core/unitNormalizer";
+import { DEFAULT_THERMAL_DISPLAY_UNIT, ENGINE_ENERGY_UNIT, ENGINE_POWER_UNIT, convertThermalLoad } from "@/modules/coldpro/core/units";
 import { buildCalculationMethodReport } from "@/modules/coldpro/reports/calculationMethodReport";
 import { COLDPRO_TUNNEL_ENGINE_VERSION, calculateTunnelEngine } from "@/modules/coldpro/engines/tunnelEngine";
 import { auditColdProTechnicalConsistency } from "@/modules/coldpro/core/technicalAudit";
@@ -300,7 +301,7 @@ export function buildThermalCalculationResult(result: any, selection?: any | nul
   if (selection && Math.abs(correctedTotalCalculated - correctedTotalDisplayed) > 1) addBlocker("capacity_total_mismatch", "Capacidade total exibida não fecha com capacidade unitária corrigida multiplicada pela quantidade.");
   if (selection && Math.abs(surplusCalculated - surplusDisplayed) > 0.1) addBlocker("surplus_mismatch", "Sobra técnica exibida não fecha com capacidade corrigida total e carga requerida validada.");
   for (const alert of Array.isArray(breakdown?.validation_alerts) ? breakdown.validation_alerts : []) {
-    if (["internal_rh_zero", "product_energy_inconsistent"].includes(String(alert.code))) addBlocker(String(alert.code), String(alert.message));
+    if (["internal_rh_zero", "product_energy_inconsistent", "thermal_unit_kj_kcal_mismatch"].includes(String(alert.code))) addBlocker(String(alert.code), String(alert.message));
     if (["negative_room_without_defrost", "door_without_infiltration", "tunnel_product_process_zero", "tunnel_inlet_temp_missing", "tunnel_outlet_temp_missing", "tunnel_thermal_properties_missing", "required_below_subtotal", "required_below_product"].includes(String(alert.code))) addBlocker(String(alert.code), String(alert.message));
   }
   if (!selection) warnings.push({ code: "equipment_selection_missing", message: "Seleção de equipamento ainda não vinculada ao resultado validado." });
@@ -660,10 +661,10 @@ export function calculateProductLoadBreakdown(product: ColdProEnvironmentProduct
   const tout = n(product.outlet_temp_c);
   const tfreeze = product.initial_freezing_temp_c;
 
-  const thermal = normalizeProductForKcalEngine(product);
-  const cpAbove = thermal.cpAboveKcalKgC;
-  const cpBelow = thermal.cpBelowKcalKgC;
-  const latent = thermal.latentHeatKcalKg;
+  const thermal = normalizeProductForKjEngine(product);
+  const cpAboveKJ = thermal.cpAboveKJkgK;
+  const cpBelowKJ = thermal.cpBelowKJkgK;
+  const latentKJ = thermal.latentHeatKJkg;
   const allowPhaseChange = product.allow_phase_change !== false;
   const frozenFraction = thermal.frozenWaterFraction;
   const latentResidualFactor = thermal.latentResidualFactor;
@@ -673,18 +674,20 @@ export function calculateProductLoadBreakdown(product: ColdProEnvironmentProduct
   let sensibleBelow = 0;
 
   if (allowPhaseChange && tfreeze !== null && tfreeze !== undefined && tout < tfreeze) {
-    sensibleAbove = massDay * cpAbove * positive(tin - tfreeze);
-    latentLoad = massDay * latent * frozenFraction * latentResidualFactor;
-    sensibleBelow = massDay * cpBelow * Math.abs(tout - Math.min(tin, tfreeze));
+    sensibleAbove = massDay * cpAboveKJ * positive(tin - tfreeze);
+    latentLoad = massDay * (thermal.latentMode === "full" ? latentKJ * frozenFraction * latentResidualFactor : latentKJ);
+    sensibleBelow = massDay * cpBelowKJ * Math.max(tfreeze - tout, 0);
   } else {
-    const cp = tin >= 0 && tout >= 0 ? cpAbove : cpBelow || cpAbove;
+    const cp = tin >= 0 && tout >= 0 ? cpAboveKJ : cpBelowKJ || cpAboveKJ;
     sensibleAbove = massDay * cp * Math.abs(tin - tout);
   }
 
-  const totalEnergy = sensibleAbove + latentLoad + sensibleBelow;
-  const total = loadMode === "hourly_intake" ? totalEnergy / 24 : totalEnergy / hours;
-  const specificEnergyKjKg = massDay > 0 ? (totalEnergy / massDay) * KCAL_TO_KJ : 0;
-  const thermalAlerts = productThermalAlerts(product, specificEnergyKjKg, latent * KCAL_TO_KJ);
+  const totalEnergyKJ = sensibleAbove + latentLoad + sensibleBelow;
+  const loadKJH = loadMode === "hourly_intake" ? totalEnergyKJ / 24 : totalEnergyKJ / hours;
+  const loadKW = loadKJH / 3600;
+  const total = convertThermalLoad(loadKW, "kcal/h");
+  const specificEnergyKjKg = massDay > 0 ? totalEnergyKJ / massDay : 0;
+  const thermalAlerts = [...productThermalAlerts(product, specificEnergyKjKg, latentKJ), ...thermal.consistencyAlerts.map((alert) => ({ level: alert.level, code: alert.code, message: alert.message }))];
   const warnings = [loadMode === "room_pull_down_or_freezing" ? "Câmara de armazenagem usada para resfriar/congelar produto novo: validar circulação de ar, empilhamento, embalagem, área exposta e tempo disponível; para cargas intensas ou recorrentes, considerar túnel dedicado." : null, ...thermalAlerts.map((alert) => alert.message)].filter(Boolean);
   return {
     product_name: product.product_name,
@@ -702,12 +705,12 @@ export function calculateProductLoadBreakdown(product: ColdProEnvironmentProduct
     inlet_temp_c: tin,
     outlet_temp_c: tout,
     freezing_temp_c: tfreeze ?? null,
-    cp_above_kcal_kg_c: cpAbove,
-    cp_below_kcal_kg_c: cpBelow,
-    cp_above_kj_kg_k: round2(cpAbove * KCAL_TO_KJ),
-    cp_below_kj_kg_k: round2(cpBelow * KCAL_TO_KJ),
-    latent_heat_kcal_kg: latent,
-    latent_heat_kj_kg: round2(latent * KCAL_TO_KJ),
+    cp_above_kcal_kg_c: round2(cpAboveKJ / KCAL_TO_KJ),
+    cp_below_kcal_kg_c: round2(cpBelowKJ / KCAL_TO_KJ),
+    cp_above_kj_kg_k: round2(cpAboveKJ),
+    cp_below_kj_kg_k: round2(cpBelowKJ),
+    latent_heat_kcal_kg: round2(latentKJ / KCAL_TO_KJ),
+    latent_heat_kj_kg: round2(latentKJ),
     frozen_water_fraction: frozenFraction,
     latent_residual_factor: latentResidualFactor,
     unit_conversions: thermal.conversionSources,
@@ -721,17 +724,28 @@ export function calculateProductLoadBreakdown(product: ColdProEnvironmentProduct
       fiber: product.fiber_content_percent ?? null,
       ash: product.ash_content_percent ?? null,
     },
-    total_energy_kcal: round2(totalEnergy),
-    sensible_above_energy_kcal: round2(sensibleAbove),
-    latent_energy_kcal: round2(latentLoad),
-    sensible_below_energy_kcal: round2(sensibleBelow),
-    energy_steps_sum_kcal: round2(sensibleAbove + latentLoad + sensibleBelow),
-    energy_consistency_delta_kcal: round2(Math.abs(totalEnergy - (sensibleAbove + latentLoad + sensibleBelow))),
-    specific_energy_kcal_kg: massDay > 0 ? round2(totalEnergy / massDay) : 0,
+    engine_energy_unit: ENGINE_ENERGY_UNIT,
+    engine_power_unit: ENGINE_POWER_UNIT,
+    default_display_unit: DEFAULT_THERMAL_DISPLAY_UNIT,
+    total_energy_kj: round2(totalEnergyKJ),
+    sensible_above_energy_kj: round2(sensibleAbove),
+    latent_energy_kj: round2(latentLoad),
+    sensible_below_energy_kj: round2(sensibleBelow),
+    load_kj_h: round2(loadKJH),
+    load_kw: round2(loadKW),
+    load_btu_h: round2(convertThermalLoad(loadKW, "BTU/h")),
+    load_tr: round2(convertThermalLoad(loadKW, "TR")),
+    total_energy_kcal: round2(totalEnergyKJ / KCAL_TO_KJ),
+    sensible_above_energy_kcal: round2(sensibleAbove / KCAL_TO_KJ),
+    latent_energy_kcal: round2(latentLoad / KCAL_TO_KJ),
+    sensible_below_energy_kcal: round2(sensibleBelow / KCAL_TO_KJ),
+    energy_steps_sum_kcal: round2((sensibleAbove + latentLoad + sensibleBelow) / KCAL_TO_KJ),
+    energy_consistency_delta_kcal: round2(Math.abs(totalEnergyKJ - (sensibleAbove + latentLoad + sensibleBelow)) / KCAL_TO_KJ),
+    specific_energy_kcal_kg: massDay > 0 ? round2((totalEnergyKJ / massDay) / KCAL_TO_KJ) : 0,
     specific_energy_kj_kg: round2(specificEnergyKjKg),
-    sensible_above_kcal_h: round2(loadMode === "hourly_intake" ? sensibleAbove / 24 : sensibleAbove / hours),
-    latent_kcal_h: round2(loadMode === "hourly_intake" ? latentLoad / 24 : latentLoad / hours),
-    sensible_below_kcal_h: round2(loadMode === "hourly_intake" ? sensibleBelow / 24 : sensibleBelow / hours),
+    sensible_above_kcal_h: round2((loadMode === "hourly_intake" ? sensibleAbove / 24 : sensibleAbove / hours) / KCAL_TO_KJ),
+    latent_kcal_h: round2((loadMode === "hourly_intake" ? latentLoad / 24 : latentLoad / hours) / KCAL_TO_KJ),
+    sensible_below_kcal_h: round2((loadMode === "hourly_intake" ? sensibleBelow / 24 : sensibleBelow / hours) / KCAL_TO_KJ),
     total_kcal_h: round2(total),
     source: product.product_id ? "Catálogo ASHRAE/CN ColdPro" : "Manual",
   };

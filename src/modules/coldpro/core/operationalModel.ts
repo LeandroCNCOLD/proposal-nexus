@@ -187,23 +187,25 @@ export function resolveProcessMass(input: any): ProcessMassResolution {
   return { processMode, massBasis, batchMassKg, massFlowKgH, processTimeH, warnings: unique(warnings), blockers: unique(blockers), calculatedPalletMassKg, calculatedCartMassKg, calculatedBatchMassKg, unitsPerPallet, productMassPerPalletKg, packagingMassPerPalletKg, numberOfPallets, numberOfCarts, beltSurface };
 }
 
-export function calculateProductLoadByProcessMode(input: { processMass: ProcessMassResolution; specificEnergyKcalKg?: number | null }) {
-  const energy = positive(input?.specificEnergyKcalKg);
+export function calculateProductLoadByProcessMode(input: { processMass: ProcessMassResolution; specificEnergyKJkg?: number | null; specificEnergyKcalKg?: number | null }) {
+  const energyKJkg = positive(input?.specificEnergyKJkg) || positive(input?.specificEnergyKcalKg) * 4.1868;
   const mass = input.processMass;
   const blockers: string[] = [];
   if (mass.processMode === "batch") {
     if (mass.batchMassKg <= 0) blockers.push("massa <= 0");
     if (mass.processTimeH <= 0) blockers.push("tempo <= 0");
-    if (energy <= 0) blockers.push("energia específica <= 0");
-    const productLoadKcalH = mass.batchMassKg > 0 && mass.processTimeH > 0 && energy > 0 ? (mass.batchMassKg * energy) / mass.processTimeH : 0;
-    return { productLoadKcalH, productLoadKW: productLoadKcalH / 859.845, blockers };
+    if (energyKJkg <= 0) blockers.push("energia específica <= 0");
+    const productLoadKJH = mass.batchMassKg > 0 && mass.processTimeH > 0 && energyKJkg > 0 ? (mass.batchMassKg * energyKJkg) / mass.processTimeH : 0;
+    const productLoadKW = productLoadKJH / 3600;
+    return { productLoadKJH, productLoadKcalH: productLoadKW * 859.845, productLoadKW, blockers };
   }
   if (mass.processMode === "continuous") {
     if (mass.massFlowKgH <= 0) blockers.push("fluxo kg/h <= 0");
     if (mass.processTimeH <= 0) blockers.push("tempo de residência <= 0");
-    if (energy <= 0) blockers.push("energia específica <= 0");
-    const productLoadKcalH = mass.massFlowKgH > 0 && energy > 0 ? mass.massFlowKgH * energy : 0;
-    return { productLoadKcalH, productLoadKW: productLoadKcalH / 859.845, blockers };
+    if (energyKJkg <= 0) blockers.push("energia específica <= 0");
+    const productLoadKJH = mass.massFlowKgH > 0 && energyKJkg > 0 ? mass.massFlowKgH * energyKJkg : 0;
+    const productLoadKW = productLoadKJH / 3600;
+    return { productLoadKJH, productLoadKcalH: productLoadKW * 859.845, productLoadKW, blockers };
   }
-  return { productLoadKcalH: 0, productLoadKW: 0, blockers };
+  return { productLoadKJH: 0, productLoadKcalH: 0, productLoadKW: 0, blockers };
 }

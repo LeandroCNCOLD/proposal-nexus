@@ -2,7 +2,7 @@ import { buildCalculationLog } from "../core/calculationLogger";
 import { COLDPRO_CALCULATION_METHOD_REGISTRY_VERSION, COLDPRO_CALCULATION_METHODS } from "../core/calculationMethodRegistry";
 import { calculateProductLoadByProcessMode, resolveProcessMass } from "../core/operationalModel";
 import { buildCalculationMethodReport } from "../reports/calculationMethodReport";
-import { kwToKcalH, kwToTr } from "../core/units";
+import { DEFAULT_THERMAL_DISPLAY_UNIT, ENGINE_ENERGY_UNIT, ENGINE_POWER_UNIT, convertThermalLoad, kwToKcalH, kwToTr } from "../core/units";
 import { validateTunnelInput } from "../core/validators";
 import { calculateAirflowModel, calculatePsychrometricInfiltrationKW, calculateRequiredAirflowM3H } from "../physics/airflowModel";
 import { createAirPropertiesContext } from "../physics/airProperties";
@@ -434,14 +434,20 @@ function calculateTunnelCore(input: TunnelEngineInput) {
     allowPhaseChange: input?.allowPhaseChange,
   });
 
-  const productLoadResolution = calculateProductLoadByProcessMode({ processMass, specificEnergyKcalKg: energy.totalKcalKg });
+  const productLoadResolution = calculateProductLoadByProcessMode({ processMass, specificEnergyKJkg: energy.totalKJkg, specificEnergyKcalKg: energy.totalKcalKg });
   const productLoadKW = productLoadResolution.productLoadKW;
+  const productLoadKJH = productLoadResolution.productLoadKJH;
   const productLoadMissing = productLoadMissingFields(input, tunnelMode.operationRegime === "batch", staticMassKg, usedMassKgH, energy);
   const thermalReliabilityAlerts = buildThermalReliabilityAlerts(input, energy, productLoadKW, tunnelMode.operationRegime === "batch" ? staticMassKg : usedMassKgH, tunnelMode.operationRegime === "batch" ? positiveNumber(input?.batchTimeH) : 0);
 
   const productEnergyBreakdown = {
     unitAudit: input?.unitAudit ?? null,
-    effectiveCalculationUnit: "kJ/kg.K para Cp e kJ/kg para calor latente; kcal apenas compatibilidade",
+    effectiveCalculationUnit: "Motor interno: kJ/kg → kJ/h → kW; kcal/h apenas apresentação comercial",
+    engineEnergyUnit: ENGINE_ENERGY_UNIT,
+    enginePowerUnit: ENGINE_POWER_UNIT,
+    defaultDisplayUnit: DEFAULT_THERMAL_DISPLAY_UNIT,
+    conversionAppliedAt: "presentation_output_only",
+    unitConsistencyAlerts: input?.unitConsistencyAlerts ?? null,
     cpAboveKJkgK: energy.cpAboveKJkgK,
     cpBelowKJkgK: energy.cpBelowKJkgK,
     latentHeatKJkg: energy.latentHeatKJkg,
@@ -455,6 +461,11 @@ function calculateTunnelCore(input: TunnelEngineInput) {
     latentKJkg: energy.latentKJkg,
     sensibleBelowKJkg: energy.sensibleBelowKJkg,
     totalKJkg: energy.totalKJkg,
+    productLoadKJH,
+    productLoadKW,
+    productLoadKcalH: convertThermalLoad(productLoadKW, "kcal/h"),
+    productLoadTR: convertThermalLoad(productLoadKW, "TR"),
+    productLoadBTUH: convertThermalLoad(productLoadKW, "BTU/h"),
     crossesFreezing: energy.crossesFreezingPoint,
     frozenWaterFraction: energy.frozenWaterFraction ?? null,
     latentResidualFactor: energy.latentResidualFactor ?? null,
@@ -638,7 +649,7 @@ function calculateTunnelCore(input: TunnelEngineInput) {
     heatTransfer: { hBaseWM2K: h.hBaseWM2K, exposureFactor: exposure.exposureFactor, airExposureFactor: input?.airExposureFactor ?? null, hEffectiveWM2K: h.hEffectiveWM2K, hSource: h.source, transmission },
     air: { airTempC: input?.airTempC ?? null, airDeltaTK, airDensityKgM3, cpAirKJkgK, airProperties: airProps, airFlowM3H, informedAirFlowM3H, airFlowMethod, suggestedAirTempC, suggestedAirMethod, suggestedAirApproachK, comparison: suggestedAirTempComparisonC },
     scenarios: { adjustedScenario: scenario },
-    loads: { productLoadKW, packagingLoadKW, transmissionLoadKW, infiltrationLoadKW, internalLoadKW, totalKW, totalKcalH, totalTR, internalLoads, packagingMassKgH, packagingMassKgBatch, packagingMassBatchKg: packagingMassKgBatch, packagingLoadMethod: packaging.packagingLoadMethod, packagingMassSource: packaging.packagingMassSource, productLoadMissingFields: productLoadMissing, loadCalculationReady: productLoadMissing.length === 0, massUsedForProductLoad: tunnelMode.operationRegime === "batch" ? staticMassKg : usedMassKgH, massUnitForProductLoad: tunnelMode.operationRegime === "batch" ? "kg/batelada" : "kg/h", airFlowThermalBalanceM3H },
+    loads: { productLoadKJH, productLoadKW, productLoadKcalH: convertThermalLoad(productLoadKW, "kcal/h"), productLoadTR: convertThermalLoad(productLoadKW, "TR"), productLoadBTUH: convertThermalLoad(productLoadKW, "BTU/h"), displayUnit: DEFAULT_THERMAL_DISPLAY_UNIT, packagingLoadKW, transmissionLoadKW, infiltrationLoadKW, internalLoadKW, totalKW, totalKcalH, totalTR, internalLoads, packagingMassKgH, packagingMassKgBatch, packagingMassBatchKg: packagingMassKgBatch, packagingLoadMethod: packaging.packagingLoadMethod, packagingMassSource: packaging.packagingMassSource, productLoadMissingFields: productLoadMissing, loadCalculationReady: productLoadMissing.length === 0, massUsedForProductLoad: tunnelMode.operationRegime === "batch" ? staticMassKg : usedMassKgH, massUnitForProductLoad: tunnelMode.operationRegime === "batch" ? "kg/batelada" : "kg/h", airFlowThermalBalanceM3H },
     infiltration: { ...infiltration, requestedMethod: infiltrationMethod.requested, usedMethod: infiltrationMethod.used, fallbackApplied: infiltrationMethod.used !== infiltrationMethod.requested },
     timing: { estimatedTimeMin, availableTimeMin, status, validationStatus: freezingValidation.status, marginPercent: freezingValidation.marginPercent },
     validation: { warnings, missingFields, invalidFields, thermalReliabilityAlerts, inputStatus, thermalStatus, equipmentStatus, projectStatus, blockers: [...processMass.blockers, ...productLoadResolution.blockers] },

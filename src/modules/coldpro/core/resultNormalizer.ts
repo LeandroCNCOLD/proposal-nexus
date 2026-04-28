@@ -1,6 +1,7 @@
 import { listAshraeColdProComparisons } from "./ashraeComparison";
 import { simulateMonthlyEnergyConsumption } from "../energy/monthlyEnergySimulation";
 import { auditColdProTechnicalConsistency } from "./technicalAudit";
+import { DEFAULT_THERMAL_DISPLAY_UNIT, ENGINE_ENERGY_UNIT, ENGINE_POWER_UNIT } from "./units";
 
 export type ColdProNormalizedResult = ReturnType<typeof normalizeColdProResult>;
 
@@ -125,6 +126,7 @@ export function normalizeColdProResult(rawResult: any, selection?: any | null, e
   const requiredForEquipment = num(audit.carga_requerida_validada ?? selection?.required_capacity_kcal_h ?? requiredKcalH);
   const surplusPercent = num(audit.sobra_percentual ?? selection?.surplus_percent ?? (requiredForEquipment > 0 ? ((equipmentTotal - requiredForEquipment) / requiredForEquipment) * 100 : 0));
   const resultTotalKW = num(result.totalKW ?? result.total_kw ?? result.tunnel_total_load_kw ?? tunnel.totalKW ?? tunnel.total_kw) || num(result.total_required_kw) || requiredKcalH / KCAL_PER_KW;
+  const unitAuditSource = tunnel.calculation_breakdown?.productEnergy ?? tunnel.calculationBreakdown?.productEnergy ?? breakdown.tunnel?.calculation_breakdown?.productEnergy ?? {};
   const resultCOP = num(result.cop ?? result.COP ?? result.copData?.cop ?? result.cop_data?.cop ?? selection?.cop ?? audit.curva?.cop);
   const energySimulationInput = {
     coolingLoadKW: resultTotalKW,
@@ -168,6 +170,23 @@ export function normalizeColdProResult(rawResult: any, selection?: any | null, e
       isBlocked: technicalAudit.isBlocked,
       isPreliminary: technicalAudit.isPreliminary,
       displayApplicationLabel: technicalAudit.displayApplicationLabel,
+    },
+    unitAudit: {
+      engineEnergyUnit: ENGINE_ENERGY_UNIT,
+      enginePowerUnit: ENGINE_POWER_UNIT,
+      defaultDisplayUnit: DEFAULT_THERMAL_DISPLAY_UNIT,
+      engineFlow: "kJ/kg → kJ/h → kW",
+      source: "ASHRAE / CN ColdPro",
+      conversionAppliedAt: "saída/apresentação",
+      cpAboveKJkgK: round(num(unitAuditSource.cpAboveKJkgK), 4),
+      cpBelowKJkgK: round(num(unitAuditSource.cpBelowKJkgK), 4),
+      latentHeatKJkg: round(num(unitAuditSource.latentHeatKJkg), 4),
+      specificEnergyKJkg: round(num(unitAuditSource.totalKJkg ?? tunnel.q_specific_kj_kg), 4),
+      productLoadKJH: round(num(unitAuditSource.productLoadKJH), 2),
+      productLoadKW: round(num(unitAuditSource.productLoadKW ?? tunnelLoads.productKW), 4),
+      productLoadKcalH: round(num(unitAuditSource.productLoadKcalH ?? tunnelLoads.productKcalH), 2),
+      productLoadBTUH: round(num(unitAuditSource.productLoadBTUH), 2),
+      consistencyAlerts: Array.isArray(unitAuditSource.unitConsistencyAlerts) ? unitAuditSource.unitConsistencyAlerts : [],
     },
     loadDistribution,
     tunnelLoadBreakdown: {
