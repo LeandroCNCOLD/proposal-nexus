@@ -111,6 +111,36 @@ function CalculationMethodDetails({ method }: { method: any }) {
   return <div className="grid gap-2 text-sm md:grid-cols-2">{rows.map(([label, value]) => <div key={String(label)} className="rounded-lg bg-muted/30 p-3"><span className="text-muted-foreground">{label}: </span><b>{String(value)}</b></div>)}{Array.isArray(method.limitations) ? <div className="md:col-span-2 rounded-lg border bg-muted/20 p-3 text-muted-foreground">{method.limitations.join(" ")}</div> : null}</div>;
 }
 
+function ProductStageDetails({ product }: { product: any }) {
+  const stages = [
+    { label: "1. Base operacional", value: product.product_load_mode === "storage_turnover" ? `${fmtColdPro(product.stored_mass_kg)} kg estoque × ${fmtColdPro(product.daily_turnover_percent)}% = ${fmtColdPro(product.mass_kg_day)} kg/dia` : `${fmtColdPro(product.mass_kg_day)} kg/dia`, note: `${fmtColdPro(product.hourly_movement_kg)} kg/h em ${fmtColdPro(product.recovery_time_h ?? product.hours)} h` },
+    { label: "2. Propriedades", value: `Entrada ${fmtColdPro(product.inlet_temp_c)}°C → final ${fmtColdPro(product.outlet_temp_c)}°C`, note: `T. congelamento ${product.freezing_temp_c == null ? "—" : `${fmtColdPro(product.freezing_temp_c)}°C`} · Cp abaixo ${fmtColdPro(product.cp_below_kcal_kg_c, 3)} kcal/kg°C` },
+    { label: "3. Sensível acima / sensível direto", value: `${fmtColdPro(product.sensible_above_kcal_h)} kcal/h`, note: `${fmtColdPro(product.sensible_above_energy_kcal)} kcal totais` },
+    { label: "4. Calor latente", value: `${fmtColdPro(product.latent_kcal_h)} kcal/h`, note: product.phase_change_applied ? `${fmtColdPro(product.latent_energy_kcal)} kcal totais` : "Não aplicado" },
+    { label: "5. Sensível abaixo", value: `${fmtColdPro(product.sensible_below_kcal_h)} kcal/h`, note: `${fmtColdPro(product.sensible_below_energy_kcal)} kcal totais` },
+    { label: "6. Total do produto", value: `${fmtColdPro(product.total_kcal_h)} kcal/h`, note: `${fmtColdPro(product.load_kw, 2)} kW · ${fmtColdPro(product.load_tr, 2)} TR` },
+  ];
+
+  return (
+    <div className="mt-3 space-y-2">
+      <div className="rounded-lg border bg-background p-3 text-xs text-muted-foreground">
+        <b className="text-foreground">Base usada:</b> {product.calculation_basis_note ?? "Carga térmica calculada pela massa de movimentação/processo informada."}
+        <br />
+        <b className="text-foreground">Regra térmica:</b> {product.phase_change_rule ?? "Etapas calculadas conforme temperaturas e propriedades térmicas."}
+      </div>
+      <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+        {stages.map((stage) => (
+          <div key={stage.label} className="rounded-lg bg-background p-3">
+            <div className="text-xs font-semibold text-muted-foreground">{stage.label}</div>
+            <div className="mt-1 font-semibold tabular-nums">{stage.value}</div>
+            <div className="mt-1 text-xs text-muted-foreground">{stage.note}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 type Props = {
   result: any;
   selection?: any | null;
@@ -261,10 +291,13 @@ export function ColdProResultCard({ result, selection, environment, products = [
                   <div className="mb-2 font-semibold">{product.product_name}</div>
                   <div className="grid grid-cols-2 gap-x-6 gap-y-1 md:grid-cols-4">
                     <div>Modo: <b>{product.product_load_mode}</b></div>
-                    <div>Massa/dia: <b>{fmtColdPro(product.mass_kg_day)} kg</b></div>
+                    <div>Estoque: <b>{fmtColdPro(product.stored_mass_kg)} kg</b></div>
+                    <div>Massa calculada: <b>{fmtColdPro(product.mass_kg_day)} kg/dia</b></div>
                     <div>Equivalente: <b>{fmtColdPro(product.hourly_movement_kg)} kg/h</b></div>
                     <div>Carga: <b>{fmtColdPro(product.total_kcal_h)} kcal/h</b></div>
+                    <div>Latente: <b>{product.phase_change_applied ? "aplicado" : "não aplicado"}</b></div>
                   </div>
+                  <ProductStageDetails product={product} />
                 </div>
               ))}
             </div>

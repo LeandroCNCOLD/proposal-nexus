@@ -673,12 +673,16 @@ export function calculateProductLoadBreakdown(product: ColdProEnvironmentProduct
   let latentLoad = 0;
   let sensibleBelow = 0;
 
-  if (allowPhaseChange && tfreeze !== null && tfreeze !== undefined && tout < tfreeze) {
-    sensibleAbove = massDay * cpAboveKJ * positive(tin - tfreeze);
+  const hasValidFreezingPoint = tfreeze !== null && tfreeze !== undefined && Number.isFinite(Number(tfreeze));
+  const crossesFreezingPoint = allowPhaseChange && hasValidFreezingPoint && tin > Number(tfreeze) && tout < Number(tfreeze);
+  const staysFrozen = hasValidFreezingPoint && tin <= Number(tfreeze) && tout < Number(tfreeze);
+
+  if (crossesFreezingPoint) {
+    sensibleAbove = massDay * cpAboveKJ * positive(tin - Number(tfreeze));
     latentLoad = massDay * (thermal.latentMode === "full" ? latentKJ * frozenFraction * latentResidualFactor : latentKJ);
-    sensibleBelow = massDay * cpBelowKJ * Math.max(tfreeze - tout, 0);
+    sensibleBelow = massDay * cpBelowKJ * Math.max(Number(tfreeze) - tout, 0);
   } else {
-    const cp = tin >= 0 && tout >= 0 ? cpAboveKJ : cpBelowKJ || cpAboveKJ;
+    const cp = staysFrozen ? (cpBelowKJ || cpAboveKJ) : cpAboveKJ;
     sensibleAbove = massDay * cp * Math.abs(tin - tout);
   }
 
@@ -700,6 +704,9 @@ export function calculateProductLoadBreakdown(product: ColdProEnvironmentProduct
     recovery_time_h: round2(hours),
     is_freezing_inside_storage_room: loadMode === "room_pull_down_or_freezing" || product.is_freezing_inside_storage_room === true,
     warnings,
+    calculation_basis_note: loadMode === "storage_turnover" ? "Carga térmica calculada sobre a massa movimentada pelo giro diário; o estoque total não é usado diretamente como massa térmica." : loadMode === "hourly_intake" ? "Carga térmica calculada pela entrada horária informada." : loadMode === "room_pull_down_or_freezing" ? "Carga térmica calculada sobre o lote e tempo de recuperação/congelamento informados." : "Carga térmica calculada pela entrada diária informada e tempo de recuperação.",
+    phase_change_applied: crossesFreezingPoint,
+    phase_change_rule: crossesFreezingPoint ? "Produto cruza a temperatura de congelamento: sensível acima + latente + sensível abaixo." : staysFrozen ? "Produto já entra congelado: sem calor latente, usa Cp abaixo para a variação de temperatura." : "Produto não cruza a temperatura de congelamento: sem calor latente.",
     mass_kg_day: round2(massDay),
     hours,
     inlet_temp_c: tin,
