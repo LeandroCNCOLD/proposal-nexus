@@ -455,7 +455,7 @@ export const ColdProTunnelForm = React.forwardRef<ColdProTunnelFormHandle, ColdP
       units_per_hour: value === "calculated_by_units_per_hour" ? form.units_per_hour : 0,
       units_per_row: value === "calculated_by_belt_loading" ? form.units_per_row : 0,
       rows_per_meter: value === "calculated_by_belt_loading" ? form.rows_per_meter : 0,
-      belt_speed_m_min: value === "calculated_by_belt_loading" ? form.belt_speed_m_min : 0,
+      belt_speed_m_min: ["calculated_by_belt_loading", "calculated_by_belt_surface_density"].includes(value) ? form.belt_speed_m_min : 0,
       belt_width_m: value === "calculated_by_belt_surface_density" ? form.belt_width_m : 0,
       belt_effective_length_m: value === "calculated_by_belt_surface_density" ? form.belt_effective_length_m : 0,
       belt_area_m2: value === "calculated_by_belt_surface_density" ? form.belt_area_m2 : 0,
