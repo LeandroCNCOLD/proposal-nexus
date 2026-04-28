@@ -486,9 +486,19 @@ export const ColdProTunnelForm = React.forwardRef<ColdProTunnelFormHandle, ColdP
     setForm((prev) => {
       const next = { ...prev, [key]: value };
       const freeAreaM2 = freeAirAreaFromControls(next);
+      if (key === "air_velocity_m_s") {
+        const velocityMS = positiveValue(next.air_velocity_m_s);
+        const airflowM3H = airflowForVelocityM3H(freeAreaM2, velocityMS);
+        return airflowM3H > 0 ? { ...next, airflow_source: "airflow_by_fans", fan_airflow_m3_h: roundPreset(airflowM3H, 2), informed_air_flow_m3_h: roundPreset(airflowM3H, 2), airflow_m3_h: roundPreset(airflowM3H, 2), airflow_free_area_m2: roundPreset(freeAreaM2, 3) } : next;
+      }
+      const fanAirflowM3H = positiveValue(next.fan_airflow_m3_h, next.informed_air_flow_m3_h, next.airflow_m3_h);
+      if (fanAirflowM3H > 0 && freeAreaM2 > 0) {
+        const velocityMS = fanAirflowM3H / 3600 / freeAreaM2;
+        return { ...next, airflow_source: "airflow_by_fans", air_velocity_m_s: roundPreset(velocityMS, 3), airflow_free_area_m2: roundPreset(freeAreaM2, 3) };
+      }
       const velocityMS = positiveValue(next.air_velocity_m_s);
       const airflowM3H = airflowForVelocityM3H(freeAreaM2, velocityMS);
-      return airflowM3H > 0 ? { ...next, airflow_source: "airflow_by_fans", fan_airflow_m3_h: roundPreset(airflowM3H, 2), informed_air_flow_m3_h: roundPreset(airflowM3H, 2), airflow_m3_h: roundPreset(airflowM3H, 2) } : next;
+      return airflowM3H > 0 ? { ...next, airflow_source: "airflow_by_fans", fan_airflow_m3_h: roundPreset(airflowM3H, 2), informed_air_flow_m3_h: roundPreset(airflowM3H, 2), airflow_m3_h: roundPreset(airflowM3H, 2), airflow_free_area_m2: roundPreset(freeAreaM2, 3) } : next;
     });
   };
   const airControlNum = (key: string): NumericInputProps => ({ type: "number", step: "0.0001", value: inputValue(form?.[key]), onChange: (e: React.ChangeEvent<HTMLInputElement>) => setAirControl(key, numberOrNull(e.target.value)) });
@@ -1210,7 +1220,7 @@ export const ColdProTunnelForm = React.forwardRef<ColdProTunnelFormHandle, ColdP
   const timeRatioEstimatedVsAvailable = estimatedTimeForMassMin > 0 && availableTimeForMassMin > 0 ? estimatedTimeForMassMin / availableTimeForMassMin : null;
   const beltMassDifferencePercent = hasBeltPhysicalMass && massInAvailableTimeKg > 0 ? Math.abs(massInAvailableTimeKg - beltPhysicalMassKg) / Math.max(massInAvailableTimeKg, beltPhysicalMassKg) * 100 : 0;
   const showBeltMassMismatch = hasBeltPhysicalMass && massInAvailableTimeKg > 0 && beltMassDifferencePercent > 5;
-  const showInsufficientTimeDiagnostic = !isStatic && continuousCapacityKgH > 0 && massInAvailableTimeKg > 0 && estimatedTimeForMassMin > availableTimeForMassMin && availableTimeForMassMin > 0;
+  const showInsufficientTimeDiagnostic = !isStatic && continuousCapacityKgH > 0 && instantTunnelMassKg > 0 && estimatedTimeForMassMin > availableTimeForMassMin && availableTimeForMassMin > 0;
   const tunnelResultCards = (
     <>
       <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
