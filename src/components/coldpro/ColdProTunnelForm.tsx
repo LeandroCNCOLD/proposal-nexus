@@ -1431,12 +1431,15 @@ export const ColdProTunnelForm = React.forwardRef<ColdProTunnelFormHandle, ColdP
 
       <div className={`rounded-lg border p-4 ${tunnelResult.status === "adequate" && manualHWM2K > 0 ? "bg-success/10 border-success/20" : "bg-warning/10 border-warning/20"}`}>
         <div className="text-sm font-semibold text-foreground">
-          Com {fmtColdPro(instantTunnelMassKg, 1)} kg dentro do túnel, a retenção atual é {fmtColdPro(availableTimeForMassMin, 1)} min e o tempo térmico necessário até o núcleo é {estimatedTimeForMassMin > 0 ? fmtColdPro(estimatedTimeForMassMin, 1) : "—"} min.
+          A esteira está configurada para {fmtColdPro(nominalCapacityKgH, 1)} kg/h, equivalente a {fmtColdPro(capacityKgMin, 2)} kg/min.
         </div>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Com {fmtColdPro(availableTimeForMassMin, 1)} min de retenção, entram {fmtColdPro(projectedCycleMassKg, 1)} kg no túnel. Nas condições atuais, {fmtColdPro(frozenMassAtRetentionKg, 1)} kg congelam nesse tempo; déficit de {fmtColdPro(cycleDeficitKg, 1)} kg por ciclo ({achievedPercent === null ? "—" : `${fmtColdPro(achievedPercent, 1)}%`} atingido). Para congelar os {fmtColdPro(projectedCycleMassKg, 1)} kg, será necessário {thermalTimeRequiredMin > 0 ? fmtColdPro(thermalTimeRequiredMin, 1) : "—"} min de retenção.
+        </p>
         <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <ColdProCalculatedInfo label="Capacidade nominal" value={`${fmtColdPro(operatingCapacityFromInstantMassKgH || continuousCapacityKgH, 1)} kg/h`} description="massa instantânea × 60 ÷ retenção" tone={continuousCapacityKgH > 0 ? "success" : "warning"} />
-          <ColdProCalculatedInfo label="Capacidade real" value={`${fmtColdPro(realCapacityByThermalTimeKgH, 1)} kg/h`} description="massa instantânea × 60 ÷ tempo térmico" tone={realCapacityByThermalTimeKgH >= continuousCapacityKgH && continuousCapacityKgH > 0 ? "success" : "warning"} />
-          <ColdProCalculatedInfo label="Retenção necessária" value={retentionRequiredForInstantMassMin > 0 ? `${fmtColdPro(retentionRequiredForInstantMassMin, 1)} min` : "—"} description={retentionAdjustmentMin > 0 ? `aumentar ${fmtColdPro(retentionAdjustmentMin, 1)} min (${fmtColdPro(retentionAdjustmentPercent, 1)}%)` : "retenção atual suficiente"} tone={retentionAdjustmentMin <= 0 && retentionRequiredForInstantMassMin > 0 ? "success" : "warning"} />
+          <ColdProCalculatedInfo label="Massa projetada por ciclo" value={`${fmtColdPro(projectedCycleMassKg, 1)} kg`} description="kg/min × retenção" tone={projectedCycleMassKg > 0 ? "success" : "warning"} />
+          <ColdProCalculatedInfo label="Massa congelada na retenção" value={`${fmtColdPro(frozenMassAtRetentionKg, 1)} kg`} description="quanto congela no tempo disponível" tone={tunnelResult.status === "adequate" ? "success" : "warning"} />
+          <ColdProCalculatedInfo label="Retenção necessária" value={thermalTimeRequiredMin > 0 ? `${fmtColdPro(thermalTimeRequiredMin, 1)} min` : "—"} description={retentionAdjustmentMin > 0 ? `aumentar ${fmtColdPro(retentionAdjustmentMin, 1)} min` : "retenção atual suficiente"} tone={retentionAdjustmentMin <= 0 && thermalTimeRequiredMin > 0 ? "success" : "warning"} />
           <ColdProCalculatedInfo label="Status" value={processStatusText} description={manualHWM2K > 0 ? "validação com h manual" : "simulação preliminar sem h manual"} tone={tunnelResult.status === "adequate" && manualHWM2K > 0 ? "success" : "warning"} />
         </div>
       </div>
