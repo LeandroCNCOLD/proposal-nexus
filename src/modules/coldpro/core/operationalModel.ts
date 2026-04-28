@@ -156,7 +156,7 @@ export function resolveProcessMass(input: any): ProcessMassResolution {
   const linearLoadKgM = beltSurfaceDensityKgM2 * beltWidthM;
   const flowByRetentionKgH = massOnBeltKg > 0 && retentionTimeMin > 0 ? massOnBeltKg / retentionTimeMin * 60 : 0;
   const flowBySpeedKgH = linearLoadKgM > 0 && beltSpeedMMin > 0 ? linearLoadKgM * beltSpeedMMin * 60 : 0;
-  const massByBeltSurfaceKgH = flowBySpeedKgH || nominalCapacityKgH || flowByRetentionKgH;
+  const massByBeltSurfaceKgH = flowByRetentionKgH || flowBySpeedKgH || nominalCapacityKgH;
   const calculatedRetentionMin = beltEffectiveLengthM > 0 && beltSpeedMMin > 0 ? beltEffectiveLengthM / beltSpeedMMin : 0;
   const beltSurface = continuousMassMode === "calculated_by_belt_surface_density" ? { method: "belt_surface_density" as const, areaM2: beltAreaM2, calculatedAreaM2: calculatedBeltAreaM2, informedAreaM2: informedBeltAreaM2, widthM: beltWidthM, effectiveLengthM: beltEffectiveLengthM, surfaceDensityKgM2: beltSurfaceDensityKgM2, massOnBeltKg, linearLoadKgM, speedMMin: beltSpeedMMin, retentionTimeMin, calculatedRetentionMin, flowByRetentionKgH, flowBySpeedKgH, calculatedFlowKgH: massByBeltSurfaceKgH, nominalCapacityKgH, capacityDeviationPercent: pctDiff(massByBeltSurfaceKgH, nominalCapacityKgH), flowMethodDeviationPercent: pctDiff(flowBySpeedKgH, flowByRetentionKgH), areaDeviationPercent: pctDiff(informedBeltAreaM2, calculatedBeltAreaM2) } : null;
   const massByFeedRateKgH = positive(input?.feedRateKgH ?? input?.feed_rate_kg_h);
