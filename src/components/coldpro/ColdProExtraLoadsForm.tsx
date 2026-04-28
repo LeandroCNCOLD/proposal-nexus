@@ -6,13 +6,13 @@ import { ColdProCalculatedInfo, ColdProFormSection, ColdProValidationMessage, fm
 import { calculateExtraLoadPreview, suggestedInfiltrationFactor } from "@/features/coldpro/extra-loads-preview";
 import { LIGHTING_EQUIPMENT_PRESETS, MOTOR_EQUIPMENT_PRESETS } from "@/features/coldpro/thermal-calculations";
 
-type Props = { environment: any; catalogFanLoadKcalH?: number; onSave: (patch: Record<string, unknown>) => void | boolean | Promise<void | boolean> };
+type Props = { environment: any; catalogFanLoadKcalH?: number; projectBaseLoadKcalH?: number; onSave: (patch: Record<string, unknown>) => void | boolean | Promise<void | boolean> };
 
 export type ColdProExtraLoadsFormHandle = {
   save: () => Promise<boolean>;
 };
 
-export const ColdProExtraLoadsForm = React.forwardRef<ColdProExtraLoadsFormHandle, Props>(function ColdProExtraLoadsForm({ environment, catalogFanLoadKcalH = 0, onSave }, ref) {
+export const ColdProExtraLoadsForm = React.forwardRef<ColdProExtraLoadsFormHandle, Props>(function ColdProExtraLoadsForm({ environment, catalogFanLoadKcalH = 0, projectBaseLoadKcalH = 0, onSave }, ref) {
   const [form, setForm] = React.useState<any>(environment);
   const [selectedMotorPreset, setSelectedMotorPreset] = React.useState("0");
   const [selectedLightingPreset, setSelectedLightingPreset] = React.useState("0");
@@ -26,6 +26,9 @@ export const ColdProExtraLoadsForm = React.forwardRef<ColdProExtraLoadsFormHandl
   const negativeInvalid = [form.door_openings_per_day, form.door_width_m, form.door_height_m, form.infiltration_factor, form.air_changes_per_hour, form.fresh_air_m3_h, form.door_infiltration_m3_h, form.people_count, form.lighting_power_w, form.motors_power_kw, form.fans_kcal_h, form.defrost_kcal_h, form.other_kcal_h, form.safety_factor_percent].some((v) => Number(v ?? 0) < 0);
   const canSave = !hoursInvalid && !negativeInvalid;
   const preview = calculateExtraLoadPreview(form ?? {});
+  const projectSubtotalKcalH = Number(projectBaseLoadKcalH ?? 0) + preview.subtotal_kcal_h;
+  const projectSafetyKcalH = projectSubtotalKcalH * (Number(form?.safety_factor_percent ?? 0) / 100);
+  const projectTotalWithSafetyKcalH = projectSubtotalKcalH + projectSafetyKcalH;
   const suggestedFactor = suggestedInfiltrationFactor(form ?? {});
   const internalPower = Number(form.lighting_power_w ?? 0) / 1000 + Number(form.motors_power_kw ?? 0);
   const addMotorPreset = () => {
@@ -72,11 +75,11 @@ export const ColdProExtraLoadsForm = React.forwardRef<ColdProExtraLoadsFormHandl
       <div className="mb-5 flex flex-col gap-3 border-b pb-4 md:flex-row md:items-start md:justify-between">
         <div>
           <h2 className="text-lg font-semibold">Cargas extras</h2>
-          <p className="mt-1 text-sm text-muted-foreground">Renovação de ar, pessoas, iluminação, motores, ventiladores, degelo e fator de segurança.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Renovação de ar, pessoas, iluminação, motores, ventiladores, degelo e fator de segurança global.</p>
         </div>
         <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 md:w-auto md:min-w-80">
-          <ColdProCalculatedInfo label="Total automático" value={`${fmtColdPro(preview.subtotal_kcal_h)} kcal/h`} description="Infiltração + internas + adicionais" />
-          <ColdProCalculatedInfo label="Com segurança" value={`${fmtColdPro(preview.total_with_safety_kcal_h)} kcal/h`} description="Total da aba + fator de segurança" tone="success" />
+          <ColdProCalculatedInfo label="Subtotal do projeto" value={`${fmtColdPro(projectSubtotalKcalH)} kcal/h`} description="Ambiente + produto/processo + extras" />
+          <ColdProCalculatedInfo label="Projeto com segurança" value={`${fmtColdPro(projectTotalWithSafetyKcalH)} kcal/h`} description="Subtotal do projeto + fator global" tone="success" />
         </div>
       </div>
 
@@ -209,10 +212,10 @@ export const ColdProExtraLoadsForm = React.forwardRef<ColdProExtraLoadsFormHandl
         <AccordionItem value="seguranca" className="rounded-xl border px-4">
           <AccordionTrigger className="hover:no-underline"><span className="inline-flex items-center gap-2"><ShieldPlus className="h-4 w-4 text-primary" /> Segurança</span></AccordionTrigger>
           <AccordionContent>
-            <ColdProFormSection title="Fator de segurança" description="Margem aplicada sobre o subtotal calculado.">
+            <ColdProFormSection title="Fator de segurança" description="Margem aplicada sobre o subtotal total do projeto: ambiente + produto/processo + cargas extras.">
               <div className="grid grid-cols-1 gap-x-10 md:grid-cols-2">
                 <ColdProField label="Fator de segurança" unit="%"><ColdProInput {...num("safety_factor_percent")} /></ColdProField>
-                <ColdProCalculatedInfo label="Carga de segurança" value={`${fmtColdPro(preview.safety_kcal_h)} kcal/h`} description={`${fmtColdPro(form?.safety_factor_percent)}% sobre ${fmtColdPro(preview.subtotal_kcal_h)} kcal/h`} tone={Number(form?.safety_factor_percent ?? 0) >= 0 ? "success" : "warning"} />
+                <ColdProCalculatedInfo label="Carga de segurança" value={`${fmtColdPro(projectSafetyKcalH)} kcal/h`} description={`${fmtColdPro(form?.safety_factor_percent)}% sobre ${fmtColdPro(projectSubtotalKcalH)} kcal/h do projeto`} tone={Number(form?.safety_factor_percent ?? 0) >= 0 ? "success" : "warning"} />
               </div>
             </ColdProFormSection>
           </AccordionContent>
