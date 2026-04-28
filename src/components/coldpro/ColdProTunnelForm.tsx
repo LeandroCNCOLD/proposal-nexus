@@ -468,8 +468,17 @@ export const ColdProTunnelForm = React.forwardRef<ColdProTunnelFormHandle, ColdP
 
   const set = (key: string, value: unknown) => setForm((prev) => ({ ...prev, [key]: value }));
   const num = (key: string): NumericInputProps => ({ type: "number", step: "0.0001", value: inputValue(form?.[key]), onChange: (e: React.ChangeEvent<HTMLInputElement>) => set(key, numberOrNull(e.target.value)) });
+  const airTempNum = (): NumericInputProps => ({ type: "number", step: "0.0001", value: inputValue(form?.air_temp_c), onChange: (e: React.ChangeEvent<HTMLInputElement>) => setForm((prev) => ({ ...prev, air_temp_source: "manual", air_temp_c: numberOrNull(e.target.value) })) });
   const setSim = (key: string, value: unknown) => setSimulation((prev) => ({ ...prev, [key]: value }));
   const simNum = (key: string): NumericInputProps => ({ type: "number", step: "0.0001", value: inputValue(simulation?.[key]), onChange: (e: React.ChangeEvent<HTMLInputElement>) => setSim(key, numberOrNull(e.target.value)) });
+  const simAirTempNum = (): NumericInputProps => ({ type: "number", step: "0.0001", value: inputValue(simulation?.air_temp_c), onChange: (e: React.ChangeEvent<HTMLInputElement>) => setSimulation((prev) => ({ ...prev, air_temp_source: "manual", air_temp_c: numberOrNull(e.target.value) })) });
+  const setAirflowSource = (value: string) => {
+    if (value === "airflow_by_fans") setForm((prev) => ({ ...prev, ...buildAirflowPreset(prev) }));
+    else setForm((prev) => ({ ...prev, airflow_source: value, fan_airflow_m3_h: prev.fan_airflow_m3_h ?? prev.informed_air_flow_m3_h ?? prev.airflow_m3_h }));
+  };
+  const setSimulationAirflowSource = (value: string) => {
+    setSimulation((prev) => ({ ...prev, airflow_source: value, fan_airflow_m3_h: prev.fan_airflow_m3_h ?? prev.informed_air_flow_m3_h ?? prev.airflow_m3_h }));
+  };
   const setContinuousMassMode = (value: string) => {
     const resetByMethod = {
       mass_kg_hour: value === "direct_mass_flow" ? form.mass_kg_hour : 0,
@@ -613,6 +622,8 @@ export const ColdProTunnelForm = React.forwardRef<ColdProTunnelFormHandle, ColdP
   const baseFanAirflowM3H = Number(tunnelResult.fanAirflowM3H ?? tunnelResult.informedAirFlowM3H ?? 0) || tunnelResult.airFlowM3H;
   const simulatedFanAirflowM3H = Number(simulationResult.fanAirflowM3H ?? simulationResult.informedAirFlowM3H ?? 0) || simulationResult.airFlowM3H;
   const deltaFanAirflowM3H = simulatedFanAirflowM3H - baseFanAirflowM3H;
+  const airVelocityControl = form.airflow_source === "airflow_by_fans" ? { type: "number" as const, step: "0.0001", value: tunnelResult.airVelocityUsedMS ?? "", onChange: () => undefined, readOnly: true } : num("air_velocity_m_s");
+  const simulationAirVelocityControl = simulation.airflow_source === "airflow_by_fans" ? { type: "number" as const, step: "0.0001", value: simulationResult.airVelocityUsedMS ?? "", onChange: () => undefined, readOnly: true } : simNum("air_velocity_m_s");
   const productSourceKcalH = positiveValue(product?.total_load_kcal_h, product?.product_load_kcal_h, product?.total_kcal_h, product?.load_kcal_h);
   const loadDifferenceKcalH = productSourceKcalH > 0 ? tunnelResult.totalKcalH - productSourceKcalH : 0;
   const loadDifferencePercent = productSourceKcalH > 0 ? Math.abs(loadDifferenceKcalH) / productSourceKcalH * 100 : 0;
@@ -1159,14 +1170,14 @@ export const ColdProTunnelForm = React.forwardRef<ColdProTunnelFormHandle, ColdP
       </div>
 
       <div className="mt-5 grid grid-cols-1 gap-x-10 xl:grid-cols-2"><div>
-        <ColdProField label="Temp. ar simulada" helpKey="simulatedAirTemp" unit="°C"><ColdProInput {...simNum("air_temp_c")} /></ColdProField>
-        <ColdProField label="Fonte da velocidade" helpKey="airflowSource"><ColdProSelect value={textValue(simulation.airflow_source, "manual_velocity")} onChange={(e) => setSim("airflow_source", e.target.value)}><option value="manual_velocity">Velocidade manual</option><option value="airflow_by_fans">Vazão por ventiladores</option></ColdProSelect></ColdProField>
-        {simulation.airflow_source !== "airflow_by_fans" ? <ColdProField label="Velocidade simulada" helpKey="simulatedAirVelocity" unit="m/s"><ColdProInput {...simNum("air_velocity_m_s")} /></ColdProField> : null}
-        {simulation.airflow_source === "airflow_by_fans" ? <><ColdProField label="Vazão dos ventiladores" helpKey="simulatedAirflow" unit="m³/h"><ColdProInput {...simNum("fan_airflow_m3_h")} /></ColdProField><ColdProField label="Largura seção túnel" unit="m"><ColdProInput {...simNum("tunnel_cross_section_width_m")} /></ColdProField><ColdProField label="Altura seção túnel" unit="m"><ColdProInput {...simNum("tunnel_cross_section_height_m")} /></ColdProField><ColdProField label="Fator de bloqueio" helpKey="blockageFactor" unit="%"><ColdProInput {...simBlockagePercentNum("blockage_factor")} /></ColdProField><ColdProCalculatedInfo label="Área livre simulada" value={`${fmtColdPro(simulationResult.freeAirAreaM2 ?? 0, 2)} m²`} description="seção livre calculada" tone={(simulationResult.freeAirAreaM2 ?? 0) > 0 ? "info" : "warning"} /><ColdProCalculatedInfo label="Velocidade simulada" value={`${fmtColdPro(simulationResult.calculatedAirVelocityMS ?? 0, 2)} m/s`} description="vazão ÷ área livre" tone="info" /></> : null}
+        <ColdProField label="Fonte da velocidade" helpKey="airflowSource"><ColdProSelect value={textValue(simulation.airflow_source, "manual_velocity")} onChange={(e) => setSimulationAirflowSource(e.target.value)}><option value="manual_velocity">Velocidade manual</option><option value="airflow_by_fans">Vazão por ventiladores</option></ColdProSelect></ColdProField>
+        <ColdProField label="Velocidade do ar" helpKey="simulatedAirVelocity" unit="m/s"><ColdProInput {...simulationAirVelocityControl} /></ColdProField>
+        <ColdProField label="Vazão dos ventiladores" helpKey="simulatedAirflow" unit="m³/h"><ColdProInput {...simNum("fan_airflow_m3_h")} /></ColdProField>
+        {simulation.airflow_source === "airflow_by_fans" ? <><ColdProField label="Largura seção túnel" unit="m"><ColdProInput {...simNum("tunnel_cross_section_width_m")} /></ColdProField><ColdProField label="Altura seção túnel" unit="m"><ColdProInput {...simNum("tunnel_cross_section_height_m")} /></ColdProField><ColdProField label="Fator de bloqueio" helpKey="blockageFactor" unit="%"><ColdProInput {...simBlockagePercentNum("blockage_factor")} /></ColdProField><ColdProCalculatedInfo label="Área livre simulada" value={`${fmtColdPro(simulationResult.freeAirAreaM2 ?? 0, 2)} m²`} description="seção livre calculada" tone={(simulationResult.freeAirAreaM2 ?? 0) > 0 ? "info" : "warning"} /></> : null}
         <ColdProField label="ΔT do ar" helpKey="airDeltaT" unit="K"><ColdProInput {...simNum("air_delta_t_k")} /></ColdProField>
-        <ColdProField label="Approach ar sugerido" helpKey="approachAirSuggested" unit="K"><ColdProInput {...simNum("suggested_air_approach_k")} /></ColdProField>
-        <ColdProField label="Vazão informada" helpKey="informedAirflow" unit="m³/h"><ColdProInput {...simNum("informed_air_flow_m3_h")} /></ColdProField>
+        <ColdProField label="Temperatura do ar" helpKey="simulatedAirTemp" unit="°C"><ColdProInput {...simAirTempNum()} /></ColdProField>
         <ColdProField label="Coef. convecção manual" helpKey="manualConvectiveCoefficient"><ColdProInput {...simNum("convective_coefficient_manual_w_m2_k")} /></ColdProField>
+        <ColdProField label="Approach ar sugerido" helpKey="approachAirSuggested" unit="K"><ColdProInput {...simNum("suggested_air_approach_k")} /></ColdProField>
       </div><div>
         <ColdProField label="Tipo de embalagem" helpKey="packagingType"><ColdProInput type="text" value={textValue(simulation.package_type)} onChange={(e) => setSim("package_type", e.target.value)} className="text-left" /></ColdProField>
         <ColdProField label="Fator exposição ao ar" helpKey="airExposureFactor"><ColdProInput {...simNum("air_exposure_factor")} /></ColdProField>
@@ -1181,6 +1192,7 @@ export const ColdProTunnelForm = React.forwardRef<ColdProTunnelFormHandle, ColdP
         <ColdProCalculatedInfo label="Ajustado · Carga" value={`${fmtColdPro(adjustedScenario.totalKW, 2)} kW`} description={`${fmtColdPro(adjustedScenario.totalKcalH, 0)} kcal/h`} tone="info" />
         <ColdProCalculatedInfo label="Ajustado · Tempo" value={fmtMaybe(adjustedScenario.estimatedTimeMin, 1, " min")} description={`${fmtColdPro(adjustedScenario.availableTimeMin, 1)} min disponíveis`} tone={adjustedScenario.status === "adequate" ? "success" : "warning"} />
         <ColdProCalculatedInfo label="Ajustado · Vazão" value={`${fmtColdPro(adjustedScenario.airFlowM3H, 0)} m³/h`} description={adjustedScenario.informedAirFlowM3H ? `informada: ${fmtColdPro(adjustedScenario.informedAirFlowM3H, 0)} m³/h` : "estimada pelo motor"} tone="info" />
+        <ColdProCalculatedInfo label="Ajustado · Velocidade" value={`${fmtColdPro(simulationResult.airVelocityUsedMS ?? 0, 2)} m/s`} description={simulationResult.airflowSource === "airflow_by_fans" ? "calculada pela vazão" : "manual"} tone={(simulationResult.airVelocityUsedMS ?? 0) > 0 ? "success" : "warning"} />
         <ColdProCalculatedInfo label="Ajustado · h efetivo" value={fmtMaybe(adjustedScenario.hEffectiveWM2K, 2, " W/m²K")} description={adjustedScenario.hSource} tone={adjustedScenario.hEffectiveWM2K ? "info" : "warning"} />
         <ColdProCalculatedInfo label="Ajustado · Status" value={statusLabel[adjustedScenario.status] ?? adjustedScenario.status} description="cenário simulado" tone={adjustedScenario.status === "adequate" ? "success" : "warning"} />
       </div>
@@ -1223,18 +1235,24 @@ export const ColdProTunnelForm = React.forwardRef<ColdProTunnelFormHandle, ColdP
         <div className="text-sm text-muted-foreground">Calcula vazão pela carga, busca dimensões do ambiente e recomenda seção real de passagem do ar.</div>
         <button type="button" className="inline-flex items-center justify-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm font-medium shadow-sm transition hover:bg-muted" onClick={applyAirflowPreset}><Calculator className="h-4 w-4" /> Calcular ar</button>
       </div>
-      <div className="mb-3 grid gap-3 sm:grid-cols-2">
-        <ColdProCalculatedInfo label="1. Carga térmica do produto" value={`${fmtColdPro(tunnelResult.productLoadKW, 2)} kW`} description={productLoadMassDescription} tone={tunnelResult.productLoadKW > 0 ? "success" : "warning"} />
-        <ColdProCalculatedInfo label="2. Carga usada na vazão" value={`${fmtColdPro(tunnelResult.totalKW, 2)} kW`} description="produto + embalagem + interna" tone={tunnelResult.totalKW > 0 ? "success" : "warning"} />
-      </div>
       {productLoadMissingFields.length > 0 ? <ColdProValidationMessage tone="warning">Carga do produto pendente: falta {productLoadMissingFields.join(", ")}.</ColdProValidationMessage> : null}
-      <ColdProField label="Fonte da velocidade" helpKey="airflowSource"><ColdProSelect value={textValue(form.airflow_source, "manual_velocity")} onChange={(e) => { if (e.target.value === "airflow_by_fans") setForm((prev) => ({ ...prev, ...buildAirflowPreset(prev) })); else set("airflow_source", e.target.value); }}><option value="manual_velocity">Velocidade manual</option><option value="airflow_by_fans">Vazão por ventiladores</option></ColdProSelect></ColdProField>
-      {form.airflow_source !== "airflow_by_fans" ? <ColdProField label="Velocidade do ar" helpKey="airVelocity" unit="m/s"><ColdProInput {...num("air_velocity_m_s")} /></ColdProField> : null}
-      {form.airflow_source === "airflow_by_fans" ? <><ColdProField label="Vazão dos ventiladores informada" helpKey="fanAirflow" unit="m³/h"><ColdProInput {...num("fan_airflow_m3_h")} /></ColdProField>{showAirflowMismatch ? <ColdProValidationMessage>A vazão informada está {airflowDeltaM3H > 0 ? "acima" : "abaixo"} da necessária em {fmtColdPro(Math.abs(airflowDeltaM3H), 0)} m³/h ({fmtColdPro(airflowDeltaPercent, 1)}%). Use “Calcular ar” para igualar ao cálculo atual.</ColdProValidationMessage> : null}<ColdProField label="Largura seção de passagem" helpKey="tunnelCrossSectionWidth" unit="m"><ColdProInput {...num("tunnel_cross_section_width_m")} /></ColdProField><ColdProField label="Altura útil seção de passagem" helpKey="tunnelCrossSectionHeight" unit="m"><ColdProInput {...num("tunnel_cross_section_height_m")} /></ColdProField><ColdProField label="Fator de bloqueio" helpKey="blockageFactor" unit="%"><ColdProInput {...blockagePercentNum("blockage_factor")} /></ColdProField><ColdProField label="Parede sugerida"><ColdProInput readOnly value={displayedAirWall} /></ColdProField><ColdProField label="Sentido de sopro"><ColdProInput readOnly value={displayedAirDirection} /></ColdProField></> : null}
+      <ColdProField label="Vazão dos ventiladores" helpKey="fanAirflow" unit="m³/h"><ColdProInput {...num("fan_airflow_m3_h")} /></ColdProField>
+      {showAirflowMismatch ? <ColdProValidationMessage>A vazão informada está {airflowDeltaM3H > 0 ? "acima" : "abaixo"} da necessária em {fmtColdPro(Math.abs(airflowDeltaM3H), 0)} m³/h ({fmtColdPro(airflowDeltaPercent, 1)}%). Use “Calcular ar” para igualar ao cálculo atual.</ColdProValidationMessage> : null}
+      <ColdProField label="Fonte da velocidade" helpKey="airflowSource"><ColdProSelect value={textValue(form.airflow_source, "manual_velocity")} onChange={(e) => setAirflowSource(e.target.value)}><option value="manual_velocity">Velocidade manual</option><option value="airflow_by_fans">Vazão por ventiladores</option></ColdProSelect></ColdProField>
+      <ColdProField label="Velocidade do ar" helpKey="airVelocity" unit="m/s"><ColdProInput {...airVelocityControl} /></ColdProField>
+      <ColdProField label="Largura seção de passagem" helpKey="tunnelCrossSectionWidth" unit="m"><ColdProInput {...num("tunnel_cross_section_width_m")} /></ColdProField>
+      <ColdProField label="Altura útil seção de passagem" helpKey="tunnelCrossSectionHeight" unit="m"><ColdProInput {...num("tunnel_cross_section_height_m")} /></ColdProField>
+      <ColdProField label="Fator de bloqueio" helpKey="blockageFactor" unit="%"><ColdProInput {...blockagePercentNum("blockage_factor")} /></ColdProField>
+      <ColdProField label="Parede sugerida"><ColdProInput readOnly value={displayedAirWall} /></ColdProField>
+      <ColdProField label="Sentido de sopro"><ColdProInput readOnly value={displayedAirDirection} /></ColdProField>
     </div><div>
       <ColdProField label="ΔT do ar" helpKey="airDeltaT" unit="K"><ColdProInput {...num("air_delta_t_k")} /></ColdProField>
-      <ColdProField label="Temperatura do ar" helpKey="airTemp" unit="°C"><ColdProInput {...num("air_temp_c")} /></ColdProField>
+      <ColdProField label="Temperatura do ar" helpKey="airTemp" unit="°C"><ColdProInput {...airTempNum()} /></ColdProField>
       <ColdProField label="Coeficiente convectivo manual" helpKey="manualConvectiveCoefficient" unit="W/m²K"><ColdProInput {...num("convective_coefficient_manual_w_m2_k")} /></ColdProField>
+      <ColdProCalculatedInfo label="Velocidade do ar usada" value={`${fmtColdPro(tunnelResult.airVelocityUsedMS ?? 0, 2)} m/s`} description={tunnelResult.airflowSource === "airflow_by_fans" ? "vazão dos ventiladores ÷ seção livre" : "valor manual informado"} tone={(tunnelResult.airVelocityUsedMS ?? 0) > 0 ? "success" : "warning"} />
+      <ColdProCalculatedInfo label="Tempo de congelamento" value={fmtMaybe(tunnelResult.estimatedTimeMin, 1, " min")} description={`${fmtColdPro(tunnelResult.availableTimeMin ?? 0, 1)} min disponíveis`} tone={tunnelResult.status === "adequate" ? "success" : "warning"} />
+      <ColdProCalculatedInfo label="1. Carga térmica do produto" value={`${fmtColdPro(tunnelResult.productLoadKW, 2)} kW`} description={productLoadMassDescription} tone={tunnelResult.productLoadKW > 0 ? "success" : "warning"} />
+      <ColdProCalculatedInfo label="2. Carga usada na vazão" value={`${fmtColdPro(tunnelResult.totalKW, 2)} kW`} description="produto + embalagem + interna" tone={tunnelResult.totalKW > 0 ? "success" : "warning"} />
       <ColdProCalculatedInfo label="3. Vazão por carga térmica" value={fmtAirflow(requiredAirflowM3H)} description="carga total ÷ densidade × Cp × ΔT" tone={requiredAirflowM3H > 0 ? "success" : "warning"} />
       <ColdProCalculatedInfo label="Densidade do ar usada" value={`${fmtColdPro(displayedAirProperties.densityKgM3, 3)} kg/m³`} description={`fonte: ${displayedAirProperties.source}`} tone={displayedAirProperties.source === "fallback" ? "warning" : "info"} />
       <ColdProCalculatedInfo label="Cp do ar usado" value={`${fmtColdPro(displayedAirProperties.specificHeatKJkgK, 4)} kJ/kg.K`} description="propriedade dinâmica do ar" tone="info" />
