@@ -126,6 +126,7 @@ export function ColdProResultCard({ result, selection, environment, products = [
   const [showCharts, setShowCharts] = React.useState(true);
   const [showAI, setShowAI] = React.useState(true);
   const [showTables, setShowTables] = React.useState(false);
+  const [displayUnit, setDisplayUnit] = React.useState<ThermalLoadUnit>("kcal/h");
 
   if (!result) return <div className="rounded-lg border border-dashed bg-background p-3 text-sm text-muted-foreground">Nenhum cálculo realizado. Preencha as etapas anteriores e clique em calcular carga térmica.</div>;
 
@@ -147,6 +148,12 @@ export function ColdProResultCard({ result, selection, environment, products = [
           <p className="mt-0.5 text-xs text-muted-foreground">Usa somente cálculo, produtos, processos e equipamento do ambiente selecionado.</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <div className="flex items-center gap-2 rounded-md border px-2 py-1 text-xs">
+            <span className="text-muted-foreground">Unidade de exibição</span>
+            <ToggleGroup type="single" value={displayUnit} onValueChange={(value) => value && setDisplayUnit(value as ThermalLoadUnit)} size="sm" className="justify-start">
+              {(["kcal/h", "kW", "TR", "BTU/h"] as ThermalLoadUnit[]).map((unit) => <ToggleGroupItem key={unit} value={unit} aria-label={unit}>{unit}</ToggleGroupItem>)}
+            </ToggleGroup>
+          </div>
           <Toggle checked={compact} onChange={setCompact} label="Visualização resumida" />
           <Toggle checked={showCharts} onChange={setShowCharts} label="Gráficos" />
           <Toggle checked={showAudit} onChange={setShowAudit} label="Auditoria" />
@@ -156,14 +163,14 @@ export function ColdProResultCard({ result, selection, environment, products = [
       </div>
 
       <section className="coldpro-grid">
-        <Kpi label="Carga requerida" value={normalized.summary.requiredKcalH} unit="kcal/h" icon={<Calculator className="h-4 w-4" />} />
-        <Kpi label="Potência" value={normalized.summary.requiredKW} unit="kW" icon={<Gauge className="h-4 w-4" />} />
-        <Kpi label="Capacidade" value={normalized.summary.requiredTR} unit="TR" icon={<Snowflake className="h-4 w-4" />} />
-        <Kpi label="Segurança" value={normalized.summary.safetyKcalH} unit="kcal/h" note={`${fmtColdPro(normalized.summary.safetyFactorPercent)}%`} icon={<BarChart3 className="h-4 w-4" />} />
+        <Kpi label="Carga requerida" value={formatLoadFromKW(normalized.summary.requiredKW, displayUnit)} unit={displayUnit} icon={<Calculator className="h-4 w-4" />} />
+        <Kpi label="Potência" value={fmtColdPro(normalized.summary.requiredKW, 1)} unit="kW interno" icon={<Gauge className="h-4 w-4" />} />
+        <Kpi label="Capacidade" value={formatLoadFromKW(normalized.summary.requiredKW, displayUnit)} unit={displayUnit} icon={<Snowflake className="h-4 w-4" />} />
+        <Kpi label="Segurança" value={formatLoadFromKW(normalized.summary.safetyKcalH / 859.845, displayUnit)} unit={displayUnit} note={`${fmtColdPro(normalized.summary.safetyFactorPercent)}%`} icon={<BarChart3 className="h-4 w-4" />} />
         <Kpi label="Status" value={normalized.summary.status} unit="dimensionamento" icon={<Gauge className="h-4 w-4" />} />
         <Kpi label="Sobra técnica" value={normalized.equipment.surplusPercent} unit="%" icon={<Gauge className="h-4 w-4" />} />
         <Kpi label="Equipamento" value={normalized.equipment.selectedModel ?? "—"} unit={normalized.equipment.quantity ? `${fmtColdPro(normalized.equipment.quantity, 0)} unidade(s)` : "seleção"} icon={<Snowflake className="h-4 w-4" />} />
-        <Kpi label="Capacidade selecionada" value={normalized.equipment.totalCapacityKcalH} unit="kcal/h" icon={<Calculator className="h-4 w-4" />} />
+        <Kpi label="Capacidade selecionada" value={formatLoadFromKW(normalized.equipment.totalCapacityKcalH / 859.845, displayUnit)} unit={displayUnit} icon={<Calculator className="h-4 w-4" />} />
       </section>
 
       {showCharts ? (
@@ -173,7 +180,7 @@ export function ColdProResultCard({ result, selection, environment, products = [
         </section>
       ) : null}
 
-      {showAudit ? <section className="coldpro-section"><ResultConsistencyAudit normalized={normalized} /></section> : null}
+      {showAudit ? <section className="coldpro-section space-y-3"><ResultConsistencyAudit normalized={normalized} /><Details title="Auditoria de unidades" defaultOpen><UnitAuditPanel audit={(normalized as any).unitAudit} /></Details></section> : null}
 
       {!compact ? (
         <>
