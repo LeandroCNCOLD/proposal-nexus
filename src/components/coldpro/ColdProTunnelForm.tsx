@@ -622,6 +622,8 @@ export const ColdProTunnelForm = React.forwardRef<ColdProTunnelFormHandle, ColdP
   const baseFanAirflowM3H = Number(tunnelResult.fanAirflowM3H ?? tunnelResult.informedAirFlowM3H ?? 0) || tunnelResult.airFlowM3H;
   const simulatedFanAirflowM3H = Number(simulationResult.fanAirflowM3H ?? simulationResult.informedAirFlowM3H ?? 0) || simulationResult.airFlowM3H;
   const deltaFanAirflowM3H = simulatedFanAirflowM3H - baseFanAirflowM3H;
+  const airVelocityControl = form.airflow_source === "airflow_by_fans" ? { type: "number" as const, step: "0.0001", value: tunnelResult.airVelocityUsedMS ?? "", onChange: () => undefined, readOnly: true } : num("air_velocity_m_s");
+  const simulationAirVelocityControl = simulation.airflow_source === "airflow_by_fans" ? { type: "number" as const, step: "0.0001", value: simulationResult.airVelocityUsedMS ?? "", onChange: () => undefined, readOnly: true } : simNum("air_velocity_m_s");
   const productSourceKcalH = positiveValue(product?.total_load_kcal_h, product?.product_load_kcal_h, product?.total_kcal_h, product?.load_kcal_h);
   const loadDifferenceKcalH = productSourceKcalH > 0 ? tunnelResult.totalKcalH - productSourceKcalH : 0;
   const loadDifferencePercent = productSourceKcalH > 0 ? Math.abs(loadDifferenceKcalH) / productSourceKcalH * 100 : 0;
