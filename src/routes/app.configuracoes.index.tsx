@@ -1,11 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { CheckCircle2, Clock3, RefreshCw, ShieldCheck, UserPlus, XCircle } from "lucide-react";
+import { CheckCircle2, Clock3, RefreshCw, Search, ShieldCheck, UserPlus, XCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
 import { useAuth } from "@/hooks/useAuth";
 import { ROLE_LABELS, type AppRole } from "@/lib/proposal";
+import { nomusSyncRepresentatives, nomusSyncSellers } from "@/integrations/nomus/server.functions";
+import { useServerFn } from "@tanstack/react-start";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -27,8 +29,12 @@ const ACCESS_STATUS_LABELS: Record<string, string> = {
 function SettingsPage() {
   const { user, roles, hasAnyRole } = useAuth();
   const qc = useQueryClient();
+  const syncSellers = useServerFn(nomusSyncSellers);
+  const syncRepresentatives = useServerFn(nomusSyncRepresentatives);
   const canManageAccess = hasAnyRole(MANAGER_ROLES);
   const [newUser, setNewUser] = useState({ full_name: "", email: "", suggested_role: "coldpro" as AppRole });
+  const [accessSearch, setAccessSearch] = useState("");
+  const [importingNomus, setImportingNomus] = useState(false);
   const { data: profile } = useQuery({
     queryKey: ["profile", user?.id],
     queryFn: async () => (await supabase.from("profiles").select("*").eq("id", user!.id).single()).data,
@@ -59,6 +65,16 @@ function SettingsPage() {
     return grouped;
   }, [userRoles]);
 
+  const searchTerm = accessSearch.trim().toLowerCase();
+  const filteredAccessQueue = useMemo(() => {
+    if (!searchTerm) return accessQueue;
+    return accessQueue.filter((item) => [item.full_name, item.email, item.source, item.nomus_user_id].filter(Boolean).some((value) => String(value).toLowerCase().includes(searchTerm)));
+  }, [accessQueue, searchTerm]);
+  const filteredProfiles = useMemo(() => {
+    if (!searchTerm) return allProfiles;
+    return allProfiles.filter((item) => [item.full_name, item.email, item.access_source, item.nomus_user_id].filter(Boolean).some((value) => String(value).toLowerCase().includes(searchTerm)));
+  }, [allProfiles, searchTerm]);
+
   const refreshAccess = () => {
     qc.invalidateQueries({ queryKey: ["access-profiles"] });
     qc.invalidateQueries({ queryKey: ["access-user-roles"] });
@@ -81,27 +97,35 @@ function SettingsPage() {
   };
 
   const importNomusUsers = async () => {
-    const [{ data: sellers }, { data: representatives }] = await Promise.all([
-      supabase.from("nomus_sellers").select("nomus_id, name, email").not("email", "is", null),
-      supabase.from("nomus_representatives").select("nomus_id, name, email").not("email", "is", null),
-    ]);
-    const byEmail = new Map<string, { full_name: string; email: string; source: string; nomus_user_id: string | null; suggested_role: AppRole; status: string }>();
-    for (const item of [...(sellers ?? []), ...(representatives ?? [])]) {
-      if (!item.email) continue;
-      byEmail.set(item.email.toLowerCase(), {
-        full_name: item.name,
-        email: item.email.toLowerCase(),
-        source: "nomus",
-        nomus_user_id: item.nomus_id,
-        suggested_role: "vendedor",
-        status: "pending",
-      });
+    setImportingNomus(true);
+    try {
+      await Promise.all([syncSellers({}), syncRepresentatives({})]);
+      const [{ data: sellers }, { data: representatives }] = await Promise.all([
+        supabase.from("nomus_sellers").select("nomus_id, name, email").not("email", "is", null),
+        supabase.from("nomus_representatives").select("nomus_id, name, email").not("email", "is", null),
+      ]);
+      const byEmail = new Map<string, { full_name: string; email: string; source: string; nomus_user_id: string | null; suggested_role: AppRole; status: string }>();
+      for (const item of [...(sellers ?? []), ...(representatives ?? [])]) {
+        if (!item.email) continue;
+        byEmail.set(item.email.toLowerCase(), {
+          full_name: item.name,
+          email: item.email.toLowerCase(),
+          source: "nomus",
+          nomus_user_id: item.nomus_id,
+          suggested_role: "vendedor",
+          status: "pending",
+        });
+      }
+      if (byEmail.size === 0) return toast.info("Nenhum usuário com e-mail encontrado no Nomus.");
+      const { error } = await supabase.from("user_access_queue").upsert([...byEmail.values()], { onConflict: "email" });
+      if (error) return toast.error(error.message);
+      refreshAccess();
+      toast.success(`${byEmail.size} usuário(s) do Nomus enviados para liberação.`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao buscar usuários no Nomus.");
+    } finally {
+      setImportingNomus(false);
     }
-    if (byEmail.size === 0) return toast.info("Nenhum usuário com e-mail encontrado no Nomus sincronizado.");
-    const { error } = await supabase.from("user_access_queue").upsert([...byEmail.values()], { onConflict: "email" });
-    if (error) return toast.error(error.message);
-    refreshAccess();
-    toast.success(`${byEmail.size} usuário(s) do Nomus enviados para liberação.`);
   };
 
   const updateProfileStatus = async (profileId: string, access_status: "active" | "blocked" | "pending") => {
