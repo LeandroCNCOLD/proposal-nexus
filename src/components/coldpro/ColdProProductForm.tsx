@@ -186,9 +186,9 @@ export const ColdProProductForm = React.forwardRef<ColdProProductFormHandle, Pro
 
       <Accordion type="multiple" defaultValue={["catalogo", "movimentacao", "temperaturas"]} className="space-y-3">
         <AccordionItem value="catalogo" className="rounded-xl border px-4">
-          <AccordionTrigger className="hover:no-underline"><span className="inline-flex items-center gap-2"><Package className="h-4 w-4 text-primary" /> Catálogo ASHRAE</span></AccordionTrigger>
+          <AccordionTrigger className="hover:no-underline"><span className="inline-flex items-center gap-2"><Package className="h-4 w-4 text-primary" /> Catálogo do produto</span></AccordionTrigger>
           <AccordionContent>
-            <ColdProFormSection title="Seleção do produto" description="A fonte ASHRAE/CN ColdPro carrega propriedades térmicas; estoque e tempo são dados da aplicação.">
+            <ColdProFormSection title="Seleção do produto" description="O catálogo carrega as propriedades térmicas; estoque, tempo e temperaturas de entrada/final são dados da aplicação.">
               <div className="grid grid-cols-1 gap-x-10 xl:grid-cols-2">
                 <ColdProField label="Pesquisar produto" className="xl:col-span-2">
                   <div className="relative">
@@ -202,7 +202,7 @@ export const ColdProProductForm = React.forwardRef<ColdProProductFormHandle, Pro
                     </div> : null}
                   </div>
                 </ColdProField>
-                <ColdProField label="Grupo ASHRAE"><ColdProSelect value={selectedGroup} onChange={(e) => applyGroup(e.target.value)}><option value="">Seleção manual</option>{groups.map((group) => <option key={group} value={group}>{group}</option>)}</ColdProSelect></ColdProField>
+                <ColdProField label="Grupo"><ColdProSelect value={selectedGroup} onChange={(e) => applyGroup(e.target.value)}><option value="">Seleção manual</option>{groups.map((group) => <option key={group} value={group}>{group}</option>)}</ColdProSelect></ColdProField>
                 <ColdProField label="Produto"><ColdProSelect value={form.product_id ?? ""} disabled={filteredProducts.length === 0} onChange={(e) => applyProduct(e.target.value)}><option value="">{filteredProducts.length ? "Selecione o produto" : "Nenhum produto encontrado"}</option>{filteredProducts.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</ColdProSelect></ColdProField>
                 <ColdProField label="Nome do produto"><ColdProInput type="text" value={form.product_name ?? ""} onChange={(e) => set("product_name", e.target.value)} className="text-left" /><ColdProValidationMessage tone="error">{requiredError ? "Informe ou selecione um produto." : ""}</ColdProValidationMessage></ColdProField>
               </div>
