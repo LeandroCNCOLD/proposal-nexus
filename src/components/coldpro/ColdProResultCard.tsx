@@ -21,13 +21,14 @@ function n(value: unknown) {
 }
 
 function Kpi({ label, value, unit, icon, note }: { label: string; value: unknown; unit: string; icon: React.ReactNode; note?: string }) {
+  const displayValue = typeof value === "string" ? value : fmtColdPro(value);
   return (
     <div className="min-w-0 rounded-lg border bg-muted/20 p-2.5">
       <div className="mb-2 flex items-center justify-between gap-2">
         <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</div>
         <div className="rounded bg-primary/10 p-1.5 text-primary">{icon}</div>
       </div>
-      <div className="break-words text-lg font-semibold tabular-nums text-foreground">{fmtColdPro(value)}</div>
+      <div className="break-words text-lg font-semibold tabular-nums text-foreground">{displayValue}</div>
       <div className="mt-1 text-xs text-muted-foreground">{unit}{note ? ` · ${note}` : ""}</div>
     </div>
   );
