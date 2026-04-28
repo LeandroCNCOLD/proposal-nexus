@@ -2,6 +2,13 @@ import type { AppRole } from "@/lib/proposal";
 
 const FULL_ACCESS_ROLES: AppRole[] = ["admin", "diretoria"];
 
+export type RoleModuleAccess = {
+  role: AppRole;
+  module_key: string;
+  module_path: string;
+  allowed: boolean;
+};
+
 const MODULE_PATHS_BY_ROLE: Record<AppRole, string[]> = {
   admin: ["*"],
   diretoria: ["*"],
@@ -48,20 +55,23 @@ export const APP_MODULES = [
   { key: "configuracoes", label: "Configurações", path: "/app/configuracoes" },
 ] as const;
 
-export function getAllowedModulePaths(roles: AppRole[]) {
+export function getAllowedModulePaths(roles: AppRole[], moduleAccess?: RoleModuleAccess[]) {
+  if (moduleAccess?.length) {
+    return Array.from(new Set(moduleAccess.filter((item) => roles.includes(item.role) && item.allowed).map((item) => item.module_path)));
+  }
   if (roles.some((role) => FULL_ACCESS_ROLES.includes(role))) return ["*"];
   return Array.from(new Set(roles.flatMap((role) => MODULE_PATHS_BY_ROLE[role] ?? [])));
 }
 
-export function isAppRouteAllowed(pathname: string, roles: AppRole[]) {
+export function isAppRouteAllowed(pathname: string, roles: AppRole[], moduleAccess?: RoleModuleAccess[]) {
   if (roles.length === 0) return true;
-  const allowedPaths = getAllowedModulePaths(roles);
+  const allowedPaths = getAllowedModulePaths(roles, moduleAccess);
   if (allowedPaths.includes("*")) return true;
   return allowedPaths.some((path) => (path === "/app" ? pathname === "/app" : pathname === path || pathname.startsWith(path + "/")));
 }
 
-export function roleCanAccessPath(role: AppRole, path: string) {
-  return isAppRouteAllowed(path, [role]);
+export function roleCanAccessPath(role: AppRole, path: string, moduleAccess?: RoleModuleAccess[]) {
+  return isAppRouteAllowed(path, [role], moduleAccess);
 }
 
 export const MODULE_ACCESS_DESCRIPTION: Record<AppRole, string> = {
