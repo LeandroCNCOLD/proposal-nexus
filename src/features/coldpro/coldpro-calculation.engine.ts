@@ -707,7 +707,6 @@ export function calculateProductLoadBreakdown(product: ColdProEnvironmentProduct
     calculation_basis_note: loadMode === "storage_turnover" ? "Carga térmica calculada sobre a massa movimentada pelo giro diário; o estoque total não é usado diretamente como massa térmica." : loadMode === "hourly_intake" ? "Carga térmica calculada pela entrada horária informada." : loadMode === "room_pull_down_or_freezing" ? "Carga térmica calculada sobre o lote e tempo de recuperação/congelamento informados." : "Carga térmica calculada pela entrada diária informada e tempo de recuperação.",
     phase_change_applied: crossesFreezingPoint,
     phase_change_rule: crossesFreezingPoint ? "Produto cruza a temperatura de congelamento: sensível acima + latente + sensível abaixo." : staysFrozen ? "Produto já entra congelado: sem calor latente, usa Cp abaixo para a variação de temperatura." : "Produto não cruza a temperatura de congelamento: sem calor latente.",
-    stored_mass_kg: round2(n(product.stored_mass_kg)),
     mass_kg_day: round2(massDay),
     hours,
     inlet_temp_c: tin,
