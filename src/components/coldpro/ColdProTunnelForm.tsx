@@ -1256,7 +1256,6 @@ export const ColdProTunnelForm = React.forwardRef<ColdProTunnelFormHandle, ColdP
   const projectedCycleMassKg = !isStatic && capacityKgMin > 0 && availableTimeForMassMin > 0 ? capacityKgMin * availableTimeForMassMin : instantTunnelMassKg;
   const thermalTimeRequiredMin = estimatedTimeForMassMin;
   const hasPhysicalCompatibility = thermalTimeRequiredMin > 0 && availableTimeForMassMin > 0 && thermalTimeRequiredMin <= availableTimeForMassMin;
-  const retentionMarginMin = thermalTimeRequiredMin > 0 && availableTimeForMassMin > 0 ? availableTimeForMassMin - thermalTimeRequiredMin : 0;
   const retentionAdjustmentMin = thermalTimeRequiredMin > 0 && availableTimeForMassMin > 0 ? thermalTimeRequiredMin - availableTimeForMassMin : 0;
   const beltUsefulLengthM = positiveValue(form.belt_effective_length_m, beltSurfaceBreakdown.lengthM, beltSurfaceBreakdown.effectiveLengthM);
   const currentBeltSpeedMMin = beltUsefulLengthM > 0 && availableTimeForMassMin > 0 ? beltUsefulLengthM / availableTimeForMassMin : positiveValue(form.belt_speed_m_min, beltSurfaceBreakdown.speedMMin);
