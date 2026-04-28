@@ -149,6 +149,7 @@ export const ColdProProductForm = React.forwardRef<ColdProProductFormHandle, Pro
   const canSave = !requiredError && !modeError && !negativeError;
   const selectedCatalogProduct = productCatalog.find((item) => item.id === form.product_id) ?? null;
   const thermalNum = (key: keyof ReturnType<typeof initialForm>) => num(key);
+  const catalogThermalInput = (key: keyof ReturnType<typeof initialForm>) => ({ ...thermalNum(key), readOnly: Boolean(form.product_id), readOnlyValue: Boolean(form.product_id), title: form.product_id ? "Valor vindo do catálogo do produto" : undefined });
 
   const save = async () => {
     if (saving || !canSave) return false;
@@ -185,9 +186,9 @@ export const ColdProProductForm = React.forwardRef<ColdProProductFormHandle, Pro
 
       <Accordion type="multiple" defaultValue={["catalogo", "movimentacao", "temperaturas"]} className="space-y-3">
         <AccordionItem value="catalogo" className="rounded-xl border px-4">
-          <AccordionTrigger className="hover:no-underline"><span className="inline-flex items-center gap-2"><Package className="h-4 w-4 text-primary" /> Catálogo ASHRAE</span></AccordionTrigger>
+          <AccordionTrigger className="hover:no-underline"><span className="inline-flex items-center gap-2"><Package className="h-4 w-4 text-primary" /> Catálogo do produto</span></AccordionTrigger>
           <AccordionContent>
-            <ColdProFormSection title="Seleção do produto" description="A fonte ASHRAE/CN ColdPro carrega propriedades térmicas; estoque e tempo são dados da aplicação.">
+            <ColdProFormSection title="Seleção do produto" description="O catálogo carrega as propriedades térmicas; estoque, tempo e temperaturas de entrada/final são dados da aplicação.">
               <div className="grid grid-cols-1 gap-x-10 xl:grid-cols-2">
                 <ColdProField label="Pesquisar produto" className="xl:col-span-2">
                   <div className="relative">
@@ -201,7 +202,7 @@ export const ColdProProductForm = React.forwardRef<ColdProProductFormHandle, Pro
                     </div> : null}
                   </div>
                 </ColdProField>
-                <ColdProField label="Grupo ASHRAE"><ColdProSelect value={selectedGroup} onChange={(e) => applyGroup(e.target.value)}><option value="">Seleção manual</option>{groups.map((group) => <option key={group} value={group}>{group}</option>)}</ColdProSelect></ColdProField>
+                <ColdProField label="Grupo"><ColdProSelect value={selectedGroup} onChange={(e) => applyGroup(e.target.value)}><option value="">Seleção manual</option>{groups.map((group) => <option key={group} value={group}>{group}</option>)}</ColdProSelect></ColdProField>
                 <ColdProField label="Produto"><ColdProSelect value={form.product_id ?? ""} disabled={filteredProducts.length === 0} onChange={(e) => applyProduct(e.target.value)}><option value="">{filteredProducts.length ? "Selecione o produto" : "Nenhum produto encontrado"}</option>{filteredProducts.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</ColdProSelect></ColdProField>
                 <ColdProField label="Nome do produto"><ColdProInput type="text" value={form.product_name ?? ""} onChange={(e) => set("product_name", e.target.value)} className="text-left" /><ColdProValidationMessage tone="error">{requiredError ? "Informe ou selecione um produto." : ""}</ColdProValidationMessage></ColdProField>
               </div>
@@ -238,21 +239,21 @@ export const ColdProProductForm = React.forwardRef<ColdProProductFormHandle, Pro
         <AccordionItem value="temperaturas" className="rounded-xl border px-4">
           <AccordionTrigger className="hover:no-underline"><span className="inline-flex items-center gap-2"><Thermometer className="h-4 w-4 text-primary" /> Temperaturas e propriedades térmicas</span></AccordionTrigger>
           <AccordionContent>
-            <ColdProFormSection title="Dados térmicos" description="Temperaturas do produto e propriedades ajustadas manualmente.">
+            <ColdProFormSection title="Dados térmicos" description={form.product_id ? "Temperaturas de entrada/final são editáveis; propriedades térmicas vêm do catálogo do produto e ficam bloqueadas apenas para edição." : "Temperaturas do produto e propriedades ajustadas manualmente."}>
               <div className="grid grid-cols-1 gap-x-10 md:grid-cols-2"><div>
                 <ColdProField label="Temp. entrada produto" unit="°C"><ColdProInput {...num("inlet_temp_c")} /></ColdProField>
                 <ColdProField label="Temp. final produto" unit="°C"><ColdProInput {...num("outlet_temp_c")} /></ColdProField>
-                <ColdProField label="Temp. congelamento" unit="°C"><ColdProInput {...thermalNum("initial_freezing_temp_c")} /></ColdProField>
-                <ColdProField label="Densidade" unit="kg/m³"><ColdProInput {...thermalNum("density_kg_m3")} /></ColdProField>
-                <ColdProField label="Água" unit="%"><ColdProInput {...thermalNum("water_content_percent")} /></ColdProField>
-                <ColdProField label="Proteína" unit="%"><ColdProInput {...thermalNum("protein_content_percent")} /></ColdProField>
+                <ColdProField label="Temp. congelamento" unit="°C"><ColdProInput {...catalogThermalInput("initial_freezing_temp_c")} /></ColdProField>
+                <ColdProField label="Densidade" unit="kg/m³"><ColdProInput {...catalogThermalInput("density_kg_m3")} /></ColdProField>
+                <ColdProField label="Água" unit="%"><ColdProInput {...catalogThermalInput("water_content_percent")} /></ColdProField>
+                <ColdProField label="Proteína" unit="%"><ColdProInput {...catalogThermalInput("protein_content_percent")} /></ColdProField>
               </div><div>
-                <ColdProField label="Cp acima" unit="kcal/kg·°C"><ColdProInput {...thermalNum("specific_heat_above_kcal_kg_c")} value={form.specific_heat_above_kcal_kg_c ?? ""} /></ColdProField>
-                <ColdProField label="Cp abaixo" unit="kcal/kg·°C"><ColdProInput {...thermalNum("specific_heat_below_kcal_kg_c")} value={form.specific_heat_below_kcal_kg_c ?? ""} /></ColdProField>
-                <ColdProField label="Calor latente" unit="kcal/kg"><ColdProInput {...thermalNum("latent_heat_kcal_kg")} value={form.latent_heat_kcal_kg ?? ""} /></ColdProField>
-                <ColdProField label="Calor latente" unit="kJ/kg"><ColdProInput {...thermalNum("latent_heat_kj_kg")} /></ColdProField>
-                <ColdProField label="Condutividade congelado"><ColdProInput {...thermalNum("thermal_conductivity_frozen_w_m_k")} /></ColdProField>
-                <ColdProField label="Fração água congelável"><ColdProInput {...thermalNum("frozen_water_fraction")} /></ColdProField>
+                <ColdProField label="Cp acima" unit="kcal/kg·°C"><ColdProInput {...catalogThermalInput("specific_heat_above_kcal_kg_c")} value={form.specific_heat_above_kcal_kg_c ?? ""} /></ColdProField>
+                <ColdProField label="Cp abaixo" unit="kcal/kg·°C"><ColdProInput {...catalogThermalInput("specific_heat_below_kcal_kg_c")} value={form.specific_heat_below_kcal_kg_c ?? ""} /></ColdProField>
+                <ColdProField label="Calor latente convertido" unit="kcal/kg"><ColdProInput {...catalogThermalInput("latent_heat_kcal_kg")} value={form.latent_heat_kcal_kg ?? ""} /></ColdProField>
+                <ColdProField label="Calor latente original" unit="kJ/kg"><ColdProInput {...catalogThermalInput("latent_heat_kj_kg")} /></ColdProField>
+                <ColdProField label="Condutividade congelado"><ColdProInput {...catalogThermalInput("thermal_conductivity_frozen_w_m_k")} /></ColdProField>
+                <ColdProField label="Fração água congelável"><ColdProInput {...catalogThermalInput("frozen_water_fraction")} /></ColdProField>
               </div></div>
               {deltaT < 0 ? <ColdProValidationMessage>Temperatura final maior que a entrada. Confira se é aquecimento intencional.</ColdProValidationMessage> : null}
             </ColdProFormSection>
