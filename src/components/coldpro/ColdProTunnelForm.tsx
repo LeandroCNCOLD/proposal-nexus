@@ -1662,7 +1662,7 @@ export const ColdProTunnelForm = React.forwardRef<ColdProTunnelFormHandle, ColdP
             {catalogLocked ? <ColdProValidationMessage>Dados térmicos sincronizados com o cadastro técnico oficial. Salve o túnel para recalcular com a versão mais recente do produto.</ColdProValidationMessage> : null}
           </ColdProFormSection>
 
-          <ColdProFormSection title="Etapa 5 — Ar, vazão e ventilação" description="A velocidade real pode ser manual ou calculada por vazão e seção livre." icon={<Fan className="h-4 w-4" />}>{airflowFields}</ColdProFormSection>
+          <ColdProFormSection title="Etapa 5 — Ar, vazão e ventilação" description="Valida se a massa no túnel congela no tempo disponível e dimensiona parâmetros operacionais de ar." icon={<Fan className="h-4 w-4" />}>{airflowFields}</ColdProFormSection>
           <ColdProFormSection title="Etapa 6 — Cargas auxiliares" description="Cargas de embalagem, motores, ventiladores internos e outras fontes." icon={<Calculator className="h-4 w-4" />}>{internalLoadFields}</ColdProFormSection>
           <ColdProFormSection title="Etapa 7 — Resultado técnico base" description="Resultado calculado somente após as entradas de engenharia." icon={<Calculator className="h-4 w-4" />}>{tunnelResultCards}</ColdProFormSection>
           <ColdProFormSection title="Etapa 8 — Diagnóstico e consistência" description="Comparativo entre o motor do túnel e a carga consolidada do produto, sem sobrescrever valores." icon={<AlertTriangle className="h-4 w-4" />}>
