@@ -1435,10 +1435,10 @@ export const ColdProTunnelForm = React.forwardRef<ColdProTunnelFormHandle, ColdP
           Cada ciclo deste projeto tem {fmtColdPro(availableTimeForMassMin, 1)} min. Nesse intervalo, passam {fmtColdPro(projectedCycleMassKg, 1)} kg pelo túnel. A validação física compara esse ciclo com o tempo estimado até o núcleo: {thermalTimeRequiredMin > 0 ? fmtColdPro(thermalTimeRequiredMin, 1) : "—"} min.
         </p>
         <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <ColdProCalculatedInfo label="1. Capacidade por hora" value={`${fmtColdPro(nominalCapacityKgH, 1)} kg/h`} description="capacidade do girofreezer" tone={nominalCapacityKgH > 0 ? "success" : "warning"} />
+          <ColdProCalculatedInfo label="1. Capacidade nominal do túnel por hora" value={`${fmtColdPro(nominalCapacityKgH, 1)} kg/h`} description="capacidade do girofreezer" tone={nominalCapacityKgH > 0 ? "success" : "warning"} />
           <ColdProCalculatedInfo label="2. Capacidade por minuto" value={`${fmtColdPro(capacityKgMin, 2)} kg/min`} description="kg/h ÷ 60" tone={capacityKgMin > 0 ? "success" : "warning"} />
           <ColdProCalculatedInfo label="3. Massa na retenção" value={`${fmtColdPro(projectedCycleMassKg, 1)} kg`} description={`${fmtColdPro(availableTimeForMassMin, 1)} min por ciclo`} tone={projectedCycleMassKg > 0 ? "success" : "warning"} />
-          <ColdProCalculatedInfo label="4. Retenção necessária" value={thermalTimeRequiredMin > 0 ? `${fmtColdPro(thermalTimeRequiredMin, 1)} min` : "—"} description={retentionAdjustmentMin > 0 ? `aumentar ${fmtColdPro(retentionAdjustmentMin, 1)} min` : "tempo estimado ≤ retenção"} tone={retentionAdjustmentMin <= 0 && thermalTimeRequiredMin > 0 ? "success" : "warning"} />
+          <ColdProCalculatedInfo label="4. Retenção do ciclo" value={availableTimeForMassMin > 0 ? `${fmtColdPro(availableTimeForMassMin, 1)} min` : "—"} description="tempo definido para este ciclo" tone={availableTimeForMassMin > 0 ? "success" : "warning"} />
           <ColdProCalculatedInfo label="Status" value={processStatusText} description={manualHWM2K > 0 ? "validação com h manual" : "simulação preliminar sem h manual"} tone={tunnelResult.status === "adequate" && manualHWM2K > 0 ? "success" : "warning"} />
         </div>
       </div>
@@ -1469,13 +1469,13 @@ export const ColdProTunnelForm = React.forwardRef<ColdProTunnelFormHandle, ColdP
 
         <div>
           <div className="mb-3 grid gap-3 sm:grid-cols-2">
-            <ColdProCalculatedInfo label="1. Capacidade da esteira" value={`${fmtColdPro(nominalCapacityKgH, 1)} kg/h`} description="valor vindo da Etapa 3" tone={nominalCapacityKgH > 0 ? "success" : "warning"} />
+            <ColdProCalculatedInfo label="1. Capacidade nominal do túnel por hora" value={`${fmtColdPro(nominalCapacityKgH, 1)} kg/h`} description="valor vindo da Etapa 3" tone={nominalCapacityKgH > 0 ? "success" : "warning"} />
             <ColdProCalculatedInfo label="2. Capacidade por minuto" value={`${fmtColdPro(capacityKgMin, 2)} kg/min`} description="kg/h ÷ 60" tone={capacityKgMin > 0 ? "success" : "warning"} />
             <ColdProCalculatedInfo label="3. Tempo de retenção" value={`${fmtColdPro(availableTimeForMassMin, 1)} min`} description={isStatic ? "tempo de batelada" : "tempo disponível"} tone={availableTimeForMassMin > 0 ? "info" : "warning"} />
             <ColdProCalculatedInfo label="4. Massa projetada por ciclo" value={`${fmtColdPro(projectedCycleMassKg, 1)} kg`} description="kg/min × retenção" tone={projectedCycleMassKg > 0 ? "success" : "warning"} />
             <ColdProCalculatedInfo label="5. Compatibilidade física" value={hasPhysicalCompatibility ? "Compatível" : "Não compatível"} description="tempo estimado ≤ retenção" tone={hasPhysicalCompatibility ? "success" : "warning"} />
             <ColdProCalculatedInfo label="6. Margem de retenção" value={thermalTimeRequiredMin > 0 ? `${fmtColdPro(retentionMarginMin, 1)} min` : "—"} description="retenção - tempo estimado" tone={retentionMarginMin >= 0 && thermalTimeRequiredMin > 0 ? "success" : "warning"} />
-            <ColdProCalculatedInfo label="7. Retenção necessária" value={thermalTimeRequiredMin > 0 ? `${fmtColdPro(thermalTimeRequiredMin, 1)} min` : "—"} description="tempo estimado até o núcleo" tone={thermalTimeRequiredMin > 0 && thermalTimeRequiredMin <= availableTimeForMassMin ? "success" : "warning"} />
+            <ColdProCalculatedInfo label="7. Tempo estimado até o núcleo" value={thermalTimeRequiredMin > 0 ? `${fmtColdPro(thermalTimeRequiredMin, 1)} min` : "—"} description="referência física, não capacidade do ciclo" tone={thermalTimeRequiredMin > 0 && thermalTimeRequiredMin <= availableTimeForMassMin ? "success" : "warning"} />
             <ColdProCalculatedInfo label="8. Ajuste de retenção" value={thermalTimeRequiredMin > 0 ? `${fmtColdPro(Math.max(0, retentionAdjustmentMin), 1)} min` : "—"} description="aumento necessário" tone={retentionAdjustmentMin <= 0 && thermalTimeRequiredMin > 0 ? "success" : "warning"} />
             <ColdProCalculatedInfo label="9. Velocidade atual da esteira" value={currentBeltSpeedMMin > 0 ? `${fmtColdPro(currentBeltSpeedMMin, 2)} m/min` : "—"} description="comprimento útil ÷ retenção atual" tone={currentBeltSpeedMMin > 0 ? "info" : "warning"} />
             <ColdProCalculatedInfo label="10. Velocidade ajustada" value={requiredBeltSpeedMMin > 0 ? `${fmtColdPro(requiredBeltSpeedMMin, 2)} m/min` : "—"} description={beltSpeedVariationPercent === null ? "comprimento útil ÷ tempo necessário" : `${fmtColdPro(beltSpeedVariationPercent, 1)}% vs atual`} tone={requiredBeltSpeedMMin > 0 ? "info" : "warning"} />
