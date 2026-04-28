@@ -231,14 +231,15 @@ function SettingsPage() {
                 <Badge variant="outline">{filteredAccessQueue.length} registro(s)</Badge>
               </div>
                 <Table>
-                  <TableHeader><TableRow><TableHead>Usuário</TableHead><TableHead>Origem</TableHead><TableHead>Perfil</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Ação</TableHead></TableRow></TableHeader>
+                  <TableHeader><TableRow><TableHead>Usuário</TableHead><TableHead>Origem</TableHead><TableHead>Perfil</TableHead><TableHead>Status</TableHead><TableHead>Senha provisória</TableHead><TableHead className="text-right">Ação</TableHead></TableRow></TableHeader>
                   <TableBody>
-                    {filteredAccessQueue.length === 0 ? <TableRow><TableCell colSpan={5} className="text-sm text-muted-foreground">Nenhuma liberação encontrada.</TableCell></TableRow> : filteredAccessQueue.map((item) => (
+                    {filteredAccessQueue.length === 0 ? <TableRow><TableCell colSpan={6} className="text-sm text-muted-foreground">Nenhuma liberação encontrada.</TableCell></TableRow> : filteredAccessQueue.map((item) => (
                       <TableRow key={item.id}>
                         <TableCell><div className="font-medium">{item.full_name}</div><div className="text-xs text-muted-foreground">{item.email}</div></TableCell>
                         <TableCell className="capitalize">{item.source}</TableCell>
                         <TableCell>{ROLE_LABELS[item.suggested_role]}</TableCell>
-                        <TableCell><Badge variant={item.status === "pending" ? "outline" : item.status === "approved" ? "default" : "secondary"}>{item.status === "pending" ? "Pendente" : item.status === "approved" ? "Aprovado / convite enviado" : "Rejeitado"}</Badge></TableCell>
+                        <TableCell><Badge variant={item.status === "pending" ? "outline" : item.status === "approved" ? "default" : "secondary"}>{item.status === "pending" ? "Pendente" : item.status === "approved" ? "Aprovado" : "Rejeitado"}</Badge></TableCell>
+                        <TableCell><Input type="password" autoComplete="new-password" disabled={item.status === "approved"} value={temporaryPasswords[item.id] ?? ""} onChange={(event) => setTemporaryPasswords((current) => ({ ...current, [item.id]: event.target.value }))} placeholder="Mín. 8 caracteres" /></TableCell>
                         <TableCell className="text-right"><Button size="sm" variant="outline" onClick={() => updateQueueStatus(item.id, item.status === "approved" ? "pending" : "approved")}>{item.status === "approved" ? "Reabrir" : "Aprovar"}</Button></TableCell>
                       </TableRow>
                     ))}
