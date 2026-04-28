@@ -1,11 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { CheckCircle2, Clock3, RefreshCw, ShieldCheck, UserPlus, XCircle } from "lucide-react";
+import { CheckCircle2, Clock3, RefreshCw, Search, ShieldCheck, UserPlus, XCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
 import { useAuth } from "@/hooks/useAuth";
 import { ROLE_LABELS, type AppRole } from "@/lib/proposal";
+import { nomusSyncRepresentatives, nomusSyncSellers } from "@/integrations/nomus/server.functions";
+import { useServerFn } from "@tanstack/react-start";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -27,8 +29,12 @@ const ACCESS_STATUS_LABELS: Record<string, string> = {
 function SettingsPage() {
   const { user, roles, hasAnyRole } = useAuth();
   const qc = useQueryClient();
+  const syncSellers = useServerFn(nomusSyncSellers);
+  const syncRepresentatives = useServerFn(nomusSyncRepresentatives);
   const canManageAccess = hasAnyRole(MANAGER_ROLES);
   const [newUser, setNewUser] = useState({ full_name: "", email: "", suggested_role: "coldpro" as AppRole });
+  const [accessSearch, setAccessSearch] = useState("");
+  const [importingNomus, setImportingNomus] = useState(false);
   const { data: profile } = useQuery({
     queryKey: ["profile", user?.id],
     queryFn: async () => (await supabase.from("profiles").select("*").eq("id", user!.id).single()).data,
@@ -59,6 +65,16 @@ function SettingsPage() {
     return grouped;
   }, [userRoles]);
 
+  const searchTerm = accessSearch.trim().toLowerCase();
+  const filteredAccessQueue = useMemo(() => {
+    if (!searchTerm) return accessQueue;
+    return accessQueue.filter((item) => [item.full_name, item.email, item.source, item.nomus_user_id].filter(Boolean).some((value) => String(value).toLowerCase().includes(searchTerm)));
+  }, [accessQueue, searchTerm]);
+  const filteredProfiles = useMemo(() => {
+    if (!searchTerm) return allProfiles;
+    return allProfiles.filter((item) => [item.full_name, item.email, item.access_source, item.nomus_user_id].filter(Boolean).some((value) => String(value).toLowerCase().includes(searchTerm)));
+  }, [allProfiles, searchTerm]);
+
   const refreshAccess = () => {
     qc.invalidateQueries({ queryKey: ["access-profiles"] });
     qc.invalidateQueries({ queryKey: ["access-user-roles"] });
@@ -81,27 +97,35 @@ function SettingsPage() {
   };
 
   const importNomusUsers = async () => {
-    const [{ data: sellers }, { data: representatives }] = await Promise.all([
-      supabase.from("nomus_sellers").select("nomus_id, name, email").not("email", "is", null),
-      supabase.from("nomus_representatives").select("nomus_id, name, email").not("email", "is", null),
-    ]);
-    const byEmail = new Map<string, { full_name: string; email: string; source: string; nomus_user_id: string | null; suggested_role: AppRole; status: string }>();
-    for (const item of [...(sellers ?? []), ...(representatives ?? [])]) {
-      if (!item.email) continue;
-      byEmail.set(item.email.toLowerCase(), {
-        full_name: item.name,
-        email: item.email.toLowerCase(),
-        source: "nomus",
-        nomus_user_id: item.nomus_id,
-        suggested_role: "vendedor",
-        status: "pending",
-      });
+    setImportingNomus(true);
+    try {
+      await Promise.all([syncSellers({}), syncRepresentatives({})]);
+      const [{ data: sellers }, { data: representatives }] = await Promise.all([
+        supabase.from("nomus_sellers").select("nomus_id, name, email").not("email", "is", null),
+        supabase.from("nomus_representatives").select("nomus_id, name, email").not("email", "is", null),
+      ]);
+      const byEmail = new Map<string, { full_name: string; email: string; source: string; nomus_user_id: string | null; suggested_role: AppRole; status: string }>();
+      for (const item of [...(sellers ?? []), ...(representatives ?? [])]) {
+        if (!item.email) continue;
+        byEmail.set(item.email.toLowerCase(), {
+          full_name: item.name,
+          email: item.email.toLowerCase(),
+          source: "nomus",
+          nomus_user_id: item.nomus_id,
+          suggested_role: "vendedor",
+          status: "pending",
+        });
+      }
+      if (byEmail.size === 0) return toast.info("Nenhum usuário com e-mail encontrado no Nomus.");
+      const { error } = await supabase.from("user_access_queue").upsert([...byEmail.values()], { onConflict: "email" });
+      if (error) return toast.error(error.message);
+      refreshAccess();
+      toast.success(`${byEmail.size} usuário(s) do Nomus enviados para liberação.`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao buscar usuários no Nomus.");
+    } finally {
+      setImportingNomus(false);
     }
-    if (byEmail.size === 0) return toast.info("Nenhum usuário com e-mail encontrado no Nomus sincronizado.");
-    const { error } = await supabase.from("user_access_queue").upsert([...byEmail.values()], { onConflict: "email" });
-    if (error) return toast.error(error.message);
-    refreshAccess();
-    toast.success(`${byEmail.size} usuário(s) do Nomus enviados para liberação.`);
   };
 
   const updateProfileStatus = async (profileId: string, access_status: "active" | "blocked" | "pending") => {
@@ -169,6 +193,20 @@ function SettingsPage() {
             <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">Seu perfil atual não permite liberar acessos.</div>
           ) : (
             <div className="space-y-6">
+              <div className="flex flex-col gap-2 rounded-lg border bg-background/40 p-4 md:flex-row md:items-end md:justify-between">
+                <div className="space-y-1.5 md:min-w-[340px]">
+                  <Label className="text-xs">Buscar usuário</Label>
+                  <div className="relative">
+                    <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input className="pl-8" value={accessSearch} onChange={(event) => setAccessSearch(event.target.value)} placeholder="Nome, e-mail, origem ou ID Nomus" />
+                  </div>
+                </div>
+                <Button variant="outline" onClick={importNomusUsers} disabled={importingNomus}>
+                  <RefreshCw className={`mr-2 h-4 w-4 ${importingNomus ? "animate-spin" : ""}`} />
+                  {importingNomus ? "Buscando no Nomus" : "Buscar usuários no Nomus"}
+                </Button>
+              </div>
+
               <div className="grid gap-3 rounded-lg border bg-background/40 p-4 md:grid-cols-[1fr_1fr_180px_auto]">
                 <div className="space-y-1.5">
                   <Label className="text-xs">Nome</Label>
@@ -192,12 +230,12 @@ function SettingsPage() {
               <div>
               <div className="mb-2 flex items-center justify-between gap-3">
                 <h3 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground"><Clock3 className="h-3.5 w-3.5" /> Pendentes de liberação</h3>
-                <Button size="sm" variant="outline" onClick={importNomusUsers}><RefreshCw className="mr-2 h-3.5 w-3.5" />Importar Nomus</Button>
+                <Badge variant="outline">{filteredAccessQueue.length} registro(s)</Badge>
               </div>
                 <Table>
                   <TableHeader><TableRow><TableHead>Usuário</TableHead><TableHead>Origem</TableHead><TableHead>Perfil</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Ação</TableHead></TableRow></TableHeader>
                   <TableBody>
-                    {accessQueue.length === 0 ? <TableRow><TableCell colSpan={5} className="text-sm text-muted-foreground">Nenhuma liberação pendente.</TableCell></TableRow> : accessQueue.map((item) => (
+                    {filteredAccessQueue.length === 0 ? <TableRow><TableCell colSpan={5} className="text-sm text-muted-foreground">Nenhuma liberação encontrada.</TableCell></TableRow> : filteredAccessQueue.map((item) => (
                       <TableRow key={item.id}>
                         <TableCell><div className="font-medium">{item.full_name}</div><div className="text-xs text-muted-foreground">{item.email}</div></TableCell>
                         <TableCell className="capitalize">{item.source}</TableCell>
@@ -215,7 +253,7 @@ function SettingsPage() {
                 <Table>
                   <TableHeader><TableRow><TableHead>Usuário</TableHead><TableHead>Acesso</TableHead><TableHead>Perfis</TableHead><TableHead className="text-right">Controle</TableHead></TableRow></TableHeader>
                   <TableBody>
-                    {allProfiles.map((item) => {
+                    {filteredProfiles.map((item) => {
                       const assignedRoles = rolesByUser.get(item.id) ?? [];
                       return (
                         <TableRow key={item.id}>
