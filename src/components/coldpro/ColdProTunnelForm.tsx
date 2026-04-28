@@ -472,6 +472,13 @@ export const ColdProTunnelForm = React.forwardRef<ColdProTunnelFormHandle, ColdP
   const setSim = (key: string, value: unknown) => setSimulation((prev) => ({ ...prev, [key]: value }));
   const simNum = (key: string): NumericInputProps => ({ type: "number", step: "0.0001", value: inputValue(simulation?.[key]), onChange: (e: React.ChangeEvent<HTMLInputElement>) => setSim(key, numberOrNull(e.target.value)) });
   const simAirTempNum = (): NumericInputProps => ({ type: "number", step: "0.0001", value: inputValue(simulation?.air_temp_c), onChange: (e: React.ChangeEvent<HTMLInputElement>) => setSimulation((prev) => ({ ...prev, air_temp_source: "manual", air_temp_c: numberOrNull(e.target.value) })) });
+  const setAirflowSource = (value: string) => {
+    if (value === "airflow_by_fans") setForm((prev) => ({ ...prev, ...buildAirflowPreset(prev) }));
+    else setForm((prev) => ({ ...prev, airflow_source: value, fan_airflow_m3_h: prev.fan_airflow_m3_h ?? prev.informed_air_flow_m3_h ?? prev.airflow_m3_h }));
+  };
+  const setSimulationAirflowSource = (value: string) => {
+    setSimulation((prev) => ({ ...prev, airflow_source: value, fan_airflow_m3_h: prev.fan_airflow_m3_h ?? prev.informed_air_flow_m3_h ?? prev.airflow_m3_h }));
+  };
   const setContinuousMassMode = (value: string) => {
     const resetByMethod = {
       mass_kg_hour: value === "direct_mass_flow" ? form.mass_kg_hour : 0,
