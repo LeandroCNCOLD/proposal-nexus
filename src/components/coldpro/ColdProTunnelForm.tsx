@@ -1247,10 +1247,6 @@ export const ColdProTunnelForm = React.forwardRef<ColdProTunnelFormHandle, ColdP
   const beltPhysicalMassKg = positiveValue(beltSurfaceBreakdown.massOnBeltKg) || (beltSurfaceAreaForMassM2 > 0 && beltSurfaceDensityForMassKgM2 > 0 ? beltSurfaceAreaForMassM2 * beltSurfaceDensityForMassKgM2 : 0);
   const hasBeltPhysicalMass = continuousMassMode === "calculated_by_belt_surface_density" && beltPhysicalMassKg > 0;
   const instantTunnelMassKg = hasBeltPhysicalMass ? beltPhysicalMassKg : massInAvailableTimeKg;
-  const operatingCapacityFromInstantMassKgH = instantTunnelMassKg > 0 && availableTimeForMassMin > 0 ? instantTunnelMassKg * 60 / availableTimeForMassMin : continuousCapacityKgH;
-  const realCapacityByThermalTimeKgH = instantTunnelMassKg > 0 && estimatedTimeForMassMin > 0 ? instantTunnelMassKg * 60 / estimatedTimeForMassMin : 0;
-  const capacityDeficitRatio = continuousCapacityKgH > 0 && realCapacityByThermalTimeKgH > 0 ? realCapacityByThermalTimeKgH / continuousCapacityKgH : null;
-  const capacityDeficitPercent = capacityDeficitRatio !== null ? capacityDeficitRatio * 100 : null;
   const beltAreaDeviationPercent = beltSurfaceInformedAreaForMassM2 > 0 && beltSurfaceCalculatedAreaForMassM2 > 0 ? Math.abs(beltSurfaceInformedAreaForMassM2 - beltSurfaceCalculatedAreaForMassM2) / Math.max(beltSurfaceInformedAreaForMassM2, beltSurfaceCalculatedAreaForMassM2) * 100 : 0;
   const showBeltAreaMismatch = continuousMassMode === "calculated_by_belt_surface_density" && beltSurfaceInformedAreaForMassM2 > 0 && beltSurfaceCalculatedAreaForMassM2 > 0 && beltAreaDeviationPercent > 5;
   const beltFlowMethodDeviationPercent = positiveValue(beltSurfaceBreakdown.flowMethodDeviationPercent) || (positiveValue(beltSurfaceBreakdown.flowBySpeedKgH) > 0 && positiveValue(beltSurfaceBreakdown.flowByRetentionKgH) > 0 ? Math.abs(positiveValue(beltSurfaceBreakdown.flowBySpeedKgH) - positiveValue(beltSurfaceBreakdown.flowByRetentionKgH)) / Math.max(positiveValue(beltSurfaceBreakdown.flowBySpeedKgH), positiveValue(beltSurfaceBreakdown.flowByRetentionKgH)) * 100 : 0);
