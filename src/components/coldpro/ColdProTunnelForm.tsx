@@ -867,13 +867,27 @@ export const ColdProTunnelForm = React.forwardRef<ColdProTunnelFormHandle, ColdP
 
   const applyAirflowPreset = React.useCallback(() => {
     setForm((prev) => {
+      if (airOperationMode === "design_to_time") {
+        const targetH = requiredConvectiveCoefficientForTimeWM2K({ densityKgM3: positiveValue(manualDensityKgM3, ashraeDensityKgM3, productDensityKgM3), latentHeatKcalKg, frozenWaterFraction, freezingPointC, airTempC: airTemperatureC, distanceToCoreM: tunnelResult.distanceToCoreM, kEffectiveWMK: tunnelResult.kEffectiveWMK, targetTimeMin: tunnelResult.availableTimeMin });
+        const exposure = Number(tunnelResult.h.airExposureFactor ?? prev.air_exposure_factor ?? 1) * Number(tunnelResult.h.exposureFactor ?? 1);
+        const requiredVelocityMS = targetH > 10 * exposure ? Math.pow((targetH / exposure - 10) / 10, 1 / 0.8) : positiveValue(prev.air_velocity_m_s) || recommendedTunnelAirVelocity(tunnelType, isStatic);
+        const freeAreaM2 = freeAirAreaFromControls(prev);
+        const airflowM3H = airflowForVelocityM3H(freeAreaM2, requiredVelocityMS) || requiredAirflowForLoadM3H(tunnelResult.totalKW, positiveValue(prev.air_delta_t_k) || 6, displayedAirProperties.densityKgM3, displayedAirProperties.specificHeatKJkgK);
+        return { ...prev, airflow_source: "airflow_by_fans", air_temp_source: "manual", air_temp_c: Number(prev.air_temp_c ?? airTemperatureC), fan_airflow_m3_h: roundPreset(airflowM3H, 2), informed_air_flow_m3_h: roundPreset(airflowM3H, 2), airflow_m3_h: roundPreset(airflowM3H, 2), air_velocity_m_s: roundPreset(requiredVelocityMS, 3), airflow_free_area_m2: freeAreaM2 > 0 ? roundPreset(freeAreaM2, 3) : prev.airflow_free_area_m2 };
+      }
       const freeAreaM2 = freeAirAreaFromControls(prev);
       const velocityMS = positiveValue(prev.air_velocity_m_s);
       const airflowM3H = airflowForVelocityM3H(freeAreaM2, velocityMS);
       if (airflowM3H > 0) return { ...prev, airflow_source: "airflow_by_fans", fan_airflow_m3_h: roundPreset(airflowM3H, 2), informed_air_flow_m3_h: roundPreset(airflowM3H, 2), airflow_m3_h: roundPreset(airflowM3H, 2), airflow_free_area_m2: roundPreset(freeAreaM2, 3) };
       return { ...prev, ...buildAirflowPreset(prev) };
     });
-  }, [buildAirflowPreset]);
+  }, [airOperationMode, airTemperatureC, ashraeDensityKgM3, buildAirflowPreset, displayedAirProperties.densityKgM3, displayedAirProperties.specificHeatKJkgK, freezingPointC, frozenWaterFraction, isStatic, latentHeatKcalKg, manualDensityKgM3, productDensityKgM3, tunnelResult.availableTimeMin, tunnelResult.distanceToCoreM, tunnelResult.h.airExposureFactor, tunnelResult.h.exposureFactor, tunnelResult.kEffectiveWMK, tunnelResult.totalKW, tunnelType]);
+
+  const setAirTemperatureSource = (value: string) => setForm((prev) => ({ ...prev, air_temp_source: value, air_temp_c: value === "environment" ? environmentInternalTempC : prev.air_temp_c }));
+  const evapTempNum = (): NumericInputProps => ({ type: "number", step: "0.0001", value: inputValue(evaporatorTempC), onChange: (e: React.ChangeEvent<HTMLInputElement>) => { const nextEvap = numberOrNull(e.target.value); setAirTempCalcBase("edit_evap"); setForm((prev) => ({ ...prev, air_temp_source: "manual", air_temp_c: nextEvap === null ? null : nextEvap + (positiveValue(prev.air_delta_t_k) || 6) })); } });
+  const airDeltaNum = (): NumericInputProps => ({ type: "number", step: "0.0001", value: inputValue(form?.air_delta_t_k), onChange: (e: React.ChangeEvent<HTMLInputElement>) => { const nextDelta = numberOrNull(e.target.value); setForm((prev) => { const delta = nextDelta ?? 0; const nextAir = airTempCalcBase === "edit_evap" ? evaporatorTempC + delta : prev.air_temp_c; return { ...prev, air_delta_t_k: nextDelta, air_temp_c: nextAir }; }); } });
+  const useSuggestedH = () => setForm((prev) => ({ ...prev, convective_coefficient_manual_w_m2_k: roundPreset(hSuggestedWM2K, 2) }));
+  const applyTunnelTempToEnvironment = () => setEnvironmentAirTempOverrideC(airTemperatureC);
 
   const loadBreakdown = tunnelResult.calculationBreakdown.loads ?? {};
   const modelBreakdown = tunnelResult.calculationBreakdown.model ?? {};
