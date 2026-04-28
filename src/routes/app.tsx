@@ -24,6 +24,11 @@ function AppLayout() {
     queryFn: async () => (await supabase.from("profiles").select("access_status, must_change_password").eq("id", user!.id).single()).data,
     enabled: !!user,
   });
+  const { data: moduleAccess = [], isLoading: loadingModuleAccess } = useQuery({
+    queryKey: ["role-module-access"],
+    queryFn: async () => (await supabase.from("role_module_access").select("role, module_key, module_path, allowed")).data ?? [],
+    enabled: !!user,
+  });
 
   React.useEffect(() => {
     if (!loading) {
@@ -34,7 +39,7 @@ function AppLayout() {
     return () => window.clearTimeout(timer);
   }, [loading]);
 
-  if ((loading || loadingProfile) && !authGuardTimedOut) {
+  if ((loading || loadingProfile || loadingModuleAccess) && !authGuardTimedOut) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -79,8 +84,8 @@ function AppLayout() {
       </div>
     );
   }
-  if (!isAppRouteAllowed(pathname, roles)) {
-    const fallbackPath = getAllowedModulePaths(roles).find((path) => path !== "*") ?? "/app/configuracoes";
+  if (!isAppRouteAllowed(pathname, roles, moduleAccess)) {
+    const fallbackPath = getAllowedModulePaths(roles, moduleAccess).find((path) => path !== "*") ?? "/app/configuracoes";
     return <Navigate to={fallbackPath} />;
   }
   return <AppShell><Outlet /></AppShell>;
