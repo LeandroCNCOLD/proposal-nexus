@@ -1,142 +1,243 @@
-Vou aplicar o ajuste exatamente como camada de apresentação e diagnóstico da Etapa 5, sem alterar motor térmico, banco de dados ou cálculo de carga.
+Plano para reestruturar a Etapa 5 — Ar, vazão e ventilação do ColdPro
 
-## Objetivo
+Objetivo funcional
 
-Deixar a Etapa 5 responder diretamente:
+Transformar a Etapa 5 em uma tela de resposta operacional direta:
 
-```text
-Quantos kg estão realmente dentro do túnel neste tempo de retenção?
-Essa massa consegue congelar no tempo disponível?
-```
+“Com X kg sobre a esteira durante Y min, o produto congela até o núcleo? Se não, quais parâmetros de ar, vazão, temperatura e h seriam necessários?”
 
-Separando visualmente:
+A tela passará a separar claramente:
+- capacidade nominal/operacional em kg/h;
+- massa instantânea no túnel em kg;
+- tempo de retenção disponível em min;
+- tempo térmico estimado até o núcleo em min;
+- capacidade real possível pelo tempo térmico em kg/h.
 
-- Capacidade nominal: kg/h
-- Massa instantânea no túnel: kg
-- Massa física na esteira: kg
-- Tempo disponível/retenção: min
-- Tempo necessário pelo modelo térmico: min
+O que será alterado
 
-## Alterações planejadas
+1. Reorganizar a Etapa 5 em dois modos
 
-### 1. Criar cálculos auxiliares apenas para exibição
+Adicionar um seletor no topo da Etapa 5:
 
-No `ColdProTunnelForm.tsx`, vou calcular:
+1. Validar configuração atual
+2. Dimensionar para tempo solicitado
 
-```text
-capacidade_kg_h = tunnelResult.usedMassKgH
+Modo “Validar configuração atual”
+- Usa os valores informados pelo usuário:
+  - vazão dos ventiladores;
+  - velocidade do ar;
+  - seção de passagem;
+  - bloqueio;
+  - temperatura do ar;
+  - ΔT evaporador/ar;
+  - temperatura de evaporação;
+  - h manual, quando informado.
+- Calcula e exibe:
+  - velocidade real do ar;
+  - área livre;
+  - h sugerido;
+  - h efetivo;
+  - tempo estimado até o núcleo;
+  - capacidade real pelo tempo térmico;
+  - status suficiente/insuficiente.
 
-tempo_disponivel_min = tunnelResult.availableTimeMin
+Modo “Dimensionar para tempo solicitado”
+- Objetivo: fazer tempo_estimado <= tempo_retenção.
+- Ao clicar em “Calcular ar”, o sistema tentará encontrar parâmetros operacionais para fechar o tempo solicitado.
+- Calculará/preencherá:
+  - vazão necessária;
+  - velocidade do ar necessária;
+  - temperatura do ar sugerida;
+  - temperatura de evaporação sugerida;
+  - h necessário como referência.
+- Se não fechar dentro de limites operacionais, exibirá:
+  “Mesmo nos limites operacionais, o tempo solicitado não fecha.”
 
-tempo_estimado_min = tunnelResult.estimatedTimeMin
+2. Criar a pergunta central da etapa
 
-massa_no_tempo_disponivel_kg = capacidade_kg_h × tempo_disponivel_min / 60
+Adicionar um bloco principal, visualmente destacado, com a mensagem:
 
-massa_equivalente_tempo_estimado_kg = capacidade_kg_h × tempo_estimado_min / 60
-```
+“Com {massa_esteira} kg sobre a esteira e {tempo_retenção} min, o modelo estima {tempo_estimado} min para congelar até o núcleo.”
 
-Para esteira por densidade superficial:
+E logo abaixo:
+- Capacidade nominal: {kg/h}
+- Capacidade real: {kg/h}
+- Status: suficiente / insuficiente / faltam dados
 
-```text
-massa_esteira_kg = beltSurface.massOnBeltKg
-```
+3. Separar capacidade horária de massa instantânea
 
-E, se `massOnBeltKg` não vier pronto mas houver área e densidade:
+Na Etapa 5, o cálculo conceitual ficará:
 
-```text
-massa_esteira_kg = beltSurface.areaM2 × beltSurface.surfaceDensityKgM2
-```
+- massa_esteira_kg = área física da esteira × densidade superficial
+- capacidade_nominal_kg_h = massa_esteira_kg × 60 / tempo_retenção_min
+- capacidade_real_termica_kg_h = massa_esteira_kg × 60 / tempo_estimado_min
 
-### 2. Corrigir a leitura de kg/m² vs kg
+Quando o modo da Etapa 3 for por densidade superficial da esteira, a massa instantânea virá obrigatoriamente da massa física sobre a esteira.
 
-Na Etapa 5, a densidade superficial continuará sendo mostrada como **kg/m²** somente quando for realmente densidade.
+Para outros modos, manter fallback atual:
+- massa instantânea = kg/h × tempo disponível / 60
 
-A massa física resultante será mostrada como **kg**:
+4. Temperatura do ar com fonte controlada
 
-```text
-Densidade superficial: 6 kg/m²
-Massa sobre a esteira: 195 kg
-```
+Adicionar/organizar seletor:
 
-Não vou exibir “195 kg/m²” quando o valor for massa sobre a esteira.
+Fonte da temperatura do ar:
+- Usar ambiente/psicrométrico
+- Definir túnel manualmente
 
-### 3. Reorganizar a coluna de respostas da Etapa 5
+Regras:
+- Se usar ambiente: T_ar = temperatura interna do ambiente.
+- Se manual: T_ar é independente.
+- Alterar T_ar manual não deve alterar automaticamente o ambiente.
+- Adicionar botão:
+  “Aplicar temperatura do túnel ao ambiente”
 
-A coluna de leitura/resultado será reorganizada nesta ordem crítica:
+Esse botão fará uma ação explícita do usuário para copiar T_ar para o campo de ambiente interno, sem efeito automático escondido.
 
-1. Carga térmica do produto
-2. Capacidade nominal usada no motor, em kg/h
-3. Tempo disponível/retenção
-4. Massa no tempo disponível
-5. Massa sobre a esteira, se existir
-6. Tempo estimado de congelamento
-7. Massa equivalente no tempo estimado
-8. Vazão necessária pela carga
-9. Velocidade do ar
-10. Área e seção livre
+5. Temperatura de evaporação e ΔT
 
-### 4. Usar massa física da esteira como referência principal quando existir
+Adicionar controles na Etapa 5:
 
-Quando o modo de cálculo tiver dados de esteira (`beltSurface.massOnBeltKg`, `areaM2`, `surfaceDensityKgM2`), a UI vai destacar essa massa como a massa física real presente sobre a esteira.
+- Temperatura do ar (°C)
+- ΔT evaporador/ar (K)
+- Temperatura de evaporação (°C)
+- Base de cálculo:
+  - editar T_ar
+  - editar T_evap
 
-A massa por fluxo continuará aparecendo como conferência operacional:
+Regras:
+- Se base = editar T_ar:
+  - T_evap = T_ar - ΔT
+- Se base = editar T_evap:
+  - T_ar = T_evap + ΔT
+- Nunca recalcular os dois ao mesmo tempo.
 
-```text
-Massa no tempo disponível = kg/h × retenção / 60
-Massa sobre a esteira = área × densidade superficial
-```
+Observação técnica: se ainda não existir campo persistido para T_evap no banco, manter T_evap como campo calculado/informativo no formulário para cumprir “não alterar banco de dados”. Persistência nova só seria feita em uma etapa futura se você solicitar.
 
-### 5. Adicionar alerta de consistência entre fluxo e esteira
+6. Vazão e velocidade bidirecionais
 
-Se houver massa calculada por fluxo e massa física da esteira, e elas divergirem de forma relevante, exibir alerta:
+Manter e reforçar a lógica bidirecional já existente:
 
-```text
-Diferença entre massa calculada por fluxo e massa física na esteira.
-Verificar velocidade, área útil ou densidade superficial.
-```
+- vazão = carga_kW × 3600 / (ρ_ar × Cp_ar × ΔT)
+- área_livre = área_bruta × (1 - bloqueio)
+- velocidade = vazão / 3600 / área_livre
+- inverso: vazão = velocidade × área_livre × 3600
 
-Vou usar uma tolerância prática para evitar alerta por arredondamento pequeno.
+Ao alterar:
+- vazão;
+- velocidade;
+- largura da seção;
+- altura da seção;
+- bloqueio;
 
-### 6. Adicionar diagnóstico obrigatório de tempo insuficiente
+recalcular automaticamente:
+- área livre;
+- velocidade ou vazão equivalente;
+- h sugerido;
+- tempo estimado;
+- status.
 
-Se:
+7. Regra crítica do coeficiente convectivo
 
-```text
-tempo_estimado > tempo_disponivel
-```
+Alterar a leitura da Etapa 5 para deixar claro:
 
-Exibir mensagem direta:
+- h manual: valor de engenharia informado pelo usuário;
+- h sugerido: estimativa preliminar pela velocidade do ar;
+- h efetivo: valor usado no cálculo térmico.
 
-```text
-Com {capacidade} kg/h e {tempo_disponivel} min de retenção,
-há aproximadamente {massa_no_tempo_disponivel} kg dentro do túnel.
+Regras:
+- Se h manual informado: h_efetivo = h_manual.
+- Se não informado: h_sugerido será usado apenas como simulação preliminar.
+- Exibir sempre h manual, h sugerido e h efetivo.
+- Adicionar botão “Usar h sugerido”, que copia o h sugerido para o campo manual.
+- Para validação final, exibir alerta quando h manual estiver vazio:
+  “Para validação final, informe o coeficiente convectivo manual.”
 
-O modelo estima {tempo_estimado} min para congelar até o núcleo.
+Importante: isso não altera a energia específica do produto nem propriedades térmicas. Apenas altera a transferência térmica e o tempo estimado.
 
-Portanto, o tempo atual não é suficiente para congelamento completo.
-```
+8. Botão “Calcular ar”
 
-### 7. Manter intacto o cálculo técnico existente
+Reformular o botão para executar a lógica do modo selecionado:
 
-Não vou alterar:
+No modo Validar configuração atual:
+- recalcula vazão necessária pela carga térmica e ΔT;
+- atualiza velocidade pela seção livre;
+- atualiza h sugerido;
+- atualiza tempo e status.
 
-- `tunnelEngine`
-- cálculo de carga térmica
-- cálculo de vazão
-- banco de dados
-- regras de persistência
+No modo Dimensionar para tempo solicitado:
+- calcula h necessário para atingir o tempo de retenção;
+- estima velocidade de ar necessária para obter esse h sugerido;
+- calcula vazão necessária pela seção livre;
+- sugere T_ar/T_evap/ΔT dentro de limites operacionais;
+- preenche os campos de ar e recalcula o resultado.
 
-A alteração será de apresentação, organização e diagnóstico na Etapa 5.
+9. Resultados e diagnósticos da Etapa 5
 
-## Arquivo principal
+Reorganizar os cards para a sequência de decisão industrial:
+
+1. Pergunta central/status
+2. Massa instantânea no túnel
+3. Tempo disponível
+4. Tempo estimado até o núcleo
+5. Capacidade nominal/operacional
+6. Capacidade real pelo tempo térmico
+7. Déficit ou margem
+8. Temperatura do ar
+9. Temperatura de evaporação
+10. ΔT evaporador/ar
+11. Vazão dos ventiladores
+12. Área livre / bloqueio
+13. Velocidade real do ar
+14. h manual / h sugerido / h efetivo
+15. Densidade e Cp do ar usados
+
+Também manter os alertas de:
+- divergência entre área manual e largura × comprimento útil;
+- inconsistência entre fluxo por velocidade da esteira e fluxo por retenção;
+- insuficiência de tempo térmico.
+
+10. O que não será alterado
+
+Conforme solicitado, não será alterado:
+- banco de dados;
+- carga térmica do produto por kg;
+- propriedades térmicas do produto;
+- modelo de massa kg/h da Etapa 3;
+- tabelas ou migrações.
+
+A Etapa 5 atuará apenas sobre:
+- ar;
+- vazão;
+- velocidade;
+- temperatura;
+- ΔT;
+- h;
+- tempo térmico;
+- capacidade real possível.
+
+Arquivos previstos
 
 - `src/components/coldpro/ColdProTunnelForm.tsx`
+  - Reestruturação visual e lógica da Etapa 5.
+  - Novos estados locais para modo de operação, base de temperatura e campos derivados.
+  - Botões “Calcular ar”, “Usar h sugerido” e “Aplicar temperatura do túnel ao ambiente”.
 
-## Resultado esperado
+- Possível ajuste pontual em `src/modules/coldpro/physics/heatTransfer.ts` ou no próprio componente
+  - Apenas se for melhor centralizar a fórmula inversa para estimar h necessário/velocidade necessária.
+  - Sem alterar carga térmica ou propriedades do produto.
 
-A Etapa 5 passará a mostrar, sem ambiguidade:
+Critérios de aceite
 
-- Se o projeto é 1.000 kg/h e a retenção é 11 min, a tela mostrará cerca de 183 kg no intervalo.
-- Se a esteira tiver massa física calculada, ela aparecerá como kg, não kg/m².
-- Se o modelo térmico exigir 57 min, a tela mostrará claramente que 11 min não são suficientes para congelamento completo.
-- O usuário não precisará interpretar sozinho a relação entre kg/h, kg no túnel e tempo térmico.
+A Etapa 5 estará correta quando responder claramente:
+
+- quanto produto está fisicamente no túnel;
+- quanto tempo ele fica exposto;
+- quanto tempo o modelo térmico exige;
+- qual capacidade real é possível;
+- quais parâmetros operacionais de ar seriam necessários;
+- se a configuração fecha ou não fecha tecnicamente.
+
+Exemplo de leitura esperada:
+
+“Com 195 kg sobre a esteira e 11 min, o modelo estima 21,2 min para congelar até o núcleo. Capacidade nominal: 1.063 kg/h. Capacidade real: 552 kg/h. Status: insuficiente.”
