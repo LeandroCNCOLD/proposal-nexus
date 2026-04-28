@@ -895,6 +895,16 @@ export const ColdProTunnelForm = React.forwardRef<ColdProTunnelFormHandle, ColdP
   const displayedAirWall = textValue(form.airflow_installation_wall, tunnelType === "blast_freezer" ? "Parede menor" : "—");
   const displayedAirDirection = textValue(form.airflow_blow_direction, tunnelType === "blast_freezer" ? "Sopro no sentido do comprimento maior" : "—");
   const displayedAirNote = textValue(form.airflow_technical_note, displayedAirStatus.warning || "Clique em Calcular ar para atualizar a recomendação pela carga térmica e dimensões do ambiente.");
+  const airDeltaTK = positiveValue(form.air_delta_t_k) || 6;
+  const evaporatorTempC = airTemperatureC - airDeltaTK;
+  const manualHWM2K = positiveValue(form.convective_coefficient_manual_w_m2_k);
+  const hSuggestedWM2K = suggestedConvectiveCoefficientWM2K(displayedAirVelocityMS, Number(tunnelResult.h.airExposureFactor ?? form.air_exposure_factor ?? 1), Number(tunnelResult.h.exposureFactor ?? 1));
+  const hEffectiveWM2K = manualHWM2K > 0 ? manualHWM2K : hSuggestedWM2K;
+  const requiredHForRetentionWM2K = requiredConvectiveCoefficientForTimeWM2K({ densityKgM3: positiveValue(manualDensityKgM3, ashraeDensityKgM3, productDensityKgM3), latentHeatKcalKg, frozenWaterFraction, freezingPointC, airTempC: airTemperatureC, distanceToCoreM: tunnelResult.distanceToCoreM, kEffectiveWMK: tunnelResult.kEffectiveWMK, targetTimeMin: tunnelResult.availableTimeMin });
+  const maxDesignVelocityMS = positiveValue(form.max_air_velocity_m_s) || 6;
+  const maxSuggestedHWM2K = suggestedConvectiveCoefficientWM2K(maxDesignVelocityMS, Number(tunnelResult.h.airExposureFactor ?? form.air_exposure_factor ?? 1), Number(tunnelResult.h.exposureFactor ?? 1));
+  const designWithinLimits = requiredHForRetentionWM2K > 0 && maxSuggestedHWM2K > 0 ? requiredHForRetentionWM2K <= maxSuggestedHWM2K : true;
+  const processStatusText = manualHWM2K <= 0 ? "Preliminar" : tunnelResult.status === "adequate" ? "Suficiente" : tunnelResult.status === "missing_data" ? "Faltam dados" : "Insuficiente";
   const airflowValidationIssues = [
     tunnelResult.totalKW <= 0 ? { tone: "error" as const, text: "Carga térmica total zerada ou inválida; revise massa, tempo, propriedades térmicas e cargas internas antes de dimensionar ar." } : null,
     tunnelResult.productLoadKW <= 0 ? { tone: "error" as const, text: "Carga térmica do produto zerada; a vazão pode ficar subestimada." } : null,
@@ -902,6 +912,8 @@ export const ColdProTunnelForm = React.forwardRef<ColdProTunnelFormHandle, ColdP
     designRequiredAirflowM3H > 0 && informedFanAirflowM3H > 0 && informedFanAirflowM3H < designRequiredAirflowM3H * 0.95 ? { tone: "warning" as const, text: `Vazão abaixo da referência de velocidade do túnel em ${fmtAirflow(designRequiredAirflowM3H - informedFanAirflowM3H)}.` } : null,
     displayedFreeAirAreaM2 <= 0 ? { tone: "error" as const, text: "Seção livre de passagem não calculada; informe largura, altura útil e bloqueio." } : null,
     displayedAirStatus.warning ? { tone: "warning" as const, text: displayedAirStatus.warning } : null,
+    manualHWM2K <= 0 ? { tone: "warning" as const, text: "Para validação final, informe o coeficiente convectivo manual ou use o h sugerido." } : null,
+    airOperationMode === "design_to_time" && !designWithinLimits ? { tone: "error" as const, text: "Mesmo nos limites operacionais, o tempo solicitado não fecha." } : null,
     productLoadMissingFields.length > 0 ? { tone: "warning" as const, text: `Carga do produto pendente: falta ${productLoadMissingFields.join(", ")}.` } : null,
   ].filter(Boolean) as Array<{ tone: "error" | "warning"; text: string }>;
   const productLoadMassDescription = isStatic
