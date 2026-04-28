@@ -323,7 +323,8 @@ function ColdProProjectPage() {
     [data?.selections, selection, selectedEnv?.id],
   );
   const tunnelPreview = tunnel && selectedEnv ? calculateTunnelEngine(databaseToTunnelInput(tunnel, selectedEnv)) : null;
-  const technicalAudit = React.useMemo(() => auditColdProTechnicalConsistency({ environment: selectedEnv, result, tunnel: tunnelPreview ?? tunnel, products, advancedProcesses: [], selection }), [selectedEnv, result, tunnelPreview, tunnel, products, selection]);
+  const auditTunnel = result?.calculation_breakdown?.tunnel ?? result?.calculationBreakdown?.tunnel ?? tunnelPreview ?? tunnel;
+  const technicalAudit = React.useMemo(() => auditColdProTechnicalConsistency({ environment: selectedEnv, result, tunnel: auditTunnel, products, advancedProcesses: [], selection }), [selectedEnv, result, auditTunnel, products, selection]);
   const environmentLoad = Number(result?.transmission_kcal_h ?? 0);
   const savedProductLoad = Number(result?.product_kcal_h ?? 0) + Number(result?.packaging_kcal_h ?? 0) + Number(result?.calculation_breakdown?.respiration_kcal_h ?? 0) + Number(result?.tunnel_internal_load_kcal_h ?? 0);
   const productLoad = savedProductLoad > 0 ? savedProductLoad : Number(tunnelPreview?.totalKcalH ?? 0);
@@ -421,10 +422,14 @@ function ColdProProjectPage() {
   async function handleCalculate() {
     if (!selectedEnv) return;
     try {
+      if (stepIndex !== COLDPRO_STEPS.length - 1) {
+        const saved = await saveCurrentStepBeforeNavigation();
+        if (!saved) return;
+      }
       const calculated = await calculate.mutateAsync(selectedEnv.id);
       toast.success("Carga térmica calculada");
       setStepIndex(COLDPRO_STEPS.length - 1);
-      const postAudit = auditColdProTechnicalConsistency({ environment: selectedEnv, result: calculated, tunnel: tunnelPreview ?? tunnel, products, advancedProcesses: [], selection });
+      const postAudit = auditColdProTechnicalConsistency({ environment: selectedEnv, result: calculated, tunnel: calculated?.calculation_breakdown?.tunnel ?? null, products, advancedProcesses: [], selection });
       if (["blast_freezer", "cooling_tunnel"].includes(String(selectedEnv.environment_type)) && !postAudit.isBlocked) {
         try {
           await autoSelect.mutateAsync({ environmentId: selectedEnv.id, minQuantity: 1, equipmentKind: null });
