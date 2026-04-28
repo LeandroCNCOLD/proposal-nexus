@@ -1255,15 +1255,23 @@ export const ColdProTunnelForm = React.forwardRef<ColdProTunnelFormHandle, ColdP
   const showBeltAreaMismatch = continuousMassMode === "calculated_by_belt_surface_density" && beltSurfaceInformedAreaForMassM2 > 0 && beltSurfaceCalculatedAreaForMassM2 > 0 && beltAreaDeviationPercent > 5;
   const beltFlowMethodDeviationPercent = positiveValue(beltSurfaceBreakdown.flowMethodDeviationPercent) || (positiveValue(beltSurfaceBreakdown.flowBySpeedKgH) > 0 && positiveValue(beltSurfaceBreakdown.flowByRetentionKgH) > 0 ? Math.abs(positiveValue(beltSurfaceBreakdown.flowBySpeedKgH) - positiveValue(beltSurfaceBreakdown.flowByRetentionKgH)) / Math.max(positiveValue(beltSurfaceBreakdown.flowBySpeedKgH), positiveValue(beltSurfaceBreakdown.flowByRetentionKgH)) * 100 : 0);
   const showBeltFlowMismatch = continuousMassMode === "calculated_by_belt_surface_density" && positiveValue(beltSurfaceBreakdown.flowBySpeedKgH) > 0 && positiveValue(beltSurfaceBreakdown.flowByRetentionKgH) > 0 && beltFlowMethodDeviationPercent > 5;
-  const estimatedEquivalentMassKg = continuousCapacityKgH > 0 && estimatedTimeForMassMin > 0 ? continuousCapacityKgH * estimatedTimeForMassMin / 60 : 0;
-  const timeRatioEstimatedVsAvailable = estimatedTimeForMassMin > 0 && availableTimeForMassMin > 0 ? estimatedTimeForMassMin / availableTimeForMassMin : null;
-  const retentionRequiredForInstantMassMin = estimatedTimeForMassMin;
-  const retentionAdjustmentMin = retentionRequiredForInstantMassMin > 0 && availableTimeForMassMin > 0 ? retentionRequiredForInstantMassMin - availableTimeForMassMin : 0;
-  const retentionAdjustmentPercent = retentionAdjustmentMin > 0 && availableTimeForMassMin > 0 ? retentionAdjustmentMin / availableTimeForMassMin * 100 : 0;
-  const timeAtRealCapacityMin = instantTunnelMassKg > 0 && realCapacityByThermalTimeKgH > 0 ? instantTunnelMassKg * 60 / realCapacityByThermalTimeKgH : retentionRequiredForInstantMassMin;
+  const nominalCapacityKgH = continuousCapacityKgH;
+  const capacityKgMin = nominalCapacityKgH / 60;
+  const projectedCycleMassKg = !isStatic && capacityKgMin > 0 && availableTimeForMassMin > 0 ? capacityKgMin * availableTimeForMassMin : instantTunnelMassKg;
+  const thermalTimeRequiredMin = estimatedTimeForMassMin;
+  const frozenFractionAtRetention = thermalTimeRequiredMin > 0 && availableTimeForMassMin > 0 ? clamp(availableTimeForMassMin / thermalTimeRequiredMin, 0, 1) : 0;
+  const frozenMassAtRetentionKg = projectedCycleMassKg > 0 ? projectedCycleMassKg * frozenFractionAtRetention : 0;
+  const cycleDeficitKg = Math.max(0, projectedCycleMassKg - frozenMassAtRetentionKg);
+  const achievedPercent = projectedCycleMassKg > 0 ? frozenMassAtRetentionKg / projectedCycleMassKg * 100 : null;
+  const retentionAdjustmentMin = thermalTimeRequiredMin > 0 && availableTimeForMassMin > 0 ? thermalTimeRequiredMin - availableTimeForMassMin : 0;
+  const beltUsefulLengthM = positiveValue(form.belt_effective_length_m, beltSurfaceBreakdown.lengthM, beltSurfaceBreakdown.effectiveLengthM);
+  const currentBeltSpeedMMin = beltUsefulLengthM > 0 && availableTimeForMassMin > 0 ? beltUsefulLengthM / availableTimeForMassMin : positiveValue(form.belt_speed_m_min, beltSurfaceBreakdown.speedMMin);
+  const requiredBeltSpeedMMin = beltUsefulLengthM > 0 && thermalTimeRequiredMin > 0 ? beltUsefulLengthM / thermalTimeRequiredMin : 0;
+  const beltSpeedVariationPercent = currentBeltSpeedMMin > 0 && requiredBeltSpeedMMin > 0 ? (requiredBeltSpeedMMin - currentBeltSpeedMMin) / currentBeltSpeedMMin * 100 : null;
+  const adjustedCapacityKgH = projectedCycleMassKg > 0 && thermalTimeRequiredMin > 0 ? projectedCycleMassKg * 60 / thermalTimeRequiredMin : 0;
   const beltMassDifferencePercent = hasBeltPhysicalMass && massInAvailableTimeKg > 0 ? Math.abs(massInAvailableTimeKg - beltPhysicalMassKg) / Math.max(massInAvailableTimeKg, beltPhysicalMassKg) * 100 : 0;
   const showBeltMassMismatch = hasBeltPhysicalMass && massInAvailableTimeKg > 0 && beltMassDifferencePercent > 5;
-  const showInsufficientTimeDiagnostic = !isStatic && continuousCapacityKgH > 0 && instantTunnelMassKg > 0 && estimatedTimeForMassMin > availableTimeForMassMin && availableTimeForMassMin > 0;
+  const showInsufficientTimeDiagnostic = !isStatic && projectedCycleMassKg > 0 && thermalTimeRequiredMin > availableTimeForMassMin && availableTimeForMassMin > 0;
   const tunnelResultCards = (
     <>
       <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
