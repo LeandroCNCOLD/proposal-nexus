@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
 import { useAuth } from "@/hooks/useAuth";
 import { ROLE_LABELS, type AppRole } from "@/lib/proposal";
-import { approveUserAccessQueueItem, nomusImportInternalUsersToAccessQueue } from "@/integrations/nomus/server.functions";
+import { approveUserAccessQueueItem, nomusImportInternalUsersToAccessQueue, resetUserTemporaryPassword } from "@/integrations/nomus/server.functions";
 import { useServerFn } from "@tanstack/react-start";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -31,10 +31,12 @@ function SettingsPage() {
   const qc = useQueryClient();
   const importInternalUsers = useServerFn(nomusImportInternalUsersToAccessQueue);
   const approvePendingUser = useServerFn(approveUserAccessQueueItem);
+  const resetTemporaryPassword = useServerFn(resetUserTemporaryPassword);
   const canManageAccess = hasAnyRole(MANAGER_ROLES);
   const [newUser, setNewUser] = useState({ full_name: "", email: "", suggested_role: "coldpro" as AppRole });
   const [accessSearch, setAccessSearch] = useState("");
   const [temporaryPasswords, setTemporaryPasswords] = useState<Record<string, string>>({});
+  const [profileTemporaryPasswords, setProfileTemporaryPasswords] = useState<Record<string, string>>({});
   const [importingNomus, setImportingNomus] = useState(false);
   const { data: profile } = useQuery({
     queryKey: ["profile", user?.id],
@@ -149,6 +151,20 @@ function SettingsPage() {
     if (error) return toast.error(error.message);
     refreshAccess();
     toast.success(status === "rejected" ? "Pré-liberação rejeitada." : "Pré-liberação voltou para pendente.");
+  };
+
+  const resetProfilePassword = async (profileId: string) => {
+    const temporaryPassword = profileTemporaryPasswords[profileId]?.trim() ?? "";
+    if (temporaryPassword.length < 8) return toast.error("Informe uma senha provisória com pelo menos 8 caracteres.");
+    const result = await resetTemporaryPassword({ data: { profileId, temporaryPassword } });
+    if (!result.ok) return toast.error(result.error);
+    setProfileTemporaryPasswords((current) => {
+      const next = { ...current };
+      delete next[profileId];
+      return next;
+    });
+    refreshAccess();
+    toast.success(result.message);
   };
 
   return (
