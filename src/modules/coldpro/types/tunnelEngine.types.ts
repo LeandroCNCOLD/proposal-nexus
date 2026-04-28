@@ -144,6 +144,7 @@ export interface TunnelEngineInput {
   otherInternalKW?: number | null;
   allowPhaseChange?: boolean;
   unitConversions?: unknown;
+  unitConsistencyAlerts?: unknown;
 }
 
 export interface TunnelEnergyBreakdown {
