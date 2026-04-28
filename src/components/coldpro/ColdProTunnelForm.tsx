@@ -348,6 +348,20 @@ function freeAirAreaFromControls(source: ColdProFormRecord) {
   return grossAreaM2 > 0 ? grossAreaM2 * (1 - blockageFactor) : 0;
 }
 
+function suggestedConvectiveCoefficientWM2K(velocityMS: number, airExposureFactor = 1, exposureFactor = 1) {
+  return velocityMS > 0 ? (10 + 10 * Math.pow(velocityMS, 0.8)) * (airExposureFactor || 1) * (exposureFactor || 1) : 0;
+}
+
+function requiredConvectiveCoefficientForTimeWM2K(params: { densityKgM3: number; latentHeatKcalKg: number; frozenWaterFraction: number; freezingPointC: number; airTempC: number; distanceToCoreM: number; kEffectiveWMK: number; targetTimeMin: number }) {
+  const deltaT = params.freezingPointC - params.airTempC;
+  if (params.densityKgM3 <= 0 || params.latentHeatKcalKg <= 0 || params.frozenWaterFraction <= 0 || deltaT <= 0 || params.distanceToCoreM <= 0 || params.kEffectiveWMK <= 0 || params.targetTimeMin <= 0) return 0;
+  const latentHeatJkg = params.latentHeatKcalKg * 4186.8 * params.frozenWaterFraction;
+  const targetTerm = (params.targetTimeMin * 60) / (params.densityKgM3 * latentHeatJkg / deltaT);
+  const conductiveTerm = Math.pow(params.distanceToCoreM, 2) / (2 * params.kEffectiveWMK);
+  const convectiveTerm = targetTerm - conductiveTerm;
+  return convectiveTerm > 0 ? params.distanceToCoreM / convectiveTerm : 0;
+}
+
 function fmtAirflow(value: unknown, digits = 0) {
   return `${fmtColdPro(value, digits)} m³/h`;
 }
