@@ -82,7 +82,12 @@ function applyCatalogThermal(payload: any, catalog: any) {
   for (const key of catalogThermalKeys) if (catalog[key] !== undefined) next[key] = catalog[key];
   next.thermal_conductivity_unfrozen_w_m_k = catalog.thermal_conductivity_unfrozen_w_m_k ?? catalog.thermal_conductivity_w_m_k ?? next.thermal_conductivity_unfrozen_w_m_k;
   next.freezing_temp_c = catalog.initial_freezing_temp_c ?? next.freezing_temp_c;
-  next.ashrae_density_kg_m3 = catalog.density_kg_m3 ?? next.ashrae_density_kg_m3;
+  return next;
+}
+
+function stripLegacyEnvironmentProductFields(payload: any) {
+  const { ashrae_density_kg_m3: legacyDensity, ...next } = payload;
+  if (next.density_kg_m3 == null && legacyDensity != null) next.density_kg_m3 = legacyDensity;
   return next;
 }
 
@@ -286,7 +291,7 @@ export const upsertColdProEnvironmentProduct = createServerFn({ method: "POST" }
   }).passthrough())
   .handler(async ({ data }) => {
     const supabase = supabaseAdmin;
-    const payload = await applyCatalogThermalById(supabase, { ...data } as any);
+    const payload = stripLegacyEnvironmentProductFields(await applyCatalogThermalById(supabase, { ...data } as any));
     const { data: row, error } = payload.id
       ? await supabase.from("coldpro_environment_products").update(payload).eq("id", payload.id).select("*").single()
       : await supabase.from("coldpro_environment_products").insert(payload).select("*").single();
