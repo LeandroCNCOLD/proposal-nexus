@@ -464,11 +464,12 @@ export const nomusImportInternalUsersToAccessQueue = createServerFn({ method: "P
     return { ok: true as const, count: byEmail.size, attempted, message: `${byEmail.size} usuário(s) internos enviados para liberação.` };
   });
 
-/** Aprova um usuário pendente: ativa login existente ou envia convite para criação de senha. */
+/** Aprova um usuário pendente: cria/ativa login com senha provisória, sem envio de e-mail. */
 export const approveUserAccessQueueItem = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { queueId: string }) => {
+  .inputValidator((input: { queueId: string; temporaryPassword: string }) => {
     if (!input?.queueId) throw new Error("Liberação inválida.");
+    if (!input.temporaryPassword || input.temporaryPassword.length < 8) throw new Error("A senha provisória deve ter pelo menos 8 caracteres.");
     return input;
   })
   .handler(async ({ data, context }) => {
@@ -492,20 +493,29 @@ export const approveUserAccessQueueItem = createServerFn({ method: "POST" })
     const suggestedRole = ACCESS_ROLES.includes(queueItem.suggested_role as AccessRole) ? queueItem.suggested_role as AccessRole : "vendedor";
     const { data: existingProfile } = await supabaseAdmin.from("profiles").select("id").eq("email", email).maybeSingle();
     let authUserId = existingProfile?.id ?? null;
-    let invited = false;
+    let created = false;
 
     if (!authUserId) {
-      const origin = new URL(getRequest().url).origin;
-      const invitedUser = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-        redirectTo: `${origin}/login`,
-        data: { full_name: fullName, access_source: queueItem.source, nomus_user_id: queueItem.nomus_user_id },
+      const createdUser = await supabaseAdmin.auth.admin.createUser({
+        email,
+        password: data.temporaryPassword,
+        email_confirm: true,
+        user_metadata: { full_name: fullName, access_source: queueItem.source, nomus_user_id: queueItem.nomus_user_id },
       });
-      if (invitedUser.error) return { ok: false as const, error: invitedUser.error.message };
-      authUserId = invitedUser.data.user?.id ?? null;
-      invited = true;
+      if (createdUser.error) return { ok: false as const, error: createdUser.error.message };
+      authUserId = createdUser.data.user?.id ?? null;
+      created = true;
     }
 
     if (!authUserId) return { ok: false as const, error: "Não foi possível criar ou localizar o login do usuário." };
+
+    if (!created) {
+      const updatedUser = await supabaseAdmin.auth.admin.updateUserById(authUserId, {
+        password: data.temporaryPassword,
+        user_metadata: { full_name: fullName, access_source: queueItem.source, nomus_user_id: queueItem.nomus_user_id },
+      });
+      if (updatedUser.error) return { ok: false as const, error: updatedUser.error.message };
+    }
 
     const { error: profileError } = await supabaseAdmin.from("profiles").upsert({
       id: authUserId,
@@ -514,6 +524,7 @@ export const approveUserAccessQueueItem = createServerFn({ method: "POST" })
       access_status: "active",
       access_source: queueItem.source ?? "manual",
       nomus_user_id: queueItem.nomus_user_id ?? null,
+      must_change_password: true,
       blocked_reason: null,
       updated_at: new Date().toISOString(),
     }, { onConflict: "id" });
@@ -528,11 +539,31 @@ export const approveUserAccessQueueItem = createServerFn({ method: "POST" })
       status: "approved",
       approved_by: managerId,
       approved_at: new Date().toISOString(),
-      notes: invited ? "Convite enviado para criação de senha." : "Usuário existente ativado pelo gestor.",
+      notes: created ? "Usuário criado com senha provisória. Troca obrigatória no primeiro acesso." : "Usuário existente ativado com nova senha provisória. Troca obrigatória no primeiro acesso.",
     }).eq("id", data.queueId);
     if (updateQueueError) return { ok: false as const, error: updateQueueError.message };
 
-    return { ok: true as const, invited, message: invited ? "Aprovado: convite enviado para o usuário criar a senha." : "Aprovado: usuário existente já pode acessar." };
+    return { ok: true as const, created, message: created ? "Aprovado: usuário criado com senha provisória." : "Aprovado: senha provisória atualizada para usuário existente." };
+  });
+
+export const resetUserTemporaryPassword = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { profileId: string; temporaryPassword: string }) => {
+    if (!input?.profileId) throw new Error("Usuário inválido.");
+    if (!input.temporaryPassword || input.temporaryPassword.length < 8) throw new Error("A senha provisória deve ter pelo menos 8 caracteres.");
+    return input;
+  })
+  .handler(async ({ data, context }) => {
+    const managerId = (context as { userId?: string }).userId ?? null;
+    if (!managerId) return { ok: false as const, error: "Usuário não autenticado." };
+    const { data: canManage, error: managerError } = await supabaseAdmin.rpc("can_manage_user_access", { _user_id: managerId });
+    if (managerError) return { ok: false as const, error: managerError.message };
+    if (!canManage) return { ok: false as const, error: "Seu perfil não permite resetar senhas." };
+    const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(data.profileId, { password: data.temporaryPassword });
+    if (authError) return { ok: false as const, error: authError.message };
+    const { error: profileError } = await supabaseAdmin.from("profiles").update({ must_change_password: true, access_status: "active", blocked_reason: null }).eq("id", data.profileId);
+    if (profileError) return { ok: false as const, error: profileError.message };
+    return { ok: true as const, message: "Senha provisória definida. O usuário deverá trocar no próximo acesso." };
   });
 
 /** Pull clients from Nomus and upsert locally. */

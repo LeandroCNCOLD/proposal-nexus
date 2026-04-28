@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
 import { useAuth } from "@/hooks/useAuth";
 import { ROLE_LABELS, type AppRole } from "@/lib/proposal";
-import { approveUserAccessQueueItem, nomusImportInternalUsersToAccessQueue } from "@/integrations/nomus/server.functions";
+import { approveUserAccessQueueItem, nomusImportInternalUsersToAccessQueue, resetUserTemporaryPassword } from "@/integrations/nomus/server.functions";
 import { useServerFn } from "@tanstack/react-start";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -31,9 +31,12 @@ function SettingsPage() {
   const qc = useQueryClient();
   const importInternalUsers = useServerFn(nomusImportInternalUsersToAccessQueue);
   const approvePendingUser = useServerFn(approveUserAccessQueueItem);
+  const resetTemporaryPassword = useServerFn(resetUserTemporaryPassword);
   const canManageAccess = hasAnyRole(MANAGER_ROLES);
   const [newUser, setNewUser] = useState({ full_name: "", email: "", suggested_role: "coldpro" as AppRole });
   const [accessSearch, setAccessSearch] = useState("");
+  const [temporaryPasswords, setTemporaryPasswords] = useState<Record<string, string>>({});
+  const [profileTemporaryPasswords, setProfileTemporaryPasswords] = useState<Record<string, string>>({});
   const [importingNomus, setImportingNomus] = useState(false);
   const { data: profile } = useQuery({
     queryKey: ["profile", user?.id],
@@ -43,7 +46,7 @@ function SettingsPage() {
 
   const { data: allProfiles = [] } = useQuery({
     queryKey: ["access-profiles"],
-    queryFn: async () => (await supabase.from("profiles").select("id, full_name, email, access_status, access_source, nomus_user_id, blocked_reason").order("full_name")).data ?? [],
+    queryFn: async () => (await supabase.from("profiles").select("id, full_name, email, access_status, access_source, nomus_user_id, blocked_reason, must_change_password").order("full_name")).data ?? [],
     enabled: canManageAccess,
   });
 
@@ -131,8 +134,15 @@ function SettingsPage() {
 
   const updateQueueStatus = async (queueId: string, status: "approved" | "rejected" | "pending") => {
     if (status === "approved") {
-      const result = await approvePendingUser({ data: { queueId } });
+      const temporaryPassword = temporaryPasswords[queueId]?.trim() ?? "";
+      if (temporaryPassword.length < 8) return toast.error("Informe uma senha provisória com pelo menos 8 caracteres.");
+      const result = await approvePendingUser({ data: { queueId, temporaryPassword } });
       if (!result.ok) return toast.error(result.error);
+      setTemporaryPasswords((current) => {
+        const next = { ...current };
+        delete next[queueId];
+        return next;
+      });
       refreshAccess();
       toast.success(result.message);
       return;
@@ -141,6 +151,20 @@ function SettingsPage() {
     if (error) return toast.error(error.message);
     refreshAccess();
     toast.success(status === "rejected" ? "Pré-liberação rejeitada." : "Pré-liberação voltou para pendente.");
+  };
+
+  const resetProfilePassword = async (profileId: string) => {
+    const temporaryPassword = profileTemporaryPasswords[profileId]?.trim() ?? "";
+    if (temporaryPassword.length < 8) return toast.error("Informe uma senha provisória com pelo menos 8 caracteres.");
+    const result = await resetTemporaryPassword({ data: { profileId, temporaryPassword } });
+    if (!result.ok) return toast.error(result.error);
+    setProfileTemporaryPasswords((current) => {
+      const next = { ...current };
+      delete next[profileId];
+      return next;
+    });
+    refreshAccess();
+    toast.success(result.message);
   };
 
   return (
@@ -223,14 +247,15 @@ function SettingsPage() {
                 <Badge variant="outline">{filteredAccessQueue.length} registro(s)</Badge>
               </div>
                 <Table>
-                  <TableHeader><TableRow><TableHead>Usuário</TableHead><TableHead>Origem</TableHead><TableHead>Perfil</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Ação</TableHead></TableRow></TableHeader>
+                  <TableHeader><TableRow><TableHead>Usuário</TableHead><TableHead>Origem</TableHead><TableHead>Perfil</TableHead><TableHead>Status</TableHead><TableHead>Senha provisória</TableHead><TableHead className="text-right">Ação</TableHead></TableRow></TableHeader>
                   <TableBody>
-                    {filteredAccessQueue.length === 0 ? <TableRow><TableCell colSpan={5} className="text-sm text-muted-foreground">Nenhuma liberação encontrada.</TableCell></TableRow> : filteredAccessQueue.map((item) => (
+                    {filteredAccessQueue.length === 0 ? <TableRow><TableCell colSpan={6} className="text-sm text-muted-foreground">Nenhuma liberação encontrada.</TableCell></TableRow> : filteredAccessQueue.map((item) => (
                       <TableRow key={item.id}>
                         <TableCell><div className="font-medium">{item.full_name}</div><div className="text-xs text-muted-foreground">{item.email}</div></TableCell>
                         <TableCell className="capitalize">{item.source}</TableCell>
                         <TableCell>{ROLE_LABELS[item.suggested_role]}</TableCell>
-                        <TableCell><Badge variant={item.status === "pending" ? "outline" : item.status === "approved" ? "default" : "secondary"}>{item.status === "pending" ? "Pendente" : item.status === "approved" ? "Aprovado / convite enviado" : "Rejeitado"}</Badge></TableCell>
+                        <TableCell><Badge variant={item.status === "pending" ? "outline" : item.status === "approved" ? "default" : "secondary"}>{item.status === "pending" ? "Pendente" : item.status === "approved" ? "Aprovado" : "Rejeitado"}</Badge></TableCell>
+                        <TableCell><Input type="password" autoComplete="new-password" disabled={item.status === "approved"} value={temporaryPasswords[item.id] ?? ""} onChange={(event) => setTemporaryPasswords((current) => ({ ...current, [item.id]: event.target.value }))} placeholder="Mín. 8 caracteres" /></TableCell>
                         <TableCell className="text-right"><Button size="sm" variant="outline" onClick={() => updateQueueStatus(item.id, item.status === "approved" ? "pending" : "approved")}>{item.status === "approved" ? "Reabrir" : "Aprovar"}</Button></TableCell>
                       </TableRow>
                     ))}
@@ -241,15 +266,16 @@ function SettingsPage() {
               <div>
                 <h3 className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground"><ShieldCheck className="h-3.5 w-3.5" /> Usuários com login</h3>
                 <Table>
-                  <TableHeader><TableRow><TableHead>Usuário</TableHead><TableHead>Acesso</TableHead><TableHead>Perfis</TableHead><TableHead className="text-right">Controle</TableHead></TableRow></TableHeader>
+                  <TableHeader><TableRow><TableHead>Usuário</TableHead><TableHead>Acesso</TableHead><TableHead>Perfis</TableHead><TableHead>Senha provisória</TableHead><TableHead className="text-right">Controle</TableHead></TableRow></TableHeader>
                   <TableBody>
                     {filteredProfiles.map((item) => {
                       const assignedRoles = rolesByUser.get(item.id) ?? [];
                       return (
                         <TableRow key={item.id}>
                           <TableCell><div className="font-medium">{item.full_name}</div><div className="text-xs text-muted-foreground">{item.email ?? "—"}</div></TableCell>
-                          <TableCell><Badge variant={item.access_status === "active" ? "default" : item.access_status === "pending" ? "outline" : "destructive"}>{ACCESS_STATUS_LABELS[item.access_status] ?? item.access_status}</Badge></TableCell>
+                          <TableCell><div className="flex flex-col items-start gap-1"><Badge variant={item.access_status === "active" ? "default" : item.access_status === "pending" ? "outline" : "destructive"}>{ACCESS_STATUS_LABELS[item.access_status] ?? item.access_status}</Badge>{item.must_change_password && <Badge variant="outline">Troca pendente</Badge>}</div></TableCell>
                           <TableCell><div className="flex max-w-xl flex-wrap gap-1.5">{ACCESS_ROLES.map((role) => <label key={role} className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs"><input type="checkbox" checked={assignedRoles.includes(role)} onChange={(event) => toggleRole(item.id, role, event.target.checked)} />{ROLE_LABELS[role]}</label>)}</div></TableCell>
+                          <TableCell><div className="flex min-w-56 gap-2"><Input type="password" autoComplete="new-password" value={profileTemporaryPasswords[item.id] ?? ""} onChange={(event) => setProfileTemporaryPasswords((current) => ({ ...current, [item.id]: event.target.value }))} placeholder="Nova provisória" /><Button size="sm" variant="outline" onClick={() => resetProfilePassword(item.id)}>Resetar</Button></div></TableCell>
                           <TableCell className="text-right"><div className="flex justify-end gap-2"><Button size="icon" variant="outline" onClick={() => updateProfileStatus(item.id, "active")}><CheckCircle2 className="h-4 w-4" /></Button><Button size="icon" variant="outline" onClick={() => updateProfileStatus(item.id, "blocked")}><XCircle className="h-4 w-4" /></Button></div></TableCell>
                         </TableRow>
                       );
