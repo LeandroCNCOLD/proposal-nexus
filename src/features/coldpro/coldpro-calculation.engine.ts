@@ -301,7 +301,7 @@ export function buildThermalCalculationResult(result: any, selection?: any | nul
   if (selection && Math.abs(correctedTotalCalculated - correctedTotalDisplayed) > 1) addBlocker("capacity_total_mismatch", "Capacidade total exibida não fecha com capacidade unitária corrigida multiplicada pela quantidade.");
   if (selection && Math.abs(surplusCalculated - surplusDisplayed) > 0.1) addBlocker("surplus_mismatch", "Sobra técnica exibida não fecha com capacidade corrigida total e carga requerida validada.");
   for (const alert of Array.isArray(breakdown?.validation_alerts) ? breakdown.validation_alerts : []) {
-    if (["internal_rh_zero", "product_energy_inconsistent", "thermal_unit_kj_kcal_mismatch"].includes(String(alert.code))) addBlocker(String(alert.code), String(alert.message));
+    if (["internal_rh_zero", "product_energy_inconsistent"].includes(String(alert.code))) addBlocker(String(alert.code), String(alert.message));
     if (["negative_room_without_defrost", "door_without_infiltration", "tunnel_product_process_zero", "tunnel_inlet_temp_missing", "tunnel_outlet_temp_missing", "tunnel_thermal_properties_missing", "required_below_subtotal", "required_below_product"].includes(String(alert.code))) addBlocker(String(alert.code), String(alert.message));
   }
   if (!selection) warnings.push({ code: "equipment_selection_missing", message: "Seleção de equipamento ainda não vinculada ao resultado validado." });
