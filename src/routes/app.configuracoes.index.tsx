@@ -34,6 +34,7 @@ function SettingsPage() {
   const canManageAccess = hasAnyRole(MANAGER_ROLES);
   const [newUser, setNewUser] = useState({ full_name: "", email: "", suggested_role: "coldpro" as AppRole });
   const [accessSearch, setAccessSearch] = useState("");
+  const [temporaryPasswords, setTemporaryPasswords] = useState<Record<string, string>>({});
   const [importingNomus, setImportingNomus] = useState(false);
   const { data: profile } = useQuery({
     queryKey: ["profile", user?.id],
@@ -131,8 +132,15 @@ function SettingsPage() {
 
   const updateQueueStatus = async (queueId: string, status: "approved" | "rejected" | "pending") => {
     if (status === "approved") {
-      const result = await approvePendingUser({ data: { queueId } });
+      const temporaryPassword = temporaryPasswords[queueId]?.trim() ?? "";
+      if (temporaryPassword.length < 8) return toast.error("Informe uma senha provisória com pelo menos 8 caracteres.");
+      const result = await approvePendingUser({ data: { queueId, temporaryPassword } });
       if (!result.ok) return toast.error(result.error);
+      setTemporaryPasswords((current) => {
+        const next = { ...current };
+        delete next[queueId];
+        return next;
+      });
       refreshAccess();
       toast.success(result.message);
       return;
