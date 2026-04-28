@@ -775,7 +775,13 @@ export const ColdProTunnelForm = React.forwardRef<ColdProTunnelFormHandle, ColdP
   }, [airTemperatureC, environment, form, isStatic, thermalResult.productLoadKw, thermalResult.requiredAirflowM3H, thermalResult.totalProcessLoadKw, tunnel, tunnelResult.airFlowM3H, tunnelResult.productLoadKW, tunnelResult.totalKW, tunnelType]);
 
   const applyAirflowPreset = React.useCallback(() => {
-    setForm((prev) => ({ ...prev, ...buildAirflowPreset(prev) }));
+    setForm((prev) => {
+      const freeAreaM2 = freeAirAreaFromControls(prev);
+      const velocityMS = positiveValue(prev.air_velocity_m_s);
+      const airflowM3H = airflowForVelocityM3H(freeAreaM2, velocityMS);
+      if (airflowM3H > 0) return { ...prev, airflow_source: "airflow_by_fans", fan_airflow_m3_h: roundPreset(airflowM3H, 2), informed_air_flow_m3_h: roundPreset(airflowM3H, 2), airflow_m3_h: roundPreset(airflowM3H, 2), airflow_free_area_m2: roundPreset(freeAreaM2, 3) };
+      return { ...prev, ...buildAirflowPreset(prev) };
+    });
   }, [buildAirflowPreset]);
 
   const loadBreakdown = tunnelResult.calculationBreakdown.loads ?? {};
