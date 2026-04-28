@@ -447,6 +447,28 @@ export const ColdProTunnelForm = React.forwardRef<ColdProTunnelFormHandle, ColdP
   const num = (key: string): NumericInputProps => ({ type: "number", step: "0.0001", value: inputValue(form?.[key]), onChange: (e: React.ChangeEvent<HTMLInputElement>) => set(key, numberOrNull(e.target.value)) });
   const setSim = (key: string, value: unknown) => setSimulation((prev) => ({ ...prev, [key]: value }));
   const simNum = (key: string): NumericInputProps => ({ type: "number", step: "0.0001", value: inputValue(simulation?.[key]), onChange: (e: React.ChangeEvent<HTMLInputElement>) => setSim(key, numberOrNull(e.target.value)) });
+  const setContinuousMassMode = (value: string) => {
+    const resetByMethod = {
+      mass_kg_hour: value === "direct_mass_flow" ? form.mass_kg_hour : 0,
+      units_per_cycle: value === "calculated_by_units" ? form.units_per_cycle : 0,
+      cycles_per_hour: value === "calculated_by_units" ? form.cycles_per_hour : 0,
+      units_per_hour: value === "calculated_by_units_per_hour" ? form.units_per_hour : 0,
+      units_per_row: value === "calculated_by_belt_loading" ? form.units_per_row : 0,
+      rows_per_meter: value === "calculated_by_belt_loading" ? form.rows_per_meter : 0,
+      belt_speed_m_min: value === "calculated_by_belt_loading" ? form.belt_speed_m_min : 0,
+      belt_width_m: value === "calculated_by_belt_surface_density" ? form.belt_width_m : 0,
+      belt_effective_length_m: value === "calculated_by_belt_surface_density" ? form.belt_effective_length_m : 0,
+      belt_area_m2: value === "calculated_by_belt_surface_density" ? form.belt_area_m2 : 0,
+      belt_surface_density_kg_m2: value === "calculated_by_belt_surface_density" ? form.belt_surface_density_kg_m2 : 0,
+      belt_mass_on_belt_kg: value === "calculated_by_belt_surface_density" ? form.belt_mass_on_belt_kg : 0,
+      belt_nominal_capacity_kg_h: value === "calculated_by_belt_surface_density" ? form.belt_nominal_capacity_kg_h : 0,
+      units_per_tray: value === "calculated_by_trays" ? form.units_per_tray : 0,
+      trays_per_hour: value === "calculated_by_trays" ? form.trays_per_hour : 0,
+      tray_weight_kg: value === "calculated_by_trays" ? form.tray_weight_kg : 0,
+      feed_rate_kg_h: value === "calculated_by_feed_rate" ? form.feed_rate_kg_h : 0,
+    };
+    setForm((prev) => ({ ...prev, ...resetByMethod, [tunnelType === "fluidized_bed" ? "mass_flow_mode" : "continuous_mass_mode"]: value }));
+  };
   const dimensionValueM = (key: string) => key === "product_thickness_m" ? (Number(form.product_thickness_m ?? 0) || Number(form.product_thickness_mm ?? 0) / 1000) : Number(form?.[key] ?? 0);
   const dimensionNum = (key: string, unit: DimensionUnit) => {
     const unitConfig = DIMENSION_UNITS[unit];
