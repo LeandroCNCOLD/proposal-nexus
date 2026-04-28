@@ -162,6 +162,7 @@ export function databaseToTunnelInput(tunnel: TunnelSourceRecord, environment: T
     latentMode: thermal.latentMode,
     unitAudit: thermal.unitAudit,
     unitConversions: thermal.conversionSources,
+    unitConsistencyAlerts: thermal.consistencyAlerts,
     thermalDefaultsApplied: thermal.defaultsApplied,
     frozenWaterFraction: thermal.frozenWaterFraction,
     latentResidualFactor: thermal.latentResidualFactor,
