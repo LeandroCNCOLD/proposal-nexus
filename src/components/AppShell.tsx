@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/sidebar";
 import { ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import { isAppRouteAllowed } from "@/lib/module-access";
 
 const NAV = [
   { group: "Operação", items: [
@@ -78,10 +79,7 @@ function NavItem({ to, label, icon: Icon, exact }: { to: string; label: string; 
 
 function AppNavigationSidebar() {
   const { roles } = useAuth();
-  const coldProOnly = roles.length > 0 && roles.every((role) => role === "coldpro");
-  const groups = coldProOnly
-    ? NAV.map((group) => ({ ...group, items: group.items.filter((item) => item.to.startsWith("/app/coldpro") || item.to === "/app/configuracoes") })).filter((group) => group.items.length > 0)
-    : NAV;
+  const groups = NAV.map((group) => ({ ...group, items: group.items.filter((item) => isAppRouteAllowed(item.to, roles)) })).filter((group) => group.items.length > 0);
 
   return (
     <Sidebar collapsible="icon" className="app-sidebar border-sidebar-border bg-sidebar text-sidebar-foreground">
