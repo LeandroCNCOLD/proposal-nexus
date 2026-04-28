@@ -428,6 +428,7 @@ function thermalValueKcal(kcal: unknown, kj: unknown): number {
 
 function productThermalAlerts(product: ColdProEnvironmentProduct, specificEnergyKjKg: number, latentKjKg: number) {
   const alerts: Array<{ level: "error" | "warning" | "info"; code: string; message: string }> = [];
+  if (product.product_id) return alerts;
   if (n(product.outlet_temp_c) < 0 && latentKjKg <= 0) alerts.push({ level: "error", code: "latent_heat_zero_frozen_product", message: `Calor latente zerado em produto congelado: ${product.product_name}.` });
   if (product.frozen_water_fraction === null || product.frozen_water_fraction === undefined) alerts.push({ level: "warning", code: "frozen_water_fraction_missing", message: `Fração congelável vazia em ${product.product_name}; foi aplicado default técnico.` });
   if (specificEnergyKjKg > 0 && specificEnergyKjKg < 80) alerts.push({ level: "warning", code: "low_specific_energy", message: `Energia específica menor que 80 kJ/kg em ${product.product_name}; revisar unidades e propriedades térmicas.` });
@@ -691,7 +692,9 @@ export function calculateProductLoadBreakdown(product: ColdProEnvironmentProduct
   const loadKW = loadKJH / 3600;
   const total = convertThermalLoad(loadKW, "kcal/h");
   const specificEnergyKjKg = massDay > 0 ? totalEnergyKJ / massDay : 0;
-  const thermalAlerts = [...productThermalAlerts(product, specificEnergyKjKg, latentKJ), ...thermal.consistencyAlerts.map((alert) => ({ level: alert.level, code: alert.code, message: alert.message }))];
+  const thermalAlerts = product.product_id
+    ? []
+    : [...productThermalAlerts(product, specificEnergyKjKg, latentKJ), ...thermal.consistencyAlerts.map((alert) => ({ level: alert.level, code: alert.code, message: alert.message }))];
   const warnings = [loadMode === "room_pull_down_or_freezing" ? "Câmara de armazenagem usada para resfriar/congelar produto novo: validar circulação de ar, empilhamento, embalagem, área exposta e tempo disponível; para cargas intensas ou recorrentes, considerar túnel dedicado." : null, ...thermalAlerts.map((alert) => alert.message)].filter(Boolean);
   return {
     product_name: product.product_name,
