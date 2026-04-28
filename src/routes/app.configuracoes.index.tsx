@@ -108,7 +108,7 @@ function SettingsPage() {
   return (
     <>
       <PageHeader title="Configurações" subtitle="Sua conta e perfis do sistema" />
-      <div className="grid max-w-4xl gap-6 md:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-[minmax(280px,380px)_1fr]">
         <div className="rounded-xl border bg-card p-6 shadow-[var(--shadow-sm)]">
           <h2 className="mb-4 text-sm font-semibold">Minha conta</h2>
           <dl className="space-y-3 text-sm">
@@ -124,23 +124,87 @@ function SettingsPage() {
               <dt className="text-xs text-muted-foreground">Perfis</dt>
               <dd className="mt-1 flex flex-wrap gap-1.5">
                 {roles.map((role) => (
-                  <span
-                    key={role}
-                    className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary"
-                  >
+                  <Badge key={role} variant="secondary">
                     {ROLE_LABELS[role]}
-                  </span>
+                  </Badge>
                 ))}
               </dd>
             </div>
           </dl>
         </div>
-        <div className="rounded-xl border bg-card p-6 shadow-[var(--shadow-sm)]">
-          <h2 className="mb-2 text-sm font-semibold">Gestão de perfis</h2>
-          <p className="text-xs text-muted-foreground">
-            A gestão de perfis de outros usuários (atribuição de papéis) está disponível para administradores e será implementada em próxima iteração.
-          </p>
-        </div>
+
+        <section className="rounded-xl border bg-card p-6 shadow-[var(--shadow-sm)]">
+          <div className="mb-4 flex items-start justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-semibold">Gestão de perfis e usuários</h2>
+              <p className="mt-1 text-xs text-muted-foreground">Usuários do Nomus entram pendentes; gestor libera acesso e define perfis.</p>
+            </div>
+            <Badge variant={canManageAccess ? "default" : "outline"}>{canManageAccess ? "Gestor" : "Sem gestão"}</Badge>
+          </div>
+          {!canManageAccess ? (
+            <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">Seu perfil atual não permite liberar acessos.</div>
+          ) : (
+            <div className="space-y-6">
+              <div className="grid gap-3 rounded-lg border bg-background/40 p-4 md:grid-cols-[1fr_1fr_180px_auto]">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Nome</Label>
+                  <Input value={newUser.full_name} onChange={(event) => setNewUser((value) => ({ ...value, full_name: event.target.value }))} placeholder="Nome do usuário" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">E-mail</Label>
+                  <Input value={newUser.email} onChange={(event) => setNewUser((value) => ({ ...value, email: event.target.value }))} placeholder="email@empresa.com" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Perfil inicial</Label>
+                  <select className="h-9 w-full rounded-md border bg-background px-2 text-sm" value={newUser.suggested_role} onChange={(event) => setNewUser((value) => ({ ...value, suggested_role: event.target.value as AppRole }))}>
+                    {ACCESS_ROLES.map((role) => <option key={role} value={role}>{ROLE_LABELS[role]}</option>)}
+                  </select>
+                </div>
+                <div className="flex items-end">
+                  <Button onClick={addPendingUser}><UserPlus className="mr-2 h-4 w-4" />Adicionar</Button>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground"><Clock3 className="h-3.5 w-3.5" /> Pendentes de liberação</h3>
+                <Table>
+                  <TableHeader><TableRow><TableHead>Usuário</TableHead><TableHead>Origem</TableHead><TableHead>Perfil</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Ação</TableHead></TableRow></TableHeader>
+                  <TableBody>
+                    {accessQueue.length === 0 ? <TableRow><TableCell colSpan={5} className="text-sm text-muted-foreground">Nenhuma liberação pendente.</TableCell></TableRow> : accessQueue.map((item) => (
+                      <TableRow key={item.id}>
+                        <TableCell><div className="font-medium">{item.full_name}</div><div className="text-xs text-muted-foreground">{item.email}</div></TableCell>
+                        <TableCell className="capitalize">{item.source}</TableCell>
+                        <TableCell>{ROLE_LABELS[item.suggested_role]}</TableCell>
+                        <TableCell><Badge variant={item.status === "pending" ? "outline" : item.status === "approved" ? "default" : "secondary"}>{item.status === "pending" ? "Pendente" : item.status === "approved" ? "Aprovado" : "Rejeitado"}</Badge></TableCell>
+                        <TableCell className="text-right"><Button size="sm" variant="outline" onClick={() => updateQueueStatus(item.id, item.status === "approved" ? "pending" : "approved")}>{item.status === "approved" ? "Reabrir" : "Aprovar"}</Button></TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              <div>
+                <h3 className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground"><ShieldCheck className="h-3.5 w-3.5" /> Usuários com login</h3>
+                <Table>
+                  <TableHeader><TableRow><TableHead>Usuário</TableHead><TableHead>Acesso</TableHead><TableHead>Perfis</TableHead><TableHead className="text-right">Controle</TableHead></TableRow></TableHeader>
+                  <TableBody>
+                    {allProfiles.map((item) => {
+                      const assignedRoles = rolesByUser.get(item.id) ?? [];
+                      return (
+                        <TableRow key={item.id}>
+                          <TableCell><div className="font-medium">{item.full_name}</div><div className="text-xs text-muted-foreground">{item.email ?? "—"}</div></TableCell>
+                          <TableCell><Badge variant={item.access_status === "active" ? "default" : item.access_status === "pending" ? "outline" : "destructive"}>{ACCESS_STATUS_LABELS[item.access_status] ?? item.access_status}</Badge></TableCell>
+                          <TableCell><div className="flex max-w-xl flex-wrap gap-1.5">{ACCESS_ROLES.map((role) => <label key={role} className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs"><input type="checkbox" checked={assignedRoles.includes(role)} onChange={(event) => toggleRole(item.id, role, event.target.checked)} />{ROLE_LABELS[role]}</label>)}</div></TableCell>
+                          <TableCell className="text-right"><div className="flex justify-end gap-2"><Button size="icon" variant="outline" onClick={() => updateProfileStatus(item.id, "active")}><CheckCircle2 className="h-4 w-4" /></Button><Button size="icon" variant="outline" onClick={() => updateProfileStatus(item.id, "blocked")}><XCircle className="h-4 w-4" /></Button></div></TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          )}
+        </section>
       </div>
     </>
   );
