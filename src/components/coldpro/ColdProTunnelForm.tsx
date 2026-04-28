@@ -1266,11 +1266,15 @@ export const ColdProTunnelForm = React.forwardRef<ColdProTunnelFormHandle, ColdP
       <ColdProField label="Parede sugerida"><ColdProInput readOnly value={displayedAirWall} /></ColdProField>
       <ColdProField label="Sentido de sopro"><ColdProInput readOnly value={displayedAirDirection} /></ColdProField>
     </div><div>
+      <div className="mb-3 grid gap-3 sm:grid-cols-2">
+        <ColdProCalculatedInfo label="1. Carga térmica do produto" value={`${fmtColdPro(tunnelResult.productLoadKW, 2)} kW`} description={productLoadMassDescription} tone={tunnelResult.productLoadKW > 0 ? "success" : "warning"} />
+        <ColdProCalculatedInfo label="2. Carga usada na vazão" value={`${fmtColdPro(tunnelResult.totalKW, 2)} kW`} description="produto + embalagem + interna" tone={tunnelResult.totalKW > 0 ? "success" : "warning"} />
+      </div>
       <ColdProField label="ΔT do ar" helpKey="airDeltaT" unit="K"><ColdProInput {...num("air_delta_t_k")} /></ColdProField>
       <ColdProField label="Temperatura do ar" helpKey="airTemp" unit="°C"><ColdProInput {...airTempNum()} /></ColdProField>
       <ColdProField label="Coeficiente convectivo manual" helpKey="manualConvectiveCoefficient" unit="W/m²K"><ColdProInput {...num("convective_coefficient_manual_w_m2_k")} /></ColdProField>
-      <ColdProCalculatedInfo label="Velocidade do ar usada" value={`${fmtColdPro(tunnelResult.airVelocityUsedMS ?? 0, 2)} m/s`} description={tunnelResult.airflowSource === "airflow_by_fans" ? "vazão dos ventiladores ÷ seção livre" : "valor manual informado"} tone={(tunnelResult.airVelocityUsedMS ?? 0) > 0 ? "success" : "warning"} />
-      <ColdProCalculatedInfo label="Tempo de congelamento" value={fmtMaybe(tunnelResult.estimatedTimeMin, 1, " min")} description={`${fmtColdPro(tunnelResult.availableTimeMin ?? 0, 1)} min disponíveis`} tone={tunnelResult.status === "adequate" ? "success" : "warning"} />
+      <ColdProCalculatedInfo label="3. Velocidade do ar" value={`${fmtColdPro(tunnelResult.airVelocityUsedMS ?? 0, 2)} m/s`} description={tunnelResult.airflowSource === "airflow_by_fans" ? "calculada pela vazão e seção" : "valor manual informado"} tone={(tunnelResult.airVelocityUsedMS ?? 0) > 0 ? "success" : "warning"} />
+      <ColdProCalculatedInfo label="4. Tempo de congelamento" value={fmtMaybe(tunnelResult.estimatedTimeMin, 1, " min")} description={`${fmtColdPro(tunnelResult.availableTimeMin ?? 0, 1)} min disponíveis`} tone={tunnelResult.status === "adequate" ? "success" : "warning"} />
       <ColdProCalculatedInfo label="1. Carga térmica do produto" value={`${fmtColdPro(tunnelResult.productLoadKW, 2)} kW`} description={productLoadMassDescription} tone={tunnelResult.productLoadKW > 0 ? "success" : "warning"} />
       <ColdProCalculatedInfo label="2. Carga usada na vazão" value={`${fmtColdPro(tunnelResult.totalKW, 2)} kW`} description="produto + embalagem + interna" tone={tunnelResult.totalKW > 0 ? "success" : "warning"} />
       <ColdProCalculatedInfo label="3. Vazão por carga térmica" value={fmtAirflow(requiredAirflowM3H)} description="carga total ÷ densidade × Cp × ΔT" tone={requiredAirflowM3H > 0 ? "success" : "warning"} />
