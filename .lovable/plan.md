@@ -1,121 +1,75 @@
-Plano de ajuste fino da Etapa 5 — capacidade por minuto e ajuste de retenção
+Vou ajustar a Etapa 5 para separar claramente três coisas que hoje ficaram misturadas: capacidade operacional, ciclo de retenção e tempo físico estimado pelo modelo térmico.
 
-Vou alterar somente `src/components/coldpro/ColdProTunnelForm.tsx`.
+O problema atual
+- O item 6/7 está exibindo o `estimatedTimeMin` do motor físico, hoje 118,2 min, como se fosse a retenção necessária para processar os 195 kg do ciclo. Isso induz erro, porque o ciclo operacional definido é 11,8 min.
+- O item 8 mostra 106,4 min porque está fazendo `118,2 - 11,8`. Esse ajuste só faria sentido se aceitássemos que o modelo físico exige 118,2 min; mas para a tela operacional do girofreezer isso está confundindo a análise.
+- O item 11 cai para 1,65 kg/min porque usa `195 kg ÷ 118,2 min`. Por isso a capacidade/hora também despenca e a velocidade da esteira cai quase 90%.
+- Ou seja: a queda de capacidade não veio da capacidade nominal do túnel; veio de tratar o tempo físico estimado de 118,2 min como novo tempo de ciclo.
 
-## Objetivo
+Correção proposta
 
-Corrigir a leitura dos cards de ajuste da Etapa 5 para separar claramente:
+1. Reorganizar os itens 5, 6, 7 e 8
+- Item 5: Status do ciclo
+  - Deve dizer se as condições atuais são compatíveis ou se precisam de revisão.
+  - Não deve afirmar que congelou; deve usar a forma correta: “compatível com o congelamento”.
 
-1. capacidade nominal do túnel por hora;
-2. capacidade operacional por minuto;
-3. massa dentro da retenção atual;
-4. tempo estimado até o núcleo para essa massa;
-5. nova retenção/velocidade/capacidade quando a configuração atual não fecha.
+- Item 6: Tempo de retenção do ciclo
+  - Deve exibir 11,8 min.
+  - Descrição: “tempo operacional informado/definido para o ciclo”.
 
-## Correção principal
+- Item 7: Tempo estimado pelo modelo térmico
+  - Deve continuar podendo mostrar 118,2 min, mas com rótulo claro de auditoria física, não como retenção operacional.
+  - Descrição: “estimativa física do modelo até o núcleo; não altera automaticamente a capacidade nominal”.
 
-Hoje o card `11. Nova capacidade` está em `kg/h`. Pelo fluxo que você descreveu, ele precisa mostrar a capacidade ajustada em `kg/min`, porque a análise do ciclo está sendo feita em cima da massa que passa durante a retenção em minutos.
+- Item 8: Diferença entre modelo e ciclo
+  - Em vez de “Ajuste de retenção” como se fosse uma ordem direta para aumentar o ciclo, mostrar a diferença de forma explicativa:
+    - se modelo > ciclo: “modelo acima do ciclo em 106,4 min”
+    - se modelo <= ciclo: “dentro do ciclo”
+  - Isso evita sugerir automaticamente que a esteira tem que cair 90%.
 
-A lógica ficará assim:
+2. Corrigir capacidade por minuto e capacidade por hora
+- Capacidade nominal/hora: 993 kg/h.
+- Capacidade por minuto: 993 ÷ 60 = 16,55 kg/min aproximadamente.
+- Massa na retenção: 16,55 × 11,8 = 195,4 kg.
+- Item 11 não deve mostrar 1,65 kg/min como “nova capacidade” quando o objetivo é explicar a capacidade operacional atual.
+- Vou ajustar para mostrar:
+  - Capacidade atual por minuto: 16,55 kg/min.
+  - Capacidade atual por hora: 993 kg/h.
 
-```text
-capacidade_nominal_kg_h = 993,6 kg/h
-capacidade_atual_kg_min = capacidade_nominal_kg_h / 60
-capacidade_atual_kg_min = 16,56 kg/min
+3. Remover o ajuste automático agressivo de velocidade/capacidade
+- A tela não deve reduzir automaticamente a velocidade da esteira de 1,38 para ~0,14 m/min apenas porque o tempo físico estimado deu 118,2 min.
+- Vou remover/alterar essa mensagem que diz que “a nova capacidade estimada fica em 1,65 kg/min”.
+- Em vez disso, a mensagem deve explicar:
+  - “Operacionalmente, o ciclo atual é 11,8 min para 195,4 kg.”
+  - “A capacidade nominal permanece 993 kg/h, ou 16,55 kg/min.”
+  - “O modelo térmico está estimando 118,2 min, portanto a premissa térmica precisa ser revisada antes de usar esse número para alterar retenção ou velocidade.”
 
-retencao_atual_min = 11,8 min
-massa_na_retencao_kg = capacidade_atual_kg_min × retencao_atual_min
-massa_na_retencao_kg = 195,4 kg
-```
+4. Manter uma simulação opcional, mas com nome correto
+- Se ainda for útil mostrar o cenário “se eu aceitasse os 118,2 min como retenção”, vou rotular como simulação crítica, não como nova capacidade operacional.
+- Exemplo:
+  - “Simulação se retenção = tempo térmico estimado”
+  - Velocidade simulada: comprimento útil ÷ 118,2
+  - Capacidade simulada: 195,4 ÷ 118,2 = 1,65 kg/min
+- Mas isso ficará claramente separado da capacidade nominal atual, para não parecer que o sistema está mandando reduzir a esteira.
 
-Depois, se o tempo estimado até o núcleo for maior que 11,8 min:
+5. Ajustar textos explicativos
+- Substituir frases que dão certeza indevida por frases compatíveis com validação:
+  - “As condições atuais são compatíveis com o congelamento de 195,4 kg em 11,8 min” quando aprovado.
+  - Quando não aprovado: “O modelo térmico estimou tempo maior que a retenção do ciclo; revisar premissas de h, vazão, temperatura, espessura, geometria ou fator de penetração antes de alterar a capacidade nominal.”
 
-```text
-retencao_necessaria_min = tempo_estimado_ate_nucleo_min
-nova_capacidade_kg_min = massa_na_retencao_kg / retencao_necessaria_min
-nova_capacidade_kg_h = nova_capacidade_kg_min × 60
-velocidade_ajustada_m_min = comprimento_util_m / retencao_necessaria_min
-```
+Arquivos a alterar
+- `src/components/coldpro/ColdProTunnelForm.tsx`
 
-Assim, se a tela estimar que precisa de 12,1 min para compatibilizar os 195 kg:
+Resultado esperado na tela, usando seus números
+- 1. Capacidade nominal do túnel por hora: 993 kg/h
+- 2. Capacidade por minuto: 16,55 kg/min
+- 3. Massa na retenção: 195,4 kg
+- 4. Retenção do ciclo: 11,8 min
+- 5. Status do ciclo: compatível/não compatível conforme validação
+- 6. Retenção operacional do ciclo: 11,8 min
+- 7. Tempo estimado pelo modelo térmico: 118,2 min, como auditoria física
+- 8. Diferença modelo × ciclo: 106,4 min acima do ciclo, sem transformar isso automaticamente em nova retenção
+- 11. Capacidade atual por minuto: 16,55 kg/min
+- 12. Capacidade atual por hora: 993 kg/h
 
-```text
-nova_capacidade_kg_min = 195,4 / 12,1 = 16,15 kg/min
-nova_capacidade_kg_h = 969,0 kg/h
-velocidade_ajustada = comprimento_util / 12,1
-```
-
-Ou seja: a produção cai um pouco porque a esteira precisa andar mais devagar para manter os 195 kg tempo suficiente dentro do túnel.
-
-## Ajustes visuais nos cards
-
-Na grade de diagnóstico da direita, vou renomear/reorganizar os cards para evitar a confusão atual:
-
-```text
-1. Capacidade nominal do túnel por hora     993,6 kg/h
-2. Capacidade atual por minuto             16,56 kg/min
-3. Retenção atual do ciclo                 11,8 min
-4. Massa na retenção atual                 195,4 kg
-5. Compatibilidade física                  Compatível / Não compatível
-6. Tempo estimado até o núcleo             X min
-7. Retenção necessária para 195,4 kg        X min
-8. Ajuste de retenção                      +Y min
-9. Velocidade atual da esteira             1,38 m/min
-10. Velocidade ajustada da esteira          1,35 m/min
-11. Nova capacidade por minuto              16,15 kg/min
-12. Nova capacidade por hora                969,0 kg/h
-```
-
-Depois os cards técnicos de temperatura, vazão, h, área e velocidade do ar continuam na sequência.
-
-## Ajuste de texto do alerta
-
-Quando não atender, o alerta passará a explicar exatamente como a decisão foi tomada:
-
-```text
-Com 195,4 kg na retenção atual de 11,8 min, as condições atuais não são compatíveis.
-O modelo estima 12,1 min até o núcleo para essa massa.
-
-Para manter 195,4 kg por ciclo, a retenção precisa subir para 12,1 min.
-Isso reduz a velocidade da esteira de 1,38 para 1,35 m/min.
-A nova capacidade estimada fica em 16,15 kg/min, ou 969,0 kg/h.
-```
-
-Quando atender, manter a redação tecnicamente correta:
-
-```text
-As condições atuais são compatíveis com o congelamento de 195,4 kg em 11,8 min.
-```
-
-## Importante sobre o tempo estimado
-
-Não vou tratar `tempo_estimado_ate_nucleo_min` como “massa congelada proporcional”. Ele continuará sendo a validação física do ciclo.
-
-A tela não deve dizer:
-
-```text
-congelou 192 kg em 11,8 min
-```
-
-Ela deve dizer, quando insuficiente, algo nessa linha:
-
-```text
-Para a massa de 195,4 kg permanecer tempo suficiente até o núcleo, a retenção estimada é 12,1 min.
-Com essa retenção, a nova capacidade cai para X kg/min / Y kg/h.
-```
-
-Isso responde exatamente ao raciocínio:
-
-```text
-A cada 11,8 min deveriam sair 195 kg.
-Se as condições físicas exigem 12,1 min, a esteira precisa desacelerar.
-Ao desacelerar, a capacidade por minuto e por hora diminuem.
-```
-
-## O que não será alterado
-
-- Não vou alterar banco de dados.
-- Não vou alterar a Etapa 3.
-- Não vou alterar o motor térmico principal.
-- Não vou voltar com cálculo de massa congelada proporcional como card principal.
-- Vazão, velocidade do ar, temperatura do ar e h continuarão separados como parâmetros físicos de compatibilidade.
+Com isso, a tela deixa claro por que apareceu 118,2 e por que o cálculo anterior derrubou a capacidade, mas não apresenta essa queda como ajuste obrigatório do girofreezer.
