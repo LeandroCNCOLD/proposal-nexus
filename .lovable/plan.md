@@ -1,227 +1,121 @@
-Plano revisado para a Etapa 5 — produção primeiro, compatibilidade física depois
+Plano de ajuste fino da Etapa 5 — capacidade por minuto e ajuste de retenção
 
-Vou ajustar somente `src/components/coldpro/ColdProTunnelForm.tsx`. Não vou alterar banco de dados, propriedades ASHRAE, motor térmico principal nem massa calculada na Etapa 3.
+Vou alterar somente `src/components/coldpro/ColdProTunnelForm.tsx`.
 
-## 1. Separar duas perguntas de engenharia
+## Objetivo
 
-A Etapa 5 passará a responder em duas camadas.
+Corrigir a leitura dos cards de ajuste da Etapa 5 para separar claramente:
 
-### Camada 1 — Produção / massa por ciclo
+1. capacidade nominal do túnel por hora;
+2. capacidade operacional por minuto;
+3. massa dentro da retenção atual;
+4. tempo estimado até o núcleo para essa massa;
+5. nova retenção/velocidade/capacidade quando a configuração atual não fecha.
 
-Usar os valores já calculados/vindos da Etapa 3:
+## Correção principal
 
-```text
-capacidade_nominal_kg_h
-tempo_retencao_min
-```
+Hoje o card `11. Nova capacidade` está em `kg/h`. Pelo fluxo que você descreveu, ele precisa mostrar a capacidade ajustada em `kg/min`, porque a análise do ciclo está sendo feita em cima da massa que passa durante a retenção em minutos.
 
-Calcular:
-
-```text
-kg_min = capacidade_nominal_kg_h / 60
-massa_projetada_ciclo_kg = kg_min × tempo_retencao_min
-```
-
-Exemplo esperado:
+A lógica ficará assim:
 
 ```text
-993,6 kg/h / 60 = 16,56 kg/min
-16,56 × 11,8 min = 195,4 kg
+capacidade_nominal_kg_h = 993,6 kg/h
+capacidade_atual_kg_min = capacidade_nominal_kg_h / 60
+capacidade_atual_kg_min = 16,56 kg/min
+
+retencao_atual_min = 11,8 min
+massa_na_retencao_kg = capacidade_atual_kg_min × retencao_atual_min
+massa_na_retencao_kg = 195,4 kg
 ```
 
-Mensagem no topo:
+Depois, se o tempo estimado até o núcleo for maior que 11,8 min:
 
 ```text
-Com 993,6 kg/h e 11,8 min de retenção, entram 195,4 kg no túnel por ciclo.
+retencao_necessaria_min = tempo_estimado_ate_nucleo_min
+nova_capacidade_kg_min = massa_na_retencao_kg / retencao_necessaria_min
+nova_capacidade_kg_h = nova_capacidade_kg_min × 60
+velocidade_ajustada_m_min = comprimento_util_m / retencao_necessaria_min
 ```
 
-### Camada 2 — Compatibilidade física até o núcleo
-
-Depois de definida a massa do ciclo, validar:
+Assim, se a tela estimar que precisa de 12,1 min para compatibilizar os 195 kg:
 
 ```text
-Com 195,4 kg dentro do túnel durante 11,8 min,
-as condições atuais de ar são compatíveis com o congelamento até o núcleo?
+nova_capacidade_kg_min = 195,4 / 12,1 = 16,15 kg/min
+nova_capacidade_kg_h = 969,0 kg/h
+velocidade_ajustada = comprimento_util / 12,1
 ```
 
-Importante: a tela não deve afirmar de forma absoluta que “congelou 195 kg”. Ela deve afirmar compatibilidade técnica quando:
+Ou seja: a produção cai um pouco porque a esteira precisa andar mais devagar para manter os 195 kg tempo suficiente dentro do túnel.
+
+## Ajustes visuais nos cards
+
+Na grade de diagnóstico da direita, vou renomear/reorganizar os cards para evitar a confusão atual:
 
 ```text
-tempo_estimado_congelamento_min <= tempo_retencao_min
+1. Capacidade nominal do túnel por hora     993,6 kg/h
+2. Capacidade atual por minuto             16,56 kg/min
+3. Retenção atual do ciclo                 11,8 min
+4. Massa na retenção atual                 195,4 kg
+5. Compatibilidade física                  Compatível / Não compatível
+6. Tempo estimado até o núcleo             X min
+7. Retenção necessária para 195,4 kg        X min
+8. Ajuste de retenção                      +Y min
+9. Velocidade atual da esteira             1,38 m/min
+10. Velocidade ajustada da esteira          1,35 m/min
+11. Nova capacidade por minuto              16,15 kg/min
+12. Nova capacidade por hora                969,0 kg/h
 ```
 
-Redação correta quando atende:
+Depois os cards técnicos de temperatura, vazão, h, área e velocidade do ar continuam na sequência.
+
+## Ajuste de texto do alerta
+
+Quando não atender, o alerta passará a explicar exatamente como a decisão foi tomada:
+
+```text
+Com 195,4 kg na retenção atual de 11,8 min, as condições atuais não são compatíveis.
+O modelo estima 12,1 min até o núcleo para essa massa.
+
+Para manter 195,4 kg por ciclo, a retenção precisa subir para 12,1 min.
+Isso reduz a velocidade da esteira de 1,38 para 1,35 m/min.
+A nova capacidade estimada fica em 16,15 kg/min, ou 969,0 kg/h.
+```
+
+Quando atender, manter a redação tecnicamente correta:
 
 ```text
 As condições atuais são compatíveis com o congelamento de 195,4 kg em 11,8 min.
 ```
 
-Redação correta quando não atende:
+## Importante sobre o tempo estimado
+
+Não vou tratar `tempo_estimado_ate_nucleo_min` como “massa congelada proporcional”. Ele continuará sendo a validação física do ciclo.
+
+A tela não deve dizer:
 
 ```text
-As condições atuais não são compatíveis com o congelamento de 195,4 kg em 11,8 min. O modelo estima {tempo_estimado} min.
+congelou 192 kg em 11,8 min
 ```
 
-## 2. Remover a lógica incorreta de massa congelada proporcional
-
-Vou remover da apresentação a fórmula atual:
+Ela deve dizer, quando insuficiente, algo nessa linha:
 
 ```text
-massa_congelada = massa_projetada × tempo_disponivel / tempo_termico
+Para a massa de 195,4 kg permanecer tempo suficiente até o núcleo, a retenção estimada é 12,1 min.
+Com essa retenção, a nova capacidade cai para X kg/min / Y kg/h.
 ```
 
-Ela não será mais usada para reduzir a massa congelada exibida no ciclo.
-
-O tempo térmico estimado continuará existindo, mas somente como validação física separada:
+Isso responde exatamente ao raciocínio:
 
 ```text
-tempo_estimado_congelamento_min <= tempo_retencao_min
+A cada 11,8 min deveriam sair 195 kg.
+Se as condições físicas exigem 12,1 min, a esteira precisa desacelerar.
+Ao desacelerar, a capacidade por minuto e por hora diminuem.
 ```
 
-## 3. Status correto da configuração atual
+## O que não será alterado
 
-Criar a validação principal:
-
-```text
-fisica_compativel = tempo_estimado_congelamento_min <= tempo_retencao_min
-```
-
-Status:
-
-```text
-ATENDE: condições compatíveis com o congelamento no tempo disponível
-INSUFICIENTE: condições não compatíveis; tempo estimado maior que a retenção
-PRELIMINAR: sem h manual informado, usando h sugerido apenas como referência
-```
-
-Se faltar h manual, manter alerta:
-
-```text
-Para validação final, informe o coeficiente convectivo manual. O h sugerido é apenas referência.
-```
-
-## 4. Reorganizar os cards principais
-
-No topo da Etapa 5, mostrar:
-
-1. Capacidade nominal — kg/h
-2. kg/min — capacidade nominal ÷ 60
-3. Tempo de retenção — min
-4. Massa projetada por ciclo — kg
-5. Status atual — atende / insuficiente / preliminar
-6. Tempo estimado com configuração atual — min
-
-Substituir/remover o card “Massa congelada na retenção” para evitar a leitura errada de 19,4 kg. A tela deve mostrar “Massa projetada por ciclo” ou “Massa congelável pela capacidade”, calculada por kg/h × tempo / 60.
-
-## 5. Alternativa A — ajustar esteira quando não atender
-
-Quando `tempo_estimado_congelamento_min > tempo_retencao_min`, mostrar:
-
-```text
-retencao_necessaria_min = tempo_estimado_congelamento_min
-velocidade_esteira_nova_m_min = comprimento_util_esteira_m / retencao_necessaria_min
-nova_capacidade_kg_h = massa_projetada_ciclo_kg × 60 / retencao_necessaria_min
-```
-
-Mensagem:
-
-```text
-Se mantiver as condições atuais de ar, será necessário aumentar a retenção para {retencao_necessaria} min, reduzindo a velocidade da esteira para {velocidade_nova} m/min. A capacidade cairá para aproximadamente {nova_capacidade} kg/h.
-```
-
-## 6. Alternativa B — manter produção e ajustar ar
-
-Quando não atender, mostrar referência de projeto para manter a mesma massa em 11,8 min:
-
-- h necessário
-- velocidade de ar estimada necessária
-- vazão necessária
-- temperatura do ar necessária, quando houver referência calculável
-- evaporação estimada
-
-Regras:
-
-- h manual continua sendo o valor principal de validação final
-- h necessário aparece como referência de projeto
-- h sugerido não substitui h manual automaticamente
-- botão “Usar h sugerido” continua sendo ação explícita do usuário
-
-Se a velocidade/h necessários ultrapassarem limites operacionais configurados, marcar a alternativa como inviável ou fora da faixa.
-
-## 7. Alternativa C — simulação rápida por temperatura do ar
-
-Criar uma tabela para comparar cenários:
-
-- temperatura atual do ar
-- -30 °C
-- -35 °C
-- -40 °C
-
-Para cada cenário, exibir:
-
-- T_ar
-- tempo estimado até o núcleo usando o h efetivo atual
-- vazão necessária pelo balanço térmico nessa temperatura/propriedades do ar
-- velocidade necessária pela seção livre
-- status: atende / não atende
-
-A tabela responderá:
-
-```text
-Se eu reduzir a temperatura do ar para -40 °C, as condições ficam compatíveis com 195 kg em 11,8 min?
-```
-
-## 8. Manter controles sem loop
-
-Preservar a lógica existente:
-
-- fonte da temperatura do ar: usar ambiente ou definir túnel manualmente
-- ao alterar T_ar manual, não alterar automaticamente o ambiente
-- manter botão “Aplicar temperatura do túnel ao ambiente”
-
-E manter a relação:
-
-```text
-T_evap = T_ar - ΔT
-T_ar = T_evap + ΔT
-```
-
-com seletor para editar T_ar ou T_evap, evitando loop ao atualizar apenas o campo dependente.
-
-## 9. Vazão e velocidade
-
-Manter/organizar as fórmulas auxiliares já presentes:
-
-```text
-vazao_m3_h = carga_kW × 3600 / (densidade_ar × Cp_ar × ΔT_ar)
-area_livre = largura_secao × altura_util × (1 - bloqueio)
-velocidade_ar_m_s = vazao_m3_h / 3600 / area_livre
-vazao_m3_h = velocidade_ar_m_s × area_livre × 3600
-```
-
-Ao alterar vazão, velocidade, seção ou bloqueio, a interface continuará recalculando as leituras equivalentes e o status.
-
-## 10. Resultado esperado na tela
-
-Para o caso citado, a Etapa 5 deve exibir algo equivalente a:
-
-```text
-Capacidade nominal: 993,6 kg/h
-kg/min: 16,56 kg/min
-Tempo de retenção: 11,8 min
-Massa projetada por ciclo: 195,4 kg
-```
-
-E a validação física separada:
-
-```text
-Com 195,4 kg dentro do túnel durante 11,8 min, as condições atuais de ar são compatíveis com o congelamento até o núcleo?
-Status: atende / insuficiente / preliminar
-Tempo estimado: {tempo_estimado} min
-```
-
-Não deve mais aparecer a leitura errada:
-
-```text
-Massa congelada na retenção = 19,4 kg
-```
+- Não vou alterar banco de dados.
+- Não vou alterar a Etapa 3.
+- Não vou alterar o motor térmico principal.
+- Não vou voltar com cálculo de massa congelada proporcional como card principal.
+- Vazão, velocidade do ar, temperatura do ar e h continuarão separados como parâmetros físicos de compatibilidade.
