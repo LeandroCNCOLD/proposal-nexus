@@ -1,109 +1,79 @@
-Plano para deixar o sistema em “zoom padrão/original” e melhorar o preenchimento das boxes em notebooks.
+Plano para ajustar a etapa de produtos em todos os tipos de cálculo ColdPro:
 
-## Objetivo
+1. Padronizar a apresentação da aba Produtos
+- Criar um layout único de “Produto + base de cálculo + propriedades térmicas + prévia de carga” para câmaras de congelados, resfriados, climatizados e demais ambientes sem túnel.
+- Manter o formulário específico de túnel para túneis/girofreezer, mas alinhar a Etapa 4 com a mesma linguagem visual e os mesmos conceitos: temperaturas editáveis, propriedades oficiais bloqueadas e prévia clara.
+- No resumo “Produtos cadastrados”, mostrar a massa correta conforme o modo usado:
+  - estoque com giro: estoque, percentual, kg/dia movimentado e kg/h calculado;
+  - entrada diária: kg/dia e tempo de recuperação;
+  - entrada horária: kg/h direto;
+  - lote/recuperação: massa do lote e tempo.
 
-Ajustar a escala global da interface para parecer em 100% de zoom, sem sensação de tela comprimida ou reduzida, e garantir que cards/boxes/tabelas ocupem melhor o espaço disponível em notebook.
+2. Bloquear propriedades oficiais vindas do catálogo, sem bloquear cálculo
+- Quando o produto vier do catálogo, deixar bloqueados apenas para edição:
+  - temperatura de congelamento;
+  - densidade;
+  - água, proteína e demais composição quando disponíveis;
+  - Cp acima;
+  - Cp abaixo;
+  - calor latente original;
+  - calor latente convertido/usado;
+  - condutividade congelada;
+  - fração de água congelável/congelada;
+  - espessura/característica técnica quando vier do catálogo.
+- Manter editáveis:
+  - temperatura de entrada do produto;
+  - temperatura final do produto;
+  - dados operacionais de massa, tempo, giro, recuperação, túnel, ar, vazão etc.
+- Garantir que campo bloqueado seja tratado apenas como “não editável pelo usuário”, nunca como “ausente”, “inválido” ou motivo de trava.
 
-## Diagnóstico inicial
+3. Separar claramente os dois “calores latentes”
+- Renomear os rótulos para evitar ambiguidade:
+  - “Calor latente do catálogo” em kJ/kg: valor oficial original carregado do produto.
+  - “Calor latente usado no cálculo” em kcal/kg: valor convertido/normalizado usado na carga térmica.
+- Nos resultados técnicos do túnel, acrescentar também:
+  - “Latente base original”;
+  - “Modo do latente”: efetivo ou total;
+  - “Fração congelável aplicada”;
+  - “Latente efetivo aplicado”, quando a base exigir multiplicação por fração.
+- A regra ficará explícita: se o catálogo já entrega latente efetivo, não multiplicar novamente; se entrega latente total, aplicar fração congelável. O sistema já possui `latentMode`; vou expor isso na interface e nos detalhes do cálculo.
 
-Hoje o sistema está configurado com aparência compacta global:
+4. Ajustar Etapa 4 do túnel
+- Alterar a descrição para: “Propriedades técnicas carregadas do catálogo e bloqueadas para preservar a base oficial. Temperaturas de entrada/final e condições operacionais continuam editáveis.”
+- Bloquear na Etapa 4 do túnel as propriedades térmicas quando houver produto de catálogo selecionado, assim como já foi feito no formulário de produto comum.
+- Manter “Temp. entrada”, “Temp. final”, “Temperatura do ar” e “Fator penetração térmica” editáveis, pois são premissas do projeto/processo, não propriedades oficiais do produto.
+- Trocar “Grupo ASHRAE” e “Produto ASHRAE” para “Grupo do catálogo” e “Produto do catálogo”, conforme a terminologia correta.
 
-- `html { font-size: 14px; }`
-- `body { font-size: 13px; }`
-- `.app-shell { font-size: 13px; }`
-- `.app-main { padding: 0.75rem; }`
-- vários componentes ColdPro e tabelas também foram reduzidos para caber mais coisa na tela.
+5. Ajustar alertas para não punir dado oficial bloqueado
+- Revisar os alertas técnicos do motor de túnel que hoje podem aparecer por fração congelável, latente baixo ou unidade.
+- Quando o produto estiver vinculado ao catálogo oficial, os avisos de consistência de propriedade térmica serão informativos ou suprimidos quando forem apenas consequência dos dados oficiais bloqueados.
+- Manter alertas operacionais importantes, como:
+  - tempo estimado maior que tempo disponível;
+  - vazão divergente da necessária;
+  - falta de h manual para validação final;
+  - falta de geometria, vazão, massa ou temperatura operacional.
 
-Isso dá a impressão de “zoom reduzido”. Para um notebook, o ideal é manter uma escala padrão mais confortável e ajustar os grids/cards para preencher a largura, sem depender de fonte pequena demais.
+6. Unificar a prévia da carga de produto por tipo de ambiente
+- Para câmaras e ambientes sem túnel: a prévia mostrará carga do produto, embalagem, respiração quando aplicável e total da aba Produtos.
+- Para túneis/girofreezer: a prévia continuará usando o motor do túnel, mas será apresentada com a mesma estrutura visual e com a separação entre produto, embalagem e cargas internas/processo.
+- Evitar dupla contagem visual: quando “Túnel / processo” já representa total do túnel, a tela deixará claro se é carga interna/processo ou total consolidado do motor.
 
-## O que vou ajustar
+7. Documentar na própria tela a origem dos dados
+- Adicionar uma mensagem fixa quando houver produto de catálogo:
+  “Dados térmicos sincronizados com o cadastro técnico oficial. Campos bloqueados preservam a base de cálculo e não impedem salvar/recalcular.”
+- Para seleção manual, manter a possibilidade de editar propriedades, com aviso de que são premissas manuais.
 
-### 1. Restaurar escala padrão do sistema
+Arquivos a alterar
+- `src/components/coldpro/ColdProProductForm.tsx`
+- `src/components/coldpro/ColdProTunnelForm.tsx`
+- `src/routes/app.coldpro.$id.tsx`
+- `src/features/coldpro/coldpro-calculation.engine.ts`
+- `src/modules/coldpro/engines/tunnelEngine.ts`
+- Se necessário, pequenos ajustes em normalizadores/adapters para expor `latentMode`, fração e origem sem mudar a base matemática.
 
-Vou ajustar a base visual para um comportamento mais próximo do navegador em 100%:
-
-- `html` volta para `font-size: 16px` ou `100%`.
-- `body` sobe para um tamanho padrão mais legível.
-- `.app-shell` deixa de forçar fonte compactada global.
-- Preservo compactação apenas onde for realmente necessário, como tabelas densas ou áreas técnicas.
-
-Resultado esperado: a interface fica com aparência mais “original padrão”, menos espremida.
-
-### 2. Melhorar o preenchimento das boxes/cards
-
-Vou revisar as regras globais de layout para que as boxes:
-
-- ocupem 100% da largura disponível do painel principal;
-- usem grids responsivos com colunas que se adaptam ao notebook;
-- evitem cards muito estreitos ou sobrando espaço vazio desnecessário;
-- mantenham espaçamento visual confortável.
-
-Ajustes prováveis:
-
-- aumentar um pouco o padding principal em telas médias/grandes;
-- usar `minmax()` adequado nos grids;
-- garantir `w-full`, `min-w-0` e `overflow-x-auto` onde houver tabelas ou conteúdo largo;
-- evitar que elementos internos estourem horizontalmente.
-
-### 3. Otimizar para notebook
-
-Vou mirar principalmente a experiência em telas comuns de notebook, como:
-
-```text
-1366 x 768
-1440 x 900
-1536 x 864
-```
-
-Critérios:
-
-- sidebar e topo sem consumir espaço excessivo;
-- conteúdo principal bem preenchido;
-- cards legíveis sem precisar mexer no zoom do navegador;
-- tabelas com rolagem horizontal quando necessário, em vez de quebrar layout;
-- menos “buracos” e colunas desalinhadas.
-
-### 4. Ajustar AppShell
-
-No `AppShell`, vou revisar:
-
-- largura do conteúdo principal;
-- padding do `<main>`;
-- comportamento do topo fixo;
-- uso de `overflow-x-hidden`, para não esconder conteúdo que deveria rolar em tabelas;
-- estrutura para notebook sem compactar demais.
-
-### 5. Ajustar CSS global
-
-No `src/styles.css`, vou reorganizar a parte de escala:
-
-- separar “escala padrão” de “modo compacto técnico”;
-- manter design tokens e cores existentes;
-- evitar zoom via `transform`, `scale` ou reduções globais agressivas;
-- manter responsividade em mobile e desktop.
-
-### 6. Validar visualmente
-
-Depois da implementação, vou conferir a interface em viewport de notebook e revisar principalmente:
-
-- dashboard/app principal;
-- configurações/gestão de usuários;
-- telas ColdPro, porque já têm muitas regras compactas;
-- tabelas e cards com conteúdo extenso.
-
-## Arquivos que serão ajustados
-
-- `src/styles.css`
-  - escala global, fonte base, padding, grids e comportamento responsivo.
-
-- `src/components/AppShell.tsx`
-  - estrutura principal, largura/padding e overflow.
-
-- Possivelmente telas específicas caso algum layout esteja forçando largura ou cards estreitos demais:
-  - `src/routes/app.configuracoes.index.tsx`
-  - telas ColdPro com muitos cards/tabelas
-  - dashboards/cards se necessário
-
-## Resultado esperado
-
-A interface ficará com aparência de zoom 100% padrão, mais confortável em notebook, com boxes preenchendo melhor o espaço da tela e sem depender de reduzir o zoom do navegador para visualizar bem.
+Critério de aceite
+- Produto do catálogo: usuário não consegue editar propriedades oficiais, mas consegue salvar e recalcular normalmente.
+- Temperatura de entrada e final continuam editáveis.
+- A tela diferencia “calor latente original do catálogo” de “calor latente usado/aplicado no cálculo”.
+- Câmaras, ambientes resfriados/climatizados/congelados e túneis passam a ter uma apresentação de produto coerente e comparável, respeitando a estrutura específica de cada cálculo.
+- Bloqueio visual de campo não gera trava, alarme crítico indevido ou impedimento de proposta.
