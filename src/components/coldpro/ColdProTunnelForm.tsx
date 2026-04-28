@@ -482,6 +482,20 @@ export const ColdProTunnelForm = React.forwardRef<ColdProTunnelFormHandle, ColdP
     if (value === "airflow_by_fans") setForm((prev) => ({ ...prev, ...buildAirflowPreset(prev) }));
     else setForm((prev) => ({ ...prev, airflow_source: value, fan_airflow_m3_h: prev.fan_airflow_m3_h ?? prev.informed_air_flow_m3_h ?? prev.airflow_m3_h }));
   };
+  const setAirControl = (key: string, value: unknown) => {
+    setForm((prev) => {
+      const next = { ...prev, [key]: value };
+      const freeAreaM2 = freeAirAreaFromControls(next);
+      const velocityMS = positiveValue(next.air_velocity_m_s);
+      const airflowM3H = airflowForVelocityM3H(freeAreaM2, velocityMS);
+      return airflowM3H > 0 ? { ...next, airflow_source: "airflow_by_fans", fan_airflow_m3_h: roundPreset(airflowM3H, 2), informed_air_flow_m3_h: roundPreset(airflowM3H, 2), airflow_m3_h: roundPreset(airflowM3H, 2) } : next;
+    });
+  };
+  const airControlNum = (key: string): NumericInputProps => ({ type: "number", step: "0.0001", value: inputValue(form?.[key]), onChange: (e: React.ChangeEvent<HTMLInputElement>) => setAirControl(key, numberOrNull(e.target.value)) });
+  const airControlBlockagePercentNum = (key: string) => {
+    const value = Number(form?.[key] ?? 0);
+    return { type: "number" as const, step: "0.0001", value: Number.isFinite(value) && value !== 0 ? value * 100 : form?.[key] === 0 ? 0 : "", onChange: (e: React.ChangeEvent<HTMLInputElement>) => { const parsed = numberOrNull(e.target.value); setAirControl(key, parsed === null ? null : parsed / 100); } };
+  };
   const setSimulationAirflowSource = (value: string) => {
     setSimulation((prev) => ({ ...prev, airflow_source: value, fan_airflow_m3_h: prev.fan_airflow_m3_h ?? prev.informed_air_flow_m3_h ?? prev.airflow_m3_h }));
   };
