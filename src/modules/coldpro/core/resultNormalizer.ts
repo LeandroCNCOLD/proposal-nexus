@@ -176,7 +176,7 @@ export function normalizeColdProResult(rawResult: any, selection?: any | null, e
       enginePowerUnit: ENGINE_POWER_UNIT,
       defaultDisplayUnit: DEFAULT_THERMAL_DISPLAY_UNIT,
       engineFlow: "kJ/kg → kJ/h → kW",
-      source: "ASHRAE / CN ColdPro",
+      source: "Catálogo do produto",
       conversionAppliedAt: "saída/apresentação",
       cpAboveKJkgK: round(num(unitAuditSource.cpAboveKJkgK), 4),
       cpBelowKJkgK: round(num(unitAuditSource.cpBelowKJkgK), 4),
