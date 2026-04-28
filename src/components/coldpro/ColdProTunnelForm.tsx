@@ -1191,6 +1191,11 @@ export const ColdProTunnelForm = React.forwardRef<ColdProTunnelFormHandle, ColdP
   const availableTimeForMassMin = positiveValue(tunnelResult.availableTimeMin);
   const estimatedTimeForMassMin = tunnelResult.estimatedTimeMin !== null && tunnelResult.estimatedTimeMin !== undefined ? positiveValue(tunnelResult.estimatedTimeMin) : 0;
   const massInAvailableTimeKg = continuousCapacityKgH > 0 && availableTimeForMassMin > 0 ? continuousCapacityKgH * availableTimeForMassMin / 60 : 0;
+  const instantTunnelMassKg = hasBeltPhysicalMass ? beltPhysicalMassKg : massInAvailableTimeKg;
+  const operatingCapacityFromInstantMassKgH = instantTunnelMassKg > 0 && availableTimeForMassMin > 0 ? instantTunnelMassKg * 60 / availableTimeForMassMin : continuousCapacityKgH;
+  const realCapacityByThermalTimeKgH = instantTunnelMassKg > 0 && estimatedTimeForMassMin > 0 ? instantTunnelMassKg * 60 / estimatedTimeForMassMin : 0;
+  const capacityDeficitRatio = continuousCapacityKgH > 0 && realCapacityByThermalTimeKgH > 0 ? realCapacityByThermalTimeKgH / continuousCapacityKgH : null;
+  const capacityDeficitPercent = capacityDeficitRatio !== null ? capacityDeficitRatio * 100 : null;
   const beltSurfaceAreaForMassM2 = positiveValue(beltSurfaceBreakdown.areaM2);
   const beltSurfaceCalculatedAreaForMassM2 = positiveValue(beltSurfaceBreakdown.calculatedAreaM2) || positiveValue(form.belt_width_m) * positiveValue(form.belt_effective_length_m);
   const beltSurfaceInformedAreaForMassM2 = positiveValue(beltSurfaceBreakdown.informedAreaM2, form.belt_area_m2);
