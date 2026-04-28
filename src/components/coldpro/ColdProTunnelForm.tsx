@@ -578,6 +578,22 @@ export const ColdProTunnelForm = React.forwardRef<ColdProTunnelFormHandle, ColdP
       });
     },
   });
+  const beltLengthNum = (): NumericInputProps => ({
+    type: "number",
+    step: "0.0001",
+    value: inputValue(form?.belt_effective_length_m),
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
+      const nextLength = numberOrNull(e.target.value);
+      setForm((prev) => {
+        const lengthM = nextLength && nextLength > 0 ? nextLength : 0;
+        const retentionMin = positiveValue(prev.process_time_min);
+        const speedMMin = positiveValue(prev.belt_speed_m_min);
+        if (lengthM > 0 && retentionMin > 0) return { ...prev, belt_effective_length_m: nextLength, belt_speed_m_min: lengthM / retentionMin };
+        if (lengthM > 0 && speedMMin > 0) return { ...prev, belt_effective_length_m: nextLength, process_time_min: lengthM / speedMMin };
+        return { ...prev, belt_effective_length_m: nextLength };
+      });
+    },
+  });
   const blockagePercentNum = (key: string) => {
     const value = Number(form?.[key] ?? 0);
     return { type: "number" as const, step: "0.0001", value: Number.isFinite(value) && value !== 0 ? value * 100 : form?.[key] === 0 ? 0 : "", onChange: (e: React.ChangeEvent<HTMLInputElement>) => { const parsed = numberOrNull(e.target.value); set(key, parsed === null ? null : parsed / 100); } };
@@ -1440,7 +1456,7 @@ export const ColdProTunnelForm = React.forwardRef<ColdProTunnelFormHandle, ColdP
               {continuousMassMode !== "calculated_by_belt_surface_density" ? <ColdProField label="Peso unitário" helpKey="unitWeightKg" unit={WEIGHT_UNITS[weightUnit].label}><ColdProInput {...weightNum("unit_weight_kg", weightUnit)} /></ColdProField> : null}
               {continuousMassMode === "calculated_by_units_per_hour" ? <ColdProField label="Unidades por hora"><ColdProInput {...num("units_per_hour")} /></ColdProField> : null}
               {continuousMassMode === "calculated_by_belt_loading" ? <><ColdProField label="Unidades por fileira"><ColdProInput {...num("units_per_row")} /></ColdProField><ColdProField label="Fileiras por metro"><ColdProInput {...num("rows_per_meter")} /></ColdProField><ColdProField label="Velocidade esteira" unit="m/min"><ColdProInput {...num("belt_speed_m_min")} /></ColdProField></> : null}
-              {continuousMassMode === "calculated_by_belt_surface_density" ? <><ColdProField label="Largura da esteira" unit="m"><ColdProInput {...num("belt_width_m")} /></ColdProField><ColdProField label="Comprimento útil" unit="m"><ColdProInput {...num("belt_effective_length_m")} /></ColdProField><ColdProField label="Velocidade da esteira" unit="m/min"><ColdProInput {...beltSpeedNum()} /></ColdProField><ColdProField label="Densidade superficial" unit="kg/m²"><ColdProInput {...num("belt_surface_density_kg_m2")} /></ColdProField><ColdProField label="Área útil manual" unit="m²"><ColdProInput {...num("belt_area_m2")} /></ColdProField><ColdProField label="Capacidade nominal" unit="kg/h"><ColdProInput {...num("belt_nominal_capacity_kg_h")} /></ColdProField></> : null}
+              {continuousMassMode === "calculated_by_belt_surface_density" ? <><ColdProField label="Largura da esteira" unit="m"><ColdProInput {...num("belt_width_m")} /></ColdProField><ColdProField label="Comprimento útil" unit="m"><ColdProInput {...beltLengthNum()} /></ColdProField><ColdProField label="Velocidade da esteira" unit="m/min"><ColdProInput {...beltSpeedNum()} /></ColdProField><ColdProField label="Densidade superficial" unit="kg/m²"><ColdProInput {...num("belt_surface_density_kg_m2")} /></ColdProField><ColdProField label="Área útil manual" unit="m²"><ColdProInput {...num("belt_area_m2")} /></ColdProField><ColdProField label="Capacidade nominal" unit="kg/h"><ColdProInput {...num("belt_nominal_capacity_kg_h")} /></ColdProField></> : null}
               {continuousMassMode === "calculated_by_trays" ? <><ColdProField label="Unidades por bandeja"><ColdProInput {...num("units_per_tray")} /></ColdProField><ColdProField label="Bandejas por hora"><ColdProInput {...num("trays_per_hour")} /></ColdProField><ColdProField label="Peso da bandeja" unit="kg"><ColdProInput {...num("tray_weight_kg")} /></ColdProField></> : null}
               {continuousMassMode === "calculated_by_feed_rate" ? <ColdProField label="Taxa de alimentação" unit="kg/h"><ColdProInput {...num("feed_rate_kg_h")} /></ColdProField> : null}
             </div><div>
