@@ -87,7 +87,6 @@ export function ColdProAdvancedProcessForm({ projectId, environment, process, pr
     air_renewal_m3_h: process?.air_renewal_m3_h ?? 0,
   }));
   const result = React.useMemo(() => calculateAdvancedProcess(draft), [draft]);
-  const selectedCatalogProduct = productCatalog.find((item) => item.id === draft.product_id) ?? null;
   const groups = React.useMemo(() => Array.from(new Set(productCatalog.map((p) => p.category).filter(Boolean))).sort((a, b) => String(a).localeCompare(String(b), "pt-BR")), [productCatalog]);
   const filteredProducts = React.useMemo(() => productCatalog.filter((p) => !selectedGroup || p.category === selectedGroup), [productCatalog, selectedGroup]);
   const applyProduct = (id: string) => {
