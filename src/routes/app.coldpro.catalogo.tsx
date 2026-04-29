@@ -12,7 +12,7 @@ import {
   Upload, FileSpreadsheet, CheckCircle2, AlertTriangle, Database,
   Loader2, ArrowLeft, History, Layers, Thermometer,
   ChevronLeft, ChevronRight, FolderTree, Download, FileCode2,
-  Package, CircleDollarSign, Clock3, Search, XCircle,
+  Package, CircleDollarSign, Clock3, XCircle,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -382,6 +382,7 @@ function CatalogoPage() {
             </div>
             <div className="flex flex-wrap items-center gap-2 lg:justify-end">
               <CatalogSummaryPill icon={Package} label="Produtos" value={catalogRows.length.toLocaleString("pt-BR")} />
+              <CatalogSummaryPill icon={CircleDollarSign} label="Sem preço" value={productsWithoutPrice.toLocaleString("pt-BR")} warn={productsWithoutPrice > 0} />
               <CatalogSummaryPill icon={AlertTriangle} label="Alertas" value={productsWithAlerts.toLocaleString("pt-BR")} warn={productsWithAlerts > 0} />
               <CatalogSummaryPill icon={Clock3} label="Última sync" value={formatCatalogDate(latestSyncAt)} />
             </div>
