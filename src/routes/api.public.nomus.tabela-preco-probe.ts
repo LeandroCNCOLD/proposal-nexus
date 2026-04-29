@@ -132,6 +132,7 @@ async function fetchNomusRaw(path: string): Promise<RawProbeResult> {
   const baseUrlRaw = process.env.NOMUS_BASE_URL?.trim() ?? "";
   const apiKeyRaw = process.env.NOMUS_API_KEY?.trim() ?? "";
   let calledUrl: string | null = null;
+  let timer: ReturnType<typeof setTimeout> | null = null;
 
   try {
     const baseUrl = getNomusBaseUrl();
@@ -142,16 +143,24 @@ async function fetchNomusRaw(path: string): Promise<RawProbeResult> {
     }
 
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 30_000);
-    const response = await fetch(calledUrl, {
-      method: "GET",
-      headers: {
-        Authorization: /^basic\s+/i.test(apiKeyRaw) ? apiKeyRaw : `Basic ${apiKeyRaw}`,
-        Accept: "application/json",
-      },
-      signal: controller.signal,
+    const timeout = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => {
+        controller.abort();
+        reject(new Error("Timeout ao chamar Nomus após 12000ms"));
+      }, 12_000);
     });
-    clearTimeout(timer);
+    const response = await Promise.race([
+      fetch(calledUrl, {
+        method: "GET",
+        headers: {
+          Authorization: /^basic\s+/i.test(apiKeyRaw) ? apiKeyRaw : `Basic ${apiKeyRaw}`,
+          Accept: "application/json",
+        },
+        signal: controller.signal,
+      }),
+      timeout,
+    ]);
+    if (timer) clearTimeout(timer);
 
     const rawBody = await response.text();
     let parsedBody: unknown = null;
@@ -179,6 +188,7 @@ async function fetchNomusRaw(path: string): Promise<RawProbeResult> {
           },
     };
   } catch (error) {
+    if (timer) clearTimeout(timer);
     const e = error instanceof Error ? error : new Error(String(error));
     return {
       baseUrlPresent: Boolean(baseUrlRaw),
