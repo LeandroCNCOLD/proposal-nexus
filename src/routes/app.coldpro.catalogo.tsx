@@ -204,7 +204,7 @@ function CatalogoPage() {
       const content = format === "csv" ? toCatalogCsv(filteredModels) : toCatalogXml(filteredModels);
       downloadTextFile(content, `catalogo-coldpro-${timestamp}.${format}`, format === "csv" ? "text/csv;charset=utf-8" : "application/xml;charset=utf-8");
       toast.success(`${format.toUpperCase()} baixado com ${filteredModels.length} modelo(s).`, { id: toastId });
-    } catch (err) {
+    } catch {
       toast.error(`Não foi possível baixar o ${format.toUpperCase()}.`, { id: toastId });
     } finally {
       setExportingFormat(null);
@@ -377,6 +377,36 @@ function CatalogoPage() {
               )}
             </div>
             <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/30 p-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void handleCatalogExport("csv")}
+                  disabled={modelsQuery.isLoading || exportingFormat !== null || filteredModels.length === 0}
+                  className="bg-card"
+                >
+                  {exportingFormat === "csv" ? (
+                    <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Download className="mr-1.5 h-4 w-4" />
+                  )}
+                  Baixar CSV
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void handleCatalogExport("xml")}
+                  disabled={modelsQuery.isLoading || exportingFormat !== null || filteredModels.length === 0}
+                  className="bg-card"
+                >
+                  {exportingFormat === "xml" ? (
+                    <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                  ) : (
+                    <FileCode2 className="mr-1.5 h-4 w-4" />
+                  )}
+                  Baixar XML
+                </Button>
+              </div>
               <Button
                 variant={groupByLine ? "default" : "outline"}
                 size="sm"
