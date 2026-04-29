@@ -102,7 +102,22 @@ function stableNaturalItemId(position: number, productCode: string | null, descr
 }
 
 function pickExternalUpdatedAt(raw: Json): string | null {
-  return pickStr(raw, "updatedAt", "updated_at", "dataAlteracao", "dataModificacao", "dataHoraAlteracao", "alteradoEm");
+  const value = pickStr(raw, "updatedAt", "updated_at", "dataAlteracao", "dataModificacao", "dataHoraAlteracao", "alteradoEm");
+  return parseNomusDateTime(value);
+}
+
+function parseNomusDateTime(value: string | null): string | null {
+  if (!value) return null;
+  const text = value.trim();
+  if (!text) return null;
+  const br = text.match(/^(\d{2})\/(\d{2})\/(\d{2,4})(?:\s+(\d{2}):(\d{2})(?::(\d{2}))?)?/);
+  if (br) {
+    const [, dd, mm, yyRaw, hh = "00", mi = "00", ss = "00"] = br;
+    const yyyy = yyRaw.length === 2 ? `20${yyRaw}` : yyRaw;
+    return `${yyyy}-${mm}-${dd}T${hh}:${mi}:${ss}-03:00`;
+  }
+  const parsed = new Date(text);
+  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
 }
 
 function windowQuery(window?: SyncWindow, startDate?: string | null, endDate?: string | null) {
