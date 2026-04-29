@@ -694,27 +694,23 @@ export const nomusSyncClients = createServerFn({ method: "POST" })
         }
         const previous = current?.id ? current : null;
         const { payload: changedPayload } = buildUpdatePayload(previous, syncPayload, "clients");
-        const { data: upserted, error } = await supabaseAdmin
-          .from("clients")
-          .upsert(
-            ({
-              ...(current?.id ? changedPayload : syncPayload),
-              nomus_id,
-              nomus_raw: { ...full, situacaoEstadual } as never,
-              origin: "nomus",
-              nomus_synced_at: new Date().toISOString(),
-              last_synced_at: new Date().toISOString(),
-              external_updated_at: pickExternalUpdatedAt(full),
-              sync_hash: syncHash,
-              sync_status: "synced",
-              sync_error_code: null,
-              sync_error_message: null,
-              last_sync_run_id: syncRunId,
-            } as never),
-            { onConflict: "nomus_id" }
-          )
-          .select("id")
-          .single();
+        const persistencePayload = {
+          ...(current?.id ? changedPayload : syncPayload),
+          nomus_id,
+          nomus_raw: { ...full, situacaoEstadual } as never,
+          origin: "nomus",
+          nomus_synced_at: new Date().toISOString(),
+          last_synced_at: new Date().toISOString(),
+          external_updated_at: pickExternalUpdatedAt(full),
+          sync_hash: syncHash,
+          sync_status: "synced",
+          sync_error_code: null,
+          sync_error_message: null,
+          last_sync_run_id: syncRunId,
+        };
+        const { data: upserted, error } = current?.id
+          ? await supabaseAdmin.from("clients").update(persistencePayload as never).eq("id", current.id).select("id").single()
+          : await supabaseAdmin.from("clients").insert(persistencePayload as never).select("id").single();
         if (error) throw new Error(error.message);
         const clientId = (upserted as { id?: string } | null)?.id;
         await logFieldChanges({ syncRunId, entityType: "clientes", localId: clientId, externalId: nomus_id, previous: previous as Record<string, unknown> | null, next: syncPayload });
