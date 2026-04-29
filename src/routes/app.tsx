@@ -15,7 +15,6 @@ function AppLayout() {
   const { user, roles, loading } = useAuth();
   const { pathname } = useLocation();
   const [authGuardTimedOut, setAuthGuardTimedOut] = React.useState(false);
-  const accessGuardLoading = loading || loadingProfile || loadingModuleAccess;
   const [newPassword, setNewPassword] = React.useState("");
   const [confirmPassword, setConfirmPassword] = React.useState("");
   const [changingPassword, setChangingPassword] = React.useState(false);
@@ -39,6 +38,7 @@ function AppLayout() {
         .data ?? [],
     enabled: !!user,
   });
+  const accessGuardLoading = loading || loadingProfile || loadingModuleAccess;
 
   React.useEffect(() => {
     if (!accessGuardLoading) {
