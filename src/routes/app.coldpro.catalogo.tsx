@@ -664,12 +664,25 @@ type ModelRowData = {
   description_confidence?: string | null;
   point_count: number;
   voltages: string[];
+  created_at?: string | null;
+  updated_at?: string | null;
+  source_import_id?: string | null;
+  raw?: Record<string, unknown> | null;
 };
 
 function ModelRow({ m, indent, onClick }: { m: ModelRowData; indent?: boolean; onClick: () => void }) {
+  const code = getCatalogCode(m);
+  const price = readCatalogValue(m, PRICE_ALIASES);
+  const cost = readCatalogValue(m, COST_ALIASES);
+  const margin = readCatalogMargin(m, price, cost);
+  const alerts = getCatalogAlerts(m);
+
   return (
     <TableRow className="cursor-pointer hover:bg-muted/50" onClick={onClick}>
-      <TableCell className={`font-medium text-primary ${indent ? "pl-8" : ""}`}>
+      <TableCell className={`font-mono text-xs font-semibold text-muted-foreground ${indent ? "pl-8" : ""}`}>
+        {code}
+      </TableCell>
+      <TableCell className="font-medium text-primary">
         <div className="flex flex-col">
           <span>{m.modelo}</span>
           {m.designacao_hp && m.designacao_hp !== "-" && (
@@ -682,9 +695,12 @@ function ModelRow({ m, indent, onClick }: { m: ModelRowData; indent?: boolean; o
           )}
         </div>
       </TableCell>
-      <TableCell className="text-xs">{m.linha ?? "—"}</TableCell>
+      <TableCell className="text-right font-medium tabular-nums">{formatCatalogMoney(price)}</TableCell>
+      <TableCell className="text-right tabular-nums text-muted-foreground">{formatCatalogMoney(cost)}</TableCell>
+      <TableCell className="text-right">{formatCatalogMargin(margin)}</TableCell>
       <TableCell>
         <div className="flex flex-wrap gap-1">
+          {m.linha && <Badge variant="secondary" className="text-[10px] py-0 px-1.5">{m.linha}</Badge>}
           {splitEquipmentTypes(m.tipo_gabinete).map((tipo) => (
             <Badge key={tipo} variant="outline" className="text-[10px] py-0 px-1.5">
               {tipo}
@@ -692,9 +708,13 @@ function ModelRow({ m, indent, onClick }: { m: ModelRowData; indent?: boolean; o
           ))}
         </div>
       </TableCell>
-      <TableCell className="text-right text-sm font-medium tabular-nums">
-        {m.point_count}
+      <TableCell className="text-xs text-muted-foreground">
+        <div className="flex flex-col">
+          <span>{formatCatalogDate(m.updated_at)}</span>
+          <span>{m.source_import_id ? "Importado" : "Sem vínculo"}</span>
+        </div>
       </TableCell>
+      <TableCell><CatalogAlertBadges alerts={alerts} /></TableCell>
       <TableCell className="text-right">
         {m.active ? (
           <Badge variant="default" className="bg-emerald-600">Ativo</Badge>
