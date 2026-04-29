@@ -26,6 +26,7 @@ type SyncNomusPriceTablesResult = {
   tablesReceived: number;
   tablesSaved: number;
   itemsReceived: number;
+  itemsMapped?: number;
   itemsSaved: number;
   errors: string[];
   error: string | null;

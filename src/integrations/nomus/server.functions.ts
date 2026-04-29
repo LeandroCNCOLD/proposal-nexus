@@ -13,6 +13,11 @@ import {
   proposalItemDetailPath,
   proposalItemDetailFallbackPaths,
 } from "./endpoints";
+import {
+  extractNomusPriceTableItems,
+  mapNomusPriceTableItemToDb,
+  mapNomusPriceTableToDb,
+} from "./price-table-mapping";
 
 type Json = Record<string, unknown>;
 type ProcessResult = "ok" | "skip" | "unmatched" | "no_change" | "quarantined";
@@ -82,8 +87,6 @@ const toOptionalNumber = (value: unknown): number | null => {
 };
 
 type PriceTableSyncError = { scope: "api" | "mapper" | "database"; message: string };
-type PriceTableMapperResult<T extends Json> = { ok: true; payload: T } | { ok: false; reason: string; raw: unknown };
-
 const debugJson = (value: unknown): string => {
   try {
     return JSON.stringify(value) ?? String(value);
@@ -103,74 +106,12 @@ const extractPriceTableList = <T,>(payload: unknown): T[] => {
   return [];
 };
 
-const extractPriceTableItems = <T,>(payload: unknown): T[] => {
-  if (!payload) return [];
-  if (Array.isArray(payload)) return payload as T[];
-  const env = payload as Json;
-  for (const k of ["items", "resultados", "data", "content", "registros", "lista", "itens", "tabelaPrecoItens", "produtos"]) {
-    const v = env[k];
-    if (Array.isArray(v)) return v as T[];
-  }
-  return [];
+const priceTableItemDbPayload = (payload: Json): Json => {
+  const { product_name, product_description, ...dbPayload } = payload;
+  void product_name;
+  void product_description;
+  return dbPayload;
 };
-
-function priceTableNomusId(raw: Json): string | null {
-  return pickStr(raw, "id", "idTabelaPreco", "codigo", "codTabelaPreco", "codigoTabelaPreco");
-}
-
-function priceTableItemProductId(raw: Json): string | null {
-  const direct = pickStr(raw, "nomus_product_id", "idProduto", "produtoId", "idProdutoServico", "codigoProduto", "codigo", "codProduto", "produtoCodigo");
-  if (direct) return direct;
-  const produto = raw.produto;
-  return produto && typeof produto === "object" ? pickStr(produto as Json, "id", "codigo", "idProduto", "codigoProduto") : null;
-}
-
-function priceTableItemUnitPrice(raw: Json): number | null {
-  return pickNum(raw, "unit_price", "precoUnitario", "precoVenda", "preco", "valor", "valorUnitario", "precoTabela", "precoCalculado", "precoUnitarioCalculado");
-}
-
-export function mapNomusPriceTableToDb(raw: unknown): PriceTableMapperResult<Json> {
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return { ok: false, reason: "Tabela descartada: payload não é objeto JSON.", raw };
-  const record = raw as Json;
-  const nomusId = priceTableNomusId(record);
-  const name = pickStr(record, "nome", "name", "descricao", "description");
-  if (!nomusId) return { ok: false, reason: "Tabela descartada: sem id/codigo/idTabelaPreco.", raw };
-  if (!name) return { ok: false, reason: "Tabela descartada: sem nome/name/descricao.", raw };
-
-  return {
-    ok: true,
-    payload: {
-      nomus_id: nomusId,
-      code: pickStr(record, "codigo", "code", "codTabelaPreco", "codigoTabelaPreco"),
-      name,
-      currency: pickStr(record, "moeda", "currency") ?? "BRL",
-      is_active: pickBool(record, "ativo", "active", "isActive", "situacao") ?? true,
-      raw: record,
-      synced_at: new Date().toISOString(),
-    },
-  };
-}
-
-export function mapNomusPriceTableItemToDb(raw: unknown, priceTableId: string): PriceTableMapperResult<Json> {
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return { ok: false, reason: "Item descartado: payload não é objeto JSON.", raw };
-  const record = raw as Json;
-  const productId = priceTableItemProductId(record);
-  const unitPrice = priceTableItemUnitPrice(record);
-  if (!productId) return { ok: false, reason: "Item descartado: sem idProduto/codigoProduto/codigo.", raw };
-  if (unitPrice === null) return { ok: false, reason: "Item descartado: sem preco/precoVenda/precoUnitario/valor.", raw };
-
-  return {
-    ok: true,
-    payload: {
-      price_table_id: priceTableId,
-      nomus_product_id: productId,
-      unit_price: unitPrice,
-      currency: pickStr(record, "moeda", "currency") ?? "BRL",
-      raw: record,
-      synced_at: new Date().toISOString(),
-    },
-  };
-}
 
 export const syncNomusPriceTables = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -179,6 +120,7 @@ export const syncNomusPriceTables = createServerFn({ method: "POST" })
     const errors: PriceTableSyncError[] = [];
     let tablesReceived = 0;
     let itemsReceived = 0;
+    let itemsMapped = 0;
     let tablesCount = 0;
     let itemsCount = 0;
 
@@ -206,6 +148,7 @@ export const syncNomusPriceTables = createServerFn({ method: "POST" })
           tablesReceived,
           tablesSaved: tablesCount,
           itemsReceived,
+          itemsMapped,
           itemsSaved: itemsCount,
           errors: errors.map((e) => e.message),
           error: message,
@@ -288,9 +231,24 @@ export const syncNomusPriceTables = createServerFn({ method: "POST" })
           continue;
         }
 
-        const rawItems = extractPriceTableItems<unknown>(itemsResponse.data);
+        const itemResponseKeys =
+          itemsResponse.data && typeof itemsResponse.data === "object" && !Array.isArray(itemsResponse.data)
+            ? Object.keys(itemsResponse.data as Json)
+            : [];
+        const nestedData = (itemsResponse.data as Json | null)?.data;
+        const nestedDataKeys =
+          nestedData && typeof nestedData === "object" && !Array.isArray(nestedData) ? Object.keys(nestedData as Json) : [];
+        const rawItems = extractNomusPriceTableItems<unknown>(itemsResponse.data);
         itemsReceived += rawItems.length;
         console.info(`[nomus-price-tables] GET /tabelasPreco/${tableNomusId}/itens dados`, {
+          tableId: tableNomusId,
+          tableName: mappedTable.payload.name,
+          responseKeys: itemResponseKeys,
+          dataKeys: nestedDataKeys,
+          itensTabelaPrecoCount:
+            itemsResponse.data && typeof itemsResponse.data === "object" && Array.isArray((itemsResponse.data as Json).itensTabelaPreco)
+              ? ((itemsResponse.data as Json).itensTabelaPreco as unknown[]).length
+              : 0,
           quantidadeItens: rawItems.length,
           firstItem: debugJson(rawItems[0] ?? null),
         });
@@ -319,9 +277,12 @@ export const syncNomusPriceTables = createServerFn({ method: "POST" })
             continue;
           }
 
+          itemsMapped += 1;
           const { error: itemError } = await supabaseAdmin
             .from("nomus_price_table_items")
-            .upsert(mappedItem.payload as never, { onConflict: "price_table_id,nomus_product_id" });
+            .upsert(priceTableItemDbPayload(mappedItem.payload) as never, {
+              onConflict: "price_table_id,nomus_product_id",
+            });
 
           console.info("[nomus-price-tables] resultado ao salvar item", {
             tableId: tableNomusId,
@@ -347,6 +308,7 @@ export const syncNomusPriceTables = createServerFn({ method: "POST" })
         tablesReceived,
         tablesSaved: tablesCount,
         itemsReceived,
+        itemsMapped,
         itemsSaved: itemsCount,
         errors: errors.map((e) => e.message),
       });
@@ -362,6 +324,7 @@ export const syncNomusPriceTables = createServerFn({ method: "POST" })
         tablesReceived,
         tablesSaved: tablesCount,
         itemsReceived,
+        itemsMapped,
         itemsSaved: itemsCount,
         errors: errors.map((e) => e.message),
         error: errorMessage,
@@ -375,6 +338,7 @@ export const syncNomusPriceTables = createServerFn({ method: "POST" })
         tablesReceived,
         tablesSaved: tablesCount,
         itemsReceived,
+        itemsMapped,
         itemsSaved: itemsCount,
       });
       return {
@@ -382,6 +346,7 @@ export const syncNomusPriceTables = createServerFn({ method: "POST" })
         tablesReceived,
         tablesSaved: tablesCount,
         itemsReceived,
+        itemsMapped,
         itemsSaved: itemsCount,
         errors: errors.map((e) => e.message),
         error: message,
