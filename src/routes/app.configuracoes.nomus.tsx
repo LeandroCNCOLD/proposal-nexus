@@ -27,7 +27,7 @@ import { useServerFn } from "@tanstack/react-start";
 
 export const Route = createFileRoute("/app/configuracoes/nomus")({ component: NomusPage });
 
-type SyncFnResult = { ok: true; count: number; skipped?: number; unmatched?: number } | { ok: false; error: string };
+type SyncFnResult = { ok: true; count: number; skipped?: number; unmatched?: number; done?: boolean; nextPage?: string | null } | { ok: false; error: string };
 
 function NomusPage() {
   const qc = useQueryClient();
@@ -41,8 +41,22 @@ function NomusPage() {
   const kickoffProposals = useServerFn(nomusKickoffSyncProposals);
   const syncPedidos = useServerFn(nomusSyncPedidos);
   const syncInvoices = useServerFn(nomusSyncInvoices);
+  const syncClientsUntilDone = async (): Promise<SyncFnResult> => {
+    let total = 0;
+    let skipped = 0;
+    let last: SyncFnResult | null = null;
+    for (let attempt = 0; attempt < 30; attempt += 1) {
+      const result = await syncClients({ data: { window: syncWindow } });
+      if (!result.ok) return result;
+      total += result.count ?? 0;
+      skipped += result.skipped ?? 0;
+      last = result;
+      if (result.done) break;
+    }
+    return { ok: true, count: total, skipped, unmatched: 0, done: last?.ok ? last.done : false, nextPage: last?.ok ? last.nextPage : null };
+  };
   const ENTITIES = [
-    { key: "clientes", label: "Clientes", run: syncClients },
+    { key: "clientes", label: "Clientes", run: syncClientsUntilDone },
     { key: "produtos", label: "Produtos / Equipamentos", run: syncProducts },
     { key: "condicoes_pagamento", label: "Condições de pagamento", run: syncPaymentTerms },
     { key: "vendedores", label: "Vendedores", run: syncSellers },
