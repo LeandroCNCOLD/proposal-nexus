@@ -153,9 +153,10 @@ export async function nomusFetch<T = unknown>(
   opts: NomusFetchOptions = {}
 ): Promise<{ ok: true; data: T; status: number } | { ok: false; error: string; status: number }> {
   let baseUrl: string;
-  let apiKey: string;
+  let username: string;
+  let authToken: string;
   try {
-    ({ baseUrl, apiKey } = getCreds());
+    ({ baseUrl, username, authToken } = getCreds());
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     return { ok: false, error: msg, status: 0 };
@@ -168,9 +169,8 @@ export async function nomusFetch<T = unknown>(
   const operation = opts.operation ?? method.toLowerCase();
   const direction = opts.direction ?? (method === "GET" ? "pull" : "push");
 
-  // Nomus exige header `Authorization: Basic <chave-integracao-rest>`.
-  // A chave já vem em base64 do ERP — só anexamos o prefixo "Basic " se ainda não estiver presente.
-  const authValue = /^basic\s+/i.test(apiKey) ? apiKey : `Basic ${apiKey}`;
+  // Nomus exige Basic Auth gerado dinamicamente a partir de NOMUS_USERNAME:NOMUS_PASSWORD.
+  const authValue = `Basic ${authToken}`;
   const headers: Record<string, string> = {
     Authorization: authValue,
     "Content-Type": "application/json",
@@ -179,7 +179,7 @@ export async function nomusFetch<T = unknown>(
 
   if (DEBUG) {
     console.log(`[nomus] ${method} ${url}`);
-    console.log(`[nomus] auth: ${maskKey(apiKey)}`);
+    console.log(`[nomus] user: ${maskCredential(username)}`);
     if (opts.body) console.log("[nomus] payload:", JSON.stringify(opts.body));
   }
 
