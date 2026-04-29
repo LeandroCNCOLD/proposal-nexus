@@ -86,3 +86,18 @@ Diretrizes obrigatórias de arquitetura daqui em diante
 - Normalizar unidades em pontos explícitos de conversão: kcal/h, kJ, kW, TR, BTU/h e tempo.
 - Preferir funções puras para cálculos térmicos, sincronização e normalização de dados.
 - Não quebrar funcionalidades existentes; alterações devem ser incrementais, compatíveis e verificáveis.
+
+Organização modular para GitHub + Cursor
+- `src/modules/proposals`: fronteira do domínio de propostas.
+  - `screens`: telas migradas incrementalmente das rotas de propostas.
+  - `components`: componentes visuais de proposta/editor.
+  - `services`: persistência, chamadas server-side e orquestrações.
+  - `types`: contratos TypeScript do domínio.
+  - `templates`: editor de templates, blocos e modelos.
+  - `approval`: aprovação por alçada.
+  - `financial`: análise financeira, impostos, margens e cálculos puros.
+- `src/modules/nomus`: fronteira de integração com Nomus.
+  - `services`: clientes e sincronizações.
+  - `types`: payloads externos e modelos normalizados.
+  - `mappers`: conversões Nomus → domínio interno.
+- `src/modules/coldpro`: motor térmico e telas ColdPro, mantendo engines e physics separados da UI.
