@@ -445,6 +445,17 @@ export const pullNomusProcesses = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const supabaseAdmin = context.supabase as any;
     const userId = context.userId;
+    const staleCutoff = new Date(Date.now() - 2 * 60_000).toISOString();
+    await (supabaseAdmin as any)
+      .from("nomus_process_sync_jobs")
+      .update({
+        status: "failed",
+        last_error: "Sincronização anterior ficou presa e foi liberada automaticamente.",
+        finished_at: new Date().toISOString(),
+      })
+      .eq("requested_by", userId)
+      .eq("status", "running")
+      .lt("updated_at", staleCutoff);
     const tipos = (data?.tipos ?? []).map((t) => t.trim()).filter(Boolean);
     const { data: existingJob } = await (supabaseAdmin as any)
       .from("nomus_process_sync_jobs")
