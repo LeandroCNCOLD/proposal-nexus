@@ -18,8 +18,21 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database, Json } from "@/integrations/supabase/types";
 import { cn } from "@/lib/utils";
@@ -30,7 +43,11 @@ export const Route = createFileRoute("/app/propostas/tabelas-preco")({
 
 type PriceTable = Database["public"]["Tables"]["nomus_price_tables"]["Row"];
 type PriceTableItem = Database["public"]["Tables"]["nomus_price_table_items"]["Row"];
-type EquipmentPreview = { model: string | null; normalized_model_code: string | null; sync_status: string | null } | null;
+type EquipmentPreview = {
+  model: string | null;
+  normalized_model_code: string | null;
+  sync_status: string | null;
+} | null;
 type PriceTableItemView = PriceTableItem & { equipments?: EquipmentPreview };
 type AlertFilter = "all" | "sem_preco" | "sem_custo" | "margem_negativa" | "margem_baixa";
 type StatusFilter = "all" | "active" | "inactive" | "synced" | "pending";
@@ -64,15 +81,32 @@ function PriceTablesPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("nomus_price_table_items")
-        .select("price_table_id, synced_at, unit_price, preco_liquido, preco_calculado, custo_producao_total, has_cost_data, margem_contribuicao")
+        .select(
+          "price_table_id, synced_at, unit_price, preco_liquido, preco_calculado, custo_producao_total, has_cost_data, margem_contribuicao",
+        )
         .limit(10000);
       if (error) throw error;
-      return (data ?? []) as Array<Pick<PriceTableItem, "price_table_id" | "synced_at" | "unit_price" | "preco_liquido" | "preco_calculado" | "custo_producao_total" | "has_cost_data" | "margem_contribuicao">>;
+      return (data ?? []) as Array<
+        Pick<
+          PriceTableItem,
+          | "price_table_id"
+          | "synced_at"
+          | "unit_price"
+          | "preco_liquido"
+          | "preco_calculado"
+          | "custo_producao_total"
+          | "has_cost_data"
+          | "margem_contribuicao"
+        >
+      >;
     },
   });
 
   const selectedTable = useMemo(
-    () => priceTablesQuery.data?.find((table) => table.id === openedTableId) ?? priceTablesQuery.data?.[0] ?? null,
+    () =>
+      priceTablesQuery.data?.find((table) => table.id === openedTableId) ??
+      priceTablesQuery.data?.[0] ??
+      null,
     [openedTableId, priceTablesQuery.data],
   );
   const activeTableId = openedTableId ?? selectedTable?.id ?? null;
@@ -98,7 +132,8 @@ function PriceTablesPage() {
   );
 
   const filteredTables = useMemo(
-    () => tableSummaries.filter((table) => filterTableSummary(table, selectedTableId, statusFilter)),
+    () =>
+      tableSummaries.filter((table) => filterTableSummary(table, selectedTableId, statusFilter)),
     [tableSummaries, selectedTableId, statusFilter],
   );
 
@@ -137,8 +172,13 @@ function PriceTablesPage() {
     setExporting(format);
     try {
       const filename = `tabela-preco-${selectedTable?.code ?? selectedTable?.name ?? "nomus"}-${new Date().toISOString().slice(0, 10)}.${format}`;
-      const content = format === "csv" ? toItemsCsv(filteredItems) : toItemsXml(filteredItems, selectedTable);
-      downloadTextFile(content, sanitizeFilename(filename), format === "csv" ? "text/csv;charset=utf-8" : "application/xml;charset=utf-8");
+      const content =
+        format === "csv" ? toItemsCsv(filteredItems) : toItemsXml(filteredItems, selectedTable);
+      downloadTextFile(
+        content,
+        sanitizeFilename(filename),
+        format === "csv" ? "text/csv;charset=utf-8" : "application/xml;charset=utf-8",
+      );
       toast.success(`${format.toUpperCase()} exportado com ${filteredItems.length} produto(s).`);
     } finally {
       setExporting(null);
@@ -154,8 +194,17 @@ function PriceTablesPage() {
         subtitle="Gestão das tabelas comerciais vindas do Nomus"
         actions={
           <>
-            <Button variant="outline" size="sm" onClick={() => void handleSync()} disabled={syncing}>
-              {syncing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CloudCog className="mr-2 h-4 w-4" />}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void handleSync()}
+              disabled={syncing}
+            >
+              {syncing ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <CloudCog className="mr-2 h-4 w-4" />
+              )}
               Sincronizar com Nomus
             </Button>
             <Button variant="outline" size="sm" onClick={() => void refreshData()}>
@@ -168,9 +217,21 @@ function PriceTablesPage() {
 
       <section className="grid gap-3 md:grid-cols-4">
         <SummaryBox label="Tabelas" value={tableSummaries.length.toLocaleString("pt-BR")} />
-        <SummaryBox label="Produtos vinculados" value={summaryItemsQuery.data?.length.toLocaleString("pt-BR") ?? "—"} />
-        <SummaryBox label="Tabelas ativas" value={tableSummaries.filter((table) => table.is_active).length.toLocaleString("pt-BR")} />
-        <SummaryBox label="Com alertas" value={tableSummaries.filter((table) => table.alertsCount > 0).length.toLocaleString("pt-BR")} warn />
+        <SummaryBox
+          label="Produtos vinculados"
+          value={summaryItemsQuery.data?.length.toLocaleString("pt-BR") ?? "—"}
+        />
+        <SummaryBox
+          label="Tabelas ativas"
+          value={tableSummaries.filter((table) => table.is_active).length.toLocaleString("pt-BR")}
+        />
+        <SummaryBox
+          label="Com alertas"
+          value={tableSummaries
+            .filter((table) => table.alertsCount > 0)
+            .length.toLocaleString("pt-BR")}
+          warn
+        />
       </section>
 
       <Card className="p-5 shadow-[var(--shadow-sm)]">
@@ -180,7 +241,9 @@ function PriceTablesPage() {
               <Table2 className="h-5 w-5 text-primary" />
               <h2 className="text-lg font-semibold">Lista de tabelas comerciais</h2>
             </div>
-            <p className="mt-1 text-sm text-muted-foreground">Selecione uma tabela para ver preços, custos, margens e alertas por produto.</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Selecione uma tabela para ver preços, custos, margens e alertas por produto.
+            </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Select value={selectedTableId} onValueChange={setSelectedTableId}>
@@ -190,11 +253,16 @@ function PriceTablesPage() {
               <SelectContent>
                 <SelectItem value="all">Todas as tabelas</SelectItem>
                 {tableSummaries.map((table) => (
-                  <SelectItem key={table.id} value={table.id}>{table.name}</SelectItem>
+                  <SelectItem key={table.id} value={table.id}>
+                    {table.name}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as StatusFilter)}>
+            <Select
+              value={statusFilter}
+              onValueChange={(value) => setStatusFilter(value as StatusFilter)}
+            >
               <SelectTrigger className="w-full sm:w-[180px]">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
@@ -228,16 +296,25 @@ function PriceTablesPage() {
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="truncate text-sm font-semibold">{table.name}</div>
-                    <div className="mt-1 font-mono text-xs text-muted-foreground">{table.code ?? table.nomus_id}</div>
+                    <div className="mt-1 font-mono text-xs text-muted-foreground">
+                      {table.code ?? table.nomus_id}
+                    </div>
                   </div>
                   <StatusBadge active={table.is_active} />
                 </div>
                 <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
                   <Metric label="Produtos" value={table.productCount.toLocaleString("pt-BR")} />
-                  <Metric label="Última sync" value={formatDateTime(table.latestSyncAt ?? table.synced_at)} />
+                  <Metric
+                    label="Última sync"
+                    value={formatDateTime(table.latestSyncAt ?? table.synced_at)}
+                  />
                 </div>
                 <div className="mt-3 flex flex-wrap gap-1.5">
-                  {table.alertsCount > 0 ? <Badge variant="destructive">{table.alertsCount} alerta(s)</Badge> : <Badge variant="secondary">Sem alertas</Badge>}
+                  {table.alertsCount > 0 ? (
+                    <Badge variant="destructive">{table.alertsCount} alerta(s)</Badge>
+                  ) : (
+                    <Badge variant="secondary">Sem alertas</Badge>
+                  )}
                   <Badge variant="outline">{table.currency ?? "BRL"}</Badge>
                 </div>
               </button>
@@ -253,19 +330,48 @@ function PriceTablesPage() {
               <h2 className="text-lg font-semibold">Produtos da tabela</h2>
               {selectedTable && <Badge variant="outline">{selectedTable.name}</Badge>}
             </div>
-            <p className="mt-1 text-sm text-muted-foreground">Detalhe comercial com preço, custo, margem, status e alertas visuais.</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Detalhe comercial com preço, custo, margem, status e alertas visuais.
+            </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => void handleSync()} disabled={syncing}>
-              {syncing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CloudCog className="mr-2 h-4 w-4" />}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void handleSync()}
+              disabled={syncing}
+            >
+              {syncing ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <CloudCog className="mr-2 h-4 w-4" />
+              )}
               Sincronizar
             </Button>
-            <Button variant="outline" size="sm" onClick={() => void exportItems("csv")} disabled={exporting !== null || filteredItems.length === 0}>
-              {exporting === "csv" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void exportItems("csv")}
+              disabled={exporting !== null || filteredItems.length === 0}
+            >
+              {exporting === "csv" ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="mr-2 h-4 w-4" />
+              )}
               Exportar CSV
             </Button>
-            <Button variant="outline" size="sm" onClick={() => void exportItems("xml")} disabled={exporting !== null || filteredItems.length === 0}>
-              {exporting === "xml" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileCode2 className="mr-2 h-4 w-4" />}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void exportItems("xml")}
+              disabled={exporting !== null || filteredItems.length === 0}
+            >
+              {exporting === "xml" ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <FileCode2 className="mr-2 h-4 w-4" />
+              )}
               Exportar XML
             </Button>
           </div>
@@ -274,10 +380,20 @@ function PriceTablesPage() {
         <div className="mb-4 grid gap-3 lg:grid-cols-[1fr_180px_180px]">
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input placeholder="Filtrar por produto ou código..." value={productSearch} onChange={(event) => setProductSearch(event.target.value)} className="pl-9" />
+            <Input
+              placeholder="Filtrar por produto ou código..."
+              value={productSearch}
+              onChange={(event) => setProductSearch(event.target.value)}
+              className="pl-9"
+            />
           </div>
-          <Select value={alertFilter} onValueChange={(value) => setAlertFilter(value as AlertFilter)}>
-            <SelectTrigger><SelectValue placeholder="Alerta" /></SelectTrigger>
+          <Select
+            value={alertFilter}
+            onValueChange={(value) => setAlertFilter(value as AlertFilter)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Alerta" />
+            </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos os alertas</SelectItem>
               <SelectItem value="sem_preco">Sem preço</SelectItem>
@@ -286,8 +402,13 @@ function PriceTablesPage() {
               <SelectItem value="margem_baixa">Margem baixa</SelectItem>
             </SelectContent>
           </Select>
-          <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as StatusFilter)}>
-            <SelectTrigger><SelectValue placeholder="Status" /></SelectTrigger>
+          <Select
+            value={statusFilter}
+            onValueChange={(value) => setStatusFilter(value as StatusFilter)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos os status</SelectItem>
               <SelectItem value="active">Ativos</SelectItem>
@@ -324,15 +445,32 @@ function PriceTablesPage() {
                       <TableCell className="font-mono text-xs">{getItemCode(item)}</TableCell>
                       <TableCell>
                         <div className="font-medium">{getItemName(item)}</div>
-                        <div className="text-xs text-muted-foreground">Atualizado em {formatDateTime(item.synced_at)}</div>
+                        <div className="text-xs text-muted-foreground">
+                          Atualizado em {formatDateTime(item.synced_at)}
+                        </div>
                       </TableCell>
-                      <TableCell className="text-right tabular-nums">{formatMoney(getItemPrice(item), item.currency)}</TableCell>
-                      <TableCell className="text-right tabular-nums">{formatMoney(getItemCost(item), item.currency)}</TableCell>
-                      <TableCell className={cn("text-right tabular-nums", getItemMargin(item) != null && getItemMargin(item)! < 0 && "text-destructive")}>
+                      <TableCell className="text-right tabular-nums">
+                        {formatMoney(getItemPrice(item), item.currency)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {formatMoney(getItemCost(item), item.currency)}
+                      </TableCell>
+                      <TableCell
+                        className={cn(
+                          "text-right tabular-nums",
+                          getItemMargin(item) != null &&
+                            getItemMargin(item)! < 0 &&
+                            "text-destructive",
+                        )}
+                      >
                         {formatPercent(getItemMargin(item))}
                       </TableCell>
-                      <TableCell><ItemStatusBadge item={item} /></TableCell>
-                      <TableCell><AlertBadges alerts={alerts} /></TableCell>
+                      <TableCell>
+                        <ItemStatusBadge item={item} />
+                      </TableCell>
+                      <TableCell>
+                        <AlertBadges alerts={alerts} />
+                      </TableCell>
                     </TableRow>
                   );
                 })}
@@ -345,7 +483,22 @@ function PriceTablesPage() {
   );
 }
 
-function buildTableSummaries(tables: PriceTable[], items: Array<Pick<PriceTableItem, "price_table_id" | "synced_at" | "unit_price" | "preco_liquido" | "preco_calculado" | "custo_producao_total" | "has_cost_data" | "margem_contribuicao">>) {
+function buildTableSummaries(
+  tables: PriceTable[],
+  items: Array<
+    Pick<
+      PriceTableItem,
+      | "price_table_id"
+      | "synced_at"
+      | "unit_price"
+      | "preco_liquido"
+      | "preco_calculado"
+      | "custo_producao_total"
+      | "has_cost_data"
+      | "margem_contribuicao"
+    >
+  >,
+) {
   return tables.map((table) => {
     const tableItems = items.filter((item) => item.price_table_id === table.id);
     return {
@@ -357,7 +510,11 @@ function buildTableSummaries(tables: PriceTable[], items: Array<Pick<PriceTableI
   });
 }
 
-function filterTableSummary(table: ReturnType<typeof buildTableSummaries>[number], selectedTableId: string, status: StatusFilter) {
+function filterTableSummary(
+  table: ReturnType<typeof buildTableSummaries>[number],
+  selectedTableId: string,
+  status: StatusFilter,
+) {
   if (selectedTableId !== "all" && table.id !== selectedTableId) return false;
   if (status === "active" && !table.is_active) return false;
   if (status === "inactive" && table.is_active) return false;
@@ -365,16 +522,33 @@ function filterTableSummary(table: ReturnType<typeof buildTableSummaries>[number
   return true;
 }
 
-function filterPriceTableItem(item: PriceTableItemView, search: string, alert: AlertFilter, status: StatusFilter) {
+function filterPriceTableItem(
+  item: PriceTableItemView,
+  search: string,
+  alert: AlertFilter,
+  status: StatusFilter,
+) {
   const term = search.trim().toLowerCase();
-  if (term && !`${getItemCode(item)} ${getItemName(item)}`.toLowerCase().includes(term)) return false;
-  if (alert !== "all" && !getItemAlerts(item).some((itemAlert) => itemAlert.key === alert)) return false;
+  if (term && !`${getItemCode(item)} ${getItemName(item)}`.toLowerCase().includes(term))
+    return false;
+  if (alert !== "all" && !getItemAlerts(item).some((itemAlert) => itemAlert.key === alert))
+    return false;
   if (status === "synced" && getItemAlerts(item).length > 0) return false;
   if (status === "pending" && getItemAlerts(item).length === 0) return false;
   return true;
 }
 
-function getSummaryAlerts(item: Pick<PriceTableItem, "unit_price" | "preco_liquido" | "preco_calculado" | "custo_producao_total" | "has_cost_data" | "margem_contribuicao">) {
+function getSummaryAlerts(
+  item: Pick<
+    PriceTableItem,
+    | "unit_price"
+    | "preco_liquido"
+    | "preco_calculado"
+    | "custo_producao_total"
+    | "has_cost_data"
+    | "margem_contribuicao"
+  >,
+) {
   const price = firstNumber(item.preco_liquido, item.preco_calculado, item.unit_price);
   const cost = item.custo_producao_total;
   const margin = item.margem_contribuicao;
@@ -390,7 +564,14 @@ function getItemAlerts(item: PriceTableItemView): Array<{ key: AlertFilter; labe
   const alerts = getSummaryAlerts(item);
   return alerts.map((key) => ({
     key: key as AlertFilter,
-    label: key === "sem_preco" ? "Sem preço" : key === "sem_custo" ? "Sem custo" : key === "margem_negativa" ? "Margem negativa" : "Margem baixa",
+    label:
+      key === "sem_preco"
+        ? "Sem preço"
+        : key === "sem_custo"
+          ? "Sem custo"
+          : key === "margem_negativa"
+            ? "Margem negativa"
+            : "Margem baixa",
   }));
 }
 
@@ -407,11 +588,19 @@ function getItemMargin(item: PriceTableItemView) {
 }
 
 function getItemCode(item: PriceTableItemView) {
-  return item.equipments?.normalized_model_code ?? readRawText(item.raw, ["codigo", "code", "produto_codigo", "model_code"]) ?? item.nomus_product_id;
+  return (
+    item.equipments?.normalized_model_code ??
+    readRawText(item.raw, ["codigo", "code", "produto_codigo", "model_code"]) ??
+    item.nomus_product_id
+  );
 }
 
 function getItemName(item: PriceTableItemView) {
-  return item.equipments?.model ?? readRawText(item.raw, ["produto", "nome", "name", "descricao", "description"]) ?? "Produto Nomus";
+  return (
+    item.equipments?.model ??
+    readRawText(item.raw, ["produto", "nome", "name", "descricao", "description"]) ??
+    "Produto Nomus"
+  );
 }
 
 function readRawText(raw: Json | null, keys: string[]) {
@@ -436,7 +625,9 @@ function getLatestDate(values: string[]) {
 
 function formatMoney(value: number | null, currency?: string | null) {
   if (value == null) return "—";
-  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: currency ?? "BRL" }).format(value);
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: currency ?? "BRL" }).format(
+    value,
+  );
 }
 
 function formatPercent(value: number | null) {
@@ -446,7 +637,13 @@ function formatPercent(value: number | null) {
 
 function formatDateTime(value?: string | null) {
   if (!value) return "—";
-  return new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" }).format(new Date(value));
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value));
 }
 
 function toItemsCsv(items: PriceTableItemView[]) {
@@ -459,21 +656,31 @@ function toItemsCsv(items: PriceTableItemView[]) {
       String(getItemCost(item) ?? ""),
       String(getItemMargin(item) ?? ""),
       getItemAlerts(item).length > 0 ? "pendente" : "ok",
-      getItemAlerts(item).map((alert) => alert.label).join("; "),
+      getItemAlerts(item)
+        .map((alert) => alert.label)
+        .join("; "),
     ]);
   }
   return rows.map((row) => row.map(escapeCsv).join(",")).join("\n");
 }
 
 function toItemsXml(items: PriceTableItemView[], table: PriceTable | null) {
-  const products = items.map((item) => `  <produto codigo="${escapeXml(getItemCode(item))}">
+  const products = items
+    .map(
+      (item) => `  <produto codigo="${escapeXml(getItemCode(item))}">
     <nome>${escapeXml(getItemName(item))}</nome>
     <preco>${getItemPrice(item) ?? ""}</preco>
     <custo>${getItemCost(item) ?? ""}</custo>
     <margem>${getItemMargin(item) ?? ""}</margem>
     <status>${getItemAlerts(item).length > 0 ? "pendente" : "ok"}</status>
-    <alertas>${escapeXml(getItemAlerts(item).map((alert) => alert.label).join("; "))}</alertas>
-  </produto>`).join("\n");
+    <alertas>${escapeXml(
+      getItemAlerts(item)
+        .map((alert) => alert.label)
+        .join("; "),
+    )}</alertas>
+  </produto>`,
+    )
+    .join("\n");
   return `<?xml version="1.0" encoding="UTF-8"?>\n<tabelaPreco nome="${escapeXml(table?.name ?? "")}" codigo="${escapeXml(table?.code ?? "")}">\n${products}\n</tabelaPreco>\n`;
 }
 
@@ -482,7 +689,12 @@ function escapeCsv(value: string) {
 }
 
 function escapeXml(value: string) {
-  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
 }
 
 function downloadTextFile(content: string, filename: string, mimeType: string) {
@@ -503,32 +715,73 @@ function SummaryBox({ label, value, warn }: { label: string; value: string; warn
   return (
     <div className="rounded-lg border bg-card p-4 shadow-[var(--shadow-sm)]">
       <div className="text-xs text-muted-foreground">{label}</div>
-      <div className={cn("mt-1 text-2xl font-semibold tabular-nums", warn && "text-destructive")}>{value}</div>
+      <div className={cn("mt-1 text-2xl font-semibold tabular-nums", warn && "text-destructive")}>
+        {value}
+      </div>
     </div>
   );
 }
 
 function Metric({ label, value }: { label: string; value: string }) {
-  return <div><div className="text-muted-foreground">{label}</div><div className="mt-0.5 font-medium">{value}</div></div>;
+  return (
+    <div>
+      <div className="text-muted-foreground">{label}</div>
+      <div className="mt-0.5 font-medium">{value}</div>
+    </div>
+  );
 }
 
 function StatusBadge({ active }: { active: boolean }) {
-  return active ? <Badge variant="secondary"><CheckCircle2 className="mr-1 h-3 w-3" />Ativa</Badge> : <Badge variant="outline">Inativa</Badge>;
+  return active ? (
+    <Badge variant="secondary">
+      <CheckCircle2 className="mr-1 h-3 w-3" />
+      Ativa
+    </Badge>
+  ) : (
+    <Badge variant="outline">Inativa</Badge>
+  );
 }
 
 function ItemStatusBadge({ item }: { item: PriceTableItemView }) {
-  return getItemAlerts(item).length > 0 ? <Badge variant="destructive"><AlertTriangle className="mr-1 h-3 w-3" />Pendente</Badge> : <Badge variant="secondary"><CheckCircle2 className="mr-1 h-3 w-3" />OK</Badge>;
+  return getItemAlerts(item).length > 0 ? (
+    <Badge variant="destructive">
+      <AlertTriangle className="mr-1 h-3 w-3" />
+      Pendente
+    </Badge>
+  ) : (
+    <Badge variant="secondary">
+      <CheckCircle2 className="mr-1 h-3 w-3" />
+      OK
+    </Badge>
+  );
 }
 
 function AlertBadges({ alerts }: { alerts: Array<{ key: AlertFilter; label: string }> }) {
   if (alerts.length === 0) return <Badge variant="secondary">Sem alertas</Badge>;
-  return <div className="flex flex-wrap gap-1.5">{alerts.map((alert) => <Badge key={alert.key} variant="destructive">{alert.label}</Badge>)}</div>;
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {alerts.map((alert) => (
+        <Badge key={alert.key} variant="destructive">
+          {alert.label}
+        </Badge>
+      ))}
+    </div>
+  );
 }
 
 function LoadingLine({ label }: { label: string }) {
-  return <div className="flex items-center justify-center py-12 text-sm text-muted-foreground"><Loader2 className="mr-2 h-4 w-4 animate-spin" />{label}</div>;
+  return (
+    <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
+      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+      {label}
+    </div>
+  );
 }
 
 function EmptyLine({ label }: { label: string }) {
-  return <div className="flex items-center justify-center rounded-lg border border-dashed py-12 text-sm text-muted-foreground">{label}</div>;
+  return (
+    <div className="flex items-center justify-center rounded-lg border border-dashed py-12 text-sm text-muted-foreground">
+      {label}
+    </div>
+  );
 }

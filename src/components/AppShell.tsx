@@ -64,7 +64,12 @@ const NAV = [
     items: [
       { to: "/app", label: "Dashboard", icon: LayoutDashboard, exact: true },
       { to: "/app/crm", label: "Funil / CRM", icon: Kanban },
-      { to: "/app/propostas", label: "Propostas", icon: FileText, exclude: ["/app/propostas/tabelas-preco"] },
+      {
+        to: "/app/propostas",
+        label: "Propostas",
+        icon: FileText,
+        exclude: ["/app/propostas/tabelas-preco"],
+      },
       { to: "/app/propostas/tabelas-preco", label: "Tabelas de Preço", icon: Table2 },
       { to: "/app/propostas/pedidos-nf", label: "Pedidos & NF", icon: FileCheck2 },
       { to: "/app/tarefas", label: "Tarefas & Follow-up", icon: CheckSquare },
@@ -115,8 +120,10 @@ function NavItem({
   exclude?: string[];
 }) {
   const { pathname } = useLocation();
-  const excluded = exclude?.some((path) => pathname === path || pathname.startsWith(path + "/")) ?? false;
-  const active = !excluded && (exact ? pathname === to : pathname === to || pathname.startsWith(to + "/"));
+  const excluded =
+    exclude?.some((path) => pathname === path || pathname.startsWith(path + "/")) ?? false;
+  const active =
+    !excluded && (exact ? pathname === to : pathname === to || pathname.startsWith(to + "/"));
   return (
     <SidebarMenuItem>
       <SidebarMenuButton asChild isActive={active} tooltip={label}>
