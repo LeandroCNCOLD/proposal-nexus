@@ -329,6 +329,8 @@ export const Route = createFileRoute("/api/public/nomus/tabela-preco-probe")({
           probeVersion: "tabela-preco-probe-diagnostics-v2",
           baseUrlPresent: listProbe.baseUrlPresent,
           apiKeyPresent: listProbe.apiKeyPresent,
+          usernamePresent: listProbe.usernamePresent,
+          passwordPresent: listProbe.passwordPresent,
           calledUrl: listProbe.calledUrl,
           httpStatus: listProbe.httpStatus,
           durationMs: listProbe.durationMs,
