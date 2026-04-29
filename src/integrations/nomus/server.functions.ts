@@ -6,6 +6,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { nomusFetch, listAll, listPage, getOne, testNomusConnection } from "./client";
 import { DEFAULT_PROTECTED_SYNC_FIELDS, diffChangedFields, hashNormalizedPayload, isValidCnpj, normalizeCnColdModelCode, normalizeDocument, normalizeEmail, normalizeModel, normalizeProposalNumber, omitProtectedFields } from "@/services/sync/normalization";
 import { acquireSyncLock, finishSyncRun, getSyncCheckpoint, logFieldChanges, logSyncRow, quarantineSyncRow, recordPendingIssue, releaseSyncLock, startSyncRun, upsertSyncCheckpoint, writeSyncQualityReport, type SyncAction } from "@/services/sync/syncAuditService";
+import { syncNomusPriceTables } from "@/modules/nomus/services";
 import {
   NOMUS_ENDPOINTS,
   pessoaContatosPath,
@@ -20,6 +21,10 @@ type ProcessResult = "ok" | "skip" | "unmatched" | "no_change" | "quarantined";
 type SyncWindow = "incremental" | "7d" | "30d" | "custom" | "all";
 
 type ExistingRow = { id: string; nomus_id?: string | null; sync_hash?: string | null; [key: string]: unknown };
+
+export const syncNomusPriceTablesFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async () => syncNomusPriceTables());
 
 const pickStr = (o: Json, ...keys: string[]): string | null => {
   for (const k of keys) {

@@ -27,14 +27,27 @@ export const NOMUS_HEALTHCHECK_ENTITY: NomusEntity = "clientes";
  * Recursos verificados pelo teste multi-recurso (`testNomusConnection`).
  * Ordem importa: do mais provável de funcionar para o mais restritivo.
  */
-export const NOMUS_PROBE_ENTITIES: NomusEntity[] = [
-  "clientes",
-  "representantes",
-  "propostas",
-];
+export const NOMUS_PROBE_ENTITIES: NomusEntity[] = ["clientes", "representantes", "propostas"];
 
 export function getEndpoint(entity: NomusEntity): string {
   return NOMUS_ENDPOINTS[entity];
+}
+
+/** Itens/produtos de uma tabela de preço. Alguns ambientes Nomus expõem
+ * esse array apenas no detalhe da tabela; o service trata fallback.
+ */
+export function priceTableItemsPath(priceTableId: string | number): string {
+  return `${NOMUS_ENDPOINTS.tabelas_preco}/${encodeURIComponent(String(priceTableId))}/itens`;
+}
+
+/** Candidatos para custo do produto. Nem toda instalação Nomus expõe estes sub-recursos. */
+export function productCostCandidatePaths(productId: string | number): string[] {
+  const id = encodeURIComponent(String(productId));
+  return [
+    `${NOMUS_ENDPOINTS.produtos}/${id}/custos`,
+    `${NOMUS_ENDPOINTS.produtos}/${id}?incluirCusto=true`,
+    `/custosProdutos/${id}`,
+  ];
 }
 
 /** Sub-recurso de uma proposta (ex.: eventos, itens). */
@@ -53,16 +66,16 @@ export function proposalSubpath(nomusId: string, sub?: string): string {
  * Em ambientes onde o caminho canônico não está disponível, tentamos os
  * fallbacks abaixo (na ordem) antes de devolver 404.
  */
-export function proposalItemDetailPath(propostaId: string | number, itemId: string | number): string {
+export function proposalItemDetailPath(
+  propostaId: string | number,
+  itemId: string | number,
+): string {
   return `${NOMUS_ENDPOINTS.propostas}/${encodeURIComponent(String(propostaId))}/itens/${encodeURIComponent(String(itemId))}`;
 }
 
 export function proposalItemDetailFallbackPaths(itemId: string | number): string[] {
   const id = encodeURIComponent(String(itemId));
-  return [
-    `${NOMUS_ENDPOINTS.propostas}/itens/${id}`,
-    `/itensPropostas/${id}`,
-  ];
+  return [`${NOMUS_ENDPOINTS.propostas}/itens/${id}`, `/itensPropostas/${id}`];
 }
 
 /** Contatos vinculados a uma pessoa (cliente/fornecedor) no Nomus. */
