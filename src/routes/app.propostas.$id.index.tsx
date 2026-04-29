@@ -306,7 +306,7 @@ function ProposalDetail() {
         client={(p.clients as any)?.name ?? "Cliente não informado"}
         status={p.status as ProposalStatus}
         total={brl(Number(p.total_value ?? 0))}
-        margin={p.margem_liquida_pct != null ? `${p.margem_liquida_pct}%` : "—"}
+        margin={(p as any).margem_liquida_pct != null ? `${(p as any).margem_liquida_pct}%` : "—"}
         date={dateBR(p.created_at)}
         actions={
           <>
@@ -360,12 +360,12 @@ function ProposalDetail() {
 
           <FinancialSummaryCard
             metrics={[
-              { label: "Custo total", value: brl(p.custos_producao), tone: "neutral" },
-              { label: "Preço de venda", value: brl(p.valor_total_com_desconto ?? p.valor_total ?? p.total_value), tone: "info" },
-              { label: "Impostos", value: brl(p.icms_recolher), tone: "warning" },
-              { label: "Comissão", value: brl(p.comissoes_venda), tone: "neutral" },
-              { label: "Margem", value: p.margem_liquida_pct != null ? `${p.margem_liquida_pct}%` : "—", tone: "success" },
-              { label: "Resultado final", value: brl(p.lucro_liquido), tone: "success" },
+              { label: "Custo total", value: brl((p as any).custos_producao), tone: "neutral" },
+              { label: "Preço de venda", value: brl((p as any).valor_total_com_desconto ?? (p as any).valor_total ?? p.total_value), tone: "info" },
+              { label: "Impostos", value: brl((p as any).icms_recolher), tone: "warning" },
+              { label: "Comissão", value: brl((p as any).comissoes_venda), tone: "neutral" },
+              { label: "Margem", value: (p as any).margem_liquida_pct != null ? `${(p as any).margem_liquida_pct}%` : "—", tone: "success" },
+              { label: "Resultado final", value: brl((p as any).lucro_liquido), tone: "success" },
             ]}
           />
 
@@ -489,7 +489,7 @@ function ProposalDetail() {
                   id: ev.id,
                   title: ev.description ?? ev.event_type,
                   date: <><Clock className="mr-1 inline h-3 w-3" />{dateTimeBR(ev.created_at)}</>,
-                  tone: ev.event_type === "aprovacao" ? "success" : "info",
+                  tone: ev.event_type === "aprovada" ? "success" : "info",
                 }))}
               />
             )}
