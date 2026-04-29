@@ -477,19 +477,23 @@ function CatalogoPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Modelo</TableHead>
-                      <TableHead>Linha</TableHead>
+                      <TableHead className="min-w-[150px]">Código</TableHead>
+                      <TableHead className="min-w-[280px]">Nome</TableHead>
+                      <TableHead className="text-right">Preço</TableHead>
+                      <TableHead className="text-right">Custo</TableHead>
+                      <TableHead className="text-right">Margem</TableHead>
                       <TableHead>Tipo</TableHead>
-                      <TableHead className="text-right">Pontos</TableHead>
+                      <TableHead>Última sincronização</TableHead>
+                      <TableHead>Alertas</TableHead>
                       <TableHead className="text-right">Status</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {groupedModels
                       ? groupedModels.map(([linha, items]) => (
-                          <>
+                          <Fragment key={`group-${linha}`}>
                             <TableRow key={`group-${linha}`} className="bg-muted/40 hover:bg-muted/40">
-                              <TableCell colSpan={5} className="py-2 font-semibold text-sm">
+                              <TableCell colSpan={9} className="py-2 font-semibold text-sm">
                                 <span className="inline-flex items-center gap-2">
                                   <FolderTree className="h-4 w-4 text-primary" />
                                   {linha}
@@ -500,7 +504,7 @@ function CatalogoPage() {
                             {items.map((m) => (
                               <ModelRow key={m.id} m={m} indent onClick={() => setSelectedModelId(m.id)} />
                             ))}
-                          </>
+                          </Fragment>
                         ))
                       : pagedModels.map((m) => (
                           <ModelRow key={m.id} m={m} onClick={() => setSelectedModelId(m.id)} />
