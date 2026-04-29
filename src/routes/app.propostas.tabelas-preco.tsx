@@ -776,6 +776,14 @@ function AlertBadges({ alerts }: { alerts: Array<{ key: AlertFilter; label: stri
   );
 }
 
+function PriceTablesErrorFallback() {
+  return (
+    <div className="flex items-center justify-center rounded-lg border border-dashed py-12 text-sm text-muted-foreground">
+      Erro ao carregar tabelas de preço.
+    </div>
+  );
+}
+
 function LoadingLine({ label }: { label: string }) {
   return (
     <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
