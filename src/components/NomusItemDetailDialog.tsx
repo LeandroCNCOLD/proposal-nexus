@@ -324,6 +324,8 @@ function PrecosSection({
           <thead className="bg-secondary/40 text-[11px] uppercase tracking-wider text-muted-foreground">
             <tr>
               <th className="px-3 py-2 text-left">Tabela</th>
+              <th className="px-3 py-2 text-left">Produto</th>
+              <th className="px-3 py-2 text-left">Descrição</th>
               <th className="px-3 py-2 text-left">Código</th>
               <th className="px-3 py-2 text-left">Moeda</th>
               <th className="px-3 py-2 text-right">Preço unitário</th>
@@ -334,10 +336,15 @@ function PrecosSection({
             {priceTableItems.map((row, idx) => {
               const r = row as Record<string, unknown>;
               const tbl = (r.nomus_price_tables ?? {}) as Record<string, unknown>;
+              const raw = (r.raw && typeof r.raw === "object" ? r.raw : {}) as Record<string, unknown>;
+              const productName = pickStr(raw, "nomeProduto", "nome", "product_name");
+              const productDescription = pickStr(raw, "descricaoProduto", "descricao", "description");
               const isCurrent = prefill?.unit_price != null && Number(r.unit_price) === Number(prefill.unit_price);
               return (
                 <tr key={(r.id as string) ?? idx} className={`border-t ${isCurrent ? "bg-primary/5" : ""}`}>
                   <td className="px-3 py-2">{(tbl.name as string) ?? "—"}</td>
+                  <td className="px-3 py-2">{productName ?? "—"}</td>
+                  <td className="px-3 py-2">{productDescription ?? "—"}</td>
                   <td className="px-3 py-2 font-mono text-xs">{(tbl.code as string) ?? "—"}</td>
                   <td className="px-3 py-2 text-xs">{(r.currency as string) ?? (tbl.currency as string) ?? "BRL"}</td>
                   <td className="px-3 py-2 text-right tabular-nums font-medium">
