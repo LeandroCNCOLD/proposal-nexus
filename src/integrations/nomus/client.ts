@@ -129,9 +129,14 @@ async function logCall(input: {
 }
 
 function classifyError(status: number, body: string): string {
+  if (status === 406 && /integracao\.naoAutenticada/i.test(body)) {
+    return "Credencial REST inválida ou sem permissão no Nomus.";
+  }
   switch (status) {
     case 401:
       return "Falha de autenticação (401): usuário/senha rejeitados pelo Nomus.";
+    case 406:
+      return `Nomus 406: ${body.slice(0, 300)}`;
     case 403:
       return "Acesso negado (403): chave válida mas sem permissão para este recurso.";
     case 404:

@@ -118,9 +118,10 @@ function summarize(payload: unknown): ProbeSummary {
 
 type RawProbeResult = {
   baseUrlPresent: boolean;
-  apiKeyPresent: boolean;
-  usernamePresent: boolean;
+  usernameReceived: string | null;
   passwordPresent: boolean;
+  authorizationHeaderPresent: boolean;
+  base64Length: number;
   calledUrl: string | null;
   httpStatus: number | null;
   durationMs: number;
@@ -148,6 +149,7 @@ async function fetchNomusRaw(path: string): Promise<RawProbeResult> {
       throw new Error("NOMUS_REST_PASSWORD não configurado nas Lovable Cloud secrets.");
     }
     const authToken = Buffer.from(`${username}:${password}`, "utf-8").toString("base64");
+    const authorizationHeader = `Basic ${authToken}`;
 
     const controller = new AbortController();
     const timeout = new Promise<never>((_, reject) => {
@@ -160,7 +162,7 @@ async function fetchNomusRaw(path: string): Promise<RawProbeResult> {
       fetch(calledUrl, {
         method: "GET",
         headers: {
-          Authorization: `Basic ${authToken}`,
+          Authorization: authorizationHeader,
           Accept: "application/json",
         },
         signal: controller.signal,
@@ -179,9 +181,10 @@ async function fetchNomusRaw(path: string): Promise<RawProbeResult> {
 
     return {
       baseUrlPresent: Boolean(baseUrlRaw),
-      apiKeyPresent: false,
-      usernamePresent: Boolean(username),
+      usernameReceived: username || null,
       passwordPresent: Boolean(password),
+      authorizationHeaderPresent: Boolean(authorizationHeader),
+      base64Length: authToken.length,
       calledUrl,
       httpStatus: response.status,
       durationMs: Date.now() - started,
@@ -191,7 +194,10 @@ async function fetchNomusRaw(path: string): Promise<RawProbeResult> {
         ? null
         : {
             name: "NomusHttpError",
-            message: `Nomus respondeu HTTP ${response.status}`,
+            message:
+              response.status === 406 && /integracao\.naoAutenticada/i.test(rawBody)
+                ? "Credencial REST inválida ou sem permissão no Nomus."
+                : `Nomus respondeu HTTP ${response.status}`,
             status: response.status,
             body: rawBody,
           },
@@ -201,9 +207,10 @@ async function fetchNomusRaw(path: string): Promise<RawProbeResult> {
     const e = error instanceof Error ? error : new Error(String(error));
     return {
       baseUrlPresent: Boolean(baseUrlRaw),
-      apiKeyPresent: false,
-      usernamePresent: Boolean(username),
+      usernameReceived: username || null,
       passwordPresent: Boolean(password),
+      authorizationHeaderPresent: false,
+      base64Length: username && password ? Buffer.from(`${username}:${password}`, "utf-8").toString("base64").length : 0,
       calledUrl,
       httpStatus: null,
       durationMs: Date.now() - started,
@@ -328,9 +335,11 @@ export const Route = createFileRoute("/api/public/nomus/tabela-preco-probe")({
         const body = {
           probeVersion: "tabela-preco-probe-diagnostics-v2",
           baseUrlPresent: listProbe.baseUrlPresent,
-          apiKeyPresent: listProbe.apiKeyPresent,
-          usernamePresent: listProbe.usernamePresent,
+          usesLegacyNomusApiKey: false,
+          usernameReceived: listProbe.usernameReceived,
           passwordPresent: listProbe.passwordPresent,
+          authorizationHeaderPresent: listProbe.authorizationHeaderPresent,
+          base64Length: listProbe.base64Length,
           calledUrl: listProbe.calledUrl,
           httpStatus: listProbe.httpStatus,
           durationMs: listProbe.durationMs,
