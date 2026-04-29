@@ -347,9 +347,12 @@ function ColdProProjectPage() {
   const auditTunnel = result?.calculation_breakdown?.tunnel ?? result?.calculationBreakdown?.tunnel ?? tunnelPreview ?? tunnel;
   const technicalAudit = React.useMemo(() => auditColdProTechnicalConsistency({ environment: selectedEnv, result, tunnel: auditTunnel, products, advancedProcesses: [], selection }), [selectedEnv, result, auditTunnel, products, selection]);
   const environmentLoad = Number(result?.transmission_kcal_h ?? 0);
+  const tunnelPreviewProductLoad = tunnelPreview ? tunnelPreview.productLoadKW * 859.845 : 0;
+  const tunnelPreviewPackagingLoad = tunnelPreview ? tunnelPreview.packagingLoadKW * 859.845 : 0;
+  const tunnelPreviewInternalLoad = tunnelPreview ? tunnelPreview.internalLoadKW * 859.845 : 0;
   const savedProductLoad = Number(result?.product_kcal_h ?? 0) + Number(result?.packaging_kcal_h ?? 0) + Number(result?.calculation_breakdown?.respiration_kcal_h ?? 0) + Number(result?.tunnel_internal_load_kcal_h ?? 0);
   const productPreviewLoad = directProductPreviewLoad + packagingPreviewLoad;
-  const productLoad = savedProductLoad > 0 ? savedProductLoad : productPreviewLoad > 0 ? productPreviewLoad : Number(tunnelPreview?.totalKcalH ?? 0);
+  const productLoad = savedProductLoad > 0 ? savedProductLoad : productPreviewLoad > 0 ? productPreviewLoad : tunnelPreviewProductLoad + tunnelPreviewPackagingLoad + tunnelPreviewInternalLoad;
   const hasTunnelProduct = Boolean(tunnel && [tunnel.product_name, tunnel.product_id, tunnelPreview?.productLoadKW].some((value) => (typeof value === "number" ? value > 0 : String(value ?? "").trim().length > 0)));
   const extraPreview = calculateExtraLoadPreview(selectedEnv ?? {});
   const savedExtraLoad = result ? Number(result.infiltration_kcal_h ?? 0) + Number(result.people_kcal_h ?? 0) + Number(result.lighting_kcal_h ?? 0) + Number(result.motors_kcal_h ?? 0) + Number(result.fans_kcal_h ?? 0) + Number(result.defrost_kcal_h ?? 0) + Number(result.other_kcal_h ?? 0) + Number(result.calculation_breakdown?.evaporator_frost?.additional_load_kcal_h ?? 0) : 0;
