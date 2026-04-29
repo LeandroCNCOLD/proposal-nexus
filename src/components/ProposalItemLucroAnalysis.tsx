@@ -1,4 +1,5 @@
 import { brl, num } from "@/lib/format";
+import { pickNomusLucroNumber } from "@/modules/proposals/financial";
 
 /**
  * Análise de Lucro do item da proposta.
@@ -263,13 +264,7 @@ function buildDiagnostics(args: {
 
 
 function pickNum(o: Record<string, unknown>, ...keys: string[]): number | null {
-  for (const k of keys) {
-    const raw = o[k];
-    if (raw === null || raw === undefined || raw === "") continue;
-    const n = typeof raw === "number" ? raw : Number(String(raw).replace(/\./g, "").replace(",", "."));
-    if (Number.isFinite(n)) return n;
-  }
-  return null;
+  return pickNomusLucroNumber(o, ...keys);
 }
 
 function negate(v: number | null): number | null {

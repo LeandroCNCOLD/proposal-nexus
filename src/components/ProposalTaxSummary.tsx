@@ -1,4 +1,5 @@
 import { brl } from "@/lib/format";
+import { calculateTaxSummary, toFinancialNumber } from "@/modules/proposals/financial";
 
 /**
  * Resumo de impostos calculados pelo Nomus.
@@ -34,38 +35,38 @@ type Props = {
   };
 };
 
-function toNumber(v: unknown): number | null {
-  if (v === null || v === undefined || v === "") return null;
-  if (typeof v === "number") return Number.isFinite(v) ? v : null;
-  if (typeof v !== "string") return null;
-  // Formato BR: "4.780,8" → 4780.8
-  const normalized = v.replace(/\./g, "").replace(",", ".");
-  const n = Number(normalized);
-  return Number.isFinite(n) ? n : null;
-}
-
 export function ProposalTaxSummary({ totalTributacao, fallback }: Props) {
   const tt = (totalTributacao ?? {}) as Record<string, unknown>;
 
   const items: Array<{ key: string; label: string; value: number | null; hint?: string }> = [
-    { key: "icms", label: "ICMS", value: toNumber(tt.valorIcms) ?? fallback?.icms ?? null },
-    { key: "icms_st", label: "ICMS ST", value: toNumber(tt.valorIcmsSt) ?? fallback?.icms_st ?? null },
-    { key: "ipi", label: "IPI", value: toNumber(tt.valorIpi) ?? fallback?.ipi ?? null },
-    { key: "iss", label: "ISS / ISSQN", value: toNumber(tt.valorIss) ?? fallback?.iss ?? null },
-    { key: "pis", label: "PIS", value: toNumber(tt.valorPis) ?? fallback?.pis ?? null },
-    { key: "cofins", label: "COFINS", value: toNumber(tt.valorCofins) ?? fallback?.cofins ?? null },
-    { key: "cbs", label: "CBS", value: toNumber(tt.valorCbs) ?? fallback?.cbs ?? null, hint: "Reforma tributária" },
-    { key: "ibs", label: "IBS", value: toNumber(tt.valorIbs) ?? fallback?.ibs ?? null, hint: "Reforma tributária" },
+    { key: "icms", label: "ICMS", value: toFinancialNumber(tt.valorIcms) ?? fallback?.icms ?? null },
+    { key: "icms_st", label: "ICMS ST", value: toFinancialNumber(tt.valorIcmsSt) ?? fallback?.icms_st ?? null },
+    { key: "ipi", label: "IPI", value: toFinancialNumber(tt.valorIpi) ?? fallback?.ipi ?? null },
+    { key: "iss", label: "ISS / ISSQN", value: toFinancialNumber(tt.valorIss) ?? fallback?.iss ?? null },
+    { key: "pis", label: "PIS", value: toFinancialNumber(tt.valorPis) ?? fallback?.pis ?? null },
+    { key: "cofins", label: "COFINS", value: toFinancialNumber(tt.valorCofins) ?? fallback?.cofins ?? null },
+    { key: "cbs", label: "CBS", value: toFinancialNumber(tt.valorCbs) ?? fallback?.cbs ?? null, hint: "Reforma tributária" },
+    { key: "ibs", label: "IBS", value: toFinancialNumber(tt.valorIbs) ?? fallback?.ibs ?? null, hint: "Reforma tributária" },
     {
       key: "ibs_estadual",
       label: "IBS Estadual",
-      value: toNumber(tt.valorIbsEstadual) ?? fallback?.ibs_estadual ?? null,
+      value: toFinancialNumber(tt.valorIbsEstadual) ?? fallback?.ibs_estadual ?? null,
       hint: "Reforma tributária",
     },
   ];
 
   const visible = items.filter((it) => it.value !== null && it.value !== 0);
-  const total = visible.reduce((s, it) => s + (it.value ?? 0), 0);
+  const total = calculateTaxSummary({
+    icms: items.find((it) => it.key === "icms")?.value ?? null,
+    icmsSt: items.find((it) => it.key === "icms_st")?.value ?? null,
+    ipi: items.find((it) => it.key === "ipi")?.value ?? null,
+    iss: items.find((it) => it.key === "iss")?.value ?? null,
+    pis: items.find((it) => it.key === "pis")?.value ?? null,
+    cofins: items.find((it) => it.key === "cofins")?.value ?? null,
+    cbs: items.find((it) => it.key === "cbs")?.value ?? null,
+    ibs: items.find((it) => it.key === "ibs")?.value ?? null,
+    ibsEstadual: items.find((it) => it.key === "ibs_estadual")?.value ?? null,
+  }).total;
 
   if (visible.length === 0) {
     return (
