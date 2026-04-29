@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, useMemo, useEffect } from "react";
-import { AlertCircle, CheckCircle2, Clock3, Plus, Search, RefreshCw } from "lucide-react";
+import { Plus, Search, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { nomusKickoffSyncProposals } from "@/integrations/nomus/server.functions";
@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { brl, dateBR } from "@/lib/format";
 import { ALL_STATUSES, STATUS_LABELS, type ProposalStatus } from "@/lib/proposal";
+import { EmptyState, LoadingState, NomusSyncStatus, ProposalCard } from "@/modules/proposals/components";
 
 export const Route = createFileRoute("/app/propostas/")({ component: ProposalsList });
 
@@ -274,23 +275,12 @@ function ProposalsList() {
         }
       />
 
-      <div className="mb-4 rounded-xl border bg-card p-3 shadow-[var(--shadow-sm)]">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-2 text-sm">
-            {hasFreshRunningState ? (
-              <Clock3 className="h-4 w-4 animate-pulse text-primary" />
-            ) : syncState?.last_error || syncState?.running ? (
-              <AlertCircle className="h-4 w-4 text-destructive" />
-            ) : (
-              <CheckCircle2 className="h-4 w-4 text-primary" />
-            )}
-            <span className="truncate text-muted-foreground">{syncStatusLabel}</span>
-          </div>
-          {syncState?.last_cursor && (
-            <span className="rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground">Cursor: {syncState.last_cursor}</span>
-          )}
-        </div>
-      </div>
+      <NomusSyncStatus
+        statusLabel={syncStatusLabel}
+        running={hasFreshRunningState}
+        hasError={!!syncState?.last_error || !!syncState?.running}
+        cursor={syncState?.last_cursor}
+      />
 
       <div className="mb-4 flex flex-wrap gap-3">
         <div className="relative flex-1 min-w-[260px]">
@@ -306,7 +296,30 @@ function ProposalsList() {
         </Select>
       </div>
 
-      <div className="rounded-xl border bg-card shadow-[var(--shadow-sm)] overflow-x-auto">
+      <div className="mb-4 grid gap-3 md:hidden">
+        {isLoading ? (
+          <LoadingState label="Carregando propostas…" />
+        ) : filtered.length === 0 ? (
+          <EmptyState title="Nenhuma proposta encontrada" description="Sincronize com o Nomus ou ajuste os filtros para localizar propostas." />
+        ) : filtered.map((p) => {
+          const parsed = parseTitle(p.title);
+          const displayNumber = parsed.cn || p.number;
+          const displayClient = (p.clients as any)?.name ?? parsed.client ?? "—";
+          return (
+            <ProposalCard
+              key={p.id}
+              id={p.id}
+              number={displayNumber}
+              client={displayClient}
+              status={p.status as ProposalStatus}
+              total={brl(Number(p.total_value ?? 0))}
+              meta={dateBR((p as any)._nomus?.criada_em_nomus ?? (p as any)._nomus?.data_emissao ?? p.created_at)}
+            />
+          );
+        })}
+      </div>
+
+      <div className="hidden rounded-xl border bg-card shadow-[var(--shadow-sm)] overflow-x-auto md:block">
         <Table>
           <TableHeader>
             <TableRow>
@@ -325,7 +338,7 @@ function ProposalsList() {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-12">Carregando...</TableCell></TableRow>
+              <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-12">Carregando propostas…</TableCell></TableRow>
             ) : filtered.length === 0 ? (
               <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-12">Nenhuma proposta encontrada.</TableCell></TableRow>
             ) : filtered.map((p) => {
