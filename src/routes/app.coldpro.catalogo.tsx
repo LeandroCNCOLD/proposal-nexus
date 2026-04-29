@@ -368,11 +368,43 @@ function CatalogoPage() {
 
         {/* Modelos no catálogo */}
         <Card className="p-6">
+          <div className="mb-5 grid gap-4 lg:grid-cols-[1fr_auto]">
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Layers className="h-5 w-5 text-primary" />
+                <h2 className="text-lg font-semibold">Catálogo de produtos integrado ao Nomus</h2>
+                <Badge variant="secondary">{catalogRows.length} produtos</Badge>
+              </div>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Visualização operacional de código, preço, custo, margem, status e sincronização.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+              <CatalogSummaryPill icon={Package} label="Produtos" value={catalogRows.length.toLocaleString("pt-BR")} />
+              <CatalogSummaryPill icon={AlertTriangle} label="Alertas" value={productsWithAlerts.toLocaleString("pt-BR")} warn={productsWithAlerts > 0} />
+              <CatalogSummaryPill icon={Clock3} label="Última sync" value={formatCatalogDate(latestSyncAt)} />
+            </div>
+          </div>
+
+          {(productsWithoutPrice > 0 || productsWithoutCost > 0) && (
+            <div className="mb-4 rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm">
+              <div className="flex flex-wrap items-start gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-background">
+                  <AlertTriangle className="h-5 w-5 text-destructive" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="font-semibold text-foreground">Produtos precisam de atenção comercial</div>
+                  <div className="mt-1 flex flex-wrap gap-2 text-muted-foreground">
+                    {productsWithoutPrice > 0 && <Badge variant="destructive">{productsWithoutPrice} sem preço</Badge>}
+                    {productsWithoutCost > 0 && <Badge variant="destructive">{productsWithoutCost} sem custo</Badge>}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <Layers className="h-5 w-5 text-primary" />
-              <h2 className="text-lg font-semibold">Modelos no catálogo</h2>
-              <Badge variant="secondary">{catalogRows.length}</Badge>
+            <div className="flex flex-wrap items-center gap-2">
               {modelsQuery.data?.voltageSummary && (
                 <>
                   <Badge variant="outline" className="font-mono">220V 3F: {modelsQuery.data.voltageSummary.v220_3f}</Badge>
@@ -424,7 +456,7 @@ function CatalogoPage() {
                 placeholder="Buscar modelo, linha ou refrigerante..."
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-                className="max-w-xs"
+                className="w-full sm:w-[320px]"
               />
             </div>
           </div>
