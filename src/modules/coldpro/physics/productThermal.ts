@@ -50,8 +50,9 @@ export function calculateProductSpecificEnergy(params: ProductSpecificEnergyInpu
   const latentResidualFactor = clampFraction(safeNumber(params?.latentResidualFactor, 1));
   const latentEffectiveKJkg = latentMode === "full" ? latentHeatKJkg * frozenWaterFraction * latentResidualFactor : latentHeatKJkg;
   const hasCoolingProcess = initialTempC > finalTempC;
+  const startsAboveFreezing = initialTempC > freezingPointC;
   const reachesFreezingRegion = finalTempC < freezingPointC;
-  const crossesFreezingPoint = params?.allowPhaseChange !== false && hasCoolingProcess && latentEffectiveKJkg > 0 && reachesFreezingRegion;
+  const crossesFreezingPoint = params?.allowPhaseChange !== false && hasCoolingProcess && startsAboveFreezing && latentEffectiveKJkg > 0 && reachesFreezingRegion;
 
   if (crossesFreezingPoint) {
     const sensibleAboveKJkg = cpAboveKJkgK * Math.max(initialTempC - freezingPointC, 0);
