@@ -243,8 +243,19 @@ export async function syncNomusPriceTables(): Promise<SyncNomusPriceTablesResult
     }
   }
 
+  if (priceTablesImported === 0 && itemsImported === 0) {
+    return {
+      success: false,
+      priceTablesImported,
+      itemsImported,
+      itemsWithoutPrice,
+      itemsWithoutCost,
+      errors: errors.length > 0 ? errors : ["Nenhuma tabela de preço foi retornada pelo Nomus."],
+    };
+  }
+
   return {
-    success: errors.length === 0,
+    success: true,
     priceTablesImported,
     itemsImported,
     itemsWithoutPrice,

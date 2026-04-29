@@ -169,7 +169,13 @@ function ProposalPriceTablesPage() {
     mutationFn: () => syncFn(),
     onSuccess: async (result) => {
       if (!result.success) {
-        toast.error(result.errors[0] ?? "Falha ao sincronizar tabelas de preço do Nomus.");
+        const message = result.errors[0] ?? "Erro ao sincronizar com Nomus.";
+        const notImplemented = /ainda não (configurado|implementad)/i.test(message);
+        toast.error(
+          notImplemented
+            ? "Sincronização real com Nomus ainda não implementada."
+            : `Erro ao sincronizar com Nomus: ${message}`,
+        );
         return;
       }
       await Promise.all([
@@ -177,11 +183,12 @@ function ProposalPriceTablesPage() {
         queryClient.invalidateQueries({ queryKey: ["nomus-price-table-items"] }),
       ]);
       toast.success(
-        `Sincronização concluída: ${result.priceTablesImported} tabelas, ${result.itemsImported} itens, ${result.itemsWithoutPrice} sem preço, ${result.itemsWithoutCost} sem custo.`,
+        `Sincronização concluída: ${result.priceTablesImported} tabelas e ${result.itemsImported} itens importados.`,
       );
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Falha ao sincronizar com o Nomus.");
+      const message = error instanceof Error ? error.message : "Falha ao sincronizar com o Nomus.";
+      toast.error(`Erro ao sincronizar com Nomus: ${message}`);
     },
   });
 
@@ -190,7 +197,7 @@ function ProposalPriceTablesPage() {
       queryClient.invalidateQueries({ queryKey: ["nomus-price-tables"] }),
       queryClient.invalidateQueries({ queryKey: ["nomus-price-table-items"] }),
     ]);
-    toast.success("Dados locais atualizados.");
+    toast.success("Tela atualizada com dados locais.");
   };
 
   const tables = tablesQuery.data ?? [];
@@ -209,7 +216,7 @@ function ProposalPriceTablesPage() {
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={refreshLocal} disabled={loadingLocal}>
             <RefreshCw className="mr-2 h-4 w-4" />
-            Atualizar
+            Atualizar tela
           </Button>
           <Button onClick={() => syncMutation.mutate()} disabled={syncMutation.isPending}>
             {syncMutation.isPending ? (
@@ -282,7 +289,8 @@ function ProposalPriceTablesPage() {
               {tables.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={5} className="py-8 text-center text-sm text-muted-foreground">
-                    Nenhuma tabela sincronizada.
+                    Nenhuma tabela de preço sincronizada. Clique em Sincronizar com Nomus para
+                    importar.
                   </TableCell>
                 </TableRow>
               ) : (
