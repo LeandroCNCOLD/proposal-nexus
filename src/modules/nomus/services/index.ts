@@ -1,0 +1,1 @@
+export { syncNomusPriceTables } from "./priceTableSync";

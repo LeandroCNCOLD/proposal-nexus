@@ -26,6 +26,7 @@ import { Route as AppAprovacoesRouteImport } from './routes/app.aprovacoes'
 import { Route as AppPropostasIndexRouteImport } from './routes/app.propostas.index'
 import { Route as AppConfiguracoesIndexRouteImport } from './routes/app.configuracoes.index'
 import { Route as AppColdproIndexRouteImport } from './routes/app.coldpro.index'
+import { Route as AppPropostasTabelasPrecoRouteImport } from './routes/app.propostas.tabelas-preco'
 import { Route as AppPropostasPedidosNfRouteImport } from './routes/app.propostas.pedidos-nf'
 import { Route as AppPropostasNovaRouteImport } from './routes/app.propostas.nova'
 import { Route as AppPropostasIdRouteImport } from './routes/app.propostas.$id'
@@ -132,6 +133,12 @@ const AppColdproIndexRoute = AppColdproIndexRouteImport.update({
   path: '/coldpro/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppPropostasTabelasPrecoRoute =
+  AppPropostasTabelasPrecoRouteImport.update({
+    id: '/propostas/tabelas-preco',
+    path: '/propostas/tabelas-preco',
+    getParentRoute: () => AppRoute,
+  } as any)
 const AppPropostasPedidosNfRoute = AppPropostasPedidosNfRouteImport.update({
   id: '/propostas/pedidos-nf',
   path: '/propostas/pedidos-nf',
@@ -266,6 +273,7 @@ export interface FileRoutesByFullPath {
   '/app/propostas/$id': typeof AppPropostasIdRouteWithChildren
   '/app/propostas/nova': typeof AppPropostasNovaRoute
   '/app/propostas/pedidos-nf': typeof AppPropostasPedidosNfRoute
+  '/app/propostas/tabelas-preco': typeof AppPropostasTabelasPrecoRoute
   '/app/coldpro/': typeof AppColdproIndexRoute
   '/app/configuracoes/': typeof AppConfiguracoesIndexRoute
   '/app/propostas/': typeof AppPropostasIndexRoute
@@ -302,6 +310,7 @@ export interface FileRoutesByTo {
   '/app/crm/$id': typeof AppCrmIdRoute
   '/app/propostas/nova': typeof AppPropostasNovaRoute
   '/app/propostas/pedidos-nf': typeof AppPropostasPedidosNfRoute
+  '/app/propostas/tabelas-preco': typeof AppPropostasTabelasPrecoRoute
   '/app/coldpro': typeof AppColdproIndexRoute
   '/app/configuracoes': typeof AppConfiguracoesIndexRoute
   '/app/propostas': typeof AppPropostasIndexRoute
@@ -342,6 +351,7 @@ export interface FileRoutesById {
   '/app/propostas/$id': typeof AppPropostasIdRouteWithChildren
   '/app/propostas/nova': typeof AppPropostasNovaRoute
   '/app/propostas/pedidos-nf': typeof AppPropostasPedidosNfRoute
+  '/app/propostas/tabelas-preco': typeof AppPropostasTabelasPrecoRoute
   '/app/coldpro/': typeof AppColdproIndexRoute
   '/app/configuracoes/': typeof AppConfiguracoesIndexRoute
   '/app/propostas/': typeof AppPropostasIndexRoute
@@ -383,6 +393,7 @@ export interface FileRouteTypes {
     | '/app/propostas/$id'
     | '/app/propostas/nova'
     | '/app/propostas/pedidos-nf'
+    | '/app/propostas/tabelas-preco'
     | '/app/coldpro/'
     | '/app/configuracoes/'
     | '/app/propostas/'
@@ -419,6 +430,7 @@ export interface FileRouteTypes {
     | '/app/crm/$id'
     | '/app/propostas/nova'
     | '/app/propostas/pedidos-nf'
+    | '/app/propostas/tabelas-preco'
     | '/app/coldpro'
     | '/app/configuracoes'
     | '/app/propostas'
@@ -458,6 +470,7 @@ export interface FileRouteTypes {
     | '/app/propostas/$id'
     | '/app/propostas/nova'
     | '/app/propostas/pedidos-nf'
+    | '/app/propostas/tabelas-preco'
     | '/app/coldpro/'
     | '/app/configuracoes/'
     | '/app/propostas/'
@@ -604,6 +617,13 @@ declare module '@tanstack/react-router' {
       path: '/coldpro'
       fullPath: '/app/coldpro/'
       preLoaderRoute: typeof AppColdproIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/propostas/tabelas-preco': {
+      id: '/app/propostas/tabelas-preco'
+      path: '/propostas/tabelas-preco'
+      fullPath: '/app/propostas/tabelas-preco'
+      preLoaderRoute: typeof AppPropostasTabelasPrecoRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/propostas/pedidos-nf': {
@@ -825,6 +845,7 @@ interface AppRouteChildren {
   AppPropostasIdRoute: typeof AppPropostasIdRouteWithChildren
   AppPropostasNovaRoute: typeof AppPropostasNovaRoute
   AppPropostasPedidosNfRoute: typeof AppPropostasPedidosNfRoute
+  AppPropostasTabelasPrecoRoute: typeof AppPropostasTabelasPrecoRoute
   AppColdproIndexRoute: typeof AppColdproIndexRoute
   AppPropostasIndexRoute: typeof AppPropostasIndexRoute
 }
@@ -847,6 +868,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppPropostasIdRoute: AppPropostasIdRouteWithChildren,
   AppPropostasNovaRoute: AppPropostasNovaRoute,
   AppPropostasPedidosNfRoute: AppPropostasPedidosNfRoute,
+  AppPropostasTabelasPrecoRoute: AppPropostasTabelasPrecoRoute,
   AppColdproIndexRoute: AppColdproIndexRoute,
   AppPropostasIndexRoute: AppPropostasIndexRoute,
 }
