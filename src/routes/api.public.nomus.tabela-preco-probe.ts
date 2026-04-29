@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { getOne, nomusFetch } from "@/integrations/nomus/client";
+import { getNomusBaseUrl } from "@/integrations/nomus/client";
 import { NOMUS_ENDPOINTS } from "@/integrations/nomus/endpoints";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
@@ -114,6 +114,97 @@ function summarize(payload: unknown): ProbeSummary {
     itemSampleKeys,
     itemCostCandidates,
   };
+}
+
+type RawProbeResult = {
+  baseUrlPresent: boolean;
+  apiKeyPresent: boolean;
+  calledUrl: string | null;
+  httpStatus: number | null;
+  durationMs: number;
+  rawBody: string | null;
+  parsedBody: unknown;
+  errorComplete: unknown;
+};
+
+async function fetchNomusRaw(path: string): Promise<RawProbeResult> {
+  const started = Date.now();
+  const baseUrlRaw = process.env.NOMUS_BASE_URL?.trim() ?? "";
+  const apiKeyRaw = process.env.NOMUS_API_KEY?.trim() ?? "";
+  let calledUrl: string | null = null;
+
+  try {
+    const baseUrl = getNomusBaseUrl();
+    calledUrl = `${baseUrl}${path.startsWith("/") ? path : `/${path}`}`;
+
+    if (!apiKeyRaw) {
+      throw new Error("NOMUS_API_KEY não configurada nas Lovable Cloud secrets.");
+    }
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 30_000);
+    const response = await fetch(calledUrl, {
+      method: "GET",
+      headers: {
+        Authorization: /^basic\s+/i.test(apiKeyRaw) ? apiKeyRaw : `Basic ${apiKeyRaw}`,
+        Accept: "application/json",
+      },
+      signal: controller.signal,
+    });
+    clearTimeout(timer);
+
+    const rawBody = await response.text();
+    let parsedBody: unknown = null;
+    try {
+      parsedBody = rawBody ? JSON.parse(rawBody) : null;
+    } catch {
+      parsedBody = rawBody;
+    }
+
+    return {
+      baseUrlPresent: Boolean(baseUrlRaw),
+      apiKeyPresent: Boolean(apiKeyRaw),
+      calledUrl,
+      httpStatus: response.status,
+      durationMs: Date.now() - started,
+      rawBody,
+      parsedBody,
+      errorComplete: response.ok
+        ? null
+        : {
+            name: "NomusHttpError",
+            message: `Nomus respondeu HTTP ${response.status}`,
+            status: response.status,
+            body: rawBody,
+          },
+    };
+  } catch (error) {
+    const e = error instanceof Error ? error : new Error(String(error));
+    return {
+      baseUrlPresent: Boolean(baseUrlRaw),
+      apiKeyPresent: Boolean(apiKeyRaw),
+      calledUrl,
+      httpStatus: null,
+      durationMs: Date.now() - started,
+      rawBody: null,
+      parsedBody: null,
+      errorComplete: {
+        name: e.name,
+        message: e.message,
+        stack: e.stack,
+      },
+    };
+  }
+}
+
+function extractTables(payload: unknown): unknown[] {
+  if (Array.isArray(payload)) return payload;
+  if (!payload || typeof payload !== "object") return [];
+  const obj = payload as Record<string, unknown>;
+  for (const key of ["content", "data", "items", "tabelasPreco"]) {
+    if (Array.isArray(obj[key])) return obj[key] as unknown[];
+  }
+  return [];
 }
 
 export const Route = createFileRoute("/api/public/nomus/tabela-preco-probe")({
