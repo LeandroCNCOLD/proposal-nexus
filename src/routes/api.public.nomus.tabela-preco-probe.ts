@@ -216,6 +216,8 @@ export const Route = createFileRoute("/api/public/nomus/tabela-preco-probe")({
 
         let ids: string[] = [];
         let listInfo: unknown = null;
+        const listProbe = await fetchNomusRaw(NOMUS_ENDPOINTS.tabelas_preco);
+        const tables = extractTables(listProbe.parsedBody);
 
         if (idsParam) {
           ids = idsParam
@@ -223,49 +225,15 @@ export const Route = createFileRoute("/api/public/nomus/tabela-preco-probe")({
             .map((s) => s.trim())
             .filter(Boolean);
         } else {
-          // Sem id: lista /tabelasPreco e pega os 3 primeiros.
-          const listRes = await nomusFetch<unknown>(NOMUS_ENDPOINTS.tabelas_preco, {
-            entity: "tabelas_preco",
-            operation: "list-probe",
-            direction: "test",
-            triggeredBy: null,
-          });
-          if (!listRes.ok) {
-            return new Response(
-              JSON.stringify(
-                {
-                  error: "Falha ao listar /tabelasPreco",
-                  detail: listRes.error,
-                  hint: "Verifique NOMUS_BASE_URL/NOMUS_API_KEY ou passe ?id=1,2,3 manualmente.",
-                },
-                null,
-                2,
-              ),
-              { status: 502, headers: { "Content-Type": "application/json" } },
-            );
-          }
-          // Heurística: aceita array direto ou { content: [...] } / { data: [...] }
-          const data = listRes.data as unknown;
-          let arr: unknown[] = [];
-          if (Array.isArray(data)) arr = data;
-          else if (data && typeof data === "object") {
-            const obj = data as Record<string, unknown>;
-            for (const k of ["content", "data", "items", "tabelasPreco"]) {
-              if (Array.isArray(obj[k])) {
-                arr = obj[k] as unknown[];
-                break;
-              }
-            }
-          }
           listInfo = {
-            count: arr.length,
+            count: tables.length,
             firstKeys:
-              arr[0] && typeof arr[0] === "object" && !Array.isArray(arr[0])
-                ? Object.keys(arr[0] as object).slice(0, 30)
+              tables[0] && typeof tables[0] === "object" && !Array.isArray(tables[0])
+                ? Object.keys(tables[0] as object).slice(0, 30)
                 : null,
           };
           // Extrai ids dos primeiros 3 (campos comuns: id, idTabelaPreco, codigo)
-          for (const item of arr.slice(0, 3)) {
+          for (const item of tables.slice(0, 3)) {
             if (item && typeof item === "object") {
               const obj = item as Record<string, unknown>;
               const id =
@@ -278,38 +246,48 @@ export const Route = createFileRoute("/api/public/nomus/tabela-preco-probe")({
         const results: Array<{
           id: string;
           ok: boolean;
-          error?: string;
+          calledUrl: string | null;
+          httpStatus: number | null;
+          durationMs: number;
+          rawBody: string | null;
+          errorComplete: unknown;
           summary?: ProbeSummary;
         }> = [];
 
         for (const id of ids) {
-          const res = await getOne<unknown>(NOMUS_ENDPOINTS.tabelas_preco, id, {
-            entity: "tabelas_preco",
-            triggeredBy: null,
-          });
-          if (!res.ok) {
-            results.push({ id, ok: false, error: res.error });
-            continue;
-          }
-          const summary = summarize(res.data);
+          const detailPath = `${NOMUS_ENDPOINTS.tabelas_preco}/${encodeURIComponent(id)}`;
+          const res = await fetchNomusRaw(detailPath);
+          const ok = res.httpStatus !== null && res.httpStatus >= 200 && res.httpStatus < 300;
+          const summary = ok ? summarize(res.parsedBody) : undefined;
           // Persistimos payload bruto + sumário pra inspeção via psql.
-          try {
-            await supabaseAdmin.from("nomus_sync_log").insert({
-              entity: "tabelas_preco",
-              operation: "probe",
-              direction: "test",
-              status: "success",
-              http_status: 200,
-              duration_ms: 0,
-              request_path: `GET /tabelasPreco/${id} (probe)`,
-              payload: { probedId: id } as never,
-              response: { summary, raw: res.data } as never,
-              triggered_by: null,
-            });
-          } catch (e) {
-            console.error("[tabela-preco-probe] failed to log payload", e);
+          if (ok) {
+            try {
+              await supabaseAdmin.from("nomus_sync_log").insert({
+                entity: "tabelas_preco",
+                operation: "probe",
+                direction: "test",
+                status: "success",
+                http_status: res.httpStatus,
+                duration_ms: res.durationMs,
+                request_path: `GET ${detailPath} (probe)`,
+                payload: { probedId: id } as never,
+                response: { summary, raw: res.parsedBody } as never,
+                triggered_by: null,
+              });
+            } catch (e) {
+              console.error("[tabela-preco-probe] failed to log payload", e);
+            }
           }
-          results.push({ id, ok: true, summary });
+          results.push({
+            id,
+            ok,
+            calledUrl: res.calledUrl,
+            httpStatus: res.httpStatus,
+            durationMs: res.durationMs,
+            rawBody: res.rawBody,
+            errorComplete: res.errorComplete,
+            summary,
+          });
         }
 
         const allTopKeys = new Set<string>();
@@ -327,6 +305,15 @@ export const Route = createFileRoute("/api/public/nomus/tabela-preco-probe")({
         }
 
         const body = {
+          probeVersion: "tabela-preco-probe-diagnostics-v2",
+          baseUrlPresent: listProbe.baseUrlPresent,
+          apiKeyPresent: listProbe.apiKeyPresent,
+          calledUrl: listProbe.calledUrl,
+          httpStatus: listProbe.httpStatus,
+          durationMs: listProbe.durationMs,
+          rawBody: listProbe.rawBody,
+          tablesReceived: tables.length,
+          errorComplete: listProbe.errorComplete,
           probedIds: ids,
           listInfo,
           unionOfTopLevelKeys: Array.from(allTopKeys).sort(),
