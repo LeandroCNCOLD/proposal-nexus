@@ -72,6 +72,16 @@ function formatKw(value: unknown) {
   return toFiniteValue(value) !== null ? `${formatNumber(value, 2)} kW` : "—";
 }
 
+function productMovementSummary(product: any) {
+  const mode = String(product?.product_load_mode ?? product?.movement_basis ?? "daily_intake");
+  const daily = firstFinite(product?.daily_movement_kg, product?.mass_kg_day) ?? 0;
+  const hourly = firstFinite(product?.hourly_movement_kg, product?.mass_kg_hour) ?? 0;
+  if (mode === "storage_turnover" || product?.movement_basis === "calculated_from_stock") return `${fmt(product?.stored_mass_kg)} kg estoque · ${fmt(product?.daily_turnover_percent)}% giro · ${fmt(daily)} kg/dia · ${fmt(hourly)} kg/h`;
+  if (mode === "hourly_intake" || product?.movement_basis === "manual_hourly") return `${fmt(hourly)} kg/h direto`;
+  if (mode === "room_pull_down_or_freezing" || product?.movement_basis === "batch_recovery") return `${fmt(product?.freezing_batch_mass_kg ?? daily)} kg/lote · ${fmt(product?.freezing_batch_time_h ?? product?.recovery_time_h)} h`;
+  return `${fmt(daily)} kg/dia · ${fmt(product?.recovery_time_h ?? product?.process_time_h)} h · ${fmt(hourly)} kg/h`;
+}
+
 
 function formatCurrencyLocal(value: unknown) {
   const parsed = toFiniteValue(value);
