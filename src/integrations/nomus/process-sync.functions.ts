@@ -563,7 +563,7 @@ export const processNomusProcessSyncBatch = createServerFn({ method: "POST" })
   .inputValidator(z.object({ jobId: z.string().uuid(), maxPages: z.number().int().min(1).max(3).optional() }))
   .handler(async ({ data, context }) => {
     const supabaseAdmin = context.supabase as any;
-    const { listPage } = await import("./client");
+    const { getOne } = await import("./client");
     const { NOMUS_ENDPOINTS } = await import("./endpoints");
     const userId = context.userId;
     const { data: job, error: jobErr } = await (supabaseAdmin as any)
@@ -614,28 +614,48 @@ export const processNomusProcessSyncBatch = createServerFn({ method: "POST" })
         return { ok: finalStatus !== "failed", job: updated, done: false as const, warning: message, scanned: batchScanned, matched: batchMatched, persisted: batchPersisted };
       };
 
+      const { data: knownRows } = await (supabaseAdmin as any)
+        .from("nomus_processes")
+        .select("nomus_id")
+        .limit(10000);
+      const maxKnownId = ((knownRows as Array<{ nomus_id?: string | null }> | null) ?? []).reduce((max, row) => {
+        const id = Number(row.nomus_id ?? 0) || 0;
+        return id > max ? id : max;
+      }, 0);
+      const scanUntilId = Math.max(maxKnownId + 200, currentPage + Number(job.page_size ?? 50) * maxPages - 1);
+      let emptyRun = 0;
+
       for (let i = 0; i < maxPages && processed < Number(job.max_items); i += 1) {
         if (Date.now() - new Date(now).getTime() > 18_000) return failSoft("Tempo seguro do lote atingido");
-        const page = await listPage<NomusProcessRaw>(
-          NOMUS_ENDPOINTS.processos,
-          {},
-          { entity: "processos", pageSize: Number(job.page_size ?? 50), page: currentPage, timeoutMs: 12_000, maxAttempts: 2, triggeredBy: userId },
-        );
-        if (!page.ok) {
-          return failSoft(page.error);
+        const pageItems: NomusProcessRaw[] = [];
+        const idsThisBatch = Number(job.page_size ?? 50);
+        for (let n = 0; n < idsThisBatch && currentPage <= scanUntilId; n += 1) {
+          const id = currentPage;
+          const detail = await getOne<NomusProcessRaw>(NOMUS_ENDPOINTS.processos, id, {
+            entity: "processos",
+            timeoutMs: 4_000,
+            maxAttempts: 1,
+            triggeredBy: userId,
+          });
+          currentPage += 1;
+          processed += 1;
+          batchScanned += 1;
+          if (detail.ok) {
+            pageItems.push(detail.data);
+            emptyRun = 0;
+          } else {
+            emptyRun += 1;
+          }
         }
 
-        const wantedItems = page.items.filter((p) => tipoMatches(p.tipo, tipos));
+        const wantedItems = pageItems.filter((p) => tipoMatches(p.tipo, tipos));
         const persisted = await persistNomusProcessBatch(supabaseAdmin, wantedItems, userId);
-        batchScanned += page.items.length;
         batchMatched += wantedItems.length;
         batchPersisted += persisted.upserted;
-        processed += page.items.length;
         upserted += persisted.upserted;
         stagesCount += persisted.stagesDiscovered.reduce((sum, s) => sum + s.etapas.length, 0);
-        currentPage += 1;
 
-        if (!page.hasMore || page.items.length === 0 || processed >= Number(job.max_items)) {
+        if (currentPage > scanUntilId || processed >= Number(job.max_items) || (currentPage > maxKnownId && emptyRun >= 100)) {
           const finishedAt = new Date().toISOString();
           const { data: updated } = await (supabaseAdmin as any)
             .from("nomus_process_sync_jobs")
