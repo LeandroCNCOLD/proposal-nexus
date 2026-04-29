@@ -148,9 +148,15 @@ function CrmPage() {
     mutationFn: async () => {
       const tipoAtivo = activeTab?.trim();
       if (!tipoAtivo) throw new Error("Selecione um funil antes de sincronizar.");
-      const result = await pullProcesses({ data: { tipos: [tipoAtivo] } });
-      if (!result.ok) throw new Error(result.error);
-      return result;
+      let finalResult: Awaited<ReturnType<typeof pullProcesses>> | null = null;
+      for (let attempt = 0; attempt < 20; attempt += 1) {
+        const result = await pullProcesses({ data: { tipos: [tipoAtivo], maxPages: 3 } });
+        if (!result.ok) throw new Error(result.error);
+        finalResult = result;
+        if (result.done) break;
+      }
+      if (!finalResult) throw new Error("Não foi possível iniciar a sincronização.");
+      return finalResult;
     },
     onSuccess: (r) => {
       const status = r.done ? "concluído" : "parcial";
