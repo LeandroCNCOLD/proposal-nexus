@@ -214,7 +214,7 @@ function NomusPage() {
                 onBlur={(e) => updateSettings({ base_url: e.target.value })}
               />
               <p className="text-[11px] text-muted-foreground">
-                A URL real e a chave estão guardadas como secrets do servidor (NOMUS_BASE_URL / NOMUS_API_KEY).
+                A URL real e as credenciais estão guardadas como secrets do servidor (NOMUS_BASE_URL / NOMUS_USERNAME / NOMUS_PASSWORD).
               </p>
             </div>
             <div className="flex items-center justify-between pt-2">
