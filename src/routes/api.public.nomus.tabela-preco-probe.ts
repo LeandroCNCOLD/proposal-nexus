@@ -131,9 +131,9 @@ type RawProbeResult = {
 
 async function fetchNomusRaw(path: string): Promise<RawProbeResult> {
   const started = Date.now();
-  const baseUrlRaw = process.env.NOMUS_BASE_URL?.trim() ?? "";
-  const username = process.env.NOMUS_USERNAME?.trim() ?? "";
-  const password = process.env.NOMUS_PASSWORD ?? "";
+  const baseUrlRaw = (process.env.NOMUS_REST_BASE_URL ?? process.env.NOMUS_BASE_URL ?? "").trim();
+  const username = (process.env.NOMUS_REST_USERNAME ?? process.env.NOMUS_USERNAME ?? "").trim();
+  const password = process.env.NOMUS_REST_PASSWORD ?? process.env.NOMUS_PASSWORD ?? "";
   let calledUrl: string | null = null;
   let timer: ReturnType<typeof setTimeout> | null = null;
 
@@ -142,10 +142,10 @@ async function fetchNomusRaw(path: string): Promise<RawProbeResult> {
     calledUrl = `${baseUrl}${path.startsWith("/") ? path : `/${path}`}`;
 
     if (!username) {
-      throw new Error("NOMUS_USERNAME não configurado nas Lovable Cloud secrets.");
+      throw new Error("NOMUS_REST_USERNAME não configurado nas Lovable Cloud secrets.");
     }
     if (!password) {
-      throw new Error("NOMUS_PASSWORD não configurado nas Lovable Cloud secrets.");
+      throw new Error("NOMUS_REST_PASSWORD não configurado nas Lovable Cloud secrets.");
     }
     const authToken = Buffer.from(`${username}:${password}`, "utf-8").toString("base64");
 
