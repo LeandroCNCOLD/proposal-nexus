@@ -76,7 +76,10 @@ type ProbeSummary = {
 type DirectListProbe = {
   label: "withPagina" | "withoutPagina";
   baseUrlPresent: boolean;
-  apiKeyPresent: boolean;
+  usernamePresent: boolean;
+  passwordPresent: boolean;
+  legacyApiKeyPresent: boolean;
+  authMode: "username_password" | "legacy_api_key" | "missing";
   url: string | null;
   startedAt: string;
   endedAt: string;
@@ -122,25 +125,68 @@ function parseBody(text: string): unknown {
   }
 }
 
+function encodeBasicCredentials(username: string, password: string): string {
+  return Buffer.from(`${username}:${password}`, "utf8").toString("base64");
+}
+
+function resolveNomusAuth(): {
+  usernamePresent: boolean;
+  passwordPresent: boolean;
+  legacyApiKeyPresent: boolean;
+  authMode: DirectListProbe["authMode"];
+  authorization: string | null;
+} {
+  const username = process.env.NOMUS_USERNAME?.trim() ?? "";
+  const password = process.env.NOMUS_PASSWORD?.trim() ?? "";
+  const legacyApiKey = process.env.NOMUS_API_KEY?.trim() ?? "";
+  if (username && password) {
+    return {
+      usernamePresent: true,
+      passwordPresent: true,
+      legacyApiKeyPresent: Boolean(legacyApiKey),
+      authMode: "username_password",
+      authorization: `Basic ${encodeBasicCredentials(username, password)}`,
+    };
+  }
+  if (legacyApiKey) {
+    return {
+      usernamePresent: Boolean(username),
+      passwordPresent: Boolean(password),
+      legacyApiKeyPresent: true,
+      authMode: "legacy_api_key",
+      authorization: /^basic\s+/i.test(legacyApiKey) ? legacyApiKey : `Basic ${legacyApiKey}`,
+    };
+  }
+  return {
+    usernamePresent: Boolean(username),
+    passwordPresent: Boolean(password),
+    legacyApiKeyPresent: false,
+    authMode: "missing",
+    authorization: null,
+  };
+}
+
 async function directListProbe(
   label: DirectListProbe["label"],
   query: string,
 ): Promise<DirectListProbe> {
   const baseUrlRaw = process.env.NOMUS_BASE_URL?.trim() ?? "";
-  const apiKeyRaw = process.env.NOMUS_API_KEY?.trim() ?? "";
+  const auth = resolveNomusAuth();
   const baseUrlPresent = Boolean(baseUrlRaw);
-  const apiKeyPresent = Boolean(apiKeyRaw);
   const startedAt = new Date().toISOString();
   const started = Date.now();
   let url: string | null = null;
 
   try {
-    if (!baseUrlPresent || !apiKeyPresent) {
+    if (!baseUrlPresent || !auth.authorization) {
       const endedAt = new Date().toISOString();
       return {
         label,
         baseUrlPresent,
-        apiKeyPresent,
+        usernamePresent: auth.usernamePresent,
+        passwordPresent: auth.passwordPresent,
+        legacyApiKeyPresent: auth.legacyApiKeyPresent,
+        authMode: auth.authMode,
         url,
         startedAt,
         endedAt,
@@ -149,7 +195,7 @@ async function directListProbe(
         ok: false,
         bodyRaw: null,
         tablesReceived: 0,
-        error: "NOMUS_BASE_URL ou NOMUS_API_KEY ausente.",
+        error: "NOMUS_BASE_URL ou NOMUS_USERNAME/NOMUS_PASSWORD ausente.",
       };
     }
 
@@ -157,7 +203,10 @@ async function directListProbe(
     console.info("[tabela-preco-probe] chamada direta iniciada", {
       label,
       baseUrlPresent,
-      apiKeyPresent,
+      usernamePresent: auth.usernamePresent,
+      passwordPresent: auth.passwordPresent,
+      legacyApiKeyPresent: auth.legacyApiKeyPresent,
+      authMode: auth.authMode,
       url,
       startedAt,
       timeoutMs: DIRECT_PROBE_TIMEOUT_MS,
@@ -169,9 +218,8 @@ async function directListProbe(
       const response = await fetch(url, {
         method: "GET",
         headers: {
-          Authorization: /^basic\s+/i.test(apiKeyRaw) ? apiKeyRaw : `Basic ${apiKeyRaw}`,
+          Authorization: auth.authorization,
           Accept: "application/json",
-          "Content-Type": "application/json",
         },
         signal: controller.signal,
       });
@@ -182,7 +230,10 @@ async function directListProbe(
       const result: DirectListProbe = {
         label,
         baseUrlPresent,
-        apiKeyPresent,
+        usernamePresent: auth.usernamePresent,
+        passwordPresent: auth.passwordPresent,
+        legacyApiKeyPresent: auth.legacyApiKeyPresent,
+        authMode: auth.authMode,
         url,
         startedAt,
         endedAt,
@@ -214,7 +265,10 @@ async function directListProbe(
     const result: DirectListProbe = {
       label,
       baseUrlPresent,
-      apiKeyPresent,
+      usernamePresent: auth.usernamePresent,
+      passwordPresent: auth.passwordPresent,
+      legacyApiKeyPresent: auth.legacyApiKeyPresent,
+      authMode: auth.authMode,
       url,
       startedAt,
       endedAt,

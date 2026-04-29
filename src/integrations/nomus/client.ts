@@ -35,6 +35,10 @@ function maskKey(key: string): string {
   return `******${tail}`;
 }
 
+function encodeBasicCredentials(username: string, password: string): string {
+  return Buffer.from(`${username}:${password}`, "utf8").toString("base64");
+}
+
 /** Validate and normalize NOMUS_BASE_URL. */
 export function getNomusBaseUrl(): string {
   const raw = (process.env.NOMUS_BASE_URL ?? "").trim();
@@ -70,15 +74,29 @@ export function getNomusBaseUrl(): string {
 }
 
 function getCreds() {
+  const username = process.env.NOMUS_USERNAME?.trim();
+  const password = process.env.NOMUS_PASSWORD?.trim();
+  if (username && password) {
+    return {
+      baseUrl: getNomusBaseUrl(),
+      authValue: `Basic ${encodeBasicCredentials(username, password)}`,
+      authDebug: `Basic ${maskKey(username)}`,
+    };
+  }
+
   const apiKeyRaw = process.env.NOMUS_API_KEY;
   if (!apiKeyRaw) {
-    throw new Error("NOMUS_API_KEY não configurada nas Lovable Cloud secrets.");
+    throw new Error("NOMUS_USERNAME/NOMUS_PASSWORD não configurados nas Lovable Cloud secrets.");
   }
   const apiKey = apiKeyRaw.trim();
   if (!apiKey) {
     throw new Error("NOMUS_API_KEY está vazia após trim.");
   }
-  return { baseUrl: getNomusBaseUrl(), apiKey };
+  return {
+    baseUrl: getNomusBaseUrl(),
+    authValue: /^basic\s+/i.test(apiKey) ? apiKey : `Basic ${apiKey}`,
+    authDebug: `Basic ${maskKey(apiKey)}`,
+  };
 }
 
 function buildQuery(query?: Record<string, string | number | undefined>) {
@@ -149,9 +167,10 @@ export async function nomusFetch<T = unknown>(
   opts: NomusFetchOptions = {}
 ): Promise<{ ok: true; data: T; status: number } | { ok: false; error: string; status: number }> {
   let baseUrl: string;
-  let apiKey: string;
+  let authValue: string;
+  let authDebug: string;
   try {
-    ({ baseUrl, apiKey } = getCreds());
+    ({ baseUrl, authValue, authDebug } = getCreds());
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     return { ok: false, error: msg, status: 0 };
@@ -164,9 +183,8 @@ export async function nomusFetch<T = unknown>(
   const operation = opts.operation ?? method.toLowerCase();
   const direction = opts.direction ?? (method === "GET" ? "pull" : "push");
 
-  // Nomus exige header `Authorization: Basic <chave-integracao-rest>`.
-  // A chave já vem em base64 do ERP — só anexamos o prefixo "Basic " se ainda não estiver presente.
-  const authValue = /^basic\s+/i.test(apiKey) ? apiKey : `Basic ${apiKey}`;
+  // Nomus exige Basic Auth. Preferimos NOMUS_USERNAME/NOMUS_PASSWORD e geramos
+  // o token no backend; NOMUS_API_KEY fica só como fallback legado.
   const headers: Record<string, string> = {
     Authorization: authValue,
     "Content-Type": "application/json",
@@ -175,7 +193,7 @@ export async function nomusFetch<T = unknown>(
 
   if (DEBUG) {
     console.log(`[nomus] ${method} ${url}`);
-    console.log(`[nomus] auth: ${maskKey(apiKey)}`);
+    console.log(`[nomus] auth: ${authDebug}`);
     if (opts.body) console.log("[nomus] payload:", JSON.stringify(opts.body));
   }
 
