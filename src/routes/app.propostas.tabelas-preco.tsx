@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -34,6 +35,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
+import { nomusSyncPriceTables } from "@/integrations/nomus/server.functions";
 import type { Database, Json } from "@/integrations/supabase/types";
 import { cn } from "@/lib/utils";
 
@@ -57,6 +59,7 @@ const LOW_MARGIN_THRESHOLD = 15;
 
 function PriceTablesPage() {
   const queryClient = useQueryClient();
+  const syncPriceTables = useServerFn(nomusSyncPriceTables);
   const [selectedTableId, setSelectedTableId] = useState<string>("all");
   const [openedTableId, setOpenedTableId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
@@ -158,8 +161,18 @@ function PriceTablesPage() {
   async function handleSync() {
     setSyncing(true);
     try {
+      const result = await syncPriceTables();
+      if (!result.ok) {
+        toast.error(result.error || "Falha ao sincronizar tabelas de preço do Nomus.");
+        return;
+      }
       await refreshData();
-      toast.info("Interface atualizada com os dados de tabelas já sincronizados do Nomus.");
+      toast.success(
+        `Sincronização concluída: ${result.count} tabela(s), ${result.itemsUpserted ?? 0} item(ns).`,
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      toast.error(`Erro ao sincronizar com Nomus: ${message}`);
     } finally {
       setSyncing(false);
     }
