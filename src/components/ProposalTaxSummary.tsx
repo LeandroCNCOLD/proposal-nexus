@@ -39,14 +39,40 @@ export function ProposalTaxSummary({ totalTributacao, fallback }: Props) {
   const tt = (totalTributacao ?? {}) as Record<string, unknown>;
 
   const items: Array<{ key: string; label: string; value: number | null; hint?: string }> = [
-    { key: "icms", label: "ICMS", value: toFinancialNumber(tt.valorIcms) ?? fallback?.icms ?? null },
-    { key: "icms_st", label: "ICMS ST", value: toFinancialNumber(tt.valorIcmsSt) ?? fallback?.icms_st ?? null },
+    {
+      key: "icms",
+      label: "ICMS",
+      value: toFinancialNumber(tt.valorIcms) ?? fallback?.icms ?? null,
+    },
+    {
+      key: "icms_st",
+      label: "ICMS ST",
+      value: toFinancialNumber(tt.valorIcmsSt) ?? fallback?.icms_st ?? null,
+    },
     { key: "ipi", label: "IPI", value: toFinancialNumber(tt.valorIpi) ?? fallback?.ipi ?? null },
-    { key: "iss", label: "ISS / ISSQN", value: toFinancialNumber(tt.valorIss) ?? fallback?.iss ?? null },
+    {
+      key: "iss",
+      label: "ISS / ISSQN",
+      value: toFinancialNumber(tt.valorIss) ?? fallback?.iss ?? null,
+    },
     { key: "pis", label: "PIS", value: toFinancialNumber(tt.valorPis) ?? fallback?.pis ?? null },
-    { key: "cofins", label: "COFINS", value: toFinancialNumber(tt.valorCofins) ?? fallback?.cofins ?? null },
-    { key: "cbs", label: "CBS", value: toFinancialNumber(tt.valorCbs) ?? fallback?.cbs ?? null, hint: "Reforma tributária" },
-    { key: "ibs", label: "IBS", value: toFinancialNumber(tt.valorIbs) ?? fallback?.ibs ?? null, hint: "Reforma tributária" },
+    {
+      key: "cofins",
+      label: "COFINS",
+      value: toFinancialNumber(tt.valorCofins) ?? fallback?.cofins ?? null,
+    },
+    {
+      key: "cbs",
+      label: "CBS",
+      value: toFinancialNumber(tt.valorCbs) ?? fallback?.cbs ?? null,
+      hint: "Reforma tributária",
+    },
+    {
+      key: "ibs",
+      label: "IBS",
+      value: toFinancialNumber(tt.valorIbs) ?? fallback?.ibs ?? null,
+      hint: "Reforma tributária",
+    },
     {
       key: "ibs_estadual",
       label: "IBS Estadual",

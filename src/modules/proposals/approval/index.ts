@@ -41,39 +41,77 @@ function step(id: string, level: number, approverProfile: string, reason: string
   return { id, level, approverProfile, reason, status: "pending", required: true };
 }
 
-export function checkMarginApproval(proposal: Proposal, policy: Partial<ApprovalPolicy> = {}): ApprovalStep | null {
+export function checkMarginApproval(
+  proposal: Proposal,
+  policy: Partial<ApprovalPolicy> = {},
+): ApprovalStep | null {
   const p = withPolicy(policy);
-  const netMargin = proposal.financialSummary?.netMarginPct
-    ?? calculateNetMargin(proposal.financialSummary?.netProfit ?? null, proposal.total);
+  const netMargin =
+    proposal.financialSummary?.netMarginPct ??
+    calculateNetMargin(proposal.financialSummary?.netProfit ?? null, proposal.total);
   if (netMargin === null) return null;
   if (netMargin < p.directorMarginPct) {
-    return step("margin-director", 3, "director", `Margem líquida ${netMargin.toFixed(2)}% abaixo de ${p.directorMarginPct}%.`);
+    return step(
+      "margin-director",
+      3,
+      "director",
+      `Margem líquida ${netMargin.toFixed(2)}% abaixo de ${p.directorMarginPct}%.`,
+    );
   }
   if (netMargin < p.managerMarginPct || netMargin < p.minimumMarginPct) {
-    return step("margin-manager", 2, "manager", `Margem líquida ${netMargin.toFixed(2)}% abaixo da política de ${p.minimumMarginPct}%.`);
+    return step(
+      "margin-manager",
+      2,
+      "manager",
+      `Margem líquida ${netMargin.toFixed(2)}% abaixo da política de ${p.minimumMarginPct}%.`,
+    );
   }
   return null;
 }
 
-export function checkDiscountApproval(proposal: Proposal, policy: Partial<ApprovalPolicy> = {}): ApprovalStep | null {
+export function checkDiscountApproval(
+  proposal: Proposal,
+  policy: Partial<ApprovalPolicy> = {},
+): ApprovalStep | null {
   const p = withPolicy(policy);
   const discount = proposal.discountTotal ?? 0;
-  const subtotal = proposal.items.reduce((sum, item) => sum + (item.total ?? item.totalWithDiscount ?? 0), 0);
+  const subtotal = proposal.items.reduce(
+    (sum, item) => sum + (item.total ?? item.totalWithDiscount ?? 0),
+    0,
+  );
   const discountPct = pct(discount, subtotal);
   if (discountPct >= p.directorDiscountPct) {
-    return step("discount-director", 3, "director", `Desconto de ${discountPct.toFixed(2)}% exige diretoria.`);
+    return step(
+      "discount-director",
+      3,
+      "director",
+      `Desconto de ${discountPct.toFixed(2)}% exige diretoria.`,
+    );
   }
   if (discountPct >= p.managerDiscountPct) {
-    return step("discount-manager", 2, "manager", `Desconto de ${discountPct.toFixed(2)}% exige gerência.`);
+    return step(
+      "discount-manager",
+      2,
+      "manager",
+      `Desconto de ${discountPct.toFixed(2)}% exige gerência.`,
+    );
   }
   return null;
 }
 
-export function checkPaymentConditionApproval(proposal: Proposal, policy: Partial<ApprovalPolicy> = {}): ApprovalStep | null {
+export function checkPaymentConditionApproval(
+  proposal: Proposal,
+  policy: Partial<ApprovalPolicy> = {},
+): ApprovalStep | null {
   const p = withPolicy(policy);
   const installments = proposal.paymentCondition?.installments ?? [];
   if (installments.length > p.maxInstallmentsWithoutApproval) {
-    return step("payment-manager", 2, "manager", `Condição com ${installments.length} parcelas exige aprovação.`);
+    return step(
+      "payment-manager",
+      2,
+      "manager",
+      `Condição com ${installments.length} parcelas exige aprovação.`,
+    );
   }
   if (!proposal.paymentCondition?.name) {
     return step("payment-missing", 1, "commercial", "Condição de pagamento ausente.");
@@ -81,7 +119,10 @@ export function checkPaymentConditionApproval(proposal: Proposal, policy: Partia
   return null;
 }
 
-export function getRequiredApprovalLevel(proposal: Proposal, policy: Partial<ApprovalPolicy> = {}): number {
+export function getRequiredApprovalLevel(
+  proposal: Proposal,
+  policy: Partial<ApprovalPolicy> = {},
+): number {
   const p = withPolicy(policy);
   const total = proposal.total ?? 0;
   const checks = [
@@ -103,13 +144,18 @@ export function evaluateApprovalWorkflow(input: ApprovalInput): ApprovalWorkflow
 
   const total = input.proposal.total ?? 0;
   if (total >= policy.directorTotalValue) {
-    steps.push(step("value-director", 3, "director", `Valor total acima de ${policy.directorTotalValue}.`));
+    steps.push(
+      step("value-director", 3, "director", `Valor total acima de ${policy.directorTotalValue}.`),
+    );
   } else if (total >= policy.managerTotalValue) {
-    steps.push(step("value-manager", 2, "manager", `Valor total acima de ${policy.managerTotalValue}.`));
+    steps.push(
+      step("value-manager", 2, "manager", `Valor total acima de ${policy.managerTotalValue}.`),
+    );
   }
 
-  const deduped = Array.from(new Map(steps.map((item) => [item.id, item])).values())
-    .sort((a, b) => a.level - b.level);
+  const deduped = Array.from(new Map(steps.map((item) => [item.id, item])).values()).sort(
+    (a, b) => a.level - b.level,
+  );
 
   return {
     required: deduped.length > 0,

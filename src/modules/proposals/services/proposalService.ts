@@ -13,7 +13,9 @@ function asString(value: unknown): string | null {
   return String(value);
 }
 
-export function mapRepositoryItemsToProposalItems(rows: ProposalRepositoryRow[] | null | undefined): ProposalItem[] {
+export function mapRepositoryItemsToProposalItems(
+  rows: ProposalRepositoryRow[] | null | undefined,
+): ProposalItem[] {
   return (rows ?? []).map((row) => ({
     id: asString(row.id),
     nomusItemId: asString(row.nomus_item_id),
@@ -47,7 +49,10 @@ export function emptyTaxSummary(): TaxSummary {
   };
 }
 
-export function mapRepositoryRowToProposal(row: ProposalRepositoryRow, items: ProposalItem[] = []): Proposal {
+export function mapRepositoryRowToProposal(
+  row: ProposalRepositoryRow,
+  items: ProposalItem[] = [],
+): Proposal {
   const total = asNumber(row.total_value ?? row.valor_total);
   return {
     id: asString(row.id),

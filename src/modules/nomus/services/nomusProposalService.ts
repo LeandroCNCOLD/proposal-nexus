@@ -1,6 +1,12 @@
 // Server-only service facade for Nomus proposal resources.
 // Keeps endpoint selection centralized while preserving the legacy integration client.
-import { getOne, listAll, listPage, nomusFetch, type NomusFetchOptions } from "@/integrations/nomus/client";
+import {
+  getOne,
+  listAll,
+  listPage,
+  nomusFetch,
+  type NomusFetchOptions,
+} from "@/integrations/nomus/client";
 import { NOMUS_ENDPOINTS, proposalSubpath } from "@/integrations/nomus/endpoints";
 import type { NomusProposalRaw } from "../types";
 

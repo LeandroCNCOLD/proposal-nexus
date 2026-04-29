@@ -1,18 +1,8 @@
 import { strict as assert } from "node:assert";
-import {
-  mapNomusItemsToProposalItems,
-  mapNomusProposalToProposal,
-} from "../../nomus/mappers";
+import { mapNomusItemsToProposalItems, mapNomusProposalToProposal } from "../../nomus/mappers";
 import { validateProposal } from "../domain";
-import {
-  calculateFinancialSummary,
-  compareItemsTotalWithProposalTotal,
-} from "../financial";
-import {
-  checkDiscountApproval,
-  checkMarginApproval,
-  evaluateApprovalWorkflow,
-} from "../approval";
+import { calculateFinancialSummary, compareItemsTotalWithProposalTotal } from "../financial";
+import { checkDiscountApproval, checkMarginApproval, evaluateApprovalWorkflow } from "../approval";
 import {
   createTemplatePreviewData,
   extractTemplateVariables,
@@ -93,7 +83,17 @@ const baseProposal = (): Proposal => ({
   const invalid = baseProposal();
   invalid.customer = null;
   invalid.status = null;
-  invalid.items = [{ id: "item-1", description: "Sem preco", quantity: 1, unitPrice: null, discount: null, total: null, totalWithDiscount: null }];
+  invalid.items = [
+    {
+      id: "item-1",
+      description: "Sem preco",
+      quantity: 1,
+      unitPrice: null,
+      discount: null,
+      total: null,
+      totalWithDiscount: null,
+    },
+  ];
   invalid.total = -1;
 
   const result = validateProposal(invalid, { minimumGrossMarginPct: 20 });
@@ -165,7 +165,8 @@ const baseProposal = (): Proposal => ({
     ],
     totalTributacao: [{ valorIcms: null, valorPis: "" }],
   });
-  const items = mapNomusItemsToProposalItems(proposal.raw && typeof proposal.raw === "object" ? (proposal.raw.itensProposta as never) : []);
+  const raw = proposal.raw as { itensProposta?: never[] } | null;
+  const items = mapNomusItemsToProposalItems(raw?.itensProposta ?? []);
   assert.equal(proposal.customer?.name, null);
   assert.equal(proposal.total, null);
   assert.equal(proposal.taxSummary.total, 0);

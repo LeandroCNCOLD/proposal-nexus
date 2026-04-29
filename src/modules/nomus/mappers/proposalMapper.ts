@@ -58,7 +58,9 @@ function finiteOrZero(value: number | null | undefined): number {
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
 }
 
-export function mapNomusCustomerToCustomer(raw: NomusCustomerRaw | null | undefined): Customer | null {
+export function mapNomusCustomerToCustomer(
+  raw: NomusCustomerRaw | null | undefined,
+): Customer | null {
   if (!raw) return null;
   const obj = raw as Json;
   const nomusId = pickStr(obj, "id", "codigo", "idCliente", "clienteId");
@@ -133,11 +135,13 @@ export function mapNomusTaxesToTaxSummary(raw: NomusTaxRaw | null | undefined): 
     summary.cbs,
     summary.ibs,
     summary.ibsEstadual,
-  ].reduce((sum, value) => sum + finiteOrZero(value), 0);
+  ].reduce<number>((sum, value) => sum + finiteOrZero(value), 0);
   return summary;
 }
 
-export function mapNomusItemsToProposalItems(rawItems: NomusProposalItemRaw[] | null | undefined): ProposalItem[] {
+export function mapNomusItemsToProposalItems(
+  rawItems: NomusProposalItemRaw[] | null | undefined,
+): ProposalItem[] {
   if (!Array.isArray(rawItems)) return [];
 
   return rawItems.map((item) => {
@@ -145,18 +149,21 @@ export function mapNomusItemsToProposalItems(rawItems: NomusProposalItemRaw[] | 
     const product = obj.produto && typeof obj.produto === "object" ? (obj.produto as Json) : null;
     const quantity = pickNumBR(obj, "qtde", "quantidade", "qtd");
     const unitPrice = parseNomusNumber(obj.valorUnitario ?? obj.preco);
-    const total = pickNumBR(obj, "valorTotal", "valorTotalProdutos", "total")
-      ?? (quantity !== null && unitPrice !== null ? quantity * unitPrice : null);
+    const total =
+      pickNumBR(obj, "valorTotal", "valorTotalProdutos", "total") ??
+      (quantity !== null && unitPrice !== null ? quantity * unitPrice : null);
 
     return {
       id: null,
       nomusItemId: pickStr(obj, "id", "idItem"),
-      nomusProductId: product ? pickStr(product, "id", "codigo") : pickStr(obj, "idProduto", "produtoId"),
+      nomusProductId: product
+        ? pickStr(product, "id", "codigo")
+        : pickStr(obj, "idProduto", "produtoId"),
       productCode: product ? pickStr(product, "codigo") : pickStr(obj, "codigoProduto", "codigo"),
       description:
-        (product ? pickStr(product, "descricao", "nome") : null)
-        ?? pickStr(obj, "descricaoProduto", "descricao", "nome")
-        ?? "",
+        (product ? pickStr(product, "descricao", "nome") : null) ??
+        pickStr(obj, "descricaoProduto", "descricao", "nome") ??
+        "",
       additionalInfo: pickStr(obj, "informacoesAdicionaisProduto", "informacoesAdicionais"),
       quantity,
       unitPrice,
@@ -192,7 +199,12 @@ export function mapNomusRepresentativeToCommissionSummary(
 
 export function mapNomusProposalToProposal(raw: NomusProposalRaw): Proposal {
   const obj = raw as Json;
-  const customerRef = pickRef(obj, "cliente", ["idCliente", "clienteId"], ["nomeCliente", "clienteNome"]);
+  const customerRef = pickRef(
+    obj,
+    "cliente",
+    ["idCliente", "clienteId"],
+    ["nomeCliente", "clienteNome"],
+  );
   const paymentRef = pickRef(
     obj,
     "condicaoPagamento",
@@ -206,7 +218,9 @@ export function mapNomusProposalToProposal(raw: NomusProposalRaw): Proposal {
     ["idRepresentante", "representanteId"],
     ["nomeRepresentante"],
   );
-  const rawItems = (obj.itensProposta ?? obj.itens ?? obj.items) as NomusProposalItemRaw[] | undefined;
+  const rawItems = (obj.itensProposta ?? obj.itens ?? obj.items) as
+    | NomusProposalItemRaw[]
+    | undefined;
   const totalTributacao = extractTotalTributacao(obj) ?? obj.totalTributacao ?? obj;
   const total = pickNumBR(obj, "valorTotal", "valor", "total");
   const discountTotal = pickNumBR(obj, "valorDescontos", "descontosIncondicionais", "desconto");

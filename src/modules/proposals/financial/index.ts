@@ -20,6 +20,8 @@ export function parseFinancialNumber(value: unknown): number | null {
   return Number.isFinite(number) ? number : null;
 }
 
+export const toFinancialNumber = parseFinancialNumber;
+
 export function calculateProposalSubtotal(items: ProposalItem[]): number {
   return items.reduce((sum, item) => {
     if (item.total !== null && item.total !== undefined) return sum + amount(item.total);
@@ -53,7 +55,7 @@ export function calculateTaxSummary(input: Partial<TaxSummary> | null | undefine
     summary.cbs,
     summary.ibs,
     summary.ibsEstadual,
-  ].reduce((sum, value) => sum + amount(value), 0);
+  ].reduce<number>((sum, value) => sum + amount(value), 0);
   return summary;
 }
 
@@ -67,7 +69,9 @@ export function calculateCommissionSummary(input: {
   sellerName?: string | null;
 }): CommissionSummary {
   const baseValue = amount(input.baseValue);
-  const rate = input.rate ?? (baseValue > 0 && input.amount != null ? (amount(input.amount) / baseValue) * 100 : null);
+  const rate =
+    input.rate ??
+    (baseValue > 0 && input.amount != null ? (amount(input.amount) / baseValue) * 100 : null);
   const calculatedAmount = input.amount ?? (rate != null ? (baseValue * rate) / 100 : 0);
 
   return {
@@ -81,19 +85,28 @@ export function calculateCommissionSummary(input: {
   };
 }
 
-export function calculateGrossMargin(grossProfit: number | null | undefined, revenue: number | null | undefined): number | null {
+export function calculateGrossMargin(
+  grossProfit: number | null | undefined,
+  revenue: number | null | undefined,
+): number | null {
   const revenueValue = amount(revenue);
   if (revenueValue <= 0 || grossProfit == null) return null;
   return (grossProfit / revenueValue) * 100;
 }
 
-export function calculateNetMargin(netProfit: number | null | undefined, revenue: number | null | undefined): number | null {
+export function calculateNetMargin(
+  netProfit: number | null | undefined,
+  revenue: number | null | undefined,
+): number | null {
   const revenueValue = amount(revenue);
   if (revenueValue <= 0 || netProfit == null) return null;
   return (netProfit / revenueValue) * 100;
 }
 
-export function calculateMarkup(revenue: number | null | undefined, totalCost: number | null | undefined): number | null {
+export function calculateMarkup(
+  revenue: number | null | undefined,
+  totalCost: number | null | undefined,
+): number | null {
   const cost = amount(totalCost);
   if (cost <= 0) return null;
   return ((amount(revenue) - cost) / cost) * 100;
@@ -104,7 +117,10 @@ export function compareItemsTotalWithProposalTotal(
   proposalTotal: number | null | undefined,
   tolerance = 0.01,
 ): { matches: boolean; itemsTotal: number; proposalTotal: number; difference: number } {
-  const itemsTotal = items.reduce((sum, item) => sum + amount(item.totalWithDiscount ?? item.total), 0);
+  const itemsTotal = items.reduce(
+    (sum, item) => sum + amount(item.totalWithDiscount ?? item.total),
+    0,
+  );
   const total = amount(proposalTotal);
   const difference = itemsTotal - total;
   return {
@@ -115,19 +131,21 @@ export function compareItemsTotalWithProposalTotal(
   };
 }
 
-export function calculateFinancialSummary(proposal: Pick<
-  Proposal,
-  "items" | "taxSummary" | "commissionSummary" | "total" | "discountTotal"
-> & {
-  freightTotal?: number | null;
-  insuranceTotal?: number | null;
-  accessoryExpensesTotal?: number | null;
-  productionCostTotal?: number | null;
-  administrativeCostTotal?: number | null;
-  incidentCostTotal?: number | null;
-  grossProfit?: number | null;
-  netProfit?: number | null;
-}): FinancialSummary {
+export function calculateFinancialSummary(
+  proposal: Pick<
+    Proposal,
+    "items" | "taxSummary" | "commissionSummary" | "total" | "discountTotal"
+  > & {
+    freightTotal?: number | null;
+    insuranceTotal?: number | null;
+    accessoryExpensesTotal?: number | null;
+    productionCostTotal?: number | null;
+    administrativeCostTotal?: number | null;
+    incidentCostTotal?: number | null;
+    grossProfit?: number | null;
+    netProfit?: number | null;
+  },
+): FinancialSummary {
   const subtotal = calculateProposalSubtotal(proposal.items);
   const taxTotal = calculateTaxSummary(proposal.taxSummary).total;
   const commissionTotal = amount(proposal.commissionSummary?.amount);
@@ -135,9 +153,11 @@ export function calculateFinancialSummary(proposal: Pick<
   const productionCostTotal = amount(proposal.productionCostTotal);
   const administrativeCostTotal = amount(proposal.administrativeCostTotal);
   const incidentCostTotal = amount(proposal.incidentCostTotal);
-  const grossProfit = proposal.grossProfit ?? total - taxTotal - commissionTotal - productionCostTotal;
+  const grossProfit =
+    proposal.grossProfit ?? total - taxTotal - commissionTotal - productionCostTotal;
   const netProfit = proposal.netProfit ?? grossProfit - administrativeCostTotal - incidentCostTotal;
-  const totalCost = taxTotal + commissionTotal + productionCostTotal + administrativeCostTotal + incidentCostTotal;
+  const totalCost =
+    taxTotal + commissionTotal + productionCostTotal + administrativeCostTotal + incidentCostTotal;
 
   return {
     subtotal,

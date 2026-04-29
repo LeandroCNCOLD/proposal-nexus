@@ -73,9 +73,20 @@ export function validateProposal(
 
   proposal.items.forEach((item, index) => {
     if (!item.description) {
-      errors.push(issue("error", "missing_item_description", "Item sem descrição.", `items.${index}.description`));
+      errors.push(
+        issue(
+          "error",
+          "missing_item_description",
+          "Item sem descrição.",
+          `items.${index}.description`,
+        ),
+      );
     }
-    if (!hasPositiveMoney(item.unitPrice) && !hasPositiveMoney(item.total) && !hasPositiveMoney(item.totalWithDiscount)) {
+    if (
+      !hasPositiveMoney(item.unitPrice) &&
+      !hasPositiveMoney(item.total) &&
+      !hasPositiveMoney(item.totalWithDiscount)
+    ) {
       errors.push(issue("error", "missing_item_price", "Item sem preço.", `items.${index}`));
     }
   });
@@ -86,12 +97,19 @@ export function validateProposal(
 
   if (!proposal.paymentCondition?.name && proposal.paymentCondition?.installments.length === 0) {
     warnings.push(
-      issue("warning", "incomplete_payment_condition", "Condição de pagamento incompleta.", "paymentCondition"),
+      issue(
+        "warning",
+        "incomplete_payment_condition",
+        "Condição de pagamento incompleta.",
+        "paymentCondition",
+      ),
     );
   }
 
   if (!proposal.commissionSummary || proposal.commissionSummary.amount <= 0) {
-    warnings.push(issue("warning", "missing_commission", "Comissão faltante.", "commissionSummary"));
+    warnings.push(
+      issue("warning", "missing_commission", "Comissão faltante.", "commissionSummary"),
+    );
   }
 
   const comparison = compareItemsTotalWithProposalTotal(
@@ -111,10 +129,7 @@ export function validateProposal(
   }
 
   const financial = resolveFinancialSummary(proposal);
-  if (
-    financial.grossMarginPct !== null
-    && financial.grossMarginPct < minimumGrossMarginPct
-  ) {
+  if (financial.grossMarginPct !== null && financial.grossMarginPct < minimumGrossMarginPct) {
     warnings.push(
       issue(
         "warning",
