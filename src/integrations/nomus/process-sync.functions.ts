@@ -466,7 +466,23 @@ export const pullNomusProcesses = createServerFn({ method: "POST" })
       .limit(1)
       .maybeSingle();
 
-    const job = existingJob ?? (await (supabaseAdmin as any)
+    const shouldStartFreshJob =
+      !existingJob ||
+      JSON.stringify((existingJob as any).tipos ?? []) !== JSON.stringify(tipos) ||
+      (Number((existingJob as any).processed_items ?? 0) === 0 && (existingJob as any).status === "running");
+
+    if (existingJob && shouldStartFreshJob) {
+      await (supabaseAdmin as any)
+        .from("nomus_process_sync_jobs")
+        .update({
+          status: "failed",
+          last_error: "Sincronização substituída por uma nova execução.",
+          finished_at: new Date().toISOString(),
+        })
+        .eq("id", (existingJob as any).id);
+    }
+
+    const job = !shouldStartFreshJob ? existingJob : (await (supabaseAdmin as any)
       .from("nomus_process_sync_jobs")
       .insert({
         requested_by: userId,
