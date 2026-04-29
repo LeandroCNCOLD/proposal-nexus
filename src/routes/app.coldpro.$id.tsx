@@ -835,10 +835,10 @@ function ColdProProjectPage() {
                   <ColdProSectionLoadSummary
                     title="Prévia da carga de produto"
                     rows={[
-                      { label: "Produto", value: Number(result?.product_kcal_h ?? 0) || directProductPreviewLoad || (tunnelPreview ? tunnelPreview.productLoadKW * 859.845 : 0) },
-                      { label: "Embalagem", value: Number(result?.packaging_kcal_h ?? 0) || packagingPreviewLoad || (tunnelPreview ? tunnelPreview.packagingLoadKW * 859.845 : 0) },
+                      { label: "Produto", value: Number(result?.product_kcal_h ?? 0) || directProductPreviewLoad || tunnelPreviewProductLoad },
+                      { label: "Embalagem", value: Number(result?.packaging_kcal_h ?? 0) || packagingPreviewLoad || tunnelPreviewPackagingLoad },
                       { label: "Respiração", value: result?.calculation_breakdown?.respiration_kcal_h },
-                      { label: "Túnel / processo", value: Number(result?.tunnel_internal_load_kcal_h ?? 0) || (tunnelPreview ? tunnelPreview.internalLoadKW * 859.845 : 0) },
+                      { label: "Túnel / cargas internas", value: Number(result?.tunnel_internal_load_kcal_h ?? 0) || tunnelPreviewInternalLoad },
                     ]}
                     totalLabel="Total calculado da aba Produtos"
                     total={productLoad}
@@ -853,7 +853,7 @@ function ColdProProjectPage() {
                         {products.map((p: any) => (
                           <div key={p.id} className="flex flex-wrap items-center justify-between gap-3 rounded-md border px-3 py-2 text-sm">
                             <div>
-                              <b>{p.product_name}</b> · {fmt(p.mass_kg_day)} kg/dia · entrada {p.inlet_temp_c}°C → final{" "}
+                              <b>{p.product_name}</b> · {productMovementSummary(p)} · entrada {p.inlet_temp_c}°C → final{" "}
                               {p.outlet_temp_c}°C
                             </div>
                             <div className="flex gap-2">
