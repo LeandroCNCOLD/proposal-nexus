@@ -927,6 +927,116 @@ export const nomusSyncPaymentTerms = createServerFn({ method: "POST" })
     });
   });
 
+const PRICE_ITEM_ARRAY_KEYS = ["itens", "items", "produtos", "tabelaPrecoItens", "registros", "lista", "data", "content"];
+
+function extractPriceTableItems(payload: unknown): Json[] {
+  if (!payload || typeof payload !== "object") return [];
+  const obj = payload as Json;
+  for (const key of PRICE_ITEM_ARRAY_KEYS) {
+    const value = obj[key];
+    if (Array.isArray(value) && value.length > 0 && typeof value[0] === "object") return value as Json[];
+  }
+  return [];
+}
+
+function pickPriceItemProductId(raw: Json): string | null {
+  const direct = pickStr(raw, "nomus_product_id", "idProduto", "produtoId", "id_produto", "codigoProduto", "codProduto", "codigo", "produtoCodigo");
+  if (direct) return direct;
+  const produto = raw.produto;
+  return produto && typeof produto === "object" ? pickStr(produto as Json, "id", "codigo", "idProduto", "codigoProduto") : null;
+}
+
+async function syncPriceTableItems(args: { priceTableId: string; tableNomusId: string; source: Json; triggeredBy: string | null }) {
+  const detail = await nomusFetch<unknown>(`${NOMUS_ENDPOINTS.tabelas_preco}/${encodeURIComponent(args.tableNomusId)}`, {
+    method: "GET",
+    entity: "tabelas_preco",
+    operation: "get-items",
+    direction: "pull",
+    triggeredBy: args.triggeredBy,
+    timeoutMs: 12_000,
+    maxAttempts: 1,
+  });
+  const detailPayload = detail.ok && detail.data && typeof detail.data === "object" ? (detail.data as Json) : null;
+  const items = extractPriceTableItems(detailPayload ?? args.source);
+  let upserted = 0;
+  let skipped = 0;
+  for (const item of items) {
+    const productId = pickPriceItemProductId(item);
+    if (!productId) {
+      skipped += 1;
+      continue;
+    }
+    const unitPrice = pickNum(item, "precoLiquido", "preco_liquido", "precoVenda", "preco_venda", "precoUnitario", "valorUnitario", "unit_price", "preco", "valor") ?? 0;
+    const { data: link } = await supabaseAdmin
+      .from("nomus_product_equipment_links")
+      .select("equipment_id")
+      .eq("nomus_product_id", productId)
+      .maybeSingle();
+    const payload = {
+      price_table_id: args.priceTableId,
+      nomus_product_id: productId,
+      equipment_id: (link as { equipment_id?: string | null } | null)?.equipment_id ?? null,
+      unit_price: unitPrice,
+      currency: pickStr(item, "moeda", "currency") ?? "BRL",
+      raw: item as never,
+      synced_at: new Date().toISOString(),
+      custo_materiais: pickNum(item, "custoMateriais", "custo_materiais"),
+      custo_mod: pickNum(item, "custoMOD", "custoMod", "custo_mod"),
+      custo_cif: pickNum(item, "custoCIF", "custoCif", "custo_cif"),
+      custos_adm: pickNum(item, "custosAdm", "custoAdministrativo", "custos_adm"),
+      custo_producao_total: pickNum(item, "custoProducaoTotal", "custoTotal", "custoUnitario", "custoMedio", "custo_producao_total"),
+      custos_venda: pickNum(item, "custosVenda", "custos_venda"),
+      preco_calculado: pickNum(item, "precoCalculado", "precoUnitarioCalculado", "preco_calculado", "preco_unitario_calculado"),
+      preco_liquido: pickNum(item, "precoLiquido", "preco_liquido", "precoVenda", "preco_venda"),
+      margem_desejada_pct: pickNum(item, "margemLucroDesejada", "margem_desejada_pct"),
+      lucro_bruto: pickNum(item, "lucroBruto", "lucro_bruto"),
+      lucro_liquido: pickNum(item, "lucroLiquido", "lucro_liquido"),
+      margem_contribuicao: pickNum(item, "margemContribuicao", "margem", "margem_contribuicao"),
+      unidade_medida: pickStr(item, "unidadeMedida", "unidade", "unidade_medida"),
+      import_source: "nomus",
+      imported_at: new Date().toISOString(),
+      has_cost_data: Boolean(pickNum(item, "custoProducaoTotal", "custoTotal", "custoUnitario", "custoMedio", "custo_producao_total")),
+    };
+    const { error } = await supabaseAdmin.from("nomus_price_table_items").upsert(payload as never, { onConflict: "price_table_id,nomus_product_id" });
+    if (error) throw new Error(error.message);
+    upserted += 1;
+  }
+  return { upserted, skipped, detailStatus: detail.ok ? detail.status : detail.status, detailError: detail.ok ? null : detail.error };
+}
+
+export const nomusSyncPriceTables = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const userId = (context as { userId?: string }).userId ?? null;
+    let itemsUpserted = 0;
+    let itemSkipped = 0;
+    const result = await runEntitySync({
+      entity: "tabelas_preco",
+      endpoint: NOMUS_ENDPOINTS.tabelas_preco,
+      triggeredBy: userId,
+      processItem: async (raw) => {
+        const nomus_id = pickStr(raw, "id", "idTabelaPreco", "codigo", "codTabelaPreco");
+        const name = pickStr(raw, "nome", "descricao", "name", "titulo") ?? nomus_id;
+        if (!nomus_id || !name) return "skip";
+        const { data: table, error } = await supabaseAdmin.from("nomus_price_tables").upsert({
+          nomus_id,
+          code: pickStr(raw, "codigo", "codTabelaPreco", "code") ?? nomus_id,
+          name,
+          currency: pickStr(raw, "moeda", "currency") ?? "BRL",
+          is_active: pickBool(raw, "ativo", "active", "isActive", "is_active") ?? true,
+          raw: raw as never,
+          synced_at: new Date().toISOString(),
+        } as never, { onConflict: "nomus_id" }).select("id").single();
+        if (error) throw new Error(error.message);
+        const itemResult = await syncPriceTableItems({ priceTableId: (table as { id: string }).id, tableNomusId: nomus_id, source: raw, triggeredBy: userId });
+        itemsUpserted += itemResult.upserted;
+        itemSkipped += itemResult.skipped;
+        return "ok";
+      },
+    });
+    return result.ok ? { ...result, itemsUpserted, itemSkipped } : result;
+  });
+
 /** Push a proposal to Nomus. Creates if no nomus_id, updates otherwise. */
 export const nomusPushProposal = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
