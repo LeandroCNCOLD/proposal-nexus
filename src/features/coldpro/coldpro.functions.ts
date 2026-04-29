@@ -215,8 +215,9 @@ export const getColdProProjectBundle = createServerFn({ method: "GET" })
     const { data: insulationMaterials } = await supabase.from("coldpro_insulation_materials").select("*").order("name");
     const { data: thermalMaterials } = await supabase.from("coldpro_thermal_materials").select("*").order("category").order("material_name");
     const { data: productCatalog } = await supabase.from("coldpro_products").select("*").order("name");
+    const enrichedProducts = await enrichRowsWithCatalog(supabase, products ?? []);
     const latestTunnels = await enrichRowsWithCatalog(supabase, latestRowsByEnvironment(tunnels ?? []));
-    return { project, environments: environments ?? [], products: products ?? [], tunnels: latestTunnels, advancedProcesses: advancedProcesses ?? [], results: latestResults, selections: enrichedSelections, insulationMaterials: insulationMaterials ?? [], thermalMaterials: thermalMaterials ?? [], productCatalog: productCatalog ?? [] };
+    return { project, environments: environments ?? [], products: enrichedProducts, tunnels: latestTunnels, advancedProcesses: advancedProcesses ?? [], results: latestResults, selections: enrichedSelections, insulationMaterials: insulationMaterials ?? [], thermalMaterials: thermalMaterials ?? [], productCatalog: productCatalog ?? [] };
   });
 
 export const createColdProEnvironment = createServerFn({ method: "POST" })
