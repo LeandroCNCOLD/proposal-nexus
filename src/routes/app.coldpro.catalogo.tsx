@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState, useRef } from "react";
+import { Fragment, useState, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -12,6 +12,8 @@ import {
   Upload, FileSpreadsheet, CheckCircle2, AlertTriangle, Database,
   Loader2, ArrowLeft, History, Layers, Thermometer,
   ChevronLeft, ChevronRight, FolderTree, Download, FileCode2,
+  Package, CircleDollarSign, Clock3, XCircle,
+  type LucideIcon,
 } from "lucide-react";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -162,6 +164,10 @@ function CatalogoPage() {
   }
 
   const catalogRows = modelsQuery.data?.rows ?? [];
+  const latestSyncAt = importsQuery.data?.[0]?.created_at ?? null;
+  const productsWithoutPrice = catalogRows.filter((m) => !hasPositiveCatalogValue(readCatalogValue(m, PRICE_ALIASES))).length;
+  const productsWithoutCost = catalogRows.filter((m) => !hasPositiveCatalogValue(readCatalogValue(m, COST_ALIASES))).length;
+  const productsWithAlerts = catalogRows.filter((m) => getCatalogAlerts(m).length > 0).length;
   const filteredModels = catalogRows.filter((m) => {
     const q = search.toLowerCase().trim();
     if (!q) return true;
@@ -363,11 +369,44 @@ function CatalogoPage() {
 
         {/* Modelos no catálogo */}
         <Card className="p-6">
+          <div className="mb-5 grid gap-4 lg:grid-cols-[1fr_auto]">
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Layers className="h-5 w-5 text-primary" />
+                <h2 className="text-lg font-semibold">Catálogo de produtos integrado ao Nomus</h2>
+                <Badge variant="secondary">{catalogRows.length} produtos</Badge>
+              </div>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Visualização operacional de código, preço, custo, margem, status e sincronização.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+              <CatalogSummaryPill icon={Package} label="Produtos" value={catalogRows.length.toLocaleString("pt-BR")} />
+              <CatalogSummaryPill icon={CircleDollarSign} label="Sem preço" value={productsWithoutPrice.toLocaleString("pt-BR")} warn={productsWithoutPrice > 0} />
+              <CatalogSummaryPill icon={AlertTriangle} label="Alertas" value={productsWithAlerts.toLocaleString("pt-BR")} warn={productsWithAlerts > 0} />
+              <CatalogSummaryPill icon={Clock3} label="Última sync" value={formatCatalogDate(latestSyncAt)} />
+            </div>
+          </div>
+
+          {(productsWithoutPrice > 0 || productsWithoutCost > 0) && (
+            <div className="mb-4 rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm">
+              <div className="flex flex-wrap items-start gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-background">
+                  <AlertTriangle className="h-5 w-5 text-destructive" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="font-semibold text-foreground">Produtos precisam de atenção comercial</div>
+                  <div className="mt-1 flex flex-wrap gap-2 text-muted-foreground">
+                    {productsWithoutPrice > 0 && <Badge variant="destructive">{productsWithoutPrice} sem preço</Badge>}
+                    {productsWithoutCost > 0 && <Badge variant="destructive">{productsWithoutCost} sem custo</Badge>}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <Layers className="h-5 w-5 text-primary" />
-              <h2 className="text-lg font-semibold">Modelos no catálogo</h2>
-              <Badge variant="secondary">{catalogRows.length}</Badge>
+            <div className="flex flex-wrap items-center gap-2">
               {modelsQuery.data?.voltageSummary && (
                 <>
                   <Badge variant="outline" className="font-mono">220V 3F: {modelsQuery.data.voltageSummary.v220_3f}</Badge>
@@ -419,7 +458,7 @@ function CatalogoPage() {
                 placeholder="Buscar modelo, linha ou refrigerante..."
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-                className="max-w-xs"
+                className="w-full sm:w-[320px]"
               />
             </div>
           </div>
@@ -440,19 +479,23 @@ function CatalogoPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Modelo</TableHead>
-                      <TableHead>Linha</TableHead>
+                      <TableHead className="min-w-[150px]">Código</TableHead>
+                      <TableHead className="min-w-[280px]">Nome</TableHead>
+                      <TableHead className="text-right">Preço</TableHead>
+                      <TableHead className="text-right">Custo</TableHead>
+                      <TableHead className="text-right">Margem</TableHead>
                       <TableHead>Tipo</TableHead>
-                      <TableHead className="text-right">Pontos</TableHead>
+                      <TableHead>Última sincronização</TableHead>
+                      <TableHead>Alertas</TableHead>
                       <TableHead className="text-right">Status</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {groupedModels
                       ? groupedModels.map(([linha, items]) => (
-                          <>
+                          <Fragment key={`group-${linha}`}>
                             <TableRow key={`group-${linha}`} className="bg-muted/40 hover:bg-muted/40">
-                              <TableCell colSpan={5} className="py-2 font-semibold text-sm">
+                              <TableCell colSpan={9} className="py-2 font-semibold text-sm">
                                 <span className="inline-flex items-center gap-2">
                                   <FolderTree className="h-4 w-4 text-primary" />
                                   {linha}
@@ -463,7 +506,7 @@ function CatalogoPage() {
                             {items.map((m) => (
                               <ModelRow key={m.id} m={m} indent onClick={() => setSelectedModelId(m.id)} />
                             ))}
-                          </>
+                          </Fragment>
                         ))
                       : pagedModels.map((m) => (
                           <ModelRow key={m.id} m={m} onClick={() => setSelectedModelId(m.id)} />
@@ -623,12 +666,129 @@ type ModelRowData = {
   description_confidence?: string | null;
   point_count: number;
   voltages: string[];
+  created_at?: string | null;
+  updated_at?: string | null;
+  source_import_id?: string | null;
+  raw?: unknown;
 };
 
+const CODE_ALIASES = ["codigo", "código", "sku", "cod_produto", "codigo_produto", "codigoNomus", "codigo_nomus", "idProduto", "produtoId"];
+const PRICE_ALIASES = ["preco", "preço", "preco_venda", "preço_venda", "valor_venda", "unit_price", "price", "precoUnitario", "valorUnitario"];
+const COST_ALIASES = ["custo", "custo_unitario", "valor_custo", "cost", "cost_price", "preco_custo", "preço_custo", "custoUnitario"];
+const MARGIN_ALIASES = ["margem", "margin", "margem_percentual", "margem_pct", "percentual_margem", "markup"];
+
+function CatalogSummaryPill({ icon: Icon, label, value, warn }: { icon: LucideIcon; label: string; value: string; warn?: boolean }) {
+  return (
+    <div className="flex items-center gap-2 rounded-lg border bg-muted/30 px-3 py-2">
+      <Icon className={`h-4 w-4 ${warn ? "text-destructive" : "text-primary"}`} />
+      <div>
+        <div className="text-[10px] font-semibold uppercase text-muted-foreground">{label}</div>
+        <div className="text-sm font-semibold tabular-nums">{value}</div>
+      </div>
+    </div>
+  );
+}
+
+function CatalogAlertBadges({ alerts }: { alerts: string[] }) {
+  if (alerts.length === 0) {
+    return <Badge variant="outline" className="gap-1"><CheckCircle2 className="h-3 w-3" /> OK</Badge>;
+  }
+  return (
+    <div className="flex flex-wrap gap-1">
+      {alerts.map((alert) => (
+        <Badge key={alert} variant="destructive" className="gap-1 whitespace-nowrap">
+          <XCircle className="h-3 w-3" />
+          {alert}
+        </Badge>
+      ))}
+    </div>
+  );
+}
+
+function getCatalogCode(row: ModelRowData): string {
+  const code = readCatalogText(row, CODE_ALIASES);
+  return code || row.catalog_variant_key || row.modelo || "—";
+}
+
+function getCatalogAlerts(row: ModelRowData): string[] {
+  const alerts: string[] = [];
+  if (!hasPositiveCatalogValue(readCatalogValue(row, PRICE_ALIASES))) alerts.push("Sem preço");
+  if (!hasPositiveCatalogValue(readCatalogValue(row, COST_ALIASES))) alerts.push("Sem custo");
+  return alerts;
+}
+
+function readCatalogMargin(row: ModelRowData): number | null {
+  return readCatalogValue(row, MARGIN_ALIASES);
+}
+
+function readCatalogValue(row: ModelRowData, aliases: string[]): number | null {
+  const value = readCatalogUnknown(row, aliases);
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  if (typeof value !== "string") return null;
+  const normalized = value.replace(/[^0-9,.-]/g, "").replace(/\.(?=\d{3}(\D|$))/g, "").replace(",", ".");
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function readCatalogText(row: ModelRowData, aliases: string[]): string | null {
+  const value = readCatalogUnknown(row, aliases);
+  if (value === null || value === undefined) return null;
+  const text = String(value).trim();
+  return text || null;
+}
+
+function readCatalogUnknown(row: ModelRowData, aliases: string[]): unknown {
+  const sources = [row, isPlainRecord(row.raw) ? row.raw : null].filter(Boolean) as Record<string, unknown>[];
+  const normalizedAliases = aliases.map(normalizeCatalogKey);
+  for (const source of sources) {
+    for (const [key, value] of Object.entries(source)) {
+      if (normalizedAliases.includes(normalizeCatalogKey(key))) return value;
+    }
+  }
+  return null;
+}
+
+function hasPositiveCatalogValue(value: number | null): boolean {
+  return typeof value === "number" && Number.isFinite(value) && value > 0;
+}
+
+function formatCatalogMoney(value: number | null): string {
+  if (!hasPositiveCatalogValue(value)) return "—";
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value as number);
+}
+
+function formatCatalogMargin(value: number | null): string {
+  if (value === null || !Number.isFinite(value)) return "—";
+  const margin = Math.abs(value) <= 1 ? value * 100 : value;
+  return `${margin.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
+}
+
+function formatCatalogDate(value: string | null | undefined): string {
+  if (!value) return "—";
+  return new Date(value).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" });
+}
+
+function normalizeCatalogKey(value: string): string {
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9]+/g, "").toLowerCase();
+}
+
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 function ModelRow({ m, indent, onClick }: { m: ModelRowData; indent?: boolean; onClick: () => void }) {
+  const code = getCatalogCode(m);
+  const price = readCatalogValue(m, PRICE_ALIASES);
+  const cost = readCatalogValue(m, COST_ALIASES);
+  const margin = readCatalogMargin(m);
+  const alerts = getCatalogAlerts(m);
+
   return (
     <TableRow className="cursor-pointer hover:bg-muted/50" onClick={onClick}>
-      <TableCell className={`font-medium text-primary ${indent ? "pl-8" : ""}`}>
+      <TableCell className={`font-mono text-xs font-semibold text-muted-foreground ${indent ? "pl-8" : ""}`}>
+        {code}
+      </TableCell>
+      <TableCell className="font-medium text-primary">
         <div className="flex flex-col">
           <span>{m.modelo}</span>
           {m.designacao_hp && m.designacao_hp !== "-" && (
@@ -641,9 +801,12 @@ function ModelRow({ m, indent, onClick }: { m: ModelRowData; indent?: boolean; o
           )}
         </div>
       </TableCell>
-      <TableCell className="text-xs">{m.linha ?? "—"}</TableCell>
+      <TableCell className="text-right font-medium tabular-nums">{formatCatalogMoney(price)}</TableCell>
+      <TableCell className="text-right tabular-nums text-muted-foreground">{formatCatalogMoney(cost)}</TableCell>
+      <TableCell className="text-right">{formatCatalogMargin(margin)}</TableCell>
       <TableCell>
         <div className="flex flex-wrap gap-1">
+          {m.linha && <Badge variant="secondary" className="text-[10px] py-0 px-1.5">{m.linha}</Badge>}
           {splitEquipmentTypes(m.tipo_gabinete).map((tipo) => (
             <Badge key={tipo} variant="outline" className="text-[10px] py-0 px-1.5">
               {tipo}
@@ -651,9 +814,13 @@ function ModelRow({ m, indent, onClick }: { m: ModelRowData; indent?: boolean; o
           ))}
         </div>
       </TableCell>
-      <TableCell className="text-right text-sm font-medium tabular-nums">
-        {m.point_count}
+      <TableCell className="text-xs text-muted-foreground">
+        <div className="flex flex-col">
+          <span>{formatCatalogDate(m.updated_at)}</span>
+          <span>{m.source_import_id ? "Importado" : "Sem vínculo"}</span>
+        </div>
       </TableCell>
+      <TableCell><CatalogAlertBadges alerts={alerts} /></TableCell>
       <TableCell className="text-right">
         {m.active ? (
           <Badge variant="default" className="bg-emerald-600">Ativo</Badge>
