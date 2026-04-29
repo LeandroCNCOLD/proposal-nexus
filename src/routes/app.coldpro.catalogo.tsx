@@ -11,7 +11,7 @@ import {
 import {
   Upload, FileSpreadsheet, CheckCircle2, AlertTriangle, Database,
   Loader2, ArrowLeft, History, Layers, Thermometer,
-  ChevronLeft, ChevronRight, FolderTree,
+  ChevronLeft, ChevronRight, FolderTree, Download, FileCode2,
 } from "lucide-react";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -42,6 +42,7 @@ function CatalogoPage() {
   const [progress, setProgress] = useState<ImportProgress | null>(null);
   const [search, setSearch] = useState("");
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
+  const [exportingFormat, setExportingFormat] = useState<"csv" | "xml" | null>(null);
 
   const [pageSize, setPageSize] = useState<number>(20);
   const [page, setPage] = useState<number>(1);
@@ -189,6 +190,26 @@ function CatalogoPage() {
     }
     return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
   })();
+
+  async function handleCatalogExport(format: "csv" | "xml") {
+    if (filteredModels.length === 0) {
+      toast.warning("Nenhum modelo disponível para exportar com os filtros atuais.");
+      return;
+    }
+
+    setExportingFormat(format);
+    const toastId = toast.loading(`Preparando arquivo ${format.toUpperCase()}...`);
+    try {
+      const timestamp = new Date().toISOString().slice(0, 10);
+      const content = format === "csv" ? toCatalogCsv(filteredModels) : toCatalogXml(filteredModels);
+      downloadTextFile(content, `catalogo-coldpro-${timestamp}.${format}`, format === "csv" ? "text/csv;charset=utf-8" : "application/xml;charset=utf-8");
+      toast.success(`${format.toUpperCase()} baixado com ${filteredModels.length} modelo(s).`, { id: toastId });
+    } catch {
+      toast.error(`Não foi possível baixar o ${format.toUpperCase()}.`, { id: toastId });
+    } finally {
+      setExportingFormat(null);
+    }
+  }
 
   return (
     <div className="space-y-6 p-6">
@@ -356,6 +377,36 @@ function CatalogoPage() {
               )}
             </div>
             <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/30 p-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void handleCatalogExport("csv")}
+                  disabled={modelsQuery.isLoading || exportingFormat !== null || filteredModels.length === 0}
+                  className="bg-card"
+                >
+                  {exportingFormat === "csv" ? (
+                    <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Download className="mr-1.5 h-4 w-4" />
+                  )}
+                  Baixar CSV
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void handleCatalogExport("xml")}
+                  disabled={modelsQuery.isLoading || exportingFormat !== null || filteredModels.length === 0}
+                  className="bg-card"
+                >
+                  {exportingFormat === "xml" ? (
+                    <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                  ) : (
+                    <FileCode2 className="mr-1.5 h-4 w-4" />
+                  )}
+                  Baixar XML
+                </Button>
+              </div>
               <Button
                 variant={groupByLine ? "default" : "outline"}
                 size="sm"
@@ -621,4 +672,60 @@ function splitEquipmentTypes(value: string | null): string[] {
     .map((part) => part.trim())
     .filter(Boolean);
   return types.length ? types : [value];
+}
+
+function toCatalogCsv(rows: ModelRowData[]): string {
+  const headers = ["Modelo", "Linha", "Designação HP", "Gabinete", "Tipo", "Degelo", "Configuração elétrica", "Pontos", "Status"];
+  const body = rows.map((row) => [
+    row.modelo ?? "",
+    row.linha ?? "",
+    row.designacao_hp ?? "",
+    row.gabinete ?? "",
+    row.tipo_gabinete ?? "",
+    row.tipo_degelo ?? "",
+    row.electrical_configuration ?? row.voltages.join(" / "),
+    String(row.point_count),
+    row.active ? "Ativo" : "Inativo",
+  ]);
+  return [headers, ...body].map((line) => line.map(escapeCsvCell).join(";")).join("\n");
+}
+
+function toCatalogXml(rows: ModelRowData[]): string {
+  const items = rows.map((row) => `  <modelo id="${escapeXml(row.id)}">
+    <nome>${escapeXml(row.modelo ?? "")}</nome>
+    <linha>${escapeXml(row.linha ?? "")}</linha>
+    <designacaoHp>${escapeXml(row.designacao_hp ?? "")}</designacaoHp>
+    <gabinete>${escapeXml(row.gabinete ?? "")}</gabinete>
+    <tipo>${escapeXml(row.tipo_gabinete ?? "")}</tipo>
+    <degelo>${escapeXml(row.tipo_degelo ?? "")}</degelo>
+    <configuracaoEletrica>${escapeXml(row.electrical_configuration ?? row.voltages.join(" / "))}</configuracaoEletrica>
+    <pontos>${row.point_count}</pontos>
+    <status>${row.active ? "Ativo" : "Inativo"}</status>
+  </modelo>`);
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<catalogoColdPro>\n${items.join("\n")}\n</catalogoColdPro>\n`;
+}
+
+function escapeCsvCell(value: string): string {
+  return `"${value.replace(/"/g, '""')}"`;
+}
+
+function escapeXml(value: string): string {
+  const xmlEntities: Record<string, string> = {
+    "<": "&lt;",
+    ">": "&gt;",
+    "&": "&amp;",
+    '"': "&quot;",
+    "'": "&apos;",
+  };
+  return value.replace(/[<>&"']/g, (char) => xmlEntities[char] ?? char);
+}
+
+function downloadTextFile(content: string, filename: string, mimeType: string): void {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
 }
