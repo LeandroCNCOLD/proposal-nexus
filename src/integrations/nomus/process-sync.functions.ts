@@ -630,6 +630,7 @@ export const processNomusProcessSyncBatch = createServerFn({ method: "POST" })
         const pageItems: NomusProcessRaw[] = [];
         const idsThisBatch = Number(job.page_size ?? 50);
         for (let n = 0; n < idsThisBatch && currentPage <= scanUntilId; n += 1) {
+          if (Date.now() - new Date(now).getTime() > 18_000) return failSoft("Tempo seguro do lote atingido");
           const id = currentPage;
           const detail = await getOne<NomusProcessRaw>(NOMUS_ENDPOINTS.processos, id, {
             entity: "processos",
