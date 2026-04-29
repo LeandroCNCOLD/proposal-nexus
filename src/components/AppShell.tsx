@@ -22,6 +22,7 @@ import {
   Kanban,
   Thermometer,
   PackageSearch,
+  Table2,
   type LucideIcon,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
@@ -63,7 +64,13 @@ const NAV = [
     items: [
       { to: "/app", label: "Dashboard", icon: LayoutDashboard, exact: true },
       { to: "/app/crm", label: "Funil / CRM", icon: Kanban },
-      { to: "/app/propostas", label: "Propostas", icon: FileText },
+      {
+        to: "/app/propostas",
+        label: "Propostas",
+        icon: FileText,
+        exclude: ["/app/propostas/tabelas-preco"],
+      },
+      { to: "/app/propostas/tabelas-preco", label: "Tabelas de Preço", icon: Table2 },
       { to: "/app/propostas/pedidos-nf", label: "Pedidos & NF", icon: FileCheck2 },
       { to: "/app/tarefas", label: "Tarefas & Follow-up", icon: CheckSquare },
     ],
@@ -104,14 +111,19 @@ function NavItem({
   label,
   icon: Icon,
   exact,
+  exclude,
 }: {
   to: string;
   label: string;
   icon: LucideIcon;
   exact?: boolean;
+  exclude?: string[];
 }) {
   const { pathname } = useLocation();
-  const active = exact ? pathname === to : pathname === to || pathname.startsWith(to + "/");
+  const excluded =
+    exclude?.some((path) => pathname === path || pathname.startsWith(path + "/")) ?? false;
+  const active =
+    !excluded && (exact ? pathname === to : pathname === to || pathname.startsWith(to + "/"));
   return (
     <SidebarMenuItem>
       <SidebarMenuButton asChild isActive={active} tooltip={label}>
