@@ -76,11 +76,9 @@ type ProbeSummary = {
 type DirectListProbe = {
   label: "withPagina" | "withoutPagina";
   baseUrlPresent: boolean;
-  usernamePresent: boolean;
-  passwordPresent: boolean;
+  apiKeyPresent: boolean;
   authorizationHeaderPresent: boolean;
   base64Length: number;
-  usernameReceived: string | null;
   url: string | null;
   startedAt: string;
   endedAt: string;
@@ -131,32 +129,37 @@ function encodeBasicCredentials(username: string, password: string): string {
 }
 
 function resolveNomusAuth(): {
-  usernamePresent: boolean;
-  passwordPresent: boolean;
+  apiKeyPresent: boolean;
   authorizationHeaderPresent: boolean;
   base64Length: number;
-  usernameReceived: string | null;
   authorization: string | null;
 } {
+  const apiKey = process.env.NOMUS_API_KEY?.trim() ?? "";
+  if (apiKey) {
+    const basicToken = apiKey.replace(/^basic\s+/i, "").trim();
+    return {
+      apiKeyPresent: true,
+      authorizationHeaderPresent: true,
+      base64Length: basicToken.length,
+      authorization: `Basic ${basicToken}`,
+    };
+  }
+
   const username = process.env.NOMUS_USERNAME?.trim() ?? "";
   const password = process.env.NOMUS_PASSWORD?.trim() ?? "";
   if (username && password) {
     const basicToken = encodeBasicCredentials(username, password);
     return {
-      usernamePresent: true,
-      passwordPresent: true,
+      apiKeyPresent: false,
       authorizationHeaderPresent: true,
       base64Length: basicToken.length,
-      usernameReceived: username,
       authorization: `Basic ${basicToken}`,
     };
   }
   return {
-    usernamePresent: Boolean(username),
-    passwordPresent: Boolean(password),
+    apiKeyPresent: false,
     authorizationHeaderPresent: false,
     base64Length: 0,
-    usernameReceived: username || null,
     authorization: null,
   };
 }
@@ -178,11 +181,9 @@ async function directListProbe(
       return {
         label,
         baseUrlPresent,
-        usernamePresent: auth.usernamePresent,
-        passwordPresent: auth.passwordPresent,
+        apiKeyPresent: auth.apiKeyPresent,
         authorizationHeaderPresent: auth.authorizationHeaderPresent,
         base64Length: auth.base64Length,
-        usernameReceived: auth.usernameReceived,
         url,
         startedAt,
         endedAt,
@@ -191,7 +192,7 @@ async function directListProbe(
         ok: false,
         bodyRaw: null,
         tablesReceived: 0,
-        error: "NOMUS_BASE_URL ou NOMUS_USERNAME/NOMUS_PASSWORD ausente.",
+        error: "NOMUS_BASE_URL ou NOMUS_API_KEY ausente.",
       };
     }
 
@@ -199,11 +200,9 @@ async function directListProbe(
     console.info("[tabela-preco-probe] chamada direta iniciada", {
       label,
       baseUrlPresent,
-      usernamePresent: auth.usernamePresent,
-      passwordPresent: auth.passwordPresent,
+      apiKeyPresent: auth.apiKeyPresent,
       authorizationHeaderPresent: auth.authorizationHeaderPresent,
       base64Length: auth.base64Length,
-      usernameReceived: auth.usernameReceived,
       url,
       startedAt,
       timeoutMs: DIRECT_PROBE_TIMEOUT_MS,
@@ -227,11 +226,9 @@ async function directListProbe(
       const result: DirectListProbe = {
         label,
         baseUrlPresent,
-        usernamePresent: auth.usernamePresent,
-        passwordPresent: auth.passwordPresent,
+        apiKeyPresent: auth.apiKeyPresent,
         authorizationHeaderPresent: auth.authorizationHeaderPresent,
         base64Length: auth.base64Length,
-        usernameReceived: auth.usernameReceived,
         url,
         startedAt,
         endedAt,
@@ -263,11 +260,9 @@ async function directListProbe(
     const result: DirectListProbe = {
       label,
       baseUrlPresent,
-      usernamePresent: auth.usernamePresent,
-      passwordPresent: auth.passwordPresent,
+      apiKeyPresent: auth.apiKeyPresent,
       authorizationHeaderPresent: auth.authorizationHeaderPresent,
       base64Length: auth.base64Length,
-      usernameReceived: auth.usernameReceived,
       url,
       startedAt,
       endedAt,

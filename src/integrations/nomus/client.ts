@@ -35,10 +35,6 @@ function maskKey(key: string): string {
   return `******${tail}`;
 }
 
-function encodeBasicCredentials(username: string, password: string): string {
-  return Buffer.from(`${username}:${password}`, "utf8").toString("base64");
-}
-
 /** Validate and normalize NOMUS_BASE_URL. */
 export function getNomusBaseUrl(): string {
   const raw = (process.env.NOMUS_BASE_URL ?? "").trim();
@@ -74,15 +70,18 @@ export function getNomusBaseUrl(): string {
 }
 
 function getCreds() {
-  const username = process.env.NOMUS_USERNAME?.trim();
-  const password = process.env.NOMUS_PASSWORD?.trim();
-  if (!username || !password) {
-    throw new Error("NOMUS_USERNAME/NOMUS_PASSWORD não configurados nas Lovable Cloud secrets.");
+  const apiKeyRaw = process.env.NOMUS_API_KEY;
+  if (!apiKeyRaw) {
+    throw new Error("NOMUS_API_KEY não configurada nas Lovable Cloud secrets.");
+  }
+  const apiKey = apiKeyRaw.trim();
+  if (!apiKey) {
+    throw new Error("NOMUS_API_KEY está vazia após trim.");
   }
   return {
     baseUrl: getNomusBaseUrl(),
-    authValue: `Basic ${encodeBasicCredentials(username, password)}`,
-    authDebug: `Basic ${maskKey(username)}`,
+    authValue: /^basic\s+/i.test(apiKey) ? apiKey : `Basic ${apiKey}`,
+    authDebug: `Basic ${maskKey(apiKey)}`,
   };
 }
 
@@ -170,8 +169,8 @@ export async function nomusFetch<T = unknown>(
   const operation = opts.operation ?? method.toLowerCase();
   const direction = opts.direction ?? (method === "GET" ? "pull" : "push");
 
-  // Nomus exige Basic Auth; o token é sempre gerado no backend a partir de
-  // NOMUS_USERNAME/NOMUS_PASSWORD para evitar usar tokens prontos incorretos.
+  // Nomus exige header `Authorization: Basic <chave-integracao-rest>`.
+  // A chave já vem em Base64 do ERP — só anexamos o prefixo "Basic " se ainda não estiver presente.
   const headers: Record<string, string> = {
     Authorization: authValue,
     "Content-Type": "application/json",
