@@ -81,6 +81,205 @@ const toOptionalNumber = (value: unknown): number | null => {
   return Number.isFinite(n) ? n : null;
 };
 
+type PriceTableSyncError = { scope: "api" | "mapper" | "database"; message: string };
+type PriceTableMapperResult<T extends Json> = { ok: true; payload: T } | { ok: false; reason: string; raw: unknown };
+
+const extractPriceTableList = <T,>(payload: unknown): T[] => {
+  if (!payload) return [];
+  if (Array.isArray(payload)) return payload as T[];
+  const env = payload as Json;
+  for (const k of ["items", "resultados", "data", "content", "registros", "lista", "tabelasPreco"]) {
+    const v = env[k];
+    if (Array.isArray(v)) return v as T[];
+  }
+  return [];
+};
+
+const extractPriceTableItems = <T,>(payload: unknown): T[] => {
+  if (!payload) return [];
+  if (Array.isArray(payload)) return payload as T[];
+  const env = payload as Json;
+  for (const k of ["items", "resultados", "data", "content", "registros", "lista", "itens", "tabelaPrecoItens", "produtos"]) {
+    const v = env[k];
+    if (Array.isArray(v)) return v as T[];
+  }
+  return [];
+};
+
+function priceTableNomusId(raw: Json): string | null {
+  return pickStr(raw, "id", "idTabelaPreco", "codigo", "codTabelaPreco", "codigoTabelaPreco");
+}
+
+function priceTableItemProductId(raw: Json): string | null {
+  const direct = pickStr(raw, "nomus_product_id", "idProduto", "produtoId", "idProdutoServico", "codigoProduto", "codigo", "codProduto", "produtoCodigo");
+  if (direct) return direct;
+  const produto = raw.produto;
+  return produto && typeof produto === "object" ? pickStr(produto as Json, "id", "codigo", "idProduto", "codigoProduto") : null;
+}
+
+function priceTableItemUnitPrice(raw: Json): number | null {
+  return pickNum(raw, "unit_price", "precoUnitario", "precoVenda", "preco", "valor", "valorUnitario", "precoTabela", "precoCalculado", "precoUnitarioCalculado");
+}
+
+export function mapNomusPriceTableToDb(raw: unknown): PriceTableMapperResult<Json> {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return { ok: false, reason: "Tabela descartada: payload não é objeto JSON.", raw };
+  const record = raw as Json;
+  const nomusId = priceTableNomusId(record);
+  const name = pickStr(record, "nome", "name", "descricao", "description");
+  if (!nomusId) return { ok: false, reason: "Tabela descartada: sem id/codigo/idTabelaPreco.", raw };
+  if (!name) return { ok: false, reason: "Tabela descartada: sem nome/name/descricao.", raw };
+
+  return {
+    ok: true,
+    payload: {
+      nomus_id: nomusId,
+      code: pickStr(record, "codigo", "code", "codTabelaPreco", "codigoTabelaPreco"),
+      name,
+      currency: pickStr(record, "moeda", "currency") ?? "BRL",
+      is_active: pickBool(record, "ativo", "active", "isActive", "situacao") ?? true,
+      raw: record,
+      synced_at: new Date().toISOString(),
+    },
+  };
+}
+
+export function mapNomusPriceTableItemToDb(raw: unknown, priceTableId: string): PriceTableMapperResult<Json> {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return { ok: false, reason: "Item descartado: payload não é objeto JSON.", raw };
+  const record = raw as Json;
+  const productId = priceTableItemProductId(record);
+  const unitPrice = priceTableItemUnitPrice(record);
+  if (!productId) return { ok: false, reason: "Item descartado: sem idProduto/codigoProduto/codigo.", raw };
+  if (unitPrice === null) return { ok: false, reason: "Item descartado: sem preco/precoVenda/precoUnitario/valor.", raw };
+
+  return {
+    ok: true,
+    payload: {
+      price_table_id: priceTableId,
+      nomus_product_id: productId,
+      unit_price: unitPrice,
+      currency: pickStr(record, "moeda", "currency") ?? "BRL",
+      raw: record,
+      synced_at: new Date().toISOString(),
+    },
+  };
+}
+
+export const syncNomusPriceTables = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const userId = (context as { userId?: string }).userId ?? null;
+    const errors: PriceTableSyncError[] = [];
+    let tablesCount = 0;
+    let itemsCount = 0;
+
+    await setState("tabelas_preco", { running: true, last_error: null });
+
+    try {
+      const tablesResponse = await nomusFetch<unknown>(NOMUS_ENDPOINTS.tabelas_preco, {
+        method: "GET",
+        entity: "tabelas_preco",
+        operation: "sync_price_tables",
+        direction: "pull",
+        triggeredBy: userId,
+      });
+
+      if (!tablesResponse.ok) {
+        const message = `Falha ao chamar GET /tabelasPreco: ${tablesResponse.error}`;
+        errors.push({ scope: "api", message });
+        await setState("tabelas_preco", { running: false, last_error: message });
+        return { success: false as const, tables: 0, items: 0, errors, error: message };
+      }
+
+      const tables = extractPriceTableList<unknown>(tablesResponse.data);
+      for (const rawTable of tables) {
+        const mappedTable = mapNomusPriceTableToDb(rawTable);
+        if (!mappedTable.ok) {
+          errors.push({ scope: "mapper", message: mappedTable.reason });
+          continue;
+        }
+
+        const { data: tableRow, error: tableError } = await supabaseAdmin
+          .from("nomus_price_tables")
+          .upsert(mappedTable.payload as never, { onConflict: "nomus_id" })
+          .select("id")
+          .single();
+
+        if (tableError || !tableRow) {
+          errors.push({
+            scope: "database",
+            message: `Falha ao gravar nomus_price_tables (${mappedTable.payload.nomus_id}): ${tableError?.message ?? "sem retorno"}`,
+          });
+          continue;
+        }
+
+        tablesCount += 1;
+        const tableNomusId = String(mappedTable.payload.nomus_id);
+        const tableDbId = String((tableRow as { id: string }).id);
+        const itemsResponse = await nomusFetch<unknown>(
+          `${NOMUS_ENDPOINTS.tabelas_preco}/${encodeURIComponent(tableNomusId)}/itens`,
+          {
+            method: "GET",
+            entity: "tabelas_preco",
+            operation: "sync_price_table_items",
+            direction: "pull",
+            triggeredBy: userId,
+          }
+        );
+
+        if (!itemsResponse.ok) {
+          errors.push({
+            scope: "api",
+            message: `Falha ao chamar GET /tabelasPreco/${tableNomusId}/itens: ${itemsResponse.error}`,
+          });
+          continue;
+        }
+
+        for (const rawItem of extractPriceTableItems<unknown>(itemsResponse.data)) {
+          const mappedItem = mapNomusPriceTableItemToDb(rawItem, tableDbId);
+          if (!mappedItem.ok) {
+            errors.push({ scope: "mapper", message: mappedItem.reason });
+            continue;
+          }
+
+          const { error: itemError } = await supabaseAdmin
+            .from("nomus_price_table_items")
+            .upsert(mappedItem.payload as never, { onConflict: "price_table_id,nomus_product_id" });
+
+          if (itemError) {
+            errors.push({
+              scope: "database",
+              message: `Falha ao gravar nomus_price_table_items (${mappedItem.payload.nomus_product_id}): ${itemError.message}`,
+            });
+            continue;
+          }
+
+          itemsCount += 1;
+        }
+      }
+
+      const errorMessage = errors.length > 0 ? `${errors.length} erro(s) na sincronização de tabelas de preço` : null;
+      await setState("tabelas_preco", {
+        running: false,
+        last_synced_at: new Date().toISOString(),
+        total_synced: tablesCount,
+        last_error: errorMessage,
+      });
+
+      return {
+        success: errors.length === 0,
+        tables: tablesCount,
+        items: itemsCount,
+        errors,
+        error: errorMessage,
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      errors.push({ scope: "api", message });
+      await setState("tabelas_preco", { running: false, last_error: message });
+      return { success: false as const, tables: tablesCount, items: itemsCount, errors, error: message };
+    }
+  });
+
 function asSyncAction(exists: boolean): SyncAction {
   return exists ? "updated" : "inserted";
 }
