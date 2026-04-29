@@ -604,8 +604,8 @@ export const processNomusProcessSyncBatch = createServerFn({ method: "POST" })
             upserted_items: upserted,
             stages_discovered: stagesCount,
             last_error: batchScanned > 0
-              ? `${message}. Clique novamente para tentar continuar da página ${currentPage}.`
-              : `${message}. Não houve progresso neste lote; uma nova sincronização pode tentar novamente pela página 1.`,
+              ? `${message}. Clique novamente para tentar continuar do processo ${currentPage}.`
+              : `${message}. Não houve progresso neste lote; uma nova sincronização pode tentar novamente do início.`,
             finished_at: finalStatus === "failed" ? new Date().toISOString() : null,
           })
           .eq("id", job.id)
