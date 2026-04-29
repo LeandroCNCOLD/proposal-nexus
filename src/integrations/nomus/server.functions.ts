@@ -84,6 +84,14 @@ const toOptionalNumber = (value: unknown): number | null => {
 type PriceTableSyncError = { scope: "api" | "mapper" | "database"; message: string };
 type PriceTableMapperResult<T extends Json> = { ok: true; payload: T } | { ok: false; reason: string; raw: unknown };
 
+const debugJson = (value: unknown): string => {
+  try {
+    return JSON.stringify(value) ?? String(value);
+  } catch {
+    return String(value);
+  }
+};
+
 const extractPriceTableList = <T,>(payload: unknown): T[] => {
   if (!payload) return [];
   if (Array.isArray(payload)) return payload as T[];
@@ -169,6 +177,8 @@ export const syncNomusPriceTables = createServerFn({ method: "POST" })
   .handler(async ({ context }) => {
     const userId = (context as { userId?: string }).userId ?? null;
     const errors: PriceTableSyncError[] = [];
+    let tablesReceived = 0;
+    let itemsReceived = 0;
     let tablesCount = 0;
     let itemsCount = 0;
 
@@ -183,26 +193,62 @@ export const syncNomusPriceTables = createServerFn({ method: "POST" })
         triggeredBy: userId,
       });
 
+      console.info("[nomus-price-tables] GET /tabelasPreco resposta", {
+        status: tablesResponse.status,
+      });
+
       if (!tablesResponse.ok) {
         const message = `Falha ao chamar GET /tabelasPreco: ${tablesResponse.error}`;
         errors.push({ scope: "api", message });
         await setState("tabelas_preco", { running: false, last_error: message });
-        return { success: false as const, tables: 0, items: 0, errors, error: message };
+        return {
+          success: false as const,
+          tablesReceived,
+          tablesSaved: tablesCount,
+          itemsReceived,
+          itemsSaved: itemsCount,
+          errors: errors.map((e) => e.message),
+          error: message,
+        };
       }
 
       const tables = extractPriceTableList<unknown>(tablesResponse.data);
+      tablesReceived = tables.length;
+      console.info("[nomus-price-tables] GET /tabelasPreco dados", {
+        status: tablesResponse.status,
+        tablesReceived,
+        firstTable: debugJson(tables[0] ?? null),
+      });
+      if (tablesReceived === 0) {
+        console.info("Nomus retornou 0 tabelas");
+      }
+
       for (const rawTable of tables) {
         const mappedTable = mapNomusPriceTableToDb(rawTable);
         if (!mappedTable.ok) {
           errors.push({ scope: "mapper", message: mappedTable.reason });
+          console.warn("[nomus-price-tables] tabela descartada pelo mapper", {
+            reason: mappedTable.reason,
+            raw: debugJson(mappedTable.raw),
+          });
           continue;
         }
+
+        console.info("[nomus-price-tables] payload da tabela mapeada antes de salvar", {
+          payload: debugJson(mappedTable.payload),
+        });
 
         const { data: tableRow, error: tableError } = await supabaseAdmin
           .from("nomus_price_tables")
           .upsert(mappedTable.payload as never, { onConflict: "nomus_id" })
           .select("id")
           .single();
+
+        console.info("[nomus-price-tables] resultado ao salvar tabela", {
+          nomusId: mappedTable.payload.nomus_id,
+          databaseError: tableError?.message ?? null,
+          recordsSaved: tableError || !tableRow ? 0 : 1,
+        });
 
         if (tableError || !tableRow) {
           errors.push({
@@ -215,6 +261,10 @@ export const syncNomusPriceTables = createServerFn({ method: "POST" })
         tablesCount += 1;
         const tableNomusId = String(mappedTable.payload.nomus_id);
         const tableDbId = String((tableRow as { id: string }).id);
+        console.info("[nomus-price-tables] buscando itens da tabela", {
+          id: tableNomusId,
+          nome: mappedTable.payload.name,
+        });
         const itemsResponse = await nomusFetch<unknown>(
           `${NOMUS_ENDPOINTS.tabelas_preco}/${encodeURIComponent(tableNomusId)}/itens`,
           {
@@ -223,8 +273,12 @@ export const syncNomusPriceTables = createServerFn({ method: "POST" })
             operation: "sync_price_table_items",
             direction: "pull",
             triggeredBy: userId,
-          }
+          },
         );
+
+        console.info(`[nomus-price-tables] GET /tabelasPreco/${tableNomusId}/itens resposta`, {
+          status: itemsResponse.status,
+        });
 
         if (!itemsResponse.ok) {
           errors.push({
@@ -234,16 +288,47 @@ export const syncNomusPriceTables = createServerFn({ method: "POST" })
           continue;
         }
 
-        for (const rawItem of extractPriceTableItems<unknown>(itemsResponse.data)) {
+        const rawItems = extractPriceTableItems<unknown>(itemsResponse.data);
+        itemsReceived += rawItems.length;
+        console.info(`[nomus-price-tables] GET /tabelasPreco/${tableNomusId}/itens dados`, {
+          quantidadeItens: rawItems.length,
+          firstItem: debugJson(rawItems[0] ?? null),
+        });
+        if (rawItems.length === 0) {
+          console.info(`Tabela ${tableNomusId} sem itens`);
+        } else {
+          const firstMappedItem = mapNomusPriceTableItemToDb(rawItems[0], tableDbId);
+          console.info("[nomus-price-tables] payload do primeiro item mapeado antes de salvar", {
+            payload: debugJson(
+              firstMappedItem.ok
+                ? firstMappedItem.payload
+                : { mapperError: firstMappedItem.reason, raw: firstMappedItem.raw },
+            ),
+          });
+        }
+
+        for (const rawItem of rawItems) {
           const mappedItem = mapNomusPriceTableItemToDb(rawItem, tableDbId);
           if (!mappedItem.ok) {
             errors.push({ scope: "mapper", message: mappedItem.reason });
+            console.warn("[nomus-price-tables] item descartado pelo mapper", {
+              tableId: tableNomusId,
+              reason: mappedItem.reason,
+              raw: debugJson(mappedItem.raw),
+            });
             continue;
           }
 
           const { error: itemError } = await supabaseAdmin
             .from("nomus_price_table_items")
             .upsert(mappedItem.payload as never, { onConflict: "price_table_id,nomus_product_id" });
+
+          console.info("[nomus-price-tables] resultado ao salvar item", {
+            tableId: tableNomusId,
+            productId: mappedItem.payload.nomus_product_id,
+            databaseError: itemError?.message ?? null,
+            recordsSaved: itemError ? 0 : 1,
+          });
 
           if (itemError) {
             errors.push({
@@ -258,6 +343,13 @@ export const syncNomusPriceTables = createServerFn({ method: "POST" })
       }
 
       const errorMessage = errors.length > 0 ? `${errors.length} erro(s) na sincronização de tabelas de preço` : null;
+      console.info("[nomus-price-tables] resumo da sincronização", {
+        tablesReceived,
+        tablesSaved: tablesCount,
+        itemsReceived,
+        itemsSaved: itemsCount,
+        errors: errors.map((e) => e.message),
+      });
       await setState("tabelas_preco", {
         running: false,
         last_synced_at: new Date().toISOString(),
@@ -267,16 +359,33 @@ export const syncNomusPriceTables = createServerFn({ method: "POST" })
 
       return {
         success: errors.length === 0,
-        tables: tablesCount,
-        items: itemsCount,
-        errors,
+        tablesReceived,
+        tablesSaved: tablesCount,
+        itemsReceived,
+        itemsSaved: itemsCount,
+        errors: errors.map((e) => e.message),
         error: errorMessage,
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       errors.push({ scope: "api", message });
       await setState("tabelas_preco", { running: false, last_error: message });
-      return { success: false as const, tables: tablesCount, items: itemsCount, errors, error: message };
+      console.error("[nomus-price-tables] erro inesperado na sincronização", {
+        message,
+        tablesReceived,
+        tablesSaved: tablesCount,
+        itemsReceived,
+        itemsSaved: itemsCount,
+      });
+      return {
+        success: false as const,
+        tablesReceived,
+        tablesSaved: tablesCount,
+        itemsReceived,
+        itemsSaved: itemsCount,
+        errors: errors.map((e) => e.message),
+        error: message,
+      };
     }
   });
 

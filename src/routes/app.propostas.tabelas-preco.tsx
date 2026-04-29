@@ -23,9 +23,11 @@ export const Route = createFileRoute("/app/propostas/tabelas-preco")({
 
 type SyncNomusPriceTablesResult = {
   success: boolean;
-  tables: number;
-  items: number;
-  errors: Array<{ scope: "api" | "mapper" | "database"; message: string }>;
+  tablesReceived: number;
+  tablesSaved: number;
+  itemsReceived: number;
+  itemsSaved: number;
+  errors: string[];
   error: string | null;
 };
 
@@ -50,13 +52,14 @@ function PriceTablesPage() {
     setSyncing(true);
     try {
       const res = (await syncPriceTables({})) as SyncNomusPriceTablesResult;
+      const debugMessage = `Recebido: ${res.tablesReceived} tabelas / ${res.itemsReceived} itens\nGravado: ${res.tablesSaved} tabelas / ${res.itemsSaved} itens`;
       if (!res.success) {
-        toast.error(`Erro ao sincronizar com Nomus: ${res.error ?? "Falha desconhecida"}`);
+        toast.error(
+          `${debugMessage}\nErro ao sincronizar com Nomus: ${res.error ?? "Falha desconhecida"}`,
+        );
         return;
       }
-      toast.success(
-        `Sincronização concluída: ${res.tables} tabelas e ${res.items} produtos importados.`,
-      );
+      toast.success(debugMessage);
       qc.invalidateQueries({ queryKey: ["nomus_price_tables"] });
       qc.invalidateQueries({ queryKey: ["nomus_price_table_items"] });
       qc.invalidateQueries({ queryKey: ["nomus_sync_state"] });
