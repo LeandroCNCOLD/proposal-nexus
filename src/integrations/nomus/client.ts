@@ -29,10 +29,14 @@ export type NomusFetchOptions = {
 
 const DEBUG = String(process.env.NOMUS_DEBUG ?? "").toLowerCase() === "true";
 
-function maskKey(key: string): string {
-  if (!key) return "";
-  const tail = key.slice(-4);
+function maskCredential(value: string): string {
+  if (!value) return "";
+  const tail = value.slice(-4);
   return `******${tail}`;
+}
+
+function buildBasicAuth(username: string, password: string): string {
+  return Buffer.from(`${username}:${password}`, "utf-8").toString("base64");
 }
 
 /** Validate and normalize NOMUS_BASE_URL. */
@@ -48,8 +52,8 @@ export function getNomusBaseUrl(): string {
   const looksLikeCredential = !looksLikeUrl && /^[^\s/]+:[^\s/]+$/.test(raw);
   if (!looksLikeUrl || looksLikeBase64 || looksLikeCredential) {
     throw new Error(
-      `NOMUS_BASE_URL parece ser uma chave de API, não uma URL ("${raw.slice(0, 24)}..."). ` +
-      `Mova esse valor para NOMUS_API_KEY e configure NOMUS_BASE_URL com a URL REST do Nomus, ` +
+      `NOMUS_BASE_URL parece ser uma credencial, não uma URL ("${raw.slice(0, 24)}..."). ` +
+      `Configure NOMUS_BASE_URL com a URL REST do Nomus, ` +
       `ex.: https://SEU_DOMINIO.nomus.com.br/SEU_DOMINIO/rest`
     );
   }
@@ -70,15 +74,15 @@ export function getNomusBaseUrl(): string {
 }
 
 function getCreds() {
-  const apiKeyRaw = process.env.NOMUS_API_KEY;
-  if (!apiKeyRaw) {
-    throw new Error("NOMUS_API_KEY não configurada nas Lovable Cloud secrets.");
+  const username = process.env.NOMUS_USERNAME?.trim() ?? "";
+  const password = process.env.NOMUS_PASSWORD ?? "";
+  if (!username) {
+    throw new Error("NOMUS_USERNAME não configurado nas Lovable Cloud secrets.");
   }
-  const apiKey = apiKeyRaw.trim();
-  if (!apiKey) {
-    throw new Error("NOMUS_API_KEY está vazia após trim.");
+  if (!password) {
+    throw new Error("NOMUS_PASSWORD não configurado nas Lovable Cloud secrets.");
   }
-  return { baseUrl: getNomusBaseUrl(), apiKey };
+  return { baseUrl: getNomusBaseUrl(), username, authToken: buildBasicAuth(username, password) };
 }
 
 function buildQuery(query?: Record<string, string | number | undefined>) {
@@ -127,7 +131,7 @@ async function logCall(input: {
 function classifyError(status: number, body: string): string {
   switch (status) {
     case 401:
-      return "Falha de autenticação (401): chave API rejeitada pelo Nomus.";
+      return "Falha de autenticação (401): usuário/senha rejeitados pelo Nomus.";
     case 403:
       return "Acesso negado (403): chave válida mas sem permissão para este recurso.";
     case 404:
