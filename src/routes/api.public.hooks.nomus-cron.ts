@@ -318,11 +318,11 @@ function parseNomusProposalRank(raw: Record<string, unknown>) {
  * - Se a página vier vazia ou todas estiverem fora da janela de 36 meses → done.
  * - Caso contrário, avança o cursor para N+1 e termina.
  */
-export async function syncProposalsBatch(): Promise<{ ok: boolean; count?: number; error?: string; done?: boolean }> {
-  return pullProposalsNewestFirst();
+export async function syncProposalsBatch(options: { force?: boolean } = {}): Promise<{ ok: boolean; count?: number; error?: string; done?: boolean }> {
+  return pullProposalsNewestFirst(options);
 }
 
-async function pullProposalsNewestFirst(): Promise<{ ok: boolean; count?: number; error?: string; done?: boolean }> {
+async function pullProposalsNewestFirst(options: { force?: boolean } = {}): Promise<{ ok: boolean; count?: number; error?: string; done?: boolean }> {
   const endpoint = NOMUS_ENDPOINTS.propostas;
 
   const { data: stateRow } = await supabaseAdmin
@@ -333,7 +333,7 @@ async function pullProposalsNewestFirst(): Promise<{ ok: boolean; count?: number
 
   const currentState = stateRow as { running?: boolean | null; total_synced?: number | null; last_cursor?: string | null; updated_at?: string | null } | null;
   const updatedAt = currentState?.updated_at ? new Date(currentState.updated_at).getTime() : 0;
-  const alreadyRunning = !!currentState?.running && Date.now() - updatedAt < 2 * 60_000;
+  const alreadyRunning = !options.force && !!currentState?.running && Date.now() - updatedAt < 2 * 60_000;
   if (alreadyRunning) return { ok: true, count: 0, done: false };
 
   // Marca início apenas quando não há execução recente em andamento.
@@ -419,8 +419,8 @@ async function pullProposalsNewestFirst(): Promise<{ ok: boolean; count?: number
   return { ok: !runError, count, done, error: runError ?? undefined };
 }
 
-async function pullEntity(name: EntityKey): Promise<{ ok: boolean; count?: number; error?: string }> {
-  if (name === "propostas") return pullProposalsNewestFirst();
+async function pullEntity(name: EntityKey, options: { force?: boolean } = {}): Promise<{ ok: boolean; count?: number; error?: string }> {
+  if (name === "propostas") return pullProposalsNewestFirst(options);
   if (name === "processos") {
     const { syncNomusProcessesNewestFirst } = await import("@/integrations/nomus/process-sync.functions");
     return syncNomusProcessesNewestFirst(supabaseAdmin);
@@ -480,7 +480,7 @@ export const Route = createFileRoute("/api/public/hooks/nomus-cron")({
         }
 
         const results: Record<string, { ok: boolean; count?: number; error?: string }> = {};
-        for (const t of targets) results[t] = await pullEntity(t);
+        for (const t of targets) results[t] = await pullEntity(t, { force: requested === t });
 
         return new Response(JSON.stringify({ ok: true, results }), {
           status: 200, headers: { "Content-Type": "application/json" },
