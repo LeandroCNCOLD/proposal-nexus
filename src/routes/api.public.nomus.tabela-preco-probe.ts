@@ -119,6 +119,8 @@ function summarize(payload: unknown): ProbeSummary {
 type RawProbeResult = {
   baseUrlPresent: boolean;
   apiKeyPresent: boolean;
+  usernamePresent: boolean;
+  passwordPresent: boolean;
   calledUrl: string | null;
   httpStatus: number | null;
   durationMs: number;
@@ -130,7 +132,8 @@ type RawProbeResult = {
 async function fetchNomusRaw(path: string): Promise<RawProbeResult> {
   const started = Date.now();
   const baseUrlRaw = process.env.NOMUS_BASE_URL?.trim() ?? "";
-  const apiKeyRaw = process.env.NOMUS_API_KEY?.trim() ?? "";
+  const username = process.env.NOMUS_USERNAME?.trim() ?? "";
+  const password = process.env.NOMUS_PASSWORD ?? "";
   let calledUrl: string | null = null;
   let timer: ReturnType<typeof setTimeout> | null = null;
 
@@ -138,9 +141,13 @@ async function fetchNomusRaw(path: string): Promise<RawProbeResult> {
     const baseUrl = getNomusBaseUrl();
     calledUrl = `${baseUrl}${path.startsWith("/") ? path : `/${path}`}`;
 
-    if (!apiKeyRaw) {
-      throw new Error("NOMUS_API_KEY não configurada nas Lovable Cloud secrets.");
+    if (!username) {
+      throw new Error("NOMUS_USERNAME não configurado nas Lovable Cloud secrets.");
     }
+    if (!password) {
+      throw new Error("NOMUS_PASSWORD não configurado nas Lovable Cloud secrets.");
+    }
+    const authToken = Buffer.from(`${username}:${password}`, "utf-8").toString("base64");
 
     const controller = new AbortController();
     const timeout = new Promise<never>((_, reject) => {
@@ -153,7 +160,7 @@ async function fetchNomusRaw(path: string): Promise<RawProbeResult> {
       fetch(calledUrl, {
         method: "GET",
         headers: {
-          Authorization: /^basic\s+/i.test(apiKeyRaw) ? apiKeyRaw : `Basic ${apiKeyRaw}`,
+          Authorization: `Basic ${authToken}`,
           Accept: "application/json",
         },
         signal: controller.signal,
@@ -172,7 +179,9 @@ async function fetchNomusRaw(path: string): Promise<RawProbeResult> {
 
     return {
       baseUrlPresent: Boolean(baseUrlRaw),
-      apiKeyPresent: Boolean(apiKeyRaw),
+      apiKeyPresent: false,
+      usernamePresent: Boolean(username),
+      passwordPresent: Boolean(password),
       calledUrl,
       httpStatus: response.status,
       durationMs: Date.now() - started,
@@ -192,7 +201,9 @@ async function fetchNomusRaw(path: string): Promise<RawProbeResult> {
     const e = error instanceof Error ? error : new Error(String(error));
     return {
       baseUrlPresent: Boolean(baseUrlRaw),
-      apiKeyPresent: Boolean(apiKeyRaw),
+      apiKeyPresent: false,
+      usernamePresent: Boolean(username),
+      passwordPresent: Boolean(password),
       calledUrl,
       httpStatus: null,
       durationMs: Date.now() - started,
