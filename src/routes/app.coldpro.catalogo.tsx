@@ -705,6 +705,77 @@ function CatalogAlertBadges({ alerts }: { alerts: string[] }) {
   );
 }
 
+function getCatalogCode(row: ModelRowData): string {
+  const code = readCatalogText(row, CODE_ALIASES);
+  return code || row.catalog_variant_key || row.modelo || "—";
+}
+
+function getCatalogAlerts(row: ModelRowData): string[] {
+  const alerts: string[] = [];
+  if (!hasPositiveCatalogValue(readCatalogValue(row, PRICE_ALIASES))) alerts.push("Sem preço");
+  if (!hasPositiveCatalogValue(readCatalogValue(row, COST_ALIASES))) alerts.push("Sem custo");
+  return alerts;
+}
+
+function readCatalogMargin(row: ModelRowData): number | null {
+  return readCatalogValue(row, MARGIN_ALIASES);
+}
+
+function readCatalogValue(row: ModelRowData, aliases: string[]): number | null {
+  const value = readCatalogUnknown(row, aliases);
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  if (typeof value !== "string") return null;
+  const normalized = value.replace(/[^0-9,.-]/g, "").replace(/\.(?=\d{3}(\D|$))/g, "").replace(",", ".");
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function readCatalogText(row: ModelRowData, aliases: string[]): string | null {
+  const value = readCatalogUnknown(row, aliases);
+  if (value === null || value === undefined) return null;
+  const text = String(value).trim();
+  return text || null;
+}
+
+function readCatalogUnknown(row: ModelRowData, aliases: string[]): unknown {
+  const sources = [row, isPlainRecord(row.raw) ? row.raw : null].filter(Boolean) as Record<string, unknown>[];
+  const normalizedAliases = aliases.map(normalizeCatalogKey);
+  for (const source of sources) {
+    for (const [key, value] of Object.entries(source)) {
+      if (normalizedAliases.includes(normalizeCatalogKey(key))) return value;
+    }
+  }
+  return null;
+}
+
+function hasPositiveCatalogValue(value: number | null): boolean {
+  return typeof value === "number" && Number.isFinite(value) && value > 0;
+}
+
+function formatCatalogMoney(value: number | null): string {
+  if (!hasPositiveCatalogValue(value)) return "—";
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
+}
+
+function formatCatalogMargin(value: number | null): string {
+  if (value === null || !Number.isFinite(value)) return "—";
+  const margin = Math.abs(value) <= 1 ? value * 100 : value;
+  return `${margin.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
+}
+
+function formatCatalogDate(value: string | null | undefined): string {
+  if (!value) return "—";
+  return new Date(value).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" });
+}
+
+function normalizeCatalogKey(value: string): string {
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9]+/g, "").toLowerCase();
+}
+
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 function ModelRow({ m, indent, onClick }: { m: ModelRowData; indent?: boolean; onClick: () => void }) {
   const code = getCatalogCode(m);
   const price = readCatalogValue(m, PRICE_ALIASES);
