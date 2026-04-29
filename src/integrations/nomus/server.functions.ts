@@ -600,7 +600,7 @@ export const nomusSyncClients = createServerFn({ method: "POST" })
       const cursor = String((state as { last_cursor?: string | null } | null)?.last_cursor ?? "1:0");
       const [cursorPage, cursorOffset] = cursor.includes(":") ? cursor.split(":") : [cursor, "0"];
       const checkpoint = await getSyncCheckpoint("clientes");
-      const checkpointPage = Number(checkpoint?.last_page ?? 0) || 0;
+      const checkpointPage = checkpoint?.status === "running" ? Number(checkpoint?.last_page ?? 0) || 0 : 0;
       const page = Math.max(1, checkpointPage || Number(cursorPage) || 1);
       const offset = Math.max(0, Number(cursorOffset) || 0);
       const previousTotal = page === 1 && offset === 0 ? 0 : Number((state as { total_synced?: number | null } | null)?.total_synced ?? 0) || 0;
@@ -724,10 +724,11 @@ export const nomusSyncClients = createServerFn({ method: "POST" })
       }
 
       const nextOffset = offset + batch.length;
-      const done = (!res.hasMore && nextOffset >= res.items.length) || res.items.length === 0;
+      const done = (!res.hasMore && nextOffset >= res.items.length) || res.items.length === 0 || batch.length === 0;
       const nextPage = done ? null : nextOffset < res.items.length ? `${page}:${nextOffset}` : `${page + 1}:0`;
+      const checkpointNextPage = nextPage ? Number(nextPage.split(":")[0]) || page : 1;
       const lastExternalId = batch.length > 0 ? pickStr(batch[batch.length - 1], "id", "codigo", "idCliente", "idPessoa") : null;
-      await upsertSyncCheckpoint({ entityType: "clientes", syncRunId, lastPage: done ? 1 : page + 1, lastExternalId, status: done ? "completed" : "running", cursorPayload: { done, nextPage } });
+      await upsertSyncCheckpoint({ entityType: "clientes", syncRunId, lastPage: done ? 1 : checkpointNextPage, lastExternalId, status: done ? "completed" : "running", cursorPayload: { done, nextPage } });
       await setState("clientes", {
         running: false,
         last_synced_at: now,
