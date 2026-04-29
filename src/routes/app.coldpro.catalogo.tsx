@@ -671,11 +671,44 @@ type ModelRowData = {
   raw?: unknown;
 };
 
+const CODE_ALIASES = ["codigo", "código", "sku", "cod_produto", "codigo_produto", "codigoNomus", "codigo_nomus", "idProduto", "produtoId"];
+const PRICE_ALIASES = ["preco", "preço", "preco_venda", "preço_venda", "valor_venda", "unit_price", "price", "precoUnitario", "valorUnitario"];
+const COST_ALIASES = ["custo", "custo_unitario", "valor_custo", "cost", "cost_price", "preco_custo", "preço_custo", "custoUnitario"];
+const MARGIN_ALIASES = ["margem", "margin", "margem_percentual", "margem_pct", "percentual_margem", "markup"];
+
+function CatalogSummaryPill({ icon: Icon, label, value, warn }: { icon: LucideIcon; label: string; value: string; warn?: boolean }) {
+  return (
+    <div className="flex items-center gap-2 rounded-lg border bg-muted/30 px-3 py-2">
+      <Icon className={`h-4 w-4 ${warn ? "text-destructive" : "text-primary"}`} />
+      <div>
+        <div className="text-[10px] font-semibold uppercase text-muted-foreground">{label}</div>
+        <div className="text-sm font-semibold tabular-nums">{value}</div>
+      </div>
+    </div>
+  );
+}
+
+function CatalogAlertBadges({ alerts }: { alerts: string[] }) {
+  if (alerts.length === 0) {
+    return <Badge variant="outline" className="gap-1"><CheckCircle2 className="h-3 w-3" /> OK</Badge>;
+  }
+  return (
+    <div className="flex flex-wrap gap-1">
+      {alerts.map((alert) => (
+        <Badge key={alert} variant="destructive" className="gap-1 whitespace-nowrap">
+          <XCircle className="h-3 w-3" />
+          {alert}
+        </Badge>
+      ))}
+    </div>
+  );
+}
+
 function ModelRow({ m, indent, onClick }: { m: ModelRowData; indent?: boolean; onClick: () => void }) {
   const code = getCatalogCode(m);
   const price = readCatalogValue(m, PRICE_ALIASES);
   const cost = readCatalogValue(m, COST_ALIASES);
-  const margin = readCatalogMargin(m, price, cost);
+  const margin = readCatalogMargin(m);
   const alerts = getCatalogAlerts(m);
 
   return (
