@@ -1,1 +1,5 @@
-export { syncNomusPriceTables } from "./priceTableSync";
+export {
+  fetchNomusPriceTableItems,
+  fetchNomusPriceTables,
+  syncNomusPriceTables,
+} from "./nomusPriceTableService";

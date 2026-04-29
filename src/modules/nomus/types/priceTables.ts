@@ -83,9 +83,7 @@ export type NomusProductCostRaw = NomusJson & {
 
 export type SyncNomusPriceTablesResult = {
   success: boolean;
-  priceTablesImported: number;
-  itemsImported: number;
-  itemsWithoutPrice: number;
-  itemsWithoutCost: number;
+  tables: number;
+  items: number;
   errors: string[];
 };

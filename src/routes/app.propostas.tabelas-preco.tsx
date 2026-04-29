@@ -165,27 +165,31 @@ function ProposalPriceTablesPage() {
     },
   });
 
-  const syncMutation = useMutation({
-    mutationFn: () => syncFn(),
-    onSuccess: async (result) => {
-      if (!result.success) {
-        const message = result.errors[0] ?? "Erro ao sincronizar com Nomus.";
-        const notImplemented = /ainda não (configurado|implementad)/i.test(message);
-        toast.error(
-          notImplemented
-            ? "Sincronização real com Nomus ainda não implementada."
-            : `Erro ao sincronizar com Nomus: ${message}`,
-        );
-        return;
+  const invalidatePriceTableQueries = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["nomus-price-tables"] }),
+      queryClient.invalidateQueries({ queryKey: ["nomus-price-table-items"] }),
+    ]);
+  };
+
+  const handleSync = async () => {
+    const result = await syncFn();
+    if (!result.success) {
+      const message = result.errors[0] ?? "Erro ao sincronizar com Nomus.";
+      if (/autentica|authentication|401/i.test(message)) {
+        throw new Error("Erro de autenticação com Nomus");
       }
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["nomus-price-tables"] }),
-        queryClient.invalidateQueries({ queryKey: ["nomus-price-table-items"] }),
-      ]);
-      toast.success(
-        `Sincronização concluída: ${result.priceTablesImported} tabelas e ${result.itemsImported} itens importados.`,
-      );
-    },
+      throw new Error(message);
+    }
+    await invalidatePriceTableQueries();
+    toast.success(
+      `Sincronização concluída: ${result.tables} tabelas e ${result.items} produtos importados.`,
+    );
+    return result;
+  };
+
+  const syncMutation = useMutation({
+    mutationFn: handleSync,
     onError: (error) => {
       const message = error instanceof Error ? error.message : "Falha ao sincronizar com o Nomus.";
       toast.error(`Erro ao sincronizar com Nomus: ${message}`);
@@ -193,10 +197,7 @@ function ProposalPriceTablesPage() {
   });
 
   const refreshLocal = async () => {
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ["nomus-price-tables"] }),
-      queryClient.invalidateQueries({ queryKey: ["nomus-price-table-items"] }),
-    ]);
+    await invalidatePriceTableQueries();
     toast.success("Tela atualizada com dados locais.");
   };
 
