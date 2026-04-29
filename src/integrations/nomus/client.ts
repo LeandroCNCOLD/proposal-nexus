@@ -76,26 +76,13 @@ export function getNomusBaseUrl(): string {
 function getCreds() {
   const username = process.env.NOMUS_USERNAME?.trim();
   const password = process.env.NOMUS_PASSWORD?.trim();
-  if (username && password) {
-    return {
-      baseUrl: getNomusBaseUrl(),
-      authValue: `Basic ${encodeBasicCredentials(username, password)}`,
-      authDebug: `Basic ${maskKey(username)}`,
-    };
-  }
-
-  const apiKeyRaw = process.env.NOMUS_API_KEY;
-  if (!apiKeyRaw) {
+  if (!username || !password) {
     throw new Error("NOMUS_USERNAME/NOMUS_PASSWORD não configurados nas Lovable Cloud secrets.");
-  }
-  const apiKey = apiKeyRaw.trim();
-  if (!apiKey) {
-    throw new Error("NOMUS_API_KEY está vazia após trim.");
   }
   return {
     baseUrl: getNomusBaseUrl(),
-    authValue: /^basic\s+/i.test(apiKey) ? apiKey : `Basic ${apiKey}`,
-    authDebug: `Basic ${maskKey(apiKey)}`,
+    authValue: `Basic ${encodeBasicCredentials(username, password)}`,
+    authDebug: `Basic ${maskKey(username)}`,
   };
 }
 
@@ -183,8 +170,8 @@ export async function nomusFetch<T = unknown>(
   const operation = opts.operation ?? method.toLowerCase();
   const direction = opts.direction ?? (method === "GET" ? "pull" : "push");
 
-  // Nomus exige Basic Auth. Preferimos NOMUS_USERNAME/NOMUS_PASSWORD e geramos
-  // o token no backend; NOMUS_API_KEY fica só como fallback legado.
+  // Nomus exige Basic Auth; o token é sempre gerado no backend a partir de
+  // NOMUS_USERNAME/NOMUS_PASSWORD para evitar usar tokens prontos incorretos.
   const headers: Record<string, string> = {
     Authorization: authValue,
     "Content-Type": "application/json",

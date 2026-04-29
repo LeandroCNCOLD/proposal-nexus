@@ -78,8 +78,9 @@ type DirectListProbe = {
   baseUrlPresent: boolean;
   usernamePresent: boolean;
   passwordPresent: boolean;
-  legacyApiKeyPresent: boolean;
-  authMode: "username_password" | "legacy_api_key" | "missing";
+  authorizationHeaderPresent: boolean;
+  base64Length: number;
+  usernameReceived: string | null;
   url: string | null;
   startedAt: string;
   endedAt: string;
@@ -132,36 +133,30 @@ function encodeBasicCredentials(username: string, password: string): string {
 function resolveNomusAuth(): {
   usernamePresent: boolean;
   passwordPresent: boolean;
-  legacyApiKeyPresent: boolean;
-  authMode: DirectListProbe["authMode"];
+  authorizationHeaderPresent: boolean;
+  base64Length: number;
+  usernameReceived: string | null;
   authorization: string | null;
 } {
   const username = process.env.NOMUS_USERNAME?.trim() ?? "";
   const password = process.env.NOMUS_PASSWORD?.trim() ?? "";
-  const legacyApiKey = process.env.NOMUS_API_KEY?.trim() ?? "";
   if (username && password) {
+    const basicToken = encodeBasicCredentials(username, password);
     return {
       usernamePresent: true,
       passwordPresent: true,
-      legacyApiKeyPresent: Boolean(legacyApiKey),
-      authMode: "username_password",
-      authorization: `Basic ${encodeBasicCredentials(username, password)}`,
-    };
-  }
-  if (legacyApiKey) {
-    return {
-      usernamePresent: Boolean(username),
-      passwordPresent: Boolean(password),
-      legacyApiKeyPresent: true,
-      authMode: "legacy_api_key",
-      authorization: /^basic\s+/i.test(legacyApiKey) ? legacyApiKey : `Basic ${legacyApiKey}`,
+      authorizationHeaderPresent: true,
+      base64Length: basicToken.length,
+      usernameReceived: username,
+      authorization: `Basic ${basicToken}`,
     };
   }
   return {
     usernamePresent: Boolean(username),
     passwordPresent: Boolean(password),
-    legacyApiKeyPresent: false,
-    authMode: "missing",
+    authorizationHeaderPresent: false,
+    base64Length: 0,
+    usernameReceived: username || null,
     authorization: null,
   };
 }
@@ -185,8 +180,9 @@ async function directListProbe(
         baseUrlPresent,
         usernamePresent: auth.usernamePresent,
         passwordPresent: auth.passwordPresent,
-        legacyApiKeyPresent: auth.legacyApiKeyPresent,
-        authMode: auth.authMode,
+        authorizationHeaderPresent: auth.authorizationHeaderPresent,
+        base64Length: auth.base64Length,
+        usernameReceived: auth.usernameReceived,
         url,
         startedAt,
         endedAt,
@@ -205,8 +201,9 @@ async function directListProbe(
       baseUrlPresent,
       usernamePresent: auth.usernamePresent,
       passwordPresent: auth.passwordPresent,
-      legacyApiKeyPresent: auth.legacyApiKeyPresent,
-      authMode: auth.authMode,
+      authorizationHeaderPresent: auth.authorizationHeaderPresent,
+      base64Length: auth.base64Length,
+      usernameReceived: auth.usernameReceived,
       url,
       startedAt,
       timeoutMs: DIRECT_PROBE_TIMEOUT_MS,
@@ -232,8 +229,9 @@ async function directListProbe(
         baseUrlPresent,
         usernamePresent: auth.usernamePresent,
         passwordPresent: auth.passwordPresent,
-        legacyApiKeyPresent: auth.legacyApiKeyPresent,
-        authMode: auth.authMode,
+        authorizationHeaderPresent: auth.authorizationHeaderPresent,
+        base64Length: auth.base64Length,
+        usernameReceived: auth.usernameReceived,
         url,
         startedAt,
         endedAt,
@@ -267,8 +265,9 @@ async function directListProbe(
       baseUrlPresent,
       usernamePresent: auth.usernamePresent,
       passwordPresent: auth.passwordPresent,
-      legacyApiKeyPresent: auth.legacyApiKeyPresent,
-      authMode: auth.authMode,
+      authorizationHeaderPresent: auth.authorizationHeaderPresent,
+      base64Length: auth.base64Length,
+      usernameReceived: auth.usernameReceived,
       url,
       startedAt,
       endedAt,
