@@ -77,3 +77,12 @@ Critério de aceite
 - A tela diferencia “calor latente original do catálogo” de “calor latente usado/aplicado no cálculo”.
 - Câmaras, ambientes resfriados/climatizados/congelados e túneis passam a ter uma apresentação de produto coerente e comparável, respeitando a estrutura específica de cada cálculo.
 - Bloqueio visual de campo não gera trava, alarme crítico indevido ou impedimento de proposta.
+
+Diretrizes obrigatórias de arquitetura daqui em diante
+- Separar UI de regra de negócio: componentes React apenas orquestram estado, eventos e renderização.
+- Não fazer cálculos dentro de componentes React; todo cálculo deve ficar em funções puras, módulos de engine, adapters ou services.
+- Manter TypeScript estrito, sem casts desnecessários, sem `any` novo quando houver tipo de domínio claro.
+- Preservar arquitetura modular para facilitar testes, manutenção e escala.
+- Normalizar unidades em pontos explícitos de conversão: kcal/h, kJ, kW, TR, BTU/h e tempo.
+- Preferir funções puras para cálculos térmicos, sincronização e normalização de dados.
+- Não quebrar funcionalidades existentes; alterações devem ser incrementais, compatíveis e verificáveis.
