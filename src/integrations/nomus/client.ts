@@ -39,11 +39,11 @@ function buildBasicAuth(username: string, password: string): string {
   return Buffer.from(`${username}:${password}`, "utf-8").toString("base64");
 }
 
-/** Validate and normalize NOMUS_BASE_URL. */
+/** Validate and normalize NOMUS_REST_BASE_URL. */
 export function getNomusBaseUrl(): string {
-  const raw = (process.env.NOMUS_BASE_URL ?? "").trim();
+  const raw = (process.env.NOMUS_REST_BASE_URL ?? process.env.NOMUS_BASE_URL ?? "").trim();
   if (!raw) {
-    throw new Error("NOMUS_BASE_URL não configurada. Defina nas Lovable Cloud secrets.");
+    throw new Error("NOMUS_REST_BASE_URL não configurada. Defina nas Lovable Cloud secrets.");
   }
   // Defensive: detect when an API key was pasted into the URL field.
   // Heuristics: no scheme, or looks like base64 / "user:pass" credential string.
@@ -52,8 +52,8 @@ export function getNomusBaseUrl(): string {
   const looksLikeCredential = !looksLikeUrl && /^[^\s/]+:[^\s/]+$/.test(raw);
   if (!looksLikeUrl || looksLikeBase64 || looksLikeCredential) {
     throw new Error(
-      `NOMUS_BASE_URL parece ser uma credencial, não uma URL ("${raw.slice(0, 24)}..."). ` +
-      `Configure NOMUS_BASE_URL com a URL REST do Nomus, ` +
+      `NOMUS_REST_BASE_URL parece ser uma credencial, não uma URL ("${raw.slice(0, 24)}..."). ` +
+      `Configure NOMUS_REST_BASE_URL com a URL REST do Nomus, ` +
       `ex.: https://SEU_DOMINIO.nomus.com.br/SEU_DOMINIO/rest`
     );
   }
@@ -62,7 +62,7 @@ export function getNomusBaseUrl(): string {
     url = new URL(raw);
   } catch {
     throw new Error(
-      `NOMUS_BASE_URL inválida: "${raw}". Use o formato https://SEU_DOMINIO.nomus.com.br/SEU_DOMINIO/rest`
+      `NOMUS_REST_BASE_URL inválida: "${raw}". Use o formato https://SEU_DOMINIO.nomus.com.br/SEU_DOMINIO/rest`
     );
   }
   if (url.protocol !== "https:" && url.protocol !== "http:") {
@@ -74,13 +74,13 @@ export function getNomusBaseUrl(): string {
 }
 
 function getCreds() {
-  const username = process.env.NOMUS_USERNAME?.trim() ?? "";
-  const password = process.env.NOMUS_PASSWORD ?? "";
+  const username = (process.env.NOMUS_REST_USERNAME ?? process.env.NOMUS_USERNAME ?? "").trim();
+  const password = process.env.NOMUS_REST_PASSWORD ?? process.env.NOMUS_PASSWORD ?? "";
   if (!username) {
-    throw new Error("NOMUS_USERNAME não configurado nas Lovable Cloud secrets.");
+    throw new Error("NOMUS_REST_USERNAME não configurado nas Lovable Cloud secrets.");
   }
   if (!password) {
-    throw new Error("NOMUS_PASSWORD não configurado nas Lovable Cloud secrets.");
+    throw new Error("NOMUS_REST_PASSWORD não configurado nas Lovable Cloud secrets.");
   }
   return { baseUrl: getNomusBaseUrl(), username, authToken: buildBasicAuth(username, password) };
 }
@@ -169,7 +169,7 @@ export async function nomusFetch<T = unknown>(
   const operation = opts.operation ?? method.toLowerCase();
   const direction = opts.direction ?? (method === "GET" ? "pull" : "push");
 
-  // Nomus exige Basic Auth gerado dinamicamente a partir de NOMUS_USERNAME:NOMUS_PASSWORD.
+  // Nomus exige Basic Auth gerado dinamicamente a partir de NOMUS_REST_USERNAME:NOMUS_REST_PASSWORD.
   const authValue = `Basic ${authToken}`;
   const headers: Record<string, string> = {
     Authorization: authValue,
