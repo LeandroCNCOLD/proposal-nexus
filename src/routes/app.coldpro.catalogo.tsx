@@ -13,6 +13,7 @@ import {
   Loader2, ArrowLeft, History, Layers, Thermometer,
   ChevronLeft, ChevronRight, FolderTree, Download, FileCode2,
   Package, CircleDollarSign, Clock3, Search, XCircle,
+  type LucideIcon,
 } from "lucide-react";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -667,7 +668,7 @@ type ModelRowData = {
   created_at?: string | null;
   updated_at?: string | null;
   source_import_id?: string | null;
-  raw?: Record<string, unknown> | null;
+  raw?: unknown;
 };
 
 function ModelRow({ m, indent, onClick }: { m: ModelRowData; indent?: boolean; onClick: () => void }) {
