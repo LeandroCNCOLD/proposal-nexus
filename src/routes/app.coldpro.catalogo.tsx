@@ -673,3 +673,58 @@ function splitEquipmentTypes(value: string | null): string[] {
     .filter(Boolean);
   return types.length ? types : [value];
 }
+
+function toCatalogCsv(rows: ModelRowData[]): string {
+  const headers = ["Modelo", "Linha", "Designação HP", "Gabinete", "Tipo", "Degelo", "Configuração elétrica", "Pontos", "Status"];
+  const body = rows.map((row) => [
+    row.modelo ?? "",
+    row.linha ?? "",
+    row.designacao_hp ?? "",
+    row.gabinete ?? "",
+    row.tipo_gabinete ?? "",
+    row.tipo_degelo ?? "",
+    row.electrical_configuration ?? row.voltages.join(" / "),
+    String(row.point_count),
+    row.active ? "Ativo" : "Inativo",
+  ]);
+  return [headers, ...body].map((line) => line.map(escapeCsvCell).join(";")).join("\n");
+}
+
+function toCatalogXml(rows: ModelRowData[]): string {
+  const items = rows.map((row) => `  <modelo id="${escapeXml(row.id)}">
+    <nome>${escapeXml(row.modelo ?? "")}</nome>
+    <linha>${escapeXml(row.linha ?? "")}</linha>
+    <designacaoHp>${escapeXml(row.designacao_hp ?? "")}</designacaoHp>
+    <gabinete>${escapeXml(row.gabinete ?? "")}</gabinete>
+    <tipo>${escapeXml(row.tipo_gabinete ?? "")}</tipo>
+    <degelo>${escapeXml(row.tipo_degelo ?? "")}</degelo>
+    <configuracaoEletrica>${escapeXml(row.electrical_configuration ?? row.voltages.join(" / "))}</configuracaoEletrica>
+    <pontos>${row.point_count}</pontos>
+    <status>${row.active ? "Ativo" : "Inativo"}</status>
+  </modelo>`);
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<catalogoColdPro>\n${items.join("\n")}\n</catalogoColdPro>\n`;
+}
+
+function escapeCsvCell(value: string): string {
+  return `"${value.replace(/"/g, '""')}"`;
+}
+
+function escapeXml(value: string): string {
+  return value.replace(/[<>&"']/g, (char) => ({
+    "<": "&lt;",
+    ">": "&gt;",
+    "&": "&amp;",
+    '"': "&quot;",
+    "'": "&apos;",
+  })[char] ?? char);
+}
+
+function downloadTextFile(content: string, filename: string, mimeType: string): void {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
