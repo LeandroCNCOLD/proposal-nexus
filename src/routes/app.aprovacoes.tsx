@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import type { ReactNode } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { FileCheck2, UserCheck, BadgeCheck, ClipboardList } from "lucide-react";
 import { ApprovalTimeline, EmptyState } from "@/modules/proposals/components";
@@ -42,7 +43,7 @@ export const Route = createFileRoute("/app/aprovacoes")({
   ),
 });
 
-function ApprovalMetric({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+function ApprovalMetric({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
   return (
     <div className="flex items-center justify-between rounded-md border bg-secondary/20 px-3 py-2">
       <div className="flex items-center gap-2 text-sm text-muted-foreground">{icon}{label}</div>
