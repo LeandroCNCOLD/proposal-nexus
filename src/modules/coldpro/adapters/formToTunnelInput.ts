@@ -71,6 +71,8 @@ export function formToTunnelInput(form: TunnelSourceRecord, environment: TunnelS
   };
 
   return {
+    productId: optionalString(form?.product_id),
+    product_id: optionalString(form?.product_id),
     physicalModel,
     tunnelPhysicalModel: physicalModel,
     processType,

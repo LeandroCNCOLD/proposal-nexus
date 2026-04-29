@@ -100,13 +100,14 @@ const MODEL_META: Record<TunnelPhysicalModel, {
 
 function buildThermalReliabilityAlerts(input: TunnelEngineInput, energy: ReturnType<typeof calculateProductSpecificEnergy>, productLoadKW: number, massForLoad: number, timeH: number) {
   const conversions = (input?.unitConversions ?? {}) as Record<string, unknown>;
+  const isCatalogSourced = isProvided(input?.productId ?? input?.product_id);
   const alerts: Array<{ level: "error" | "warning" | "info"; code: string; message: string }> = [];
   const unitMissing = (key: string) => !conversions[key] || conversions[key] === "missing";
-  if (toNumber(input?.finalTempC) < 0 && toNumber(energy.latentEffectiveKJkg) <= 0) alerts.push({ level: "error", code: "latent_heat_zero_frozen_product", message: "Calor latente zerado em produto congelado; a carga térmica fica subestimada." });
-  if (!isProvided(input?.frozenWaterFraction)) alerts.push({ level: "warning", code: "frozen_water_fraction_missing", message: "Fração congelável vazia; foi aplicado default técnico." });
+  if (!isCatalogSourced && toNumber(input?.finalTempC) < 0 && toNumber(energy.latentEffectiveKJkg) <= 0) alerts.push({ level: "error", code: "latent_heat_zero_frozen_product", message: "Calor latente zerado em produto congelado; a carga térmica fica subestimada." });
+  if (!isCatalogSourced && !isProvided(input?.frozenWaterFraction)) alerts.push({ level: "warning", code: "frozen_water_fraction_missing", message: "Fração congelável vazia; foi aplicado default técnico." });
   if (energy.totalKcalKg > 0 && energy.totalKcalKg < 19.1) alerts.push({ level: "warning", code: "low_specific_energy", message: "Energia específica menor que 19,1 kcal/kg; revisar Cp, latente e unidades." });
-  if (energy.crossesFreezingPoint && toNumber(energy.latentEffectiveKJkg) > 0 && toNumber(energy.latentEffectiveKJkg) < 80) alerts.push({ level: "warning", code: "latent_effective_low", message: "Calor latente baixo para congelamento. Verificar base do produto." });
-  if (isProvided(input?.frozenWaterFraction) && toNumber(input?.frozenWaterFraction) < 0.4) alerts.push({ level: "warning", code: "frozen_fraction_low", message: "Fração congelável baixa. Validar origem do dado." });
+  if (!isCatalogSourced && energy.crossesFreezingPoint && toNumber(energy.latentEffectiveKJkg) > 0 && toNumber(energy.latentEffectiveKJkg) < 80) alerts.push({ level: "warning", code: "latent_effective_low", message: "Calor latente baixo para congelamento. Verificar base do produto." });
+  if (!isCatalogSourced && isProvided(input?.frozenWaterFraction) && toNumber(input?.frozenWaterFraction) < 0.4) alerts.push({ level: "warning", code: "frozen_fraction_low", message: "Fração congelável baixa. Validar origem do dado." });
   if (toNumber(input?.cpBelowKcalKgC) > 0 && toNumber(input?.cpBelowKcalKgC) < 0.12 && unitMissing("cpBelowKcalKgC")) alerts.push({ level: "warning", code: "cp_below_low_without_unit", message: "Cp abaixo menor que 0,12 kcal/kg°C sem unidade declarada." });
   if (toNumber(input?.latentHeatKcalKg) > 0 && toNumber(input?.latentHeatKcalKg) < 24 && unitMissing("latentHeatKcalKg")) alerts.push({ level: "warning", code: "latent_low_without_unit", message: "Calor latente menor que 24 kcal/kg sem unidade declarada." });
   const expectedKW = timeH > 0 ? (massForLoad * energy.totalKcalKg / timeH) / 859.845 : (massForLoad * energy.totalKcalKg) / 859.845;
