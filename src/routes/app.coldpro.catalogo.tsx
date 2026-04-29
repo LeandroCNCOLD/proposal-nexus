@@ -754,7 +754,7 @@ function hasPositiveCatalogValue(value: number | null): boolean {
 
 function formatCatalogMoney(value: number | null): string {
   if (!hasPositiveCatalogValue(value)) return "—";
-  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value as number);
 }
 
 function formatCatalogMargin(value: number | null): string {
