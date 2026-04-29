@@ -710,13 +710,14 @@ function escapeCsvCell(value: string): string {
 }
 
 function escapeXml(value: string): string {
-  return value.replace(/[<>&"']/g, (char) => ({
+  const xmlEntities: Record<string, string> = {
     "<": "&lt;",
     ">": "&gt;",
     "&": "&amp;",
     '"': "&quot;",
     "'": "&apos;",
-  })[char] ?? char);
+  };
+  return value.replace(/[<>&"']/g, (char) => xmlEntities[char] ?? char);
 }
 
 function downloadTextFile(content: string, filename: string, mimeType: string): void {
