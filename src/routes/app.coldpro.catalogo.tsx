@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState, useRef } from "react";
+import { Fragment, useState, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -12,6 +12,7 @@ import {
   Upload, FileSpreadsheet, CheckCircle2, AlertTriangle, Database,
   Loader2, ArrowLeft, History, Layers, Thermometer,
   ChevronLeft, ChevronRight, FolderTree, Download, FileCode2,
+  Package, CircleDollarSign, Clock3, Search, XCircle,
 } from "lucide-react";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -162,6 +163,10 @@ function CatalogoPage() {
   }
 
   const catalogRows = modelsQuery.data?.rows ?? [];
+  const latestSyncAt = importsQuery.data?.[0]?.created_at ?? null;
+  const productsWithoutPrice = catalogRows.filter((m) => !hasPositiveCatalogValue(readCatalogValue(m, PRICE_ALIASES))).length;
+  const productsWithoutCost = catalogRows.filter((m) => !hasPositiveCatalogValue(readCatalogValue(m, COST_ALIASES))).length;
+  const productsWithAlerts = catalogRows.filter((m) => getCatalogAlerts(m).length > 0).length;
   const filteredModels = catalogRows.filter((m) => {
     const q = search.toLowerCase().trim();
     if (!q) return true;
