@@ -53,9 +53,7 @@ function describeValue(v: unknown): unknown {
   return v;
 }
 
-function pickCandidates(
-  obj: Record<string, unknown>,
-): Array<{ key: string; value: unknown }> {
+function pickCandidates(obj: Record<string, unknown>): Array<{ key: string; value: unknown }> {
   const out: Array<{ key: string; value: unknown }> = [];
   for (const k of Object.keys(obj)) {
     const lower = k.toLowerCase();
@@ -74,6 +72,170 @@ type ProbeSummary = {
   itemSampleKeys: string[] | null;
   itemCostCandidates: Array<{ key: string; value: unknown }> | null;
 };
+
+type DirectListProbe = {
+  label: "withPagina" | "withoutPagina";
+  baseUrlPresent: boolean;
+  apiKeyPresent: boolean;
+  url: string | null;
+  startedAt: string;
+  endedAt: string;
+  durationMs: number;
+  status: number | null;
+  ok: boolean;
+  bodyRaw: string | null;
+  tablesReceived: number;
+  error: string | null;
+};
+
+const DIRECT_PROBE_TIMEOUT_MS = 60_000;
+
+function extractList(payload: unknown): unknown[] {
+  if (!payload) return [];
+  if (Array.isArray(payload)) return payload;
+  if (typeof payload !== "object") return [];
+  const obj = payload as Record<string, unknown>;
+  for (const k of [
+    "content",
+    "data",
+    "items",
+    "resultados",
+    "registros",
+    "lista",
+    "tabelasPreco",
+  ]) {
+    if (Array.isArray(obj[k])) return obj[k] as unknown[];
+  }
+  return [];
+}
+
+function normalizeBaseUrl(raw: string): string {
+  const parsed = new URL(raw);
+  return `${parsed.origin}${parsed.pathname.replace(/\/+$/, "")}`;
+}
+
+function parseBody(text: string): unknown {
+  try {
+    return text ? JSON.parse(text) : null;
+  } catch {
+    return text;
+  }
+}
+
+async function directListProbe(
+  label: DirectListProbe["label"],
+  query: string,
+): Promise<DirectListProbe> {
+  const baseUrlRaw = process.env.NOMUS_BASE_URL?.trim() ?? "";
+  const apiKeyRaw = process.env.NOMUS_API_KEY?.trim() ?? "";
+  const baseUrlPresent = Boolean(baseUrlRaw);
+  const apiKeyPresent = Boolean(apiKeyRaw);
+  const startedAt = new Date().toISOString();
+  const started = Date.now();
+  let url: string | null = null;
+
+  try {
+    if (!baseUrlPresent || !apiKeyPresent) {
+      const endedAt = new Date().toISOString();
+      return {
+        label,
+        baseUrlPresent,
+        apiKeyPresent,
+        url,
+        startedAt,
+        endedAt,
+        durationMs: Date.now() - started,
+        status: null,
+        ok: false,
+        bodyRaw: null,
+        tablesReceived: 0,
+        error: "NOMUS_BASE_URL ou NOMUS_API_KEY ausente.",
+      };
+    }
+
+    url = `${normalizeBaseUrl(baseUrlRaw)}${NOMUS_ENDPOINTS.tabelas_preco}${query}`;
+    console.info("[tabela-preco-probe] chamada direta iniciada", {
+      label,
+      baseUrlPresent,
+      apiKeyPresent,
+      url,
+      startedAt,
+      timeoutMs: DIRECT_PROBE_TIMEOUT_MS,
+    });
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), DIRECT_PROBE_TIMEOUT_MS);
+    try {
+      const response = await fetch(url, {
+        method: "GET",
+        headers: {
+          Authorization: /^basic\s+/i.test(apiKeyRaw) ? apiKeyRaw : `Basic ${apiKeyRaw}`,
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        signal: controller.signal,
+      });
+      const bodyRaw = await response.text();
+      const parsed = parseBody(bodyRaw);
+      const tablesReceived = extractList(parsed).length;
+      const endedAt = new Date().toISOString();
+      const result: DirectListProbe = {
+        label,
+        baseUrlPresent,
+        apiKeyPresent,
+        url,
+        startedAt,
+        endedAt,
+        durationMs: Date.now() - started,
+        status: response.status,
+        ok: response.ok,
+        bodyRaw,
+        tablesReceived,
+        error: response.ok ? null : `Nomus respondeu HTTP ${response.status}`,
+      };
+      console.info("[tabela-preco-probe] chamada direta finalizada", {
+        label,
+        url,
+        endedAt,
+        durationMs: result.durationMs,
+        status: result.status,
+        ok: result.ok,
+        tablesReceived,
+        bodyRaw,
+      });
+      return result;
+    } finally {
+      clearTimeout(timeout);
+    }
+  } catch (error) {
+    const endedAt = new Date().toISOString();
+    const message = error instanceof Error ? error.message : String(error);
+    const isTimeout = error instanceof Error && error.name === "AbortError";
+    const result: DirectListProbe = {
+      label,
+      baseUrlPresent,
+      apiKeyPresent,
+      url,
+      startedAt,
+      endedAt,
+      durationMs: Date.now() - started,
+      status: null,
+      ok: false,
+      bodyRaw: null,
+      tablesReceived: 0,
+      error: isTimeout ? "Timeout ao conectar no Nomus" : message,
+    };
+    console.error("[tabela-preco-probe] chamada direta falhou", {
+      label,
+      url,
+      endedAt,
+      durationMs: result.durationMs,
+      error: result.error,
+      rawError: message,
+    });
+    return result;
+  }
+}
 
 function summarize(payload: unknown): ProbeSummary {
   const empty: ProbeSummary = {
@@ -122,6 +284,10 @@ export const Route = createFileRoute("/api/public/nomus/tabela-preco-probe")({
       GET: async ({ request }) => {
         const url = new URL(request.url);
         const idsParam = url.searchParams.get("id");
+        const directConnectivity = [
+          await directListProbe("withPagina", "?pagina=1"),
+          await directListProbe("withoutPagina", ""),
+        ];
 
         let ids: string[] = [];
         let listInfo: unknown = null;
@@ -132,53 +298,21 @@ export const Route = createFileRoute("/api/public/nomus/tabela-preco-probe")({
             .map((s) => s.trim())
             .filter(Boolean);
         } else {
-          // Sem id: lista /tabelasPreco e pega os 3 primeiros.
-          const listRes = await nomusFetch<unknown>(NOMUS_ENDPOINTS.tabelas_preco, {
-            entity: "tabelas_preco",
-            operation: "list-probe",
-            direction: "test",
-            triggeredBy: null,
-          });
-          if (!listRes.ok) {
-            return new Response(
-              JSON.stringify(
-                {
-                  error: "Falha ao listar /tabelasPreco",
-                  detail: listRes.error,
-                  hint: "Verifique NOMUS_BASE_URL/NOMUS_API_KEY ou passe ?id=1,2,3 manualmente.",
-                },
-                null,
-                2,
-              ),
-              { status: 502, headers: { "Content-Type": "application/json" } },
-            );
-          }
-          // Heurística: aceita array direto ou { content: [...] } / { data: [...] }
-          const data = listRes.data as unknown;
-          let arr: unknown[] = [];
-          if (Array.isArray(data)) arr = data;
-          else if (data && typeof data === "object") {
-            const obj = data as Record<string, unknown>;
-            for (const k of ["content", "data", "items", "tabelasPreco"]) {
-              if (Array.isArray(obj[k])) {
-                arr = obj[k] as unknown[];
-                break;
-              }
-            }
-          }
+          const successfulList = directConnectivity.find((probe) => probe.ok && probe.bodyRaw);
+          const arr = successfulList?.bodyRaw ? extractList(parseBody(successfulList.bodyRaw)) : [];
           listInfo = {
             count: arr.length,
             firstKeys:
               arr[0] && typeof arr[0] === "object" && !Array.isArray(arr[0])
                 ? Object.keys(arr[0] as object).slice(0, 30)
                 : null,
+            source: successfulList?.label ?? null,
           };
           // Extrai ids dos primeiros 3 (campos comuns: id, idTabelaPreco, codigo)
           for (const item of arr.slice(0, 3)) {
             if (item && typeof item === "object") {
               const obj = item as Record<string, unknown>;
-              const id =
-                obj.id ?? obj.idTabelaPreco ?? obj.codigo ?? obj.codTabelaPreco;
+              const id = obj.id ?? obj.idTabelaPreco ?? obj.codigo ?? obj.codTabelaPreco;
               if (id !== undefined && id !== null) ids.push(String(id));
             }
           }
@@ -230,12 +364,11 @@ export const Route = createFileRoute("/api/public/nomus/tabela-preco-probe")({
           r.summary.topLevelKeys.forEach((k) => allTopKeys.add(k));
           r.summary.costCandidates.forEach((c) => allCostKeys.add(c.key));
           (r.summary.itemSampleKeys ?? []).forEach((k) => allItemKeys.add(k));
-          (r.summary.itemCostCandidates ?? []).forEach((c) =>
-            allItemCostKeys.add(c.key),
-          );
+          (r.summary.itemCostCandidates ?? []).forEach((c) => allItemCostKeys.add(c.key));
         }
 
         const body = {
+          directConnectivity,
           probedIds: ids,
           listInfo,
           unionOfTopLevelKeys: Array.from(allTopKeys).sort(),
