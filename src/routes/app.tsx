@@ -38,17 +38,18 @@ function AppLayout() {
         .data ?? [],
     enabled: !!user,
   });
+  const accessGuardLoading = loading || loadingProfile || loadingModuleAccess;
 
   React.useEffect(() => {
-    if (!loading) {
+    if (!accessGuardLoading) {
       setAuthGuardTimedOut(false);
       return;
     }
     const timer = window.setTimeout(() => setAuthGuardTimedOut(true), 6000);
     return () => window.clearTimeout(timer);
-  }, [loading]);
+  }, [accessGuardLoading]);
 
-  if ((loading || loadingProfile || loadingModuleAccess) && !authGuardTimedOut) {
+  if (accessGuardLoading && !authGuardTimedOut) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <Loader2 className="h-6 w-6 animate-spin text-primary" />

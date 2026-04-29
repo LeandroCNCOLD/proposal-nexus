@@ -39,6 +39,7 @@ import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/app/propostas/tabelas-preco")({
   component: PriceTablesPage,
+  errorComponent: () => <PriceTablesErrorFallback />,
 });
 
 type PriceTable = Database["public"]["Tables"]["nomus_price_tables"]["Row"];
@@ -186,6 +187,8 @@ function PriceTablesPage() {
   }
 
   const isLoading = priceTablesQuery.isLoading || summaryItemsQuery.isLoading;
+  const hasPageError = priceTablesQuery.isError || summaryItemsQuery.isError;
+  const hasItemsError = tableItemsQuery.isError;
 
   return (
     <div className="space-y-6 p-6">
@@ -277,7 +280,9 @@ function PriceTablesPage() {
           </div>
         </div>
 
-        {isLoading ? (
+        {hasPageError ? (
+          <PriceTablesErrorFallback />
+        ) : isLoading ? (
           <LoadingLine label="Carregando tabelas de preço..." />
         ) : filteredTables.length === 0 ? (
           <EmptyLine label="Nenhuma tabela encontrada com os filtros atuais." />
@@ -419,7 +424,9 @@ function PriceTablesPage() {
           </Select>
         </div>
 
-        {tableItemsQuery.isLoading ? (
+        {hasItemsError ? (
+          <PriceTablesErrorFallback />
+        ) : tableItemsQuery.isLoading ? (
           <LoadingLine label="Carregando produtos da tabela..." />
         ) : filteredItems.length === 0 ? (
           <EmptyLine label="Nenhum produto encontrado para a tabela e filtros selecionados." />
@@ -765,6 +772,14 @@ function AlertBadges({ alerts }: { alerts: Array<{ key: AlertFilter; label: stri
           {alert.label}
         </Badge>
       ))}
+    </div>
+  );
+}
+
+function PriceTablesErrorFallback() {
+  return (
+    <div className="flex items-center justify-center rounded-lg border border-dashed py-12 text-sm text-muted-foreground">
+      Erro ao carregar tabelas de preço.
     </div>
   );
 }
