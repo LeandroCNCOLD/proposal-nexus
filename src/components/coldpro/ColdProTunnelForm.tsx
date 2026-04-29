@@ -1032,6 +1032,7 @@ export const ColdProTunnelForm = React.forwardRef<ColdProTunnelFormHandle, ColdP
       specific_heat_below_kcal_kg_c: kcalProduct.cpBelowKcalKgC || Number(p.specific_heat_below_kcal_kg_c ?? prev.specific_heat_below_kcal_kg_c),
       latent_heat_kj_kg: p.latent_heat_kj_kg ?? null,
       latent_heat_kcal_kg: kcalProduct.latentHeatKcalKg || Number(p.latent_heat_kcal_kg ?? prev.latent_heat_kcal_kg),
+      latent_mode: kcalProduct.latentMode ?? p.latent_mode ?? "effective",
       thermal_conductivity_unfrozen_w_m_k: p.thermal_conductivity_unfrozen_w_m_k ?? null,
       thermal_conductivity_frozen_w_m_k: p.thermal_conductivity_frozen_w_m_k ?? prev.thermal_conductivity_frozen_w_m_k,
       water_content_percent: p.water_content_percent ?? null,
@@ -1122,6 +1123,8 @@ export const ColdProTunnelForm = React.forwardRef<ColdProTunnelFormHandle, ColdP
     specific_heat_above_kcal_kg_c: cpAboveKcalKgC,
     specific_heat_below_kcal_kg_c: cpBelowKcalKgC,
     latent_heat_kcal_kg: latentHeatKcalKg,
+    latent_heat_kj_kg: Number(form.latent_heat_kj_kg ?? 0) || latentHeatKcalKg * 4.1868,
+    latent_mode: catalogKcalProduct?.latentMode ?? form.latent_mode ?? "effective",
     thermal_conductivity_frozen_w_m_k: frozenConductivityWmK,
     frozen_water_fraction: frozenWaterFraction,
     mass_kg_hour: isStatic ? 0 : massHour,
@@ -1648,6 +1651,7 @@ export const ColdProTunnelForm = React.forwardRef<ColdProTunnelFormHandle, ColdP
               <ColdProCalculatedInfo label="Prévia da carga do produto" value={firstThermalLoadReady ? `${fmtColdPro(tunnelResult.productLoadKW * 860.421, 0)} kcal/h` : "Aguardando massa e tempo"} description={`${fmtColdPro(tunnelResult.productLoadKW, 2)} kW`} tone={firstThermalLoadReady ? "success" : "warning"} />
               <ColdProCalculatedInfo label="Carga térmica total prévia" value={firstThermalLoadReady ? `${fmtColdPro(tunnelResult.totalKcalH, 0)} kcal/h` : "—"} description={`${fmtColdPro(tunnelResult.totalKW, 2)} kW · ${fmtColdPro(tunnelResult.totalTR, 2)} TR`} tone={firstThermalLoadReady ? "success" : "warning"} />
               <ColdProCalculatedInfo label="Base do cálculo" value={isStatic ? `${fmtColdPro(staticMass)} kg / ${fmtColdPro(Number(form.batch_time_h ?? 0), 2)} h` : `${fmtColdPro(massHour)} kg/h`} description="produto + propriedades térmicas informadas" tone={firstThermalLoadReady ? "info" : "warning"} />
+              <ColdProCalculatedInfo label="Modo do latente" value={latentModeLabel} description={`efetivo aplicado: ${fmtColdPro(latentEffectiveKcalKg, 2)} kcal/kg`} tone="info" />
             </div>
           </ColdProFormSection>
 
