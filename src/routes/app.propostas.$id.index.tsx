@@ -3,7 +3,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { ArrowLeft, Sparkles, Loader2, Clock, FileText, Send, Download, Edit3 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -20,6 +19,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { nomusCreatePedido, sendProposalFile } from "@/integrations/nomus/server.functions";
 import { createProposalSendVersion } from "@/integrations/proposal-editor/server.functions";
 import { NomusProposalDetail } from "@/components/NomusProposalDetail";
+import { ApprovalTimeline, EmptyState, FinancialSummaryCard, LoadingState, ProposalHeader } from "@/modules/proposals/components";
 
 export const Route = createFileRoute("/app/propostas/$id/")({ component: ProposalDetail });
 
@@ -291,8 +291,8 @@ function ProposalDetail() {
     } finally { setAiLoadingTask(null); }
   };
 
-  if (isLoading) return <div className="flex items-center justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
-  if (!p) return <div className="text-muted-foreground">Proposta não encontrada.</div>;
+  if (isLoading) return <LoadingState label="Carregando proposta…" />;
+  if (!p) return <EmptyState title="Proposta não encontrada" description="A proposta solicitada não existe ou não está mais disponível." />;
 
   return (
     <>
@@ -300,9 +300,14 @@ function ProposalDetail() {
         <ArrowLeft className="mr-1.5 h-4 w-4" /> Voltar
       </Button>
 
-      <PageHeader
+      <ProposalHeader
         title={p.title}
-        subtitle={(<span className="font-mono text-xs">{p.number}</span>) as any}
+        number={p.number}
+        client={(p.clients as any)?.name ?? "Cliente não informado"}
+        status={p.status as ProposalStatus}
+        total={brl(Number(p.total_value ?? 0))}
+        margin={(p as any).margem_liquida_pct != null ? `${(p as any).margem_liquida_pct}%` : "—"}
+        date={dateBR(p.created_at)}
         actions={
           <>
             <Button
@@ -352,6 +357,17 @@ function ProposalDetail() {
               </div>
             )}
           </div>
+
+          <FinancialSummaryCard
+            metrics={[
+              { label: "Custo total", value: brl((p as any).custos_producao), tone: "neutral" },
+              { label: "Preço de venda", value: brl((p as any).valor_total_com_desconto ?? (p as any).valor_total ?? p.total_value), tone: "info" },
+              { label: "Impostos", value: brl((p as any).icms_recolher), tone: "warning" },
+              { label: "Comissão", value: brl((p as any).comissoes_venda), tone: "neutral" },
+              { label: "Margem", value: (p as any).margem_liquida_pct != null ? `${(p as any).margem_liquida_pct}%` : "—", tone: "success" },
+              { label: "Resultado final", value: brl((p as any).lucro_liquido), tone: "success" },
+            ]}
+          />
 
           {revisions.length > 1 && (
             <div className="rounded-xl border bg-card p-6 shadow-[var(--shadow-sm)]">
@@ -466,19 +482,16 @@ function ProposalDetail() {
           </TabsList>
           <TabsContent value="timeline" className="mt-4">
             {timeline.length === 0 ? (
-              <div className="py-8 text-center text-sm text-muted-foreground">Sem eventos registrados.</div>
+              <EmptyState title="Sem eventos registrados" description="Histórico e aprovações aparecerão aqui conforme o fluxo avançar." />
             ) : (
-              <ol className="relative space-y-4 border-l border-border pl-5">
-                {timeline.map((ev) => (
-                  <li key={ev.id} className="relative">
-                    <span className="absolute -left-[27px] top-1 h-3 w-3 rounded-full border-2 border-card bg-primary" />
-                    <div className="text-xs font-medium text-foreground">{ev.description ?? ev.event_type}</div>
-                    <div className="mt-0.5 flex items-center gap-2 text-[11px] text-muted-foreground">
-                      <Clock className="h-3 w-3" /> {dateTimeBR(ev.created_at)}
-                    </div>
-                  </li>
-                ))}
-              </ol>
+              <ApprovalTimeline
+                steps={timeline.map((ev) => ({
+                  id: ev.id,
+                  title: ev.description ?? ev.event_type,
+                  date: <><Clock className="mr-1 inline h-3 w-3" />{dateTimeBR(ev.created_at)}</>,
+                  tone: ev.event_type === "aprovada" ? "success" : "info",
+                }))}
+              />
             )}
           </TabsContent>
           <TabsContent value="versions" className="mt-4 space-y-3">

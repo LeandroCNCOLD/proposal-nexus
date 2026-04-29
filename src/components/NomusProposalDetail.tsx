@@ -2,9 +2,9 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { brl, num, dateBR } from "@/lib/format";
-import { Loader2 } from "lucide-react";
 import { NomusItemDetailDialog } from "@/components/NomusItemDetailDialog";
 import { ProposalTaxSummary } from "@/components/ProposalTaxSummary";
+import { EmptyState, FinancialSummaryCard, LoadingState, ProposalItemsTable } from "@/modules/proposals/components";
 
 type NomusProposalRow = {
   id: string;
@@ -112,18 +112,10 @@ export function NomusProposalDetail({
   const [openItem, setOpenItem] = useState<ItemRow | null>(null);
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-10">
-        <Loader2 className="h-5 w-5 animate-spin text-primary" />
-      </div>
-    );
+    return <LoadingState label="Carregando dados do Nomus…" />;
   }
   if (!data?.prop) {
-    return (
-      <div className="rounded-md border bg-secondary/20 p-4 text-sm text-muted-foreground">
-        Ainda não há dados detalhados sincronizados do Nomus para esta proposta.
-      </div>
-    );
+    return <EmptyState title="Dados do Nomus ainda não sincronizados" description="As informações detalhadas aparecerão aqui quando a proposta estiver sincronizada." />;
   }
 
   const p = data.prop;
@@ -185,60 +177,21 @@ export function NomusProposalDetail({
 
       {/* ============ Itens ============ */}
       <Section title={`Itens da proposta (${items.length})`}>
-        {items.length === 0 ? (
-          <div className="text-sm text-muted-foreground">Sem itens sincronizados.</div>
-        ) : (
-          <div className="overflow-x-auto rounded-md border">
-            <table className="w-full text-sm">
-              <thead className="bg-secondary/40 text-[11px] uppercase tracking-wider text-muted-foreground">
-                <tr>
-                  <th className="px-3 py-2 text-left">#</th>
-                  <th className="px-3 py-2 text-left">Código</th>
-                  <th className="px-3 py-2 text-left">Descrição</th>
-                  <th className="px-3 py-2 text-right">Qtd.</th>
-                  <th className="px-3 py-2 text-right">Valor unit.</th>
-                  <th className="px-3 py-2 text-right">Desconto</th>
-                  <th className="px-3 py-2 text-right">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((it) => (
-                  <tr
-                    key={it.id}
-                    className="border-t cursor-pointer hover:bg-secondary/30 transition-colors"
-                    onClick={() => setOpenItem(it)}
-                    title="Clique para ver detalhes completos do item (tributos, produto, JSON)"
-                  >
-                    <td className="px-3 py-2 font-mono text-xs text-muted-foreground">
-                      {String((it.position ?? 0) + 1).padStart(2, "0")}
-                    </td>
-                    <td className="px-3 py-2 font-mono text-xs">{it.product_code ?? "—"}</td>
-                    <td className="px-3 py-2">
-                      <div className="text-primary underline-offset-2 hover:underline">{it.description}</div>
-                      {it.additional_info && (
-                        <div className="mt-0.5 text-[11px] text-muted-foreground whitespace-pre-wrap">
-                          {it.additional_info}
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-3 py-2 text-right tabular-nums">
-                      {num(it.quantity, 2)}
-                    </td>
-                    <td className="px-3 py-2 text-right tabular-nums">
-                      {brl(it.unit_price)}
-                    </td>
-                    <td className="px-3 py-2 text-right tabular-nums">
-                      {it.discount ? brl(it.discount) : "—"}
-                    </td>
-                    <td className="px-3 py-2 text-right tabular-nums font-medium">
-                      {brl(it.total_with_discount ?? it.total)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <ProposalItemsTable
+          items={items.map((it) => ({
+            id: it.id,
+            position: it.position,
+            productCode: it.product_code,
+            description: it.description,
+            additionalInfo: it.additional_info,
+            quantity: it.quantity,
+            unitPrice: it.unit_price,
+            discount: it.discount,
+            total: it.total_with_discount ?? it.total,
+            status: it.item_status,
+          }))}
+          onOpenItem={(it) => setOpenItem(items.find((source) => source.id === it.id) ?? null)}
+        />
       </Section>
 
       {/* ============ Modal de detalhes do item ============ */}
@@ -312,6 +265,19 @@ export function NomusProposalDetail({
 
       {/* ============ Análise de lucro ============ */}
       <Section title="Análise de lucro (Nomus)">
+        <div className="mb-4">
+          <FinancialSummaryCard
+            title="Leitura rápida"
+            metrics={[
+              { label: "Custo total", value: brl(p.custos_producao), tone: "neutral" },
+              { label: "Preço de venda", value: brl(p.valor_total_com_desconto ?? p.valor_total), tone: "info" },
+              { label: "Impostos", value: brl(p.icms_recolher), tone: "warning" },
+              { label: "Comissão", value: brl(p.comissoes_venda), tone: "neutral" },
+              { label: "Margem", value: p.margem_liquida_pct != null ? `${num(p.margem_liquida_pct, 2)}%` : "—", tone: "success" },
+              { label: "Resultado final", value: brl(p.lucro_liquido), tone: "success" },
+            ]}
+          />
+        </div>
         <div className="overflow-hidden rounded-md border">
           <table className="w-full text-sm">
             <tbody>
