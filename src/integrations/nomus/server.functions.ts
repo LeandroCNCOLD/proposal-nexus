@@ -102,7 +102,22 @@ function stableNaturalItemId(position: number, productCode: string | null, descr
 }
 
 function pickExternalUpdatedAt(raw: Json): string | null {
-  return pickStr(raw, "updatedAt", "updated_at", "dataAlteracao", "dataModificacao", "dataHoraAlteracao", "alteradoEm");
+  const value = pickStr(raw, "updatedAt", "updated_at", "dataAlteracao", "dataModificacao", "dataHoraAlteracao", "alteradoEm");
+  return parseNomusDateTime(value);
+}
+
+function parseNomusDateTime(value: string | null): string | null {
+  if (!value) return null;
+  const text = value.trim();
+  if (!text) return null;
+  const br = text.match(/^(\d{2})\/(\d{2})\/(\d{2,4})(?:\s+(\d{2}):(\d{2})(?::(\d{2}))?)?/);
+  if (br) {
+    const [, dd, mm, yyRaw, hh = "00", mi = "00", ss = "00"] = br;
+    const yyyy = yyRaw.length === 2 ? `20${yyRaw}` : yyRaw;
+    return `${yyyy}-${mm}-${dd}T${hh}:${mi}:${ss}-03:00`;
+  }
+  const parsed = new Date(text);
+  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
 }
 
 function windowQuery(window?: SyncWindow, startDate?: string | null, endDate?: string | null) {
@@ -585,7 +600,7 @@ export const nomusSyncClients = createServerFn({ method: "POST" })
       const cursor = String((state as { last_cursor?: string | null } | null)?.last_cursor ?? "1:0");
       const [cursorPage, cursorOffset] = cursor.includes(":") ? cursor.split(":") : [cursor, "0"];
       const checkpoint = await getSyncCheckpoint("clientes");
-      const checkpointPage = Number(checkpoint?.last_page ?? 0) || 0;
+      const checkpointPage = checkpoint?.status === "running" ? Number(checkpoint?.last_page ?? 0) || 0 : 0;
       const page = Math.max(1, checkpointPage || Number(cursorPage) || 1);
       const offset = Math.max(0, Number(cursorOffset) || 0);
       const previousTotal = page === 1 && offset === 0 ? 0 : Number((state as { total_synced?: number | null } | null)?.total_synced ?? 0) || 0;
@@ -709,10 +724,11 @@ export const nomusSyncClients = createServerFn({ method: "POST" })
       }
 
       const nextOffset = offset + batch.length;
-      const done = (!res.hasMore && nextOffset >= res.items.length) || res.items.length === 0;
+      const done = (!res.hasMore && nextOffset >= res.items.length) || res.items.length === 0 || batch.length === 0;
       const nextPage = done ? null : nextOffset < res.items.length ? `${page}:${nextOffset}` : `${page + 1}:0`;
+      const checkpointNextPage = nextPage ? Number(nextPage.split(":")[0]) || page : 1;
       const lastExternalId = batch.length > 0 ? pickStr(batch[batch.length - 1], "id", "codigo", "idCliente", "idPessoa") : null;
-      await upsertSyncCheckpoint({ entityType: "clientes", syncRunId, lastPage: done ? 1 : page + 1, lastExternalId, status: done ? "completed" : "running", cursorPayload: { done, nextPage } });
+      await upsertSyncCheckpoint({ entityType: "clientes", syncRunId, lastPage: done ? 1 : checkpointNextPage, lastExternalId, status: done ? "completed" : "running", cursorPayload: { done, nextPage } });
       await setState("clientes", {
         running: false,
         last_synced_at: now,
@@ -1386,9 +1402,19 @@ export const nomusSyncAll = createServerFn({ method: "POST" })
       results[step.entity] = result.ok ? `ok:${result.count}` : `erro:${result.error}`;
       if (!result.ok) errors += 1;
     }
-    const clients = await nomusSyncClients({ data });
-    results.clientes = clients.ok ? `ok:${clients.count}` : `erro:${clients.error}`;
-    if (!clients.ok) errors += 1;
+    let clientsTotal = 0;
+    let clientsError: string | null = null;
+    for (let attempt = 0; attempt < 30; attempt += 1) {
+      const clients = await nomusSyncClients({ data });
+      if (!clients.ok) {
+        clientsError = clients.error;
+        break;
+      }
+      clientsTotal += clients.count ?? 0;
+      if (clients.done) break;
+    }
+    results.clientes = clientsError ? `erro:${clientsError}` : `ok:${clientsTotal}`;
+    if (clientsError) errors += 1;
     await upsertSyncCheckpoint({ entityType: "sync_geral", syncRunId: parentRunId, status: errors > 0 ? "failed" : "completed", cursorPayload: results });
     await finishSyncRun({ syncRunId: parentRunId, status: errors > 0 ? "partial_success" : "success", totalErrors: errors, errorMessage: errors > 0 ? "Sync geral concluída com falhas parciais." : null });
     return { ok: errors === 0, count: Object.keys(results).length, skipped: errors, unmatched: 0, results };
