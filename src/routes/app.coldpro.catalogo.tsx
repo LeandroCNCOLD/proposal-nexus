@@ -11,7 +11,7 @@ import {
 import {
   Upload, FileSpreadsheet, CheckCircle2, AlertTriangle, Database,
   Loader2, ArrowLeft, History, Layers, Thermometer,
-  ChevronLeft, ChevronRight, FolderTree,
+  ChevronLeft, ChevronRight, FolderTree, Download, FileCode2,
 } from "lucide-react";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -42,6 +42,7 @@ function CatalogoPage() {
   const [progress, setProgress] = useState<ImportProgress | null>(null);
   const [search, setSearch] = useState("");
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
+  const [exportingFormat, setExportingFormat] = useState<"csv" | "xml" | null>(null);
 
   const [pageSize, setPageSize] = useState<number>(20);
   const [page, setPage] = useState<number>(1);
@@ -189,6 +190,26 @@ function CatalogoPage() {
     }
     return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
   })();
+
+  async function handleCatalogExport(format: "csv" | "xml") {
+    if (filteredModels.length === 0) {
+      toast.warning("Nenhum modelo disponível para exportar com os filtros atuais.");
+      return;
+    }
+
+    setExportingFormat(format);
+    const toastId = toast.loading(`Preparando arquivo ${format.toUpperCase()}...`);
+    try {
+      const timestamp = new Date().toISOString().slice(0, 10);
+      const content = format === "csv" ? toCatalogCsv(filteredModels) : toCatalogXml(filteredModels);
+      downloadTextFile(content, `catalogo-coldpro-${timestamp}.${format}`, format === "csv" ? "text/csv;charset=utf-8" : "application/xml;charset=utf-8");
+      toast.success(`${format.toUpperCase()} baixado com ${filteredModels.length} modelo(s).`, { id: toastId });
+    } catch (err) {
+      toast.error(`Não foi possível baixar o ${format.toUpperCase()}.`, { id: toastId });
+    } finally {
+      setExportingFormat(null);
+    }
+  }
 
   return (
     <div className="space-y-6 p-6">
