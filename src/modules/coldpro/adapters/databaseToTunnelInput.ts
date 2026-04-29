@@ -64,6 +64,8 @@ export function databaseToTunnelInput(tunnel: TunnelSourceRecord, environment: T
   };
 
   return {
+    productId: optionalString(tunnel?.product_id),
+    product_id: optionalString(tunnel?.product_id),
     physicalModel,
     tunnelPhysicalModel: physicalModel,
     processType,

@@ -250,11 +250,12 @@ export const ColdProProductForm = React.forwardRef<ColdProProductFormHandle, Pro
               </div><div>
                 <ColdProField label="Cp acima" unit="kcal/kg·°C"><ColdProInput {...catalogThermalInput("specific_heat_above_kcal_kg_c")} value={form.specific_heat_above_kcal_kg_c ?? ""} /></ColdProField>
                 <ColdProField label="Cp abaixo" unit="kcal/kg·°C"><ColdProInput {...catalogThermalInput("specific_heat_below_kcal_kg_c")} value={form.specific_heat_below_kcal_kg_c ?? ""} /></ColdProField>
-                <ColdProField label="Calor latente convertido" unit="kcal/kg"><ColdProInput {...catalogThermalInput("latent_heat_kcal_kg")} value={form.latent_heat_kcal_kg ?? ""} /></ColdProField>
-                <ColdProField label="Calor latente original" unit="kJ/kg"><ColdProInput {...catalogThermalInput("latent_heat_kj_kg")} /></ColdProField>
+                <ColdProField label="Calor latente usado" unit="kcal/kg"><ColdProInput {...catalogThermalInput("latent_heat_kcal_kg")} value={form.latent_heat_kcal_kg ?? ""} /></ColdProField>
+                <ColdProField label="Calor latente do catálogo" unit="kJ/kg"><ColdProInput {...catalogThermalInput("latent_heat_kj_kg")} /></ColdProField>
                 <ColdProField label="Condutividade congelado"><ColdProInput {...catalogThermalInput("thermal_conductivity_frozen_w_m_k")} /></ColdProField>
                 <ColdProField label="Fração água congelável"><ColdProInput {...catalogThermalInput("frozen_water_fraction")} /></ColdProField>
               </div></div>
+              {form.product_id ? <div className="mt-3 rounded-md border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">Dados térmicos sincronizados com o cadastro técnico oficial. Campos bloqueados preservam a base de cálculo e não impedem salvar ou recalcular.</div> : null}
               {deltaT < 0 ? <ColdProValidationMessage>Temperatura final maior que a entrada. Confira se é aquecimento intencional.</ColdProValidationMessage> : null}
             </ColdProFormSection>
           </AccordionContent>

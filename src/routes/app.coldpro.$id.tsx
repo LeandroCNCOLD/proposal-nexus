@@ -72,6 +72,16 @@ function formatKw(value: unknown) {
   return toFiniteValue(value) !== null ? `${formatNumber(value, 2)} kW` : "—";
 }
 
+function productMovementSummary(product: any) {
+  const mode = String(product?.product_load_mode ?? product?.movement_basis ?? "daily_intake");
+  const daily = firstFinite(product?.daily_movement_kg, product?.mass_kg_day) ?? 0;
+  const hourly = firstFinite(product?.hourly_movement_kg, product?.mass_kg_hour) ?? 0;
+  if (mode === "storage_turnover" || product?.movement_basis === "calculated_from_stock") return `${fmt(product?.stored_mass_kg)} kg estoque · ${fmt(product?.daily_turnover_percent)}% giro · ${fmt(daily)} kg/dia · ${fmt(hourly)} kg/h`;
+  if (mode === "hourly_intake" || product?.movement_basis === "manual_hourly") return `${fmt(hourly)} kg/h direto`;
+  if (mode === "room_pull_down_or_freezing" || product?.movement_basis === "batch_recovery") return `${fmt(product?.freezing_batch_mass_kg ?? daily)} kg/lote · ${fmt(product?.freezing_batch_time_h ?? product?.recovery_time_h)} h`;
+  return `${fmt(daily)} kg/dia · ${fmt(product?.recovery_time_h ?? product?.process_time_h)} h · ${fmt(hourly)} kg/h`;
+}
+
 
 function formatCurrencyLocal(value: unknown) {
   const parsed = toFiniteValue(value);
@@ -337,9 +347,12 @@ function ColdProProjectPage() {
   const auditTunnel = result?.calculation_breakdown?.tunnel ?? result?.calculationBreakdown?.tunnel ?? tunnelPreview ?? tunnel;
   const technicalAudit = React.useMemo(() => auditColdProTechnicalConsistency({ environment: selectedEnv, result, tunnel: auditTunnel, products, advancedProcesses: [], selection }), [selectedEnv, result, auditTunnel, products, selection]);
   const environmentLoad = Number(result?.transmission_kcal_h ?? 0);
+  const tunnelPreviewProductLoad = tunnelPreview ? tunnelPreview.productLoadKW * 859.845 : 0;
+  const tunnelPreviewPackagingLoad = tunnelPreview ? tunnelPreview.packagingLoadKW * 859.845 : 0;
+  const tunnelPreviewInternalLoad = tunnelPreview ? tunnelPreview.internalLoadKW * 859.845 : 0;
   const savedProductLoad = Number(result?.product_kcal_h ?? 0) + Number(result?.packaging_kcal_h ?? 0) + Number(result?.calculation_breakdown?.respiration_kcal_h ?? 0) + Number(result?.tunnel_internal_load_kcal_h ?? 0);
   const productPreviewLoad = directProductPreviewLoad + packagingPreviewLoad;
-  const productLoad = savedProductLoad > 0 ? savedProductLoad : productPreviewLoad > 0 ? productPreviewLoad : Number(tunnelPreview?.totalKcalH ?? 0);
+  const productLoad = savedProductLoad > 0 ? savedProductLoad : productPreviewLoad > 0 ? productPreviewLoad : tunnelPreviewProductLoad + tunnelPreviewPackagingLoad + tunnelPreviewInternalLoad;
   const hasTunnelProduct = Boolean(tunnel && [tunnel.product_name, tunnel.product_id, tunnelPreview?.productLoadKW].some((value) => (typeof value === "number" ? value > 0 : String(value ?? "").trim().length > 0)));
   const extraPreview = calculateExtraLoadPreview(selectedEnv ?? {});
   const savedExtraLoad = result ? Number(result.infiltration_kcal_h ?? 0) + Number(result.people_kcal_h ?? 0) + Number(result.lighting_kcal_h ?? 0) + Number(result.motors_kcal_h ?? 0) + Number(result.fans_kcal_h ?? 0) + Number(result.defrost_kcal_h ?? 0) + Number(result.other_kcal_h ?? 0) + Number(result.calculation_breakdown?.evaporator_frost?.additional_load_kcal_h ?? 0) : 0;
@@ -822,10 +835,10 @@ function ColdProProjectPage() {
                   <ColdProSectionLoadSummary
                     title="Prévia da carga de produto"
                     rows={[
-                      { label: "Produto", value: Number(result?.product_kcal_h ?? 0) || directProductPreviewLoad || (tunnelPreview ? tunnelPreview.productLoadKW * 859.845 : 0) },
-                      { label: "Embalagem", value: Number(result?.packaging_kcal_h ?? 0) || packagingPreviewLoad || (tunnelPreview ? tunnelPreview.packagingLoadKW * 859.845 : 0) },
+                      { label: "Produto", value: Number(result?.product_kcal_h ?? 0) || directProductPreviewLoad || tunnelPreviewProductLoad },
+                      { label: "Embalagem", value: Number(result?.packaging_kcal_h ?? 0) || packagingPreviewLoad || tunnelPreviewPackagingLoad },
                       { label: "Respiração", value: result?.calculation_breakdown?.respiration_kcal_h },
-                      { label: "Túnel / processo", value: Number(result?.tunnel_internal_load_kcal_h ?? 0) || (tunnelPreview ? tunnelPreview.internalLoadKW * 859.845 : 0) },
+                      { label: "Túnel / cargas internas", value: Number(result?.tunnel_internal_load_kcal_h ?? 0) || tunnelPreviewInternalLoad },
                     ]}
                     totalLabel="Total calculado da aba Produtos"
                     total={productLoad}
@@ -840,7 +853,7 @@ function ColdProProjectPage() {
                         {products.map((p: any) => (
                           <div key={p.id} className="flex flex-wrap items-center justify-between gap-3 rounded-md border px-3 py-2 text-sm">
                             <div>
-                              <b>{p.product_name}</b> · {fmt(p.mass_kg_day)} kg/dia · entrada {p.inlet_temp_c}°C → final{" "}
+                              <b>{p.product_name}</b> · {productMovementSummary(p)} · entrada {p.inlet_temp_c}°C → final{" "}
                               {p.outlet_temp_c}°C
                             </div>
                             <div className="flex gap-2">
