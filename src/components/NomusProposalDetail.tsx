@@ -1,13 +1,12 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { brl, num, dateBR } from "@/lib/format";
 import { NomusItemDetailDialog } from "@/components/NomusItemDetailDialog";
 import { ProposalTaxSummary } from "@/components/ProposalTaxSummary";
 import { EmptyState, FinancialSummaryCard, LoadingState, ProposalItemsTable } from "@/modules/proposals/components";
 import { PriceTablePicker } from "@/features/price-table-picker/PriceTablePicker";
-import { getPriceTableItemsForProducts } from "@/features/price-table-picker/price-table-picker.functions";
+import { useItemPriceTables } from "@/features/price-table-picker/use-item-price-tables";
 
 type NomusProposalRow = {
   id: string;
