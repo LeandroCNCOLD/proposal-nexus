@@ -2041,6 +2041,25 @@ type PriceTableAuditItem = {
   equipments?: { model?: string | null; normalized_model_code?: string | null } | null;
 };
 
+type PriceTableAuditFinding = {
+  id: string;
+  productId: string;
+  productCode: string;
+  productName: string;
+  tableName: string;
+  tableCode: string | null;
+  price: number | null;
+  cost: number | null;
+  margin: number | null;
+  expectedMargin: number | null;
+  medianPrice: number | null;
+  medianCost: number | null;
+  medianMargin: number | null;
+  severity: "baixa" | "média" | "alta" | "crítica";
+  score: number;
+  reasons: string[];
+};
+
 const ALLOWED_IMPORT_ROLES = ["admin", "gerente_comercial", "diretoria", "engenharia"] as const;
 
 const firstFinite = (...values: Array<number | null | undefined>) =>
@@ -2388,7 +2407,7 @@ export const nomusAuditPriceTables = createServerFn({ method: "POST" })
       byProduct.set(productId, group);
     }
 
-    const findings: Array<Record<string, unknown>> = [];
+    const findings: PriceTableAuditFinding[] = [];
     let productsWithAlerts = 0;
     for (const [productId, productItems] of byProduct.entries()) {
       const prices = productItems.map((item) => firstFinite(item.preco_liquido, item.preco_calculado, item.unit_price)).filter((value): value is number => value != null && value > 0);
