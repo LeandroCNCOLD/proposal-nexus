@@ -14,6 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useAuth } from "@/hooks/useAuth";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
+import { dateTimeBR } from "@/lib/format";
 
 export const Route = createFileRoute("/app/clientes")({ component: ClientsPage });
 
@@ -75,7 +76,7 @@ function ClientsPage() {
 
   const { data = [] } = useQuery({
     queryKey: ["clients"],
-    queryFn: async () => (await supabase.from("clients").select("*, client_contacts(*)").order("name")).data ?? [],
+    queryFn: async () => (await supabase.from("clients").select("*, client_contacts(*)").order("created_at", { ascending: false })).data ?? [],
   });
 
   const submit = async (e: React.FormEvent) => {
@@ -167,9 +168,9 @@ function ClientsPage() {
 
       <div className="overflow-x-auto rounded-xl border bg-card shadow-[var(--shadow-sm)]">
         <Table>
-          <TableHeader><TableRow><TableHead>Nome</TableHead><TableHead>Segmento</TableHead><TableHead>Região</TableHead><TableHead>Vendedor / Rep.</TableHead><TableHead>Contato</TableHead><TableHead>WhatsApp</TableHead><TableHead>Cidade/UF</TableHead></TableRow></TableHeader>
+          <TableHeader><TableRow><TableHead>Nome</TableHead><TableHead>Cadastro</TableHead><TableHead>Segmento</TableHead><TableHead>Região</TableHead><TableHead>Vendedor / Rep.</TableHead><TableHead>Contato</TableHead><TableHead>WhatsApp</TableHead><TableHead>Cidade/UF</TableHead></TableRow></TableHeader>
           <TableBody>
-            {data.length === 0 ? <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-12">Nenhum cliente cadastrado.</TableCell></TableRow> :
+            {data.length === 0 ? <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-12">Nenhum cliente cadastrado.</TableCell></TableRow> :
               data.map((c) => {
                 const raw = clientRaw(c);
                 const contact = primaryContact(c);
@@ -192,6 +193,7 @@ function ClientsPage() {
                         {firstText(c.trade_name, raw.nomeFantasia, c.document, raw.cnpj, raw.cpf) || "Sem nome fantasia/documento"}
                       </div>
                     </TableCell>
+                    <TableCell className="min-w-[140px] text-sm whitespace-nowrap">{dateTimeBR(c.created_at)}</TableCell>
                     <TableCell className="text-sm">
                       <div>{segment || "—"}</div>
                       {firstText(raw.classificacao) && <div className="text-xs text-muted-foreground">{firstText(raw.classificacao)}</div>}
