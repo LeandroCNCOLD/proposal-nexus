@@ -146,7 +146,7 @@ export type ProposalItemTableRow = {
   status?: string | null;
 };
 
-export function ProposalItemsTable({ items, onOpenItem }: { items: ProposalItemTableRow[]; onOpenItem?: (item: ProposalItemTableRow) => void }) {
+export function ProposalItemsTable({ items, onOpenItem, showPriceTableComparison = false }: { items: ProposalItemTableRow[]; onOpenItem?: (item: ProposalItemTableRow) => void; showPriceTableComparison?: boolean }) {
   if (items.length === 0) return <EmptyState title="Sem itens sincronizados" description="Os itens aparecerão aqui quando a proposta tiver dados importados." />;
   return (
     <div className="overflow-x-auto rounded-lg border">
@@ -158,29 +158,58 @@ export function ProposalItemsTable({ items, onOpenItem }: { items: ProposalItemT
             <TableHead className="w-48">Tabela de preço</TableHead>
             <TableHead>Descrição</TableHead>
             <TableHead className="text-right">Qtd.</TableHead>
+            {showPriceTableComparison && <TableHead className="text-right">Preço tabela</TableHead>}
             <TableHead className="text-right">Venda unit.</TableHead>
+            {showPriceTableComparison && <TableHead className="text-right">Desc. concedido</TableHead>}
             <TableHead className="text-right">Desconto</TableHead>
             <TableHead className="text-right">Total</TableHead>
             <TableHead>Status</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {items.map((item) => (
-            <TableRow key={item.id} className={cn(onOpenItem && "cursor-pointer hover:bg-secondary/30")} onClick={() => onOpenItem?.(item)}>
-              <TableCell className="font-mono text-xs text-muted-foreground">{String((item.position ?? 0) + 1).padStart(2, "0")}</TableCell>
-              <TableCell className="font-mono text-xs">{item.productCode ?? "—"}</TableCell>
-              <TableCell className="text-xs font-medium">{item.priceTableName ?? "—"}</TableCell>
-              <TableCell className="min-w-72">
-                <div className="font-medium text-foreground">{item.description ?? "—"}</div>
-                {item.additionalInfo ? <div className="mt-1 whitespace-pre-wrap text-xs text-muted-foreground">{item.additionalInfo}</div> : null}
-              </TableCell>
-              <TableCell className="text-right tabular-nums">{num(item.quantity, 2)}</TableCell>
-              <TableCell className="text-right tabular-nums">{brl(item.unitPrice)}</TableCell>
-              <TableCell className="text-right tabular-nums">{item.discount ? brl(item.discount) : "—"}</TableCell>
-              <TableCell className="text-right font-semibold tabular-nums">{brl(item.total)}</TableCell>
-              <TableCell>{item.status ? <span className="rounded-full border bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">{item.status}</span> : "—"}</TableCell>
-            </TableRow>
-          ))}
+          {items.map((item) => {
+            const tablePrice = item.priceTableUnitPrice;
+            const offered = item.unitPrice;
+            const discountPct =
+              tablePrice && offered != null && tablePrice > 0
+                ? ((tablePrice - offered) / tablePrice) * 100
+                : null;
+            return (
+              <TableRow key={item.id} className={cn(onOpenItem && "cursor-pointer hover:bg-secondary/30")} onClick={() => onOpenItem?.(item)}>
+                <TableCell className="font-mono text-xs text-muted-foreground">{String((item.position ?? 0) + 1).padStart(2, "0")}</TableCell>
+                <TableCell className="font-mono text-xs">{item.productCode ?? "—"}</TableCell>
+                <TableCell className="text-xs font-medium">{item.priceTableName ?? "—"}</TableCell>
+                <TableCell className="min-w-72">
+                  <div className="font-medium text-foreground">{item.description ?? "—"}</div>
+                  {item.additionalInfo ? <div className="mt-1 whitespace-pre-wrap text-xs text-muted-foreground">{item.additionalInfo}</div> : null}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">{num(item.quantity, 2)}</TableCell>
+                {showPriceTableComparison && (
+                  <TableCell className="text-right tabular-nums text-muted-foreground">
+                    {tablePrice != null ? brl(tablePrice) : "—"}
+                  </TableCell>
+                )}
+                <TableCell className="text-right tabular-nums">{brl(offered)}</TableCell>
+                {showPriceTableComparison && (
+                  <TableCell className="text-right tabular-nums">
+                    {discountPct == null ? (
+                      "—"
+                    ) : (
+                      <span className={cn(
+                        "rounded px-1.5 py-0.5 text-[11px] font-medium",
+                        discountPct > 0 ? "bg-amber-100 text-amber-800" : discountPct < 0 ? "bg-emerald-100 text-emerald-800" : "text-muted-foreground"
+                      )}>
+                        {discountPct > 0 ? "-" : discountPct < 0 ? "+" : ""}{Math.abs(discountPct).toFixed(2)}%
+                      </span>
+                    )}
+                  </TableCell>
+                )}
+                <TableCell className="text-right tabular-nums">{item.discount ? brl(item.discount) : "—"}</TableCell>
+                <TableCell className="text-right font-semibold tabular-nums">{brl(item.total)}</TableCell>
+                <TableCell>{item.status ? <span className="rounded-full border bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">{item.status}</span> : "—"}</TableCell>
+              </TableRow>
+            );
+          })}
         </TableBody>
       </Table>
     </div>
