@@ -112,6 +112,35 @@ type AuditResult = {
 type AuditAiMessage = { id: string; role: "user" | "assistant"; content: string; created_at: string };
 
 const LOW_MARGIN_THRESHOLD = 15;
+const ALL_UFS = [
+  "AC",
+  "AL",
+  "AP",
+  "AM",
+  "BA",
+  "CE",
+  "DF",
+  "ES",
+  "GO",
+  "MA",
+  "MT",
+  "MS",
+  "MG",
+  "PA",
+  "PB",
+  "PR",
+  "PE",
+  "PI",
+  "RJ",
+  "RN",
+  "RS",
+  "RO",
+  "RR",
+  "SC",
+  "SP",
+  "SE",
+  "TO",
+] as const;
 
 function PriceTablesPage() {
   const queryClient = useQueryClient();
