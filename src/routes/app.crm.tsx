@@ -64,12 +64,15 @@ function CrmPage() {
   const saveFunnels = useServerFn(setUserFunnels);
   const fetchFunnel = useServerFn(getFunnelData);
   const createProcess = useServerFn(createNomusProcess);
+  const fetchCounts = useServerFn(getNomusProcessCounts);
 
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState<string>(DEFAULT_FUNNEL);
   const [funnelDrawerOpen, setFunnelDrawerOpen] = useState(false);
   const [newProcessOpen, setNewProcessOpen] = useState(false);
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const syncCancelRef = useRef(false);
 
   const { data: typesData } = useQuery({
     queryKey: ["crm", "available-types"],
