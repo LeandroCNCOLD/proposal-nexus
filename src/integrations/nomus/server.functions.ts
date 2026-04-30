@@ -2561,7 +2561,7 @@ export const nomusAskPriceAuditAi = createServerFn({ method: "POST" })
 
     if (sessionId) {
       const { data: session, error } = await supabaseAdmin
-        .from("nomus_price_audit_ai_sessions")
+        .from("nomus_price_audit_ai_sessions" as never)
         .select("id, report_markdown")
         .eq("id", sessionId)
         .eq("user_id", userId)
@@ -2573,8 +2573,8 @@ export const nomusAskPriceAuditAi = createServerFn({ method: "POST" })
 
     if (!sessionId) {
       const { data: created, error } = await supabaseAdmin
-        .from("nomus_price_audit_ai_sessions")
-        .insert({ user_id: userId, audit_snapshot: compactAuditForAi(data.auditResult) as never })
+        .from("nomus_price_audit_ai_sessions" as never)
+        .insert({ user_id: userId, audit_snapshot: compactAuditForAi(data.auditResult) } as never)
         .select("id, report_markdown")
         .single();
       if (error || !created) throw new Error(`Falha ao criar sessão da IA: ${error?.message ?? "sem retorno"}`);
@@ -2583,14 +2583,14 @@ export const nomusAskPriceAuditAi = createServerFn({ method: "POST" })
     }
 
     const { data: history } = await supabaseAdmin
-      .from("nomus_price_audit_ai_messages")
+      .from("nomus_price_audit_ai_messages" as never)
       .select("role, content, created_at")
       .eq("session_id", sessionId)
       .eq("user_id", userId)
       .order("created_at", { ascending: true })
       .limit(24);
 
-    await supabaseAdmin.from("nomus_price_audit_ai_messages").insert({ session_id: sessionId, user_id: userId, role: "user", content: data.question });
+    await supabaseAdmin.from("nomus_price_audit_ai_messages" as never).insert({ session_id: sessionId, user_id: userId, role: "user", content: data.question } as never);
 
     const apiKey = process.env.LOVABLE_API_KEY;
     if (!apiKey) throw new Error("Lovable AI não está configurada.");
@@ -2621,11 +2621,11 @@ export const nomusAskPriceAuditAi = createServerFn({ method: "POST" })
     const rawAnswer = payload.choices?.[0]?.message?.content ?? "";
     const parsed = parseAiReport(rawAnswer, currentReport);
 
-    await supabaseAdmin.from("nomus_price_audit_ai_messages").insert({ session_id: sessionId, user_id: userId, role: "assistant", content: parsed.answer });
-    await supabaseAdmin.from("nomus_price_audit_ai_sessions").update({ report_markdown: parsed.reportMarkdown, audit_snapshot: compactAuditForAi(data.auditResult) as never, last_question: data.question, last_response: parsed.answer }).eq("id", sessionId).eq("user_id", userId);
+    await supabaseAdmin.from("nomus_price_audit_ai_messages" as never).insert({ session_id: sessionId, user_id: userId, role: "assistant", content: parsed.answer } as never);
+    await supabaseAdmin.from("nomus_price_audit_ai_sessions" as never).update({ report_markdown: parsed.reportMarkdown, audit_snapshot: compactAuditForAi(data.auditResult), last_question: data.question, last_response: parsed.answer } as never).eq("id", sessionId).eq("user_id", userId);
 
     const { data: messages } = await supabaseAdmin
-      .from("nomus_price_audit_ai_messages")
+      .from("nomus_price_audit_ai_messages" as never)
       .select("id, role, content, created_at")
       .eq("session_id", sessionId)
       .eq("user_id", userId)
