@@ -1,10 +1,13 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { brl, num, dateBR } from "@/lib/format";
 import { NomusItemDetailDialog } from "@/components/NomusItemDetailDialog";
 import { ProposalTaxSummary } from "@/components/ProposalTaxSummary";
 import { EmptyState, FinancialSummaryCard, LoadingState, ProposalItemsTable } from "@/modules/proposals/components";
+import { PriceTablePicker } from "@/features/price-table-picker/PriceTablePicker";
+import { getPriceTableItemsForProducts } from "@/features/price-table-picker/price-table-picker.functions";
 
 type NomusProposalRow = {
   id: string;
@@ -88,10 +91,16 @@ export function NomusProposalDetail({
   nomusProposalId,
   localContact,
   localClient,
+  localProposalId,
+  selectedPriceTableId,
 }: {
   nomusProposalId: string;
   localContact?: { name?: string; email?: string; phone?: string; role?: string } | null;
   localClient?: { name?: string; document?: string; city?: string; state?: string } | null;
+  /** ID da proposta local (public.proposals.id) — necessário para salvar a tabela escolhida. */
+  localProposalId?: string;
+  /** Tabela de preço já escolhida (proposals.price_table_id). */
+  selectedPriceTableId?: string | null;
 }) {
   const { data, isLoading } = useQuery({
     queryKey: ["nomus-proposal-full", nomusProposalId],
@@ -124,6 +133,28 @@ export function NomusProposalDetail({
   const p = data.prop;
   const items = data.items;
 
+  // Busca preços da tabela escolhida para comparar com o preço ofertado
+  const fetchPrices = useServerFn(getPriceTableItemsForProducts);
+  const productIds = useMemo(
+    () => items.map((it) => it.nomus_product_id).filter((x): x is string => !!x),
+    [items],
+  );
+  const { data: priceLookup } = useQuery({
+    queryKey: ["price-table-lookup", selectedPriceTableId, productIds],
+    enabled: !!selectedPriceTableId && productIds.length > 0,
+    queryFn: async () => {
+      const res = await fetchPrices({
+        data: { priceTableId: selectedPriceTableId!, nomusProductIds: productIds },
+      });
+      const map = new Map<string, number | null>();
+      for (const r of res.items) {
+        // Usa unit_price (preço bruto da tabela) como referência de "preço de tabela"
+        map.set(r.nomusProductId, r.unitPrice ?? r.precoLiquido);
+      }
+      return map;
+    },
+  });
+
   return (
     <div className="space-y-6">
       {/* ============ Informações gerais Nomus ============ */}
@@ -152,7 +183,20 @@ export function NomusProposalDetail({
           />
           <Field label="Vendedor" value={p.vendedor_nome} />
           <Field label="Representante" value={p.representante_nome} />
-          <Field label="Tabela de preço" value={p.tabela_preco_nome} />
+          <Field
+            label="Tabela de preço"
+            value={
+              localProposalId ? (
+                <PriceTablePicker
+                  proposalId={localProposalId}
+                  clientUf={localClient?.state ?? null}
+                  selectedPriceTableId={selectedPriceTableId ?? null}
+                />
+              ) : (
+                p.tabela_preco_nome
+              )
+            }
+          />
           <Field label="Condição de pagamento" value={p.condicao_pagamento_nome} />
           <Field label="Tipo de movimentação" value={p.tipo_movimentacao} />
           <Field
@@ -181,6 +225,7 @@ export function NomusProposalDetail({
       {/* ============ Itens ============ */}
       <Section title={`Itens da proposta (${items.length})`}>
         <ProposalItemsTable
+          showPriceTableComparison={!!selectedPriceTableId}
           items={items.map((it) => ({
             id: it.id,
             position: it.position,
@@ -190,6 +235,9 @@ export function NomusProposalDetail({
             additionalInfo: it.additional_info,
             quantity: it.quantity,
             unitPrice: it.unit_price,
+            priceTableUnitPrice: it.nomus_product_id
+              ? priceLookup?.get(it.nomus_product_id) ?? null
+              : null,
             discount: it.discount,
             total: it.total_with_discount ?? it.total,
             status: it.item_status,

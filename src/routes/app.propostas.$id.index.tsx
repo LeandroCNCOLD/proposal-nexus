@@ -460,6 +460,8 @@ function ProposalDetail() {
           {p.nomus_proposal_id && (
             <NomusProposalDetail
               nomusProposalId={p.nomus_proposal_id}
+              localProposalId={p.id}
+              selectedPriceTableId={(p as any).price_table_id ?? null}
               localContact={(p.client_contacts as { name?: string; email?: string; phone?: string; role?: string } | null) ?? null}
               localClient={(p.clients as { name?: string; document?: string; city?: string; state?: string } | null) ?? null}
             />
