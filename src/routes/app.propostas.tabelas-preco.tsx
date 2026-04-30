@@ -4,6 +4,7 @@ import { useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
+  BrainCircuit,
   CheckCircle2,
   CloudCog,
   Download,
@@ -37,6 +38,7 @@ import {
 } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
 import {
+  nomusAuditPriceTables,
   nomusImportPriceTableCsv,
   nomusSyncPriceTables,
 } from "@/integrations/nomus/server.functions";
@@ -59,6 +61,36 @@ type EquipmentPreview = {
 type PriceTableItemView = PriceTableItem & { equipments?: EquipmentPreview };
 type AlertFilter = "all" | "sem_preco" | "sem_custo" | "margem_negativa" | "margem_baixa";
 type StatusFilter = "all" | "active" | "inactive" | "synced" | "pending";
+type AuditSeverity = "all" | "crítica" | "alta" | "média" | "baixa";
+type AuditFinding = {
+  id: string;
+  productId: string;
+  productCode: string;
+  productName: string;
+  tableName: string;
+  tableCode: string | null;
+  price: number | null;
+  cost: number | null;
+  margin: number | null;
+  expectedMargin: number | null;
+  medianPrice: number | null;
+  medianCost: number | null;
+  medianMargin: number | null;
+  severity: Exclude<AuditSeverity, "all">;
+  score: number;
+  reasons: string[];
+};
+type AuditResult = {
+  ok: true;
+  analyzedTables: number;
+  analyzedItems: number;
+  analyzedProducts: number;
+  productsWithAlerts: number;
+  findingsCount: number;
+  criticalCount: number;
+  highCount: number;
+  findings: AuditFinding[];
+};
 
 const LOW_MARGIN_THRESHOLD = 15;
 
@@ -66,6 +98,7 @@ function PriceTablesPage() {
   const queryClient = useQueryClient();
   const syncPriceTables = useServerFn(nomusSyncPriceTables);
   const importPriceTableCsv = useServerFn(nomusImportPriceTableCsv);
+  const auditPriceTables = useServerFn(nomusAuditPriceTables);
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const [selectedTableId, setSelectedTableId] = useState<string>("all");
   const [openedTableId, setOpenedTableId] = useState<string | null>(null);
@@ -74,6 +107,10 @@ function PriceTablesPage() {
   const [productSearch, setProductSearch] = useState("");
   const [syncing, setSyncing] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [auditing, setAuditing] = useState(false);
+  const [auditResult, setAuditResult] = useState<AuditResult | null>(null);
+  const [auditSeverity, setAuditSeverity] = useState<AuditSeverity>("all");
+  const [auditSearch, setAuditSearch] = useState("");
   const [exporting, setExporting] = useState<"csv" | "xml" | null>(null);
 
   const priceTablesQuery = useQuery({
