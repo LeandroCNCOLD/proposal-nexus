@@ -88,10 +88,16 @@ export function NomusProposalDetail({
   nomusProposalId,
   localContact,
   localClient,
+  localProposalId,
+  selectedPriceTableId,
 }: {
   nomusProposalId: string;
   localContact?: { name?: string; email?: string; phone?: string; role?: string } | null;
   localClient?: { name?: string; document?: string; city?: string; state?: string } | null;
+  /** ID da proposta local (public.proposals.id) — necessário para salvar a tabela escolhida. */
+  localProposalId?: string;
+  /** Tabela de preço já escolhida (proposals.price_table_id). */
+  selectedPriceTableId?: string | null;
 }) {
   const { data, isLoading } = useQuery({
     queryKey: ["nomus-proposal-full", nomusProposalId],
