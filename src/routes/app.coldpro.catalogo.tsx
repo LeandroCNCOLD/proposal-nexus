@@ -673,6 +673,15 @@ type ModelRowData = {
   raw?: unknown;
 };
 
+type CatalogExportData = {
+  models: Record<string, unknown>[];
+  compressors: Record<string, unknown>[];
+  condensers: Record<string, unknown>[];
+  evaporators: Record<string, unknown>[];
+  performancePoints: Record<string, unknown>[];
+  refrigerants: Record<string, unknown>[];
+};
+
 const CODE_ALIASES = ["codigo", "código", "sku", "cod_produto", "codigo_produto", "codigoNomus", "codigo_nomus", "idProduto", "produtoId"];
 const PRICE_ALIASES = ["preco", "preço", "preco_venda", "preço_venda", "valor_venda", "unit_price", "price", "precoUnitario", "valorUnitario"];
 const COST_ALIASES = ["custo", "custo_unitario", "valor_custo", "cost", "cost_price", "preco_custo", "preço_custo", "custoUnitario"];
