@@ -5893,6 +5893,8 @@ export type Database = {
           price_table_match_method: string | null
           price_table_name: string | null
           price_table_nomus_id: string | null
+          price_table_selected_at: string | null
+          price_table_unit_price: number | null
           proposal_id: string
           quantity: number
           sync_error_code: string | null
@@ -5923,6 +5925,8 @@ export type Database = {
           price_table_match_method?: string | null
           price_table_name?: string | null
           price_table_nomus_id?: string | null
+          price_table_selected_at?: string | null
+          price_table_unit_price?: number | null
           proposal_id: string
           quantity?: number
           sync_error_code?: string | null
@@ -5953,6 +5957,8 @@ export type Database = {
           price_table_match_method?: string | null
           price_table_name?: string | null
           price_table_nomus_id?: string | null
+          price_table_selected_at?: string | null
+          price_table_unit_price?: number | null
           proposal_id?: string
           quantity?: number
           sync_error_code?: string | null
