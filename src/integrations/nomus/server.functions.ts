@@ -1411,10 +1411,22 @@ export const nomusSyncProposalsFull = createServerFn({ method: "POST" })
             const it = items[idx];
             const naturalItemId = it.nomus_item_id
               ?? stableNaturalItemId(idx, it.product_code, it.description);
+            const priceTable = await resolveProposalItemPriceTable({
+              itemTableNomusId: it.price_table_nomus_id,
+              itemTableName: it.price_table_name,
+              proposalTableNomusId: mapped.tabela_preco_nomus_id,
+              proposalTableName: mapped.tabela_preco_nome,
+              productNomusId: it.nomus_product_id,
+              unitPrice: it.unit_price,
+            });
             const itemPayload = {
               nomus_proposal_id: mirrorId,
               nomus_item_id: naturalItemId,
               nomus_product_id: it.nomus_product_id,
+              price_table_id: priceTable.id,
+              price_table_nomus_id: priceTable.nomusId,
+              price_table_name: priceTable.name,
+              price_table_match_method: priceTable.matchMethod,
               product_code: it.product_code,
               description: it.description,
               quantity: it.quantity,
@@ -1430,6 +1442,10 @@ export const nomusSyncProposalsFull = createServerFn({ method: "POST" })
                 nomus_proposal_id: mirrorId,
                 nomus_item_id: naturalItemId,
                 nomus_product_id: it.nomus_product_id,
+                price_table_id: priceTable.id,
+                price_table_nomus_id: priceTable.nomusId,
+                price_table_name: priceTable.name,
+                price_table_match_method: priceTable.matchMethod,
                 product_code: it.product_code,
                 description: it.description,
                 quantity: it.quantity,
