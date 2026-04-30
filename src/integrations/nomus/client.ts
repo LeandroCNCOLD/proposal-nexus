@@ -39,6 +39,11 @@ function buildBasicAuth(username: string, password: string): string {
   return Buffer.from(`${username}:${password}`, "utf-8").toString("base64");
 }
 
+function getPreEncodedRestKey(): string | null {
+  const key = (process.env.NOMUS_API_KEY ?? "").trim();
+  return key || null;
+}
+
 /** Validate and normalize NOMUS_REST_BASE_URL. */
 export function getNomusBaseUrl(): string {
   const raw = (process.env.NOMUS_REST_BASE_URL ?? process.env.NOMUS_BASE_URL ?? "").trim();
@@ -74,6 +79,10 @@ export function getNomusBaseUrl(): string {
 }
 
 function getCreds() {
+  const preEncodedKey = getPreEncodedRestKey();
+  if (preEncodedKey) {
+    return { baseUrl: getNomusBaseUrl(), username: "NOMUS_API_KEY", authToken: preEncodedKey };
+  }
   const username = (process.env.NOMUS_REST_USERNAME ?? process.env.NOMUS_USERNAME ?? "").trim();
   const password = process.env.NOMUS_REST_PASSWORD ?? process.env.NOMUS_PASSWORD ?? "";
   if (!username) {
