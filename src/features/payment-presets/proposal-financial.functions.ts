@@ -88,7 +88,7 @@ export const saveProposalFinancial = createServerFn({ method: "POST" })
       factorPct: result.factorPct,
       totalInstallments: result.totalInstallments,
       computedAt: new Date().toISOString(),
-    } as Record<string, unknown>;
+    } as unknown as Record<string, never>;
 
     const { error: upErr } = await supabaseAdmin
       .from("proposals")
