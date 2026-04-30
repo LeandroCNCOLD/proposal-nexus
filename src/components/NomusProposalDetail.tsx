@@ -72,6 +72,9 @@ type ItemRow = {
   quantity: number | null;
   unit_price: number | null;
   unit_value_with_unit: string | null;
+  price_table_name: string | null;
+  price_table_nomus_id: string | null;
+  price_table_match_method: string | null;
   discount: number | null;
   total: number | null;
   total_with_discount: number | null;
@@ -182,6 +185,7 @@ export function NomusProposalDetail({
             id: it.id,
             position: it.position,
             productCode: it.product_code,
+            priceTableName: it.price_table_name,
             description: it.description,
             additionalInfo: it.additional_info,
             quantity: it.quantity,
