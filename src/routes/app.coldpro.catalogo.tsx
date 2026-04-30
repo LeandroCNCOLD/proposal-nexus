@@ -198,20 +198,21 @@ function CatalogoPage() {
   })();
 
   async function handleCatalogExport(format: "csv" | "xml") {
-    if (filteredModels.length === 0) {
-      toast.warning("Nenhum modelo disponível para exportar com os filtros atuais.");
+    if (catalogRows.length === 0) {
+      toast.warning("Nenhum produto disponível para exportar.");
       return;
     }
 
     setExportingFormat(format);
-    const toastId = toast.loading(`Preparando arquivo ${format.toUpperCase()}...`);
+    const toastId = toast.loading(`Preparando catálogo completo em ${format.toUpperCase()}...`);
     try {
       const timestamp = new Date().toISOString().slice(0, 10);
-      const content = format === "csv" ? toCatalogCsv(filteredModels) : toCatalogXml(filteredModels);
+      const completeCatalog = await fetchCompleteCatalogExportData();
+      const content = format === "csv" ? toCatalogCsv(completeCatalog) : toCatalogXml(completeCatalog);
       downloadTextFile(content, `catalogo-coldpro-${timestamp}.${format}`, format === "csv" ? "text/csv;charset=utf-8" : "application/xml;charset=utf-8");
-      toast.success(`${format.toUpperCase()} baixado com ${filteredModels.length} modelo(s).`, { id: toastId });
-    } catch {
-      toast.error(`Não foi possível baixar o ${format.toUpperCase()}.`, { id: toastId });
+      toast.success(`${format.toUpperCase()} completo baixado com ${completeCatalog.models.length} produto(s) e ${completeCatalog.performancePoints.length} ponto(s) de curva.`, { id: toastId });
+    } catch (err) {
+      toast.error(`Não foi possível baixar o ${format.toUpperCase()}: ${err instanceof Error ? err.message : "erro desconhecido"}`, { id: toastId });
     } finally {
       setExportingFormat(null);
     }
