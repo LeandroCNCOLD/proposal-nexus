@@ -148,9 +148,12 @@ function PriceTablesPage() {
   const importPriceTableCsv = useServerFn(nomusImportPriceTableCsv);
   const auditPriceTables = useServerFn(nomusAuditPriceTables);
   const askPriceAuditAi = useServerFn(nomusAskPriceAuditAi);
+  const updatePriceTableUfs = useServerFn(nomusUpdatePriceTableUfs);
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const [selectedTableId, setSelectedTableId] = useState<string>("all");
   const [openedTableId, setOpenedTableId] = useState<string | null>(null);
+  const [editingTable, setEditingTable] = useState<PriceTable | null>(null);
+  const [editingUfs, setEditingUfs] = useState<string[]>([]);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [alertFilter, setAlertFilter] = useState<AlertFilter>("all");
   const [productSearch, setProductSearch] = useState("");
@@ -166,6 +169,7 @@ function PriceTablesPage() {
   const [aiReport, setAiReport] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
   const [exporting, setExporting] = useState<"csv" | "xml" | null>(null);
+  const [savingUfs, setSavingUfs] = useState(false);
 
   const priceTablesQuery = useQuery({
     queryKey: ["nomus-price-tables-ui"],
