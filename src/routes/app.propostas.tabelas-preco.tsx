@@ -819,6 +819,17 @@ function filterPriceTableItem(
   return true;
 }
 
+function filterAuditFindings(items: AuditFinding[], search: string, severity: AuditSeverity) {
+  const term = search.trim().toLowerCase();
+  return items.filter((item) => {
+    if (severity !== "all" && item.severity !== severity) return false;
+    if (!term) return true;
+    return `${item.productCode} ${item.productName} ${item.tableName} ${item.tableCode ?? ""} ${item.reasons.join(" ")}`
+      .toLowerCase()
+      .includes(term);
+  });
+}
+
 function getSummaryAlerts(
   item: Pick<
     PriceTableItem,
@@ -940,6 +951,26 @@ function toItemsCsv(items: PriceTableItemView[]) {
       getItemAlerts(item)
         .map((alert) => alert.label)
         .join("; "),
+    ]);
+  }
+  return rows.map((row) => row.map(escapeCsv).join(",")).join("\n");
+}
+
+function toAuditCsv(items: AuditFinding[]) {
+  const rows = [["severidade", "codigo", "produto", "tabela", "preco", "custo", "margem", "margem_esperada", "preco_mediano", "custo_mediano", "motivos"]];
+  for (const item of items) {
+    rows.push([
+      item.severity,
+      item.productCode,
+      item.productName,
+      item.tableName,
+      String(item.price ?? ""),
+      String(item.cost ?? ""),
+      String(item.margin ?? ""),
+      String(item.expectedMargin ?? ""),
+      String(item.medianPrice ?? ""),
+      String(item.medianCost ?? ""),
+      item.reasons.join("; "),
     ]);
   }
   return rows.map((row) => row.map(escapeCsv).join(",")).join("\n");
