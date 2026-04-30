@@ -192,10 +192,18 @@ async function persistChangedNomusProcessBatch(db: any, items: NomusProcessRaw[]
   return persistNomusProcessBatch(supabaseAdmin, changed, userId);
 }
 
-const PROCESS_RECENT_LIST_PAGES = 4;
+const PROCESS_RECENT_LIST_PAGES = 10;
+const PROCESS_DEFAULT_BATCH_PAGES = 10;
+const PROCESS_MAX_BATCH_PAGES = 10;
 const PROCESS_FORWARD_LOOKAHEAD = 6;
 const PROCESS_RECENT_RECHECK = 4;
 const PROCESS_MAX_CONSECUTIVE_MISSES = 3;
+
+function clampProcessMaxPages(value: number | null | undefined): number {
+  const n = Number(value ?? PROCESS_DEFAULT_BATCH_PAGES);
+  if (!Number.isFinite(n)) return PROCESS_DEFAULT_BATCH_PAGES;
+  return Math.min(PROCESS_MAX_BATCH_PAGES, Math.max(1, Math.trunc(n)));
+}
 
 function normalizeTipo(value: string | null | undefined): string {
   return (value ?? "")
@@ -298,7 +306,7 @@ export async function syncNomusProcessesNewestFirst(supabaseAdmin: any, options:
   const wants = (raw: NomusProcessRaw) => tipoMatches(raw.tipo, wantedTipos);
 
   try {
-    const recentListPages = options.maxPages ?? PROCESS_RECENT_LIST_PAGES;
+    const recentListPages = clampProcessMaxPages(options.maxPages ?? PROCESS_RECENT_LIST_PAGES);
     for (let page = 1; page <= recentListPages; page += 1) {
       const recentPage = await listPage<NomusProcessRaw>(NOMUS_ENDPOINTS.processos, {}, {
         entity: "processos",
@@ -437,7 +445,7 @@ export const pullNomusProcesses = createServerFn({ method: "POST" })
         tipos: z.array(z.string()).optional(),
         maxItems: z.number().int().min(1).max(50_000).optional(),
         /** Quantas páginas baixar por chamada. Permite "sync rápido" só das mais recentes. */
-        maxPages: z.number().int().min(1).max(50).optional(),
+        maxPages: z.number().int().min(1).max(PROCESS_MAX_BATCH_PAGES).optional(),
       })
       .optional()
       .default({}),
@@ -496,7 +504,7 @@ export const pullNomusProcesses = createServerFn({ method: "POST" })
       .single()).data;
 
     if (!job?.id) return { ok: false as const, error: "Não foi possível iniciar a sincronização do funil." };
-    const batch = await processNomusProcessSyncBatch({ data: { jobId: job.id, maxPages: data?.maxPages ?? 3 } });
+    const batch = await processNomusProcessSyncBatch({ data: { jobId: job.id, maxPages: clampProcessMaxPages(data?.maxPages) } });
     if (!batch.ok) return { ok: false as const, error: "error" in batch ? batch.error : "Falha ao sincronizar processos" };
     return {
       ok: true as const,
@@ -560,7 +568,7 @@ export const getNomusProcessSyncJob = createServerFn({ method: "POST" })
 
 export const processNomusProcessSyncBatch = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(z.object({ jobId: z.string().uuid(), maxPages: z.number().int().min(1).max(3).optional() }))
+  .inputValidator(z.object({ jobId: z.string().uuid(), maxPages: z.number().int().min(1).max(PROCESS_MAX_BATCH_PAGES).optional() }))
   .handler(async ({ data, context }) => {
     const supabaseAdmin = context.supabase as any;
     const { getOne } = await import("./client");
@@ -589,7 +597,7 @@ export const processNomusProcessSyncBatch = createServerFn({ method: "POST" })
     let batchScanned = 0;
     let batchMatched = 0;
     let batchPersisted = 0;
-    const maxPages = data.maxPages ?? 1;
+    const maxPages = clampProcessMaxPages(data.maxPages);
     const tipos: string[] = Array.isArray(job.tipos) ? job.tipos : [];
 
     try {
