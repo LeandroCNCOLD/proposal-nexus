@@ -188,6 +188,7 @@ export function NomusProposalDetail({
             value={
               localProposalId ? (
                 <PriceTablePicker
+                  key={`${localProposalId}-${localClient?.state ?? "no-uf"}`}
                   proposalId={localProposalId}
                   clientUf={localClient?.state ?? null}
                   selectedPriceTableId={selectedPriceTableId ?? null}
