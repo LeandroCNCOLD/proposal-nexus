@@ -4802,6 +4802,10 @@ export type Database = {
           normalized_model_code: string | null
           position: number | null
           prazo_entrega_dias: number | null
+          price_table_id: string | null
+          price_table_match_method: string | null
+          price_table_name: string | null
+          price_table_nomus_id: string | null
           product_code: string | null
           quantity: number | null
           raw: Json | null
@@ -4834,6 +4838,10 @@ export type Database = {
           normalized_model_code?: string | null
           position?: number | null
           prazo_entrega_dias?: number | null
+          price_table_id?: string | null
+          price_table_match_method?: string | null
+          price_table_name?: string | null
+          price_table_nomus_id?: string | null
           product_code?: string | null
           quantity?: number | null
           raw?: Json | null
@@ -4866,6 +4874,10 @@ export type Database = {
           normalized_model_code?: string | null
           position?: number | null
           prazo_entrega_dias?: number | null
+          price_table_id?: string | null
+          price_table_match_method?: string | null
+          price_table_name?: string | null
+          price_table_nomus_id?: string | null
           product_code?: string | null
           quantity?: number | null
           raw?: Json | null
@@ -4892,6 +4904,13 @@ export type Database = {
             columns: ["nomus_proposal_id"]
             isOneToOne: false
             referencedRelation: "nomus_proposals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nomus_proposal_items_price_table_id_fkey"
+            columns: ["price_table_id"]
+            isOneToOne: false
+            referencedRelation: "nomus_price_tables"
             referencedColumns: ["id"]
           },
         ]
@@ -5758,6 +5777,10 @@ export type Database = {
           nomus_synced_at: string | null
           notes: string | null
           position: number | null
+          price_table_id: string | null
+          price_table_match_method: string | null
+          price_table_name: string | null
+          price_table_nomus_id: string | null
           proposal_id: string
           quantity: number
           sync_error_code: string | null
@@ -5784,6 +5807,10 @@ export type Database = {
           nomus_synced_at?: string | null
           notes?: string | null
           position?: number | null
+          price_table_id?: string | null
+          price_table_match_method?: string | null
+          price_table_name?: string | null
+          price_table_nomus_id?: string | null
           proposal_id: string
           quantity?: number
           sync_error_code?: string | null
@@ -5810,6 +5837,10 @@ export type Database = {
           nomus_synced_at?: string | null
           notes?: string | null
           position?: number | null
+          price_table_id?: string | null
+          price_table_match_method?: string | null
+          price_table_name?: string | null
+          price_table_nomus_id?: string | null
           proposal_id?: string
           quantity?: number
           sync_error_code?: string | null
@@ -5832,6 +5863,13 @@ export type Database = {
             columns: ["last_sync_run_id"]
             isOneToOne: false
             referencedRelation: "sync_runs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposal_items_price_table_id_fkey"
+            columns: ["price_table_id"]
+            isOneToOne: false
+            referencedRelation: "nomus_price_tables"
             referencedColumns: ["id"]
           },
           {
