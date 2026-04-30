@@ -158,21 +158,27 @@ export function ProposalItemsTable({ items, onOpenItem, showPriceTableComparison
             <TableHead className="w-48">Tabela de preço</TableHead>
             <TableHead>Descrição</TableHead>
             <TableHead className="text-right">Qtd.</TableHead>
-            {showPriceTableComparison && <TableHead className="text-right">Preço tabela</TableHead>}
             <TableHead className="text-right">Venda unit.</TableHead>
-            {showPriceTableComparison && <TableHead className="text-right">Desc. concedido</TableHead>}
-            <TableHead className="text-right">Desconto</TableHead>
-            <TableHead className="text-right">Total</TableHead>
+            <TableHead className="text-right">Venda total</TableHead>
+            {showPriceTableComparison && <TableHead className="text-right">Tabela unit.</TableHead>}
+            {showPriceTableComparison && <TableHead className="text-right">Tabela total</TableHead>}
+            {showPriceTableComparison && <TableHead className="text-right">Desconto (R$)</TableHead>}
+            {showPriceTableComparison && <TableHead className="text-right">Desconto (%)</TableHead>}
             <TableHead>Status</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {items.map((item) => {
-            const tablePrice = item.priceTableUnitPrice;
+            const tableUnit = item.priceTableUnitPrice;
             const offered = item.unitPrice;
+            const qty = item.quantity ?? 0;
+            const saleTotal = item.total ?? (offered != null ? offered * qty : null);
+            const tableTotal = tableUnit != null ? tableUnit * qty : null;
+            const discountValue =
+              tableTotal != null && saleTotal != null ? tableTotal - saleTotal : null;
             const discountPct =
-              tablePrice && offered != null && tablePrice > 0
-                ? ((tablePrice - offered) / tablePrice) * 100
+              tableUnit && offered != null && tableUnit > 0
+                ? ((tableUnit - offered) / tableUnit) * 100
                 : null;
             return (
               <TableRow key={item.id} className={cn(onOpenItem && "cursor-pointer hover:bg-secondary/30")} onClick={() => onOpenItem?.(item)}>
@@ -184,12 +190,27 @@ export function ProposalItemsTable({ items, onOpenItem, showPriceTableComparison
                   {item.additionalInfo ? <div className="mt-1 whitespace-pre-wrap text-xs text-muted-foreground">{item.additionalInfo}</div> : null}
                 </TableCell>
                 <TableCell className="text-right tabular-nums">{num(item.quantity, 2)}</TableCell>
+                <TableCell className="text-right tabular-nums">{brl(offered)}</TableCell>
+                <TableCell className="text-right font-semibold tabular-nums">{brl(saleTotal)}</TableCell>
                 {showPriceTableComparison && (
                   <TableCell className="text-right tabular-nums text-muted-foreground">
-                    {tablePrice != null ? brl(tablePrice) : "—"}
+                    {tableUnit != null ? brl(tableUnit) : "—"}
                   </TableCell>
                 )}
-                <TableCell className="text-right tabular-nums">{brl(offered)}</TableCell>
+                {showPriceTableComparison && (
+                  <TableCell className="text-right tabular-nums text-muted-foreground">
+                    {tableTotal != null ? brl(tableTotal) : "—"}
+                  </TableCell>
+                )}
+                {showPriceTableComparison && (
+                  <TableCell className="text-right tabular-nums">
+                    {discountValue == null ? "—" : (
+                      <span className={cn(discountValue > 0 ? "text-amber-700" : discountValue < 0 ? "text-emerald-700" : "")}>
+                        {brl(discountValue)}
+                      </span>
+                    )}
+                  </TableCell>
+                )}
                 {showPriceTableComparison && (
                   <TableCell className="text-right tabular-nums">
                     {discountPct == null ? (
@@ -204,8 +225,6 @@ export function ProposalItemsTable({ items, onOpenItem, showPriceTableComparison
                     )}
                   </TableCell>
                 )}
-                <TableCell className="text-right tabular-nums">{item.discount ? brl(item.discount) : "—"}</TableCell>
-                <TableCell className="text-right font-semibold tabular-nums">{brl(item.total)}</TableCell>
                 <TableCell>{item.status ? <span className="rounded-full border bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">{item.status}</span> : "—"}</TableCell>
               </TableRow>
             );
