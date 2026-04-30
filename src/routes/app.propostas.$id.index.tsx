@@ -20,6 +20,7 @@ import { nomusCreatePedido, sendProposalFile } from "@/integrations/nomus/server
 import { createProposalSendVersion } from "@/integrations/proposal-editor/server.functions";
 import { NomusProposalDetail } from "@/components/NomusProposalDetail";
 import { ApprovalTimeline, EmptyState, FinancialSummaryCard, LoadingState, ProposalHeader } from "@/modules/proposals/components";
+import { FinancialConditionBlock } from "@/components/proposal-editor/FinancialConditionBlock";
 
 export const Route = createFileRoute("/app/propostas/$id/")({ component: ProposalDetail });
 
