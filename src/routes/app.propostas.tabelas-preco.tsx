@@ -1081,6 +1081,14 @@ function AlertBadges({ alerts }: { alerts: Array<{ key: AlertFilter; label: stri
   );
 }
 
+function SeverityBadge({ severity }: { severity: Exclude<AuditSeverity, "all"> }) {
+  if (severity === "crítica" || severity === "alta") {
+    return <Badge variant="destructive">{severity}</Badge>;
+  }
+  if (severity === "média") return <Badge variant="secondary">{severity}</Badge>;
+  return <Badge variant="outline">{severity}</Badge>;
+}
+
 function PriceTablesErrorFallback() {
   return (
     <div className="flex items-center justify-center rounded-lg border border-dashed py-12 text-sm text-muted-foreground">
