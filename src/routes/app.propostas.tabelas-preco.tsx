@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import ReactMarkdown from "react-markdown";
 import {
   AlertTriangle,
   BrainCircuit,
@@ -10,8 +11,10 @@ import {
   Download,
   FileCode2,
   Loader2,
+  Printer,
   RefreshCw,
   Search,
+  Send,
   Table2,
   Upload,
 } from "lucide-react";
@@ -21,6 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
   SelectContent,
@@ -36,8 +40,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import {
+  nomusAskPriceAuditAi,
   nomusAuditPriceTables,
   nomusImportPriceTableCsv,
   nomusSyncPriceTables,
@@ -91,6 +97,7 @@ type AuditResult = {
   highCount: number;
   findings: AuditFinding[];
 };
+type AuditAiMessage = { id: string; role: "user" | "assistant"; content: string; created_at: string };
 
 const LOW_MARGIN_THRESHOLD = 15;
 
@@ -99,6 +106,7 @@ function PriceTablesPage() {
   const syncPriceTables = useServerFn(nomusSyncPriceTables);
   const importPriceTableCsv = useServerFn(nomusImportPriceTableCsv);
   const auditPriceTables = useServerFn(nomusAuditPriceTables);
+  const askPriceAuditAi = useServerFn(nomusAskPriceAuditAi);
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const [selectedTableId, setSelectedTableId] = useState<string>("all");
   const [openedTableId, setOpenedTableId] = useState<string | null>(null);
@@ -111,6 +119,11 @@ function PriceTablesPage() {
   const [auditResult, setAuditResult] = useState<AuditResult | null>(null);
   const [auditSeverity, setAuditSeverity] = useState<AuditSeverity>("all");
   const [auditSearch, setAuditSearch] = useState("");
+  const [aiSessionId, setAiSessionId] = useState<string | null>(null);
+  const [aiQuestion, setAiQuestion] = useState("");
+  const [aiMessages, setAiMessages] = useState<AuditAiMessage[]>([]);
+  const [aiReport, setAiReport] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
   const [exporting, setExporting] = useState<"csv" | "xml" | null>(null);
 
   const priceTablesQuery = useQuery({
@@ -339,6 +352,43 @@ function PriceTablesPage() {
     toast.success(`Auditoria exportada com ${filteredAuditFindings.length} divergência(s).`);
   }
 
+  async function handleAskAi() {
+    const question = aiQuestion.trim();
+    if (!question) return;
+    setAiLoading(true);
+    setAiQuestion("");
+    try {
+      const result = await askPriceAuditAi({ data: { sessionId: aiSessionId, question, auditResult } });
+      if (!result.ok) {
+        toast.error(result.error);
+        setAiQuestion(question);
+        return;
+      }
+      setAiSessionId(result.sessionId);
+      setAiMessages(result.messages as AuditAiMessage[]);
+      setAiReport(result.reportMarkdown);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      toast.error(`Erro ao consultar IA: ${message}`);
+      setAiQuestion(question);
+    } finally {
+      setAiLoading(false);
+    }
+  }
+
+  function printAiReport() {
+    if (!aiReport.trim()) {
+      toast.warning("Ainda não há relatório da IA para imprimir.");
+      return;
+    }
+    const printable = markdownToPlainHtml(aiReport);
+    const win = window.open("", "_blank");
+    if (!win) return;
+    win.document.write(`<!doctype html><html><head><title>Relatório de auditoria inteligente</title><style>body{font-family:Arial,sans-serif;margin:32px;color:#172033;line-height:1.5}h1,h2,h3{color:#10284a}pre{white-space:pre-wrap}.meta{color:#5b6472;font-size:12px;margin-bottom:24px}</style></head><body><div class="meta">CN Cold — ${new Date().toLocaleString("pt-BR")}</div>${printable}</body></html>`);
+    win.document.close();
+    win.print();
+  }
+
   const isLoading = priceTablesQuery.isLoading || summaryItemsQuery.isLoading;
   const hasPageError = priceTablesQuery.isError || summaryItemsQuery.isError;
   const hasItemsError = tableItemsQuery.isError;
@@ -490,6 +540,67 @@ function PriceTablesPage() {
             </Table>
           </div>
         )}
+      </Card>
+
+      <Card className="p-5 shadow-[var(--shadow-sm)]">
+        <div className="mb-4 flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+          <div>
+            <div className="flex items-center gap-2">
+              <BrainCircuit className="h-5 w-5 text-primary" />
+              <h2 className="text-lg font-semibold">IA da auditoria</h2>
+            </div>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Pergunte sobre divergências e a IA mantém um relatório atualizado para impressão.
+            </p>
+          </div>
+          <Button variant="outline" size="sm" onClick={printAiReport} disabled={!aiReport.trim()}>
+            <Printer className="mr-2 h-4 w-4" />
+            Imprimir relatório
+          </Button>
+        </div>
+
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(360px,0.8fr)]">
+          <div className="rounded-lg border bg-background">
+            <ScrollArea className="h-[360px] p-4">
+              {aiMessages.length === 0 ? (
+                <EmptyLine label="Faça uma pergunta para a IA começar a montar o relatório." />
+              ) : (
+                <div className="space-y-3">
+                  {aiMessages.map((message) => (
+                    <div key={message.id} className={cn("rounded-lg border p-3 text-sm", message.role === "user" ? "ml-8 bg-muted/40" : "mr-8 bg-card")}>
+                      <div className="mb-1 text-xs font-medium text-muted-foreground">{message.role === "user" ? "Você" : "IA"}</div>
+                      <ReactMarkdown>{message.content}</ReactMarkdown>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </ScrollArea>
+            <div className="border-t p-3">
+              <div className="flex gap-2">
+                <Textarea value={aiQuestion} onChange={(event) => setAiQuestion(event.target.value)} placeholder="Ex.: monte um resumo executivo dos itens críticos e sugira prioridades de correção" rows={2} />
+                <Button className="self-end" onClick={() => void handleAskAi()} disabled={aiLoading || !aiQuestion.trim()}>
+                  {aiLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-lg border bg-card p-4">
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <h3 className="font-semibold">Relatório em construção</h3>
+              {aiReport.trim() && <Badge variant="secondary">Salvo</Badge>}
+            </div>
+            <ScrollArea className="h-[430px] pr-3">
+              {aiReport.trim() ? (
+                <div className="prose prose-sm max-w-none text-foreground prose-headings:text-foreground prose-p:text-foreground prose-li:text-foreground">
+                  <ReactMarkdown>{aiReport}</ReactMarkdown>
+                </div>
+              ) : (
+                <EmptyLine label="O relatório aparecerá aqui conforme a conversa evoluir." />
+              )}
+            </ScrollArea>
+          </div>
+        </div>
       </Card>
 
       <section className="grid gap-3 md:grid-cols-4">
@@ -1007,6 +1118,39 @@ function escapeXml(value: string) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&apos;");
+}
+
+function markdownToPlainHtml(markdown: string) {
+  const lines = markdown.split("\n");
+  let inList = false;
+  const html: string[] = [];
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      if (inList) { html.push("</ul>"); inList = false; }
+      continue;
+    }
+    const heading = trimmed.match(/^(#{1,3})\s+(.+)$/);
+    if (heading) {
+      if (inList) { html.push("</ul>"); inList = false; }
+      html.push(`<h${heading[1].length}>${inlineMarkdownToHtml(heading[2])}</h${heading[1].length}>`);
+      continue;
+    }
+    const bullet = trimmed.match(/^[-*]\s+(.+)$/);
+    if (bullet) {
+      if (!inList) { html.push("<ul>"); inList = true; }
+      html.push(`<li>${inlineMarkdownToHtml(bullet[1])}</li>`);
+      continue;
+    }
+    if (inList) { html.push("</ul>"); inList = false; }
+    html.push(`<p>${inlineMarkdownToHtml(trimmed)}</p>`);
+  }
+  if (inList) html.push("</ul>");
+  return html.join("\n");
+}
+
+function inlineMarkdownToHtml(value: string) {
+  return escapeXml(value).replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
 }
 
 function downloadTextFile(content: string, filename: string, mimeType: string) {

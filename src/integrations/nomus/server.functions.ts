@@ -2022,6 +2022,28 @@ type PriceTableAuditInput = {
   lowMarginPct?: number | null;
 };
 
+type PriceAuditAiInput = {
+  sessionId?: string | null;
+  question: string;
+  auditResult?: {
+    analyzedTables?: number;
+    analyzedItems?: number;
+    analyzedProducts?: number;
+    productsWithAlerts?: number;
+    findingsCount?: number;
+    criticalCount?: number;
+    highCount?: number;
+    findings?: PriceTableAuditFinding[];
+  } | null;
+};
+
+type PriceAuditAiMessage = {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  created_at: string;
+};
+
 type PriceTableAuditItem = {
   id: string;
   nomus_product_id: string;
@@ -2083,6 +2105,44 @@ function readAuditRawText(raw: Json | null, keys: string[]) {
     if (typeof value === "number") return String(value);
   }
   return null;
+}
+
+function compactAuditForAi(auditResult: PriceAuditAiInput["auditResult"]) {
+  if (!auditResult) return { available: false };
+  return {
+    available: true,
+    totals: {
+      analyzedTables: auditResult.analyzedTables ?? 0,
+      analyzedItems: auditResult.analyzedItems ?? 0,
+      analyzedProducts: auditResult.analyzedProducts ?? 0,
+      productsWithAlerts: auditResult.productsWithAlerts ?? 0,
+      findingsCount: auditResult.findingsCount ?? 0,
+      criticalCount: auditResult.criticalCount ?? 0,
+      highCount: auditResult.highCount ?? 0,
+    },
+    topFindings: (auditResult.findings ?? []).slice(0, 80).map((item) => ({
+      severity: item.severity,
+      productCode: item.productCode,
+      productName: item.productName,
+      tableName: item.tableName,
+      price: item.price,
+      cost: item.cost,
+      margin: item.margin,
+      expectedMargin: item.expectedMargin,
+      medianPrice: item.medianPrice,
+      medianCost: item.medianCost,
+      reasons: item.reasons,
+    })),
+  };
+}
+
+function parseAiReport(raw: string, fallbackReport: string) {
+  const reportMatch = raw.match(/<RELATORIO>([\s\S]*?)<\/RELATORIO>/i);
+  const answerMatch = raw.match(/<RESPOSTA>([\s\S]*?)<\/RESPOSTA>/i);
+  return {
+    answer: (answerMatch?.[1] ?? raw.replace(/<RELATORIO>[\s\S]*?<\/RELATORIO>/gi, "")).trim(),
+    reportMarkdown: (reportMatch?.[1] ?? fallbackReport).trim(),
+  };
 }
 
 async function fetchAllPriceTableAuditItems() {
@@ -2483,4 +2543,93 @@ export const nomusAuditPriceTables = createServerFn({ method: "POST" })
       highCount: findings.filter((item) => item.severity === "alta").length,
       findings: limited,
     };
+  });
+
+export const nomusAskPriceAuditAi = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: PriceAuditAiInput) => {
+    if (!input || typeof input !== "object") throw new Error("Pergunta inválida.");
+    const question = String(input.question ?? "").trim();
+    if (question.length < 3) throw new Error("Digite uma pergunta para a IA.");
+    if (question.length > 2000) throw new Error("Pergunta muito longa. Limite de 2.000 caracteres.");
+    return { sessionId: input.sessionId ?? null, question, auditResult: input.auditResult ?? null };
+  })
+  .handler(async ({ data, context }) => {
+    const { userId } = context;
+    let sessionId = data.sessionId;
+    let currentReport = "";
+
+    if (sessionId) {
+      const { data: session, error } = await supabaseAdmin
+        .from("nomus_price_audit_ai_sessions" as never)
+        .select("id, report_markdown")
+        .eq("id", sessionId)
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (error) throw new Error(`Falha ao carregar sessão da IA: ${error.message}`);
+      if (!session) sessionId = null;
+      currentReport = (session as { report_markdown?: string | null } | null)?.report_markdown ?? "";
+    }
+
+    if (!sessionId) {
+      const { data: created, error } = await supabaseAdmin
+        .from("nomus_price_audit_ai_sessions" as never)
+        .insert({ user_id: userId, audit_snapshot: compactAuditForAi(data.auditResult) } as never)
+        .select("id, report_markdown")
+        .single();
+      if (error || !created) throw new Error(`Falha ao criar sessão da IA: ${error?.message ?? "sem retorno"}`);
+      sessionId = (created as { id: string }).id;
+      currentReport = (created as { report_markdown?: string | null }).report_markdown ?? "";
+    }
+
+    const { data: history } = await supabaseAdmin
+      .from("nomus_price_audit_ai_messages" as never)
+      .select("role, content, created_at")
+      .eq("session_id", sessionId)
+      .eq("user_id", userId)
+      .order("created_at", { ascending: true })
+      .limit(24);
+
+    await supabaseAdmin.from("nomus_price_audit_ai_messages" as never).insert({ session_id: sessionId, user_id: userId, role: "user", content: data.question } as never);
+
+    const apiKey = process.env.LOVABLE_API_KEY;
+    if (!apiKey) throw new Error("Lovable AI não está configurada.");
+
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "google/gemini-3-flash-preview",
+        messages: [
+          { role: "system", content: "Você é uma IA de auditoria comercial para tabelas de preço da CN Cold. Responda em português, use apenas os dados fornecidos, destaque divergências de preço/custo/margem e vá mantendo um relatório executivo em markdown. Sempre devolva exatamente dois blocos: <RESPOSTA>resposta ao usuário</RESPOSTA> e <RELATORIO>relatório completo atualizado em markdown</RELATORIO>." },
+          { role: "user", content: `AUDITORIA_ATUAL=${JSON.stringify(compactAuditForAi(data.auditResult))}\n\nRELATORIO_ATUAL:\n${currentReport || "# Relatório de auditoria inteligente de preços\n\n"}` },
+          ...((history ?? []) as Array<{ role: "user" | "assistant"; content: string }>).map((message) => ({ role: message.role, content: message.content })),
+          { role: "user", content: data.question },
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      if (response.status === 429) return { ok: false as const, error: "Limite de uso da IA atingido. Tente novamente em instantes." };
+      if (response.status === 402) return { ok: false as const, error: "Créditos da IA insuficientes no workspace." };
+      const body = await response.text();
+      console.error("[price-audit-ai] erro Lovable AI", response.status, body);
+      return { ok: false as const, error: "Falha ao consultar a IA da auditoria." };
+    }
+
+    const payload = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
+    const rawAnswer = payload.choices?.[0]?.message?.content ?? "";
+    const parsed = parseAiReport(rawAnswer, currentReport);
+
+    await supabaseAdmin.from("nomus_price_audit_ai_messages" as never).insert({ session_id: sessionId, user_id: userId, role: "assistant", content: parsed.answer } as never);
+    await supabaseAdmin.from("nomus_price_audit_ai_sessions" as never).update({ report_markdown: parsed.reportMarkdown, audit_snapshot: compactAuditForAi(data.auditResult), last_question: data.question, last_response: parsed.answer } as never).eq("id", sessionId).eq("user_id", userId);
+
+    const { data: messages } = await supabaseAdmin
+      .from("nomus_price_audit_ai_messages" as never)
+      .select("id, role, content, created_at")
+      .eq("session_id", sessionId)
+      .eq("user_id", userId)
+      .order("created_at", { ascending: true });
+
+    return { ok: true as const, sessionId, answer: parsed.answer, reportMarkdown: parsed.reportMarkdown, messages: (messages ?? []) as PriceAuditAiMessage[] };
   });

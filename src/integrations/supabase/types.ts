@@ -4382,6 +4382,77 @@ export type Database = {
         }
         Relationships: []
       }
+      nomus_price_audit_ai_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          role: string
+          session_id: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          role: string
+          session_id: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          role?: string
+          session_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nomus_price_audit_ai_messages_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "nomus_price_audit_ai_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nomus_price_audit_ai_sessions: {
+        Row: {
+          audit_snapshot: Json
+          created_at: string
+          id: string
+          last_question: string | null
+          last_response: string | null
+          report_markdown: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          audit_snapshot?: Json
+          created_at?: string
+          id?: string
+          last_question?: string | null
+          last_response?: string | null
+          report_markdown?: string
+          title?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          audit_snapshot?: Json
+          created_at?: string
+          id?: string
+          last_question?: string | null
+          last_response?: string | null
+          report_markdown?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       nomus_price_table_items: {
         Row: {
           currency: string | null
