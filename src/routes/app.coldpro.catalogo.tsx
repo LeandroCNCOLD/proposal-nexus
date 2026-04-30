@@ -851,35 +851,73 @@ function splitEquipmentTypes(value: string | null): string[] {
   return types.length ? types : [value];
 }
 
-function toCatalogCsv(rows: ModelRowData[]): string {
-  const headers = ["Modelo", "Linha", "Designação HP", "Gabinete", "Tipo", "Degelo", "Configuração elétrica", "Pontos", "Status"];
-  const body = rows.map((row) => [
-    row.modelo ?? "",
-    row.linha ?? "",
-    row.designacao_hp ?? "",
-    row.gabinete ?? "",
-    row.tipo_gabinete ?? "",
-    row.tipo_degelo ?? "",
-    row.electrical_configuration ?? row.voltages.join(" / "),
-    String(row.point_count),
-    row.active ? "Ativo" : "Inativo",
+async function fetchCompleteCatalogExportData(): Promise<CatalogExportData> {
+  const [models, compressors, condensers, evaporators, performancePoints, refrigerants] = await Promise.all([
+    fetchAllRows("coldpro_equipment_models", "*", "modelo"),
+    fetchAllRows("coldpro_equipment_compressors", "*", "equipment_model_id"),
+    fetchAllRows("coldpro_equipment_condensers", "*", "equipment_model_id"),
+    fetchAllRows("coldpro_equipment_evaporators", "*", "equipment_model_id"),
+    fetchAllRows("coldpro_equipment_performance_points", "*", "equipment_model_id"),
+    fetchAllRows("coldpro_equipment_model_refrigerants", "*, refrigerant:coldpro_refrigerants(*)", "equipment_model_id"),
   ]);
+  return { models, compressors, condensers, evaporators, performancePoints, refrigerants };
+}
+
+async function fetchAllRows(table: string, select: string, orderColumn: string): Promise<Record<string, unknown>[]> {
+  const rows: Record<string, unknown>[] = [];
+  const pageSize = 1000;
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await (supabase as any)
+      .from(table)
+      .select(select)
+      .order(orderColumn, { ascending: true, nullsFirst: false })
+      .range(from, from + pageSize - 1);
+    if (error) throw new Error(error.message);
+    rows.push(...((data ?? []) as Record<string, unknown>[]));
+    if (!data || data.length < pageSize) break;
+  }
+  return rows;
+}
+
+function toCatalogCsv(data: CatalogExportData): string {
+  const headers = buildCsvHeaders(data);
+  const related = buildRelatedIndexes(data);
+  const body = data.models.flatMap((model) => {
+    const modelId = String(model.id ?? "");
+    const base = flattenCatalogRecord("geral", model);
+    const common = {
+      ...base,
+      curva_total_pontos: String(related.performance.get(modelId)?.length ?? 0),
+      refrigerantes_total: String(related.refrigerants.get(modelId)?.length ?? 0),
+    };
+    const rows = related.performance.get(modelId) ?? [null];
+    return rows.map((point, index) => serializeCsvRecord(headers, {
+      ...common,
+      ...flattenCatalogRecord("compressor", related.compressors.get(modelId)),
+      ...flattenCatalogRecord("condensador", related.condensers.get(modelId)),
+      ...flattenCatalogRecord("evaporador", related.evaporators.get(modelId)),
+      refrigerantes: stringifyCatalogValue(related.refrigerants.get(modelId) ?? []),
+      curva_indice: point ? String(index + 1) : "",
+      ...flattenCatalogRecord("curva", point),
+    }));
+  });
   return [headers, ...body].map((line) => line.map(escapeCsvCell).join(";")).join("\n");
 }
 
-function toCatalogXml(rows: ModelRowData[]): string {
-  const items = rows.map((row) => `  <modelo id="${escapeXml(row.id)}">
-    <nome>${escapeXml(row.modelo ?? "")}</nome>
-    <linha>${escapeXml(row.linha ?? "")}</linha>
-    <designacaoHp>${escapeXml(row.designacao_hp ?? "")}</designacaoHp>
-    <gabinete>${escapeXml(row.gabinete ?? "")}</gabinete>
-    <tipo>${escapeXml(row.tipo_gabinete ?? "")}</tipo>
-    <degelo>${escapeXml(row.tipo_degelo ?? "")}</degelo>
-    <configuracaoEletrica>${escapeXml(row.electrical_configuration ?? row.voltages.join(" / "))}</configuracaoEletrica>
-    <pontos>${row.point_count}</pontos>
-    <status>${row.active ? "Ativo" : "Inativo"}</status>
-  </modelo>`);
-  return `<?xml version="1.0" encoding="UTF-8"?>\n<catalogoColdPro>\n${items.join("\n")}\n</catalogoColdPro>\n`;
+function toCatalogXml(data: CatalogExportData): string {
+  const related = buildRelatedIndexes(data);
+  const items = data.models.map((model) => {
+    const modelId = String(model.id ?? "");
+    return `  <produto id="${escapeXml(modelId)}">
+    <geral>${recordToXml(model)}</geral>
+    <compressor>${recordToXml(related.compressors.get(modelId))}</compressor>
+    <condensador>${recordToXml(related.condensers.get(modelId))}</condensador>
+    <evaporador>${recordToXml(related.evaporators.get(modelId))}</evaporador>
+    <refrigerantes>${(related.refrigerants.get(modelId) ?? []).map((row) => `<refrigerante>${recordToXml(row)}</refrigerante>`).join("")}</refrigerantes>
+    <curva>${(related.performance.get(modelId) ?? []).map((row) => `<ponto>${recordToXml(row)}</ponto>`).join("")}</curva>
+  </produto>`;
+  });
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<catalogoColdPro totalProdutos="${data.models.length}" totalPontosCurva="${data.performancePoints.length}">\n${items.join("\n")}\n</catalogoColdPro>\n`;
 }
 
 function escapeCsvCell(value: string): string {
