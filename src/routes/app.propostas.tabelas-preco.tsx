@@ -194,6 +194,11 @@ function PriceTablesPage() {
     [alertFilter, productSearch, statusFilter, tableItemsQuery.data],
   );
 
+  const filteredAuditFindings = useMemo(
+    () => filterAuditFindings(auditResult?.findings ?? [], auditSearch, auditSeverity),
+    [auditResult?.findings, auditSearch, auditSeverity],
+  );
+
   async function refreshData() {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ["nomus-price-tables-ui"] }),
@@ -220,6 +225,22 @@ function PriceTablesPage() {
       toast.error(`Erro ao sincronizar com Nomus: ${message}`);
     } finally {
       setSyncing(false);
+    }
+  }
+
+  async function handleAudit() {
+    setAuditing(true);
+    try {
+      const result = await auditPriceTables({
+        data: { maxResults: 500, priceDiffPct: 8, costDiffPct: 5, lowMarginPct: LOW_MARGIN_THRESHOLD },
+      });
+      setAuditResult(result as AuditResult);
+      toast.success(`Auditoria concluída: ${result.findingsCount} divergência(s) encontrada(s).`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      toast.error(`Erro ao auditar tabelas: ${message}`);
+    } finally {
+      setAuditing(false);
     }
   }
 
@@ -303,6 +324,19 @@ function PriceTablesPage() {
     } finally {
       setExporting(null);
     }
+  }
+
+  function exportAuditCsv() {
+    if (filteredAuditFindings.length === 0) {
+      toast.warning("Nenhuma divergência disponível para exportação.");
+      return;
+    }
+    downloadTextFile(
+      toAuditCsv(filteredAuditFindings),
+      `auditoria-tabelas-preco-${new Date().toISOString().slice(0, 10)}.csv`,
+      "text/csv;charset=utf-8",
+    );
+    toast.success(`Auditoria exportada com ${filteredAuditFindings.length} divergência(s).`);
   }
 
   const isLoading = priceTablesQuery.isLoading || summaryItemsQuery.isLoading;
