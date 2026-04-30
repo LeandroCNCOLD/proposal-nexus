@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import ReactMarkdown from "react-markdown";
 import {
   AlertTriangle,
   BrainCircuit,
@@ -10,8 +11,10 @@ import {
   Download,
   FileCode2,
   Loader2,
+  Printer,
   RefreshCw,
   Search,
+  Send,
   Table2,
   Upload,
 } from "lucide-react";
@@ -21,6 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
   SelectContent,
@@ -36,8 +40,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import {
+  nomusAskPriceAuditAi,
   nomusAuditPriceTables,
   nomusImportPriceTableCsv,
   nomusSyncPriceTables,
