@@ -2022,6 +2022,28 @@ type PriceTableAuditInput = {
   lowMarginPct?: number | null;
 };
 
+type PriceAuditAiInput = {
+  sessionId?: string | null;
+  question: string;
+  auditResult?: {
+    analyzedTables?: number;
+    analyzedItems?: number;
+    analyzedProducts?: number;
+    productsWithAlerts?: number;
+    findingsCount?: number;
+    criticalCount?: number;
+    highCount?: number;
+    findings?: PriceTableAuditFinding[];
+  } | null;
+};
+
+type PriceAuditAiMessage = {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  created_at: string;
+};
+
 type PriceTableAuditItem = {
   id: string;
   nomus_product_id: string;
@@ -2083,6 +2105,44 @@ function readAuditRawText(raw: Json | null, keys: string[]) {
     if (typeof value === "number") return String(value);
   }
   return null;
+}
+
+function compactAuditForAi(auditResult: PriceAuditAiInput["auditResult"]) {
+  if (!auditResult) return { available: false };
+  return {
+    available: true,
+    totals: {
+      analyzedTables: auditResult.analyzedTables ?? 0,
+      analyzedItems: auditResult.analyzedItems ?? 0,
+      analyzedProducts: auditResult.analyzedProducts ?? 0,
+      productsWithAlerts: auditResult.productsWithAlerts ?? 0,
+      findingsCount: auditResult.findingsCount ?? 0,
+      criticalCount: auditResult.criticalCount ?? 0,
+      highCount: auditResult.highCount ?? 0,
+    },
+    topFindings: (auditResult.findings ?? []).slice(0, 80).map((item) => ({
+      severity: item.severity,
+      productCode: item.productCode,
+      productName: item.productName,
+      tableName: item.tableName,
+      price: item.price,
+      cost: item.cost,
+      margin: item.margin,
+      expectedMargin: item.expectedMargin,
+      medianPrice: item.medianPrice,
+      medianCost: item.medianCost,
+      reasons: item.reasons,
+    })),
+  };
+}
+
+function parseAiReport(raw: string, fallbackReport: string) {
+  const reportMatch = raw.match(/<RELATORIO>([\s\S]*?)<\/RELATORIO>/i);
+  const answerMatch = raw.match(/<RESPOSTA>([\s\S]*?)<\/RESPOSTA>/i);
+  return {
+    answer: (answerMatch?.[1] ?? raw.replace(/<RELATORIO>[\s\S]*?<\/RELATORIO>/gi, "")).trim(),
+    reportMarkdown: (reportMatch?.[1] ?? fallbackReport).trim(),
+  };
 }
 
 async function fetchAllPriceTableAuditItems() {
