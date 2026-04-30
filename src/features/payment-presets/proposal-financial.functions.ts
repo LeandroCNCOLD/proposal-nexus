@@ -78,12 +78,17 @@ export const saveProposalFinancial = createServerFn({ method: "POST" })
         : null;
 
     const snapshot = {
-      installments: result.installments,
+      installments: result.installments.map((i) => ({
+        description: i.description,
+        percentage: i.percentage,
+        days: i.days,
+        value: i.value,
+      })),
       averageTermDays: result.averageTermDays,
       factorPct: result.factorPct,
       totalInstallments: result.totalInstallments,
       computedAt: new Date().toISOString(),
-    };
+    } as Record<string, unknown>;
 
     const { error: upErr } = await supabaseAdmin
       .from("proposals")

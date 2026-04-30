@@ -9,6 +9,11 @@ import {
   getProposalFinancial,
   saveProposalFinancial,
 } from "./proposal-financial.functions";
+import type {
+  PresetCreateDTO,
+  PresetUpdateDTO,
+  SaveProposalFinancialDTO,
+} from "./payment-presets.schema";
 
 const PRESETS_KEY = ["payment-presets"];
 
@@ -22,8 +27,7 @@ export function usePaymentPresets(onlyActive = false) {
 export function useCreatePaymentPreset() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (payload: Parameters<typeof createPaymentPreset>[0]["data"]) =>
-      createPaymentPreset({ data: payload }),
+    mutationFn: (payload: PresetCreateDTO) => createPaymentPreset({ data: payload }),
     onSuccess: () => qc.invalidateQueries({ queryKey: PRESETS_KEY }),
   });
 }
@@ -31,8 +35,7 @@ export function useCreatePaymentPreset() {
 export function useUpdatePaymentPreset() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (payload: Parameters<typeof updatePaymentPreset>[0]["data"]) =>
-      updatePaymentPreset({ data: payload }),
+    mutationFn: (payload: PresetUpdateDTO) => updatePaymentPreset({ data: payload }),
     onSuccess: () => qc.invalidateQueries({ queryKey: PRESETS_KEY }),
   });
 }
@@ -40,7 +43,7 @@ export function useUpdatePaymentPreset() {
 export function useTogglePaymentPresetActive() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (payload: Parameters<typeof togglePaymentPresetActive>[0]["data"]) =>
+    mutationFn: (payload: { id: string; is_active: boolean }) =>
       togglePaymentPresetActive({ data: payload }),
     onSuccess: () => qc.invalidateQueries({ queryKey: PRESETS_KEY }),
   });
@@ -57,7 +60,7 @@ export function useProposalFinancial(proposalId: string) {
 export function useSaveProposalFinancial(proposalId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (payload: Parameters<typeof saveProposalFinancial>[0]["data"]) =>
+    mutationFn: (payload: SaveProposalFinancialDTO) =>
       saveProposalFinancial({ data: payload }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["proposal-financial", proposalId] });
