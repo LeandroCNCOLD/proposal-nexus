@@ -2015,7 +2015,71 @@ type ImportTableInput = {
   rows: CsvRowInput[];
 };
 
+type PriceTableAuditInput = {
+  maxResults?: number | null;
+  priceDiffPct?: number | null;
+  costDiffPct?: number | null;
+  lowMarginPct?: number | null;
+};
+
+type PriceTableAuditItem = {
+  id: string;
+  nomus_product_id: string;
+  unit_price: number | null;
+  preco_liquido: number | null;
+  preco_calculado: number | null;
+  custo_producao_total: number | null;
+  custo_materiais: number | null;
+  custo_cif: number | null;
+  margem_contribuicao: number | null;
+  margem_desejada_pct: number | null;
+  lucro_liquido: number | null;
+  has_cost_data: boolean | null;
+  currency: string | null;
+  raw: Json | null;
+  nomus_price_tables?: { id?: string; name?: string; code?: string | null; is_active?: boolean | null } | null;
+  equipments?: { model?: string | null; normalized_model_code?: string | null } | null;
+};
+
 const ALLOWED_IMPORT_ROLES = ["admin", "gerente_comercial", "diretoria", "engenharia"] as const;
+
+const firstFinite = (...values: Array<number | null | undefined>) =>
+  values.find((value) => typeof value === "number" && Number.isFinite(value)) ?? null;
+
+const pctDiff = (value: number, reference: number) =>
+  reference === 0 ? 0 : Math.abs(((value - reference) / reference) * 100);
+
+function median(values: number[]) {
+  const sorted = values.filter(Number.isFinite).sort((a, b) => a - b);
+  if (sorted.length === 0) return null;
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0 ? (sorted[middle - 1] + sorted[middle]) / 2 : sorted[middle];
+}
+
+function readAuditRawText(raw: Json | null, keys: string[]) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  for (const key of keys) {
+    const value = raw[key];
+    if (typeof value === "string" && value.trim()) return value;
+    if (typeof value === "number") return String(value);
+  }
+  return null;
+}
+
+async function fetchAllPriceTableAuditItems() {
+  const rows: PriceTableAuditItem[] = [];
+  const pageSize = 1000;
+  for (let from = 0; from < 60000; from += pageSize) {
+    const { data, error } = await supabaseAdmin
+      .from("nomus_price_table_items")
+      .select("id, nomus_product_id, unit_price, preco_liquido, preco_calculado, custo_producao_total, custo_materiais, custo_cif, margem_contribuicao, margem_desejada_pct, lucro_liquido, has_cost_data, currency, raw, nomus_price_tables(id, name, code, is_active), equipments(model, normalized_model_code)")
+      .range(from, from + pageSize - 1);
+    if (error) throw new Error(`Falha ao carregar itens para auditoria: ${error.message}`);
+    rows.push(...((data ?? []) as unknown as PriceTableAuditItem[]));
+    if (!data || data.length < pageSize) break;
+  }
+  return rows;
+}
 
 function csvPriceTableName(filename: string, explicitName?: string | null) {
   const cleanName = explicitName?.trim();
