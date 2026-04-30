@@ -2009,7 +2009,45 @@ type ImportInput = {
   dryRun: boolean;
 };
 
+type ImportTableInput = {
+  filename: string;
+  tableName?: string | null;
+  rows: CsvRowInput[];
+};
+
 const ALLOWED_IMPORT_ROLES = ["admin", "gerente_comercial", "diretoria", "engenharia"] as const;
+
+function csvPriceTableName(filename: string, explicitName?: string | null) {
+  const cleanName = explicitName?.trim();
+  if (cleanName) return cleanName;
+  return filename
+    .replace(/\.[^.]+$/, "")
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim() || "Tabela importada CSV";
+}
+
+function csvPriceTableCode(filename: string) {
+  return filename
+    .replace(/\.[^.]+$/, "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80) || "CSV-TABELA";
+}
+
+async function ensureCanImportPriceTables(userId: string) {
+  const { data: roles, error: rolesErr } = await supabaseAdmin
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId);
+  if (rolesErr) return `Falha ao verificar permissões: ${rolesErr.message}`;
+  const userRoles = (roles ?? []).map((r) => r.role);
+  const allowed = userRoles.some((r) => (ALLOWED_IMPORT_ROLES as readonly string[]).includes(r));
+  return allowed ? null : "Sem permissão para importar tabela. Necessário: admin, gerente comercial, diretoria ou engenharia.";
+}
 
 /**
  * Importa custos para uma tabela de preço a partir de linhas pré-parseadas
