@@ -46,11 +46,15 @@ const withAux = calculateTunnelEngine({
 assert.equal(base.productLoadKW, withAux.productLoadKW);
 assert.equal(base.infiltrationLoadKW, withAux.infiltrationLoadKW);
 assert.ok(withAux.totalKW > base.totalKW);
+assert.ok((withAux.totalBaseKW ?? 0) > 0);
+assert.ok(withAux.totalKW > (withAux.totalBaseKW ?? 0));
+assert.equal(withAux.coeficiente_seguranca, 1.1);
 
 const auxLoads = (withAux.calculationBreakdown.loads ?? {}) as Record<string, unknown>;
 const auxIncreasePercent = Number(auxLoads.auxiliaryIncreasePercent ?? 0);
 assert.ok(auxIncreasePercent > 0);
 assert.ok(Number(auxLoads.defrostLoadKW ?? 0) > 0);
+assert.equal(Number(auxLoads.coeficienteSeguranca), 1.1);
 
 console.log(
   JSON.stringify(
