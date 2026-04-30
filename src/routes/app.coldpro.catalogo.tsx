@@ -198,20 +198,21 @@ function CatalogoPage() {
   })();
 
   async function handleCatalogExport(format: "csv" | "xml") {
-    if (filteredModels.length === 0) {
-      toast.warning("Nenhum modelo disponível para exportar com os filtros atuais.");
+    if (catalogRows.length === 0) {
+      toast.warning("Nenhum produto disponível para exportar.");
       return;
     }
 
     setExportingFormat(format);
-    const toastId = toast.loading(`Preparando arquivo ${format.toUpperCase()}...`);
+    const toastId = toast.loading(`Preparando catálogo completo em ${format.toUpperCase()}...`);
     try {
       const timestamp = new Date().toISOString().slice(0, 10);
-      const content = format === "csv" ? toCatalogCsv(filteredModels) : toCatalogXml(filteredModels);
+      const completeCatalog = await fetchCompleteCatalogExportData();
+      const content = format === "csv" ? toCatalogCsv(completeCatalog) : toCatalogXml(completeCatalog);
       downloadTextFile(content, `catalogo-coldpro-${timestamp}.${format}`, format === "csv" ? "text/csv;charset=utf-8" : "application/xml;charset=utf-8");
-      toast.success(`${format.toUpperCase()} baixado com ${filteredModels.length} modelo(s).`, { id: toastId });
-    } catch {
-      toast.error(`Não foi possível baixar o ${format.toUpperCase()}.`, { id: toastId });
+      toast.success(`${format.toUpperCase()} completo baixado com ${completeCatalog.models.length} produto(s) e ${completeCatalog.performancePoints.length} ponto(s) de curva.`, { id: toastId });
+    } catch (err) {
+      toast.error(`Não foi possível baixar o ${format.toUpperCase()}: ${err instanceof Error ? err.message : "erro desconhecido"}`, { id: toastId });
     } finally {
       setExportingFormat(null);
     }
@@ -421,7 +422,7 @@ function CatalogoPage() {
                   variant="outline"
                   size="sm"
                   onClick={() => void handleCatalogExport("csv")}
-                  disabled={modelsQuery.isLoading || exportingFormat !== null || filteredModels.length === 0}
+                  disabled={modelsQuery.isLoading || exportingFormat !== null || catalogRows.length === 0}
                   className="bg-card"
                 >
                   {exportingFormat === "csv" ? (
@@ -435,7 +436,7 @@ function CatalogoPage() {
                   variant="outline"
                   size="sm"
                   onClick={() => void handleCatalogExport("xml")}
-                  disabled={modelsQuery.isLoading || exportingFormat !== null || filteredModels.length === 0}
+                  disabled={modelsQuery.isLoading || exportingFormat !== null || catalogRows.length === 0}
                   className="bg-card"
                 >
                   {exportingFormat === "xml" ? (
@@ -672,6 +673,15 @@ type ModelRowData = {
   raw?: unknown;
 };
 
+type CatalogExportData = {
+  models: Record<string, unknown>[];
+  compressors: Record<string, unknown>[];
+  condensers: Record<string, unknown>[];
+  evaporators: Record<string, unknown>[];
+  performancePoints: Record<string, unknown>[];
+  refrigerants: Record<string, unknown>[];
+};
+
 const CODE_ALIASES = ["codigo", "código", "sku", "cod_produto", "codigo_produto", "codigoNomus", "codigo_nomus", "idProduto", "produtoId"];
 const PRICE_ALIASES = ["preco", "preço", "preco_venda", "preço_venda", "valor_venda", "unit_price", "price", "precoUnitario", "valorUnitario"];
 const COST_ALIASES = ["custo", "custo_unitario", "valor_custo", "cost", "cost_price", "preco_custo", "preço_custo", "custoUnitario"];
@@ -841,35 +851,143 @@ function splitEquipmentTypes(value: string | null): string[] {
   return types.length ? types : [value];
 }
 
-function toCatalogCsv(rows: ModelRowData[]): string {
-  const headers = ["Modelo", "Linha", "Designação HP", "Gabinete", "Tipo", "Degelo", "Configuração elétrica", "Pontos", "Status"];
-  const body = rows.map((row) => [
-    row.modelo ?? "",
-    row.linha ?? "",
-    row.designacao_hp ?? "",
-    row.gabinete ?? "",
-    row.tipo_gabinete ?? "",
-    row.tipo_degelo ?? "",
-    row.electrical_configuration ?? row.voltages.join(" / "),
-    String(row.point_count),
-    row.active ? "Ativo" : "Inativo",
+async function fetchCompleteCatalogExportData(): Promise<CatalogExportData> {
+  const [models, compressors, condensers, evaporators, performancePoints, refrigerants] = await Promise.all([
+    fetchAllRows("coldpro_equipment_models", "*", "modelo"),
+    fetchAllRows("coldpro_equipment_compressors", "*", "equipment_model_id"),
+    fetchAllRows("coldpro_equipment_condensers", "*", "equipment_model_id"),
+    fetchAllRows("coldpro_equipment_evaporators", "*", "equipment_model_id"),
+    fetchAllRows("coldpro_equipment_performance_points", "*", "equipment_model_id"),
+    fetchAllRows("coldpro_equipment_model_refrigerants", "*, refrigerant:coldpro_refrigerants(*)", "equipment_model_id"),
   ]);
+  return { models, compressors, condensers, evaporators, performancePoints, refrigerants };
+}
+
+async function fetchAllRows(table: string, select: string, orderColumn: string): Promise<Record<string, unknown>[]> {
+  const rows: Record<string, unknown>[] = [];
+  const pageSize = 1000;
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await (supabase as any)
+      .from(table)
+      .select(select)
+      .order(orderColumn, { ascending: true, nullsFirst: false })
+      .range(from, from + pageSize - 1);
+    if (error) throw new Error(error.message);
+    rows.push(...((data ?? []) as Record<string, unknown>[]));
+    if (!data || data.length < pageSize) break;
+  }
+  return rows;
+}
+
+function toCatalogCsv(data: CatalogExportData): string {
+  const headers = buildCsvHeaders(data);
+  const related = buildRelatedIndexes(data);
+  const body = data.models.flatMap((model) => {
+    const modelId = String(model.id ?? "");
+    const base = flattenCatalogRecord("geral", model);
+    const common = {
+      ...base,
+      curva_total_pontos: String(related.performance.get(modelId)?.length ?? 0),
+      refrigerantes_total: String(related.refrigerants.get(modelId)?.length ?? 0),
+    };
+    const rows = related.performance.get(modelId) ?? [null];
+    return rows.map((point, index) => serializeCsvRecord(headers, {
+      ...common,
+      ...flattenCatalogRecord("compressor", related.compressors.get(modelId)),
+      ...flattenCatalogRecord("condensador", related.condensers.get(modelId)),
+      ...flattenCatalogRecord("evaporador", related.evaporators.get(modelId)),
+      refrigerantes: stringifyCatalogValue(related.refrigerants.get(modelId) ?? []),
+      curva_indice: point ? String(index + 1) : "",
+      ...flattenCatalogRecord("curva", point),
+    }));
+  });
   return [headers, ...body].map((line) => line.map(escapeCsvCell).join(";")).join("\n");
 }
 
-function toCatalogXml(rows: ModelRowData[]): string {
-  const items = rows.map((row) => `  <modelo id="${escapeXml(row.id)}">
-    <nome>${escapeXml(row.modelo ?? "")}</nome>
-    <linha>${escapeXml(row.linha ?? "")}</linha>
-    <designacaoHp>${escapeXml(row.designacao_hp ?? "")}</designacaoHp>
-    <gabinete>${escapeXml(row.gabinete ?? "")}</gabinete>
-    <tipo>${escapeXml(row.tipo_gabinete ?? "")}</tipo>
-    <degelo>${escapeXml(row.tipo_degelo ?? "")}</degelo>
-    <configuracaoEletrica>${escapeXml(row.electrical_configuration ?? row.voltages.join(" / "))}</configuracaoEletrica>
-    <pontos>${row.point_count}</pontos>
-    <status>${row.active ? "Ativo" : "Inativo"}</status>
-  </modelo>`);
-  return `<?xml version="1.0" encoding="UTF-8"?>\n<catalogoColdPro>\n${items.join("\n")}\n</catalogoColdPro>\n`;
+function toCatalogXml(data: CatalogExportData): string {
+  const related = buildRelatedIndexes(data);
+  const items = data.models.map((model) => {
+    const modelId = String(model.id ?? "");
+    return `  <produto id="${escapeXml(modelId)}">
+    <geral>${recordToXml(model)}</geral>
+    <compressor>${recordToXml(related.compressors.get(modelId))}</compressor>
+    <condensador>${recordToXml(related.condensers.get(modelId))}</condensador>
+    <evaporador>${recordToXml(related.evaporators.get(modelId))}</evaporador>
+    <refrigerantes>${(related.refrigerants.get(modelId) ?? []).map((row) => `<refrigerante>${recordToXml(row)}</refrigerante>`).join("")}</refrigerantes>
+    <curva>${(related.performance.get(modelId) ?? []).map((row) => `<ponto>${recordToXml(row)}</ponto>`).join("")}</curva>
+  </produto>`;
+  });
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<catalogoColdPro totalProdutos="${data.models.length}" totalPontosCurva="${data.performancePoints.length}">\n${items.join("\n")}\n</catalogoColdPro>\n`;
+}
+
+function buildRelatedIndexes(data: CatalogExportData) {
+  return {
+    compressors: indexOneByModel(data.compressors),
+    condensers: indexOneByModel(data.condensers),
+    evaporators: indexOneByModel(data.evaporators),
+    performance: indexManyByModel(data.performancePoints),
+    refrigerants: indexManyByModel(data.refrigerants),
+  };
+}
+
+function indexOneByModel(rows: Record<string, unknown>[]) {
+  return new Map(rows.map((row) => [String(row.equipment_model_id ?? ""), row]));
+}
+
+function indexManyByModel(rows: Record<string, unknown>[]) {
+  const map = new Map<string, Record<string, unknown>[]>();
+  for (const row of rows) {
+    const key = String(row.equipment_model_id ?? "");
+    if (!map.has(key)) map.set(key, []);
+    map.get(key)!.push(row);
+  }
+  return map;
+}
+
+function buildCsvHeaders(data: CatalogExportData): string[] {
+  const headers = new Set<string>(["curva_total_pontos", "refrigerantes_total", "refrigerantes", "curva_indice"]);
+  for (const row of data.models) addFlattenedKeys(headers, "geral", row);
+  for (const row of data.compressors) addFlattenedKeys(headers, "compressor", row);
+  for (const row of data.condensers) addFlattenedKeys(headers, "condensador", row);
+  for (const row of data.evaporators) addFlattenedKeys(headers, "evaporador", row);
+  for (const row of data.performancePoints) addFlattenedKeys(headers, "curva", row);
+  return Array.from(headers);
+}
+
+function addFlattenedKeys(headers: Set<string>, prefix: string, row: Record<string, unknown> | null | undefined) {
+  Object.keys(flattenCatalogRecord(prefix, row)).forEach((key) => headers.add(key));
+}
+
+function serializeCsvRecord(headers: string[], record: Record<string, unknown>): string[] {
+  return headers.map((header) => stringifyCatalogValue(record[header]));
+}
+
+function flattenCatalogRecord(prefix: string, row: Record<string, unknown> | null | undefined): Record<string, string> {
+  if (!row) return {};
+  return Object.fromEntries(Object.entries(row).map(([key, value]) => [`${prefix}_${key}`, stringifyCatalogValue(value)]));
+}
+
+function stringifyCatalogValue(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function recordToXml(row: Record<string, unknown> | null | undefined): string {
+  if (!row) return "";
+  return Object.entries(row)
+    .map(([key, value]) => `<${toXmlTagName(key)}>${escapeXml(stringifyCatalogValue(value))}</${toXmlTagName(key)}>`)
+    .join("");
+}
+
+function toXmlTagName(value: string): string {
+  const clean = value.replace(/[^a-zA-Z0-9_:-]/g, "_");
+  return /^[a-zA-Z_]/.test(clean) ? clean : `campo_${clean}`;
 }
 
 function escapeCsvCell(value: string): string {
