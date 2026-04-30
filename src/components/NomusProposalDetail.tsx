@@ -132,27 +132,97 @@ export function NomusProposalDetail({
   const p = data.prop;
   const items = data.items;
 
-  // Busca preços da tabela escolhida para comparar com o preço ofertado
-  const fetchPrices = useServerFn(getPriceTableItemsForProducts);
-  const productIds = useMemo(
-    () => items.map((it) => it.nomus_product_id).filter((x): x is string => !!x),
-    [items],
-  );
-  const { data: priceLookup } = useQuery({
-    queryKey: ["price-table-lookup", selectedPriceTableId, productIds],
-    enabled: !!selectedPriceTableId && productIds.length > 0,
+  // ─── Per-item price tables ─────────────────────────────────────────────────
+  // Carrega os proposal_items locais para mapear nomus_item_id → id local +
+  // estado atual da tabela escolhida (price_table_id, match_method, snapshot).
+  const { data: localItemsByNomusId = new Map<string, {
+    id: string;
+    price_table_id: string | null;
+    price_table_name: string | null;
+    price_table_match_method: string | null;
+    price_table_unit_price: number | null;
+    price_table_selected_at: string | null;
+  }>() } = useQuery({
+    queryKey: ["proposal-items-local", localProposalId],
+    enabled: !!localProposalId,
     queryFn: async () => {
-      const res = await fetchPrices({
-        data: { priceTableId: selectedPriceTableId!, nomusProductIds: productIds },
-      });
-      const map = new Map<string, number | null>();
-      for (const r of res.items) {
-        // Usa unit_price (preço bruto da tabela) como referência de "preço de tabela"
-        map.set(r.nomusProductId, r.unitPrice ?? r.precoLiquido);
+      const { data: rows, error } = await supabase
+        .from("proposal_items")
+        .select("id, nomus_item_id, price_table_id, price_table_name, price_table_match_method, price_table_unit_price, price_table_selected_at")
+        .eq("proposal_id", localProposalId!);
+      if (error) throw error;
+      const m = new Map<string, {
+        id: string;
+        price_table_id: string | null;
+        price_table_name: string | null;
+        price_table_match_method: string | null;
+        price_table_unit_price: number | null;
+        price_table_selected_at: string | null;
+      }>();
+      for (const r of (rows ?? []) as Array<{
+        id: string;
+        nomus_item_id: string | null;
+        price_table_id: string | null;
+        price_table_name: string | null;
+        price_table_match_method: string | null;
+        price_table_unit_price: number | null;
+        price_table_selected_at: string | null;
+      }>) {
+        if (r.nomus_item_id) m.set(r.nomus_item_id, r);
       }
-      return map;
+      return m;
     },
   });
+
+  // Itens enriquecidos com o id local + estado da tabela
+  const itemsForHook = useMemo(
+    () =>
+      items.map((it) => {
+        const local = it.nomus_item_id ? localItemsByNomusId.get(it.nomus_item_id) : null;
+        return {
+          id: local?.id ?? it.id,
+          nomusProductId: it.nomus_product_id,
+          priceTableId: local?.price_table_id ?? null,
+          priceTableSelectedAt: local?.price_table_selected_at ?? null,
+          priceTableMatchMethod: local?.price_table_match_method ?? null,
+        };
+      }),
+    [items, localItemsByNomusId],
+  );
+
+  const { tablesByProduct, applyAuto, applyManual } = useItemPriceTables({
+    proposalId: localProposalId ?? "",
+    clientUf: localClient?.state ?? null,
+    items: itemsForHook,
+  });
+
+  // Auto-aplicar sugestão para itens sem escolha (ou auto antiga sem snapshot).
+  // Não toca itens manuais. Roda uma vez por carregamento das tabelas.
+  const autoAppliedRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!localProposalId) return;
+    if (tablesByProduct.size === 0) return;
+    for (const it of itemsForHook) {
+      if (!it.nomusProductId) continue;
+      if (autoAppliedRef.current.has(it.id)) continue;
+      const isManual = it.priceTableMatchMethod === "manual";
+      const hasChoice = !!it.priceTableId;
+      // Aplica auto se: (a) nunca foi escolhida ou (b) foi vinda do nomus_sync mas
+      // ainda assim queremos a regra UF/ICMS. Mantemos manual intocada.
+      if (isManual) {
+        autoAppliedRef.current.add(it.id);
+        continue;
+      }
+      if (!hasChoice) {
+        applyAuto(it.id, it.nomusProductId);
+        autoAppliedRef.current.add(it.id);
+      } else {
+        autoAppliedRef.current.add(it.id);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tablesByProduct, itemsForHook, localProposalId]);
+
 
   return (
     <div className="space-y-6">
