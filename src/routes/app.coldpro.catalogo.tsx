@@ -920,6 +920,76 @@ function toCatalogXml(data: CatalogExportData): string {
   return `<?xml version="1.0" encoding="UTF-8"?>\n<catalogoColdPro totalProdutos="${data.models.length}" totalPontosCurva="${data.performancePoints.length}">\n${items.join("\n")}\n</catalogoColdPro>\n`;
 }
 
+function buildRelatedIndexes(data: CatalogExportData) {
+  return {
+    compressors: indexOneByModel(data.compressors),
+    condensers: indexOneByModel(data.condensers),
+    evaporators: indexOneByModel(data.evaporators),
+    performance: indexManyByModel(data.performancePoints),
+    refrigerants: indexManyByModel(data.refrigerants),
+  };
+}
+
+function indexOneByModel(rows: Record<string, unknown>[]) {
+  return new Map(rows.map((row) => [String(row.equipment_model_id ?? ""), row]));
+}
+
+function indexManyByModel(rows: Record<string, unknown>[]) {
+  const map = new Map<string, Record<string, unknown>[]>();
+  for (const row of rows) {
+    const key = String(row.equipment_model_id ?? "");
+    if (!map.has(key)) map.set(key, []);
+    map.get(key)!.push(row);
+  }
+  return map;
+}
+
+function buildCsvHeaders(data: CatalogExportData): string[] {
+  const headers = new Set<string>(["curva_total_pontos", "refrigerantes_total", "refrigerantes", "curva_indice"]);
+  for (const row of data.models) addFlattenedKeys(headers, "geral", row);
+  for (const row of data.compressors) addFlattenedKeys(headers, "compressor", row);
+  for (const row of data.condensers) addFlattenedKeys(headers, "condensador", row);
+  for (const row of data.evaporators) addFlattenedKeys(headers, "evaporador", row);
+  for (const row of data.performancePoints) addFlattenedKeys(headers, "curva", row);
+  return Array.from(headers);
+}
+
+function addFlattenedKeys(headers: Set<string>, prefix: string, row: Record<string, unknown> | null | undefined) {
+  Object.keys(flattenCatalogRecord(prefix, row)).forEach((key) => headers.add(key));
+}
+
+function serializeCsvRecord(headers: string[], record: Record<string, unknown>): string[] {
+  return headers.map((header) => stringifyCatalogValue(record[header]));
+}
+
+function flattenCatalogRecord(prefix: string, row: Record<string, unknown> | null | undefined): Record<string, string> {
+  if (!row) return {};
+  return Object.fromEntries(Object.entries(row).map(([key, value]) => [`${prefix}_${key}`, stringifyCatalogValue(value)]));
+}
+
+function stringifyCatalogValue(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function recordToXml(row: Record<string, unknown> | null | undefined): string {
+  if (!row) return "";
+  return Object.entries(row)
+    .map(([key, value]) => `<${toXmlTagName(key)}>${escapeXml(stringifyCatalogValue(value))}</${toXmlTagName(key)}>`)
+    .join("");
+}
+
+function toXmlTagName(value: string): string {
+  const clean = value.replace(/[^a-zA-Z0-9_:-]/g, "_");
+  return /^[a-zA-Z_]/.test(clean) ? clean : `campo_${clean}`;
+}
+
 function escapeCsvCell(value: string): string {
   return `"${value.replace(/"/g, '""')}"`;
 }
