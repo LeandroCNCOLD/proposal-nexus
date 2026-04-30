@@ -61,7 +61,7 @@ async function resolveProposalItemPriceTable(args: {
   if (tableNomusId || tableName) {
     const { data } = tableNomusId
       ? await supabaseAdmin.from("nomus_price_tables").select("id, nomus_id, name, code").eq("nomus_id", tableNomusId).maybeSingle()
-      : await supabaseAdmin.from("nomus_price_tables").select("id, nomus_id, name, code").eq("name", tableName).maybeSingle();
+      : await supabaseAdmin.from("nomus_price_tables").select("id, nomus_id, name, code").eq("name", tableName ?? "").maybeSingle();
     const resolved = data ?? (!tableNomusId && tableName
       ? (await supabaseAdmin.from("nomus_price_tables").select("id, nomus_id, name, code").eq("code", tableName).maybeSingle()).data
       : null);
