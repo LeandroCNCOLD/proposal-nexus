@@ -477,7 +477,8 @@ export const pullNomusProcesses = createServerFn({ method: "POST" })
     const shouldStartFreshJob =
       !existingJob ||
       JSON.stringify((existingJob as any).tipos ?? []) !== JSON.stringify(tipos) ||
-      (Number((existingJob as any).processed_items ?? 0) === 0 && (existingJob as any).status === "running");
+      (Number((existingJob as any).processed_items ?? 0) === 0 && (existingJob as any).status === "running") ||
+      (Number((existingJob as any).current_page ?? 1) > PROCESS_MAX_BATCH_PAGES && Number((existingJob as any).upserted_items ?? 0) === 0);
 
     if (existingJob && shouldStartFreshJob) {
       await (supabaseAdmin as any)
