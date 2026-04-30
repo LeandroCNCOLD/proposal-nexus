@@ -19,6 +19,11 @@ export type EnrichedCard = {
   probabilidade_label: string | null;
   projeto_estado: string | null;
   segmento: string | null;
+  ambiente_tipo?: string | null;
+  carga_termica_kcal_h?: number | null;
+  temperatura_interna?: string | null;
+  temperatura_evaporacao?: string | null;
+  dimensoes?: string | null;
   proposta_numero: string | null;
   proposta_valor: number | null;
   proposta_validade: string | null;
@@ -112,6 +117,21 @@ export function KanbanCardRich({ card }: { card: EnrichedCard }) {
         {card.segmento && (
           <p className="text-muted-foreground">
             <span className="font-medium text-foreground/80">Segmento:</span> {card.segmento}
+          </p>
+        )}
+        {(card.ambiente_tipo || card.carga_termica_kcal_h || card.temperatura_interna) && (
+          <p className="text-muted-foreground">
+            <span className="font-medium text-foreground/80">Técnico:</span>{" "}
+            {[
+              card.ambiente_tipo,
+              card.temperatura_interna,
+              card.carga_termica_kcal_h ? `${card.carga_termica_kcal_h.toLocaleString("pt-BR")} kcal/h` : null,
+            ].filter(Boolean).join(" · ")}
+          </p>
+        )}
+        {card.dimensoes && (
+          <p className="text-muted-foreground">
+            <span className="font-medium text-foreground/80">Dimensões:</span> {card.dimensoes}
           </p>
         )}
         {card.proposta_numero && (
