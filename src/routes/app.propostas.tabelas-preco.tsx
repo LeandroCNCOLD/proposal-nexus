@@ -153,6 +153,7 @@ function PriceTablesPage() {
   const [selectedTableId, setSelectedTableId] = useState<string>("all");
   const [openedTableId, setOpenedTableId] = useState<string | null>(null);
   const [editingTable, setEditingTable] = useState<PriceTable | null>(null);
+  const [editingTableName, setEditingTableName] = useState("");
   const [editingUfs, setEditingUfs] = useState<string[]>([]);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [alertFilter, setAlertFilter] = useState<AlertFilter>("all");
@@ -268,6 +269,7 @@ function PriceTablesPage() {
 
   function openEditTable(table: PriceTable) {
     setEditingTable(table);
+    setEditingTableName(table.name);
     setEditingUfs(normalizeUfs(table.ufs));
   }
 
@@ -281,20 +283,26 @@ function PriceTablesPage() {
 
   async function saveEditingTableUfs() {
     if (!editingTable) return;
+    const name = editingTableName.trim();
+    if (!name) {
+      toast.warning("Informe o nome da tabela.");
+      return;
+    }
     setSavingUfs(true);
     try {
-      const result = await updatePriceTableUfs({ data: { priceTableId: editingTable.id, ufs: editingUfs } });
+      const result = await updatePriceTableUfs({ data: { priceTableId: editingTable.id, name, ufs: editingUfs } });
       if (!result.ok) {
-        toast.error(result.error || "Erro ao salvar UFs da tabela.");
+        toast.error(result.error || "Erro ao salvar tabela.");
         return;
       }
       await queryClient.invalidateQueries({ queryKey: ["nomus-price-tables-ui"] });
-      toast.success("UFs da tabela atualizadas.");
+      toast.success("Tabela atualizada.");
       setEditingTable(null);
+      setEditingTableName("");
       setEditingUfs([]);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      toast.error(`Erro ao salvar UFs: ${message}`);
+      toast.error(`Erro ao salvar tabela: ${message}`);
     } finally {
       setSavingUfs(false);
     }
@@ -818,14 +826,21 @@ function PriceTablesPage() {
       <Dialog open={!!editingTable} onOpenChange={(open) => !open && setEditingTable(null)}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Editar UFs da tabela</DialogTitle>
+            <DialogTitle>Editar tabela</DialogTitle>
             <DialogDescription>
-              Selecione somente as unidades federativas onde esta tabela atua.
+              Ajuste o nome e selecione somente as unidades federativas onde esta tabela atua.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
-            <div className="rounded-md border bg-muted/30 p-3 text-sm font-medium">
-              {editingTable?.name}
+            <div className="space-y-2">
+              <Label htmlFor="price-table-name">Nome da tabela</Label>
+              <Input
+                id="price-table-name"
+                value={editingTableName}
+                onChange={(event) => setEditingTableName(event.target.value)}
+                placeholder="Nome da tabela"
+                disabled={savingUfs}
+              />
             </div>
             <div className="grid grid-cols-3 gap-2 sm:grid-cols-6 md:grid-cols-9">
               {ALL_UFS.map((uf) => (
@@ -837,7 +852,15 @@ function PriceTablesPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setEditingTable(null)} disabled={savingUfs}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setEditingTable(null);
+                setEditingTableName("");
+              }}
+              disabled={savingUfs}
+            >
               Cancelar
             </Button>
             <Button type="button" onClick={() => void saveEditingTableUfs()} disabled={savingUfs}>

@@ -1080,8 +1080,9 @@ export const nomusSyncPriceTables = createServerFn({ method: "POST" })
 
 export const nomusUpdatePriceTableUfs = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { priceTableId: string; ufs: string[] }) => ({
+  .inputValidator((input: { priceTableId: string; name?: string; ufs: string[] }) => ({
     priceTableId: String(input.priceTableId ?? ""),
+    name: String(input.name ?? "").trim(),
     ufs: Array.from(
       new Set(
         (input.ufs ?? [])
@@ -1092,12 +1093,13 @@ export const nomusUpdatePriceTableUfs = createServerFn({ method: "POST" })
   }))
   .handler(async ({ data }) => {
     if (!data.priceTableId) return { ok: false, error: "Tabela de preço não informada." };
+    if (!data.name) return { ok: false, error: "Nome da tabela não informado." };
     const { error } = await supabaseAdmin
       .from("nomus_price_tables")
-      .update({ ufs: data.ufs } as never)
+      .update({ name: data.name, ufs: data.ufs } as never)
       .eq("id", data.priceTableId);
     if (error) return { ok: false, error: error.message };
-    return { ok: true, ufs: data.ufs };
+    return { ok: true, name: data.name, ufs: data.ufs };
   });
 
 /** Push a proposal to Nomus. Creates if no nomus_id, updates otherwise. */
