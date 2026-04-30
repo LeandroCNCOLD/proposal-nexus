@@ -345,6 +345,13 @@ function ProposalDetail() {
             <dl className="grid gap-4 text-sm md:grid-cols-2">
               <Item label="Temperatura" value={p.temperature ? TEMPERATURE_LABELS[p.temperature] : "—"} />
               <Item label="Valor total" value={brl(Number(p.total_value ?? 0))} highlight />
+              {(p as any).final_amount_with_financial_cost != null && (
+                <Item
+                  label="Valor total com taxa financeira"
+                  value={brl(Number((p as any).final_amount_with_financial_cost))}
+                  highlight
+                />
+              )}
               <Item label="Probabilidade" value={p.win_probability != null ? `${p.win_probability}%` : "—"} />
               <Item label="Próximo follow-up" value={dateBR(p.next_followup_at)} />
               <Item label="Enviada em" value={dateBR(p.sent_at)} />
