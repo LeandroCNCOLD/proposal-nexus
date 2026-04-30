@@ -192,7 +192,8 @@ async function persistChangedNomusProcessBatch(db: any, items: NomusProcessRaw[]
   return persistNomusProcessBatch(supabaseAdmin, changed, userId);
 }
 
-const PROCESS_RECENT_LIST_PAGES = 4;
+const PROCESS_RECENT_LIST_PAGES = 10;
+const PROCESS_DEFAULT_BATCH_PAGES = 10;
 const PROCESS_FORWARD_LOOKAHEAD = 6;
 const PROCESS_RECENT_RECHECK = 4;
 const PROCESS_MAX_CONSECUTIVE_MISSES = 3;
@@ -469,7 +470,7 @@ export const pullNomusProcesses = createServerFn({ method: "POST" })
       .single()).data;
 
     if (!job?.id) return { ok: false as const, error: "Não foi possível iniciar a sincronização do funil." };
-    const batch = await processNomusProcessSyncBatch({ data: { jobId: job.id, maxPages: data?.maxPages ?? 3 } });
+    const batch = await processNomusProcessSyncBatch({ data: { jobId: job.id, maxPages: data?.maxPages ?? PROCESS_DEFAULT_BATCH_PAGES } });
     if (!batch.ok) return { ok: false as const, error: "error" in batch ? batch.error : "Falha ao sincronizar processos" };
     return {
       ok: true as const,
@@ -533,7 +534,7 @@ export const getNomusProcessSyncJob = createServerFn({ method: "POST" })
 
 export const processNomusProcessSyncBatch = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(z.object({ jobId: z.string().uuid(), maxPages: z.number().int().min(1).max(3).optional() }))
+  .inputValidator(z.object({ jobId: z.string().uuid(), maxPages: z.number().int().min(1).max(10).optional() }))
   .handler(async ({ data, context }) => {
     const supabaseAdmin = context.supabase as any;
     const { listPage } = await import("./client");
