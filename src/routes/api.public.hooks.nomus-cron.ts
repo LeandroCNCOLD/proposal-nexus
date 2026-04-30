@@ -176,25 +176,37 @@ async function syncProposalDetail(rawSummary: Record<string, unknown>, options: 
     if (mappedItems.length > 0) {
       await supabaseAdmin.from("nomus_proposal_items").delete().eq("nomus_proposal_id", mirrorId);
       await supabaseAdmin.from("nomus_proposal_items").insert(
-        mappedItems.map((it, idx) => ({
-          nomus_proposal_id: mirrorId,
-          nomus_item_id: it.nomus_item_id,
-          nomus_product_id: it.nomus_product_id,
-          product_code: it.product_code,
-          description: it.description,
-          additional_info: it.additional_info,
-          quantity: it.quantity,
-          unit_price: it.unit_price,
-          unit_value_with_unit: it.unit_value_with_unit,
-          discount: it.discount,
-          total: it.total,
-          total_with_discount: it.total_with_discount,
-          prazo_entrega_dias: it.prazo_entrega_dias,
-          item_status: it.item_status,
-          position: idx,
-          // Salva o JSON ORIGINAL do item (não o mapeado), preservando
-          // todos os campos extras que o Nomus envia.
-          raw: (Array.isArray(rawItemsArr) && rawItemsArr[idx] ? rawItemsArr[idx] : it) as never,
+        await Promise.all(mappedItems.map(async (it, idx) => {
+          const priceTable = await resolveProposalItemPriceTable({
+            itemTableNomusId: it.price_table_nomus_id,
+            itemTableName: it.price_table_name,
+            proposalTableNomusId: mapped.tabela_preco_nomus_id,
+            proposalTableName: mapped.tabela_preco_nome,
+            productNomusId: it.nomus_product_id,
+            unitPrice: it.unit_price,
+          });
+          return {
+            nomus_proposal_id: mirrorId,
+            nomus_item_id: it.nomus_item_id,
+            nomus_product_id: it.nomus_product_id,
+            price_table_id: priceTable.id,
+            price_table_nomus_id: priceTable.nomusId,
+            price_table_name: priceTable.name,
+            price_table_match_method: priceTable.matchMethod,
+            product_code: it.product_code,
+            description: it.description,
+            additional_info: it.additional_info,
+            quantity: it.quantity,
+            unit_price: it.unit_price,
+            unit_value_with_unit: it.unit_value_with_unit,
+            discount: it.discount,
+            total: it.total,
+            total_with_discount: it.total_with_discount,
+            prazo_entrega_dias: it.prazo_entrega_dias,
+            item_status: it.item_status,
+            position: idx,
+            raw: (Array.isArray(rawItemsArr) && rawItemsArr[idx] ? rawItemsArr[idx] : it) as never,
+          };
         }))
       );
     }
