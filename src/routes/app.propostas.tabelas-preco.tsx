@@ -153,6 +153,7 @@ function PriceTablesPage() {
   const [selectedTableId, setSelectedTableId] = useState<string>("all");
   const [openedTableId, setOpenedTableId] = useState<string | null>(null);
   const [editingTable, setEditingTable] = useState<PriceTable | null>(null);
+  const [editingTableName, setEditingTableName] = useState("");
   const [editingUfs, setEditingUfs] = useState<string[]>([]);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [alertFilter, setAlertFilter] = useState<AlertFilter>("all");
@@ -268,6 +269,7 @@ function PriceTablesPage() {
 
   function openEditTable(table: PriceTable) {
     setEditingTable(table);
+    setEditingTableName(table.name);
     setEditingUfs(normalizeUfs(table.ufs));
   }
 
@@ -281,20 +283,26 @@ function PriceTablesPage() {
 
   async function saveEditingTableUfs() {
     if (!editingTable) return;
+    const name = editingTableName.trim();
+    if (!name) {
+      toast.warning("Informe o nome da tabela.");
+      return;
+    }
     setSavingUfs(true);
     try {
-      const result = await updatePriceTableUfs({ data: { priceTableId: editingTable.id, ufs: editingUfs } });
+      const result = await updatePriceTableUfs({ data: { priceTableId: editingTable.id, name, ufs: editingUfs } });
       if (!result.ok) {
-        toast.error(result.error || "Erro ao salvar UFs da tabela.");
+        toast.error(result.error || "Erro ao salvar tabela.");
         return;
       }
       await queryClient.invalidateQueries({ queryKey: ["nomus-price-tables-ui"] });
-      toast.success("UFs da tabela atualizadas.");
+      toast.success("Tabela atualizada.");
       setEditingTable(null);
+      setEditingTableName("");
       setEditingUfs([]);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      toast.error(`Erro ao salvar UFs: ${message}`);
+      toast.error(`Erro ao salvar tabela: ${message}`);
     } finally {
       setSavingUfs(false);
     }
