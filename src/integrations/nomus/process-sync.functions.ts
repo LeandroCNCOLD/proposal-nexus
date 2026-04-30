@@ -635,7 +635,28 @@ export const processNomusProcessSyncBatch = createServerFn({ method: "POST" })
         });
         if (!res.ok) return failSoft(res.error);
         currentPage += 1;
-        if (res.items.length === 0) break;
+        if (res.items.length === 0) {
+          const finishedAt = new Date().toISOString();
+          const { data: updated } = await (supabaseAdmin as any)
+            .from("nomus_process_sync_jobs")
+            .update({
+              status: "completed",
+              current_page: currentPage,
+              processed_items: processed,
+              upserted_items: upserted,
+              stages_discovered: stagesCount,
+              finished_at: finishedAt,
+              last_error: null,
+            })
+            .eq("id", job.id)
+            .select("*")
+            .single();
+          await supabaseAdmin.from("nomus_sync_state").upsert(
+            { entity: "processos", last_synced_at: finishedAt, total_synced: upserted, running: false, last_error: null, updated_at: finishedAt },
+            { onConflict: "entity" },
+          );
+          return { ok: true as const, job: updated, done: true as const, scanned: batchScanned, matched: batchMatched, persisted: batchPersisted };
+        }
         const pageItems = res.items;
         processed += pageItems.length;
         batchScanned += pageItems.length;
