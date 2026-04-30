@@ -134,6 +134,7 @@ export type ProposalItemTableRow = {
   id: string;
   position?: number | null;
   productCode?: string | null;
+  priceTableName?: string | null;
   description?: string | null;
   additionalInfo?: string | null;
   quantity?: number | null;
@@ -152,6 +153,7 @@ export function ProposalItemsTable({ items, onOpenItem }: { items: ProposalItemT
           <TableRow className="bg-secondary/40">
             <TableHead className="w-14">#</TableHead>
             <TableHead className="w-28">Código</TableHead>
+            <TableHead className="w-48">Tabela de preço</TableHead>
             <TableHead>Descrição</TableHead>
             <TableHead className="text-right">Qtd.</TableHead>
             <TableHead className="text-right">Venda unit.</TableHead>
@@ -165,6 +167,7 @@ export function ProposalItemsTable({ items, onOpenItem }: { items: ProposalItemT
             <TableRow key={item.id} className={cn(onOpenItem && "cursor-pointer hover:bg-secondary/30")} onClick={() => onOpenItem?.(item)}>
               <TableCell className="font-mono text-xs text-muted-foreground">{String((item.position ?? 0) + 1).padStart(2, "0")}</TableCell>
               <TableCell className="font-mono text-xs">{item.productCode ?? "—"}</TableCell>
+              <TableCell className="text-xs font-medium">{item.priceTableName ?? "—"}</TableCell>
               <TableCell className="min-w-72">
                 <div className="font-medium text-foreground">{item.description ?? "—"}</div>
                 {item.additionalInfo ? <div className="mt-1 whitespace-pre-wrap text-xs text-muted-foreground">{item.additionalInfo}</div> : null}
