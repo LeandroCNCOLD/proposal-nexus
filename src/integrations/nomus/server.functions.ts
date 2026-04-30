@@ -2368,3 +2368,100 @@ export const nomusImportPriceTableCsv = createServerFn({ method: "POST" })
 
     return { ok: true as const, priceTableId: (table as { id: string }).id, priceTableName: (table as { name: string }).name, totalRows: data.rows.length, inserted, updated, skipped, withCost };
   });
+
+export const nomusAuditPriceTables = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: PriceTableAuditInput | undefined) => ({
+    maxResults: Math.min(Math.max(Number(input?.maxResults ?? 250), 25), 1000),
+    priceDiffPct: Math.min(Math.max(Number(input?.priceDiffPct ?? 8), 1), 80),
+    costDiffPct: Math.min(Math.max(Number(input?.costDiffPct ?? 5), 1), 80),
+    lowMarginPct: Math.min(Math.max(Number(input?.lowMarginPct ?? 15), -50), 80),
+  }))
+  .handler(async ({ data }) => {
+    const items = await fetchAllPriceTableAuditItems();
+    const byProduct = new Map<string, PriceTableAuditItem[]>();
+    for (const item of items) {
+      const productId = String(item.nomus_product_id ?? "").trim();
+      if (!productId) continue;
+      const group = byProduct.get(productId) ?? [];
+      group.push(item);
+      byProduct.set(productId, group);
+    }
+
+    const findings: Array<Record<string, unknown>> = [];
+    let productsWithAlerts = 0;
+    for (const [productId, productItems] of byProduct.entries()) {
+      const prices = productItems.map((item) => firstFinite(item.preco_liquido, item.preco_calculado, item.unit_price)).filter((value): value is number => value != null && value > 0);
+      const costs = productItems.map((item) => firstFinite(item.custo_producao_total, item.custo_cif, item.custo_materiais)).filter((value): value is number => value != null && value > 0);
+      const margins = productItems.map((item) => item.margem_contribuicao).filter((value): value is number => value != null && Number.isFinite(value));
+      const medianPrice = median(prices);
+      const medianCost = median(costs);
+      const medianMargin = median(margins);
+      let productHasAlert = false;
+
+      for (const item of productItems) {
+        const price = firstFinite(item.preco_liquido, item.preco_calculado, item.unit_price);
+        const cost = firstFinite(item.custo_producao_total, item.custo_cif, item.custo_materiais);
+        const margin = item.margem_contribuicao;
+        const expectedMargin = firstFinite(item.margem_desejada_pct, medianMargin, data.lowMarginPct);
+        const reasons: string[] = [];
+        let severity: "baixa" | "média" | "alta" | "crítica" = "baixa";
+        let score = 0;
+
+        if (!price || price <= 0) { reasons.push("Sem preço de venda válido"); severity = "crítica"; score += 90; }
+        if (!item.has_cost_data || !cost || cost <= 0) { reasons.push("Sem custo importado válido"); severity = severity === "crítica" ? severity : "alta"; score += 70; }
+        if (margin != null && margin < 0) { reasons.push("Margem negativa"); severity = "crítica"; score += 95; }
+        if (margin != null && expectedMargin != null && margin >= 0 && margin < expectedMargin) { reasons.push(`Margem abaixo do esperado (${expectedMargin.toFixed(1)}%)`); severity = severity === "crítica" ? severity : "alta"; score += 55 + Math.abs(expectedMargin - margin); }
+        if (price != null && medianPrice != null && prices.length >= 2) {
+          const diff = pctDiff(price, medianPrice);
+          if (diff >= data.priceDiffPct) { reasons.push(`Preço ${diff.toFixed(1)}% fora da mediana do produto`); severity = severity === "crítica" ? severity : diff >= data.priceDiffPct * 2 ? "alta" : "média"; score += diff; }
+        }
+        if (cost != null && medianCost != null && costs.length >= 2) {
+          const diff = pctDiff(cost, medianCost);
+          if (diff >= data.costDiffPct) { reasons.push(`Custo ${diff.toFixed(1)}% fora da mediana do produto`); severity = severity === "crítica" ? severity : diff >= data.costDiffPct * 2 ? "alta" : "média"; score += diff; }
+        }
+        if (price != null && cost != null && price > 0 && margin != null) {
+          const calculatedMargin = ((price - cost) / price) * 100;
+          const diff = Math.abs(calculatedMargin - margin);
+          if (diff >= 2) { reasons.push(`Margem informada difere da margem calculada em ${diff.toFixed(1)} p.p.`); severity = severity === "crítica" ? severity : "alta"; score += 45 + diff; }
+        }
+
+        if (reasons.length > 0) {
+          productHasAlert = true;
+          findings.push({
+            id: item.id,
+            productId,
+            productCode: item.equipments?.normalized_model_code ?? readAuditRawText(item.raw, ["codigo", "code", "produto_codigo", "model_code"]) ?? productId,
+            productName: item.equipments?.model ?? readAuditRawText(item.raw, ["produto", "nome", "name", "descricao", "description"]) ?? "Produto Nomus",
+            tableName: item.nomus_price_tables?.name ?? "Tabela sem nome",
+            tableCode: item.nomus_price_tables?.code ?? null,
+            price,
+            cost,
+            margin,
+            expectedMargin,
+            medianPrice,
+            medianCost,
+            medianMargin,
+            severity,
+            score,
+            reasons,
+          });
+        }
+      }
+      if (productHasAlert) productsWithAlerts++;
+    }
+
+    findings.sort((a, b) => Number(b.score ?? 0) - Number(a.score ?? 0));
+    const limited = findings.slice(0, data.maxResults);
+    return {
+      ok: true as const,
+      analyzedTables: new Set(items.map((item) => item.nomus_price_tables?.id).filter(Boolean)).size,
+      analyzedItems: items.length,
+      analyzedProducts: byProduct.size,
+      productsWithAlerts,
+      findingsCount: findings.length,
+      criticalCount: findings.filter((item) => item.severity === "crítica").length,
+      highCount: findings.filter((item) => item.severity === "alta").length,
+      findings: limited,
+    };
+  });
