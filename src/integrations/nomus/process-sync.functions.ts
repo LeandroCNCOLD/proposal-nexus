@@ -630,8 +630,8 @@ export const processNomusProcessSyncBatch = createServerFn({ method: "POST" })
           entity: "processos",
           page,
           pageSize: Number(job.page_size ?? 50),
-          timeoutMs: 6_000,
-          maxAttempts: 1,
+          timeoutMs: 15_000,
+          maxAttempts: 2,
           triggeredBy: userId,
         });
         if (!res.ok) return failSoft(res.error);
