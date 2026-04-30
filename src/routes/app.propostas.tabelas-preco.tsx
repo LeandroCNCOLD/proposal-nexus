@@ -11,6 +11,7 @@ import {
   Download,
   FileCode2,
   Loader2,
+  Pencil,
   Printer,
   RefreshCw,
   Search,
@@ -23,7 +24,17 @@ import { PageHeader } from "@/components/PageHeader";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
@@ -47,6 +58,7 @@ import {
   nomusAuditPriceTables,
   nomusImportPriceTableCsv,
   nomusSyncPriceTables,
+  nomusUpdatePriceTableUfs,
 } from "@/integrations/nomus/server.functions";
 import { decodeBytes, parseNomusCostsCsv } from "@/integrations/nomus/csv-parser";
 import type { Database, Json } from "@/integrations/supabase/types";
@@ -100,6 +112,35 @@ type AuditResult = {
 type AuditAiMessage = { id: string; role: "user" | "assistant"; content: string; created_at: string };
 
 const LOW_MARGIN_THRESHOLD = 15;
+const ALL_UFS = [
+  "AC",
+  "AL",
+  "AP",
+  "AM",
+  "BA",
+  "CE",
+  "DF",
+  "ES",
+  "GO",
+  "MA",
+  "MT",
+  "MS",
+  "MG",
+  "PA",
+  "PB",
+  "PR",
+  "PE",
+  "PI",
+  "RJ",
+  "RN",
+  "RS",
+  "RO",
+  "RR",
+  "SC",
+  "SP",
+  "SE",
+  "TO",
+] as const;
 
 function PriceTablesPage() {
   const queryClient = useQueryClient();
@@ -107,9 +148,12 @@ function PriceTablesPage() {
   const importPriceTableCsv = useServerFn(nomusImportPriceTableCsv);
   const auditPriceTables = useServerFn(nomusAuditPriceTables);
   const askPriceAuditAi = useServerFn(nomusAskPriceAuditAi);
+  const updatePriceTableUfs = useServerFn(nomusUpdatePriceTableUfs);
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const [selectedTableId, setSelectedTableId] = useState<string>("all");
   const [openedTableId, setOpenedTableId] = useState<string | null>(null);
+  const [editingTable, setEditingTable] = useState<PriceTable | null>(null);
+  const [editingUfs, setEditingUfs] = useState<string[]>([]);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [alertFilter, setAlertFilter] = useState<AlertFilter>("all");
   const [productSearch, setProductSearch] = useState("");
@@ -125,6 +169,7 @@ function PriceTablesPage() {
   const [aiReport, setAiReport] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
   const [exporting, setExporting] = useState<"csv" | "xml" | null>(null);
+  const [savingUfs, setSavingUfs] = useState(false);
 
   const priceTablesQuery = useQuery({
     queryKey: ["nomus-price-tables-ui"],
@@ -219,6 +264,40 @@ function PriceTablesPage() {
       queryClient.invalidateQueries({ queryKey: ["nomus-price-table-items-ui"] }),
     ]);
     toast.success("Dados atualizados.");
+  }
+
+  function openEditTable(table: PriceTable) {
+    setEditingTable(table);
+    setEditingUfs(normalizeUfs(table.ufs));
+  }
+
+  function toggleEditingUf(uf: string) {
+    setEditingUfs((current) =>
+      current.includes(uf)
+        ? current.filter((item) => item !== uf)
+        : [...current, uf].sort((a, b) => ALL_UFS.indexOf(a as (typeof ALL_UFS)[number]) - ALL_UFS.indexOf(b as (typeof ALL_UFS)[number])),
+    );
+  }
+
+  async function saveEditingTableUfs() {
+    if (!editingTable) return;
+    setSavingUfs(true);
+    try {
+      const result = await updatePriceTableUfs({ data: { priceTableId: editingTable.id, ufs: editingUfs } });
+      if (!result.ok) {
+        toast.error(result.error || "Erro ao salvar UFs da tabela.");
+        return;
+      }
+      await queryClient.invalidateQueries({ queryKey: ["nomus-price-tables-ui"] });
+      toast.success("UFs da tabela atualizadas.");
+      setEditingTable(null);
+      setEditingUfs([]);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      toast.error(`Erro ao salvar UFs: ${message}`);
+    } finally {
+      setSavingUfs(false);
+    }
   }
 
   async function handleSync() {
@@ -674,9 +753,8 @@ function PriceTablesPage() {
         ) : (
           <div className="grid gap-3 lg:grid-cols-2 2xl:grid-cols-3">
             {filteredTables.map((table) => (
-              <button
+              <div
                 key={table.id}
-                type="button"
                 onClick={() => setOpenedTableId(table.id)}
                 className={cn(
                   "rounded-lg border bg-card p-4 text-left shadow-[var(--shadow-sm)] transition hover:border-primary/50 hover:bg-muted/30",
@@ -685,9 +763,33 @@ function PriceTablesPage() {
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <div className="truncate text-sm font-semibold">{table.name}</div>
+                    <div className="flex min-w-0 flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        className="truncate text-sm font-semibold text-left hover:text-primary"
+                        onClick={() => setOpenedTableId(table.id)}
+                      >
+                        {buildTableCardTitle(table.name, table.ufs)}
+                      </button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 shrink-0"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          openEditTable(table);
+                        }}
+                        aria-label={`Editar UFs da tabela ${table.name}`}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    </div>
                     <div className="mt-1 font-mono text-xs text-muted-foreground">
                       {table.code ?? table.nomus_id}
+                    </div>
+                    <div className="mt-2 text-xs text-muted-foreground">
+                      UF: {formatUfs(table.ufs)}
                     </div>
                   </div>
                   <StatusBadge active={table.is_active} />
@@ -707,11 +809,44 @@ function PriceTablesPage() {
                   )}
                   <Badge variant="outline">{table.currency ?? "BRL"}</Badge>
                 </div>
-              </button>
+              </div>
             ))}
           </div>
         )}
       </Card>
+
+      <Dialog open={!!editingTable} onOpenChange={(open) => !open && setEditingTable(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Editar UFs da tabela</DialogTitle>
+            <DialogDescription>
+              Selecione somente as unidades federativas onde esta tabela atua.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="rounded-md border bg-muted/30 p-3 text-sm font-medium">
+              {editingTable?.name}
+            </div>
+            <div className="grid grid-cols-3 gap-2 sm:grid-cols-6 md:grid-cols-9">
+              {ALL_UFS.map((uf) => (
+                <Label key={uf} className="flex cursor-pointer items-center gap-2 rounded-md border p-2">
+                  <Checkbox checked={editingUfs.includes(uf)} onCheckedChange={() => toggleEditingUf(uf)} />
+                  {uf}
+                </Label>
+              ))}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setEditingTable(null)} disabled={savingUfs}>
+              Cancelar
+            </Button>
+            <Button type="button" onClick={() => void saveEditingTableUfs()} disabled={savingUfs}>
+              {savingUfs && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Salvar tabela
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Card className="p-5 shadow-[var(--shadow-sm)]">
         <div className="mb-4 flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
@@ -900,6 +1035,26 @@ function buildTableSummaries(
       alertsCount: tableItems.filter((item) => getSummaryAlerts(item).length > 0).length,
     };
   });
+}
+
+function normalizeUfs(ufs: string[] | null | undefined) {
+  return Array.from(
+    new Set(
+      (ufs ?? [])
+        .map((uf) => String(uf).trim().toUpperCase())
+        .filter((uf): uf is (typeof ALL_UFS)[number] => ALL_UFS.includes(uf as (typeof ALL_UFS)[number])),
+    ),
+  ).sort((a, b) => ALL_UFS.indexOf(a) - ALL_UFS.indexOf(b));
+}
+
+function formatUfs(ufs: string[] | null | undefined) {
+  const normalized = normalizeUfs(ufs);
+  return normalized.length > 0 ? normalized.join(", ") : "—";
+}
+
+function buildTableCardTitle(name: string, ufs: string[] | null | undefined) {
+  const formattedUfs = formatUfs(ufs);
+  return formattedUfs === "—" ? name : `${name} — ${formattedUfs}`;
 }
 
 function filterTableSummary(
