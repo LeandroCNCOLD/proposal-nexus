@@ -7,6 +7,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { brl, num } from "@/lib/format";
 import type { ProposalStatus } from "@/lib/proposal";
 import { cn } from "@/lib/utils";
+import {
+  PerItemPriceTablePicker,
+  MatchMethodChip,
+} from "@/features/price-table-picker/PerItemPriceTablePicker";
+import type { ItemPriceTable } from "@/features/price-table-picker/select-table-for-item";
 
 type StateTone = "neutral" | "success" | "warning" | "destructive" | "info";
 
