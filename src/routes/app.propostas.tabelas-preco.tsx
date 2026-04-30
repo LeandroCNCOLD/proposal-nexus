@@ -183,6 +183,37 @@ function PriceTablesPage() {
     }
   }
 
+  async function handleImportCsv(file: File | null | undefined) {
+    if (!file) return;
+    setImporting(true);
+    try {
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const parsed = parseNomusCostsCsv(decodeBytes(bytes));
+      if (parsed.rows.length === 0) {
+        toast.error(parsed.warnings[0] ?? "CSV sem linhas válidas para importar.");
+        return;
+      }
+      const result = await importPriceTableCsv({ data: { filename: file.name, rows: parsed.rows } });
+      if (!result.ok) {
+        toast.error(result.error || "Falha ao importar tabela CSV.");
+        return;
+      }
+      setOpenedTableId(result.priceTableId);
+      setSelectedTableId("all");
+      await refreshData();
+      if (parsed.warnings.length > 0) toast.warning(parsed.warnings.join(" "));
+      toast.success(
+        `Tabela "${result.priceTableName}" importada: ${result.inserted} novo(s), ${result.updated} atualizado(s).`,
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      toast.error(`Erro ao importar CSV: ${message}`);
+    } finally {
+      setImporting(false);
+      if (importInputRef.current) importInputRef.current.value = "";
+    }
+  }
+
   async function exportItems(format: "csv" | "xml") {
     if (filteredItems.length === 0) {
       toast.warning("Nenhum produto disponível para exportação com os filtros atuais.");
@@ -215,6 +246,26 @@ function PriceTablesPage() {
         subtitle="Gestão das tabelas comerciais vindas do Nomus"
         actions={
           <>
+            <input
+              ref={importInputRef}
+              type="file"
+              accept=".csv,text/csv"
+              className="hidden"
+              onChange={(event) => void handleImportCsv(event.target.files?.[0])}
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => importInputRef.current?.click()}
+              disabled={importing}
+            >
+              {importing ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Upload className="mr-2 h-4 w-4" />
+              )}
+              Importar tabela
+            </Button>
             <Button
               variant="outline"
               size="sm"
