@@ -4559,6 +4559,7 @@ export type Database = {
           nomus_id: string
           raw: Json | null
           synced_at: string
+          ufs: string[]
         }
         Insert: {
           code?: string | null
@@ -4569,6 +4570,7 @@ export type Database = {
           nomus_id: string
           raw?: Json | null
           synced_at?: string
+          ufs?: string[]
         }
         Update: {
           code?: string | null
@@ -4579,6 +4581,7 @@ export type Database = {
           nomus_id?: string
           raw?: Json | null
           synced_at?: string
+          ufs?: string[]
         }
         Relationships: []
       }
