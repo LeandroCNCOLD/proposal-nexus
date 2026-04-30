@@ -370,6 +370,16 @@ function ProposalDetail() {
             ]}
           />
 
+          <FinancialConditionBlock
+            proposalId={id}
+            currentTotalValue={Number(
+              (p as any).valor_total_com_desconto ??
+                (p as any).valor_total ??
+                p.total_value ??
+                0,
+            )}
+          />
+
           {revisions.length > 1 && (
             <div className="rounded-xl border bg-card p-6 shadow-[var(--shadow-sm)]">
               <div className="mb-4 flex items-center justify-between">
