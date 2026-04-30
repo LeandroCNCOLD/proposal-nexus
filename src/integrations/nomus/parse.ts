@@ -285,6 +285,8 @@ export function mapNomusProposal(raw: Json): NomusProposalMapped | null {
 export type NomusProposalItemMapped = {
   nomus_item_id: string | null;
   nomus_product_id: string | null;
+  price_table_nomus_id: string | null;
+  price_table_name: string | null;
   product_code: string | null;
   description: string;
   additional_info: string | null;
@@ -306,9 +308,14 @@ export function extractProposalItems(raw: Json): NomusProposalItemMapped[] {
     // produto pode vir aninhado
     const produto = (typeof it["produto"] === "object" && it["produto"] !== null)
       ? (it["produto"] as Json) : null;
+    const tabelaPreco = pickRefIdName(it, "tabelaPreco",
+      ["idTabelaPreco", "tabelaPrecoId", "codigoTabelaPreco"],
+      ["nomeTabelaPreco", "descricaoTabelaPreco"]);
     return {
       nomus_item_id: pickStr(it, "id", "idItem"),
       nomus_product_id: produto ? pickStr(produto, "id") : pickStr(it, "idProduto", "produtoId"),
+      price_table_nomus_id: tabelaPreco.id,
+      price_table_name: tabelaPreco.name,
       product_code: produto ? pickStr(produto, "codigo") : pickStr(it, "codigoProduto", "codigo"),
       description: (produto ? pickStr(produto, "descricao", "nome") : null)
         ?? pickStr(it, "descricaoProduto", "descricao", "nome") ?? "",
