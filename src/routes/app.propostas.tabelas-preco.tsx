@@ -11,6 +11,7 @@ import {
   Download,
   FileCode2,
   Loader2,
+  Pencil,
   Printer,
   RefreshCw,
   Search,
@@ -23,7 +24,17 @@ import { PageHeader } from "@/components/PageHeader";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
@@ -47,6 +58,7 @@ import {
   nomusAuditPriceTables,
   nomusImportPriceTableCsv,
   nomusSyncPriceTables,
+  nomusUpdatePriceTableUfs,
 } from "@/integrations/nomus/server.functions";
 import { decodeBytes, parseNomusCostsCsv } from "@/integrations/nomus/csv-parser";
 import type { Database, Json } from "@/integrations/supabase/types";
