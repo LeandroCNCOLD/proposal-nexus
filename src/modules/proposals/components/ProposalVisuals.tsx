@@ -134,7 +134,10 @@ export type ProposalItemTableRow = {
   id: string;
   position?: number | null;
   productCode?: string | null;
+  nomusProductId?: string | null;
+  priceTableId?: string | null;
   priceTableName?: string | null;
+  priceTableMatchMethod?: string | null;
   description?: string | null;
   additionalInfo?: string | null;
   quantity?: number | null;
@@ -146,8 +149,29 @@ export type ProposalItemTableRow = {
   status?: string | null;
 };
 
-export function ProposalItemsTable({ items, onOpenItem, showPriceTableComparison = false }: { items: ProposalItemTableRow[]; onOpenItem?: (item: ProposalItemTableRow) => void; showPriceTableComparison?: boolean }) {
+export function ProposalItemsTable({
+  items,
+  onOpenItem,
+  showPriceTableComparison = false,
+  tablesByProduct,
+  clientUf,
+  onChangeItemTable,
+  onResetItemTable,
+}: {
+  items: ProposalItemTableRow[];
+  onOpenItem?: (item: ProposalItemTableRow) => void;
+  showPriceTableComparison?: boolean;
+  /** Quando informado, renderiza um dropdown por linha. */
+  tablesByProduct?: import("@/features/price-table-picker/use-item-price-tables").PerItemTablesByProduct;
+  clientUf?: string | null;
+  onChangeItemTable?: (
+    proposalItemId: string,
+    table: import("@/features/price-table-picker/select-table-for-item").ItemPriceTable | null,
+  ) => void;
+  onResetItemTable?: (proposalItemId: string, productId: string | null) => void;
+}) {
   if (items.length === 0) return <EmptyState title="Sem itens sincronizados" description="Os itens aparecerão aqui quando a proposta tiver dados importados." />;
+  const interactive = !!tablesByProduct && !!onChangeItemTable;
   return (
     <div className="overflow-x-auto rounded-lg border">
       <Table>
@@ -155,7 +179,7 @@ export function ProposalItemsTable({ items, onOpenItem, showPriceTableComparison
           <TableRow className="bg-secondary/40">
             <TableHead className="w-14">#</TableHead>
             <TableHead className="w-28">Código</TableHead>
-            <TableHead className="w-48">Tabela de preço</TableHead>
+            <TableHead className="w-72">Tabela aplicada</TableHead>
             <TableHead>Descrição</TableHead>
             <TableHead className="text-right">Qtd.</TableHead>
             <TableHead className="text-right">Venda unit.</TableHead>
@@ -169,7 +193,15 @@ export function ProposalItemsTable({ items, onOpenItem, showPriceTableComparison
         </TableHeader>
         <TableBody>
           {items.map((item) => {
-            const tableUnit = item.priceTableUnitPrice;
+            const productTables = item.nomusProductId
+              ? tablesByProduct?.get(item.nomusProductId) ?? []
+              : [];
+            // Em modo interativo, o preço da tabela vem da escolha persistida do item
+            // (snapshot) OU, se não houver, da tabela atualmente selecionada.
+            const selectedTable =
+              productTables.find((t) => t.id === item.priceTableId) ?? null;
+            const tableUnit =
+              item.priceTableUnitPrice ?? selectedTable?.unitPrice ?? null;
             const offered = item.unitPrice;
             const qty = item.quantity ?? 0;
             const saleTotal = item.total ?? (offered != null ? offered * qty : null);
@@ -184,7 +216,29 @@ export function ProposalItemsTable({ items, onOpenItem, showPriceTableComparison
               <TableRow key={item.id} className={cn(onOpenItem && "cursor-pointer hover:bg-secondary/30")} onClick={() => onOpenItem?.(item)}>
                 <TableCell className="font-mono text-xs text-muted-foreground">{String((item.position ?? 0) + 1).padStart(2, "0")}</TableCell>
                 <TableCell className="font-mono text-xs">{item.productCode ?? "—"}</TableCell>
-                <TableCell className="text-xs font-medium">{item.priceTableName ?? "—"}</TableCell>
+                <TableCell className="text-xs font-medium">
+                  {interactive && item.nomusProductId ? (
+                    <div className="flex flex-col gap-1" onClick={(e) => e.stopPropagation()}>
+                      <PerItemPriceTablePicker
+                        tables={productTables}
+                        selectedTableId={item.priceTableId ?? null}
+                        clientUf={clientUf ?? null}
+                        onPick={(t) => onChangeItemTable!(item.id, t)}
+                        onResetAuto={
+                          onResetItemTable
+                            ? () => onResetItemTable(item.id, item.nomusProductId ?? null)
+                            : undefined
+                        }
+                      />
+                      <MatchMethodChip
+                        method={item.priceTableMatchMethod ?? null}
+                        hasTable={productTables.length > 0}
+                      />
+                    </div>
+                  ) : (
+                    item.priceTableName ?? "—"
+                  )}
+                </TableCell>
                 <TableCell className="min-w-72">
                   <div className="font-medium text-foreground">{item.description ?? "—"}</div>
                   {item.additionalInfo ? <div className="mt-1 whitespace-pre-wrap text-xs text-muted-foreground">{item.additionalInfo}</div> : null}
