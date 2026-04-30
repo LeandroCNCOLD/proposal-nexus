@@ -183,7 +183,20 @@ export function NomusProposalDetail({
           />
           <Field label="Vendedor" value={p.vendedor_nome} />
           <Field label="Representante" value={p.representante_nome} />
-          <Field label="Tabela de preço" value={p.tabela_preco_nome} />
+          <Field
+            label="Tabela de preço"
+            value={
+              localProposalId ? (
+                <PriceTablePicker
+                  proposalId={localProposalId}
+                  clientUf={localClient?.state ?? null}
+                  selectedPriceTableId={selectedPriceTableId ?? null}
+                />
+              ) : (
+                p.tabela_preco_nome
+              )
+            }
+          />
           <Field label="Condição de pagamento" value={p.condicao_pagamento_nome} />
           <Field label="Tipo de movimentação" value={p.tipo_movimentacao} />
           <Field
