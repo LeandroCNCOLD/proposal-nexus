@@ -1037,6 +1037,26 @@ function buildTableSummaries(
   });
 }
 
+function normalizeUfs(ufs: string[] | null | undefined) {
+  return Array.from(
+    new Set(
+      (ufs ?? [])
+        .map((uf) => String(uf).trim().toUpperCase())
+        .filter((uf): uf is (typeof ALL_UFS)[number] => ALL_UFS.includes(uf as (typeof ALL_UFS)[number])),
+    ),
+  ).sort((a, b) => ALL_UFS.indexOf(a) - ALL_UFS.indexOf(b));
+}
+
+function formatUfs(ufs: string[] | null | undefined) {
+  const normalized = normalizeUfs(ufs);
+  return normalized.length > 0 ? normalized.join(", ") : "—";
+}
+
+function buildTableCardTitle(name: string, ufs: string[] | null | undefined) {
+  const formattedUfs = formatUfs(ufs);
+  return formattedUfs === "—" ? name : `${name} — ${formattedUfs}`;
+}
+
 function filterTableSummary(
   table: ReturnType<typeof buildTableSummaries>[number],
   selectedTableId: string,
