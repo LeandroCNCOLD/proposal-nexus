@@ -29,10 +29,13 @@ async function resolveProposalItemPriceTable(args: {
   const tableNomusId = args.itemTableNomusId ?? args.proposalTableNomusId ?? null;
   const tableName = args.itemTableName ?? args.proposalTableName ?? null;
   if (tableNomusId || tableName) {
-    let query = supabaseAdmin.from("nomus_price_tables").select("id, nomus_id, name, code").limit(1);
-    query = tableNomusId ? query.eq("nomus_id", tableNomusId) : query.or(`name.eq.${tableName},code.eq.${tableName}`);
-    const { data } = await query.maybeSingle();
-    const row = data as { id?: string; nomus_id?: string | null; name?: string | null; code?: string | null } | null;
+    const { data } = tableNomusId
+      ? await supabaseAdmin.from("nomus_price_tables").select("id, nomus_id, name, code").eq("nomus_id", tableNomusId).maybeSingle()
+      : await supabaseAdmin.from("nomus_price_tables").select("id, nomus_id, name, code").eq("name", tableName ?? "").maybeSingle();
+    const resolved = data ?? (!tableNomusId && tableName
+      ? (await supabaseAdmin.from("nomus_price_tables").select("id, nomus_id, name, code").eq("code", tableName).maybeSingle()).data
+      : null);
+    const row = resolved as { id?: string; nomus_id?: string | null; name?: string | null; code?: string | null } | null;
     return {
       id: row?.id ?? null,
       nomusId: row?.nomus_id ?? tableNomusId,
