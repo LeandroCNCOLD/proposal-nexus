@@ -5553,6 +5553,74 @@ export type Database = {
           },
         ]
       }
+      payment_condition_preset_installments: {
+        Row: {
+          created_at: string
+          days: number
+          description: string
+          id: string
+          percentage: number
+          preset_id: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          days: number
+          description: string
+          id?: string
+          percentage: number
+          preset_id: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          days?: number
+          description?: string
+          id?: string
+          percentage?: number
+          preset_id?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_condition_preset_installments_preset_id_fkey"
+            columns: ["preset_id"]
+            isOneToOne: false
+            referencedRelation: "payment_condition_presets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_condition_presets: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           access_source: string
@@ -5758,6 +5826,47 @@ export type Database = {
             columns: ["template_id"]
             isOneToOne: false
             referencedRelation: "proposal_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      proposal_financial_history: {
+        Row: {
+          created_at: string
+          id: string
+          new_final_amount: number | null
+          new_financial_additional_cost: number | null
+          previous_final_amount: number | null
+          previous_financial_additional_cost: number | null
+          proposal_id: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          new_final_amount?: number | null
+          new_financial_additional_cost?: number | null
+          previous_final_amount?: number | null
+          previous_financial_additional_cost?: number | null
+          proposal_id: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          new_final_amount?: number | null
+          new_financial_additional_cost?: number | null
+          previous_final_amount?: number | null
+          previous_financial_additional_cost?: number | null
+          proposal_id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proposal_financial_history_proposal_id_fkey"
+            columns: ["proposal_id"]
+            isOneToOne: false
+            referencedRelation: "proposals"
             referencedColumns: ["id"]
           },
         ]
@@ -6405,6 +6514,12 @@ export type Database = {
           estimated_margin: number | null
           external_deleted_at: string | null
           external_updated_at: string | null
+          final_amount_with_financial_cost: number | null
+          financial_additional_cost: number | null
+          financial_avg_term_days: number | null
+          financial_factor_pct: number | null
+          financial_preset_id: string | null
+          financial_rate_type: string | null
           id: string
           is_active: boolean
           last_sync_run_id: string | null
@@ -6413,6 +6528,7 @@ export type Database = {
           loss_reason: string | null
           merged_at: string | null
           merged_into_id: string | null
+          monthly_financial_rate_pct: number | null
           next_followup_at: string | null
           nomus_id: string | null
           nomus_invoice_ids: string[] | null
@@ -6423,6 +6539,8 @@ export type Database = {
           nomus_seller_name: string | null
           nomus_synced_at: string | null
           number: string
+          original_proposal_amount: number | null
+          payment_condition_snapshot: Json | null
           payment_term_id: string | null
           payment_terms: string | null
           price_table_id: string | null
@@ -6462,6 +6580,12 @@ export type Database = {
           estimated_margin?: number | null
           external_deleted_at?: string | null
           external_updated_at?: string | null
+          final_amount_with_financial_cost?: number | null
+          financial_additional_cost?: number | null
+          financial_avg_term_days?: number | null
+          financial_factor_pct?: number | null
+          financial_preset_id?: string | null
+          financial_rate_type?: string | null
           id?: string
           is_active?: boolean
           last_sync_run_id?: string | null
@@ -6470,6 +6594,7 @@ export type Database = {
           loss_reason?: string | null
           merged_at?: string | null
           merged_into_id?: string | null
+          monthly_financial_rate_pct?: number | null
           next_followup_at?: string | null
           nomus_id?: string | null
           nomus_invoice_ids?: string[] | null
@@ -6480,6 +6605,8 @@ export type Database = {
           nomus_seller_name?: string | null
           nomus_synced_at?: string | null
           number?: string
+          original_proposal_amount?: number | null
+          payment_condition_snapshot?: Json | null
           payment_term_id?: string | null
           payment_terms?: string | null
           price_table_id?: string | null
@@ -6519,6 +6646,12 @@ export type Database = {
           estimated_margin?: number | null
           external_deleted_at?: string | null
           external_updated_at?: string | null
+          final_amount_with_financial_cost?: number | null
+          financial_additional_cost?: number | null
+          financial_avg_term_days?: number | null
+          financial_factor_pct?: number | null
+          financial_preset_id?: string | null
+          financial_rate_type?: string | null
           id?: string
           is_active?: boolean
           last_sync_run_id?: string | null
@@ -6527,6 +6660,7 @@ export type Database = {
           loss_reason?: string | null
           merged_at?: string | null
           merged_into_id?: string | null
+          monthly_financial_rate_pct?: number | null
           next_followup_at?: string | null
           nomus_id?: string | null
           nomus_invoice_ids?: string[] | null
@@ -6537,6 +6671,8 @@ export type Database = {
           nomus_seller_name?: string | null
           nomus_synced_at?: string | null
           number?: string
+          original_proposal_amount?: number | null
+          payment_condition_snapshot?: Json | null
           payment_term_id?: string | null
           payment_terms?: string | null
           price_table_id?: string | null
@@ -6575,6 +6711,13 @@ export type Database = {
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "client_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposals_financial_preset_id_fkey"
+            columns: ["financial_preset_id"]
+            isOneToOne: false
+            referencedRelation: "payment_condition_presets"
             referencedColumns: ["id"]
           },
           {
