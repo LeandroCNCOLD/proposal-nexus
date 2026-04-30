@@ -422,7 +422,7 @@ function CatalogoPage() {
                   variant="outline"
                   size="sm"
                   onClick={() => void handleCatalogExport("csv")}
-                  disabled={modelsQuery.isLoading || exportingFormat !== null || filteredModels.length === 0}
+                  disabled={modelsQuery.isLoading || exportingFormat !== null || catalogRows.length === 0}
                   className="bg-card"
                 >
                   {exportingFormat === "csv" ? (
@@ -436,7 +436,7 @@ function CatalogoPage() {
                   variant="outline"
                   size="sm"
                   onClick={() => void handleCatalogExport("xml")}
-                  disabled={modelsQuery.isLoading || exportingFormat !== null || filteredModels.length === 0}
+                  disabled={modelsQuery.isLoading || exportingFormat !== null || catalogRows.length === 0}
                   className="bg-card"
                 >
                   {exportingFormat === "xml" ? (
