@@ -116,7 +116,7 @@ export const listPriceTablesForProducts = createServerFn({ method: "POST" })
 
 /**
  * Salva a tabela de preço escolhida para um item específico da proposta.
- * Atualiza price_table_id, nome, snapshot do preço e o método (auto_*/manual).
+ * Atualiza price_table_id, nome, snapshot do preço e o método (auto ou manual).
  */
 export const setProposalItemPriceTable = createServerFn({ method: "POST" })
   .inputValidator((d) =>
