@@ -295,24 +295,42 @@ export function NomusProposalDetail({
       {/* ============ Itens ============ */}
       <Section title={`Itens da proposta (${items.length})`}>
         <ProposalItemsTable
-          showPriceTableComparison={!!selectedPriceTableId}
-          items={items.map((it) => ({
-            id: it.id,
-            position: it.position,
-            productCode: it.product_code,
-            priceTableName: it.price_table_name,
-            description: it.description,
-            additionalInfo: it.additional_info,
-            quantity: it.quantity,
-            unitPrice: it.unit_price,
-            priceTableUnitPrice: it.nomus_product_id
-              ? priceLookup?.get(it.nomus_product_id) ?? null
-              : null,
-            discount: it.discount,
-            total: it.total_with_discount ?? it.total,
-            status: it.item_status,
-          }))}
-          onOpenItem={(it) => setOpenItem(items.find((source) => source.id === it.id) ?? null)}
+          showPriceTableComparison={!!localProposalId}
+          tablesByProduct={localProposalId ? tablesByProduct : undefined}
+          clientUf={localClient?.state ?? null}
+          onChangeItemTable={
+            localProposalId
+              ? (proposalItemId, table) => applyManual(proposalItemId, table)
+              : undefined
+          }
+          onResetItemTable={
+            localProposalId
+              ? (proposalItemId, productId) => applyAuto(proposalItemId, productId)
+              : undefined
+          }
+          items={items.map((it) => {
+            const local = it.nomus_item_id
+              ? localItemsByNomusId.get(it.nomus_item_id)
+              : null;
+            return {
+              id: local?.id ?? it.id,
+              position: it.position,
+              productCode: it.product_code,
+              nomusProductId: it.nomus_product_id,
+              priceTableId: local?.price_table_id ?? null,
+              priceTableName: local?.price_table_name ?? it.price_table_name,
+              priceTableMatchMethod: local?.price_table_match_method ?? null,
+              priceTableUnitPrice: local?.price_table_unit_price ?? null,
+              description: it.description,
+              additionalInfo: it.additional_info,
+              quantity: it.quantity,
+              unitPrice: it.unit_price,
+              discount: it.discount,
+              total: it.total_with_discount ?? it.total,
+              status: it.item_status,
+            };
+          })}
+          onOpenItem={(it) => setOpenItem(items.find((source) => source.nomus_item_id && localItemsByNomusId.get(source.nomus_item_id)?.id === it.id) ?? items.find((source) => source.id === it.id) ?? null)}
         />
       </Section>
 
