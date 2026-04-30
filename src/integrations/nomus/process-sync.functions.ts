@@ -193,7 +193,7 @@ async function persistChangedNomusProcessBatch(db: any, items: NomusProcessRaw[]
 }
 
 const PROCESS_RECENT_LIST_PAGES = 10;
-const PROCESS_DEFAULT_BATCH_PAGES = 10;
+const PROCESS_DEFAULT_BATCH_PAGES = 2;
 const PROCESS_FORWARD_LOOKAHEAD = 6;
 const PROCESS_RECENT_RECHECK = 4;
 const PROCESS_MAX_CONSECUTIVE_MISSES = 3;
@@ -471,7 +471,7 @@ export const pullNomusProcesses = createServerFn({ method: "POST" })
 
     if (!job?.id) return { ok: false as const, error: "Não foi possível iniciar a sincronização do funil." };
     const batch = await processNomusProcessSyncBatch({ data: { jobId: job.id, maxPages: data?.maxPages ?? PROCESS_DEFAULT_BATCH_PAGES } });
-    if (!batch.ok) return { ok: false as const, error: "error" in batch ? batch.error : "Falha ao sincronizar processos" };
+    if (!batch.ok) return { ok: false as const, error: "error" in batch ? batch.error : (("warning" in batch && batch.warning) || "Falha ao sincronizar processos") };
     return {
       ok: true as const,
       scanned: batch.scanned ?? 0,
@@ -585,7 +585,7 @@ export const processNomusProcessSyncBatch = createServerFn({ method: "POST" })
           .eq("id", job.id)
           .select("*")
           .single();
-        return { ok: finalStatus !== "failed", job: updated, done: false as const, warning: message, scanned: batchScanned, matched: batchMatched, persisted: batchPersisted };
+        return { ok: finalStatus !== "failed", job: updated, done: false as const, warning: message, error: message, scanned: batchScanned, matched: batchMatched, persisted: batchPersisted };
       };
 
       for (let i = 0; i < maxPages && processed < Number(job.max_items); i += 1) {
@@ -593,7 +593,7 @@ export const processNomusProcessSyncBatch = createServerFn({ method: "POST" })
         const page = await listPage<NomusProcessRaw>(
           NOMUS_ENDPOINTS.processos,
           {},
-          { entity: "processos", pageSize: Number(job.page_size ?? 50), page: currentPage, timeoutMs: 12_000, maxAttempts: 2, triggeredBy: userId },
+          { entity: "processos", pageSize: Number(job.page_size ?? 50), page: currentPage, timeoutMs: 20_000, maxAttempts: 1, triggeredBy: userId },
         );
         if (!page.ok) {
           return failSoft(page.error);
