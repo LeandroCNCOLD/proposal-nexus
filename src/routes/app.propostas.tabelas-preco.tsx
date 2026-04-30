@@ -36,7 +36,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
-import { nomusImportPriceTableCsv, nomusSyncPriceTables } from "@/integrations/nomus/server.functions";
+import {
+  nomusImportPriceTableCsv,
+  nomusSyncPriceTables,
+} from "@/integrations/nomus/server.functions";
 import { decodeBytes, parseNomusCostsCsv } from "@/integrations/nomus/csv-parser";
 import type { Database, Json } from "@/integrations/supabase/types";
 import { cn } from "@/lib/utils";
@@ -184,7 +187,9 @@ function PriceTablesPage() {
   }
 
   async function handleImportCsv(files: FileList | File[] | null | undefined) {
-    const selectedFiles = Array.from(files ?? []).filter((file) => file.name.toLowerCase().endsWith(".csv"));
+    const selectedFiles = Array.from(files ?? []).filter((file) =>
+      file.name.toLowerCase().endsWith(".csv"),
+    );
     if (selectedFiles.length === 0) return;
     setImporting(true);
     try {
@@ -204,7 +209,9 @@ function PriceTablesPage() {
           continue;
         }
 
-        const result = await importPriceTableCsv({ data: { filename: file.name, rows: parsed.rows } });
+        const result = await importPriceTableCsv({
+          data: { filename: file.name, rows: parsed.rows },
+        });
         if (!result.ok) {
           failures.push(`${file.name}: ${result.error || "Falha ao importar tabela CSV."}`);
           continue;
