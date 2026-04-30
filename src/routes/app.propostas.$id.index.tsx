@@ -20,6 +20,7 @@ import { nomusCreatePedido, sendProposalFile } from "@/integrations/nomus/server
 import { createProposalSendVersion } from "@/integrations/proposal-editor/server.functions";
 import { NomusProposalDetail } from "@/components/NomusProposalDetail";
 import { ApprovalTimeline, EmptyState, FinancialSummaryCard, LoadingState, ProposalHeader } from "@/modules/proposals/components";
+import { FinancialConditionBlock } from "@/components/proposal-editor/FinancialConditionBlock";
 
 export const Route = createFileRoute("/app/propostas/$id/")({ component: ProposalDetail });
 
@@ -367,6 +368,16 @@ function ProposalDetail() {
               { label: "Margem", value: (p as any).margem_liquida_pct != null ? `${(p as any).margem_liquida_pct}%` : "—", tone: "success" },
               { label: "Resultado final", value: brl((p as any).lucro_liquido), tone: "success" },
             ]}
+          />
+
+          <FinancialConditionBlock
+            proposalId={id}
+            currentTotalValue={Number(
+              (p as any).valor_total_com_desconto ??
+                (p as any).valor_total ??
+                p.total_value ??
+                0,
+            )}
           />
 
           {revisions.length > 1 && (
