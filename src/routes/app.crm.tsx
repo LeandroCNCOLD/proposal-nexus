@@ -367,20 +367,31 @@ function CrmPage() {
                 />
               </DialogContent>
             </Dialog>
+            <div className="flex items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-1.5 text-xs">
+              <span className="text-muted-foreground">No CRM:</span>
+              <span className="font-semibold text-foreground">
+                {countsQuery.data?.localTipo ?? countsQuery.data?.localTotal ?? "—"}
+              </span>
+              <span className="text-muted-foreground">·</span>
+              <span className="text-muted-foreground">Nomus:</span>
+              <span className="font-semibold text-foreground">
+                {countsQuery.data?.nomusTipo ?? countsQuery.data?.nomusTotal ?? "—"}
+              </span>
+            </div>
             <Button
               size="sm"
-              onClick={() => pullMutation.mutate()}
-              disabled={pullMutation.isPending}
+              variant={isSyncing ? "outline" : "default"}
+              onClick={() => startBackgroundSync()}
             >
-              <RefreshCw className={`mr-2 h-4 w-4 ${pullMutation.isPending ? "animate-spin" : ""}`} />
-              Sincronizar Nomus
+              <RefreshCw className={`mr-2 h-4 w-4 ${isSyncing ? "animate-spin" : ""}`} />
+              {isSyncing ? "Cancelar sincronização" : "Sincronizar Nomus"}
             </Button>
           </>
         }
       />
 
       {activeFunnels.length === 0 ? (
-        <EmptyFunnels onSync={() => pullMutation.mutate()} syncing={pullMutation.isPending} />
+        <EmptyFunnels onSync={() => startBackgroundSync()} syncing={isSyncing} />
       ) : (
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="mb-4 flex h-auto flex-wrap justify-start">
