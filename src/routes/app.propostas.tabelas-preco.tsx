@@ -382,7 +382,7 @@ function PriceTablesPage() {
       return;
     }
     const printable = markdownToPlainHtml(aiReport);
-    const win = window.open("", "_blank", "noopener,noreferrer");
+    const win = window.open("", "_blank");
     if (!win) return;
     win.document.write(`<!doctype html><html><head><title>Relatório de auditoria inteligente</title><style>body{font-family:Arial,sans-serif;margin:32px;color:#172033;line-height:1.5}h1,h2,h3{color:#10284a}pre{white-space:pre-wrap}.meta{color:#5b6472;font-size:12px;margin-bottom:24px}</style></head><body><div class="meta">CN Cold — ${new Date().toLocaleString("pt-BR")}</div>${printable}</body></html>`);
     win.document.close();
