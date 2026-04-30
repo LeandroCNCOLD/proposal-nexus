@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
@@ -12,6 +12,7 @@ import {
   RefreshCw,
   Search,
   Table2,
+  Upload,
 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/PageHeader";
@@ -35,7 +36,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
-import { nomusSyncPriceTables } from "@/integrations/nomus/server.functions";
+import { nomusImportPriceTableCsv, nomusSyncPriceTables } from "@/integrations/nomus/server.functions";
+import { decodeBytes, parseNomusCostsCsv } from "@/integrations/nomus/csv-parser";
 import type { Database, Json } from "@/integrations/supabase/types";
 import { cn } from "@/lib/utils";
 
@@ -60,12 +62,15 @@ const LOW_MARGIN_THRESHOLD = 15;
 function PriceTablesPage() {
   const queryClient = useQueryClient();
   const syncPriceTables = useServerFn(nomusSyncPriceTables);
+  const importPriceTableCsv = useServerFn(nomusImportPriceTableCsv);
+  const importInputRef = useRef<HTMLInputElement | null>(null);
   const [selectedTableId, setSelectedTableId] = useState<string>("all");
   const [openedTableId, setOpenedTableId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [alertFilter, setAlertFilter] = useState<AlertFilter>("all");
   const [productSearch, setProductSearch] = useState("");
   const [syncing, setSyncing] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [exporting, setExporting] = useState<"csv" | "xml" | null>(null);
 
   const priceTablesQuery = useQuery({
@@ -178,6 +183,37 @@ function PriceTablesPage() {
     }
   }
 
+  async function handleImportCsv(file: File | null | undefined) {
+    if (!file) return;
+    setImporting(true);
+    try {
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const parsed = parseNomusCostsCsv(decodeBytes(bytes));
+      if (parsed.rows.length === 0) {
+        toast.error(parsed.warnings[0] ?? "CSV sem linhas válidas para importar.");
+        return;
+      }
+      const result = await importPriceTableCsv({ data: { filename: file.name, rows: parsed.rows } });
+      if (!result.ok) {
+        toast.error(result.error || "Falha ao importar tabela CSV.");
+        return;
+      }
+      setOpenedTableId(result.priceTableId);
+      setSelectedTableId("all");
+      await refreshData();
+      if (parsed.warnings.length > 0) toast.warning(parsed.warnings.join(" "));
+      toast.success(
+        `Tabela "${result.priceTableName}" importada: ${result.inserted} novo(s), ${result.updated} atualizado(s).`,
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      toast.error(`Erro ao importar CSV: ${message}`);
+    } finally {
+      setImporting(false);
+      if (importInputRef.current) importInputRef.current.value = "";
+    }
+  }
+
   async function exportItems(format: "csv" | "xml") {
     if (filteredItems.length === 0) {
       toast.warning("Nenhum produto disponível para exportação com os filtros atuais.");
@@ -210,6 +246,26 @@ function PriceTablesPage() {
         subtitle="Gestão das tabelas comerciais vindas do Nomus"
         actions={
           <>
+            <input
+              ref={importInputRef}
+              type="file"
+              accept=".csv,text/csv"
+              className="hidden"
+              onChange={(event) => void handleImportCsv(event.target.files?.[0])}
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => importInputRef.current?.click()}
+              disabled={importing}
+            >
+              {importing ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Upload className="mr-2 h-4 w-4" />
+              )}
+              Importar tabela
+            </Button>
             <Button
               variant="outline"
               size="sm"

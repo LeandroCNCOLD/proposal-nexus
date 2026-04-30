@@ -2009,7 +2009,45 @@ type ImportInput = {
   dryRun: boolean;
 };
 
+type ImportTableInput = {
+  filename: string;
+  tableName?: string | null;
+  rows: CsvRowInput[];
+};
+
 const ALLOWED_IMPORT_ROLES = ["admin", "gerente_comercial", "diretoria", "engenharia"] as const;
+
+function csvPriceTableName(filename: string, explicitName?: string | null) {
+  const cleanName = explicitName?.trim();
+  if (cleanName) return cleanName;
+  return filename
+    .replace(/\.[^.]+$/, "")
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim() || "Tabela importada CSV";
+}
+
+function csvPriceTableCode(filename: string) {
+  return filename
+    .replace(/\.[^.]+$/, "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80) || "CSV-TABELA";
+}
+
+async function ensureCanImportPriceTables(userId: string) {
+  const { data: roles, error: rolesErr } = await supabaseAdmin
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId);
+  if (rolesErr) return `Falha ao verificar permissões: ${rolesErr.message}`;
+  const userRoles = (roles ?? []).map((r) => r.role);
+  const allowed = userRoles.some((r) => (ALLOWED_IMPORT_ROLES as readonly string[]).includes(r));
+  return allowed ? null : "Sem permissão para importar tabela. Necessário: admin, gerente comercial, diretoria ou engenharia.";
+}
 
 /**
  * Importa custos para uma tabela de preço a partir de linhas pré-parseadas
@@ -2031,18 +2069,8 @@ export const nomusImportPriceTableCosts = createServerFn({ method: "POST" })
     const { userId } = context;
 
     // 1) Verificar role
-    const { data: roles, error: rolesErr } = await supabaseAdmin
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId);
-    if (rolesErr) {
-      return { ok: false as const, error: `Falha ao verificar permissões: ${rolesErr.message}` };
-    }
-    const userRoles = (roles ?? []).map((r) => r.role);
-    const allowed = userRoles.some((r) => (ALLOWED_IMPORT_ROLES as readonly string[]).includes(r));
-    if (!allowed) {
-      return { ok: false as const, error: "Sem permissão para importar custos. Necessário: admin, gerente comercial, diretoria ou engenharia." };
-    }
+    const permissionError = await ensureCanImportPriceTables(userId);
+    if (permissionError) return { ok: false as const, error: permissionError };
 
     // 2) Validar tabela de preço existe
     const { data: priceTable, error: ptErr } = await supabaseAdmin
@@ -2169,4 +2197,103 @@ export const nomusImportPriceTableCosts = createServerFn({ method: "POST" })
       skipped,
       withCost,
     };
+  });
+
+export const nomusImportPriceTableCsv = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: ImportTableInput) => {
+    if (!input || typeof input !== "object") throw new Error("Payload inválido.");
+    if (!input.filename) throw new Error("filename obrigatório.");
+    if (!Array.isArray(input.rows)) throw new Error("rows deve ser array.");
+    if (input.rows.length === 0) throw new Error("CSV sem itens válidos.");
+    if (input.rows.length > 10_000) throw new Error("Excede 10.000 linhas — divida o arquivo.");
+    return input;
+  })
+  .handler(async ({ data, context }) => {
+    const { userId } = context;
+    const permissionError = await ensureCanImportPriceTables(userId);
+    if (permissionError) return { ok: false as const, error: permissionError };
+
+    const now = new Date().toISOString();
+    const code = csvPriceTableCode(data.filename);
+    const name = csvPriceTableName(data.filename, data.tableName);
+    const nomusId = `csv:${code}`;
+
+    const { data: table, error: tableErr } = await supabaseAdmin
+      .from("nomus_price_tables")
+      .upsert({
+        nomus_id: nomusId,
+        code,
+        name,
+        currency: "BRL",
+        is_active: true,
+        raw: { source: "csv", filename: data.filename, imported_by: userId } as never,
+        synced_at: now,
+      } as never, { onConflict: "nomus_id" })
+      .select("id, name")
+      .single();
+    if (tableErr || !table) return { ok: false as const, error: tableErr?.message ?? "Falha ao criar tabela importada." };
+
+    const { data: existing, error: exErr } = await supabaseAdmin
+      .from("nomus_price_table_items")
+      .select("id, nomus_product_id")
+      .eq("price_table_id", (table as { id: string }).id);
+    if (exErr) return { ok: false as const, error: `Falha ao ler itens existentes: ${exErr.message}` };
+
+    const existingByCode = new Map<string, string>();
+    for (const r of existing ?? []) existingByCode.set(String(r.nomus_product_id), r.id);
+
+    let inserted = 0;
+    let updated = 0;
+    let skipped = 0;
+    let withCost = 0;
+    for (const row of data.rows) {
+      if (row.hasCostData) withCost++;
+      const payload = {
+        price_table_id: (table as { id: string }).id,
+        nomus_product_id: row.productCode,
+        unit_price: row.unitPrice ?? row.precoCalculado ?? row.precoLiquido ?? 0,
+        custo_materiais: row.custoMateriais,
+        custo_mod: row.custoMod,
+        custo_cif: row.custoCif,
+        custos_adm: row.custosAdm,
+        custo_producao_total: row.custoProducaoTotal,
+        custos_venda: row.custosVenda,
+        preco_calculado: row.precoCalculado,
+        preco_liquido: row.precoLiquido,
+        margem_desejada_pct: row.margemDesejadaPct,
+        lucro_bruto: row.lucroBruto,
+        lucro_liquido: row.lucroLiquido,
+        margem_contribuicao: row.margemContribuicao,
+        unidade_medida: row.unidadeMedida,
+        currency: "BRL",
+        raw: { ...row, descricao: row.description } as never,
+        import_source: "csv",
+        imported_at: now,
+        has_cost_data: row.hasCostData,
+        synced_at: now,
+      };
+      const existingId = existingByCode.get(row.productCode);
+      const { error } = existingId
+        ? await supabaseAdmin.from("nomus_price_table_items").update(payload as never).eq("id", existingId)
+        : await supabaseAdmin.from("nomus_price_table_items").insert(payload as never);
+      if (error) {
+        skipped++;
+        console.error(`[import-price-table-csv] falhou para ${row.productCode}:`, error.message);
+      } else if (existingId) updated++;
+      else inserted++;
+    }
+
+    await supabaseAdmin.from("nomus_cost_imports").insert({
+      price_table_id: (table as { id: string }).id,
+      filename: data.filename,
+      total_rows: data.rows.length,
+      inserted_count: inserted,
+      updated_count: updated,
+      skipped_count: skipped,
+      with_cost_count: withCost,
+      imported_by: userId,
+    });
+
+    return { ok: true as const, priceTableId: (table as { id: string }).id, priceTableName: (table as { name: string }).name, totalRows: data.rows.length, inserted, updated, skipped, withCost };
   });
