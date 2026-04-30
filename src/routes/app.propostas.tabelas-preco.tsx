@@ -826,14 +826,21 @@ function PriceTablesPage() {
       <Dialog open={!!editingTable} onOpenChange={(open) => !open && setEditingTable(null)}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Editar UFs da tabela</DialogTitle>
+            <DialogTitle>Editar tabela</DialogTitle>
             <DialogDescription>
-              Selecione somente as unidades federativas onde esta tabela atua.
+              Ajuste o nome e selecione somente as unidades federativas onde esta tabela atua.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
-            <div className="rounded-md border bg-muted/30 p-3 text-sm font-medium">
-              {editingTable?.name}
+            <div className="space-y-2">
+              <Label htmlFor="price-table-name">Nome da tabela</Label>
+              <Input
+                id="price-table-name"
+                value={editingTableName}
+                onChange={(event) => setEditingTableName(event.target.value)}
+                placeholder="Nome da tabela"
+                disabled={savingUfs}
+              />
             </div>
             <div className="grid grid-cols-3 gap-2 sm:grid-cols-6 md:grid-cols-9">
               {ALL_UFS.map((uf) => (
@@ -845,7 +852,15 @@ function PriceTablesPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setEditingTable(null)} disabled={savingUfs}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setEditingTable(null);
+                setEditingTableName("");
+              }}
+              disabled={savingUfs}
+            >
               Cancelar
             </Button>
             <Button type="button" onClick={() => void saveEditingTableUfs()} disabled={savingUfs}>
