@@ -384,6 +384,19 @@ function PriceTablesPage() {
               )}
               Sincronizar com Nomus
             </Button>
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => void handleAudit()}
+              disabled={auditing}
+            >
+              {auditing ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <BrainCircuit className="mr-2 h-4 w-4" />
+              )}
+              Auditar preços
+            </Button>
             <Button variant="outline" size="sm" onClick={() => void refreshData()}>
               <RefreshCw className="mr-2 h-4 w-4" />
               Atualizar
@@ -391,6 +404,93 @@ function PriceTablesPage() {
           </>
         }
       />
+
+      <Card className="p-5 shadow-[var(--shadow-sm)]">
+        <div className="mb-4 flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+          <div>
+            <div className="flex items-center gap-2">
+              <BrainCircuit className="h-5 w-5 text-primary" />
+              <h2 className="text-lg font-semibold">Auditoria inteligente de preços</h2>
+            </div>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Compara todos os produtos entre tabelas e aponta preço, custo e margem divergentes.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" size="sm" onClick={exportAuditCsv} disabled={filteredAuditFindings.length === 0}>
+              <Download className="mr-2 h-4 w-4" />
+              Exportar auditoria
+            </Button>
+            <Button size="sm" onClick={() => void handleAudit()} disabled={auditing}>
+              {auditing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <BrainCircuit className="mr-2 h-4 w-4" />}
+              Rodar análise
+            </Button>
+          </div>
+        </div>
+
+        {auditResult && (
+          <div className="mb-4 grid gap-3 md:grid-cols-4">
+            <SummaryBox label="Itens analisados" value={auditResult.analyzedItems.toLocaleString("pt-BR")} />
+            <SummaryBox label="Produtos com alerta" value={auditResult.productsWithAlerts.toLocaleString("pt-BR")} warn />
+            <SummaryBox label="Divergências" value={auditResult.findingsCount.toLocaleString("pt-BR")} warn />
+            <SummaryBox label="Críticas/altas" value={(auditResult.criticalCount + auditResult.highCount).toLocaleString("pt-BR")} warn />
+          </div>
+        )}
+
+        <div className="mb-4 grid gap-3 lg:grid-cols-[1fr_190px]">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input placeholder="Filtrar auditoria por produto, código, tabela ou motivo..." value={auditSearch} onChange={(event) => setAuditSearch(event.target.value)} className="pl-9" />
+          </div>
+          <Select value={auditSeverity} onValueChange={(value) => setAuditSeverity(value as AuditSeverity)}>
+            <SelectTrigger><SelectValue placeholder="Severidade" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas severidades</SelectItem>
+              <SelectItem value="crítica">Crítica</SelectItem>
+              <SelectItem value="alta">Alta</SelectItem>
+              <SelectItem value="média">Média</SelectItem>
+              <SelectItem value="baixa">Baixa</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {auditing ? (
+          <LoadingLine label="Analisando todas as tabelas de preço..." />
+        ) : !auditResult ? (
+          <EmptyLine label="Clique em Rodar análise para gerar a lista de divergências." />
+        ) : filteredAuditFindings.length === 0 ? (
+          <EmptyLine label="Nenhuma divergência encontrada com os filtros atuais." />
+        ) : (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="min-w-[130px]">Severidade</TableHead>
+                  <TableHead className="min-w-[260px]">Produto</TableHead>
+                  <TableHead className="min-w-[180px]">Tabela</TableHead>
+                  <TableHead className="text-right">Preço</TableHead>
+                  <TableHead className="text-right">Custo</TableHead>
+                  <TableHead className="text-right">Margem</TableHead>
+                  <TableHead className="min-w-[320px]">Motivo</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredAuditFindings.map((item) => (
+                  <TableRow key={item.id}>
+                    <TableCell><SeverityBadge severity={item.severity} /></TableCell>
+                    <TableCell><div className="font-medium">{item.productName}</div><div className="font-mono text-xs text-muted-foreground">{item.productCode}</div></TableCell>
+                    <TableCell><div>{item.tableName}</div><div className="font-mono text-xs text-muted-foreground">{item.tableCode ?? "—"}</div></TableCell>
+                    <TableCell className="text-right tabular-nums">{formatMoney(item.price)}</TableCell>
+                    <TableCell className="text-right tabular-nums">{formatMoney(item.cost)}</TableCell>
+                    <TableCell className="text-right tabular-nums">{formatPercent(item.margin)}</TableCell>
+                    <TableCell><div className="flex flex-wrap gap-1.5">{item.reasons.map((reason) => <Badge key={reason} variant="outline">{reason}</Badge>)}</div></TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </Card>
 
       <section className="grid gap-3 md:grid-cols-4">
         <SummaryBox label="Tabelas" value={tableSummaries.length.toLocaleString("pt-BR")} />
