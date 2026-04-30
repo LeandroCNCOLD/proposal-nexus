@@ -97,6 +97,7 @@ type AuditResult = {
   highCount: number;
   findings: AuditFinding[];
 };
+type AuditAiMessage = { id: string; role: "user" | "assistant"; content: string; created_at: string };
 
 const LOW_MARGIN_THRESHOLD = 15;
 
@@ -105,6 +106,7 @@ function PriceTablesPage() {
   const syncPriceTables = useServerFn(nomusSyncPriceTables);
   const importPriceTableCsv = useServerFn(nomusImportPriceTableCsv);
   const auditPriceTables = useServerFn(nomusAuditPriceTables);
+  const askPriceAuditAi = useServerFn(nomusAskPriceAuditAi);
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const [selectedTableId, setSelectedTableId] = useState<string>("all");
   const [openedTableId, setOpenedTableId] = useState<string | null>(null);
@@ -117,6 +119,11 @@ function PriceTablesPage() {
   const [auditResult, setAuditResult] = useState<AuditResult | null>(null);
   const [auditSeverity, setAuditSeverity] = useState<AuditSeverity>("all");
   const [auditSearch, setAuditSearch] = useState("");
+  const [aiSessionId, setAiSessionId] = useState<string | null>(null);
+  const [aiQuestion, setAiQuestion] = useState("");
+  const [aiMessages, setAiMessages] = useState<AuditAiMessage[]>([]);
+  const [aiReport, setAiReport] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
   const [exporting, setExporting] = useState<"csv" | "xml" | null>(null);
 
   const priceTablesQuery = useQuery({
