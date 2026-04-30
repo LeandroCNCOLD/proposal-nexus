@@ -266,6 +266,40 @@ function PriceTablesPage() {
     toast.success("Dados atualizados.");
   }
 
+  function openEditTable(table: PriceTable) {
+    setEditingTable(table);
+    setEditingUfs(normalizeUfs(table.ufs));
+  }
+
+  function toggleEditingUf(uf: string) {
+    setEditingUfs((current) =>
+      current.includes(uf)
+        ? current.filter((item) => item !== uf)
+        : [...current, uf].sort((a, b) => ALL_UFS.indexOf(a as (typeof ALL_UFS)[number]) - ALL_UFS.indexOf(b as (typeof ALL_UFS)[number])),
+    );
+  }
+
+  async function saveEditingTableUfs() {
+    if (!editingTable) return;
+    setSavingUfs(true);
+    try {
+      const result = await updatePriceTableUfs({ data: { priceTableId: editingTable.id, ufs: editingUfs } });
+      if (!result.ok) {
+        toast.error(result.error || "Erro ao salvar UFs da tabela.");
+        return;
+      }
+      await queryClient.invalidateQueries({ queryKey: ["nomus-price-tables-ui"] });
+      toast.success("UFs da tabela atualizadas.");
+      setEditingTable(null);
+      setEditingUfs([]);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      toast.error(`Erro ao salvar UFs: ${message}`);
+    } finally {
+      setSavingUfs(false);
+    }
+  }
+
   async function handleSync() {
     setSyncing(true);
     try {
