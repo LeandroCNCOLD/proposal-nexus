@@ -1120,6 +1120,39 @@ function escapeXml(value: string) {
     .replace(/'/g, "&apos;");
 }
 
+function markdownToPlainHtml(markdown: string) {
+  const lines = markdown.split("\n");
+  let inList = false;
+  const html: string[] = [];
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      if (inList) { html.push("</ul>"); inList = false; }
+      continue;
+    }
+    const heading = trimmed.match(/^(#{1,3})\s+(.+)$/);
+    if (heading) {
+      if (inList) { html.push("</ul>"); inList = false; }
+      html.push(`<h${heading[1].length}>${inlineMarkdownToHtml(heading[2])}</h${heading[1].length}>`);
+      continue;
+    }
+    const bullet = trimmed.match(/^[-*]\s+(.+)$/);
+    if (bullet) {
+      if (!inList) { html.push("<ul>"); inList = true; }
+      html.push(`<li>${inlineMarkdownToHtml(bullet[1])}</li>`);
+      continue;
+    }
+    if (inList) { html.push("</ul>"); inList = false; }
+    html.push(`<p>${inlineMarkdownToHtml(trimmed)}</p>`);
+  }
+  if (inList) html.push("</ul>");
+  return html.join("\n");
+}
+
+function inlineMarkdownToHtml(value: string) {
+  return escapeXml(value).replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+}
+
 function downloadTextFile(content: string, filename: string, mimeType: string) {
   const blob = new Blob([content], { type: mimeType });
   const url = URL.createObjectURL(blob);
