@@ -955,3 +955,85 @@ export const pingProcessoPut = createServerFn({ method: "POST" })
       ? { ok: true as const, status: res.status }
       : { ok: false as const, error: res.error, status: res.status };
   });
+
+// ---------------- contagens (Nomus vs banco local) ----------------
+
+/**
+ * Retorna a contagem de processos no banco local (total + por tipo) e tenta
+ * estimar o total de processos no Nomus para o tipo informado, paginando
+ * rapidamente até esgotar (cap de segurança em 50 páginas / 2500 itens).
+ * Use estimateNomus=false para uma resposta instantânea (apenas local).
+ */
+export const getNomusProcessCounts = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    z
+      .object({
+        tipo: z.string().trim().min(1).max(120).optional(),
+        estimateNomus: z.boolean().optional().default(false),
+      })
+      .optional()
+      .default({}),
+  )
+  .handler(async ({ data, context }) => {
+    const supabaseAdmin = context.supabase as any;
+    const tipo = data?.tipo?.trim();
+
+    // Total local (todos os tipos)
+    const { count: localTotal } = await (supabaseAdmin as any)
+      .from("nomus_processes")
+      .select("*", { count: "exact", head: true });
+
+    // Total local do tipo selecionado
+    let localTipo: number | null = null;
+    if (tipo) {
+      const { count } = await (supabaseAdmin as any)
+        .from("nomus_processes")
+        .select("*", { count: "exact", head: true })
+        .eq("tipo", tipo);
+      localTipo = count ?? 0;
+    }
+
+    let nomusTotal: number | null = null;
+    let nomusTipo: number | null = null;
+    let nomusEstimateTruncated = false;
+
+    if (data?.estimateNomus) {
+      const { listPage } = await import("./client");
+      const { NOMUS_ENDPOINTS } = await import("./endpoints");
+      const pageSize = 50;
+      const maxPages = 50;
+      let total = 0;
+      let tipoCount = 0;
+      let page = 1;
+      for (; page <= maxPages; page += 1) {
+        const res = await listPage<NomusProcessRaw>(NOMUS_ENDPOINTS.processos, {}, {
+          entity: "processos",
+          page,
+          pageSize,
+          timeoutMs: 8_000,
+          maxAttempts: 1,
+          triggeredBy: context.userId,
+        });
+        if (!res.ok) break;
+        if (res.items.length === 0) break;
+        total += res.items.length;
+        if (tipo) {
+          tipoCount += res.items.filter((p) => tipoMatches(p.tipo, [tipo])).length;
+        }
+        if (!res.hasMore || res.items.length < pageSize) break;
+      }
+      if (page > maxPages) nomusEstimateTruncated = true;
+      nomusTotal = total;
+      nomusTipo = tipo ? tipoCount : null;
+    }
+
+    return {
+      ok: true as const,
+      localTotal: localTotal ?? 0,
+      localTipo,
+      nomusTotal,
+      nomusTipo,
+      nomusEstimateTruncated,
+    };
+  });

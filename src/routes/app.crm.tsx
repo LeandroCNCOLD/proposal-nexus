@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Plus, RefreshCw, Settings2, Search, Filter as FilterIcon } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -10,6 +10,7 @@ import {
   getUserFunnels,
   setUserFunnels,
   createNomusProcess,
+  getNomusProcessCounts,
 } from "@/integrations/nomus/process-sync.functions";
 import { getFunnelData } from "@/integrations/nomus/process-enrichment.functions";
 import { PageHeader } from "@/components/PageHeader";
@@ -63,12 +64,15 @@ function CrmPage() {
   const saveFunnels = useServerFn(setUserFunnels);
   const fetchFunnel = useServerFn(getFunnelData);
   const createProcess = useServerFn(createNomusProcess);
+  const fetchCounts = useServerFn(getNomusProcessCounts);
 
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState<string>(DEFAULT_FUNNEL);
   const [funnelDrawerOpen, setFunnelDrawerOpen] = useState(false);
   const [newProcessOpen, setNewProcessOpen] = useState(false);
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const syncCancelRef = useRef(false);
 
   const { data: typesData } = useQuery({
     queryKey: ["crm", "available-types"],
@@ -144,27 +148,99 @@ function CrmPage() {
     }));
   }, [funnelData, search]);
 
-  const pullMutation = useMutation({
-    mutationFn: async () => {
-      const tipoAtivo = activeTab?.trim();
-      if (!tipoAtivo) throw new Error("Selecione um funil antes de sincronizar.");
-      let finalResult: Awaited<ReturnType<typeof pullProcesses>> | null = null;
-      for (let attempt = 0; attempt < 20; attempt += 1) {
-        const result = await pullProcesses({ data: { tipos: [tipoAtivo], maxPages: 10 } });
-        if (!result.ok) throw new Error(result.error);
-        finalResult = result;
+  // Contagens (local + estimativa Nomus)
+  const countsQuery = useQuery({
+    queryKey: ["crm", "counts", activeTab],
+    queryFn: async () => {
+      const r = await fetchCounts({ data: { tipo: activeTab || undefined, estimateNomus: false } });
+      if (!r.ok) throw new Error("Falha ao buscar contagens");
+      return r;
+    },
+    enabled: !!activeTab,
+    staleTime: 30_000,
+  });
+
+  // Sincronização em background, página por página, com toast de progresso.
+  // Não bloqueia a navegação: o botão fica em estado "syncing" mas o usuário
+  // pode trocar de tela; o loop continua até terminar (ou ser cancelado).
+  async function startBackgroundSync() {
+    const tipoAtivo = activeTab?.trim();
+    if (!tipoAtivo) {
+      toast.error("Selecione um funil antes de sincronizar.");
+      return;
+    }
+    if (isSyncing) {
+      // Segundo clique = cancelar
+      syncCancelRef.current = true;
+      toast.message("Sincronização será interrompida ao final da página atual…");
+      return;
+    }
+    setIsSyncing(true);
+    syncCancelRef.current = false;
+    const toastId = `sync-${tipoAtivo}-${Date.now()}`;
+
+    // Estima o total no Nomus em background (não bloqueia o início da sync)
+    let nomusTotalEstimate: number | null = null;
+    fetchCounts({ data: { tipo: tipoAtivo, estimateNomus: true } })
+      .then((c) => {
+        if (c.ok) nomusTotalEstimate = c.nomusTipo ?? c.nomusTotal ?? null;
+      })
+      .catch(() => undefined);
+
+    let totalScanned = 0;
+    let totalUpserted = 0;
+    let totalMatched = 0;
+    let pages = 0;
+    let lastError: string | null = null;
+
+    toast.loading(`Sincronizando "${tipoAtivo}"… preparando`, { id: toastId });
+
+    try {
+      // Loop seguro com teto alto (cada iteração processa 1 página)
+      for (let i = 0; i < 200; i += 1) {
+        if (syncCancelRef.current) break;
+        const result = await pullProcesses({ data: { tipos: [tipoAtivo], maxPages: 1 } });
+        if (!result.ok) {
+          lastError = result.error;
+          break;
+        }
+        pages += 1;
+        totalScanned = result.cumulativeScanned ?? totalScanned + (result.scanned ?? 0);
+        totalUpserted = result.cumulativeUpserted ?? totalUpserted + (result.persisted ?? 0);
+        totalMatched += result.matched ?? 0;
+
+        const ofText =
+          nomusTotalEstimate !== null && nomusTotalEstimate > 0
+            ? ` de ~${nomusTotalEstimate}`
+            : "";
+        toast.loading(
+          `Sincronizando "${tipoAtivo}"… ${totalUpserted}${ofText} salvos · página ${pages}`,
+          { id: toastId },
+        );
+
+        // Atualiza o board após cada página, mantendo a tela viva
+        queryClient.invalidateQueries({ queryKey: ["crm", "funnel", tipoAtivo] });
+        queryClient.invalidateQueries({ queryKey: ["crm", "counts"] });
+
         if (result.done) break;
       }
-      if (!finalResult) throw new Error("Não foi possível iniciar a sincronização.");
-      return finalResult;
-    },
-    onSuccess: (r) => {
-      const status = r.done ? "concluído" : "parcial";
-      toast.success(`Funil "${activeTab}" ${status}: ${r.matched ?? 0} do funil encontrados neste lote, ${r.upserted ?? 0} atualizados.`);
+    } catch (e) {
+      lastError = e instanceof Error ? e.message : String(e);
+    } finally {
+      setIsSyncing(false);
+      syncCancelRef.current = false;
+      if (lastError) {
+        toast.error(`Sincronização interrompida: ${lastError}`, { id: toastId });
+      } else {
+        toast.success(
+          `Funil "${tipoAtivo}" sincronizado: ${totalUpserted} cards salvos em ${pages} página(s).`,
+          { id: toastId },
+        );
+      }
       queryClient.invalidateQueries({ queryKey: ["crm"] });
-    },
-    onError: (e) => toast.error(`Falha na sincronização: ${e instanceof Error ? e.message : String(e)}`),
-  });
+    }
+  }
+
 
   const createMutation = useMutation({
     mutationFn: async (payload: NewProcessPayload) => {
@@ -291,20 +367,31 @@ function CrmPage() {
                 />
               </DialogContent>
             </Dialog>
+            <div className="flex items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-1.5 text-xs">
+              <span className="text-muted-foreground">No CRM:</span>
+              <span className="font-semibold text-foreground">
+                {countsQuery.data?.localTipo ?? countsQuery.data?.localTotal ?? "—"}
+              </span>
+              <span className="text-muted-foreground">·</span>
+              <span className="text-muted-foreground">Nomus:</span>
+              <span className="font-semibold text-foreground">
+                {countsQuery.data?.nomusTipo ?? countsQuery.data?.nomusTotal ?? "—"}
+              </span>
+            </div>
             <Button
               size="sm"
-              onClick={() => pullMutation.mutate()}
-              disabled={pullMutation.isPending}
+              variant={isSyncing ? "outline" : "default"}
+              onClick={() => startBackgroundSync()}
             >
-              <RefreshCw className={`mr-2 h-4 w-4 ${pullMutation.isPending ? "animate-spin" : ""}`} />
-              Sincronizar Nomus
+              <RefreshCw className={`mr-2 h-4 w-4 ${isSyncing ? "animate-spin" : ""}`} />
+              {isSyncing ? "Cancelar sincronização" : "Sincronizar Nomus"}
             </Button>
           </>
         }
       />
 
       {activeFunnels.length === 0 ? (
-        <EmptyFunnels onSync={() => pullMutation.mutate()} syncing={pullMutation.isPending} />
+        <EmptyFunnels onSync={() => startBackgroundSync()} syncing={isSyncing} />
       ) : (
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="mb-4 flex h-auto flex-wrap justify-start">
