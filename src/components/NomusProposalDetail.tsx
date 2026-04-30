@@ -225,6 +225,7 @@ export function NomusProposalDetail({
       {/* ============ Itens ============ */}
       <Section title={`Itens da proposta (${items.length})`}>
         <ProposalItemsTable
+          showPriceTableComparison={!!selectedPriceTableId}
           items={items.map((it) => ({
             id: it.id,
             position: it.position,
@@ -234,6 +235,9 @@ export function NomusProposalDetail({
             additionalInfo: it.additional_info,
             quantity: it.quantity,
             unitPrice: it.unit_price,
+            priceTableUnitPrice: it.nomus_product_id
+              ? priceLookup?.get(it.nomus_product_id) ?? null
+              : null,
             discount: it.discount,
             total: it.total_with_discount ?? it.total,
             status: it.item_status,
