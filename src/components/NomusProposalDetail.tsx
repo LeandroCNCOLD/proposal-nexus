@@ -133,6 +133,28 @@ export function NomusProposalDetail({
   const p = data.prop;
   const items = data.items;
 
+  // Busca preços da tabela escolhida para comparar com o preço ofertado
+  const fetchPrices = useServerFn(getPriceTableItemsForProducts);
+  const productIds = useMemo(
+    () => items.map((it) => it.nomus_product_id).filter((x): x is string => !!x),
+    [items],
+  );
+  const { data: priceLookup } = useQuery({
+    queryKey: ["price-table-lookup", selectedPriceTableId, productIds],
+    enabled: !!selectedPriceTableId && productIds.length > 0,
+    queryFn: async () => {
+      const res = await fetchPrices({
+        data: { priceTableId: selectedPriceTableId!, nomusProductIds: productIds },
+      });
+      const map = new Map<string, number | null>();
+      for (const r of res.items) {
+        // Usa unit_price (preço bruto da tabela) como referência de "preço de tabela"
+        map.set(r.nomusProductId, r.unitPrice ?? r.precoLiquido);
+      }
+      return map;
+    },
+  });
+
   return (
     <div className="space-y-6">
       {/* ============ Informações gerais Nomus ============ */}
