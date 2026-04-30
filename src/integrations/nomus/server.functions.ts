@@ -2247,9 +2247,11 @@ export const nomusImportPriceTableCsv = createServerFn({ method: "POST" })
     let updated = 0;
     let skipped = 0;
     let withCost = 0;
-    for (const row of data.rows) {
+    const payloads = data.rows.map((row) => {
       if (row.hasCostData) withCost++;
-      const payload = {
+      if (existingByCode.has(row.productCode)) updated++;
+      else inserted++;
+      return {
         price_table_id: (table as { id: string }).id,
         nomus_product_id: row.productCode,
         unit_price: row.unitPrice ?? row.precoCalculado ?? row.precoLiquido ?? 0,
@@ -2273,15 +2275,20 @@ export const nomusImportPriceTableCsv = createServerFn({ method: "POST" })
         has_cost_data: row.hasCostData,
         synced_at: now,
       };
-      const existingId = existingByCode.get(row.productCode);
-      const { error } = existingId
-        ? await supabaseAdmin.from("nomus_price_table_items").update(payload as never).eq("id", existingId)
-        : await supabaseAdmin.from("nomus_price_table_items").insert(payload as never);
+    });
+
+    const batchSize = 500;
+    for (let index = 0; index < payloads.length; index += batchSize) {
+      const chunk = payloads.slice(index, index + batchSize);
+      const { error } = await supabaseAdmin
+        .from("nomus_price_table_items")
+        .upsert(chunk as never, { onConflict: "price_table_id,nomus_product_id" });
       if (error) {
-        skipped++;
-        console.error(`[import-price-table-csv] falhou para ${row.productCode}:`, error.message);
-      } else if (existingId) updated++;
-      else inserted++;
+        skipped += chunk.length;
+        inserted -= chunk.filter((item) => !existingByCode.has(String(item.nomus_product_id))).length;
+        updated -= chunk.filter((item) => existingByCode.has(String(item.nomus_product_id))).length;
+        console.error(`[import-price-table-csv] lote ${index / batchSize + 1} falhou:`, error.message);
+      }
     }
 
     await supabaseAdmin.from("nomus_cost_imports").insert({
