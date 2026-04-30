@@ -1457,7 +1457,7 @@ export const nomusSyncProposalsFull = createServerFn({ method: "POST" })
             };
             const { error: itemErr } = await supabaseAdmin
               .from("nomus_proposal_items")
-              .upsert(itemPayload, { onConflict: "nomus_proposal_id,nomus_item_id" });
+              .upsert(itemPayload as never, { onConflict: "nomus_proposal_id,nomus_item_id" });
             if (itemErr) throw new Error(itemErr.message);
           }
         }
