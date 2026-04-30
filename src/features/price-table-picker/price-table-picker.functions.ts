@@ -62,6 +62,97 @@ export const getPriceTableItemsForProducts = createServerFn({ method: "POST" })
   });
 
 /**
+ * Lista, para um conjunto de produtos Nomus, todas as tabelas de preço ativas
+ * em que cada produto aparece. Retorna a lista achatada — o cliente agrupa
+ * por `nomusProductId`. Inclui o `unitPrice` daquele produto naquela tabela.
+ */
+export const listPriceTablesForProducts = createServerFn({ method: "POST" })
+  .inputValidator((d) =>
+    z
+      .object({
+        nomusProductIds: z.array(z.string()).max(500),
+      })
+      .parse(d),
+  )
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context, data }) => {
+    const { supabase } = context;
+    if (data.nomusProductIds.length === 0) return { rows: [] as Array<{ nomusProductId: string; priceTableId: string; name: string; ufs: string[]; isActive: boolean; currency: string; syncedAt: string | null; unitPrice: number | null; icmsPct: number | null }> };
+    const { data: rows, error } = await supabase
+      .from("nomus_price_table_items")
+      .select(
+        "nomus_product_id, unit_price, price_table_id, nomus_price_tables!inner(id, name, ufs, is_active, currency, synced_at)",
+      )
+      .in("nomus_product_id", data.nomusProductIds)
+      .eq("nomus_price_tables.is_active", true);
+    if (error) throw new Error(error.message);
+    type Row = {
+      nomus_product_id: string;
+      unit_price: number | null;
+      price_table_id: string;
+      nomus_price_tables: {
+        id: string;
+        name: string;
+        ufs: string[] | null;
+        is_active: boolean;
+        currency: string | null;
+        synced_at: string | null;
+      };
+    };
+    return {
+      rows: ((rows ?? []) as unknown as Row[]).map((r) => ({
+        nomusProductId: r.nomus_product_id,
+        priceTableId: r.price_table_id,
+        name: r.nomus_price_tables.name,
+        ufs: r.nomus_price_tables.ufs ?? [],
+        isActive: r.nomus_price_tables.is_active,
+        currency: r.nomus_price_tables.currency ?? "BRL",
+        syncedAt: r.nomus_price_tables.synced_at,
+        unitPrice: r.unit_price,
+        icmsPct: parseIcmsFromName(r.nomus_price_tables.name),
+      })),
+    };
+  });
+
+/**
+ * Salva a tabela de preço escolhida para um item específico da proposta.
+ * Atualiza price_table_id, nome, snapshot do preço e o método (auto ou manual).
+ */
+export const setProposalItemPriceTable = createServerFn({ method: "POST" })
+  .inputValidator((d) =>
+    z
+      .object({
+        proposalItemId: z.string().uuid(),
+        priceTableId: z.string().uuid().nullable(),
+        priceTableName: z.string().nullable(),
+        unitPrice: z.number().nullable(),
+        matchMethod: z.enum([
+          "auto_uf_max_icms",
+          "auto_max_icms",
+          "auto_latest",
+          "manual",
+        ]),
+      })
+      .parse(d),
+  )
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context, data }) => {
+    const { supabase } = context;
+    const { error } = await supabase
+      .from("proposal_items")
+      .update({
+        price_table_id: data.priceTableId,
+        price_table_name: data.priceTableName,
+        price_table_unit_price: data.unitPrice,
+        price_table_match_method: data.matchMethod,
+        price_table_selected_at: new Date().toISOString(),
+      })
+      .eq("id", data.proposalItemId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+/**
  * Salva a escolha do usuário (price_table_id + nome) na proposta local.
  */
 export const setProposalPriceTable = createServerFn({ method: "POST" })

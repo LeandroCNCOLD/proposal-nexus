@@ -1,103 +1,127 @@
-Plano para ajustar a etapa de produtos em todos os tipos de cálculo ColdPro:
 
-1. Padronizar a apresentação da aba Produtos
-- Criar um layout único de “Produto + base de cálculo + propriedades térmicas + prévia de carga” para câmaras de congelados, resfriados, climatizados e demais ambientes sem túnel.
-- Manter o formulário específico de túnel para túneis/girofreezer, mas alinhar a Etapa 4 com a mesma linguagem visual e os mesmos conceitos: temperaturas editáveis, propriedades oficiais bloqueadas e prévia clara.
-- No resumo “Produtos cadastrados”, mostrar a massa correta conforme o modo usado:
-  - estoque com giro: estoque, percentual, kg/dia movimentado e kg/h calculado;
-  - entrada diária: kg/dia e tempo de recuperação;
-  - entrada horária: kg/h direto;
-  - lote/recuperação: massa do lote e tempo.
+## Objetivo
 
-2. Bloquear propriedades oficiais vindas do catálogo, sem bloquear cálculo
-- Quando o produto vier do catálogo, deixar bloqueados apenas para edição:
-  - temperatura de congelamento;
-  - densidade;
-  - água, proteína e demais composição quando disponíveis;
-  - Cp acima;
-  - Cp abaixo;
-  - calor latente original;
-  - calor latente convertido/usado;
-  - condutividade congelada;
-  - fração de água congelável/congelada;
-  - espessura/característica técnica quando vier do catálogo.
-- Manter editáveis:
-  - temperatura de entrada do produto;
-  - temperatura final do produto;
-  - dados operacionais de massa, tempo, giro, recuperação, túnel, ar, vazão etc.
-- Garantir que campo bloqueado seja tratado apenas como “não editável pelo usuário”, nunca como “ausente”, “inválido” ou motivo de trava.
+Hoje a tabela de preço é escolhida **uma vez por proposta** (campo `proposals.price_table_id`) e aplicada a todos os itens. A regra de negócio nova exige escolha **por item**, considerando apenas as tabelas em que aquele produto realmente existe, com sugestão automática por UF + maior ICMS, fallbacks e troca manual.
 
-3. Separar claramente os dois “calores latentes”
-- Renomear os rótulos para evitar ambiguidade:
-  - “Calor latente do catálogo” em kJ/kg: valor oficial original carregado do produto.
-  - “Calor latente usado no cálculo” em kcal/kg: valor convertido/normalizado usado na carga térmica.
-- Nos resultados técnicos do túnel, acrescentar também:
-  - “Latente base original”;
-  - “Modo do latente”: efetivo ou total;
-  - “Fração congelável aplicada”;
-  - “Latente efetivo aplicado”, quando a base exigir multiplicação por fração.
-- A regra ficará explícita: se o catálogo já entrega latente efetivo, não multiplicar novamente; se entrega latente total, aplicar fração congelável. O sistema já possui `latentMode`; vou expor isso na interface e nos detalhes do cálculo.
+A boa notícia: o schema já está quase pronto. A coluna `proposal_items.price_table_id` (com `price_table_name` e `price_table_match_method`) existe e é usada hoje pelo sync do Nomus. Vamos passar a usá-la também para a escolha do vendedor.
 
-4. Ajustar Etapa 4 do túnel
-- Alterar a descrição para: “Propriedades técnicas carregadas do catálogo e bloqueadas para preservar a base oficial. Temperaturas de entrada/final e condições operacionais continuam editáveis.”
-- Bloquear na Etapa 4 do túnel as propriedades térmicas quando houver produto de catálogo selecionado, assim como já foi feito no formulário de produto comum.
-- Manter “Temp. entrada”, “Temp. final”, “Temperatura do ar” e “Fator penetração térmica” editáveis, pois são premissas do projeto/processo, não propriedades oficiais do produto.
-- Trocar “Grupo ASHRAE” e “Produto ASHRAE” para “Grupo do catálogo” e “Produto do catálogo”, conforme a terminologia correta.
+---
 
-5. Ajustar alertas para não punir dado oficial bloqueado
-- Revisar os alertas técnicos do motor de túnel que hoje podem aparecer por fração congelável, latente baixo ou unidade.
-- Quando o produto estiver vinculado ao catálogo oficial, os avisos de consistência de propriedade térmica serão informativos ou suprimidos quando forem apenas consequência dos dados oficiais bloqueados.
-- Manter alertas operacionais importantes, como:
-  - tempo estimado maior que tempo disponível;
-  - vazão divergente da necessária;
-  - falta de h manual para validação final;
-  - falta de geometria, vazão, massa ou temperatura operacional.
+## Mudanças no banco
 
-6. Unificar a prévia da carga de produto por tipo de ambiente
-- Para câmaras e ambientes sem túnel: a prévia mostrará carga do produto, embalagem, respiração quando aplicável e total da aba Produtos.
-- Para túneis/girofreezer: a prévia continuará usando o motor do túnel, mas será apresentada com a mesma estrutura visual e com a separação entre produto, embalagem e cargas internas/processo.
-- Evitar dupla contagem visual: quando “Túnel / processo” já representa total do túnel, a tela deixará claro se é carga interna/processo ou total consolidado do motor.
+Migration única, aditiva:
 
-7. Documentar na própria tela a origem dos dados
-- Adicionar uma mensagem fixa quando houver produto de catálogo:
-  “Dados térmicos sincronizados com o cadastro técnico oficial. Campos bloqueados preservam a base de cálculo e não impedem salvar/recalcular.”
-- Para seleção manual, manter a possibilidade de editar propriedades, com aviso de que são premissas manuais.
+1. `ALTER TABLE proposal_items` — adicionar:
+   - `price_table_match_method`: já existe; passa a aceitar valores `'auto_uf_max_icms' | 'auto_max_icms' | 'auto_latest' | 'manual' | 'nomus_sync'`.
+   - `price_table_unit_price numeric(14,2)` — snapshot do preço de tabela no momento da escolha (para auditoria e para não depender de re-fetch a cada render).
+   - `price_table_selected_at timestamptz` — quando foi feita a escolha atual.
+2. Sem alteração em `nomus_price_tables` / `nomus_price_table_items` — já têm `ufs[]`, `is_active`, `unit_price`, `nomus_product_id`. ICMS continua extraído do nome (regex existente) — não há campo dedicado e o usuário não pediu para criar um.
 
-Arquivos a alterar
-- `src/components/coldpro/ColdProProductForm.tsx`
-- `src/components/coldpro/ColdProTunnelForm.tsx`
-- `src/routes/app.coldpro.$id.tsx`
-- `src/features/coldpro/coldpro-calculation.engine.ts`
-- `src/modules/coldpro/engines/tunnelEngine.ts`
-- Se necessário, pequenos ajustes em normalizadores/adapters para expor `latentMode`, fração e origem sem mudar a base matemática.
+Nada é destrutivo. RLS atual de `proposal_items` já cobre escrita.
 
-Critério de aceite
-- Produto do catálogo: usuário não consegue editar propriedades oficiais, mas consegue salvar e recalcular normalmente.
-- Temperatura de entrada e final continuam editáveis.
-- A tela diferencia “calor latente original do catálogo” de “calor latente usado/aplicado no cálculo”.
-- Câmaras, ambientes resfriados/climatizados/congelados e túneis passam a ter uma apresentação de produto coerente e comparável, respeitando a estrutura específica de cada cálculo.
-- Bloqueio visual de campo não gera trava, alarme crítico indevido ou impedimento de proposta.
+---
 
-Diretrizes obrigatórias de arquitetura daqui em diante
-- Separar UI de regra de negócio: componentes React apenas orquestram estado, eventos e renderização.
-- Não fazer cálculos dentro de componentes React; todo cálculo deve ficar em funções puras, módulos de engine, adapters ou services.
-- Manter TypeScript estrito, sem casts desnecessários, sem `any` novo quando houver tipo de domínio claro.
-- Preservar arquitetura modular para facilitar testes, manutenção e escala.
-- Normalizar unidades em pontos explícitos de conversão: kcal/h, kJ, kW, TR, BTU/h e tempo.
-- Preferir funções puras para cálculos térmicos, sincronização e normalização de dados.
-- Não quebrar funcionalidades existentes; alterações devem ser incrementais, compatíveis e verificáveis.
+## Server functions novas (`src/features/price-table-picker/price-table-picker.functions.ts`)
 
-Organização modular para GitHub + Cursor
-- `src/modules/proposals`: fronteira do domínio de propostas.
-  - `screens`: telas migradas incrementalmente das rotas de propostas.
-  - `components`: componentes visuais de proposta/editor.
-  - `services`: persistência, chamadas server-side e orquestrações.
-  - `types`: contratos TypeScript do domínio.
-  - `templates`: editor de templates, blocos e modelos.
-  - `approval`: aprovação por alçada.
-  - `financial`: análise financeira, impostos, margens e cálculos puros.
-- `src/modules/nomus`: fronteira de integração com Nomus.
-  - `services`: clientes e sincronizações.
-  - `types`: payloads externos e modelos normalizados.
-  - `mappers`: conversões Nomus → domínio interno.
-- `src/modules/coldpro`: motor térmico e telas ColdPro, mantendo engines e physics separados da UI.
+1. **`listPriceTablesForProducts({ nomusProductIds })`** — para cada produto, retorna a lista de tabelas ativas que possuem aquele produto, com `{ id, name, ufs, icmsPct, unitPrice, currency }`. Uma única query: `nomus_price_table_items JOIN nomus_price_tables` filtrando por `is_active = true` e `nomus_product_id IN (...)`. Devolve um `Map<nomusProductId, EligibleTable[]>`.
+
+2. **`setProposalItemPriceTable({ proposalItemId, priceTableId, priceTableName, unitPrice, matchMethod })`** — UPDATE em `proposal_items` gravando os 5 campos + `price_table_selected_at = now()`. RLS já garante que só quem vê a proposta pode atualizar.
+
+3. Manter `getPriceTableItemsForProducts` e `setProposalPriceTable` atuais para retrocompatibilidade (o picker no header ainda funciona como "tabela padrão da proposta", mas deixa de ser fonte de verdade dos itens).
+
+---
+
+## Lógica de seleção (cliente, em `selectTableForItem.ts`)
+
+```text
+input: tabelas elegíveis do produto, uf do cliente
+1. compatíveis = tabelas.filter(t => t.is_active && t.ufs.includes(uf))
+2. se compatíveis.length > 0:
+     return compatíveis.sort(desc icmsPct)[0]
+     reason = 'auto_uf_max_icms'
+3. ativas = tabelas.filter(t => t.is_active)
+4. comIcms = ativas.filter(t => t.icmsPct != null)
+   se comIcms.length > 0:
+     return comIcms.sort(desc icmsPct)[0]
+     reason = 'auto_max_icms'  (fallback: UF não coberta)
+5. se ativas.length > 0:
+     return ativas.sort(desc syncedAt)[0]
+     reason = 'auto_latest'
+6. return null  (produto sem tabela)
+```
+
+`matchMethod = 'manual'` somente quando o vendedor troca explicitamente no dropdown.
+
+---
+
+## UI
+
+### Coluna “Tabela aplicada” na tabela de itens (`ProposalItemsTable`)
+
+Substituir a célula atual `Tabela de preço` (read-only) por um **dropdown por linha** (`PerItemPriceTablePicker`). O dropdown:
+
+- Lista somente tabelas onde aquele `nomus_product_id` existe.
+- Itens compatíveis com a UF do cliente vêm primeiro, com badge **“UF {SP}”**.
+- Maior ICMS dentre as compatíveis ganha badge **“Maior ICMS”**.
+- Tabela atualmente aplicada mostra o ícone de check.
+- Footer do dropdown: link “Limpar / voltar à sugestão automática”.
+
+Indicadores visuais ao lado do nome da tabela na linha:
+- `match_method = auto_uf_max_icms` → chip cinza “Sugerida por UF”.
+- `match_method = auto_max_icms` → chip âmbar “UF não coberta · maior ICMS geral”.
+- `match_method = auto_latest` → chip âmbar “Sem ICMS cadastrado · mais recente”.
+- `match_method = manual` → chip azul “Alterada manualmente”.
+- `null` (nenhuma tabela disponível) → chip vermelho “Produto sem tabela de preço”.
+
+### Recálculo
+
+Ao trocar a tabela, o cliente já tem todos os dados (`listPriceTablesForProducts` retorna `unitPrice` por tabela), então as colunas existentes recalculam imediatamente:
+- `Tabela unit.` = `unitPrice` da tabela escolhida
+- `Tabela total` = `unitPrice * quantidade`
+- `Desconto (R$)` = `tableTotal - saleTotal`
+- `Desconto (%)` = `(tableUnit - offered) / tableUnit * 100`
+- `Margem estimada` = adicionar coluna opcional quando `unit_cost` existir no item (já temos `nomus_price_table_items.custos_*`); fora deste escopo se o usuário quiser, deixa-se um TODO no código. **Vou implementar margem só se `preco_liquido` ou `custo_producao_total` estiver disponível** — mostrando “—” caso contrário, sem inventar valor.
+
+A persistência é otimista: dispara o `setProposalItemPriceTable` em background, com toast de sucesso/erro. Em caso de erro, reverte o estado local.
+
+### Auto-aplicar sugestão na primeira renderização
+
+Quando carregamos os itens, para cada item **sem `price_table_id`** (ou sem `price_table_selected_at` — nunca tocado pelo usuário), aplicamos a regra de seleção automática e salvamos. Isso roda uma vez por carregamento, em paralelo, com toast silencioso. Se o item já tem escolha manual (`match_method = 'manual'`), nunca sobrescrevemos.
+
+### Picker global (header) — o que fazer
+
+Mantemos o `PriceTablePicker` atual no campo “Tabela de preço” do cabeçalho **como atalho “Aplicar a todos”**: trocar a label para “Tabela padrão da proposta (aplicar a todos os itens)” e, ao escolher, aplicar a todos os itens que ainda não estão `manual`. Isso preserva o comportamento anterior sem conflito.
+
+---
+
+## Arquivos
+
+**Novos**
+- `src/features/price-table-picker/select-table-for-item.ts` — lógica pura de seleção + tipos (testável, isomórfica).
+- `src/features/price-table-picker/PerItemPriceTablePicker.tsx` — dropdown por linha.
+- `src/features/price-table-picker/use-item-price-tables.ts` — hook React Query que carrega `listPriceTablesForProducts` e expõe `tablesByProduct`, `applyAuto`, `applyManual`.
+
+**Editados**
+- `src/features/price-table-picker/price-table-picker.functions.ts` — adicionar `listPriceTablesForProducts` e `setProposalItemPriceTable`.
+- `src/modules/proposals/components/ProposalVisuals.tsx` — `ProposalItemsTable` recebe `tablesByProduct`, `clientUf`, `onChangeItemTable`; renderiza o picker por linha + chips de status; calcula colunas a partir do `priceTableUnitPrice` snapshot do item.
+- `src/components/NomusProposalDetail.tsx` — usar o novo hook em vez do `getPriceTableItemsForProducts` global; remover dependência de `selectedPriceTableId` para popular preços; disparar auto-aplicação na montagem.
+- `src/routes/app.propostas.$id.index.tsx` — sem alteração de contrato (já passa `localClient.state` e `localProposalId`).
+
+**Migration** — `proposal_items: + price_table_unit_price, + price_table_selected_at`.
+
+---
+
+## Detalhes técnicos relevantes
+
+- O ICMS continua sendo parseado de `nomus_price_tables.name` (regex `/ICMS\s*([0-9]+(?:[.,][0-9]+)?)/i`). Tabelas sem padrão de nome retornam `icmsPct = null` e caem para o fallback `auto_latest`.
+- `nomus_price_table_items` tem unique `(price_table_id, nomus_product_id)` → garante 1 preço por par. Boa para o lookup.
+- A query principal `listPriceTablesForProducts` deve usar `.in("nomus_product_id", ids)` com chunks de 500 (limite do schema atual já documentado).
+- `proposal_items.price_table_id ON DELETE SET NULL` já está configurado, então não precisamos tratar tabelas removidas — viram “sem tabela” automaticamente.
+- A regra **“não altera preço de venda do Nomus”** é respeitada: `unit_price` (preço vendido) nunca é tocado; só `price_table_*` mudam.
+
+---
+
+## O que NÃO está incluído
+
+- Coluna “Margem estimada” real só aparece se a tabela tiver `preco_liquido`/`custos_*` para o item (dados do CSV de custos). Caso contrário mostra “—”. Se quiser uma análise mais profunda, é outra task.
+- Nenhuma mudança no fluxo de aprovações/PDF/templates — escopo foi explicitamente “bloco de itens da proposta”.
