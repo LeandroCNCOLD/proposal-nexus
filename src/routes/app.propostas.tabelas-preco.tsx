@@ -542,6 +542,67 @@ function PriceTablesPage() {
         )}
       </Card>
 
+      <Card className="p-5 shadow-[var(--shadow-sm)]">
+        <div className="mb-4 flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+          <div>
+            <div className="flex items-center gap-2">
+              <BrainCircuit className="h-5 w-5 text-primary" />
+              <h2 className="text-lg font-semibold">IA da auditoria</h2>
+            </div>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Pergunte sobre divergências e a IA mantém um relatório atualizado para impressão.
+            </p>
+          </div>
+          <Button variant="outline" size="sm" onClick={printAiReport} disabled={!aiReport.trim()}>
+            <Printer className="mr-2 h-4 w-4" />
+            Imprimir relatório
+          </Button>
+        </div>
+
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(360px,0.8fr)]">
+          <div className="rounded-lg border bg-background">
+            <ScrollArea className="h-[360px] p-4">
+              {aiMessages.length === 0 ? (
+                <EmptyLine label="Faça uma pergunta para a IA começar a montar o relatório." />
+              ) : (
+                <div className="space-y-3">
+                  {aiMessages.map((message) => (
+                    <div key={message.id} className={cn("rounded-lg border p-3 text-sm", message.role === "user" ? "ml-8 bg-muted/40" : "mr-8 bg-card")}>
+                      <div className="mb-1 text-xs font-medium text-muted-foreground">{message.role === "user" ? "Você" : "IA"}</div>
+                      <ReactMarkdown>{message.content}</ReactMarkdown>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </ScrollArea>
+            <div className="border-t p-3">
+              <div className="flex gap-2">
+                <Textarea value={aiQuestion} onChange={(event) => setAiQuestion(event.target.value)} placeholder="Ex.: monte um resumo executivo dos itens críticos e sugira prioridades de correção" rows={2} />
+                <Button className="self-end" onClick={() => void handleAskAi()} disabled={aiLoading || !aiQuestion.trim()}>
+                  {aiLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-lg border bg-card p-4">
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <h3 className="font-semibold">Relatório em construção</h3>
+              {aiReport.trim() && <Badge variant="secondary">Salvo</Badge>}
+            </div>
+            <ScrollArea className="h-[430px] pr-3">
+              {aiReport.trim() ? (
+                <div className="prose prose-sm max-w-none text-foreground prose-headings:text-foreground prose-p:text-foreground prose-li:text-foreground">
+                  <ReactMarkdown>{aiReport}</ReactMarkdown>
+                </div>
+              ) : (
+                <EmptyLine label="O relatório aparecerá aqui conforme a conversa evoluir." />
+              )}
+            </ScrollArea>
+          </div>
+        </div>
+      </Card>
+
       <section className="grid gap-3 md:grid-cols-4">
         <SummaryBox label="Tabelas" value={tableSummaries.length.toLocaleString("pt-BR")} />
         <SummaryBox
