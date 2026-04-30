@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
@@ -12,6 +12,7 @@ import {
   RefreshCw,
   Search,
   Table2,
+  Upload,
 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/PageHeader";
@@ -35,7 +36,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
-import { nomusSyncPriceTables } from "@/integrations/nomus/server.functions";
+import { nomusImportPriceTableCsv, nomusSyncPriceTables } from "@/integrations/nomus/server.functions";
+import { decodeBytes, parseNomusCostsCsv } from "@/integrations/nomus/csv-parser";
 import type { Database, Json } from "@/integrations/supabase/types";
 import { cn } from "@/lib/utils";
 
@@ -60,12 +62,15 @@ const LOW_MARGIN_THRESHOLD = 15;
 function PriceTablesPage() {
   const queryClient = useQueryClient();
   const syncPriceTables = useServerFn(nomusSyncPriceTables);
+  const importPriceTableCsv = useServerFn(nomusImportPriceTableCsv);
+  const importInputRef = useRef<HTMLInputElement | null>(null);
   const [selectedTableId, setSelectedTableId] = useState<string>("all");
   const [openedTableId, setOpenedTableId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [alertFilter, setAlertFilter] = useState<AlertFilter>("all");
   const [productSearch, setProductSearch] = useState("");
   const [syncing, setSyncing] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [exporting, setExporting] = useState<"csv" | "xml" | null>(null);
 
   const priceTablesQuery = useQuery({
