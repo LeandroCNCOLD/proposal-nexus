@@ -319,7 +319,7 @@ export function NomusProposalDetail({
               id: local?.id ?? it.id,
               position: it.position,
               productCode: it.product_code,
-              nomusProductId: it.nomus_product_id,
+              nomusProductId: it.product_code ?? it.nomus_product_id,
               priceTableId: local?.price_table_id ?? null,
               priceTableName: local?.price_table_name ?? it.price_table_name,
               priceTableMatchMethod: local?.price_table_match_method ?? null,
