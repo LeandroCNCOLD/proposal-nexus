@@ -128,6 +128,10 @@ export interface TunnelEngineInput {
   beltMotorKW?: number | null;
   internalFansKW?: number | null;
   otherInternalKW?: number | null;
+  peopleCount?: number | null;
+  numberOfPeople?: number | null;
+  defrostFactor?: number | null;
+  defrostEvaporatorLoadKW?: number | null;
   allowPhaseChange?: boolean;
   unitConversions?: unknown;
 }
@@ -224,6 +228,8 @@ export interface TunnelEngineResult {
   productLoadKW: number;
   packagingLoadKW: number;
   internalLoadKW: number;
+  defrostLoadKW?: number;
+  auxiliaryLoadKW?: number;
   totalKW: number;
   totalKcalH: number;
   totalTR: number;

@@ -13,6 +13,7 @@ import { calculateExposureFactor } from "../physics/arrangementModel";
 import { calculatePlankFreezingTimeMin, validateFreezingTime } from "../physics/freezingTime";
 import { calculateCharacteristicDimension } from "../physics/geometryModel";
 import { calculateConvectiveCoefficient, resolveTransmissionLoad } from "../physics/heatTransfer";
+import { calculateDefrostLoad, calculateLightingLoad, calculateMotorLoad, calculatePeopleLoad } from "../physics/thermalAuxLoads";
 import {
   calculateProductSpecificEnergy,
 } from "../physics/productThermal";
@@ -347,7 +348,23 @@ function resolveInternalLoads(input: TunnelEngineInput) {
   const motorsKW = toNumber(input?.beltMotorKW ?? input?.belt_motor_kw, 0) + toNumber(input?.motorsPowerKW ?? input?.motors_power_kw ?? input?.motorsKW ?? input?.motors_kw, 0) * (positiveNumber(input?.motorsDissipationFactor ?? input?.motors_dissipation_factor) || 1);
   const lightingKW = toNumber(input?.lightingPowerW ?? input?.lighting_power_w, 0) / 1000 + toNumber(input?.lightingPowerKW ?? input?.lighting_power_kw, 0);
   const otherKW = toNumber(input?.otherInternalKW ?? input?.other_internal_kw, 0);
-  return { fansKW, motorsKW, lightingKW, otherKW, internalLoadKW: fansKW + motorsKW + lightingKW + otherKW };
+  const peopleCount = positiveNumber(input?.peopleCount ?? input?.people_count ?? input?.numberOfPeople ?? input?.number_of_people);
+  const motorLoad = calculateMotorLoad(fansKW + motorsKW);
+  const lightingLoad = calculateLightingLoad(lightingKW * 1000);
+  const peopleLoad = calculatePeopleLoad(peopleCount);
+  const otherLoad = calculateMotorLoad(otherKW);
+  return {
+    fansKW,
+    motorsKW,
+    lightingKW,
+    otherKW,
+    peopleCount,
+    motorLoad,
+    lightingLoad,
+    peopleLoad,
+    otherLoad,
+    internalLoadKW: motorLoad.kW + lightingLoad.kW + peopleLoad.kW + otherLoad.kW,
+  };
 }
 
 function calculateTunnelCore(input: TunnelEngineInput) {
@@ -479,7 +496,16 @@ function calculateTunnelCore(input: TunnelEngineInput) {
   
   const infiltrationLoadKW = infiltration.totalKW;
   const internalLoadKW = internalLoads.internalLoadKW;
-  const totalKW = productLoadKW + packagingLoadKW + transmissionLoadKW + infiltrationLoadKW + internalLoadKW;
+  const baseEvaporatorLoadKW = productLoadKW + packagingLoadKW + transmissionLoadKW + infiltrationLoadKW + internalLoadKW;
+  const defrostLoad = calculateDefrostLoad({
+    evaporatorLoadKW: positiveNumber(input?.defrostEvaporatorLoadKW ?? input?.defrost_evaporator_load_kw) || baseEvaporatorLoadKW,
+    defrostFactor: input?.defrostFactor ?? input?.defrost_factor,
+  });
+  const defrostLoadKW = defrostLoad.kW;
+  const auxiliaryLoadKW = internalLoadKW + defrostLoadKW;
+  const baseLoadBeforeAuxKW = productLoadKW + packagingLoadKW + transmissionLoadKW + infiltrationLoadKW;
+  const auxiliaryIncreasePercent = baseLoadBeforeAuxKW > 0 ? (auxiliaryLoadKW / baseLoadBeforeAuxKW) * 100 : 0;
+  const totalKW = baseLoadBeforeAuxKW + auxiliaryLoadKW;
   const totalKcalH = kwToKcalH(totalKW);
   const totalTR = kwToTr(totalKW);
   const airFlowM3H = calculateRequiredAirflowM3H({ loadKW: totalKW, airDeltaTK, airDensityKgM3, cpAirKJkgK });
@@ -647,7 +673,7 @@ function calculateTunnelCore(input: TunnelEngineInput) {
     heatTransfer: { hBaseWM2K: h.hBaseWM2K, exposureFactor: exposure.exposureFactor, airExposureFactor: input?.airExposureFactor ?? null, hEffectiveWM2K: h.hEffectiveWM2K, hSource: h.source, transmission },
     air: { airTempC: input?.airTempC ?? null, airDeltaTK, airDensityKgM3, airFlowM3H, informedAirFlowM3H, airFlowMethod, suggestedAirTempC, suggestedAirMethod, suggestedAirApproachK, comparison: suggestedAirTempComparisonC },
     scenarios: { adjustedScenario: scenario },
-    loads: { productLoadKW, packagingLoadKW, transmissionLoadKW, infiltrationLoadKW, internalLoadKW, totalKW, totalKcalH, totalTR, internalLoads, packagingMassKgH, packagingMassKgBatch, packagingMassBatchKg: packagingMassKgBatch, packagingLoadMethod: packaging.packagingLoadMethod, packagingMassSource: packaging.packagingMassSource, productLoadMissingFields: productLoadMissing, loadCalculationReady: productLoadMissing.length === 0, massUsedForProductLoad: tunnelMode.operationRegime === "batch" ? staticMassKg : usedMassKgH, massUnitForProductLoad: tunnelMode.operationRegime === "batch" ? "kg/batelada" : "kg/h", airFlowThermalBalanceM3H },
+    loads: { productLoadKW, packagingLoadKW, transmissionLoadKW, infiltrationLoadKW, internalLoadKW, defrostLoadKW, auxiliaryLoadKW, auxiliaryIncreasePercent, totalKW, totalKcalH, totalTR, internalLoads, defrostLoad, packagingMassKgH, packagingMassKgBatch, packagingMassBatchKg: packagingMassKgBatch, packagingLoadMethod: packaging.packagingLoadMethod, packagingMassSource: packaging.packagingMassSource, productLoadMissingFields: productLoadMissing, loadCalculationReady: productLoadMissing.length === 0, massUsedForProductLoad: tunnelMode.operationRegime === "batch" ? staticMassKg : usedMassKgH, massUnitForProductLoad: tunnelMode.operationRegime === "batch" ? "kg/batelada" : "kg/h", airFlowThermalBalanceM3H },
     infiltration: { ...infiltration, requestedMethod: infiltrationMethod.requested, usedMethod: infiltrationMethod.used, fallbackApplied: infiltrationMethod.used !== infiltrationMethod.requested },
     timing: { estimatedTimeMin, availableTimeMin, status, validationStatus: freezingValidation.status, marginPercent: freezingValidation.marginPercent },
     validation: { warnings, missingFields, invalidFields, thermalReliabilityAlerts, inputStatus, thermalStatus, equipmentStatus, projectStatus, blockers: [...processMass.blockers, ...productLoadResolution.blockers] },
@@ -661,16 +687,16 @@ function calculateTunnelCore(input: TunnelEngineInput) {
     continuousProductLoadKW: "massKgH × specificEnergyKJkg / 3600",
     batchProductLoadKW: "massKg × specificEnergyKJkg / (timeH × 3600)",
     packagingLoadKW: tunnelMode.operationRegime === "batch" ? "packagingMassKgBatch × packagingCpKcalKgC × abs(initialTempC - finalTempC) / batchTimeH / 859,845" : "packagingMassKgH × packagingCpKcalKgC × abs(initialTempC - finalTempC) / 859,845",
-    internalLoadKW: "beltMotorKW + internalFansKW + otherInternalKW",
+    internalLoadKW: "motorLoadKW + lightingLoadKW + peopleLoadKW + otherInternalKW",
     transmissionLoadKW: "U × A × ΔT / 1000",
     infiltrationLoadKW: "m_ar × (h_externo - h_interno), h = 1.006*T + W*(2501 + 1.86*T)",
-    totalKW: "productLoadKW + packagingLoadKW + transmissionLoadKW + infiltrationLoadKW + internalLoadKW",
+    totalKW: "productLoadKW + packagingLoadKW + transmissionLoadKW + infiltrationLoadKW + internalLoadKW + defrostLoadKW",
     airFlowM3H: "calculateRequiredAirflowM3H(totalKW, airDensityKgM3, 1.005, airDeltaTK)",
     suggestedAirTempC: "finalTempC - suggestedAirApproachK",
     plankFreezingTime: "Plank equation using density, latent heat, core distance, h and effective k",
   };
 
-  const resultSummary = { physicalModel, processType, status, inputStatus, thermalStatus, equipmentStatus, projectStatus, massBasis: processMass.massBasis, processMode: processMass.processMode, productLoadKW, packagingLoadKW, transmissionLoadKW, infiltrationLoadKW, internalLoadKW, totalKW, estimatedTimeMin, availableTimeMin };
+  const resultSummary = { physicalModel, processType, status, inputStatus, thermalStatus, equipmentStatus, projectStatus, massBasis: processMass.massBasis, processMode: processMass.processMode, productLoadKW, packagingLoadKW, transmissionLoadKW, infiltrationLoadKW, internalLoadKW, defrostLoadKW, totalKW, estimatedTimeMin, availableTimeMin };
   const calculationLog = buildCalculationLog({ originalInput: input, normalizedInput: { ...input, physicalModel, mode }, unitConversions: input?.unitConversions ?? null, warnings, missingFields, invalidFields, formulasUsed, resultSummary, methodRegistryVersion: COLDPRO_CALCULATION_METHOD_REGISTRY_VERSION, methodsUsed });
 
   return {
@@ -734,6 +760,8 @@ function calculateTunnelCore(input: TunnelEngineInput) {
     packagingMassBatchKg: packagingMassKgBatch,
     packagingLoadMethod: packaging.packagingLoadMethod,
     internalLoadKW,
+    defrostLoadKW,
+    auxiliaryLoadKW,
     totalKW,
     totalKcalH,
     totalTR,
