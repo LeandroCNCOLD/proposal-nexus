@@ -507,6 +507,14 @@ function calculateTunnelCore(input: TunnelEngineInput) {
   const auxiliaryIncreasePercent = baseLoadBeforeAuxKW > 0 ? (auxiliaryLoadKW / baseLoadBeforeAuxKW) * 100 : 0;
   const totalKW = baseLoadBeforeAuxKW + auxiliaryLoadKW;
   const totalKcalH = kwToKcalH(totalKW);
+  const standardBreakdown = {
+    produto: productLoadKW,
+    infiltracao: infiltrationLoadKW,
+    motores: internalLoads.motorLoad.kW + internalLoads.otherLoad.kW,
+    iluminacao: internalLoads.lightingLoad.kW,
+    pessoas: internalLoads.peopleLoad.kW,
+    degelo: defrostLoadKW,
+  };
   const totalTR = kwToTr(totalKW);
   const airFlowM3H = calculateRequiredAirflowM3H({ loadKW: totalKW, airDeltaTK, airDensityKgM3, cpAirKJkgK });
   const airFlowByMinVelocityM3H = geometry.freeAreaM2 * (positiveNumber(input?.minAirVelocityMS ?? input?.min_air_velocity_m_s) || 2.5) * 3600;
@@ -757,6 +765,9 @@ function calculateTunnelCore(input: TunnelEngineInput) {
     packagingLoadKW,
     transmissionLoadKW,
     infiltrationLoadKW,
+    totalLoadKW: totalKW,
+    totalLoadKcalH: totalKcalH,
+    breakdown: standardBreakdown,
     packagingMassBatchKg: packagingMassKgBatch,
     packagingLoadMethod: packaging.packagingLoadMethod,
     internalLoadKW,

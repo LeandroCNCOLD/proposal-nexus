@@ -230,6 +230,16 @@ export interface TunnelEngineResult {
   internalLoadKW: number;
   defrostLoadKW?: number;
   auxiliaryLoadKW?: number;
+  totalLoadKW?: number;
+  totalLoadKcalH?: number;
+  breakdown?: {
+    produto: number;
+    infiltracao: number;
+    motores: number;
+    iluminacao: number;
+    pessoas: number;
+    degelo: number;
+  };
   totalKW: number;
   totalKcalH: number;
   totalTR: number;
