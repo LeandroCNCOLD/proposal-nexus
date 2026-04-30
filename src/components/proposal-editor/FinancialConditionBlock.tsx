@@ -50,7 +50,7 @@ export function FinancialConditionBlock({ proposalId, currentTotalValue }: Props
   // bound to the typed server fn for direct call when refreshing the base
   useServerFn(saveProposalFinancial);
 
-  const [monthlyRate, setMonthlyRate] = useState<number>(0);
+  const [monthlyRate, setMonthlyRate] = useState<number>(3.3);
   const [rateType, setRateType] = useState<FinancialRateType>("compostos");
   const [installments, setInstallments] = useState<InstallmentInput[]>(DEFAULT_INSTALLMENTS);
   const [presetId, setPresetId] = useState<string | null>(null);
