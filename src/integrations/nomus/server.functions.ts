@@ -48,6 +48,44 @@ const pickNestedStr = (o: Json, nestedKey: string, ...keys: string[]): string | 
   return pickStr(nested as Json, ...keys);
 };
 
+async function resolveProposalItemPriceTable(args: {
+  itemTableNomusId?: string | null;
+  itemTableName?: string | null;
+  proposalTableNomusId?: string | null;
+  proposalTableName?: string | null;
+  productNomusId?: string | null;
+  unitPrice?: number | null;
+}): Promise<{ id: string | null; nomusId: string | null; name: string | null; matchMethod: string | null }> {
+  const tableNomusId = args.itemTableNomusId ?? args.proposalTableNomusId ?? null;
+  const tableName = args.itemTableName ?? args.proposalTableName ?? null;
+  if (tableNomusId || tableName) {
+    let query = supabaseAdmin.from("nomus_price_tables").select("id, nomus_id, name, code").limit(1);
+    query = tableNomusId ? query.eq("nomus_id", tableNomusId) : query.or(`name.eq.${tableName},code.eq.${tableName}`);
+    const { data } = await query.maybeSingle();
+    const row = data as { id?: string; nomus_id?: string | null; name?: string | null; code?: string | null } | null;
+    return {
+      id: row?.id ?? null,
+      nomusId: row?.nomus_id ?? tableNomusId,
+      name: row?.name ?? tableName,
+      matchMethod: args.itemTableNomusId || args.itemTableName ? "item_payload" : "proposal_payload",
+    };
+  }
+  if (args.productNomusId && args.unitPrice != null) {
+    const { data } = await supabaseAdmin
+      .from("nomus_price_table_items")
+      .select("price_table_id, unit_price, preco_liquido, nomus_price_tables(id, nomus_id, name, code)")
+      .eq("nomus_product_id", args.productNomusId)
+      .limit(50);
+    const matched = ((data ?? []) as Array<Record<string, unknown>>).find((row) => {
+      const price = Number(row.preco_liquido ?? row.unit_price ?? 0);
+      return Number.isFinite(price) && Math.abs(price - Number(args.unitPrice)) < 0.01;
+    });
+    const table = matched?.nomus_price_tables as { id?: string; nomus_id?: string | null; name?: string | null; code?: string | null } | null | undefined;
+    if (table) return { id: table.id ?? null, nomusId: table.nomus_id ?? null, name: table.name ?? table.code ?? null, matchMethod: "product_price_match" };
+  }
+  return { id: null, nomusId: tableNomusId, name: tableName, matchMethod: null };
+}
+
 const pickEmail = (o: Json): string | null => {
   const direct = pickStr(o, "email", "e-mail", "emailPrincipal", "emailCorporativo", "login", "usuario");
   if (direct?.includes("@")) return direct.trim().toLowerCase();
