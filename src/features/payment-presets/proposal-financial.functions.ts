@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import type { Json } from "@/integrations/supabase/types";
 import {
   proposalIdSchema,
   saveProposalFinancialSchema,
@@ -88,7 +89,7 @@ export const saveProposalFinancial = createServerFn({ method: "POST" })
       factorPct: result.factorPct,
       totalInstallments: result.totalInstallments,
       computedAt: new Date().toISOString(),
-    } as unknown as Record<string, never>;
+    } as unknown as Json;
 
     const { error: upErr } = await supabaseAdmin
       .from("proposals")
