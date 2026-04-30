@@ -183,31 +183,57 @@ function PriceTablesPage() {
     }
   }
 
-  async function handleImportCsv(file: File | null | undefined) {
-    if (!file) return;
+  async function handleImportCsv(files: FileList | File[] | null | undefined) {
+    const selectedFiles = Array.from(files ?? []).filter((file) => file.name.toLowerCase().endsWith(".csv"));
+    if (selectedFiles.length === 0) return;
     setImporting(true);
     try {
-      const bytes = new Uint8Array(await file.arrayBuffer());
-      const parsed = parseNomusCostsCsv(decodeBytes(bytes));
-      if (parsed.rows.length === 0) {
-        toast.error(parsed.warnings[0] ?? "CSV sem linhas válidas para importar.");
-        return;
+      let importedTables = 0;
+      let insertedTotal = 0;
+      let updatedTotal = 0;
+      let skippedTotal = 0;
+      let lastPriceTableId: string | null = null;
+      const warnings: string[] = [];
+      const failures: string[] = [];
+
+      for (const file of selectedFiles) {
+        const bytes = new Uint8Array(await file.arrayBuffer());
+        const parsed = parseNomusCostsCsv(decodeBytes(bytes));
+        if (parsed.rows.length === 0) {
+          failures.push(`${file.name}: ${parsed.warnings[0] ?? "CSV sem linhas válidas."}`);
+          continue;
+        }
+
+        const result = await importPriceTableCsv({ data: { filename: file.name, rows: parsed.rows } });
+        if (!result.ok) {
+          failures.push(`${file.name}: ${result.error || "Falha ao importar tabela CSV."}`);
+          continue;
+        }
+
+        importedTables++;
+        insertedTotal += result.inserted;
+        updatedTotal += result.updated;
+        skippedTotal += result.skipped;
+        lastPriceTableId = result.priceTableId;
+        if (parsed.warnings.length > 0) warnings.push(`${file.name}: ${parsed.warnings.join(" ")}`);
       }
-      const result = await importPriceTableCsv({ data: { filename: file.name, rows: parsed.rows } });
-      if (!result.ok) {
-        toast.error(result.error || "Falha ao importar tabela CSV.");
-        return;
+
+      if (lastPriceTableId) {
+        setOpenedTableId(lastPriceTableId);
+        setSelectedTableId("all");
+        await refreshData();
       }
-      setOpenedTableId(result.priceTableId);
-      setSelectedTableId("all");
-      await refreshData();
-      if (parsed.warnings.length > 0) toast.warning(parsed.warnings.join(" "));
-      toast.success(
-        `Tabela "${result.priceTableName}" importada: ${result.inserted} novo(s), ${result.updated} atualizado(s).`,
-      );
+
+      if (warnings.length > 0) toast.warning(warnings.join(" "));
+      if (failures.length > 0) toast.error(failures.join(" "));
+      if (importedTables > 0) {
+        toast.success(
+          `${importedTables} tabela(s) importada(s): ${insertedTotal} novo(s), ${updatedTotal} atualizado(s), ${skippedTotal} ignorado(s).`,
+        );
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      toast.error(`Erro ao importar CSV: ${message}`);
+      toast.error(`Erro ao importar CSV(s): ${message}`);
     } finally {
       setImporting(false);
       if (importInputRef.current) importInputRef.current.value = "";
@@ -250,8 +276,9 @@ function PriceTablesPage() {
               ref={importInputRef}
               type="file"
               accept=".csv,text/csv"
+              multiple
               className="hidden"
-              onChange={(event) => void handleImportCsv(event.target.files?.[0])}
+              onChange={(event) => void handleImportCsv(event.target.files)}
             />
             <Button
               variant="outline"
@@ -264,7 +291,7 @@ function PriceTablesPage() {
               ) : (
                 <Upload className="mr-2 h-4 w-4" />
               )}
-              Importar tabela
+              Importar tabelas
             </Button>
             <Button
               variant="outline"
