@@ -41,6 +41,8 @@ type Props = {
   proposalProductsTotal?: number;
   /** Análise de lucro consolidada da proposta — usada para rateio quando o detail individual não existir. */
   proposalAnaliseLucro?: ProposalAnaliseLucro | null;
+  /** Snapshot de custos do item — sobrescreve campos de produção e recalcula lucros. */
+  itemCostSnapshot?: ItemCostSnapshot | null;
 };
 
 type ItemDetailResult =
