@@ -22,6 +22,11 @@ interface BlockRenderContext {
     title?: string | null;
     client_name?: string | null;
     created_at?: string | null;
+    valid_until?: string | null;
+    vendedor?: string | null;
+    empresa_telefone?: string | null;
+    empresa_email?: string | null;
+    empresa_site?: string | null;
   };
 }
 
@@ -241,11 +246,12 @@ export function renderBlock(block: DocumentBlock, ctx: BlockRenderContext): Reac
         proposal_title: proposal?.title ?? "",
         proposal_number: proposal?.number ?? "",
         data_emissao: proposal?.created_at ? fmtDateBR(proposal.created_at) : "",
-        validade: "",
-        vendedor: (block.data.responsavel as string | undefined) ?? "",
-        empresa_telefone: template?.empresa_telefone ?? "",
-        empresa_email: template?.empresa_email ?? "",
-        empresa_site: template?.empresa_site ?? "",
+        validade: proposal?.valid_until ? fmtDateBR(proposal.valid_until) : "",
+        vendedor:
+          (block.data.responsavel as string | undefined) ?? proposal?.vendedor ?? "",
+        empresa_telefone: proposal?.empresa_telefone ?? template?.empresa_telefone ?? "",
+        empresa_email: proposal?.empresa_email ?? template?.empresa_email ?? "",
+        empresa_site: proposal?.empresa_site ?? template?.empresa_site ?? "",
       };
 
       const items = customFields

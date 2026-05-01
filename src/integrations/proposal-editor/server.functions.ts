@@ -18,6 +18,8 @@ import type {
   ProposalTableType,
 } from "@/features/proposal-editor/proposal-tables.types";
 import type { ProposalTemplate, TemplateAsset } from "./template.types";
+import { buildProposalDocumentContext } from "@/features/proposal-context/build-proposal-document-context.server";
+import type { ProposalDocumentContext } from "@/features/proposal-context/document-context.types";
 
 const proposalIdSchema = z.object({ proposalId: z.string().uuid() });
 const TEMPLATE_BUCKET = "proposal-template-assets";
@@ -281,12 +283,39 @@ export const autoFillFromNomus = createServerFn({ method: "POST" })
       }
     }
 
+    // Etapa 3: contexto unificado vira a fonte primária de auto-fill dos blocos.
+    // As queries Nomus acima continuam por causa das tabelas estruturadas.
+    let docContext: ProposalDocumentContext | null = null;
+    try {
+      docContext = await buildProposalDocumentContext(supabase, proposalId);
+    } catch (err) {
+      console.warn("[autoFillFromNomus] buildProposalDocumentContext falhou:", (err as Error).message);
+    }
+
     const cliente = proposal.clients as
       | { name?: string; trade_name?: string; document?: string; city?: string; state?: string }
       | null;
     const contato = proposal.client_contacts as
       | { name?: string; email?: string; phone?: string; role?: string }
       | null;
+
+    // Helpers que preferem o contexto unificado quando disponível.
+    const ctxClienteNome =
+      docContext?.cliente.fantasia ?? docContext?.cliente.nome ?? cliente?.trade_name ?? cliente?.name ?? null;
+    const ctxClienteDoc = docContext?.cliente.documento ?? cliente?.document ?? null;
+    const ctxClienteEndereco =
+      [docContext?.cliente.endereco, docContext?.cliente.bairro, docContext?.cliente.cidade, docContext?.cliente.uf]
+        .filter(Boolean)
+        .join(" · ") ||
+      [cliente?.city, cliente?.state].filter(Boolean).join(" / ") ||
+      null;
+    const ctxClienteContato =
+      docContext?.contato?.email ?? docContext?.cliente.email ?? docContext?.cliente.telefone ?? null;
+    const ctxProjetoTitulo = docContext?.proposal.titulo ?? proposal.title ?? null;
+    const ctxProjetoNumero = docContext?.proposal.numero ?? proposal.number ?? null;
+    const ctxProjetoData = docContext?.proposal.data_emissao ?? new Date().toISOString().slice(0, 10);
+    const ctxResponsavel =
+      docContext?.vendedor.nome ?? (nomusProp?.vendedor_nome as string | undefined) ?? null;
 
     // Auto-fill blocos com source=nomus
     const pages = (doc.pages as unknown as DocumentPage[]) ?? [];
@@ -295,33 +324,42 @@ export const autoFillFromNomus = createServerFn({ method: "POST" })
         if (block.source !== "nomus" || block.locked) return block;
         switch (block.type) {
           case "client_info":
+          case "client_info_box":
             return {
               ...block,
               data: {
                 ...block.data,
-                cliente: cliente?.trade_name || cliente?.name || block.data.cliente,
-                cnpj: cliente?.document || block.data.cnpj,
-                endereco:
-                  [cliente?.city, cliente?.state].filter(Boolean).join(" / ") ||
-                  block.data.endereco,
+                cliente: ctxClienteNome ?? block.data.cliente,
+                cnpj: ctxClienteDoc ?? block.data.cnpj,
+                endereco: ctxClienteEndereco ?? block.data.endereco,
+                contato: ctxClienteContato ?? block.data.contato,
               },
             };
           case "project_info":
+          case "project_info_box":
             return {
               ...block,
               data: {
                 ...block.data,
-                projeto: proposal.title || block.data.projeto,
-                numero: proposal.number || block.data.numero,
-                data: new Date().toISOString().slice(0, 10),
+                projeto: ctxProjetoTitulo ?? block.data.projeto,
+                numero: ctxProjetoNumero ?? block.data.numero,
+                data: ctxProjetoData,
+                revisao:
+                  docContext?.proposal.revisao != null
+                    ? `Rev. ${docContext.proposal.revisao}`
+                    : block.data.revisao,
               },
             };
           case "responsible_info":
+          case "responsible_info_box":
             return {
               ...block,
               data: {
                 ...block.data,
-                responsavel: (nomusProp?.vendedor_nome as string) ?? block.data.responsavel,
+                responsavel: ctxResponsavel ?? block.data.responsavel,
+                cargo: docContext?.contato?.cargo ?? block.data.cargo,
+                email: docContext?.contato?.email ?? block.data.email,
+                telefone: docContext?.contato?.telefone ?? block.data.telefone,
               },
             };
           case "key_value_list":
@@ -330,17 +368,16 @@ export const autoFillFromNomus = createServerFn({ method: "POST" })
                 ...block,
                 data: {
                   items: [
-                    { label: "Cliente", value: cliente?.name ?? "" },
-                    { label: "CNPJ", value: cliente?.document ?? "" },
-                    {
-                      label: "Endereço",
-                      value: [cliente?.city, cliente?.state].filter(Boolean).join(" / "),
-                    },
+                    { label: "Cliente", value: ctxClienteNome ?? "" },
+                    { label: "CNPJ", value: ctxClienteDoc ?? "" },
+                    { label: "Endereço", value: ctxClienteEndereco ?? "" },
                     {
                       label: "Contato",
                       value: contato
                         ? `${contato.name ?? ""}${contato.email ? ` · ${contato.email}` : ""}`
-                        : "",
+                        : docContext?.contato
+                          ? `${docContext.contato.nome ?? ""}${docContext.contato.email ? ` · ${docContext.contato.email}` : ""}`
+                          : "",
                     },
                   ],
                 },
@@ -541,6 +578,15 @@ export const generateProposalPdf = createServerFn({ method: "POST" })
     const cliente = (proposal as any).clients;
     const revCtx = await loadRevisionContext(supabase, proposal.id, proposal.title);
 
+    // Etapa 3: contexto unificado da proposta — fonte enriquecida para o PDF.
+    // Best-effort: se falhar, segue com os dados básicos antigos.
+    let docContext: ProposalDocumentContext | null = null;
+    try {
+      docContext = await buildProposalDocumentContext(supabase, proposalId);
+    } catch (err) {
+      console.warn("[generateProposalPdf] buildProposalDocumentContext falhou:", (err as Error).message);
+    }
+
     const baseBuffer = await renderToBuffer(
       ProposalPdfDocument({
         data: {
@@ -548,9 +594,18 @@ export const generateProposalPdf = createServerFn({ method: "POST" })
             id: proposal.id,
             number: proposal.number,
             title: proposal.title,
-            valid_until: proposal.valid_until,
+            valid_until: proposal.valid_until ?? docContext?.proposal.validade ?? null,
             created_at: proposal.created_at,
-            client_name: cliente?.trade_name ?? cliente?.name ?? null,
+            client_name:
+              cliente?.trade_name ??
+              cliente?.name ??
+              docContext?.cliente.fantasia ??
+              docContext?.cliente.nome ??
+              null,
+            vendedor: docContext?.vendedor.nome ?? null,
+            empresa_telefone: docContext?.empresa.telefone ?? null,
+            empresa_email: docContext?.empresa.email ?? null,
+            empresa_site: docContext?.empresa.site ?? null,
             revision: revCtx.revision,
             revision_history: revCtx.history,
           },
@@ -673,6 +728,14 @@ export const createProposalSendVersion = createServerFn({ method: "POST" })
     const cliente = (proposal as any).clients;
     const revCtx = await loadRevisionContext(supabase, proposal.id, proposal.title);
 
+    // Etapa 3: contexto unificado para o snapshot final.
+    let docContext: ProposalDocumentContext | null = null;
+    try {
+      docContext = await buildProposalDocumentContext(supabase, proposalId);
+    } catch (err) {
+      console.warn("[createProposalSendVersion] buildProposalDocumentContext falhou:", (err as Error).message);
+    }
+
     const baseBuffer = await renderToBuffer(
       ProposalPdfDocument({
         data: {
@@ -680,9 +743,18 @@ export const createProposalSendVersion = createServerFn({ method: "POST" })
             id: proposal.id,
             number: proposal.number,
             title: proposal.title,
-            valid_until: proposal.valid_until,
+            valid_until: proposal.valid_until ?? docContext?.proposal.validade ?? null,
             created_at: proposal.created_at,
-            client_name: cliente?.trade_name ?? cliente?.name ?? null,
+            client_name:
+              cliente?.trade_name ??
+              cliente?.name ??
+              docContext?.cliente.fantasia ??
+              docContext?.cliente.nome ??
+              null,
+            vendedor: docContext?.vendedor.nome ?? null,
+            empresa_telefone: docContext?.empresa.telefone ?? null,
+            empresa_email: docContext?.empresa.email ?? null,
+            empresa_site: docContext?.empresa.site ?? null,
             revision: revCtx.revision,
             revision_history: revCtx.history,
           },
@@ -791,6 +863,8 @@ export const createProposalSendVersion = createServerFn({ method: "POST" })
         metadata: {
           merged_attachments: attachedBuffers.length,
           generated_at: new Date().toISOString(),
+          // Etapa 3: snapshot do contexto unificado para auditoria/replay.
+          document_context: docContext as unknown,
         } as never,
       } as never)
       .select("id")
