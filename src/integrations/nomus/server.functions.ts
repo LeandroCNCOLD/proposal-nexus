@@ -2032,12 +2032,18 @@ export const nomusGetItemDetail = createServerFn({ method: "POST" })
     }
 
     // 5) Preços do produto em todas as tabelas de preço (Nomus)
+    // IMPORTANTE: em `nomus_price_table_items.nomus_product_id` está armazenado
+    // o CÓDIGO do produto (ex.: CN-030-LT-EV-6-22T-NA), não o UUID interno.
+    // Priorizamos `product_code`; caímos para `nomus_product_id` apenas como
+    // fallback de compatibilidade com itens antigos.
     let priceTableItems: Json[] = [];
-    if (item.nomus_product_id) {
+    const lookupKey = item.product_code ?? item.nomus_product_id;
+    if (lookupKey) {
       const { data: pti } = await supabaseAdmin
         .from("nomus_price_table_items")
-        .select("*, nomus_price_tables(nomus_id, name, code, currency, is_active)")
-        .eq("nomus_product_id", item.nomus_product_id);
+        .select("*, nomus_price_tables(nomus_id, name, code, currency, is_active, ufs)")
+        .eq("nomus_product_id", lookupKey)
+        .order("unit_price", { ascending: true });
       if (pti && Array.isArray(pti)) priceTableItems = pti as unknown as Json[];
     }
 
