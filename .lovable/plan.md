@@ -1,65 +1,73 @@
 ## Objetivo
 
-Trocar a regra de seleção automática da tabela de preço para seguir esta ordem:
+Corrigir a seção "Análise de lucro" para que:
 
-1. **Filtrar por UF** do cliente — só considera tabelas que cobrem o estado.
-2. **Escolher a tabela com `unitPrice` mais próximo** do preço unitário do item (vindo do Nomus).
-3. **Selecionar essa tabela** e **preencher todos os campos** dependentes (tabela unit., tabela total, desconto, % desconto) automaticamente.
+1. **"Valor total dos produtos"** = soma dos **totais de tabela** (Tabela total = preço de tabela × qtd), não dos preços de venda.
+2. **"Descontos incondicionais"** = diferença entre o total de tabela e o total de venda, com tratamento explícito para casos em que a venda está **acima** da tabela (ágio).
+3. **"Valor total com desconto"** = total de venda real (o que o cliente paga hoje), garantindo que `tabela − desconto = venda`.
+4. Deixar o agregador local **preparado para ser substituído** pela integração futura com o Nomus, sem reescrever a UI.
 
-## Fluxo detalhado
+## Como funcionará o cálculo
 
-Para cada item da proposta, ao auto-aplicar:
+Para cada item:
 
-1. Pegar `clientUf` (estado da proposta) e `item.unitPrice` (preço Nomus).
-2. **Etapa UF**: filtrar tabelas ativas onde `tabela.ufs` inclui a UF do cliente.
-3. **Etapa preço mais próximo** (dentre as compatíveis com a UF):
-   - Considerar apenas as que têm `unitPrice != null`.
-   - Calcular `|tabela.unitPrice − item.unitPrice|`.
-   - Selecionar a de **menor diferença absoluta**.
-   - Tie-break em caso de empate exato: menor ICMS → mais recente (`syncedAt`).
-4. **Etapa preencher campos**: persistir tabela escolhida + snapshot do `unitPrice` da tabela. Os campos derivados (tabela total = `unitPrice × quantidade`, desconto = `tabela_total − total_item`, % = `desconto / tabela_total`) já são calculados na grid a partir do snapshot.
+```text
+total_tabela_item = preço_tabela_unit × quantidade
+total_venda_item  = preço_venda_unit  × quantidade − desconto_item
+delta_item        = total_tabela_item − total_venda_item
+                    (positivo = desconto; negativo = ágio)
+```
 
-### Fallbacks (quando a etapa 1 ou 2 não encontra nada)
+Agregando a proposta:
 
-- **Sem UF cadastrada no cliente** ou **nenhuma tabela cobre a UF**: usar todas as tabelas ativas e aplicar a etapa 2 (preço mais próximo) global.
-- **Nenhuma tabela tem `unitPrice` cadastrado**: cair na regra antiga (menor ICMS → mais recente).
-- **Item sem `unitPrice` válido (≤ 0 ou nulo)**: cair na regra antiga (UF + menor ICMS → menor ICMS → mais recente). Sem preço de referência, não dá pra comparar proximidade.
+```text
+Valor total dos produtos     = Σ total_tabela_item
+Desconto bruto (concedido)   = Σ max(0,  delta_item)
+Ágio bruto (acima da tabela) = Σ max(0, -delta_item)
+Desconto líquido             = Desconto bruto − Ágio bruto
+Valor total com desconto     = Valor total dos produtos − Desconto líquido
+                             = Σ total_venda_item   (identidade garantida)
+```
 
-## Mudanças técnicas
+### Sugestão para o caso "venda acima da tabela"
 
-### 1. `src/features/price-table-picker/select-table-for-item.ts`
-- Adicionar parâmetro `itemUnitPrice: number | null` em `selectTableForItem`.
-- Adicionar novos `MatchMethod`:
-  - `"auto_uf_closest_price"` (UF + preço mais próximo — caso ideal)
-  - `"auto_closest_price"` (preço mais próximo, UF não coberta — fallback)
-- Nova ordem de prioridade:
-  1. UF compatível + tabelas com `unitPrice` → menor `|diff|` → `auto_uf_closest_price`.
-  2. Sem UF compatível, mas há tabelas com `unitPrice` → menor `|diff|` global → `auto_closest_price`.
-  3. Item sem `unitPrice` válido → mantém regras antigas (UF + menor ICMS → menor ICMS → mais recente).
-  4. Último fallback: tabela mais recente (`auto_latest`).
+Como a linha "(-) Descontos incondicionais" precisa fechar a conta, vamos exibir o **desconto líquido** (pode ficar negativo, indicando ágio). Para dar visibilidade ao usuário sem poluir a tabela, adicionamos **duas sub-linhas informativas** abaixo (estilo das sub-linhas de custo de produção que já existem):
 
-### 2. `src/features/price-table-picker/use-item-price-tables.ts`
-- Em `applyAuto`, passar `item.unitPrice` para `selectTableForItem`.
+```text
+(-) Descontos incondicionais          -R$ 20.745
+    >>> Desconto concedido            R$ 17.001  (itens 01, 03, 04)
+    >>> Ágio sobre tabela             R$  3.744  (itens 02, 06 − valor "a mais")
+```
 
-### 3. `src/features/price-table-picker/price-table-picker.functions.ts`
-- Estender o enum Zod de `matchMethod` no `setProposalItemPriceTable` para aceitar `"auto_uf_closest_price"` e `"auto_closest_price"`.
+Assim o usuário vê o líquido (que fecha a soma) e entende a composição. Quando não houver ágio, as sub-linhas ficam ocultas para não poluir.
 
-### 4. `src/components/NomusProposalDetail.tsx`
-- Em `shouldRefreshAuto` (linhas ~218–223), incluir os métodos antigos (`auto_uf_min_icms`, `auto_min_icms`, `auto_uf_max_icms`, `auto_max_icms`, `auto_latest`) **e** os novos no recheck, para que itens já marcados sejam reavaliados ao recarregar a proposta com a nova regra.
-- Passar `itemUnitPrice={it.unitPrice}` para o `<PerItemPriceTablePicker>` (para destacar a tabela mais próxima na lista).
+## Preparação para substituição futura pelo Nomus
 
-### 5. `src/features/price-table-picker/PerItemPriceTablePicker.tsx`
-- Aceitar prop opcional `itemUnitPrice: number | null`.
-- Reordenar a lista do popover: dentro do grupo "compatíveis com UF", ordenar por proximidade do `itemUnitPrice` (ao invés de menor ICMS).
-- Trocar o chip "Menor ICMS" por **"Mais próximo"** quando `itemUnitPrice` está disponível.
-- Em `MatchMethodChip`, adicionar rótulos:
-  - `auto_uf_closest_price` → "Sugerida por UF · preço mais próximo"
-  - `auto_closest_price` → "UF não coberta · preço mais próximo"
+Hoje o agregador `agg` mistura cálculo local + fallback para campos do Nomus dentro do componente `NomusProposalDetail`. Vamos isolar isso:
 
-## Banco de dados
+- Criar `src/features/proposal-totals/compute-proposal-totals.ts` exportando uma função pura `computeProposalTotals({ items, snapshots, nomus })` que retorna o objeto `agg` no formato que a UI já consome.
+- Criar tipo `ProposalTotalsSource = "snapshot_local" | "nomus"` no retorno, para a UI mostrar o aviso ("Totais calculados a partir das tabelas aplicadas" vs. "Totais oficiais do Nomus").
+- Regra de prioridade dentro da função:
+  1. Se a proposta tem `nomus_totais_oficiais` (campo a ser preenchido no futuro pela integração), usar Nomus direto.
+  2. Caso contrário, calcular localmente a partir dos snapshots dos itens (lógica atual + correções de tabela/desconto/ágio acima).
+- A UI (`NomusProposalDetail.tsx`) só consome `computeProposalTotals(...)` — quando a integração com Nomus chegar, basta alterar a função, não a UI.
 
-Não exige migração: `price_table_match_method` é `text` livre. Só atualizamos o enum Zod no server function.
+## Arquivos a alterar
 
-## Por que isso resolve o que está faltando
+- **Novo**: `src/features/proposal-totals/compute-proposal-totals.ts` — função pura + tipos.
+- **Editar**: `src/components/NomusProposalDetail.tsx`
+  - Substituir o `useMemo` `agg` por `useMemo(() => computeProposalTotals(...), [...])`.
+  - Adicionar as duas `SubRow` ("Desconto concedido" / "Ágio sobre tabela") logo abaixo da linha de "(-) Descontos incondicionais", renderizadas condicionalmente.
 
-Hoje os campos "tabela unit.", "tabela total", "desconto", "% desconto" não aparecem porque a tabela escolhida pela regra antiga (menor ICMS) tem um `unitPrice` muito distante do preço do Nomus, então o vendedor enxerga a tabela "errada" e os números ficam desconectados. Ao casar pela proximidade de preço dentro da mesma UF, a tabela escolhida bate com o preço do item — e os campos derivados passam a fazer sentido imediatamente.
+Nada muda em rotas, banco de dados ou outras telas.
+
+## Resultado esperado (com os números atuais)
+
+```text
+Valor total dos produtos              R$ 291.866
+(-) Descontos incondicionais          -R$  20.745
+    >>> Desconto concedido            R$  17.001
+    >>> Ágio sobre tabela             R$   3.744
+(=) Valor total com desconto          R$ 271.121
+... (resto inalterado)
+```
