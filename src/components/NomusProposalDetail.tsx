@@ -169,6 +169,24 @@ export function NomusProposalDetail({
     },
   });
 
+  // Custo adicional vindo da simulação da taxa financeira salva na proposta.
+  const { data: localProposalFinancial } = useQuery({
+    queryKey: ["proposal-financial-additional-cost", localProposalId],
+    enabled: !!localProposalId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("proposals")
+        .select("financial_additional_cost")
+        .eq("id", localProposalId!)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+  const financialAdditionalCost = Number(
+    localProposalFinancial?.financial_additional_cost ?? 0,
+  );
+
   // Itens enriquecidos com o id local + estado da tabela
   const itemsForHook = useMemo(
     () =>
