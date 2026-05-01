@@ -49,6 +49,14 @@ interface PaletteGroup {
 /** Catálogo completo de campos arrastáveis. */
 export const ALL_PALETTE_GROUPS: PaletteGroup[] = [
   {
+    label: "Capas CN Cold",
+    items: [
+      { blockType: "cover_main_cn_cold", label: "🎨 Capa Principal (CN Cold)", category: "Capas", keywords: ["capa", "cover", "proposta", "principal"] },
+      { blockType: "cover_institutional_cn_cold", label: "🏭 Capa Institucional (CN Cold)", category: "Capas", keywords: ["sobre", "institucional", "fábrica"] },
+      { blockType: "cover_clients_cases_cn_cold", label: "🏆 Capa Cases & Clientes (CN Cold)", category: "Capas", keywords: ["cases", "clientes", "logos", "portfolio"] },
+    ],
+  },
+  {
     label: "Layout",
     items: [
       { blockType: "container", label: "📦 Caixa / Container", category: "Layout" },
