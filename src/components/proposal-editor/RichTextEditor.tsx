@@ -524,6 +524,47 @@ export function RichTextEditor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value, editor]);
 
+  // Escuta o evento global do VariablesPanel para inserir no cursor quando
+  // este editor está focado.
+  useEffect(() => {
+    if (!editor) return;
+    const handler = (e: Event) => {
+      if (!isFocusedRef.current) return;
+      const detail = (e as CustomEvent<{ token: string }>).detail;
+      if (!detail?.token) return;
+      editor.chain().focus().insertContent(detail.token).run();
+    };
+    window.addEventListener("proposal-editor:insert-variable", handler as EventListener);
+    return () =>
+      window.removeEventListener("proposal-editor:insert-variable", handler as EventListener);
+  }, [editor]);
+
+  // Filtra variáveis pelo query atual do autocomplete.
+  const varSuggestions = useMemo<VariableDefinition[]>(() => {
+    const q = varQuery.toLowerCase();
+    return VARIABLES.filter(
+      (v) => v.key.toLowerCase().includes(q) || v.label.toLowerCase().includes(q),
+    ).slice(0, 8);
+  }, [varQuery]);
+
+  useEffect(() => {
+    setVarHighlight(0);
+  }, [varQuery, varOpen]);
+
+  const insertVariableAtCursor = (key: string) => {
+    if (!editor) return;
+    // Apaga o gatilho `{{query` digitado (varTriggerLen chars antes do cursor)
+    const { from } = editor.state.selection;
+    const start = Math.max(0, from - varTriggerLen);
+    editor
+      .chain()
+      .focus()
+      .deleteRange({ from: start, to: from })
+      .insertContent(`{{${key}}}`)
+      .run();
+    setVarOpen(false);
+  };
+
   if (!editor) return null;
 
   const handlePickImage = proposalId
