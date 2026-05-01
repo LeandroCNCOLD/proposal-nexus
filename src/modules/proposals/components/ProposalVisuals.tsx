@@ -288,6 +288,26 @@ export function ProposalItemsTable({
                   </TableCell>
                 )}
                 {showPriceTableComparison && (
+                  <TableCell className="text-right tabular-nums text-muted-foreground">
+                    {costMatTotal != null ? brl(costMatTotal) : "—"}
+                  </TableCell>
+                )}
+                {showPriceTableComparison && (
+                  <TableCell className="text-right tabular-nums text-muted-foreground">
+                    {costModTotal != null ? brl(costModTotal) : "—"}
+                  </TableCell>
+                )}
+                {showPriceTableComparison && (
+                  <TableCell className="text-right tabular-nums text-muted-foreground">
+                    {costCifTotal != null ? brl(costCifTotal) : "—"}
+                  </TableCell>
+                )}
+                {showPriceTableComparison && (
+                  <TableCell className="text-right font-medium tabular-nums">
+                    {costProdTotal != null ? brl(costProdTotal) : "—"}
+                  </TableCell>
+                )}
+                {showPriceTableComparison && (
                   <TableCell className="text-right tabular-nums">
                     {discountValue == null ? "—" : (
                       <span className={cn(discountValue > 0 ? "text-amber-700" : discountValue < 0 ? "text-emerald-700" : "")}>
