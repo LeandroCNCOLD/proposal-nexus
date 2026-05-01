@@ -17,6 +17,12 @@ export interface ProposalPdfData {
     valid_until: string | null;
     created_at: string;
     client_name?: string | null;
+    /** Vendedor / responsável comercial — vindo do ProposalDocumentContext. */
+    vendedor?: string | null;
+    /** Telefone/site/e-mail da empresa, espelhados do contexto p/ summary boxes. */
+    empresa_telefone?: string | null;
+    empresa_email?: string | null;
+    empresa_site?: string | null;
     revision?: number;
     revision_history?: Array<{
       numero: string;
