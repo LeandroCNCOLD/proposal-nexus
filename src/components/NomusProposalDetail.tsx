@@ -186,6 +186,9 @@ export function NomusProposalDetail({
           priceTableId: local?.price_table_id ?? null,
           priceTableSelectedAt: local?.price_table_selected_at ?? null,
           priceTableMatchMethod: local?.price_table_match_method ?? null,
+          hasCostSnapshot:
+            local?.price_table_custo_producao_total != null ||
+            local?.price_table_custo_materiais != null,
         };
       }),
     [items, localItemsByNomusId],
@@ -214,13 +217,13 @@ export function NomusProposalDetail({
         it.priceTableMatchMethod === "auto_uf_min_icms" ||
         it.priceTableMatchMethod === "auto_min_icms" ||
         it.priceTableMatchMethod === "auto_latest";
-      // Aplica auto se: (a) nunca foi escolhida ou (b) foi vinda do nomus_sync mas
-      // ainda assim queremos a regra UF/ICMS. Mantemos manual intocada.
-      if (isManual) {
+      // Aplica auto se: (a) nunca foi escolhida, (b) auto antiga, ou (c) tem
+      // tabela mas ainda não populamos os custos (snapshot faltando).
+      if (isManual && it.hasCostSnapshot) {
         autoAppliedRef.current.add(it.id);
         continue;
       }
-      if (!hasChoice || shouldRefreshAuto) {
+      if (!hasChoice || shouldRefreshAuto || !it.hasCostSnapshot) {
         applyAuto(it.id, it.nomusProductId);
         autoAppliedRef.current.add(it.id);
       } else {
