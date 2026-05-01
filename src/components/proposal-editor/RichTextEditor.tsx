@@ -457,6 +457,12 @@ export function RichTextEditor({
 }: Props) {
   const uploadFn = useServerFn(uploadInlineImage);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const isFocusedRef = useRef(false);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const [varOpen, setVarOpen] = useState(false);
+  const [varQuery, setVarQuery] = useState("");
+  const [varTriggerLen, setVarTriggerLen] = useState(0);
+  const [varHighlight, setVarHighlight] = useState(0);
 
   const editor = useEditor({
     extensions: [
