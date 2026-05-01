@@ -146,6 +146,7 @@ export function NomusProposalDetail({
     price_table_custo_mod: number | null;
     price_table_custo_cif: number | null;
     price_table_custo_producao_total: number | null;
+    price_table_custos_adm: number | null;
     price_table_preco_calculado: number | null;
   };
   const { data: localItemsByNomusId = new Map<string, LocalItemSnapshot>() } = useQuery({
@@ -155,7 +156,7 @@ export function NomusProposalDetail({
       const { data: rows, error } = await supabase
         .from("proposal_items")
         .select(
-          "id, nomus_item_id, price_table_id, price_table_name, price_table_match_method, price_table_unit_price, price_table_selected_at, price_table_custo_materiais, price_table_custo_mod, price_table_custo_cif, price_table_custo_producao_total, price_table_preco_calculado",
+          "id, nomus_item_id, price_table_id, price_table_name, price_table_match_method, price_table_unit_price, price_table_selected_at, price_table_custo_materiais, price_table_custo_mod, price_table_custo_cif, price_table_custo_producao_total, price_table_custos_adm, price_table_preco_calculado",
         )
         .eq("proposal_id", localProposalId!);
       if (error) throw error;
