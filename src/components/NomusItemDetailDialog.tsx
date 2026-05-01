@@ -27,6 +27,7 @@ export type PrefillItem = {
   item_status: string | null;
   nomus_item_id?: string | null;
   nomus_product_id?: string | null;
+  price_table_id?: string | null;
 };
 
 type Props = {
@@ -317,14 +318,21 @@ function PrecosSection({
     );
   }
 
+  const productCode = prefill?.product_code ?? null;
   return (
     <FormCard title={`Tabelas de preço (${priceTableItems.length})`}>
+      <div className="text-xs text-muted-foreground">
+        {priceTableItems.length} tabela{priceTableItems.length === 1 ? "" : "s"} encontrada{priceTableItems.length === 1 ? "" : "s"}
+        {productCode ? <> para o código <span className="font-mono">{productCode}</span></> : null}
+      </div>
       <div className="overflow-hidden rounded-md border">
         <table className="w-full text-sm">
           <thead className="bg-secondary/40 text-[11px] uppercase tracking-wider text-muted-foreground">
             <tr>
               <th className="px-3 py-2 text-left">Tabela</th>
               <th className="px-3 py-2 text-left">Código</th>
+              <th className="px-3 py-2 text-left">UF</th>
+              <th className="px-3 py-2 text-right">ICMS %</th>
               <th className="px-3 py-2 text-left">Moeda</th>
               <th className="px-3 py-2 text-right">Preço unitário</th>
               <th className="px-3 py-2 text-center">Status</th>
@@ -334,11 +342,22 @@ function PrecosSection({
             {priceTableItems.map((row, idx) => {
               const r = row as Record<string, unknown>;
               const tbl = (r.nomus_price_tables ?? {}) as Record<string, unknown>;
-              const isCurrent = prefill?.unit_price != null && Number(r.unit_price) === Number(prefill.unit_price);
+              const tableName = (tbl.name as string) ?? "—";
+              const isCurrent = prefill?.price_table_id != null && (r.price_table_id as string) === prefill.price_table_id;
+              const ufsArr = Array.isArray(tbl.ufs) ? (tbl.ufs as string[]) : [];
+              const ufsLabel = ufsArr.length === 0
+                ? "—"
+                : ufsArr.length <= 4
+                  ? ufsArr.join(", ")
+                  : `${ufsArr.slice(0, 3).join(", ")}, +${ufsArr.length - 3}`;
+              const icmsMatch = tableName.match(/ICMS\s*([0-9]+(?:[.,][0-9]+)?)/i);
+              const icmsLabel = icmsMatch ? `${icmsMatch[1].replace(",", ".")}%` : "—";
               return (
                 <tr key={(r.id as string) ?? idx} className={`border-t ${isCurrent ? "bg-primary/5" : ""}`}>
-                  <td className="px-3 py-2">{(tbl.name as string) ?? "—"}</td>
+                  <td className="px-3 py-2">{tableName}</td>
                   <td className="px-3 py-2 font-mono text-xs">{(tbl.code as string) ?? "—"}</td>
+                  <td className="px-3 py-2 text-xs">{ufsLabel}</td>
+                  <td className="px-3 py-2 text-right tabular-nums text-xs">{icmsLabel}</td>
                   <td className="px-3 py-2 text-xs">{(r.currency as string) ?? (tbl.currency as string) ?? "BRL"}</td>
                   <td className="px-3 py-2 text-right tabular-nums font-medium">
                     {brl(Number(r.unit_price))}
