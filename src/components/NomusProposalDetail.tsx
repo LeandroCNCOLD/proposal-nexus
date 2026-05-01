@@ -340,7 +340,10 @@ export function NomusProposalDetail({
       {/* ============ Modal de detalhes do item ============ */}
       <NomusItemDetailDialog
         itemId={openItem?.id ?? null}
-        prefillItem={openItem}
+        prefillItem={openItem ? {
+          ...openItem,
+          price_table_id: (openItem.nomus_item_id ? localItemsByNomusId.get(openItem.nomus_item_id)?.price_table_id : null) ?? null,
+        } : null}
         open={openItem !== null}
         onOpenChange={(o) => { if (!o) setOpenItem(null); }}
         proposalTaxes={
