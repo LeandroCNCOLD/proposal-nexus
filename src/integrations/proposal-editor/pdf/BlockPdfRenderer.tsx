@@ -12,6 +12,8 @@ import { layoutToPdfBoxStyle } from "../box-style";
 import { CoverMainCnColdPdf } from "./cn-cold-covers/CoverMainCnColdPdf";
 import { CoverInstitutionalCnColdPdf } from "./cn-cold-covers/CoverInstitutionalCnColdPdf";
 import { CoverClientsCasesCnColdPdf } from "./cn-cold-covers/CoverClientsCasesCnColdPdf";
+import type { ProposalDocumentContext } from "@/features/proposal-context/document-context.types";
+import { resolveVariables } from "@/features/proposal-variables/resolve-variables";
 
 interface BlockRenderContext {
   styles: PdfStyles;
@@ -31,10 +33,12 @@ interface BlockRenderContext {
     empresa_email?: string | null;
     empresa_site?: string | null;
   };
+  /** Contexto unificado para resolver variáveis dinâmicas {{key}}. */
+  documentContext?: ProposalDocumentContext | null;
 }
 
 export function renderBlock(block: DocumentBlock, ctx: BlockRenderContext): React.ReactNode {
-  const { styles, theme, template, tablesByPage, pageId, proposal } = ctx;
+  const { styles, theme, template, tablesByPage, pageId, proposal, documentContext } = ctx;
   const key = block.id;
 
   switch (block.type) {
@@ -70,7 +74,8 @@ export function renderBlock(block: DocumentBlock, ctx: BlockRenderContext): Reac
     }
 
     case "heading": {
-      const text = (block.data.text as string) ?? "";
+      const raw = (block.data.text as string) ?? "";
+      const text = documentContext ? resolveVariables(raw, documentContext) : raw;
       const level = (block.data.level as number) ?? 1;
       const style = level === 1 ? styles.h1 : level === 2 ? styles.h2 : styles.h3;
       return (
@@ -82,7 +87,7 @@ export function renderBlock(block: DocumentBlock, ctx: BlockRenderContext): Reac
 
     case "rich_text": {
       const html = (block.data.html as string) ?? "";
-      const rendered = renderRichHtml(html, styles);
+      const rendered = renderRichHtml(html, styles, documentContext);
       return (
         <View key={key} style={{ marginBottom: 6 }}>
           {block.title ? <Text style={styles.blockTitle}>{block.title}</Text> : null}

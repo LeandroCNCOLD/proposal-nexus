@@ -12,7 +12,8 @@ import { TableHeader } from "@tiptap/extension-table-header";
 import { TextStyle } from "@tiptap/extension-text-style";
 import { Color } from "@tiptap/extension-color";
 import { FontFamily } from "@tiptap/extension-font-family";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { VARIABLES, type VariableDefinition } from "@/features/proposal-variables/variables-catalog";
 import {
   Bold,
   Italic,
@@ -456,6 +457,12 @@ export function RichTextEditor({
 }: Props) {
   const uploadFn = useServerFn(uploadInlineImage);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const isFocusedRef = useRef(false);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const [varOpen, setVarOpen] = useState(false);
+  const [varQuery, setVarQuery] = useState("");
+  const [varTriggerLen, setVarTriggerLen] = useState(0);
+  const [varHighlight, setVarHighlight] = useState(0);
 
   const editor = useEditor({
     extensions: [
@@ -483,6 +490,27 @@ export function RichTextEditor({
     },
     onUpdate: ({ editor }) => {
       onChange(editor.getHTML());
+      // Detecta `{{` antes do cursor para abrir autocomplete de variáveis.
+      try {
+        const { from } = editor.state.selection;
+        const text = editor.state.doc.textBetween(Math.max(0, from - 40), from, "\n", "\n");
+        const m = /\{\{([a-zA-Z0-9_.]*)$/.exec(text);
+        if (m) {
+          setVarQuery(m[1]);
+          setVarTriggerLen(m[0].length);
+          setVarOpen(true);
+        } else if (varOpen) {
+          setVarOpen(false);
+        }
+      } catch {
+        /* ignore */
+      }
+    },
+    onFocus: () => {
+      isFocusedRef.current = true;
+    },
+    onBlur: () => {
+      isFocusedRef.current = false;
     },
   });
 
@@ -495,6 +523,47 @@ export function RichTextEditor({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value, editor]);
+
+  // Escuta o evento global do VariablesPanel para inserir no cursor quando
+  // este editor está focado.
+  useEffect(() => {
+    if (!editor) return;
+    const handler = (e: Event) => {
+      if (!isFocusedRef.current) return;
+      const detail = (e as CustomEvent<{ token: string }>).detail;
+      if (!detail?.token) return;
+      editor.chain().focus().insertContent(detail.token).run();
+    };
+    window.addEventListener("proposal-editor:insert-variable", handler as EventListener);
+    return () =>
+      window.removeEventListener("proposal-editor:insert-variable", handler as EventListener);
+  }, [editor]);
+
+  // Filtra variáveis pelo query atual do autocomplete.
+  const varSuggestions = useMemo<VariableDefinition[]>(() => {
+    const q = varQuery.toLowerCase();
+    return VARIABLES.filter(
+      (v) => v.key.toLowerCase().includes(q) || v.label.toLowerCase().includes(q),
+    ).slice(0, 8);
+  }, [varQuery]);
+
+  useEffect(() => {
+    setVarHighlight(0);
+  }, [varQuery, varOpen]);
+
+  const insertVariableAtCursor = (key: string) => {
+    if (!editor) return;
+    // Apaga o gatilho `{{query` digitado (varTriggerLen chars antes do cursor)
+    const { from } = editor.state.selection;
+    const start = Math.max(0, from - varTriggerLen);
+    editor
+      .chain()
+      .focus()
+      .deleteRange({ from: start, to: from })
+      .insertContent(`{{${key}}}`)
+      .run();
+    setVarOpen(false);
+  };
 
   if (!editor) return null;
 
@@ -535,7 +604,36 @@ export function RichTextEditor({
   };
 
   return (
-    <div className={cn("rounded-md border bg-background", className)}>
+    <div
+      ref={wrapperRef}
+      className={cn("relative rounded-md border bg-background", className)}
+      onDrop={(e) => {
+        const txt = e.dataTransfer.getData("text/plain");
+        if (txt && /^\{\{[a-zA-Z0-9_.]+\}\}$/.test(txt.trim())) {
+          e.preventDefault();
+          editor.chain().focus().insertContent(txt.trim()).run();
+        }
+      }}
+      onDragOver={(e) => {
+        if (e.dataTransfer.types.includes("text/plain")) e.preventDefault();
+      }}
+      onKeyDownCapture={(e) => {
+        if (!varOpen || varSuggestions.length === 0) return;
+        if (e.key === "ArrowDown") {
+          e.preventDefault();
+          setVarHighlight((h) => (h + 1) % varSuggestions.length);
+        } else if (e.key === "ArrowUp") {
+          e.preventDefault();
+          setVarHighlight((h) => (h - 1 + varSuggestions.length) % varSuggestions.length);
+        } else if (e.key === "Enter" || e.key === "Tab") {
+          e.preventDefault();
+          insertVariableAtCursor(varSuggestions[varHighlight].key);
+        } else if (e.key === "Escape") {
+          e.preventDefault();
+          setVarOpen(false);
+        }
+      }}
+    >
       <Toolbar
         editor={editor}
         minimal={minimal}
@@ -543,6 +641,37 @@ export function RichTextEditor({
         aiContextHint={aiContextHint}
       />
       <EditorContent editor={editor} />
+      {varOpen && varSuggestions.length > 0 && (
+        <div className="absolute left-3 z-50 mt-1 w-72 max-w-full overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-lg">
+          <div className="border-b bg-muted/40 px-2 py-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+            Inserir variável
+          </div>
+          <ul className="max-h-64 overflow-y-auto">
+            {varSuggestions.map((v, i) => (
+              <li
+                key={v.key}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  insertVariableAtCursor(v.key);
+                }}
+                onMouseEnter={() => setVarHighlight(i)}
+                className={cn(
+                  "cursor-pointer px-2 py-1.5 text-xs",
+                  i === varHighlight ? "bg-accent" : "hover:bg-accent/50",
+                )}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="truncate font-medium">{v.label}</span>
+                  <span className="shrink-0 rounded bg-muted px-1 text-[10px] text-muted-foreground">
+                    {v.category}
+                  </span>
+                </div>
+                <code className="text-[10px] text-muted-foreground">{`{{${v.key}}}`}</code>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       {proposalId && (
         <input
           ref={fileInputRef}

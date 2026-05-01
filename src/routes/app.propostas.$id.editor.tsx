@@ -45,6 +45,7 @@ import { PageSidebar } from "@/components/proposal-editor/PageSidebar";
 import { ProposalCanvas } from "@/components/proposal-editor/ProposalCanvas";
 import { ProposalAttachmentsPanel } from "@/components/proposal-editor/ProposalAttachmentsPanel";
 import { ProposalVersionsPanel } from "@/components/proposal-editor/ProposalVersionsPanel";
+import { VariablesPanel } from "@/components/proposal-editor/VariablesPanel";
 import { supabase } from "@/integrations/supabase/client";
 import { PageSizePicker } from "@/components/proposal-editor/PageSizePicker";
 import {
@@ -567,6 +568,7 @@ function ProposalEditorPage() {
             />
           </div>
           <div className="space-y-3 border-t p-3">
+            <VariablesPanel context={documentContext ?? null} className="max-h-[40vh]" />
             <ProposalAttachmentsPanel
               proposalId={id}
               onChanged={() => qc.invalidateQueries({ queryKey: ["proposal-document", id] })}
