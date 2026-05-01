@@ -484,6 +484,27 @@ export function RichTextEditor({
     },
     onUpdate: ({ editor }) => {
       onChange(editor.getHTML());
+      // Detecta `{{` antes do cursor para abrir autocomplete de variáveis.
+      try {
+        const { from } = editor.state.selection;
+        const text = editor.state.doc.textBetween(Math.max(0, from - 40), from, "\n", "\n");
+        const m = /\{\{([a-zA-Z0-9_.]*)$/.exec(text);
+        if (m) {
+          setVarQuery(m[1]);
+          setVarTriggerLen(m[0].length);
+          setVarOpen(true);
+        } else if (varOpen) {
+          setVarOpen(false);
+        }
+      } catch {
+        /* ignore */
+      }
+    },
+    onFocus: () => {
+      isFocusedRef.current = true;
+    },
+    onBlur: () => {
+      isFocusedRef.current = false;
     },
   });
 
