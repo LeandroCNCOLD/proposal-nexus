@@ -80,6 +80,7 @@ export function BlockRenderer({
   template,
   assets,
   proposalContext,
+  documentContext,
   proposalId,
   pageId,
   pageTitle,
