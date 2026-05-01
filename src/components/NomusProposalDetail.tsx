@@ -551,7 +551,15 @@ export function NomusProposalDetail({
               <Row label="(-) Comissões de venda" value={negate(p.comissoes_venda)} />
               <Row label="(-) Frete" value={negate(p.frete_valor)} />
               <Row label="(-) Seguros" value={negate(p.seguros_valor)} />
-              <Row label="(-) Outras despesas acessórias" value={negate(p.despesas_acessorias)} />
+              <Row label="(-) Outras despesas acessórias" value={negate((Number(p.despesas_acessorias ?? 0)) + agg.custo_taxa_financeira)} />
+              {agg.custo_taxa_financeira > 0 && (
+                <>
+                  {Number(p.despesas_acessorias ?? 0) !== 0 && (
+                    <SubRow label=">>> Despesas acessórias (Nomus)" value={p.despesas_acessorias} />
+                  )}
+                  <SubRow label=">>> Custo da taxa financeira" value={agg.custo_taxa_financeira} />
+                </>
+              )}
               <Row label="(=) Valor líquido do item" value={agg.valor_liquido} emphasis />
               <Row label="(-) Custos de produção" value={negate(agg.custos_producao)} />
               <SubRow label=">>> Custos de materiais" value={agg.custos_materiais} />
