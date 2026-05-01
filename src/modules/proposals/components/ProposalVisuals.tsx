@@ -149,6 +149,11 @@ export type ProposalItemTableRow = {
   unitPrice?: number | null;
   /** Preço unitário vindo da tabela de preço selecionada (para comparação). */
   priceTableUnitPrice?: number | null;
+  /** Snapshots de custo unitário (vindos da tabela). */
+  priceTableCustoMateriais?: number | null;
+  priceTableCustoMod?: number | null;
+  priceTableCustoCif?: number | null;
+  priceTableCustoProducaoTotal?: number | null;
   discount?: number | null;
   total?: number | null;
   status?: string | null;
