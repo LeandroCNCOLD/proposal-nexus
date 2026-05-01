@@ -407,7 +407,8 @@ export async function buildProposalDocumentContext(
 
   // ─── 8) Impostos formatados (preferindo proposal_tables se editado) ────
   const valorBaseImpostos =
-    totals.valor_total_vendido_safe(totals) ??
+    totals.valor_total_com_desconto ??
+    totals.valor_produtos ??
     n(nomusProp?.valor_produtos);
 
   const taxRow = (() => {
