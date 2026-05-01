@@ -1,8 +1,12 @@
 // Parser leve de HTML (TipTap) para React-PDF.
 // Suporta: <p>, <br>, <strong>/<b>, <em>/<i>, <u>, <s>, <ul>, <ol>, <li>, <h1>-<h3>.
 // Renderiza com Text/View do @react-pdf/renderer preservando inline styles.
+// Substitui variáveis dinâmicas {{key}} a partir do ProposalDocumentContext
+// quando recebido (substituição final no PDF).
 import { Text, View } from "@react-pdf/renderer";
 import type { PdfStyles } from "./styles";
+import type { ProposalDocumentContext } from "@/features/proposal-context/document-context.types";
+import { resolveVariables } from "@/features/proposal-variables/resolve-variables";
 
 type InlineMarks = {
   bold?: boolean;
@@ -143,8 +147,10 @@ function renderInline(nodes: InlineNode[], baseKey: string): React.ReactNode {
 export function renderRichHtml(
   html: string | null | undefined,
   styles: PdfStyles,
+  ctx?: ProposalDocumentContext | null,
 ): React.ReactNode {
-  const blocks = parseRichHtml(html);
+  const resolved = ctx ? resolveVariables(html ?? "", ctx) : (html ?? "");
+  const blocks = parseRichHtml(resolved);
   if (blocks.length === 0) return null;
   return blocks.map((b, i) => {
     const key = `b-${i}`;
