@@ -406,10 +406,11 @@ export async function buildProposalDocumentContext(
   });
 
   // ─── 8) Impostos formatados (preferindo proposal_tables se editado) ────
-  const valorBaseImpostos =
+  const valorBaseImpostos = n(
     totals.valor_total_com_desconto ??
-    totals.valor_produtos ??
-    n(nomusProp?.valor_produtos);
+      totals.valor_produtos ??
+      nomusProp?.valor_produtos,
+  );
 
   const taxRow = (() => {
     const t = tablesByType.get("impostos");
