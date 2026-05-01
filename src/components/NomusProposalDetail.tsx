@@ -135,39 +135,32 @@ export function NomusProposalDetail({
   // ─── Per-item price tables ─────────────────────────────────────────────────
   // Carrega os proposal_items locais para mapear nomus_item_id → id local +
   // estado atual da tabela escolhida (price_table_id, match_method, snapshot).
-  const { data: localItemsByNomusId = new Map<string, {
+  type LocalItemSnapshot = {
     id: string;
     price_table_id: string | null;
     price_table_name: string | null;
     price_table_match_method: string | null;
     price_table_unit_price: number | null;
     price_table_selected_at: string | null;
-  }>() } = useQuery({
+    price_table_custo_materiais: number | null;
+    price_table_custo_mod: number | null;
+    price_table_custo_cif: number | null;
+    price_table_custo_producao_total: number | null;
+    price_table_preco_calculado: number | null;
+  };
+  const { data: localItemsByNomusId = new Map<string, LocalItemSnapshot>() } = useQuery({
     queryKey: ["proposal-items-local", localProposalId],
     enabled: !!localProposalId,
     queryFn: async () => {
       const { data: rows, error } = await supabase
         .from("proposal_items")
-        .select("id, nomus_item_id, price_table_id, price_table_name, price_table_match_method, price_table_unit_price, price_table_selected_at")
+        .select(
+          "id, nomus_item_id, price_table_id, price_table_name, price_table_match_method, price_table_unit_price, price_table_selected_at, price_table_custo_materiais, price_table_custo_mod, price_table_custo_cif, price_table_custo_producao_total, price_table_preco_calculado",
+        )
         .eq("proposal_id", localProposalId!);
       if (error) throw error;
-      const m = new Map<string, {
-        id: string;
-        price_table_id: string | null;
-        price_table_name: string | null;
-        price_table_match_method: string | null;
-        price_table_unit_price: number | null;
-        price_table_selected_at: string | null;
-      }>();
-      for (const r of (rows ?? []) as Array<{
-        id: string;
-        nomus_item_id: string | null;
-        price_table_id: string | null;
-        price_table_name: string | null;
-        price_table_match_method: string | null;
-        price_table_unit_price: number | null;
-        price_table_selected_at: string | null;
-      }>) {
+      const m = new Map<string, LocalItemSnapshot>();
+      for (const r of (rows ?? []) as Array<LocalItemSnapshot & { nomus_item_id: string | null }>) {
         if (r.nomus_item_id) m.set(r.nomus_item_id, r);
       }
       return m;
@@ -193,6 +186,9 @@ export function NomusProposalDetail({
           priceTableId: local?.price_table_id ?? null,
           priceTableSelectedAt: local?.price_table_selected_at ?? null,
           priceTableMatchMethod: local?.price_table_match_method ?? null,
+          hasCostSnapshot:
+            local?.price_table_custo_producao_total != null ||
+            local?.price_table_custo_materiais != null,
         };
       }),
     [items, localItemsByNomusId],
@@ -221,13 +217,19 @@ export function NomusProposalDetail({
         it.priceTableMatchMethod === "auto_uf_min_icms" ||
         it.priceTableMatchMethod === "auto_min_icms" ||
         it.priceTableMatchMethod === "auto_latest";
-      // Aplica auto se: (a) nunca foi escolhida ou (b) foi vinda do nomus_sync mas
-      // ainda assim queremos a regra UF/ICMS. Mantemos manual intocada.
+      // Aplica auto se: (a) nunca foi escolhida, (b) auto antiga, ou (c) tem
+      // tabela mas ainda não populamos os custos (snapshot faltando).
       if (isManual) {
+        if (!it.hasCostSnapshot && it.priceTableId && it.nomusProductId) {
+          // Re-grava a mesma tabela manual para preencher os custos.
+          const tables = tablesByProduct.get(it.nomusProductId) ?? [];
+          const current = tables.find((t) => t.id === it.priceTableId);
+          if (current) applyManual(it.id, current);
+        }
         autoAppliedRef.current.add(it.id);
         continue;
       }
-      if (!hasChoice || shouldRefreshAuto) {
+      if (!hasChoice || shouldRefreshAuto || !it.hasCostSnapshot) {
         applyAuto(it.id, it.nomusProductId);
         autoAppliedRef.current.add(it.id);
       } else {
@@ -335,6 +337,10 @@ export function NomusProposalDetail({
               priceTableName: local?.price_table_name ?? it.price_table_name,
               priceTableMatchMethod: local?.price_table_match_method ?? null,
               priceTableUnitPrice: local?.price_table_unit_price ?? null,
+              priceTableCustoMateriais: local?.price_table_custo_materiais ?? null,
+              priceTableCustoMod: local?.price_table_custo_mod ?? null,
+              priceTableCustoCif: local?.price_table_custo_cif ?? null,
+              priceTableCustoProducaoTotal: local?.price_table_custo_producao_total ?? null,
               description: it.description,
               additionalInfo: it.additional_info,
               quantity: it.quantity,

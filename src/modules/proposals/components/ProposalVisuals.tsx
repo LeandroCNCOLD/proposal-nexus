@@ -149,6 +149,11 @@ export type ProposalItemTableRow = {
   unitPrice?: number | null;
   /** Preço unitário vindo da tabela de preço selecionada (para comparação). */
   priceTableUnitPrice?: number | null;
+  /** Snapshots de custo unitário (vindos da tabela). */
+  priceTableCustoMateriais?: number | null;
+  priceTableCustoMod?: number | null;
+  priceTableCustoCif?: number | null;
+  priceTableCustoProducaoTotal?: number | null;
   discount?: number | null;
   total?: number | null;
   status?: string | null;
@@ -191,6 +196,10 @@ export function ProposalItemsTable({
             <TableHead className="text-right">Venda total</TableHead>
             {showPriceTableComparison && <TableHead className="text-right">Tabela unit.</TableHead>}
             {showPriceTableComparison && <TableHead className="text-right">Tabela total</TableHead>}
+            {showPriceTableComparison && <TableHead className="text-right">Custo material</TableHead>}
+            {showPriceTableComparison && <TableHead className="text-right">Custo MOD</TableHead>}
+            {showPriceTableComparison && <TableHead className="text-right">CIF</TableHead>}
+            {showPriceTableComparison && <TableHead className="text-right">Custo prod. total</TableHead>}
             {showPriceTableComparison && <TableHead className="text-right">Desconto (R$)</TableHead>}
             {showPriceTableComparison && <TableHead className="text-right">Desconto (%)</TableHead>}
             <TableHead>Status</TableHead>
@@ -217,6 +226,22 @@ export function ProposalItemsTable({
               tableUnit && offered != null && tableUnit > 0
                 ? ((tableUnit - offered) / tableUnit) * 100
                 : null;
+            // Custos (snapshot persistido OU fallback à tabela selecionada).
+            const costMatUnit =
+              item.priceTableCustoMateriais ?? selectedTable?.costs?.custoMateriais ?? null;
+            const costModUnit =
+              item.priceTableCustoMod ?? selectedTable?.costs?.custoMod ?? null;
+            const costCifUnit =
+              item.priceTableCustoCif ?? selectedTable?.costs?.custoCif ?? null;
+            const costProdUnit =
+              item.priceTableCustoProducaoTotal ??
+              selectedTable?.costs?.custoProducaoTotal ??
+              null;
+            const mul = (u: number | null) => (u != null ? u * qty : null);
+            const costMatTotal = mul(costMatUnit);
+            const costModTotal = mul(costModUnit);
+            const costCifTotal = mul(costCifUnit);
+            const costProdTotal = mul(costProdUnit);
             return (
               <TableRow key={item.id} className={cn(onOpenItem && "cursor-pointer hover:bg-secondary/30")} onClick={() => onOpenItem?.(item)}>
                 <TableCell className="font-mono text-xs text-muted-foreground">{String((item.position ?? 0) + 1).padStart(2, "0")}</TableCell>
@@ -260,6 +285,26 @@ export function ProposalItemsTable({
                 {showPriceTableComparison && (
                   <TableCell className="text-right tabular-nums text-muted-foreground">
                     {tableTotal != null ? brl(tableTotal) : "—"}
+                  </TableCell>
+                )}
+                {showPriceTableComparison && (
+                  <TableCell className="text-right tabular-nums text-muted-foreground">
+                    {costMatTotal != null ? brl(costMatTotal) : "—"}
+                  </TableCell>
+                )}
+                {showPriceTableComparison && (
+                  <TableCell className="text-right tabular-nums text-muted-foreground">
+                    {costModTotal != null ? brl(costModTotal) : "—"}
+                  </TableCell>
+                )}
+                {showPriceTableComparison && (
+                  <TableCell className="text-right tabular-nums text-muted-foreground">
+                    {costCifTotal != null ? brl(costCifTotal) : "—"}
+                  </TableCell>
+                )}
+                {showPriceTableComparison && (
+                  <TableCell className="text-right font-medium tabular-nums">
+                    {costProdTotal != null ? brl(costProdTotal) : "—"}
                   </TableCell>
                 )}
                 {showPriceTableComparison && (

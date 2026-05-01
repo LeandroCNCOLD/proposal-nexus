@@ -77,11 +77,11 @@ export const listPriceTablesForProducts = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context, data }) => {
     const { supabase } = context;
-    if (data.nomusProductIds.length === 0) return { rows: [] as Array<{ nomusProductId: string; priceTableId: string; name: string; ufs: string[]; isActive: boolean; currency: string; syncedAt: string | null; unitPrice: number | null; icmsPct: number | null }> };
+    if (data.nomusProductIds.length === 0) return { rows: [] };
     const { data: rows, error } = await supabase
       .from("nomus_price_table_items")
       .select(
-        "nomus_product_id, unit_price, price_table_id, nomus_price_tables!inner(id, name, ufs, is_active, currency, synced_at)",
+        "nomus_product_id, unit_price, price_table_id, custo_materiais, custo_mod, custo_cif, custos_adm, custos_venda, custo_producao_total, preco_calculado, preco_liquido, margem_desejada_pct, lucro_bruto, lucro_liquido, margem_contribuicao, nomus_price_tables!inner(id, name, ufs, is_active, currency, synced_at)",
       )
       .in("nomus_product_id", data.nomusProductIds)
       .eq("nomus_price_tables.is_active", true);
@@ -90,6 +90,18 @@ export const listPriceTablesForProducts = createServerFn({ method: "POST" })
       nomus_product_id: string;
       unit_price: number | null;
       price_table_id: string;
+      custo_materiais: number | null;
+      custo_mod: number | null;
+      custo_cif: number | null;
+      custos_adm: number | null;
+      custos_venda: number | null;
+      custo_producao_total: number | null;
+      preco_calculado: number | null;
+      preco_liquido: number | null;
+      margem_desejada_pct: number | null;
+      lucro_bruto: number | null;
+      lucro_liquido: number | null;
+      margem_contribuicao: number | null;
       nomus_price_tables: {
         id: string;
         name: string;
@@ -110,6 +122,20 @@ export const listPriceTablesForProducts = createServerFn({ method: "POST" })
         syncedAt: r.nomus_price_tables.synced_at,
         unitPrice: r.unit_price,
         icmsPct: parseIcmsFromName(r.nomus_price_tables.name),
+        costs: {
+          custoMateriais: r.custo_materiais,
+          custoMod: r.custo_mod,
+          custoCif: r.custo_cif,
+          custosAdm: r.custos_adm,
+          custosVenda: r.custos_venda,
+          custoProducaoTotal: r.custo_producao_total,
+          precoCalculado: r.preco_calculado,
+          precoLiquido: r.preco_liquido,
+          margemDesejadaPct: r.margem_desejada_pct,
+          lucroBruto: r.lucro_bruto,
+          lucroLiquido: r.lucro_liquido,
+          margemContribuicao: r.margem_contribuicao,
+        },
       })),
     };
   });
@@ -142,6 +168,23 @@ export const setProposalItemPriceTable = createServerFn({ method: "POST" })
           "auto_latest",
           "manual",
         ]),
+        costs: z
+          .object({
+            custoMateriais: z.number().nullable(),
+            custoMod: z.number().nullable(),
+            custoCif: z.number().nullable(),
+            custosAdm: z.number().nullable(),
+            custosVenda: z.number().nullable(),
+            custoProducaoTotal: z.number().nullable(),
+            precoCalculado: z.number().nullable(),
+            precoLiquido: z.number().nullable(),
+            margemDesejadaPct: z.number().nullable(),
+            lucroBruto: z.number().nullable(),
+            lucroLiquido: z.number().nullable(),
+            margemContribuicao: z.number().nullable(),
+          })
+          .nullable()
+          .optional(),
       })
       .parse(d),
   )
@@ -149,12 +192,25 @@ export const setProposalItemPriceTable = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { supabase } = context;
     const selectedAt = new Date().toISOString();
+    const c = data.costs ?? null;
     const pricePayload = {
       price_table_id: data.priceTableId,
       price_table_name: data.priceTableName,
       price_table_unit_price: data.priceTableUnitPrice,
       price_table_match_method: data.matchMethod,
       price_table_selected_at: selectedAt,
+      price_table_custo_materiais: c?.custoMateriais ?? null,
+      price_table_custo_mod: c?.custoMod ?? null,
+      price_table_custo_cif: c?.custoCif ?? null,
+      price_table_custos_adm: c?.custosAdm ?? null,
+      price_table_custos_venda: c?.custosVenda ?? null,
+      price_table_custo_producao_total: c?.custoProducaoTotal ?? null,
+      price_table_preco_calculado: c?.precoCalculado ?? null,
+      price_table_preco_liquido: c?.precoLiquido ?? null,
+      price_table_margem_desejada_pct: c?.margemDesejadaPct ?? null,
+      price_table_lucro_bruto: c?.lucroBruto ?? null,
+      price_table_lucro_liquido: c?.lucroLiquido ?? null,
+      price_table_margem_contribuicao: c?.margemContribuicao ?? null,
     };
     const { error } = data.nomusItemId
       ? await supabase.from("proposal_items").upsert(

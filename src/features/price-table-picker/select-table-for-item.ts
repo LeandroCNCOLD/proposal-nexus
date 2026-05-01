@@ -3,6 +3,21 @@
  * Isomórfica (sem dependências de React/Supabase) para ser facilmente testável.
  */
 
+export type ItemPriceTableCosts = {
+  custoMateriais: number | null;
+  custoMod: number | null;
+  custoCif: number | null;
+  custosAdm: number | null;
+  custosVenda: number | null;
+  custoProducaoTotal: number | null;
+  precoCalculado: number | null;
+  precoLiquido: number | null;
+  margemDesejadaPct: number | null;
+  lucroBruto: number | null;
+  lucroLiquido: number | null;
+  margemContribuicao: number | null;
+};
+
 export type ItemPriceTable = {
   id: string;
   name: string;
@@ -12,6 +27,7 @@ export type ItemPriceTable = {
   currency: string;
   syncedAt: string | null;
   isActive: boolean;
+  costs?: ItemPriceTableCosts;
 };
 
 export type MatchMethod =

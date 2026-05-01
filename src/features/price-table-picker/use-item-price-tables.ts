@@ -60,6 +60,7 @@ export function useItemPriceTables(opts: {
           currency: r.currency,
           syncedAt: r.syncedAt,
           isActive: r.isActive,
+          costs: r.costs,
         });
         map.set(r.nomusProductId, arr);
       }
@@ -90,6 +91,7 @@ export function useItemPriceTables(opts: {
           priceTableName: input.table?.name ?? null,
           priceTableUnitPrice: input.table?.unitPrice ?? null,
           matchMethod: input.method as Exclude<MatchMethod, "nomus_sync">,
+          costs: input.table?.costs ?? null,
         },
       });
       return input;

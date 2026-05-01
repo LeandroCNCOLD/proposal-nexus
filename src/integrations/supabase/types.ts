@@ -5889,10 +5889,22 @@ export type Database = {
           nomus_synced_at: string | null
           notes: string | null
           position: number | null
+          price_table_custo_cif: number | null
+          price_table_custo_materiais: number | null
+          price_table_custo_mod: number | null
+          price_table_custo_producao_total: number | null
+          price_table_custos_adm: number | null
+          price_table_custos_venda: number | null
           price_table_id: string | null
+          price_table_lucro_bruto: number | null
+          price_table_lucro_liquido: number | null
+          price_table_margem_contribuicao: number | null
+          price_table_margem_desejada_pct: number | null
           price_table_match_method: string | null
           price_table_name: string | null
           price_table_nomus_id: string | null
+          price_table_preco_calculado: number | null
+          price_table_preco_liquido: number | null
           price_table_selected_at: string | null
           price_table_unit_price: number | null
           proposal_id: string
@@ -5921,10 +5933,22 @@ export type Database = {
           nomus_synced_at?: string | null
           notes?: string | null
           position?: number | null
+          price_table_custo_cif?: number | null
+          price_table_custo_materiais?: number | null
+          price_table_custo_mod?: number | null
+          price_table_custo_producao_total?: number | null
+          price_table_custos_adm?: number | null
+          price_table_custos_venda?: number | null
           price_table_id?: string | null
+          price_table_lucro_bruto?: number | null
+          price_table_lucro_liquido?: number | null
+          price_table_margem_contribuicao?: number | null
+          price_table_margem_desejada_pct?: number | null
           price_table_match_method?: string | null
           price_table_name?: string | null
           price_table_nomus_id?: string | null
+          price_table_preco_calculado?: number | null
+          price_table_preco_liquido?: number | null
           price_table_selected_at?: string | null
           price_table_unit_price?: number | null
           proposal_id: string
@@ -5953,10 +5977,22 @@ export type Database = {
           nomus_synced_at?: string | null
           notes?: string | null
           position?: number | null
+          price_table_custo_cif?: number | null
+          price_table_custo_materiais?: number | null
+          price_table_custo_mod?: number | null
+          price_table_custo_producao_total?: number | null
+          price_table_custos_adm?: number | null
+          price_table_custos_venda?: number | null
           price_table_id?: string | null
+          price_table_lucro_bruto?: number | null
+          price_table_lucro_liquido?: number | null
+          price_table_margem_contribuicao?: number | null
+          price_table_margem_desejada_pct?: number | null
           price_table_match_method?: string | null
           price_table_name?: string | null
           price_table_nomus_id?: string | null
+          price_table_preco_calculado?: number | null
+          price_table_preco_liquido?: number | null
           price_table_selected_at?: string | null
           price_table_unit_price?: number | null
           proposal_id?: string
