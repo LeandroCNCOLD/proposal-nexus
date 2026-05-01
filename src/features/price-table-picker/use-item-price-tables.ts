@@ -116,7 +116,7 @@ export function useItemPriceTables(opts: {
       const item = opts.items.find((i) => i.id === proposalItemId);
       if (!item) return;
       const tables = tablesByProduct.get(productId) ?? [];
-      const sel = selectTableForItem(tables, opts.clientUf);
+      const sel = selectTableForItem(tables, opts.clientUf, item.unitPrice);
       mutation.mutate({
         proposalItemId,
         item,

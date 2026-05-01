@@ -137,6 +137,8 @@ export const setProposalItemPriceTable = createServerFn({ method: "POST" })
           "auto_max_icms",
           "auto_uf_min_icms",
           "auto_min_icms",
+          "auto_uf_closest_price",
+          "auto_closest_price",
           "auto_latest",
           "manual",
         ]),

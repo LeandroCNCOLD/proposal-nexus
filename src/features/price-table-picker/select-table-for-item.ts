@@ -19,6 +19,8 @@ export type MatchMethod =
   | "auto_max_icms"
   | "auto_uf_min_icms"
   | "auto_min_icms"
+  | "auto_uf_closest_price"
+  | "auto_closest_price"
   | "auto_latest"
   | "manual"
   | "nomus_sync";
@@ -37,15 +39,61 @@ export function parseIcmsFromName(name: string): number | null {
   return Number(m[1].replace(",", "."));
 }
 
+/**
+ * Ordena tabelas por proximidade do preço de referência. Em caso de empate
+ * exato, desempata por menor ICMS e depois pela mais recente.
+ */
+function sortByClosestPrice(
+  tables: ItemPriceTable[],
+  reference: number,
+): ItemPriceTable[] {
+  return [...tables].sort((a, b) => {
+    const da = Math.abs((a.unitPrice ?? Infinity) - reference);
+    const db = Math.abs((b.unitPrice ?? Infinity) - reference);
+    if (da !== db) return da - db;
+    const ai = a.icmsPct ?? Infinity;
+    const bi = b.icmsPct ?? Infinity;
+    if (ai !== bi) return ai - bi;
+    const ad = a.syncedAt ? Date.parse(a.syncedAt) : 0;
+    const bd = b.syncedAt ? Date.parse(b.syncedAt) : 0;
+    return bd - ad;
+  });
+}
+
 export function selectTableForItem(
   tables: ItemPriceTable[],
   clientUf: string | null,
+  itemUnitPrice: number | null = null,
 ): SelectionResult {
   const uf = (clientUf ?? "").toUpperCase().trim() || null;
   const active = tables.filter((t) => t.isActive);
   if (active.length === 0) return null;
 
-  // 1. Compatíveis com a UF do cliente, ordenadas pelo menor ICMS disponível
+  const hasReferencePrice =
+    typeof itemUnitPrice === "number" && Number.isFinite(itemUnitPrice) && itemUnitPrice > 0;
+
+  // ===== Regra principal: UF + preço mais próximo =====
+  if (hasReferencePrice) {
+    // 1. UF compatível + tabelas com unitPrice → menor |diff|
+    if (uf) {
+      const compatibleWithPrice = active.filter(
+        (t) => t.ufs.map((u) => u.toUpperCase()).includes(uf) && t.unitPrice != null,
+      );
+      if (compatibleWithPrice.length > 0) {
+        const sorted = sortByClosestPrice(compatibleWithPrice, itemUnitPrice as number);
+        return { table: sorted[0], method: "auto_uf_closest_price" };
+      }
+    }
+    // 2. Sem UF compatível, mas há tabelas com unitPrice → menor |diff| global
+    const withPrice = active.filter((t) => t.unitPrice != null);
+    if (withPrice.length > 0) {
+      const sorted = sortByClosestPrice(withPrice, itemUnitPrice as number);
+      return { table: sorted[0], method: "auto_closest_price" };
+    }
+  }
+
+  // ===== Fallbacks (sem preço de referência ou sem unitPrice nas tabelas) =====
+  // 3. UF compatível, ordenadas por menor ICMS
   if (uf) {
     const compatible = active.filter((t) => t.ufs.map((u) => u.toUpperCase()).includes(uf));
     if (compatible.length > 0) {
@@ -56,7 +104,7 @@ export function selectTableForItem(
     }
   }
 
-  // 2. Fallback: menor ICMS dentre as ativas (UF não coberta)
+  // 4. Menor ICMS dentre as ativas (UF não coberta)
   const withIcms = active.filter((t) => t.icmsPct != null);
   if (withIcms.length > 0) {
     const sorted = [...withIcms].sort(
@@ -65,7 +113,7 @@ export function selectTableForItem(
     return { table: sorted[0], method: "auto_min_icms" };
   }
 
-  // 3. Fallback: tabela ativa mais recente (sem ICMS cadastrado)
+  // 5. Tabela ativa mais recente (sem ICMS cadastrado)
   const sortedByDate = [...active].sort((a, b) => {
     const ad = a.syncedAt ? Date.parse(a.syncedAt) : 0;
     const bd = b.syncedAt ? Date.parse(b.syncedAt) : 0;
