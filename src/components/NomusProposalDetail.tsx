@@ -506,6 +506,14 @@ export function NomusProposalDetail({
             <tbody>
               <Row label="Valor total dos produtos" value={agg.valor_produtos} />
               <Row label="(-) Descontos incondicionais" value={negate(agg.valor_descontos)} />
+              {agg.hasSnapshots && (agg.desconto_concedido > 0 || agg.agio_sobre_tabela > 0) && (
+                <>
+                  <SubRow label=">>> Desconto concedido" value={agg.desconto_concedido} />
+                  {agg.agio_sobre_tabela > 0 && (
+                    <SubRow label=">>> Ágio sobre tabela" value={agg.agio_sobre_tabela} />
+                  )}
+                </>
+              )}
               <Row
                 label="(=) Valor total com desconto"
                 value={agg.valor_total_com_desconto}
