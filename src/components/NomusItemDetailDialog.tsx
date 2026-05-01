@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
 import { nomusGetItemDetail } from "@/integrations/nomus/server.functions";
 import { brl, num } from "@/lib/format";
-import { ProposalItemLucroAnalysis, type ProposalAnaliseLucro } from "@/components/ProposalItemLucroAnalysis";
+import { ProposalItemLucroAnalysis, type ProposalAnaliseLucro, type ItemCostSnapshot } from "@/components/ProposalItemLucroAnalysis";
 
 export type PrefillItem = {
   id: string;
@@ -41,6 +41,8 @@ type Props = {
   proposalProductsTotal?: number;
   /** Análise de lucro consolidada da proposta — usada para rateio quando o detail individual não existir. */
   proposalAnaliseLucro?: ProposalAnaliseLucro | null;
+  /** Snapshot de custos do item — sobrescreve campos de produção e recalcula lucros. */
+  itemCostSnapshot?: ItemCostSnapshot | null;
 };
 
 type ItemDetailResult =
@@ -74,7 +76,7 @@ function mergeItem(itemRaw: unknown, itemDetail: unknown): Record<string, unknow
   return { ...a, ...b };
 }
 
-export function NomusItemDetailDialog({ itemId, prefillItem, open, onOpenChange, proposalTaxes, proposalProductsTotal, proposalAnaliseLucro }: Props) {
+export function NomusItemDetailDialog({ itemId, prefillItem, open, onOpenChange, proposalTaxes, proposalProductsTotal, proposalAnaliseLucro, itemCostSnapshot }: Props) {
   const { data, isLoading, error } = useQuery({
     queryKey: ["nomus-item-detail", itemId],
     queryFn: async () => {
@@ -195,6 +197,7 @@ export function NomusItemDetailDialog({ itemId, prefillItem, open, onOpenChange,
                 <ProposalItemLucroAnalysis
                   analiseLucro={analiseLucro}
                   proposalAnaliseLucro={proposalAnaliseLucro ?? null}
+                  itemSnapshot={itemCostSnapshot ?? null}
                   ratio={
                     proposalProductsTotal && proposalProductsTotal > 0
                       ? Number(prefillItem?.total_with_discount ?? prefillItem?.total ?? 0) / proposalProductsTotal

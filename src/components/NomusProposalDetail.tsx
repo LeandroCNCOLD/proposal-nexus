@@ -146,6 +146,7 @@ export function NomusProposalDetail({
     price_table_custo_mod: number | null;
     price_table_custo_cif: number | null;
     price_table_custo_producao_total: number | null;
+    price_table_custos_adm: number | null;
     price_table_preco_calculado: number | null;
   };
   const { data: localItemsByNomusId = new Map<string, LocalItemSnapshot>() } = useQuery({
@@ -155,7 +156,7 @@ export function NomusProposalDetail({
       const { data: rows, error } = await supabase
         .from("proposal_items")
         .select(
-          "id, nomus_item_id, price_table_id, price_table_name, price_table_match_method, price_table_unit_price, price_table_selected_at, price_table_custo_materiais, price_table_custo_mod, price_table_custo_cif, price_table_custo_producao_total, price_table_preco_calculado",
+          "id, nomus_item_id, price_table_id, price_table_name, price_table_match_method, price_table_unit_price, price_table_selected_at, price_table_custo_materiais, price_table_custo_mod, price_table_custo_cif, price_table_custo_producao_total, price_table_custos_adm, price_table_preco_calculado",
         )
         .eq("proposal_id", localProposalId!);
       if (error) throw error;
@@ -355,53 +356,78 @@ export function NomusProposalDetail({
       </Section>
 
       {/* ============ Modal de detalhes do item ============ */}
-      <NomusItemDetailDialog
-        itemId={openItem?.id ?? null}
-        prefillItem={openItem ? {
-          ...openItem,
-          price_table_id: (openItem.nomus_item_id ? localItemsByNomusId.get(openItem.nomus_item_id)?.price_table_id : null) ?? null,
-        } : null}
-        open={openItem !== null}
-        onOpenChange={(o) => { if (!o) setOpenItem(null); }}
-        proposalTaxes={
-          p.total_tributacao ??
-          (Array.isArray((p.raw as { totalTributacao?: unknown[] } | null)?.totalTributacao)
-            ? ((p.raw as { totalTributacao: Record<string, string | number>[] }).totalTributacao[0] ?? null)
-            : null)
-        }
-        proposalProductsTotal={
-          // soma dos totais dos itens — base do rateio proporcional
-          items.reduce((s, it) => s + Number(it.total_with_discount ?? it.total ?? 0), 0)
-        }
-        proposalAnaliseLucro={{
-          valor_produtos: p.valor_produtos,
-          valor_descontos: p.valor_descontos,
-          valor_total_com_desconto: p.valor_total_com_desconto ?? p.valor_total,
-          icms_recolher: p.icms_recolher,
-          icms_st_recolher: p.icms_st_recolher,
-          ipi_recolher: p.ipi_recolher,
-          pis_recolher: p.pis_recolher,
-          cofins_recolher: p.cofins_recolher,
-          issqn_recolher: p.issqn_recolher,
-          simples_nacional_recolher: p.simples_nacional_recolher,
-          comissoes_venda: p.comissoes_venda,
-          frete_valor: p.frete_valor,
-          seguros_valor: p.seguros_valor,
-          despesas_acessorias: p.despesas_acessorias,
-          valor_liquido: p.valor_liquido,
-          custos_producao: p.custos_producao,
-          custos_materiais: p.custos_materiais,
-          custos_mod: p.custos_mod,
-          custos_cif: p.custos_cif,
-          custos_administrativos: p.custos_administrativos,
-          custos_incidentes_lucro: p.custos_incidentes_lucro,
-          lucro_bruto: p.lucro_bruto,
-          margem_bruta_pct: p.margem_bruta_pct,
-          lucro_antes_impostos: p.lucro_antes_impostos,
-          lucro_liquido: p.lucro_liquido,
-          margem_liquida_pct: p.margem_liquida_pct,
-        }}
-      />
+      {(() => {
+        const openLocal = openItem?.nomus_item_id
+          ? localItemsByNomusId.get(openItem.nomus_item_id) ?? null
+          : null;
+        const hasSnapshot = !!openLocal && (
+          openLocal.price_table_custo_materiais != null ||
+          openLocal.price_table_custo_mod != null ||
+          openLocal.price_table_custo_cif != null ||
+          openLocal.price_table_custo_producao_total != null
+        );
+        return (
+          <NomusItemDetailDialog
+            itemId={openItem?.id ?? null}
+            prefillItem={openItem ? {
+              ...openItem,
+              price_table_id: openLocal?.price_table_id ?? null,
+            } : null}
+            open={openItem !== null}
+            onOpenChange={(o) => { if (!o) setOpenItem(null); }}
+            proposalTaxes={
+              p.total_tributacao ??
+              (Array.isArray((p.raw as { totalTributacao?: unknown[] } | null)?.totalTributacao)
+                ? ((p.raw as { totalTributacao: Record<string, string | number>[] }).totalTributacao[0] ?? null)
+                : null)
+            }
+            proposalProductsTotal={
+              items.reduce((s, it) => s + Number(it.total_with_discount ?? it.total ?? 0), 0)
+            }
+            itemCostSnapshot={hasSnapshot && openItem ? {
+              quantity: Number(openItem.quantity ?? 1),
+              unitPrice: openItem.unit_price != null ? Number(openItem.unit_price) : null,
+              discount: openItem.discount != null ? Number(openItem.discount) : 0,
+              totalWithDiscount: openItem.total_with_discount != null
+                ? Number(openItem.total_with_discount)
+                : (openItem.total != null ? Number(openItem.total) : null),
+              custoMateriaisUnit: openLocal?.price_table_custo_materiais ?? null,
+              custoModUnit: openLocal?.price_table_custo_mod ?? null,
+              custoCifUnit: openLocal?.price_table_custo_cif ?? null,
+              custoProducaoTotalUnit: openLocal?.price_table_custo_producao_total ?? null,
+              custosAdmUnit: openLocal?.price_table_custos_adm ?? null,
+            } : null}
+            proposalAnaliseLucro={{
+              valor_produtos: p.valor_produtos,
+              valor_descontos: p.valor_descontos,
+              valor_total_com_desconto: p.valor_total_com_desconto ?? p.valor_total,
+              icms_recolher: p.icms_recolher,
+              icms_st_recolher: p.icms_st_recolher,
+              ipi_recolher: p.ipi_recolher,
+              pis_recolher: p.pis_recolher,
+              cofins_recolher: p.cofins_recolher,
+              issqn_recolher: p.issqn_recolher,
+              simples_nacional_recolher: p.simples_nacional_recolher,
+              comissoes_venda: p.comissoes_venda,
+              frete_valor: p.frete_valor,
+              seguros_valor: p.seguros_valor,
+              despesas_acessorias: p.despesas_acessorias,
+              valor_liquido: p.valor_liquido,
+              custos_producao: p.custos_producao,
+              custos_materiais: p.custos_materiais,
+              custos_mod: p.custos_mod,
+              custos_cif: p.custos_cif,
+              custos_administrativos: p.custos_administrativos,
+              custos_incidentes_lucro: p.custos_incidentes_lucro,
+              lucro_bruto: p.lucro_bruto,
+              margem_bruta_pct: p.margem_bruta_pct,
+              lucro_antes_impostos: p.lucro_antes_impostos,
+              lucro_liquido: p.lucro_liquido,
+              margem_liquida_pct: p.margem_liquida_pct,
+            }}
+          />
+        );
+      })()}
 
       {/* ============ Resumo de impostos ============ */}
       <Section title="Resumo de impostos">

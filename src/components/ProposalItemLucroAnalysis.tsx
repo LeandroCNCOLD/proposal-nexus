@@ -53,6 +53,27 @@ export type ProposalAnaliseLucro = {
   margem_liquida_pct: Money;
 };
 
+/**
+ * Snapshot do item a partir da tabela de preço selecionada e dos dados Nomus.
+ * Quando presente, sobrescreve campos de Valor de Produtos, Descontos, Custos
+ * de Produção e recalcula Lucro Bruto / Antes Impostos / Líquido.
+ */
+export type ItemCostSnapshot = {
+  quantity: number;
+  /** Valor unitário do Nomus (sem desconto). */
+  unitPrice: number | null;
+  /** Desconto total (R$) aplicado no item. */
+  discount: number | null;
+  /** Total do item (com desconto). Usado como base do valor líquido. */
+  totalWithDiscount: number | null;
+  /** Custos UNITÁRIOS vindos do snapshot da tabela de preço selecionada. */
+  custoMateriaisUnit: number | null;
+  custoModUnit: number | null;
+  custoCifUnit: number | null;
+  custoProducaoTotalUnit: number | null;
+  custosAdmUnit: number | null;
+};
+
 type Props = {
   /** Análise vinda do detail individual do item (preferencial). */
   analiseLucro?: Record<string, unknown> | null;
@@ -60,9 +81,11 @@ type Props = {
   proposalAnaliseLucro?: ProposalAnaliseLucro | null;
   /** Participação do item no total dos produtos (0..1). */
   ratio?: number;
+  /** Snapshot do item — custos por unidade × quantidade preenchem o quadro. */
+  itemSnapshot?: ItemCostSnapshot | null;
 };
 
-export function ProposalItemLucroAnalysis({ analiseLucro, proposalAnaliseLucro, ratio = 0 }: Props) {
+export function ProposalItemLucroAnalysis({ analiseLucro, proposalAnaliseLucro, ratio = 0, itemSnapshot }: Props) {
   const useDetail = !!analiseLucro;
   const r = useDetail ? 1 : ratio;
 
@@ -90,9 +113,9 @@ export function ProposalItemLucroAnalysis({ analiseLucro, proposalAnaliseLucro, 
     return null;
   };
 
-  const valorProdutos        = v(["valorProdutos", "valorTotalProdutos", "valorTotal"], "valor_produtos");
-  const descontos            = v(["valorDescontos", "descontos", "valorDesconto"], "valor_descontos");
-  const valorComDesconto     = v(["valorTotalComDesconto", "valorComDesconto"], "valor_total_com_desconto");
+  let valorProdutos        = v(["valorProdutos", "valorTotalProdutos", "valorTotal"], "valor_produtos");
+  let descontos            = v(["valorDescontos", "descontos", "valorDesconto"], "valor_descontos");
+  let valorComDesconto     = v(["valorTotalComDesconto", "valorComDesconto"], "valor_total_com_desconto");
 
   const icms                 = v(["valorIcms", "valorIcmsRecolher"], "icms_recolher");
   const icmsSt               = v(["valorIcmsSt", "valorIcmsStRecolher"], "icms_st_recolher");
@@ -107,23 +130,73 @@ export function ProposalItemLucroAnalysis({ analiseLucro, proposalAnaliseLucro, 
   const seguros              = v(["valorSeguros", "seguros"], "seguros_valor");
   const outrasDespesas       = v(["valorOutrasDespesasAcessorias", "despesasAcessorias", "outrasDespesas"], "despesas_acessorias");
 
-  const valorLiquido         = v(["valorLiquido", "valorLiquidoItem"], "valor_liquido");
+  let valorLiquido         = v(["valorLiquido", "valorLiquidoItem"], "valor_liquido");
 
-  const custosProducao       = v(["custosProducao", "valorCustoProducao"], "custos_producao");
-  const cMat                 = v(["custosMateriais", "valorCustoMateriais"], "custos_materiais");
-  const cMod                 = v(["custosMod", "valorCustoMod", "custosMOD"], "custos_mod");
-  const cCif                 = v(["custosCif", "valorCustoCif", "custosCIF"], "custos_cif");
+  let custosProducao       = v(["custosProducao", "valorCustoProducao"], "custos_producao");
+  let cMat                 = v(["custosMateriais", "valorCustoMateriais"], "custos_materiais");
+  let cMod                 = v(["custosMod", "valorCustoMod", "custosMOD"], "custos_mod");
+  let cCif                 = v(["custosCif", "valorCustoCif", "custosCIF"], "custos_cif");
 
-  const lucroBruto           = v(["lucroBruto", "valorLucroBruto"], "lucro_bruto");
-  const margemBruta          = margin(["margemBruta", "margemLucroBruto", "margemBrutaPct", "percentualMargemBruta"], "margem_bruta_pct");
+  let lucroBruto           = v(["lucroBruto", "valorLucroBruto"], "lucro_bruto");
+  let margemBruta          = margin(["margemBruta", "margemLucroBruto", "margemBrutaPct", "percentualMargemBruta"], "margem_bruta_pct");
 
-  const custosAdmin          = v(["custosAdministrativos"], "custos_administrativos");
-  const lucroAntesImpostos   = v(["lucroAntesImpostos"], "lucro_antes_impostos");
+  let custosAdmin          = v(["custosAdministrativos"], "custos_administrativos");
+  let lucroAntesImpostos   = v(["lucroAntesImpostos"], "lucro_antes_impostos");
   const custosIncidentes     = v(["custosIncidentesLucro", "custosIncidentesSobreLucro"], "custos_incidentes_lucro");
-  const lucroLiquido         = v(["lucroLiquido", "valorLucroLiquido"], "lucro_liquido");
-  const margemLiquida        = margin(["margemLiquida", "margemLucroLiquido", "margemLiquidaPct", "percentualMargemLiquida"], "margem_liquida_pct");
+  let lucroLiquido         = v(["lucroLiquido", "valorLucroLiquido"], "lucro_liquido");
+  let margemLiquida        = margin(["margemLiquida", "margemLucroLiquido", "margemLiquidaPct", "percentualMargemLiquida"], "margem_liquida_pct");
 
-  const noData = !useDetail && !proposalAnaliseLucro;
+  // ============= Override pelo snapshot do item (tabela de preço) =============
+  if (itemSnapshot) {
+    const qty = itemSnapshot.quantity || 0;
+    const unitPrice = itemSnapshot.unitPrice ?? null;
+    const totalBruto = unitPrice != null ? unitPrice * qty : null;
+    const desc = itemSnapshot.discount ?? 0;
+    const totalLiquidoBase = itemSnapshot.totalWithDiscount ??
+      (totalBruto != null ? totalBruto - desc : null);
+
+    if (totalBruto != null) valorProdutos = totalBruto;
+    if (desc !== null) descontos = desc;
+    if (totalLiquidoBase != null) valorComDesconto = totalLiquidoBase;
+
+    // soma de impostos, comissões etc. (o que já foi resolvido acima)
+    const impostos =
+      (icms ?? 0) + (icmsSt ?? 0) + (ipi ?? 0) + (pis ?? 0) +
+      (cofins ?? 0) + (issqn ?? 0) + (simples ?? 0);
+    const despesas =
+      (comissoes ?? 0) + (frete ?? 0) + (seguros ?? 0) + (outrasDespesas ?? 0);
+    if (totalLiquidoBase != null) {
+      valorLiquido = totalLiquidoBase - impostos - despesas;
+    }
+
+    // Custos por unidade × quantidade
+    if (itemSnapshot.custoMateriaisUnit != null) cMat = itemSnapshot.custoMateriaisUnit * qty;
+    if (itemSnapshot.custoModUnit != null) cMod = itemSnapshot.custoModUnit * qty;
+    if (itemSnapshot.custoCifUnit != null) cCif = itemSnapshot.custoCifUnit * qty;
+
+    const totalProdUnit = itemSnapshot.custoProducaoTotalUnit ??
+      ((itemSnapshot.custoMateriaisUnit ?? 0) +
+       (itemSnapshot.custoModUnit ?? 0) +
+       (itemSnapshot.custoCifUnit ?? 0));
+    if (totalProdUnit != null) custosProducao = totalProdUnit * qty;
+
+    if (itemSnapshot.custosAdmUnit != null) custosAdmin = itemSnapshot.custosAdmUnit * qty;
+
+    // Recalcula lucros
+    if (valorLiquido != null && custosProducao != null) {
+      lucroBruto = valorLiquido - custosProducao;
+      if (valorLiquido !== 0) margemBruta = (lucroBruto / valorLiquido) * 100;
+    }
+    if (lucroBruto != null) {
+      lucroAntesImpostos = lucroBruto - (custosAdmin ?? 0);
+    }
+    if (lucroAntesImpostos != null) {
+      lucroLiquido = lucroAntesImpostos - (custosIncidentes ?? 0);
+      if (valorLiquido && valorLiquido !== 0) margemLiquida = (lucroLiquido / valorLiquido) * 100;
+    }
+  }
+
+  const noData = !useDetail && !proposalAnaliseLucro && !itemSnapshot;
   if (noData) {
     return (
       <div className="rounded-md border bg-secondary/30 p-3 text-sm text-muted-foreground">
@@ -134,7 +207,7 @@ export function ProposalItemLucroAnalysis({ analiseLucro, proposalAnaliseLucro, 
 
   // ============= Diagnóstico de campos zerados/ausentes =============
   // Verifica grupos importantes e identifica a origem provável do problema.
-  const diagnostics = buildDiagnostics({
+  const diagnostics = itemSnapshot ? [] : buildDiagnostics({
     useDetail,
     hasProposalData: !!proposalAnaliseLucro,
     ratio: r,
@@ -149,7 +222,12 @@ export function ProposalItemLucroAnalysis({ analiseLucro, proposalAnaliseLucro, 
 
   return (
     <div className="space-y-3">
-      {!useDetail && (
+      {itemSnapshot ? (
+        <div className="text-[11px] text-muted-foreground">
+          Custos preenchidos a partir do snapshot da tabela de preço selecionada;
+          impostos rateados da proposta. Lucros recalculados.
+        </div>
+      ) : !useDetail && (
         <div className="text-[11px] text-muted-foreground">
           Valores rateados a partir da análise de lucro da proposta — participação deste item:{" "}
           <span className="font-semibold text-foreground tabular-nums">{(r * 100).toFixed(2)}%</span>
