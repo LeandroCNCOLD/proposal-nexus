@@ -29,7 +29,7 @@ export function CoverMainCnCold({ block, setData, locked, template, documentCont
   const ident = resolveCoverIdentity(data, documentContext);
   const footer = resolveCoverFooter(data, documentContext);
   const primary = (data.primary_color as string) || template?.primary_color || CN_COLD_PRIMARY;
-  const logo = (data.logo_url as string) || template?.logo_url || "";
+  const logo = (data.logo_url as string) || "";
   const bgImage = (data.background_image as string) || "";
   const images: { url: string }[] = Array.isArray(data.images) ? (data.images as { url: string }[]) : [];
   const title = (data.title as string) ?? "PROPOSTA TÉCNICA E COMERCIAL";
