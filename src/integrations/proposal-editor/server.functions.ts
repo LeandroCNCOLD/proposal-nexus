@@ -828,6 +828,8 @@ export const createProposalSendVersion = createServerFn({ method: "POST" })
         metadata: {
           merged_attachments: attachedBuffers.length,
           generated_at: new Date().toISOString(),
+          // Etapa 3: snapshot do contexto unificado para auditoria/replay.
+          document_context: docContext as unknown,
         } as never,
       } as never)
       .select("id")
