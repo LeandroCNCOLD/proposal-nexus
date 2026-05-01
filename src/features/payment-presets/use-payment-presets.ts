@@ -65,6 +65,11 @@ export function useSaveProposalFinancial(proposalId: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["proposal-financial", proposalId] });
       qc.invalidateQueries({ queryKey: ["proposal", proposalId] });
+      // Atualiza o snapshot do custo da taxa financeira consumido pela
+      // "Análise de lucro" em NomusProposalDetail.
+      qc.invalidateQueries({
+        queryKey: ["proposal-financial-additional-cost", proposalId],
+      });
     },
   });
 }
