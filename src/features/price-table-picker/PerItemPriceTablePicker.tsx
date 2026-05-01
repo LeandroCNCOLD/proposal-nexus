@@ -21,6 +21,8 @@ export type PerItemPriceTablePickerProps = {
   tables: ItemPriceTable[];
   selectedTableId: string | null;
   clientUf: string | null;
+  /** Preço unitário do item (vindo do Nomus) — usado para destacar a tabela mais próxima. */
+  itemUnitPrice?: number | null;
   onPick: (table: ItemPriceTable | null) => void;
   /** Volta para a sugestão automática. */
   onResetAuto?: () => void;
@@ -30,10 +32,13 @@ export function PerItemPriceTablePicker({
   tables,
   selectedTableId,
   clientUf,
+  itemUnitPrice,
   onPick,
   onResetAuto,
 }: PerItemPriceTablePickerProps) {
   const uf = (clientUf ?? "").toUpperCase().trim() || null;
+  const hasReferencePrice =
+    typeof itemUnitPrice === "number" && Number.isFinite(itemUnitPrice) && itemUnitPrice > 0;
 
   if (tables.length === 0) {
     return (
@@ -43,11 +48,19 @@ export function PerItemPriceTablePicker({
     );
   }
 
-  // ordena: compatíveis com UF primeiro, depois pelo menor ICMS
+  // Ordena: compatíveis com UF primeiro; dentro de cada grupo, por proximidade
+  // do preço de referência (quando disponível) e depois por menor ICMS.
   const sorted = [...tables].sort((a, b) => {
     const aUf = uf ? (a.ufs.map((u) => u.toUpperCase()).includes(uf) ? 1 : 0) : 0;
     const bUf = uf ? (b.ufs.map((u) => u.toUpperCase()).includes(uf) ? 1 : 0) : 0;
     if (aUf !== bUf) return bUf - aUf;
+    if (hasReferencePrice) {
+      const da =
+        a.unitPrice != null ? Math.abs(a.unitPrice - (itemUnitPrice as number)) : Infinity;
+      const db =
+        b.unitPrice != null ? Math.abs(b.unitPrice - (itemUnitPrice as number)) : Infinity;
+      if (da !== db) return da - db;
+    }
     return (a.icmsPct ?? Infinity) - (b.icmsPct ?? Infinity);
   });
 
@@ -56,7 +69,17 @@ export function PerItemPriceTablePicker({
   const compatible = uf
     ? sorted.filter((t) => t.ufs.map((u) => u.toUpperCase()).includes(uf))
     : [];
-  const minIcmsCompatibleId = compatible[0]?.id ?? null;
+
+  // Tabela "destacada" no grupo compatível: a mais próxima do preço (se houver)
+  // ou a de menor ICMS como fallback.
+  const highlightedId = (() => {
+    if (compatible.length === 0) return null;
+    if (hasReferencePrice) {
+      const withPrice = compatible.filter((t) => t.unitPrice != null);
+      if (withPrice.length > 0) return withPrice[0].id; // já ordenado
+    }
+    return compatible[0].id;
+  })();
 
   return (
     <Popover>
@@ -85,7 +108,11 @@ export function PerItemPriceTablePicker({
                 const isCompatible = uf
                   ? t.ufs.map((u) => u.toUpperCase()).includes(uf)
                   : false;
-                const isMinIcmsCompatible = t.id === minIcmsCompatibleId;
+                const isHighlighted = t.id === highlightedId;
+                const diff =
+                  hasReferencePrice && t.unitPrice != null
+                    ? t.unitPrice - (itemUnitPrice as number)
+                    : null;
                 return (
                   <CommandItem
                     key={t.id}
@@ -128,7 +155,19 @@ export function PerItemPriceTablePicker({
                           ICMS {t.icmsPct}%
                         </span>
                       )}
-                      {isMinIcmsCompatible && (
+                      {diff != null && (
+                        <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-700 tabular-nums">
+                          {diff === 0
+                            ? "= unitário"
+                            : `${diff > 0 ? "+" : ""}${diff.toLocaleString("pt-BR", { style: "currency", currency: t.currency || "BRL" })}`}
+                        </span>
+                      )}
+                      {isHighlighted && hasReferencePrice && (
+                        <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                          Mais próximo
+                        </span>
+                      )}
+                      {isHighlighted && !hasReferencePrice && (
                         <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
                           Menor ICMS
                         </span>
@@ -172,6 +211,18 @@ export function MatchMethodChip({ method, hasTable }: MatchMethodChipProps) {
     );
   }
   switch (method) {
+    case "auto_uf_closest_price":
+      return (
+        <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-medium text-emerald-800">
+          Sugerida por UF · preço mais próximo
+        </span>
+      );
+    case "auto_closest_price":
+      return (
+        <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800">
+          UF não coberta · preço mais próximo
+        </span>
+      );
     case "auto_uf_max_icms":
     case "auto_uf_min_icms":
       return (
