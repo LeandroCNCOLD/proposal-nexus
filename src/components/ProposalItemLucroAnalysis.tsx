@@ -53,6 +53,27 @@ export type ProposalAnaliseLucro = {
   margem_liquida_pct: Money;
 };
 
+/**
+ * Snapshot do item a partir da tabela de preço selecionada e dos dados Nomus.
+ * Quando presente, sobrescreve campos de Valor de Produtos, Descontos, Custos
+ * de Produção e recalcula Lucro Bruto / Antes Impostos / Líquido.
+ */
+export type ItemCostSnapshot = {
+  quantity: number;
+  /** Valor unitário do Nomus (sem desconto). */
+  unitPrice: number | null;
+  /** Desconto total (R$) aplicado no item. */
+  discount: number | null;
+  /** Total do item (com desconto). Usado como base do valor líquido. */
+  totalWithDiscount: number | null;
+  /** Custos UNITÁRIOS vindos do snapshot da tabela de preço selecionada. */
+  custoMateriaisUnit: number | null;
+  custoModUnit: number | null;
+  custoCifUnit: number | null;
+  custoProducaoTotalUnit: number | null;
+  custosAdmUnit: number | null;
+};
+
 type Props = {
   /** Análise vinda do detail individual do item (preferencial). */
   analiseLucro?: Record<string, unknown> | null;
@@ -60,6 +81,8 @@ type Props = {
   proposalAnaliseLucro?: ProposalAnaliseLucro | null;
   /** Participação do item no total dos produtos (0..1). */
   ratio?: number;
+  /** Snapshot do item — custos por unidade × quantidade preenchem o quadro. */
+  itemSnapshot?: ItemCostSnapshot | null;
 };
 
 export function ProposalItemLucroAnalysis({ analiseLucro, proposalAnaliseLucro, ratio = 0 }: Props) {
