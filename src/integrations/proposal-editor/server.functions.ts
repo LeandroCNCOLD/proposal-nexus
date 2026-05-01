@@ -18,6 +18,8 @@ import type {
   ProposalTableType,
 } from "@/features/proposal-editor/proposal-tables.types";
 import type { ProposalTemplate, TemplateAsset } from "./template.types";
+import { buildProposalDocumentContext } from "@/features/proposal-context/build-proposal-document-context.server";
+import type { ProposalDocumentContext } from "@/features/proposal-context/document-context.types";
 
 const proposalIdSchema = z.object({ proposalId: z.string().uuid() });
 const TEMPLATE_BUCKET = "proposal-template-assets";
