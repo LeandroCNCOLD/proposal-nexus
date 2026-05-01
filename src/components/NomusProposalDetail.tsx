@@ -135,39 +135,32 @@ export function NomusProposalDetail({
   // ─── Per-item price tables ─────────────────────────────────────────────────
   // Carrega os proposal_items locais para mapear nomus_item_id → id local +
   // estado atual da tabela escolhida (price_table_id, match_method, snapshot).
-  const { data: localItemsByNomusId = new Map<string, {
+  type LocalItemSnapshot = {
     id: string;
     price_table_id: string | null;
     price_table_name: string | null;
     price_table_match_method: string | null;
     price_table_unit_price: number | null;
     price_table_selected_at: string | null;
-  }>() } = useQuery({
+    price_table_custo_materiais: number | null;
+    price_table_custo_mod: number | null;
+    price_table_custo_cif: number | null;
+    price_table_custo_producao_total: number | null;
+    price_table_preco_calculado: number | null;
+  };
+  const { data: localItemsByNomusId = new Map<string, LocalItemSnapshot>() } = useQuery({
     queryKey: ["proposal-items-local", localProposalId],
     enabled: !!localProposalId,
     queryFn: async () => {
       const { data: rows, error } = await supabase
         .from("proposal_items")
-        .select("id, nomus_item_id, price_table_id, price_table_name, price_table_match_method, price_table_unit_price, price_table_selected_at")
+        .select(
+          "id, nomus_item_id, price_table_id, price_table_name, price_table_match_method, price_table_unit_price, price_table_selected_at, price_table_custo_materiais, price_table_custo_mod, price_table_custo_cif, price_table_custo_producao_total, price_table_preco_calculado",
+        )
         .eq("proposal_id", localProposalId!);
       if (error) throw error;
-      const m = new Map<string, {
-        id: string;
-        price_table_id: string | null;
-        price_table_name: string | null;
-        price_table_match_method: string | null;
-        price_table_unit_price: number | null;
-        price_table_selected_at: string | null;
-      }>();
-      for (const r of (rows ?? []) as Array<{
-        id: string;
-        nomus_item_id: string | null;
-        price_table_id: string | null;
-        price_table_name: string | null;
-        price_table_match_method: string | null;
-        price_table_unit_price: number | null;
-        price_table_selected_at: string | null;
-      }>) {
+      const m = new Map<string, LocalItemSnapshot>();
+      for (const r of (rows ?? []) as Array<LocalItemSnapshot & { nomus_item_id: string | null }>) {
         if (r.nomus_item_id) m.set(r.nomus_item_id, r);
       }
       return m;
