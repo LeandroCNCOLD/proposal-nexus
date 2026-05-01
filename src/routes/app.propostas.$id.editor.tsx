@@ -20,6 +20,7 @@ import {
   getProposalDocument,
   upsertProposalDocument,
   setProposalDocumentTemplate,
+  createProposalEditorSnapshot,
   autoFillFromNomus,
   generateProposalPdf,
   createProposalSendVersion,
@@ -64,6 +65,7 @@ function ProposalEditorPage() {
   const getDoc = useServerFn(getProposalDocument);
   const saveDoc = useServerFn(upsertProposalDocument);
   const setTpl = useServerFn(setProposalDocumentTemplate);
+  const createSnapshot = useServerFn(createProposalEditorSnapshot);
   const autoFill = useServerFn(autoFillFromNomus);
   const genPdf = useServerFn(generateProposalPdf);
   const createVersion = useServerFn(createProposalSendVersion);
@@ -177,8 +179,13 @@ function ProposalEditorPage() {
   });
 
   const fillMut = useMutation({
-    mutationFn: (overwrite: boolean) =>
-      autoFill({ data: { proposalId: id, overwriteManualFields: overwrite } }),
+    mutationFn: async (overwrite: boolean) => {
+      if (overwrite) {
+        if (dirty) await saveMut.mutateAsync();
+        await createSnapshot({ data: { proposalId: id, reason: "before-nomus-reprocess" } });
+      }
+      return autoFill({ data: { proposalId: id, overwriteManualFields: overwrite } });
+    },
     onSuccess: (res) => {
       hydratedFor.current = null;
       qc.invalidateQueries({ queryKey: ["proposal-document", id] });
@@ -260,8 +267,11 @@ function ProposalEditorPage() {
   });
 
   const applyLayoutMut = useMutation({
-    mutationFn: () =>
-      applyTplLayout({ data: { proposalId: id, templateId: pickedTplId } }),
+    mutationFn: async () => {
+      if (dirty) await saveMut.mutateAsync();
+      await createSnapshot({ data: { proposalId: id, reason: "before-apply-template" } });
+      return applyTplLayout({ data: { proposalId: id, templateId: pickedTplId } });
+    },
     onSuccess: () => {
       setApplyTplOpen(false);
       setPickedTplId("");

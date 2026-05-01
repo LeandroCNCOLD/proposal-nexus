@@ -204,6 +204,33 @@ const upsertSchema = z.object({
   }),
 });
 
+function normalizeDocumentPages(input: unknown): DocumentPage[] | undefined {
+  if (!Array.isArray(input)) return undefined;
+  return input.map((page, pageIndex) => {
+    const rawPage = (page && typeof page === "object" ? page : {}) as Partial<DocumentPage>;
+    const blocks = Array.isArray(rawPage.blocks) ? rawPage.blocks : [];
+    return {
+      ...rawPage,
+      id: String(rawPage.id || `page-${pageIndex}`),
+      type: (rawPage.type || "custom-rich") as PageType,
+      title: String(rawPage.title || `Página ${pageIndex + 1}`),
+      visible: rawPage.visible !== false,
+      order: Number.isFinite(Number(rawPage.order)) ? Number(rawPage.order) : pageIndex,
+      blocks: blocks.map((block, blockIndex) => {
+        const rawBlock = (block && typeof block === "object" ? block : {}) as Partial<DocumentBlock>;
+        const data = rawBlock.data && typeof rawBlock.data === "object" ? rawBlock.data : {};
+        return {
+          ...rawBlock,
+          id: String(rawBlock.id || `block-${pageIndex}-${blockIndex}`),
+          type: (rawBlock.type || "rich_text") as DocumentBlock["type"],
+          data,
+          order: Number.isFinite(Number(rawBlock.order)) ? Number(rawBlock.order) : blockIndex,
+        } as DocumentBlock;
+      }),
+    } as DocumentPage;
+  });
+}
+
 /** Salva (parcial) o documento. */
 export const upsertProposalDocument = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -211,11 +238,13 @@ export const upsertProposalDocument = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const { proposalId, patch } = data;
+    const normalizedPages = patch.pages ? normalizeDocumentPages(patch.pages) : undefined;
 
     const { data: updated, error } = await supabase
       .from("proposal_documents")
       .update({
         ...patch,
+        ...(normalizedPages ? { pages: normalizedPages as unknown as never } : {}),
         last_edited_by: userId,
         last_edited_at: new Date().toISOString(),
       } as never)
@@ -225,6 +254,50 @@ export const upsertProposalDocument = createServerFn({ method: "POST" })
 
     if (error) throw new Error(error.message);
     return { document: updated };
+  });
+
+export const createProposalEditorSnapshot = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ proposalId: z.string().uuid(), reason: z.string().max(80).optional() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { proposalId, reason = "manual" } = data;
+    const [{ data: proposal }, { data: doc }, { data: tables }] = await Promise.all([
+      supabase.from("proposals").select("*").eq("id", proposalId).maybeSingle(),
+      supabase.from("proposal_documents").select("*").eq("proposal_id", proposalId).maybeSingle(),
+      supabase.from("proposal_tables").select("*").eq("proposal_id", proposalId),
+    ]);
+    if (!doc) throw new Error("Documento não encontrado para criar snapshot.");
+    let template = null;
+    if ((doc as { template_id?: string | null }).template_id) {
+      const { data: tpl } = await supabase
+        .from("proposal_templates")
+        .select("*")
+        .eq("id", (doc as { template_id: string }).template_id)
+        .maybeSingle();
+      template = tpl;
+    }
+    const snapshot = {
+      reason,
+      created_at: new Date().toISOString(),
+      created_by: userId,
+      proposal,
+      document: doc,
+      tables: tables ?? [],
+      template,
+    };
+    const safeReason = reason.replace(/[^a-z0-9_-]+/gi, "-").slice(0, 48) || "snapshot";
+    const path = `${proposalId}/editor-snapshots/${Date.now()}-${safeReason}.json`;
+    const { error } = await supabase.storage
+      .from("proposal-files")
+      .upload(path, Buffer.from(JSON.stringify(snapshot, null, 2), "utf8"), {
+        contentType: "application/json",
+        upsert: false,
+      });
+    if (error) throw new Error(`Falha ao salvar snapshot: ${error.message}`);
+    return { ok: true as const, path };
   });
 
 /**
