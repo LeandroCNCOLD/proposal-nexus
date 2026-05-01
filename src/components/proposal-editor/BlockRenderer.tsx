@@ -35,6 +35,9 @@ import {
   resolveResponsibleBox,
   resolveDynamicField as resolveDynamicFieldFromCtx,
 } from "@/features/proposal-context/resolve-block-from-context";
+import { CoverMainCnCold } from "./cn-cold-covers/CoverMainCnCold";
+import { CoverInstitutionalCnCold } from "./cn-cold-covers/CoverInstitutionalCnCold";
+import { CoverClientsCasesCnCold } from "./cn-cold-covers/CoverClientsCasesCnCold";
 
 interface Props {
   block: DocumentBlock;
@@ -1095,6 +1098,37 @@ function BlockBody({
         </div>
       );
     }
+
+    case "cover_main_cn_cold":
+      return (
+        <CoverMainCnCold
+          block={block}
+          setData={setData}
+          locked={locked}
+          template={template}
+          documentContext={documentContext}
+        />
+      );
+    case "cover_institutional_cn_cold":
+      return (
+        <CoverInstitutionalCnCold
+          block={block}
+          setData={setData}
+          locked={locked}
+          template={template}
+          documentContext={documentContext}
+        />
+      );
+    case "cover_clients_cases_cn_cold":
+      return (
+        <CoverClientsCasesCnCold
+          block={block}
+          setData={setData}
+          locked={locked}
+          template={template}
+          documentContext={documentContext}
+        />
+      );
 
     default:
       return (
