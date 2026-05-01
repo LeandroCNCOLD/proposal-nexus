@@ -604,7 +604,36 @@ export function RichTextEditor({
   };
 
   return (
-    <div className={cn("rounded-md border bg-background", className)}>
+    <div
+      ref={wrapperRef}
+      className={cn("relative rounded-md border bg-background", className)}
+      onDrop={(e) => {
+        const txt = e.dataTransfer.getData("text/plain");
+        if (txt && /^\{\{[a-zA-Z0-9_.]+\}\}$/.test(txt.trim())) {
+          e.preventDefault();
+          editor.chain().focus().insertContent(txt.trim()).run();
+        }
+      }}
+      onDragOver={(e) => {
+        if (e.dataTransfer.types.includes("text/plain")) e.preventDefault();
+      }}
+      onKeyDownCapture={(e) => {
+        if (!varOpen || varSuggestions.length === 0) return;
+        if (e.key === "ArrowDown") {
+          e.preventDefault();
+          setVarHighlight((h) => (h + 1) % varSuggestions.length);
+        } else if (e.key === "ArrowUp") {
+          e.preventDefault();
+          setVarHighlight((h) => (h - 1 + varSuggestions.length) % varSuggestions.length);
+        } else if (e.key === "Enter" || e.key === "Tab") {
+          e.preventDefault();
+          insertVariableAtCursor(varSuggestions[varHighlight].key);
+        } else if (e.key === "Escape") {
+          e.preventDefault();
+          setVarOpen(false);
+        }
+      }}
+    >
       <Toolbar
         editor={editor}
         minimal={minimal}
@@ -612,6 +641,37 @@ export function RichTextEditor({
         aiContextHint={aiContextHint}
       />
       <EditorContent editor={editor} />
+      {varOpen && varSuggestions.length > 0 && (
+        <div className="absolute left-3 z-50 mt-1 w-72 max-w-full overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-lg">
+          <div className="border-b bg-muted/40 px-2 py-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+            Inserir variável
+          </div>
+          <ul className="max-h-64 overflow-y-auto">
+            {varSuggestions.map((v, i) => (
+              <li
+                key={v.key}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  insertVariableAtCursor(v.key);
+                }}
+                onMouseEnter={() => setVarHighlight(i)}
+                className={cn(
+                  "cursor-pointer px-2 py-1.5 text-xs",
+                  i === varHighlight ? "bg-accent" : "hover:bg-accent/50",
+                )}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="truncate font-medium">{v.label}</span>
+                  <span className="shrink-0 rounded bg-muted px-1 text-[10px] text-muted-foreground">
+                    {v.category}
+                  </span>
+                </div>
+                <code className="text-[10px] text-muted-foreground">{`{{${v.key}}}`}</code>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       {proposalId && (
         <input
           ref={fileInputRef}
