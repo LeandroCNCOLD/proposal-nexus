@@ -215,13 +215,19 @@ export function NomusProposalDetail({
       if (autoAppliedRef.current.has(it.id)) continue;
       const isManual = it.priceTableMatchMethod === "manual";
       const hasChoice = !!it.priceTableId;
+      const shouldRefreshAuto =
+        it.priceTableMatchMethod === "auto_uf_max_icms" ||
+        it.priceTableMatchMethod === "auto_max_icms" ||
+        it.priceTableMatchMethod === "auto_uf_min_icms" ||
+        it.priceTableMatchMethod === "auto_min_icms" ||
+        it.priceTableMatchMethod === "auto_latest";
       // Aplica auto se: (a) nunca foi escolhida ou (b) foi vinda do nomus_sync mas
       // ainda assim queremos a regra UF/ICMS. Mantemos manual intocada.
       if (isManual) {
         autoAppliedRef.current.add(it.id);
         continue;
       }
-      if (!hasChoice) {
+      if (!hasChoice || shouldRefreshAuto) {
         applyAuto(it.id, it.nomusProductId);
         autoAppliedRef.current.add(it.id);
       } else {
