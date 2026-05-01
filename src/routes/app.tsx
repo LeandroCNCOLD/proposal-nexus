@@ -131,6 +131,15 @@ function AppLayout() {
     const fallbackPath =
       getAllowedModulePaths(roles, moduleAccess).find((path) => path !== "*") ??
       "/app/configuracoes";
+    // Guard against infinite redirect: if fallback resolves to the same path
+    // or to another disallowed path, render a friendly message instead.
+    if (fallbackPath === pathname || !isAppRouteAllowed(fallbackPath, roles, moduleAccess)) {
+      return (
+        <div className="flex min-h-screen items-center justify-center bg-background p-6 text-center text-sm text-muted-foreground">
+          Você não tem permissão para acessar nenhum módulo. Solicite liberação ao gestor.
+        </div>
+      );
+    }
     return <Navigate to={fallbackPath} />;
   }
   return (
