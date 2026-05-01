@@ -2336,12 +2336,22 @@ export type Database = {
         Row: {
           application_type: string
           calculated_at: string | null
+          cover_client_name: string | null
+          cover_image_url: string | null
+          cover_location: string | null
+          cover_notes: string | null
+          cover_project_name: string | null
+          cover_responsible: string | null
           created_at: string
           customer_id: string | null
           id: string
           name: string
           notes: string | null
           proposal_id: string | null
+          report_status: string | null
+          report_template: string | null
+          report_watermark_enabled: boolean | null
+          report_watermark_text: string | null
           revision: number
           status: string
           updated_at: string
@@ -2349,12 +2359,22 @@ export type Database = {
         Insert: {
           application_type?: string
           calculated_at?: string | null
+          cover_client_name?: string | null
+          cover_image_url?: string | null
+          cover_location?: string | null
+          cover_notes?: string | null
+          cover_project_name?: string | null
+          cover_responsible?: string | null
           created_at?: string
           customer_id?: string | null
           id?: string
           name: string
           notes?: string | null
           proposal_id?: string | null
+          report_status?: string | null
+          report_template?: string | null
+          report_watermark_enabled?: boolean | null
+          report_watermark_text?: string | null
           revision?: number
           status?: string
           updated_at?: string
@@ -2362,12 +2382,22 @@ export type Database = {
         Update: {
           application_type?: string
           calculated_at?: string | null
+          cover_client_name?: string | null
+          cover_image_url?: string | null
+          cover_location?: string | null
+          cover_notes?: string | null
+          cover_project_name?: string | null
+          cover_responsible?: string | null
           created_at?: string
           customer_id?: string | null
           id?: string
           name?: string
           notes?: string | null
           proposal_id?: string | null
+          report_status?: string | null
+          report_template?: string | null
+          report_watermark_enabled?: boolean | null
+          report_watermark_text?: string | null
           revision?: number
           status?: string
           updated_at?: string
@@ -2481,6 +2511,63 @@ export type Database = {
           safety_class?: string | null
           typical_applications?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      coldpro_report_settings: {
+        Row: {
+          accent_color: string
+          company_name: string
+          cover_image_url: string | null
+          created_at: string
+          default_responsible: string | null
+          default_status: string
+          default_template: string
+          footer_text: string | null
+          id: string
+          logo_url: string | null
+          primary_color: string
+          scope: string
+          secondary_color: string
+          show_watermark: boolean
+          updated_at: string
+          watermark_text: string | null
+        }
+        Insert: {
+          accent_color?: string
+          company_name?: string
+          cover_image_url?: string | null
+          created_at?: string
+          default_responsible?: string | null
+          default_status?: string
+          default_template?: string
+          footer_text?: string | null
+          id?: string
+          logo_url?: string | null
+          primary_color?: string
+          scope?: string
+          secondary_color?: string
+          show_watermark?: boolean
+          updated_at?: string
+          watermark_text?: string | null
+        }
+        Update: {
+          accent_color?: string
+          company_name?: string
+          cover_image_url?: string | null
+          created_at?: string
+          default_responsible?: string | null
+          default_status?: string
+          default_template?: string
+          footer_text?: string | null
+          id?: string
+          logo_url?: string | null
+          primary_color?: string
+          scope?: string
+          secondary_color?: string
+          show_watermark?: boolean
+          updated_at?: string
+          watermark_text?: string | null
         }
         Relationships: []
       }
