@@ -228,6 +228,7 @@ export function ProposalItemsTable({
                         tables={productTables}
                         selectedTableId={item.priceTableId ?? null}
                         clientUf={clientUf ?? null}
+                        itemUnitPrice={item.unitPrice ?? null}
                         onPick={(t: ItemPriceTable | null) => onChangeItemTable!(item.id, t)}
                         onResetAuto={
                           onResetItemTable
