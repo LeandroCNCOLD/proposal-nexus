@@ -40,7 +40,7 @@ export interface ProposalPdfData {
 }
 
 export function ProposalPdfDocument({ data }: { data: ProposalPdfData }) {
-  const { proposal, pages, tables, template } = data;
+  const { proposal, pages, tables, template, documentContext } = data;
 
   const theme: PdfTheme = {
     ...defaultTheme,
@@ -108,6 +108,7 @@ export function ProposalPdfDocument({ data }: { data: ProposalPdfData }) {
               theme={theme}
               styles={styles}
               tablesByPage={tablesByPage}
+              documentContext={documentContext ?? null}
             />,
           );
         }
@@ -172,6 +173,7 @@ interface StandardPageProps extends PageProps {
   pageNumber: number;
   totalPages: number;
   tablesByPage: Map<string, ProposalTable[]>;
+  documentContext: ProposalDocumentContext | null;
 }
 
 function StandardPdfPage({
@@ -183,6 +185,7 @@ function StandardPdfPage({
   theme,
   styles,
   tablesByPage,
+  documentContext,
 }: StandardPageProps) {
   const sortedBlocks = [...page.blocks].sort((a, b) => a.order - b.order);
 
@@ -205,6 +208,7 @@ function StandardPdfPage({
           tablesByPage,
           pageId: page.id,
           proposal,
+          documentContext,
         }),
       )}
 
