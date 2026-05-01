@@ -76,7 +76,7 @@ function mergeItem(itemRaw: unknown, itemDetail: unknown): Record<string, unknow
   return { ...a, ...b };
 }
 
-export function NomusItemDetailDialog({ itemId, prefillItem, open, onOpenChange, proposalTaxes, proposalProductsTotal, proposalAnaliseLucro }: Props) {
+export function NomusItemDetailDialog({ itemId, prefillItem, open, onOpenChange, proposalTaxes, proposalProductsTotal, proposalAnaliseLucro, itemCostSnapshot }: Props) {
   const { data, isLoading, error } = useQuery({
     queryKey: ["nomus-item-detail", itemId],
     queryFn: async () => {
