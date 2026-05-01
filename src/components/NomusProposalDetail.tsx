@@ -201,6 +201,97 @@ export function NomusProposalDetail({
     items: itemsForHook,
   });
 
+  // ─── Agregação dos totais a partir dos snapshots de custos por item ────
+  // Quando os itens já têm tabela aplicada com snapshot de custos, calculamos
+  // os totais agregados aqui (custo total, lucro bruto, lucro líquido etc.)
+  // sobrescrevendo os valores vindos do Nomus, que podem estar zerados.
+  const agg = useMemo(() => {
+    let valorProdutos = 0;
+    let valorDescontos = 0;
+    let valorComDesconto = 0;
+    let custoMateriais = 0;
+    let custoMod = 0;
+    let custoCif = 0;
+    let custoProducao = 0;
+    let custosAdm = 0;
+    let snapshotCount = 0;
+
+    for (const it of items) {
+      const qty = Number(it.quantity ?? 0);
+      const unit = Number(it.unit_price ?? 0);
+      const totalBruto = qty * unit;
+      const totalCom = Number(it.total_with_discount ?? it.total ?? totalBruto);
+      const desconto = Number(it.discount ?? Math.max(0, totalBruto - totalCom));
+      valorProdutos += totalBruto;
+      valorDescontos += desconto;
+      valorComDesconto += totalCom;
+
+      const local = it.nomus_item_id ? localItemsByNomusId.get(it.nomus_item_id) : null;
+      if (
+        local &&
+        (local.price_table_custo_materiais != null ||
+          local.price_table_custo_mod != null ||
+          local.price_table_custo_cif != null ||
+          local.price_table_custo_producao_total != null)
+      ) {
+        snapshotCount++;
+        custoMateriais += Number(local.price_table_custo_materiais ?? 0) * qty;
+        custoMod += Number(local.price_table_custo_mod ?? 0) * qty;
+        custoCif += Number(local.price_table_custo_cif ?? 0) * qty;
+        custoProducao += Number(local.price_table_custo_producao_total ?? 0) * qty;
+        custosAdm += Number(local.price_table_custos_adm ?? 0) * qty;
+      }
+    }
+
+    const hasSnapshots = snapshotCount > 0;
+
+    // Impostos vêm do Nomus (totalTributacao). Soma apenas o que está disponível.
+    const impostos =
+      Number(p.icms_recolher ?? 0) +
+      Number(p.icms_st_recolher ?? 0) +
+      Number(p.ipi_recolher ?? 0) +
+      Number(p.pis_recolher ?? 0) +
+      Number(p.cofins_recolher ?? 0) +
+      Number(p.issqn_recolher ?? 0) +
+      Number(p.simples_nacional_recolher ?? 0);
+
+    const outrasDespesas =
+      Number(p.comissoes_venda ?? 0) +
+      Number(p.frete_valor ?? 0) +
+      Number(p.seguros_valor ?? 0) +
+      Number(p.despesas_acessorias ?? 0);
+
+    const valorLiquido = valorComDesconto - impostos - outrasDespesas;
+    const lucroBruto = valorLiquido - custoProducao;
+    const lucroAntesImpostos = lucroBruto - custosAdm;
+    const custosIncidentes = Number(p.custos_incidentes_lucro ?? 0);
+    const lucroLiquido = lucroAntesImpostos - custosIncidentes;
+
+    const margemBrutaPct = valorComDesconto > 0 ? (lucroBruto / valorComDesconto) * 100 : null;
+    const margemLiquidaPct = valorComDesconto > 0 ? (lucroLiquido / valorComDesconto) * 100 : null;
+
+    return {
+      hasSnapshots,
+      valor_produtos: hasSnapshots ? valorProdutos : p.valor_produtos,
+      valor_descontos: hasSnapshots ? valorDescontos : p.valor_descontos,
+      valor_total_com_desconto: hasSnapshots
+        ? valorComDesconto
+        : (p.valor_total_com_desconto ?? p.valor_total),
+      valor_liquido: hasSnapshots ? valorLiquido : p.valor_liquido,
+      custos_materiais: hasSnapshots ? custoMateriais : p.custos_materiais,
+      custos_mod: hasSnapshots ? custoMod : p.custos_mod,
+      custos_cif: hasSnapshots ? custoCif : p.custos_cif,
+      custos_producao: hasSnapshots ? custoProducao : p.custos_producao,
+      custos_administrativos: hasSnapshots ? custosAdm : p.custos_administrativos,
+      lucro_bruto: hasSnapshots ? lucroBruto : p.lucro_bruto,
+      lucro_antes_impostos: hasSnapshots ? lucroAntesImpostos : p.lucro_antes_impostos,
+      lucro_liquido: hasSnapshots ? lucroLiquido : p.lucro_liquido,
+      margem_bruta_pct: hasSnapshots ? margemBrutaPct : p.margem_bruta_pct,
+      margem_liquida_pct: hasSnapshots ? margemLiquidaPct : p.margem_liquida_pct,
+      impostos_total: impostos,
+    };
+  }, [items, localItemsByNomusId, p]);
+
   // Auto-aplicar sugestão para itens sem escolha (ou auto antiga sem snapshot).
   // Não toca itens manuais. Roda uma vez por carregamento das tabelas.
   const autoAppliedRef = useRef<Set<string>>(new Set());
@@ -454,27 +545,32 @@ export function NomusProposalDetail({
 
       {/* ============ Análise de lucro ============ */}
       <Section title="Análise de lucro (Nomus)">
+        {agg.hasSnapshots && (
+          <div className="mb-3 rounded-md border border-success/30 bg-success/5 px-3 py-2 text-xs text-muted-foreground">
+            Totais calculados a partir das tabelas de preço aplicadas a cada item.
+          </div>
+        )}
         <div className="mb-4">
           <FinancialSummaryCard
             title="Leitura rápida"
             metrics={[
-              { label: "Custo total", value: brl(p.custos_producao), tone: "neutral" },
-              { label: "Preço de venda", value: brl(p.valor_total_com_desconto ?? p.valor_total), tone: "info" },
-              { label: "Impostos", value: brl(p.icms_recolher), tone: "warning" },
+              { label: "Custo total", value: brl(agg.custos_producao), tone: "neutral" },
+              { label: "Preço de venda", value: brl(agg.valor_total_com_desconto), tone: "info" },
+              { label: "Impostos", value: brl(agg.impostos_total), tone: "warning" },
               { label: "Comissão", value: brl(p.comissoes_venda), tone: "neutral" },
-              { label: "Margem", value: p.margem_liquida_pct != null ? `${num(p.margem_liquida_pct, 2)}%` : "—", tone: "success" },
-              { label: "Resultado final", value: brl(p.lucro_liquido), tone: "success" },
+              { label: "Margem", value: agg.margem_liquida_pct != null ? `${num(agg.margem_liquida_pct, 2)}%` : "—", tone: "success" },
+              { label: "Resultado final", value: brl(agg.lucro_liquido), tone: "success" },
             ]}
           />
         </div>
         <div className="overflow-hidden rounded-md border">
           <table className="w-full text-sm">
             <tbody>
-              <Row label="Valor total dos produtos" value={p.valor_produtos} />
-              <Row label="(-) Descontos incondicionais" value={negate(p.valor_descontos)} />
+              <Row label="Valor total dos produtos" value={agg.valor_produtos} />
+              <Row label="(-) Descontos incondicionais" value={negate(agg.valor_descontos)} />
               <Row
                 label="(=) Valor total com desconto"
-                value={p.valor_total_com_desconto ?? p.valor_total}
+                value={agg.valor_total_com_desconto}
                 emphasis
               />
               <Row label="(-) ICMS a recolher" value={negate(p.icms_recolher)} />
@@ -491,28 +587,28 @@ export function NomusProposalDetail({
               <Row label="(-) Frete" value={negate(p.frete_valor)} />
               <Row label="(-) Seguros" value={negate(p.seguros_valor)} />
               <Row label="(-) Outras despesas acessórias" value={negate(p.despesas_acessorias)} />
-              <Row label="(=) Valor líquido do item" value={p.valor_liquido} emphasis />
-              <Row label="(-) Custos de produção" value={negate(p.custos_producao)} />
-              <SubRow label=">>> Custos de materiais" value={p.custos_materiais} />
-              <SubRow label=">>> Custos de mão de obra direta (MOD)" value={p.custos_mod} />
-              <SubRow label=">>> Custos indiretos de fabricação (CIF)" value={p.custos_cif} />
+              <Row label="(=) Valor líquido do item" value={agg.valor_liquido} emphasis />
+              <Row label="(-) Custos de produção" value={negate(agg.custos_producao)} />
+              <SubRow label=">>> Custos de materiais" value={agg.custos_materiais} />
+              <SubRow label=">>> Custos de mão de obra direta (MOD)" value={agg.custos_mod} />
+              <SubRow label=">>> Custos indiretos de fabricação (CIF)" value={agg.custos_cif} />
               <Row
                 label="(=) Lucro bruto"
-                value={p.lucro_bruto}
-                pct={p.margem_bruta_pct}
+                value={agg.lucro_bruto}
+                pct={agg.margem_bruta_pct}
                 emphasis
                 positive
               />
-              <Row label="(-) Custos administrativos" value={negate(p.custos_administrativos)} />
-              <Row label="(=) Lucro antes dos impostos" value={p.lucro_antes_impostos} emphasis />
+              <Row label="(-) Custos administrativos" value={negate(agg.custos_administrativos)} />
+              <Row label="(=) Lucro antes dos impostos" value={agg.lucro_antes_impostos} emphasis />
               <Row
                 label="(-) Custos incidentes sobre lucro"
                 value={negate(p.custos_incidentes_lucro)}
               />
               <Row
                 label="(=) Lucro líquido"
-                value={p.lucro_liquido}
-                pct={p.margem_liquida_pct}
+                value={agg.lucro_liquido}
+                pct={agg.margem_liquida_pct}
                 emphasis
                 positive
               />
