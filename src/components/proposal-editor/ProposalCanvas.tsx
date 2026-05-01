@@ -598,7 +598,8 @@ export function ProposalCanvas({
                         selected={selected}
                         template={template}
                         assets={assets}
-                        proposalContext={proposalContext}
+                       proposalContext={proposalContext}
+                       documentContext={documentContext}
                         proposalId={proposalId}
                         pageId={page.id}
                         pageTitle={page.title}
