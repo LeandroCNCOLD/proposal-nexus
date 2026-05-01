@@ -1,73 +1,132 @@
-## Objetivo
+# Blocos Visuais de Capa CN Cold
 
-Corrigir a seção "Análise de lucro" para que:
+Evoluir o Page Builder existente adicionando **3 novos `BlockType`** que renderizam capas profissionais full-page (816×1056), reaproveitando `ProposalDocumentContext` como fallback de dados. Nenhuma quebra de blocos existentes, integrações Nomus/ColdPro/financeiro/PDF engine.
 
-1. **"Valor total dos produtos"** = soma dos **totais de tabela** (Tabela total = preço de tabela × qtd), não dos preços de venda.
-2. **"Descontos incondicionais"** = diferença entre o total de tabela e o total de venda, com tratamento explícito para casos em que a venda está **acima** da tabela (ágio).
-3. **"Valor total com desconto"** = total de venda real (o que o cliente paga hoje), garantindo que `tabela − desconto = venda`.
-4. Deixar o agregador local **preparado para ser substituído** pela integração futura com o Nomus, sem reescrever a UI.
+## 1. Novos BlockTypes
 
-## Como funcionará o cálculo
+Em `src/integrations/proposal-editor/types.ts`, adicionar à união `BlockType`:
 
-Para cada item:
+- `cover_main_cn_cold`
+- `cover_institutional_cn_cold`
+- `cover_clients_cases_cn_cold`
 
-```text
-total_tabela_item = preço_tabela_unit × quantidade
-total_venda_item  = preço_venda_unit  × quantidade − desconto_item
-delta_item        = total_tabela_item − total_venda_item
-                    (positivo = desconto; negativo = ágio)
+Adicionar `defaultLayoutFor` para os três retornando `{ x:0, y:0, w:A4_W, h:A4_H }` (capa full-page).
+
+## 2. Estrutura de `block.data` (compartilhada)
+
+```ts
+{
+  background_image?: string,
+  logo_url?: string,
+  title?: string,
+  subtitle?: string,
+  paragraphs?: string[],          // capa 2
+  images?: { url: string, caption?: string }[], // capa 1 (grid lateral) e capa 2
+  cases?: {                        // capa 3
+    title: string,
+    subtitle?: string,
+    image_url?: string,
+    featured?: boolean,
+  }[],
+  client_logos?: { url: string, name?: string }[], // capa 3
+  footer?: {
+    telefone?: string,
+    site?: string,
+    email?: string,
+    cidade?: string,
+  },
+  // específicos de capa 1 quando se quer sobrescrever o contexto:
+  client_name?: string,
+  proposal_number?: string,
+  proposal_date?: string,
+  vendedor?: string,
+}
 ```
 
-Agregando a proposta:
+Regra **híbrida**: cada campo lê primeiro `block.data`, e se vazio cai em `documentContext` via helpers existentes (`resolveDynamicFieldFromCtx`, `resolveClientBox`, etc.). Cores/imagens só usam `block.data` (sem fallback).
 
-```text
-Valor total dos produtos     = Σ total_tabela_item
-Desconto bruto (concedido)   = Σ max(0,  delta_item)
-Ágio bruto (acima da tabela) = Σ max(0, -delta_item)
-Desconto líquido             = Desconto bruto − Ágio bruto
-Valor total com desconto     = Valor total dos produtos − Desconto líquido
-                             = Σ total_venda_item   (identidade garantida)
+## 3. Componentes React (editor — canvas A4)
+
+Criar pasta `src/components/proposal-editor/cn-cold-covers/`:
+
+- `CoverMainCnCold.tsx` — Capa 1
+  - Fundo azul institucional (`#0c2340` ou `template.primary_color`) com camada de `background_image` opcional (overlay 60%).
+  - Logo no topo (canto superior esquerdo).
+  - Título "PROPOSTA TÉCNICA E COMERCIAL" + subtítulo editável.
+  - Bloco branco/translúcido com: cliente, projeto, nº, data, responsável (resolvidos do contexto).
+  - Grid lateral direito (3-4 thumbs) de `images[]` decorativas.
+  - Rodapé faixa azul-escura com telefone, site, e-mail, cidade.
+
+- `CoverInstitutionalCnCold.tsx` — Capa 2
+  - Título + parágrafos institucionais (rich text múltiplos).
+  - Imagem da fábrica (`images[0]` ou `background_image`).
+  - Bloco "Por que escolher a CN Cold?" com lista (`paragraphs` ou items).
+  - Imagem da linha de equipamentos (`images[1]`).
+  - Slogan/frase institucional.
+  - Rodapé padrão.
+
+- `CoverClientsCasesCnCold.tsx` — Capa 3
+  - Título "Soluções em Refrigeração Industrial" + subtítulo "Engenharia • Fabricação • Instalação • Manutenção".
+  - Case principal em destaque (`cases.find(c=>c.featured)`).
+  - Grid de cases (2×2 ou 2×3) restantes.
+  - Grid de logos de clientes (`client_logos`).
+  - Nota pequena: "Marcas exibidas pertencem aos respectivos titulares".
+  - Rodapé padrão.
+
+Cada componente recebe `{ block, setData, locked, documentContext, template }`. Modo edição: clique nos textos abre `Input`/`Textarea` inline; campos vazios mostram **placeholder** com valor do contexto (mesmo padrão dos `*_box` existentes). Imagens usam o `ImageUploadButton` já existente em `BlockRenderer`.
+
+Helper compartilhado `cn-cold-covers/use-cover-defaults.ts` para resolver footer/identidade do contexto.
+
+## 4. Registro no BlockRenderer (editor)
+
+Em `src/components/proposal-editor/BlockRenderer.tsx` (`switch(block.type)` dentro de `BlockBody`), adicionar 3 novos `case` que delegam aos componentes acima, passando `documentContext` e `template`.
+
+## 5. Renderer no PDF
+
+Criar `src/integrations/proposal-editor/pdf/cn-cold-covers/`:
+
+- `CoverMainCnColdPdf.tsx`, `CoverInstitutionalCnColdPdf.tsx`, `CoverClientsCasesCnColdPdf.tsx`
+
+Cada um recebe `(block, ctx)` e retorna um `<View>` `@react-pdf/renderer` que reproduz visualmente o componente do editor (fundos, logo, grids de imagens, rodapé). Usa `proposal` já injetado em `BlockRenderContext` (cliente, número, data, vendedor, telefone, site, email).
+
+Em `BlockPdfRenderer.tsx` adicionar 3 `case` que delegam aos novos componentes.
+
+**Importante**: como os blocos são full-page (816×1056 ≈ A4), o ProposalCanvas/PDF já posiciona via `layout.x/y/w/h`. Os componentes apenas preenchem o retângulo recebido.
+
+## 6. Paleta (FieldsPalette)
+
+Em `ALL_PALETTE_GROUPS` adicionar novo grupo:
+
+```
+"Capas CN Cold":
+  - Capa Principal (cover_main_cn_cold)
+  - Capa Institucional (cover_institutional_cn_cold)
+  - Capa Cases & Clientes (cover_clients_cases_cn_cold)
 ```
 
-### Sugestão para o caso "venda acima da tabela"
+Usuário arrasta para a página e o bloco é criado full-page com layout default.
 
-Como a linha "(-) Descontos incondicionais" precisa fechar a conta, vamos exibir o **desconto líquido** (pode ficar negativo, indicando ágio). Para dar visibilidade ao usuário sem poluir a tabela, adicionamos **duas sub-linhas informativas** abaixo (estilo das sub-linhas de custo de produção que já existem):
+## 7. Defaults seed (opcional)
 
-```text
-(-) Descontos incondicionais          -R$ 20.745
-    >>> Desconto concedido            R$ 17.001  (itens 01, 03, 04)
-    >>> Ágio sobre tabela             R$  3.744  (itens 02, 06 − valor "a mais")
-```
+Em `makeDefaultBlocksForPage` deixar `case "cover"` inalterado (preserva compat). Os novos blocos são adicionados manualmente via paleta — o usuário decide quando usar.
 
-Assim o usuário vê o líquido (que fecha a soma) e entende a composição. Quando não houver ágio, as sub-linhas ficam ocultas para não poluir.
+## Arquivos novos
+- `src/components/proposal-editor/cn-cold-covers/CoverMainCnCold.tsx`
+- `src/components/proposal-editor/cn-cold-covers/CoverInstitutionalCnCold.tsx`
+- `src/components/proposal-editor/cn-cold-covers/CoverClientsCasesCnCold.tsx`
+- `src/components/proposal-editor/cn-cold-covers/use-cover-defaults.ts`
+- `src/integrations/proposal-editor/pdf/cn-cold-covers/CoverMainCnColdPdf.tsx`
+- `src/integrations/proposal-editor/pdf/cn-cold-covers/CoverInstitutionalCnColdPdf.tsx`
+- `src/integrations/proposal-editor/pdf/cn-cold-covers/CoverClientsCasesCnColdPdf.tsx`
 
-## Preparação para substituição futura pelo Nomus
+## Arquivos editados (mínimo, aditivo)
+- `src/integrations/proposal-editor/types.ts` — 3 entradas em `BlockType` + `defaultLayoutFor`
+- `src/components/proposal-editor/BlockRenderer.tsx` — 3 `case` no switch
+- `src/integrations/proposal-editor/pdf/BlockPdfRenderer.tsx` — 3 `case` no switch
+- `src/components/proposal-editor/FieldsPalette.tsx` — novo grupo "Capas CN Cold"
 
-Hoje o agregador `agg` mistura cálculo local + fallback para campos do Nomus dentro do componente `NomusProposalDetail`. Vamos isolar isso:
+## Preservado
+Page Builder, autosave, geração de PDF, versões, anexos, ColdPro, Nomus, financeiro, blocos antigos (`cover_identity` etc.), `ProposalDocumentContext`.
 
-- Criar `src/features/proposal-totals/compute-proposal-totals.ts` exportando uma função pura `computeProposalTotals({ items, snapshots, nomus })` que retorna o objeto `agg` no formato que a UI já consome.
-- Criar tipo `ProposalTotalsSource = "snapshot_local" | "nomus"` no retorno, para a UI mostrar o aviso ("Totais calculados a partir das tabelas aplicadas" vs. "Totais oficiais do Nomus").
-- Regra de prioridade dentro da função:
-  1. Se a proposta tem `nomus_totais_oficiais` (campo a ser preenchido no futuro pela integração), usar Nomus direto.
-  2. Caso contrário, calcular localmente a partir dos snapshots dos itens (lógica atual + correções de tabela/desconto/ágio acima).
-- A UI (`NomusProposalDetail.tsx`) só consome `computeProposalTotals(...)` — quando a integração com Nomus chegar, basta alterar a função, não a UI.
-
-## Arquivos a alterar
-
-- **Novo**: `src/features/proposal-totals/compute-proposal-totals.ts` — função pura + tipos.
-- **Editar**: `src/components/NomusProposalDetail.tsx`
-  - Substituir o `useMemo` `agg` por `useMemo(() => computeProposalTotals(...), [...])`.
-  - Adicionar as duas `SubRow` ("Desconto concedido" / "Ágio sobre tabela") logo abaixo da linha de "(-) Descontos incondicionais", renderizadas condicionalmente.
-
-Nada muda em rotas, banco de dados ou outras telas.
-
-## Resultado esperado (com os números atuais)
-
-```text
-Valor total dos produtos              R$ 291.866
-(-) Descontos incondicionais          -R$  20.745
-    >>> Desconto concedido            R$  17.001
-    >>> Ágio sobre tabela             R$   3.744
-(=) Valor total com desconto          R$ 271.121
-... (resto inalterado)
-```
+## Resultado
+O usuário arrasta "Capa Principal" / "Capa Institucional" / "Capa Cases" da paleta para uma página em branco e obtém capas profissionais já preenchidas com dados da proposta (cliente, número, data, vendedor, contatos da empresa). Pode editar título, subtítulo, parágrafos, imagens, cases e logos inline. PDF gerado com aparência equivalente.
