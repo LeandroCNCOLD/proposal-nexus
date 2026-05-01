@@ -85,6 +85,10 @@ export type ProposalTotalsResult = {
   margem_liquida_pct: number | null;
 
   impostos_total: number;
+  /** Custo adicional da taxa financeira (vindo da simulação salva). */
+  custo_taxa_financeira: number;
+  /** Soma de outras despesas (comissões + frete + seguros + acessórias + taxa financeira). */
+  outras_despesas_total: number;
 };
 
 export type ComputeProposalTotalsInput = {
