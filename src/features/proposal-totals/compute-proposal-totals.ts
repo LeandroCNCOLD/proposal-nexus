@@ -159,6 +159,8 @@ export function computeProposalTotals(
       margem_bruta_pct: nomusOfficial.margem_bruta_pct ?? null,
       margem_liquida_pct: nomusOfficial.margem_liquida_pct ?? null,
       impostos_total: impostos,
+      custo_taxa_financeira: custoTaxaFinanceira,
+      outras_despesas_total: outrasDespesas,
     };
   }
 
