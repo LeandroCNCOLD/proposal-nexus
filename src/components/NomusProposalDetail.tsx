@@ -7,6 +7,7 @@ import { ProposalTaxSummary } from "@/components/ProposalTaxSummary";
 import { EmptyState, FinancialSummaryCard, LoadingState, ProposalItemsTable } from "@/modules/proposals/components";
 import { PriceTablePicker } from "@/features/price-table-picker/PriceTablePicker";
 import { useItemPriceTables } from "@/features/price-table-picker/use-item-price-tables";
+import { computeProposalTotals } from "@/features/proposal-totals/compute-proposal-totals";
 
 type NomusProposalRow = {
   id: string;
