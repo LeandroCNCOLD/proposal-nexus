@@ -222,7 +222,12 @@ export function ProposalItemLucroAnalysis({ analiseLucro, proposalAnaliseLucro, 
 
   return (
     <div className="space-y-3">
-      {!useDetail && (
+      {itemSnapshot ? (
+        <div className="text-[11px] text-muted-foreground">
+          Custos preenchidos a partir do snapshot da tabela de preço selecionada;
+          impostos rateados da proposta. Lucros recalculados.
+        </div>
+      ) : !useDetail && (
         <div className="text-[11px] text-muted-foreground">
           Valores rateados a partir da análise de lucro da proposta — participação deste item:{" "}
           <span className="font-semibold text-foreground tabular-nums">{(r * 100).toFixed(2)}%</span>
