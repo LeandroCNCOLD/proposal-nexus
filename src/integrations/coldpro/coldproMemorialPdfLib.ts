@@ -1,15 +1,9 @@
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage, type RGB } from "pdf-lib";
 import { calculateProductLoadBreakdown, estimateFreezingTimePlankMin } from "@/features/coldpro/coldpro-calculation.engine";
 import { auditColdProTechnicalConsistency, getColdProApplicationLabel } from "@/modules/coldpro/core/technicalAudit";
-import { buildTheme, type ColdProReportContext, type ColdProReportSettings, type ColdProReportTemplateKind, type Theme } from "./report/coldproReportTheme";
-import { applyHeaderFooterAndWatermark, drawCover, drawExecutiveSummary, loadChromeAssets, type ExecutiveSummary } from "./report/coldproReportChrome";
 
 const A4: [number, number] = [595.28, 841.89];
 const M = 36;
-
-// Defaults (fallback caso não haja settings). Mantidos pois muitos helpers
-// referenciam COLORS direto. Quando settings forem passados, os helpers
-// usam ctx.theme.X (override visual completo).
 const COLORS = {
   primary: rgb(0.05, 0.14, 0.22),
   accent: rgb(0.12, 0.43, 0.65),
@@ -23,16 +17,7 @@ const COLORS = {
 const PIE_COLORS = [COLORS.accent, COLORS.primary, rgb(0.29, 0.62, 0.53), rgb(0.84, 0.55, 0.18), rgb(0.55, 0.37, 0.75), rgb(0.77, 0.31, 0.37), rgb(0.39, 0.45, 0.55), rgb(0.18, 0.48, 0.64)];
 
 type Fonts = { regular: PDFFont; bold: PDFFont };
-type Ctx = {
-  pdf: PDFDocument;
-  page: PDFPage;
-  fonts: Fonts;
-  y: number;
-  projectName: string;
-  generatedAt: string;
-  // Tema dinâmico (cores configuráveis). Quando ausente, helpers usam COLORS.
-  theme?: Theme;
-};
+type Ctx = { pdf: PDFDocument; page: PDFPage; fonts: Fonts; y: number; projectName: string; generatedAt: string };
 
 function clean(value: unknown) {
   return String(value ?? "—")
