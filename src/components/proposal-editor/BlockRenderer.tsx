@@ -28,6 +28,13 @@ import { RichTextEditor } from "./RichTextEditor";
 import { BoxStyleEditor } from "./BoxStyleEditor";
 import { InlineTablePreview } from "./InlineTablePreview";
 import { layoutToBoxStyle } from "@/integrations/proposal-editor/box-style";
+import type { ProposalDocumentContext } from "@/features/proposal-context/document-context.types";
+import {
+  resolveClientBox,
+  resolveProjectBox,
+  resolveResponsibleBox,
+  resolveDynamicField as resolveDynamicFieldFromCtx,
+} from "@/features/proposal-context/resolve-block-from-context";
 
 interface Props {
   block: DocumentBlock;
@@ -35,6 +42,12 @@ interface Props {
   template: ProposalTemplate | null;
   assets: TemplateAsset[];
   proposalContext: ProposalDynamicContext;
+  /**
+   * Contexto unificado da proposta (Etapa 2 da migração). Quando presente, os
+   * blocos usam-no como fallback para campos vazios. `block.data` continua a
+   * vencer — modo híbrido.
+   */
+  documentContext?: ProposalDocumentContext | null;
   proposalId?: string;
   pageId?: string;
   pageTitle?: string;
