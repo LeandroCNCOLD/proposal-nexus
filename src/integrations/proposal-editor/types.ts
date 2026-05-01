@@ -53,7 +53,10 @@ export type BlockType =
   | "dynamic_field"
   | "differentials_list"
   | "cases_list"
-  | "container";
+  | "container"
+  | "cover_main_cn_cold"
+  | "cover_institutional_cn_cold"
+  | "cover_clients_cases_cn_cold";
 
 export type BlockSource = "manual" | "nomus" | "template";
 
@@ -304,6 +307,9 @@ export function defaultLayoutFor(type: BlockType, index = 0): BlockLayout {
     case "key_value_list":
       return { x: 60, y: baseY, w: 696, h: 180 };
     case "cover_identity":
+    case "cover_main_cn_cold":
+    case "cover_institutional_cn_cold":
+    case "cover_clients_cases_cn_cold":
       return { x: 0, y: 0, w: A4_W, h: A4_H };
     case "container":
       return { x: 60, y: baseY, w: 696, h: 240, background: "white" };
