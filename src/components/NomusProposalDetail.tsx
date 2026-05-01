@@ -169,6 +169,24 @@ export function NomusProposalDetail({
     },
   });
 
+  // Custo adicional vindo da simulação da taxa financeira salva na proposta.
+  const { data: localProposalFinancial } = useQuery({
+    queryKey: ["proposal-financial-additional-cost", localProposalId],
+    enabled: !!localProposalId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("proposals")
+        .select("financial_additional_cost")
+        .eq("id", localProposalId!)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+  const financialAdditionalCost = Number(
+    localProposalFinancial?.financial_additional_cost ?? 0,
+  );
+
   // Itens enriquecidos com o id local + estado da tabela
   const itemsForHook = useMemo(
     () =>
@@ -226,8 +244,9 @@ export function NomusProposalDetail({
         // popular aqui (ex.: p.nomus_totais_oficiais ?? null) e a UI passa
         // a refletir esses números automaticamente.
         nomusOfficial: null,
+        financialAdditionalCost,
       }),
-    [items, localItemsByNomusId, p],
+    [items, localItemsByNomusId, p, financialAdditionalCost],
   );
 
   // Auto-aplicar sugestão para itens sem escolha (ou auto antiga sem snapshot).
@@ -532,7 +551,15 @@ export function NomusProposalDetail({
               <Row label="(-) Comissões de venda" value={negate(p.comissoes_venda)} />
               <Row label="(-) Frete" value={negate(p.frete_valor)} />
               <Row label="(-) Seguros" value={negate(p.seguros_valor)} />
-              <Row label="(-) Outras despesas acessórias" value={negate(p.despesas_acessorias)} />
+              <Row label="(-) Outras despesas acessórias" value={negate((Number(p.despesas_acessorias ?? 0)) + agg.custo_taxa_financeira)} />
+              {agg.custo_taxa_financeira > 0 && (
+                <>
+                  {Number(p.despesas_acessorias ?? 0) !== 0 && (
+                    <SubRow label=">>> Despesas acessórias (Nomus)" value={p.despesas_acessorias} />
+                  )}
+                  <SubRow label=">>> Custo da taxa financeira" value={agg.custo_taxa_financeira} />
+                </>
+              )}
               <Row label="(=) Valor líquido do item" value={agg.valor_liquido} emphasis />
               <Row label="(-) Custos de produção" value={negate(agg.custos_producao)} />
               <SubRow label=">>> Custos de materiais" value={agg.custos_materiais} />

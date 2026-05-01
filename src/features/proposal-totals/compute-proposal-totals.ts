@@ -85,6 +85,10 @@ export type ProposalTotalsResult = {
   margem_liquida_pct: number | null;
 
   impostos_total: number;
+  /** Custo adicional da taxa financeira (vindo da simulação salva). */
+  custo_taxa_financeira: number;
+  /** Soma de outras despesas (comissões + frete + seguros + acessórias + taxa financeira). */
+  outras_despesas_total: number;
 };
 
 export type ComputeProposalTotalsInput = {
@@ -98,6 +102,12 @@ export type ComputeProposalTotalsInput = {
    * Nomus, popular esse campo. Se presente, ele tem prioridade absoluta.
    */
   nomusOfficial?: Partial<NomusProposalTotals> | null;
+  /**
+   * Custo adicional vindo da simulação da taxa financeira salva na proposta
+   * (proposals.financial_additional_cost). É somado às "Outras despesas
+   * acessórias" e, portanto, deduzido do valor líquido / lucro.
+   */
+  financialAdditionalCost?: number | null;
 };
 
 const n = (v: number | null | undefined): number => Number(v ?? 0);
@@ -106,6 +116,7 @@ export function computeProposalTotals(
   input: ComputeProposalTotalsInput,
 ): ProposalTotalsResult {
   const { items, snapshots, nomus, nomusOfficial } = input;
+  const custoTaxaFinanceira = Math.max(0, n(input.financialAdditionalCost));
 
   // Impostos / despesas vêm sempre dos campos do Nomus (não dependem de
   // snapshot por item).
@@ -118,11 +129,12 @@ export function computeProposalTotals(
     n(nomus?.issqn_recolher) +
     n(nomus?.simples_nacional_recolher);
 
-  const outrasDespesas =
+  const outrasDespesasNomus =
     n(nomus?.comissoes_venda) +
     n(nomus?.frete_valor) +
     n(nomus?.seguros_valor) +
     n(nomus?.despesas_acessorias);
+  const outrasDespesas = outrasDespesasNomus + custoTaxaFinanceira;
 
   // ─── 1) Totais oficiais Nomus (futuro) ───────────────────────────────
   if (nomusOfficial && nomusOfficial.valor_produtos != null) {
@@ -147,6 +159,8 @@ export function computeProposalTotals(
       margem_bruta_pct: nomusOfficial.margem_bruta_pct ?? null,
       margem_liquida_pct: nomusOfficial.margem_liquida_pct ?? null,
       impostos_total: impostos,
+      custo_taxa_financeira: custoTaxaFinanceira,
+      outras_despesas_total: outrasDespesas,
     };
   }
 
@@ -206,6 +220,22 @@ export function computeProposalTotals(
 
   if (!hasSnapshots) {
     // Sem nenhum snapshot — devolve o que vier do Nomus (modo fallback).
+    const valorLiquidoFallback =
+      nomus?.valor_liquido != null
+        ? n(nomus.valor_liquido) - custoTaxaFinanceira
+        : null;
+    const lucroBrutoFallback =
+      nomus?.lucro_bruto != null
+        ? n(nomus.lucro_bruto) - custoTaxaFinanceira
+        : null;
+    const lucroAntesImpostosFallback =
+      nomus?.lucro_antes_impostos != null
+        ? n(nomus.lucro_antes_impostos) - custoTaxaFinanceira
+        : null;
+    const lucroLiquidoFallback =
+      nomus?.lucro_liquido != null
+        ? n(nomus.lucro_liquido) - custoTaxaFinanceira
+        : null;
     return {
       source: "fallback",
       hasSnapshots: false,
@@ -215,18 +245,20 @@ export function computeProposalTotals(
       agio_sobre_tabela: 0,
       valor_total_com_desconto:
         nomus?.valor_total_com_desconto ?? nomus?.valor_total ?? null,
-      valor_liquido: nomus?.valor_liquido ?? null,
+      valor_liquido: valorLiquidoFallback,
       custos_producao: nomus?.custos_producao ?? null,
       custos_materiais: nomus?.custos_materiais ?? null,
       custos_mod: nomus?.custos_mod ?? null,
       custos_cif: nomus?.custos_cif ?? null,
       custos_administrativos: nomus?.custos_administrativos ?? null,
-      lucro_bruto: nomus?.lucro_bruto ?? null,
-      lucro_antes_impostos: nomus?.lucro_antes_impostos ?? null,
-      lucro_liquido: nomus?.lucro_liquido ?? null,
+      lucro_bruto: lucroBrutoFallback,
+      lucro_antes_impostos: lucroAntesImpostosFallback,
+      lucro_liquido: lucroLiquidoFallback,
       margem_bruta_pct: nomus?.margem_bruta_pct ?? null,
       margem_liquida_pct: nomus?.margem_liquida_pct ?? null,
       impostos_total: impostos,
+      custo_taxa_financeira: custoTaxaFinanceira,
+      outras_despesas_total: outrasDespesas,
     };
   }
 
@@ -262,5 +294,7 @@ export function computeProposalTotals(
     margem_bruta_pct: margemBrutaPct,
     margem_liquida_pct: margemLiquidaPct,
     impostos_total: impostos,
+    custo_taxa_financeira: custoTaxaFinanceira,
+    outras_despesas_total: outrasDespesas,
   };
 }
