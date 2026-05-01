@@ -924,7 +924,8 @@ function BlockBody({
     case "dynamic_field": {
       const fieldKey = (block.data.fieldKey as string) ?? "";
       const label = (block.data.label as string) ?? labelize(fieldKey);
-      const value = resolveDynamicField(fieldKey, proposalContext, template);
+      const legacyValue = resolveDynamicField(fieldKey, proposalContext, template);
+      const value = legacyValue || resolveDynamicFieldFromCtx(fieldKey, documentContext) || "";
       const hasCustomFs = typeof block.data.fontSize === "number";
       return (
         <div className="group/df relative flex h-full items-center leading-tight">
