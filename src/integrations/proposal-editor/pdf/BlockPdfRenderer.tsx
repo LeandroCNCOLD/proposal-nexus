@@ -22,6 +22,11 @@ interface BlockRenderContext {
     title?: string | null;
     client_name?: string | null;
     created_at?: string | null;
+    valid_until?: string | null;
+    vendedor?: string | null;
+    empresa_telefone?: string | null;
+    empresa_email?: string | null;
+    empresa_site?: string | null;
   };
 }
 
