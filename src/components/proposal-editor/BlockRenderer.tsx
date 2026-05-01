@@ -28,6 +28,13 @@ import { RichTextEditor } from "./RichTextEditor";
 import { BoxStyleEditor } from "./BoxStyleEditor";
 import { InlineTablePreview } from "./InlineTablePreview";
 import { layoutToBoxStyle } from "@/integrations/proposal-editor/box-style";
+import type { ProposalDocumentContext } from "@/features/proposal-context/document-context.types";
+import {
+  resolveClientBox,
+  resolveProjectBox,
+  resolveResponsibleBox,
+  resolveDynamicField as resolveDynamicFieldFromCtx,
+} from "@/features/proposal-context/resolve-block-from-context";
 
 interface Props {
   block: DocumentBlock;
@@ -35,6 +42,12 @@ interface Props {
   template: ProposalTemplate | null;
   assets: TemplateAsset[];
   proposalContext: ProposalDynamicContext;
+  /**
+   * Contexto unificado da proposta (Etapa 2 da migração). Quando presente, os
+   * blocos usam-no como fallback para campos vazios. `block.data` continua a
+   * vencer — modo híbrido.
+   */
+  documentContext?: ProposalDocumentContext | null;
   proposalId?: string;
   pageId?: string;
   pageTitle?: string;
@@ -67,6 +80,7 @@ export function BlockRenderer({
   template,
   assets,
   proposalContext,
+  documentContext,
   proposalId,
   pageId,
   pageTitle,
@@ -290,6 +304,7 @@ export function BlockRenderer({
           template={template}
           assets={assets}
           proposalContext={proposalContext}
+          documentContext={documentContext}
           proposalId={proposalId}
           pageId={pageId}
           pageTitle={pageTitle}
@@ -308,6 +323,7 @@ function BlockBody({
   template,
   assets,
   proposalContext,
+  documentContext,
   proposalId,
   pageId,
   pageTitle,
@@ -320,6 +336,7 @@ function BlockBody({
   template: ProposalTemplate | null;
   assets: TemplateAsset[];
   proposalContext: ProposalDynamicContext;
+  documentContext?: ProposalDocumentContext | null;
   proposalId?: string;
   pageId?: string;
   pageTitle?: string;
@@ -579,6 +596,18 @@ function BlockBody({
       const usedKeys = new Set(fields.map(([k]) => k));
       const suggestions = SUGGESTED_FIELDS[block.type] ?? [];
       const available = suggestions.filter((s) => !usedKeys.has(s.key));
+      // Resolução híbrida (Etapa 2): para campos vazios, sugerir valor do
+      // contexto central como placeholder. block.data continua a vencer; o
+      // usuário pode dar duplo clique no campo vazio para materializar a
+      // sugestão. Não muta dados salvos automaticamente.
+      const ctxResolved: Record<string, string | null> =
+        block.type === "client_info_box" || block.type === "client_info"
+          ? (resolveClientBox({}, documentContext) as Record<string, string | null>)
+          : block.type === "project_info_box" || block.type === "project_info"
+            ? (resolveProjectBox({}, documentContext) as Record<string, string | null>)
+            : block.type === "responsible_info_box" || block.type === "responsible_info"
+              ? (resolveResponsibleBox({}, documentContext) as Record<string, string | null>)
+              : {};
       return (
         <div className="space-y-2">
           <div className="flex items-center justify-between gap-2">
@@ -601,13 +630,22 @@ function BlockBody({
             </p>
           ) : (
             <div className="space-y-1.5">
-              {fields.map(([key, value]) => (
+              {fields.map(([key, value]) => {
+                const manualStr = String(value ?? "");
+                const suggestion = ctxResolved[key] ?? null;
+                const isEmpty = manualStr.trim() === "";
+                return (
                 <div key={key} className="grid grid-cols-[120px_1fr_auto] gap-2">
                   <span className="text-xs opacity-70">{labelForField(block.type, key)}</span>
                   <Input
-                    value={String(value ?? "")}
+                    value={manualStr}
                     disabled={locked}
+                    placeholder={suggestion ?? undefined}
+                    title={isEmpty && suggestion ? `Sugestão da proposta: ${suggestion} (duplo clique para usar)` : undefined}
                     onChange={(e) => setData({ [key]: e.target.value })}
+                    onDoubleClick={() => {
+                      if (!locked && isEmpty && suggestion) setData({ [key]: suggestion });
+                    }}
                     className="h-7 text-xs"
                   />
                   {!locked ? (
@@ -626,7 +664,8 @@ function BlockBody({
                     </Button>
                   ) : null}
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -885,7 +924,8 @@ function BlockBody({
     case "dynamic_field": {
       const fieldKey = (block.data.fieldKey as string) ?? "";
       const label = (block.data.label as string) ?? labelize(fieldKey);
-      const value = resolveDynamicField(fieldKey, proposalContext, template);
+      const legacyValue = resolveDynamicField(fieldKey, proposalContext, template);
+      const value = legacyValue || resolveDynamicFieldFromCtx(fieldKey, documentContext) || "";
       const hasCustomFs = typeof block.data.fontSize === "number";
       return (
         <div className="group/df relative flex h-full items-center leading-tight">

@@ -39,6 +39,7 @@ import {
 import type { DocumentPage } from "@/integrations/proposal-editor/types";
 import type { ProposalTemplate, TemplateAsset } from "@/integrations/proposal-editor/template.types";
 import type { ProposalDynamicContext } from "@/components/proposal-editor/BlockRenderer";
+import { useProposalDocumentContext } from "@/features/proposal-context/use-proposal-document-context";
 import { PageSidebar } from "@/components/proposal-editor/PageSidebar";
 // (Paleta global removida — agora a paleta é contextual por página, dentro de PageSidebar.)
 import { ProposalCanvas } from "@/components/proposal-editor/ProposalCanvas";
@@ -111,10 +112,31 @@ function ProposalEditorPage() {
     enabled: !!templateId,
   });
 
-  // Carrega contexto dinâmico da proposta para placeholders
+  // Etapa 2: contexto unificado da proposta. Substitui (e supera) a query
+  // ad-hoc anterior — fornece campos extras (validade, telefone, site, e-mail
+  // da empresa, etc.) sem cada bloco precisar buscar separadamente.
+  const { data: documentContext } = useProposalDocumentContext(id);
+
+  // Mantemos `ctxData` (ProposalDynamicContext legado) por compatibilidade
+  // com blocos antigos. Agora derivado do contexto central — quando este não
+  // estiver pronto, caímos para um fetch mínimo direto.
   const { data: ctxData } = useQuery({
-    queryKey: ["proposal-dynamic-context", id],
+    queryKey: ["proposal-dynamic-context", id, documentContext?.built_at ?? null],
     queryFn: async () => {
+      if (documentContext) {
+        return {
+          proposal_number: documentContext.proposal.numero,
+          proposal_title: documentContext.proposal.titulo,
+          client_name:
+            documentContext.cliente.fantasia ?? documentContext.cliente.nome,
+          data_emissao: documentContext.proposal.data_emissao,
+          validade: documentContext.proposal.validade,
+          vendedor: documentContext.vendedor.nome,
+          empresa_telefone: documentContext.empresa.telefone,
+          empresa_site: documentContext.empresa.site,
+          empresa_email: documentContext.empresa.email,
+        } satisfies ProposalDynamicContext;
+      }
       const { data: p } = await supabase
         .from("proposals")
         .select("number,client_id,nomus_seller_name,clients(name)")
@@ -560,6 +582,7 @@ function ProposalEditorPage() {
             template={bundleData?.template ?? null}
             assets={bundleData?.assets ?? []}
             proposalContext={ctxData ?? {}}
+            documentContext={documentContext ?? null}
             selectedBlockId={selectedBlockId}
             onSelectBlock={setSelectedBlockId}
             onSelect={setSelectedId}

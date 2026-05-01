@@ -16,6 +16,7 @@ import {
 } from "@/integrations/proposal-editor/types";
 import type { ProposalTemplate, TemplateAsset } from "@/integrations/proposal-editor/template.types";
 import { BlockRenderer, type ProposalDynamicContext } from "./BlockRenderer";
+import type { ProposalDocumentContext } from "@/features/proposal-context/document-context.types";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -55,6 +56,8 @@ interface Props {
   template: ProposalTemplate | null;
   assets: TemplateAsset[];
   proposalContext: ProposalDynamicContext;
+  /** Contexto unificado da proposta (Etapa 2). Opcional para back-compat. */
+  documentContext?: ProposalDocumentContext | null;
   selectedBlockId: string | null;
   proposalId: string;
   documentFontFamily?: string;
@@ -100,6 +103,7 @@ export function ProposalCanvas({
   template,
   assets,
   proposalContext,
+  documentContext,
   selectedBlockId,
   proposalId,
   documentFontFamily,
@@ -594,7 +598,8 @@ export function ProposalCanvas({
                         selected={selected}
                         template={template}
                         assets={assets}
-                        proposalContext={proposalContext}
+                       proposalContext={proposalContext}
+                       documentContext={documentContext}
                         proposalId={proposalId}
                         pageId={page.id}
                         pageTitle={page.title}
