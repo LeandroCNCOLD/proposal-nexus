@@ -1,58 +1,65 @@
-## Plano unificado — preços por código em todas as telas
+## Objetivo
 
-Hoje a regra de "achar tabelas pelo código do produto" funciona na **listagem de itens da proposta** (já corrigido), mas a aba **Preços** dentro do diálogo de detalhe do item ainda usa o id/UUID interno e por isso aparece "Nenhum preço cadastrado". O objetivo é unificar: **um único critério de matching (`product_code`)** alimentando tanto a listagem quanto o diálogo, e enriquecer a aba Preços para mostrar todas as tabelas encontradas com UF/ICMS.
+Trocar a regra de seleção automática da tabela de preço para seguir esta ordem:
 
----
+1. **Filtrar por UF** do cliente — só considera tabelas que cobrem o estado.
+2. **Escolher a tabela com `unitPrice` mais próximo** do preço unitário do item (vindo do Nomus).
+3. **Selecionar essa tabela** e **preencher todos os campos** dependentes (tabela unit., tabela total, desconto, % desconto) automaticamente.
 
-## Causa raiz
+## Fluxo detalhado
 
-Em `nomus_price_table_items`, a coluna `nomus_product_id` na verdade guarda o **código do produto** (ex.: `CN-030-LT-EV-6-22T-NA`) — não o UUID interno do Nomus.
+Para cada item da proposta, ao auto-aplicar:
 
-- Listagem da proposta: já usa `product_code` ✅
-- Diálogo "Preços" do item: ainda usa `item.nomus_product_id` ❌ (linha 2040 de `src/integrations/nomus/server.functions.ts`)
+1. Pegar `clientUf` (estado da proposta) e `item.unitPrice` (preço Nomus).
+2. **Etapa UF**: filtrar tabelas ativas onde `tabela.ufs` inclui a UF do cliente.
+3. **Etapa preço mais próximo** (dentre as compatíveis com a UF):
+   - Considerar apenas as que têm `unitPrice != null`.
+   - Calcular `|tabela.unitPrice − item.unitPrice|`.
+   - Selecionar a de **menor diferença absoluta**.
+   - Tie-break em caso de empate exato: menor ICMS → mais recente (`syncedAt`).
+4. **Etapa preencher campos**: persistir tabela escolhida + snapshot do `unitPrice` da tabela. Os campos derivados (tabela total = `unitPrice × quantidade`, desconto = `tabela_total − total_item`, % = `desconto / tabela_total`) já são calculados na grid a partir do snapshot.
 
----
+### Fallbacks (quando a etapa 1 ou 2 não encontra nada)
 
-## Mudanças
+- **Sem UF cadastrada no cliente** ou **nenhuma tabela cobre a UF**: usar todas as tabelas ativas e aplicar a etapa 2 (preço mais próximo) global.
+- **Nenhuma tabela tem `unitPrice` cadastrado**: cair na regra antiga (menor ICMS → mais recente).
+- **Item sem `unitPrice` válido (≤ 0 ou nulo)**: cair na regra antiga (UF + menor ICMS → menor ICMS → mais recente). Sem preço de referência, não dá pra comparar proximidade.
 
-### 1. `src/integrations/nomus/server.functions.ts` — `nomusGetItemDetail`
+## Mudanças técnicas
 
-Na seção "5) Preços do produto em todas as tabelas de preço (Nomus)":
+### 1. `src/features/price-table-picker/select-table-for-item.ts`
+- Adicionar parâmetro `itemUnitPrice: number | null` em `selectTableForItem`.
+- Adicionar novos `MatchMethod`:
+  - `"auto_uf_closest_price"` (UF + preço mais próximo — caso ideal)
+  - `"auto_closest_price"` (preço mais próximo, UF não coberta — fallback)
+- Nova ordem de prioridade:
+  1. UF compatível + tabelas com `unitPrice` → menor `|diff|` → `auto_uf_closest_price`.
+  2. Sem UF compatível, mas há tabelas com `unitPrice` → menor `|diff|` global → `auto_closest_price`.
+  3. Item sem `unitPrice` válido → mantém regras antigas (UF + menor ICMS → menor ICMS → mais recente).
+  4. Último fallback: tabela mais recente (`auto_latest`).
 
-- Trocar a chave de busca: usar `item.product_code` como prioridade; cair para `item.nomus_product_id` apenas como fallback (compatibilidade com itens antigos onde `product_code` esteja nulo).
-- Estender o `select` em `nomus_price_tables` para trazer também `ufs` (array) e qualquer coluna adicional útil para a UI (`is_active`, `currency`, `code`, `name`, `nomus_id` já vêm). O ICMS continua sendo derivado do nome via regex no cliente — mesma lógica que a listagem usa, sem coluna nova.
-- Ordenar resultado por `is_active desc, unit_price asc` para apresentação consistente.
+### 2. `src/features/price-table-picker/use-item-price-tables.ts`
+- Em `applyAuto`, passar `item.unitPrice` para `selectTableForItem`.
 
-### 2. `src/components/NomusItemDetailDialog.tsx` — aba "Preços" enriquecida
+### 3. `src/features/price-table-picker/price-table-picker.functions.ts`
+- Estender o enum Zod de `matchMethod` no `setProposalItemPriceTable` para aceitar `"auto_uf_closest_price"` e `"auto_closest_price"`.
 
-A `PrecosSection` hoje mostra Tabela / Código / Moeda / Preço / Status. Agora que vão aparecer várias tabelas para o mesmo código, vamos enriquecer:
+### 4. `src/components/NomusProposalDetail.tsx`
+- Em `shouldRefreshAuto` (linhas ~218–223), incluir os métodos antigos (`auto_uf_min_icms`, `auto_min_icms`, `auto_uf_max_icms`, `auto_max_icms`, `auto_latest`) **e** os novos no recheck, para que itens já marcados sejam reavaliados ao recarregar a proposta com a nova regra.
+- Passar `itemUnitPrice={it.unitPrice}` para o `<PerItemPriceTablePicker>` (para destacar a tabela mais próxima na lista).
 
-- Nova coluna **UF** — lista as UFs cobertas pela tabela (truncada se passar de 4: "SP, RJ, MG, +3").
-- Nova coluna **ICMS %** — extraído do nome da tabela com a mesma regex já existente (`/ICMS\s*([0-9]+(?:[.,][0-9]+)?)/i`); mostra "—" quando não detectável.
-- Linha em destaque (`bg-primary/5` + badge "aplicada") para a tabela cujo `price_table_id` corresponde à atualmente selecionada no item da proposta — comparação por id, não por preço (evita falso positivo quando duas tabelas têm o mesmo valor).
-- Pequeno cabeçalho informativo: "X tabelas encontradas para o código `CN-…` · UF do cliente: SP" — ajuda o vendedor a auditar visualmente.
+### 5. `src/features/price-table-picker/PerItemPriceTablePicker.tsx`
+- Aceitar prop opcional `itemUnitPrice: number | null`.
+- Reordenar a lista do popover: dentro do grupo "compatíveis com UF", ordenar por proximidade do `itemUnitPrice` (ao invés de menor ICMS).
+- Trocar o chip "Menor ICMS" por **"Mais próximo"** quando `itemUnitPrice` está disponível.
+- Em `MatchMethodChip`, adicionar rótulos:
+  - `auto_uf_closest_price` → "Sugerida por UF · preço mais próximo"
+  - `auto_closest_price` → "UF não coberta · preço mais próximo"
 
-Para que o destaque por id funcione, o `PrefillItem` precisa expor `price_table_id` (hoje só tem `unit_price`). Ajuste:
+## Banco de dados
 
-- Adicionar `price_table_id?: string | null` ao tipo `PrefillItem`.
-- Em `NomusProposalDetail.tsx`, ao montar o `prefill` passado ao `NomusItemDetailDialog`, incluir o `price_table_id` vindo de `localItemsByNomusId[...]`.
+Não exige migração: `price_table_match_method` é `text` livre. Só atualizamos o enum Zod no server function.
 
-### 3. Sem migração de schema
+## Por que isso resolve o que está faltando
 
-Todos os dados já existem em `nomus_price_table_items` e `nomus_price_tables`. É só corrigir o filtro do servidor e enriquecer a renderização do diálogo.
-
----
-
-## Arquivos editados
-
-- `src/integrations/nomus/server.functions.ts` — corrigir filtro de `nomus_price_table_items` (usar `product_code`) e estender `select`.
-- `src/components/NomusItemDetailDialog.tsx` — enriquecer `PrecosSection` (colunas UF/ICMS, destaque por id, cabeçalho informativo) e tipo `PrefillItem`.
-- `src/components/NomusProposalDetail.tsx` — passar `price_table_id` no `prefill` para o diálogo.
-
-## Resultado esperado
-
-Em qualquer item da proposta (ex.: `CN-030-LT-EV-6-22T-NA`) → aba **Preços**:
-
-- Lista todas as tabelas que contêm aquele código, com UF, ICMS %, moeda, preço e status.
-- A tabela atualmente aplicada na proposta aparece destacada como "aplicada".
-- A regra "matching pelo código" passa a ser **uma só** em todo o sistema (listagem + diálogo).
+Hoje os campos "tabela unit.", "tabela total", "desconto", "% desconto" não aparecem porque a tabela escolhida pela regra antiga (menor ICMS) tem um `unitPrice` muito distante do preço do Nomus, então o vendedor enxerga a tabela "errada" e os números ficam desconectados. Ao casar pela proximidade de preço dentro da mesma UF, a tabela escolhida bate com o preço do item — e os campos derivados passam a fazer sentido imediatamente.
