@@ -543,6 +543,15 @@ export const generateProposalPdf = createServerFn({ method: "POST" })
     const cliente = (proposal as any).clients;
     const revCtx = await loadRevisionContext(supabase, proposal.id, proposal.title);
 
+    // Etapa 3: contexto unificado da proposta — fonte enriquecida para o PDF.
+    // Best-effort: se falhar, segue com os dados básicos antigos.
+    let docContext: ProposalDocumentContext | null = null;
+    try {
+      docContext = await buildProposalDocumentContext(supabase, proposalId);
+    } catch (err) {
+      console.warn("[generateProposalPdf] buildProposalDocumentContext falhou:", (err as Error).message);
+    }
+
     const baseBuffer = await renderToBuffer(
       ProposalPdfDocument({
         data: {
@@ -550,9 +559,18 @@ export const generateProposalPdf = createServerFn({ method: "POST" })
             id: proposal.id,
             number: proposal.number,
             title: proposal.title,
-            valid_until: proposal.valid_until,
+            valid_until: proposal.valid_until ?? docContext?.proposal.validade ?? null,
             created_at: proposal.created_at,
-            client_name: cliente?.trade_name ?? cliente?.name ?? null,
+            client_name:
+              cliente?.trade_name ??
+              cliente?.name ??
+              docContext?.cliente.fantasia ??
+              docContext?.cliente.nome ??
+              null,
+            vendedor: docContext?.vendedor.nome ?? null,
+            empresa_telefone: docContext?.empresa.telefone ?? null,
+            empresa_email: docContext?.empresa.email ?? null,
+            empresa_site: docContext?.empresa.site ?? null,
             revision: revCtx.revision,
             revision_history: revCtx.history,
           },
