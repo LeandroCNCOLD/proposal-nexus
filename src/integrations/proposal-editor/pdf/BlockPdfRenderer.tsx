@@ -9,6 +9,7 @@ import type { PdfStyles, PdfTheme } from "./styles";
 import { fmtCurrency, fmtDateBR, fmtNumber } from "./utils";
 import { renderRichHtml } from "./rich-text";
 import { layoutToPdfBoxStyle } from "../box-style";
+import { resolveProposalVariable, type ProposalDocumentContext } from "../document-context";
 
 interface BlockRenderContext {
   styles: PdfStyles;
@@ -23,10 +24,11 @@ interface BlockRenderContext {
     client_name?: string | null;
     created_at?: string | null;
   };
+  proposalContext?: ProposalDocumentContext;
 }
 
 export function renderBlock(block: DocumentBlock, ctx: BlockRenderContext): React.ReactNode {
-  const { styles, theme, template, tablesByPage, pageId, proposal } = ctx;
+  const { styles, theme, template, tablesByPage, pageId, proposal, proposalContext } = ctx;
   const key = block.id;
 
   switch (block.type) {
@@ -38,8 +40,7 @@ export function renderBlock(block: DocumentBlock, ctx: BlockRenderContext): Reac
       const borderColor = (block.data.borderColor as string | undefined) ?? "#cbd5e1";
       const borderWidth = (block.data.borderWidth as number | undefined) ?? 1;
       const radius = (block.data.radius as number | undefined) ?? 6;
-      const backgroundColor =
-        (block.data.backgroundColor as string | undefined) ?? undefined;
+      const backgroundColor = (block.data.backgroundColor as string | undefined) ?? undefined;
       return (
         <View
           key={key}
@@ -96,9 +97,20 @@ export function renderBlock(block: DocumentBlock, ctx: BlockRenderContext): Reac
       );
     }
 
+    case "dynamic_field": {
+      const fieldKey = (block.data.fieldKey as string) ?? "";
+      const label = (block.data.label as string) ?? labelize(fieldKey);
+      const value = resolveProposalVariable(fieldKey, proposalContext);
+      return (
+        <View key={key} style={styles.kvRow}>
+          <Text style={styles.kvLabel}>{label}</Text>
+          <Text style={styles.kvValue}>{value}</Text>
+        </View>
+      );
+    }
+
     case "key_value_list": {
-      const items =
-        (block.data.items as Array<{ label: string; value: string }> | undefined) ?? [];
+      const items = (block.data.items as Array<{ label: string; value: string }> | undefined) ?? [];
       if (items.length === 0) return null;
       return (
         <View key={key} style={styles.kvList}>
@@ -206,9 +218,7 @@ export function renderBlock(block: DocumentBlock, ctx: BlockRenderContext): Reac
           <Text style={{ fontSize: 9, color: theme.muted }}>
             {template?.empresa_nome ?? "Responsável Comercial"}
           </Text>
-          <Text style={{ fontSize: 9, color: theme.muted }}>
-            {template?.empresa_email ?? ""}
-          </Text>
+          <Text style={{ fontSize: 9, color: theme.muted }}>{template?.empresa_email ?? ""}</Text>
         </View>
       );
     }
@@ -237,28 +247,55 @@ export function renderBlock(block: DocumentBlock, ctx: BlockRenderContext): Reac
 
       // Mapa de chaves de valor → valor real da proposta para o PDF.
       const proposalValues: Record<string, string> = {
-        client_name: proposal?.client_name ?? "",
-        proposal_title: proposal?.title ?? "",
-        proposal_number: proposal?.number ?? "",
-        data_emissao: proposal?.created_at ? fmtDateBR(proposal.created_at) : "",
-        validade: "",
-        vendedor: (block.data.responsavel as string | undefined) ?? "",
-        empresa_telefone: template?.empresa_telefone ?? "",
-        empresa_email: template?.empresa_email ?? "",
-        empresa_site: template?.empresa_site ?? "",
+        client_name:
+          resolveProposalVariable("client.name", proposalContext, { fallback: "" }) ||
+          (proposal?.client_name ?? ""),
+        proposal_title:
+          resolveProposalVariable("proposal.title", proposalContext, { fallback: "" }) ||
+          (proposal?.title ?? ""),
+        proposal_number:
+          resolveProposalVariable("proposal.number", proposalContext, { fallback: "" }) ||
+          (proposal?.number ?? ""),
+        data_emissao:
+          resolveProposalVariable("proposal.data_emissao", proposalContext, { fallback: "" }) ||
+          (proposal?.created_at ? fmtDateBR(proposal.created_at) : ""),
+        validade: resolveProposalVariable("proposal.valid_until", proposalContext, {
+          fallback: "",
+        }),
+        vendedor:
+          resolveProposalVariable("seller.name", proposalContext, { fallback: "" }) ||
+          ((block.data.responsavel as string | undefined) ?? ""),
+        empresa_telefone:
+          resolveProposalVariable("company.phone", proposalContext, { fallback: "" }) ||
+          (template?.empresa_telefone ?? ""),
+        empresa_email:
+          resolveProposalVariable("company.email", proposalContext, { fallback: "" }) ||
+          (template?.empresa_email ?? ""),
+        empresa_site:
+          resolveProposalVariable("company.site", proposalContext, { fallback: "" }) ||
+          (template?.empresa_site ?? ""),
       };
 
       const items = customFields
         ? customFields.map((f) => ({
             key: f.key,
             label: f.label,
-            value: f.value !== undefined ? f.value : f.valueKey ? proposalValues[f.valueKey] ?? "" : "",
+            value:
+              f.value !== undefined
+                ? f.value
+                : f.valueKey
+                  ? (proposalValues[f.valueKey] ?? "")
+                  : "",
           }))
         : [
             { key: "cliente", label: "Cliente:", value: proposal?.client_name ?? "" },
             { key: "projeto", label: "Projeto:", value: proposal?.title ?? "" },
             { key: "proposta", label: "Proposta:", value: proposal?.number ?? "" },
-            { key: "data", label: "Data:", value: proposal?.created_at ? fmtDateBR(proposal.created_at) : "" },
+            {
+              key: "data",
+              label: "Data:",
+              value: proposal?.created_at ? fmtDateBR(proposal.created_at) : "",
+            },
             {
               key: "responsavel",
               label: "Responsável Comercial:",
@@ -271,10 +308,13 @@ export function renderBlock(block: DocumentBlock, ctx: BlockRenderContext): Reac
           }));
       // Aplica configuração avançada de caixa do BoxStyleEditor (fundo, opacidade, borda, raio).
       // Mantém compatibilidade com o legado layout.background.
-      const layout = block.data.layout as
-        | (import("../types").BlockLayout | undefined);
+      const layout = block.data.layout as import("../types").BlockLayout | undefined;
       const advancedHas =
-        !!layout && (layout.bgMode !== undefined || layout.borderWidth !== undefined || layout.borderRadius !== undefined || layout.bgOpacity !== undefined);
+        !!layout &&
+        (layout.bgMode !== undefined ||
+          layout.borderWidth !== undefined ||
+          layout.borderRadius !== undefined ||
+          layout.bgOpacity !== undefined);
       const boxStyle = advancedHas
         ? layoutToPdfBoxStyle(layout, template?.primary_color ?? undefined)
         : (() => {
@@ -285,24 +325,21 @@ export function renderBlock(block: DocumentBlock, ctx: BlockRenderContext): Reac
       return (
         <View
           key={key}
-          style={{
-            width: "100%",
-            padding: 6,
-            gap: 4,
-            ...(boxStyle as Record<string, unknown>),
-          } as never}
+          style={
+            {
+              width: "100%",
+              padding: 6,
+              gap: 4,
+              ...(boxStyle as Record<string, unknown>),
+            } as never
+          }
         >
           {items.map((it) => (
-            <View
-              key={it.key}
-              style={{ flexDirection: "row", gap: 6, alignItems: "flex-start" }}
-            >
+            <View key={it.key} style={{ flexDirection: "row", gap: 6, alignItems: "flex-start" }}>
               <Text style={{ fontSize: 10, fontFamily: "Helvetica-Bold", color: theme.text }}>
                 {it.label}
               </Text>
-              <Text style={{ fontSize: 10, color: theme.text, flex: 1 }}>
-                {it.value || "—"}
-              </Text>
+              <Text style={{ fontSize: 10, color: theme.text, flex: 1 }}>{it.value || "—"}</Text>
             </View>
           ))}
         </View>
@@ -318,7 +355,6 @@ export function renderBlock(block: DocumentBlock, ctx: BlockRenderContext): Reac
   }
 }
 
-
 function renderTable(
   key: string,
   title: string | undefined,
@@ -327,13 +363,14 @@ function renderTable(
 ): React.ReactNode {
   const { styles, theme } = ctx;
   const settings = table.settings ?? {};
-  const columns = (settings.columns as Array<{
-    key: string;
-    label: string;
-    type?: string;
-    width?: number;
-    align?: string;
-  }>) ?? [];
+  const columns =
+    (settings.columns as Array<{
+      key: string;
+      label: string;
+      type?: string;
+      width?: number;
+      align?: string;
+    }>) ?? [];
 
   if (columns.length === 0) {
     return (
@@ -348,7 +385,7 @@ function renderTable(
   const sumColumns = (settings.sum_columns as string[]) ?? [];
   const showGrandTotal = settings.show_grand_total === true;
 
-  const formatCell = (col: typeof columns[number], value: unknown): string => {
+  const formatCell = (col: (typeof columns)[number], value: unknown): string => {
     if (value === null || value === undefined || value === "") return "—";
     if (col.type === "currency") return fmtCurrency(value);
     if (col.type === "number") return fmtNumber(value, 0);
@@ -365,9 +402,7 @@ function renderTable(
 
   return (
     <View key={key} style={{ marginVertical: 6 }}>
-      {(title || table.title) ? (
-        <Text style={styles.blockTitle}>{title ?? table.title}</Text>
-      ) : null}
+      {title || table.title ? <Text style={styles.blockTitle}>{title ?? table.title}</Text> : null}
       <View style={styles.table}>
         {showHeader ? (
           <View style={styles.tableHeader}>
@@ -388,10 +423,7 @@ function renderTable(
           </View>
         ) : null}
         {table.rows.map((row, i) => (
-          <View
-            key={i}
-            style={[styles.tableRow, i % 2 === 1 ? styles.tableRowAlt : {}]}
-          >
+          <View key={i} style={[styles.tableRow, i % 2 === 1 ? styles.tableRowAlt : {}]}>
             {columns.map((c) => (
               <Text
                 key={c.key}
@@ -416,7 +448,7 @@ function renderTable(
               const value = isSum
                 ? fmtCurrency(totals[c.key])
                 : isFirst
-                  ? (settings.grand_total_label as string) ?? "Total"
+                  ? ((settings.grand_total_label as string) ?? "Total")
                   : "";
               return (
                 <Text
@@ -442,7 +474,5 @@ function renderTable(
 }
 
 function labelize(key: string): string {
-  return key
-    .replace(/_/g, " ")
-    .replace(/\b\w/g, (m) => m.toUpperCase());
+  return key.replace(/_/g, " ").replace(/\b\w/g, (m) => m.toUpperCase());
 }

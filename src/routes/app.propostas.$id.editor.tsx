@@ -2,7 +2,17 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, Save, Loader2, Sparkles, RotateCcw, Eye, FileCheck, BookmarkPlus, LayoutTemplate } from "lucide-react";
+import {
+  ArrowLeft,
+  Save,
+  Loader2,
+  Sparkles,
+  RotateCcw,
+  Eye,
+  FileCheck,
+  BookmarkPlus,
+  LayoutTemplate,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,6 +31,7 @@ import {
   upsertProposalDocument,
   setProposalDocumentTemplate,
   createProposalEditorSnapshot,
+  getProposalDocumentContext,
   autoFillFromNomus,
   generateProposalPdf,
   createProposalSendVersion,
@@ -38,7 +49,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { DocumentPage } from "@/integrations/proposal-editor/types";
-import type { ProposalTemplate, TemplateAsset } from "@/integrations/proposal-editor/template.types";
+import type {
+  ProposalTemplate,
+  TemplateAsset,
+} from "@/integrations/proposal-editor/template.types";
 import type { ProposalDynamicContext } from "@/components/proposal-editor/BlockRenderer";
 import { PageSidebar } from "@/components/proposal-editor/PageSidebar";
 // (Paleta global removida — agora a paleta é contextual por página, dentro de PageSidebar.)
@@ -66,6 +80,7 @@ function ProposalEditorPage() {
   const saveDoc = useServerFn(upsertProposalDocument);
   const setTpl = useServerFn(setProposalDocumentTemplate);
   const createSnapshot = useServerFn(createProposalEditorSnapshot);
+  const getDocContext = useServerFn(getProposalDocumentContext);
   const autoFill = useServerFn(autoFillFromNomus);
   const genPdf = useServerFn(generateProposalPdf);
   const createVersion = useServerFn(createProposalSendVersion);
@@ -83,7 +98,9 @@ function ProposalEditorPage() {
     queryFn: () => listTpls(),
   });
 
-  const tplsList = (tplsData ?? {}) as { templates?: Array<{ id: string; name: string; is_default: boolean }> };
+  const tplsList = (tplsData ?? {}) as {
+    templates?: Array<{ id: string; name: string; is_default: boolean }>;
+  };
 
   const doc = data?.document;
   const templateId = (doc as { template_id?: string | null } | undefined)?.template_id ?? null;
@@ -104,9 +121,8 @@ function ProposalEditorPage() {
         .eq("template_id", templateId);
       const assets: TemplateAsset[] = (assetRows ?? []).map((a) => ({
         ...(a as unknown as TemplateAsset),
-        url: supabase.storage
-          .from("proposal-template-assets")
-          .getPublicUrl(a.storage_path).data.publicUrl,
+        url: supabase.storage.from("proposal-template-assets").getPublicUrl(a.storage_path).data
+          .publicUrl,
       }));
       return { template: tpl as unknown as ProposalTemplate | null, assets };
     },
@@ -117,17 +133,10 @@ function ProposalEditorPage() {
   const { data: ctxData } = useQuery({
     queryKey: ["proposal-dynamic-context", id],
     queryFn: async () => {
-      const { data: p } = await supabase
-        .from("proposals")
-        .select("number,client_id,nomus_seller_name,clients(name)")
-        .eq("id", id)
-        .maybeSingle();
-      const clientName =
-        (p as { clients?: { name?: string } | null } | null)?.clients?.name ?? null;
+      const res = await getDocContext({ data: { proposalId: id } });
       return {
-        proposal_number: (p as { number?: string } | null)?.number ?? null,
-        client_name: clientName,
-        vendedor: (p as { nomus_seller_name?: string } | null)?.nomus_seller_name ?? null,
+        ...res.context.legacy,
+        documentContext: res.context,
       } satisfies ProposalDynamicContext;
     },
   });
@@ -137,7 +146,9 @@ function ProposalEditorPage() {
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
   const [docFontFamily, setDocFontFamily] = useState<string>(
-    () => (typeof window !== "undefined" && localStorage.getItem(`docFont:${id}`)) || "Inter, system-ui, sans-serif",
+    () =>
+      (typeof window !== "undefined" && localStorage.getItem(`docFont:${id}`)) ||
+      "Inter, system-ui, sans-serif",
   );
   const [pageSize, setPageSize] = useState<DocumentPageSize>(() => {
     if (typeof window === "undefined") return DEFAULT_PAGE_SIZE;
@@ -347,10 +358,18 @@ function ProposalEditorPage() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Inter, system-ui, sans-serif" className="text-xs">Inter (sans)</SelectItem>
-                <SelectItem value="Helvetica, Arial, sans-serif" className="text-xs">Helvetica</SelectItem>
-                <SelectItem value="Georgia, 'Times New Roman', serif" className="text-xs">Georgia (serif)</SelectItem>
-                <SelectItem value="ui-monospace, SFMono-Regular, monospace" className="text-xs">Monospace</SelectItem>
+                <SelectItem value="Inter, system-ui, sans-serif" className="text-xs">
+                  Inter (sans)
+                </SelectItem>
+                <SelectItem value="Helvetica, Arial, sans-serif" className="text-xs">
+                  Helvetica
+                </SelectItem>
+                <SelectItem value="Georgia, 'Times New Roman', serif" className="text-xs">
+                  Georgia (serif)
+                </SelectItem>
+                <SelectItem value="ui-monospace, SFMono-Regular, monospace" className="text-xs">
+                  Monospace
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -397,11 +416,7 @@ function ProposalEditorPage() {
             <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
             Reprocessar
           </Button>
-          <Button
-            size="sm"
-            onClick={() => saveMut.mutate()}
-            disabled={!dirty || saveMut.isPending}
-          >
+          <Button size="sm" onClick={() => saveMut.mutate()} disabled={!dirty || saveMut.isPending}>
             {saveMut.isPending ? (
               <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
             ) : (
@@ -456,8 +471,8 @@ function ProposalEditorPage() {
                   />
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Salva páginas, posições, estilos, imagens de fundo e textos fixos.
-                  Campos dinâmicos continuam puxando dados da proposta.
+                  Salva páginas, posições, estilos, imagens de fundo e textos fixos. Campos
+                  dinâmicos continuam puxando dados da proposta.
                 </p>
               </div>
               <DialogFooter>
@@ -527,11 +542,7 @@ function ProposalEditorPage() {
             </DialogContent>
           </Dialog>
 
-          <Button
-            size="sm"
-            onClick={() => versionMut.mutate()}
-            disabled={versionMut.isPending}
-          >
+          <Button size="sm" onClick={() => versionMut.mutate()} disabled={versionMut.isPending}>
             {versionMut.isPending ? (
               <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
             ) : (

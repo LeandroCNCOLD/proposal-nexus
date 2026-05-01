@@ -2,7 +2,18 @@
 // inline no canvas A4, e seu container externo (ProposalCanvas) faz o
 // posicionamento absoluto + drag/resize via react-rnd.
 import { useMemo, useRef, useState } from "react";
-import { Trash2, Lock, Plus, Sparkles, Upload, Loader2, ChevronsUp, ChevronsDown, ChevronUp, ChevronDown } from "lucide-react";
+import {
+  Trash2,
+  Lock,
+  Plus,
+  Sparkles,
+  Upload,
+  Loader2,
+  ChevronsUp,
+  ChevronsDown,
+  ChevronUp,
+  ChevronDown,
+} from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { uploadInlineImage } from "@/integrations/proposal-editor/inline-images.functions";
 import { toast } from "sonner";
@@ -28,6 +39,10 @@ import { RichTextEditor } from "./RichTextEditor";
 import { BoxStyleEditor } from "./BoxStyleEditor";
 import { InlineTablePreview } from "./InlineTablePreview";
 import { layoutToBoxStyle } from "@/integrations/proposal-editor/box-style";
+import {
+  resolveProposalVariable,
+  type ProposalDynamicContext as CentralProposalDynamicContext,
+} from "@/integrations/proposal-editor/document-context";
 
 interface Props {
   block: DocumentBlock;
@@ -48,18 +63,8 @@ interface Props {
   onSendToBack: () => void;
 }
 
-/** Valores dinâmicos preenchidos a partir da proposta + Nomus. */
-export interface ProposalDynamicContext {
-  proposal_number?: string | null;
-  proposal_title?: string | null;
-  client_name?: string | null;
-  data_emissao?: string | null;
-  validade?: string | null;
-  vendedor?: string | null;
-  empresa_telefone?: string | null;
-  empresa_site?: string | null;
-  empresa_email?: string | null;
-}
+/** Compatibilidade: o contexto dinâmico agora é resolvido pelo contexto central. */
+export type ProposalDynamicContext = CentralProposalDynamicContext;
 
 export function BlockRenderer({
   block,
@@ -92,12 +97,11 @@ export function BlockRenderer({
   // Quando há configuração avançada (bgMode/borderWidth/etc), o estilo é aplicado
   // diretamente via inline-style, e desabilitamos as classes legadas para não conflitar.
   const hasAdvancedBox =
-    !!layout && (
-      layout.bgMode !== undefined ||
+    !!layout &&
+    (layout.bgMode !== undefined ||
       layout.borderWidth !== undefined ||
       layout.borderRadius !== undefined ||
-      layout.bgOpacity !== undefined
-    );
+      layout.bgOpacity !== undefined);
   const cardBg = useMemo(() => {
     if (hasAdvancedBox) return "";
     const bg = layout?.background ?? "transparent";
@@ -174,7 +178,9 @@ export function BlockRenderer({
                 key={a}
                 type="button"
                 className={`rounded px-1 text-[10px] ${
-                  (layout?.align ?? "left") === a ? "bg-primary text-primary-foreground" : "hover:bg-muted"
+                  (layout?.align ?? "left") === a
+                    ? "bg-primary text-primary-foreground"
+                    : "hover:bg-muted"
                 }`}
                 onClick={() => setData({ layout: { ...layout!, align: a } })}
                 title={`Alinhar ${a}`}
@@ -187,7 +193,9 @@ export function BlockRenderer({
                 key={s}
                 type="button"
                 className={`rounded px-1 text-[10px] ${
-                  (layout?.fontScale ?? 1) === s ? "bg-primary text-primary-foreground" : "hover:bg-muted"
+                  (layout?.fontScale ?? 1) === s
+                    ? "bg-primary text-primary-foreground"
+                    : "hover:bg-muted"
                 }`}
                 onClick={() => setData({ layout: { ...layout!, fontScale: s } })}
                 title={`Tamanho ${s}x`}
@@ -264,7 +272,8 @@ export function BlockRenderer({
               onClick={(e) => {
                 e.stopPropagation();
                 if (block.locked) {
-                  if (!window.confirm("Esta caixa está bloqueada. Deseja excluí-la mesmo assim?")) return;
+                  if (!window.confirm("Esta caixa está bloqueada. Deseja excluí-la mesmo assim?"))
+                    return;
                 }
                 onDelete?.();
               }}
@@ -337,8 +346,7 @@ function BlockBody({
       const borderColor = (block.data.borderColor as string | undefined) ?? "#cbd5e1";
       const borderWidth = (block.data.borderWidth as number | undefined) ?? 1;
       const radius = (block.data.radius as number | undefined) ?? 8;
-      const backgroundColor =
-        (block.data.backgroundColor as string | undefined) ?? "transparent";
+      const backgroundColor = (block.data.backgroundColor as string | undefined) ?? "transparent";
       // Quando "não imprimível", mostra apenas guia visual no editor (dashed),
       // sem borda/fundo reais — esta caixa não aparecerá no PDF final.
       const editorBorder = printVisible
@@ -355,9 +363,7 @@ function BlockBody({
           }}
         >
           {!printVisible ? (
-            <div
-              className="pointer-events-none absolute right-1 top-1 rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-amber-800"
-            >
+            <div className="pointer-events-none absolute right-1 top-1 rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-amber-800">
               Não imprime
             </div>
           ) : null}
@@ -444,7 +450,11 @@ function BlockBody({
             </p>
           ) : null}
           {url ? (
-            <img src={url} alt="" className="h-full max-h-full w-full max-w-full rounded border object-contain" />
+            <img
+              src={url}
+              alt=""
+              className="h-full max-h-full w-full max-w-full rounded border object-contain"
+            />
           ) : (
             <div className="flex h-32 items-center justify-center rounded border-2 border-dashed text-xs opacity-60">
               Sem imagem
@@ -469,7 +479,6 @@ function BlockBody({
         </div>
       );
     }
-
 
     case "key_value_list": {
       const items = (block.data.items as Array<{ label: string; value: string }> | undefined) ?? [];
@@ -589,10 +598,7 @@ function BlockBody({
               </p>
             </div>
             {!locked && available.length > 0 ? (
-              <FieldPicker
-                options={available}
-                onPick={(opt) => setData({ [opt.key]: "" })}
-              />
+              <FieldPicker options={available} onPick={(opt) => setData({ [opt.key]: "" })} />
             ) : null}
           </div>
           {fields.length === 0 ? (
@@ -645,7 +651,11 @@ function BlockBody({
               Proposta Nº:
             </span>
             <span
-              className={hasCustomFs ? "min-w-0 flex-1 truncate font-semibold" : "min-w-0 flex-1 truncate text-base font-semibold"}
+              className={
+                hasCustomFs
+                  ? "min-w-0 flex-1 truncate font-semibold"
+                  : "min-w-0 flex-1 truncate text-base font-semibold"
+              }
               style={{ color: "inherit", fontSize: hasCustomFs ? "1em" : undefined }}
             >
               {proposalContext.proposal_number ?? "—"}
@@ -660,7 +670,11 @@ function BlockBody({
                 Data:
               </span>
               <span
-                className={hasCustomFs ? "min-w-0 flex-1 truncate font-semibold" : "min-w-0 flex-1 truncate text-base font-semibold"}
+                className={
+                  hasCustomFs
+                    ? "min-w-0 flex-1 truncate font-semibold"
+                    : "min-w-0 flex-1 truncate text-base font-semibold"
+                }
                 style={{ color: "inherit", fontSize: hasCustomFs ? "1em" : undefined }}
               >
                 {proposalContext.data_emissao}
@@ -688,17 +702,18 @@ function BlockBody({
       const fields: SummaryField[] =
         (block.data.fields as SummaryField[] | undefined) ?? defaultFields;
 
-      const catalog: Array<{ key: string; label: string; valueKey: keyof ProposalDynamicContext }> = [
-        { key: "cliente", label: "Cliente:", valueKey: "client_name" },
-        { key: "projeto", label: "Projeto:", valueKey: "proposal_title" },
-        { key: "proposta", label: "Proposta:", valueKey: "proposal_number" },
-        { key: "data_emissao", label: "Data:", valueKey: "data_emissao" },
-        { key: "validade", label: "Validade:", valueKey: "validade" },
-        { key: "responsavel", label: "Responsável Comercial:", valueKey: "vendedor" },
-        { key: "telefone", label: "Telefone:", valueKey: "empresa_telefone" },
-        { key: "email", label: "E-mail:", valueKey: "empresa_email" },
-        { key: "site", label: "Site:", valueKey: "empresa_site" },
-      ];
+      const catalog: Array<{ key: string; label: string; valueKey: keyof ProposalDynamicContext }> =
+        [
+          { key: "cliente", label: "Cliente:", valueKey: "client_name" },
+          { key: "projeto", label: "Projeto:", valueKey: "proposal_title" },
+          { key: "proposta", label: "Proposta:", valueKey: "proposal_number" },
+          { key: "data_emissao", label: "Data:", valueKey: "data_emissao" },
+          { key: "validade", label: "Validade:", valueKey: "validade" },
+          { key: "responsavel", label: "Responsável Comercial:", valueKey: "vendedor" },
+          { key: "telefone", label: "Telefone:", valueKey: "empresa_telefone" },
+          { key: "email", label: "E-mail:", valueKey: "empresa_email" },
+          { key: "site", label: "Site:", valueKey: "empresa_site" },
+        ];
 
       const resolveValue = (f: SummaryField): string => {
         if (f.value !== undefined) return f.value;
@@ -897,7 +912,11 @@ function BlockBody({
               {label}:
             </span>
             <span
-              className={hasCustomFs ? "min-w-0 flex-1 truncate font-semibold" : "min-w-0 flex-1 truncate text-base font-semibold"}
+              className={
+                hasCustomFs
+                  ? "min-w-0 flex-1 truncate font-semibold"
+                  : "min-w-0 flex-1 truncate text-base font-semibold"
+              }
               style={{ color: "inherit", fontSize: hasCustomFs ? "1em" : undefined }}
               title={value || undefined}
             >
@@ -922,7 +941,8 @@ function BlockBody({
         (block.data.items as TemplateDiferencial[] | undefined) ??
         template?.sobre_diferenciais ??
         [];
-      const emptyText = (block.data.emptyText as string | undefined) ?? "Defina os diferenciais do template.";
+      const emptyText =
+        (block.data.emptyText as string | undefined) ?? "Defina os diferenciais do template.";
       return (
         <div className="h-full space-y-2 overflow-auto">
           {block.title ? (
@@ -949,7 +969,8 @@ function BlockBody({
     case "cases_list": {
       const items =
         (block.data.items as TemplateCaseItem[] | undefined) ?? template?.cases_itens ?? [];
-      const emptyText = (block.data.emptyText as string | undefined) ?? "Defina os cases no template.";
+      const emptyText =
+        (block.data.emptyText as string | undefined) ?? "Defina os cases no template.";
       return (
         <div className="h-full space-y-2 overflow-auto">
           {block.title ? (
@@ -993,9 +1014,7 @@ function BlockBody({
       return (
         <div className="rounded border border-dashed bg-muted/40 p-3 text-xs opacity-80">
           <p className="font-semibold">{block.title ?? blockKindLabel(block.type)}</p>
-          <p className="mt-1">
-            Tabela estruturada — abra a aba de tabelas para editar o conteúdo.
-          </p>
+          <p className="mt-1">Tabela estruturada — abra a aba de tabelas para editar o conteúdo.</p>
         </div>
       );
     }
@@ -1071,21 +1090,12 @@ function resolveDynamicField(
   ctx: ProposalDynamicContext,
   template: ProposalTemplate | null,
 ): string {
-  const map: Record<string, string | null | undefined> = {
-    proposal_number: ctx.proposal_number,
-    proposal_title: ctx.proposal_title,
-    client_name: ctx.client_name,
-    data_emissao: ctx.data_emissao,
-    data: ctx.data_emissao,
-    validade: ctx.validade,
-    vendedor: ctx.vendedor,
-    empresa_nome: template?.empresa_nome,
-    empresa_telefone: template?.empresa_telefone ?? ctx.empresa_telefone,
-    empresa_email: template?.empresa_email ?? ctx.empresa_email,
-    empresa_site: template?.empresa_site ?? ctx.empresa_site,
-    empresa_cidade: template?.empresa_cidade,
-  };
-  return (map[key] ?? "") || "";
+  if (key === "empresa_nome" && template?.empresa_nome) return template.empresa_nome;
+  if (key === "empresa_telefone" && template?.empresa_telefone) return template.empresa_telefone;
+  if (key === "empresa_email" && template?.empresa_email) return template.empresa_email;
+  if (key === "empresa_site" && template?.empresa_site) return template.empresa_site;
+  if (key === "empresa_cidade" && template?.empresa_cidade) return template.empresa_cidade;
+  return resolveProposalVariable(key, ctx);
 }
 
 function blockKindLabel(t: BlockType): string {
@@ -1203,11 +1213,7 @@ function FieldPicker({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="max-h-[60vh] overflow-y-auto">
         {options.map((opt) => (
-          <DropdownMenuItem
-            key={opt.key}
-            onClick={() => onPick(opt)}
-            className="text-xs"
-          >
+          <DropdownMenuItem key={opt.key} onClick={() => onPick(opt)} className="text-xs">
             {opt.label}
             <span className="ml-auto pl-3 font-mono text-[9px] opacity-50">{opt.key}</span>
           </DropdownMenuItem>
@@ -1277,17 +1283,10 @@ function ImageUploadButton({
       >
         {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Upload className="h-3 w-3" />}
       </Button>
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={onChange}
-      />
+      <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={onChange} />
     </>
   );
 }
-
 
 // Pequeno agrupador visual para a toolbar superior do bloco.
 // Renderiza um rótulo discreto acima dos controles para deixar claro
