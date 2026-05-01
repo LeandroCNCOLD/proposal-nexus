@@ -60,6 +60,7 @@ export function useItemPriceTables(opts: {
           currency: r.currency,
           syncedAt: r.syncedAt,
           isActive: r.isActive,
+          costs: r.costs,
         });
         map.set(r.nomusProductId, arr);
       }
