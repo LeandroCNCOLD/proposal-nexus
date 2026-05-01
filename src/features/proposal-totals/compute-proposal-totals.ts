@@ -220,6 +220,22 @@ export function computeProposalTotals(
 
   if (!hasSnapshots) {
     // Sem nenhum snapshot — devolve o que vier do Nomus (modo fallback).
+    const valorLiquidoFallback =
+      nomus?.valor_liquido != null
+        ? n(nomus.valor_liquido) - custoTaxaFinanceira
+        : null;
+    const lucroBrutoFallback =
+      nomus?.lucro_bruto != null
+        ? n(nomus.lucro_bruto) - custoTaxaFinanceira
+        : null;
+    const lucroAntesImpostosFallback =
+      nomus?.lucro_antes_impostos != null
+        ? n(nomus.lucro_antes_impostos) - custoTaxaFinanceira
+        : null;
+    const lucroLiquidoFallback =
+      nomus?.lucro_liquido != null
+        ? n(nomus.lucro_liquido) - custoTaxaFinanceira
+        : null;
     return {
       source: "fallback",
       hasSnapshots: false,
@@ -229,18 +245,20 @@ export function computeProposalTotals(
       agio_sobre_tabela: 0,
       valor_total_com_desconto:
         nomus?.valor_total_com_desconto ?? nomus?.valor_total ?? null,
-      valor_liquido: nomus?.valor_liquido ?? null,
+      valor_liquido: valorLiquidoFallback,
       custos_producao: nomus?.custos_producao ?? null,
       custos_materiais: nomus?.custos_materiais ?? null,
       custos_mod: nomus?.custos_mod ?? null,
       custos_cif: nomus?.custos_cif ?? null,
       custos_administrativos: nomus?.custos_administrativos ?? null,
-      lucro_bruto: nomus?.lucro_bruto ?? null,
-      lucro_antes_impostos: nomus?.lucro_antes_impostos ?? null,
-      lucro_liquido: nomus?.lucro_liquido ?? null,
+      lucro_bruto: lucroBrutoFallback,
+      lucro_antes_impostos: lucroAntesImpostosFallback,
+      lucro_liquido: lucroLiquidoFallback,
       margem_bruta_pct: nomus?.margem_bruta_pct ?? null,
       margem_liquida_pct: nomus?.margem_liquida_pct ?? null,
       impostos_total: impostos,
+      custo_taxa_financeira: custoTaxaFinanceira,
+      outras_despesas_total: outrasDespesas,
     };
   }
 
