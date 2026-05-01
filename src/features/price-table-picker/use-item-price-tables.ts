@@ -20,7 +20,12 @@ export function useItemPriceTables(opts: {
   /** itens da proposta — precisamos do id e do nomus_product_id */
   items: Array<{
     id: string;
+    nomusItemId: string | null;
     nomusProductId: string | null;
+    description: string;
+    quantity: number;
+    unitPrice: number;
+    position: number | null;
     priceTableId: string | null;
     priceTableSelectedAt: string | null;
     priceTableMatchMethod: string | null;
@@ -67,6 +72,7 @@ export function useItemPriceTables(opts: {
   const mutation = useMutation({
     mutationFn: async (input: {
       proposalItemId: string;
+      item: typeof opts.items[number];
       table: ItemPriceTable | null;
       method: MatchMethod;
       silent?: boolean;
@@ -74,9 +80,15 @@ export function useItemPriceTables(opts: {
       await save({
         data: {
           proposalItemId: input.proposalItemId,
+          proposalId: opts.proposalId,
+          nomusItemId: input.item.nomusItemId,
+          description: input.item.description,
+          quantity: input.item.quantity,
+          itemUnitPrice: input.item.unitPrice,
+          position: input.item.position,
           priceTableId: input.table?.id ?? null,
           priceTableName: input.table?.name ?? null,
-          unitPrice: input.table?.unitPrice ?? null,
+          priceTableUnitPrice: input.table?.unitPrice ?? null,
           matchMethod: input.method as Exclude<MatchMethod, "nomus_sync">,
         },
       });
@@ -84,6 +96,7 @@ export function useItemPriceTables(opts: {
     },
     onSuccess: (input) => {
       qc.invalidateQueries({ queryKey: ["nomus-proposal-full"] });
+      qc.invalidateQueries({ queryKey: ["proposal-items-local", opts.proposalId] });
       qc.invalidateQueries({ queryKey: ["proposal", opts.proposalId] });
       if (input.method === "manual" && !input.silent) {
         toast.success(
@@ -98,22 +111,25 @@ export function useItemPriceTables(opts: {
     tablesByProduct,
     isLoading,
     /** aplica regra de seleção automática e persiste (silenciosamente). */
-    applyAuto: (
-      proposalItemId: string,
-      productId: string | null,
-    ) => {
+    applyAuto: (proposalItemId: string, productId: string | null) => {
       if (!productId) return;
+      const item = opts.items.find((i) => i.id === proposalItemId);
+      if (!item) return;
       const tables = tablesByProduct.get(productId) ?? [];
       const sel = selectTableForItem(tables, opts.clientUf);
       mutation.mutate({
         proposalItemId,
+        item,
         table: sel?.table ?? null,
         method: sel?.method ?? "auto_latest",
         silent: true,
       });
     },
     /** Troca manual feita pelo vendedor. */
-    applyManual: (proposalItemId: string, table: ItemPriceTable | null) =>
-      mutation.mutate({ proposalItemId, table, method: "manual" }),
+    applyManual: (proposalItemId: string, table: ItemPriceTable | null) => {
+      const item = opts.items.find((i) => i.id === proposalItemId);
+      if (!item) return;
+      mutation.mutate({ proposalItemId, item, table, method: "manual" });
+    },
   };
 }

@@ -43,19 +43,20 @@ export function PerItemPriceTablePicker({
     );
   }
 
-  // ordena: compatíveis com UF primeiro, depois por ICMS desc
+  // ordena: compatíveis com UF primeiro, depois pelo menor ICMS
   const sorted = [...tables].sort((a, b) => {
-    const aUf = uf ? (a.ufs.includes(uf) ? 1 : 0) : 0;
-    const bUf = uf ? (b.ufs.includes(uf) ? 1 : 0) : 0;
+    const aUf = uf ? (a.ufs.map((u) => u.toUpperCase()).includes(uf) ? 1 : 0) : 0;
+    const bUf = uf ? (b.ufs.map((u) => u.toUpperCase()).includes(uf) ? 1 : 0) : 0;
     if (aUf !== bUf) return bUf - aUf;
-    return (b.icmsPct ?? -Infinity) - (a.icmsPct ?? -Infinity);
+    return (a.icmsPct ?? Infinity) - (b.icmsPct ?? Infinity);
   });
 
   const selected = tables.find((t) => t.id === selectedTableId) ?? null;
 
-  // qual é a "maior ICMS dentre as compatíveis com a UF"?
-  const compatible = uf ? sorted.filter((t) => t.ufs.includes(uf)) : [];
-  const maxIcmsCompatibleId = compatible[0]?.id ?? null;
+  const compatible = uf
+    ? sorted.filter((t) => t.ufs.map((u) => u.toUpperCase()).includes(uf))
+    : [];
+  const minIcmsCompatibleId = compatible[0]?.id ?? null;
 
   return (
     <Popover>
@@ -81,8 +82,10 @@ export function PerItemPriceTablePicker({
             <CommandEmpty>Nenhuma tabela encontrada.</CommandEmpty>
             <CommandGroup>
               {sorted.map((t) => {
-                const isCompatible = uf ? t.ufs.includes(uf) : false;
-                const isMaxIcmsCompatible = t.id === maxIcmsCompatibleId;
+                const isCompatible = uf
+                  ? t.ufs.map((u) => u.toUpperCase()).includes(uf)
+                  : false;
+                const isMinIcmsCompatible = t.id === minIcmsCompatibleId;
                 return (
                   <CommandItem
                     key={t.id}
@@ -125,9 +128,9 @@ export function PerItemPriceTablePicker({
                           ICMS {t.icmsPct}%
                         </span>
                       )}
-                      {isMaxIcmsCompatible && (
+                      {isMinIcmsCompatible && (
                         <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
-                          Maior ICMS
+                          Menor ICMS
                         </span>
                       )}
                     </div>
@@ -170,15 +173,17 @@ export function MatchMethodChip({ method, hasTable }: MatchMethodChipProps) {
   }
   switch (method) {
     case "auto_uf_max_icms":
+    case "auto_uf_min_icms":
       return (
         <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-700">
-          Sugerida por UF
+          Sugerida por UF · menor ICMS
         </span>
       );
     case "auto_max_icms":
+    case "auto_min_icms":
       return (
         <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800">
-          UF não coberta · maior ICMS
+          UF não coberta · menor ICMS
         </span>
       );
     case "auto_latest":

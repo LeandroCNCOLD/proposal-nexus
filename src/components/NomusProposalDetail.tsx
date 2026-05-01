@@ -184,7 +184,12 @@ export function NomusProposalDetail({
         // Por isso priorizamos product_code como chave de matching.
         return {
           id: local?.id ?? it.id,
+          nomusItemId: it.nomus_item_id,
           nomusProductId: it.product_code ?? it.nomus_product_id,
+          description: it.description ?? "",
+          quantity: Number(it.quantity ?? 1),
+          unitPrice: Number(it.unit_price ?? 0),
+          position: it.position,
           priceTableId: local?.price_table_id ?? null,
           priceTableSelectedAt: local?.price_table_selected_at ?? null,
           priceTableMatchMethod: local?.price_table_match_method ?? null,
@@ -210,13 +215,19 @@ export function NomusProposalDetail({
       if (autoAppliedRef.current.has(it.id)) continue;
       const isManual = it.priceTableMatchMethod === "manual";
       const hasChoice = !!it.priceTableId;
+      const shouldRefreshAuto =
+        it.priceTableMatchMethod === "auto_uf_max_icms" ||
+        it.priceTableMatchMethod === "auto_max_icms" ||
+        it.priceTableMatchMethod === "auto_uf_min_icms" ||
+        it.priceTableMatchMethod === "auto_min_icms" ||
+        it.priceTableMatchMethod === "auto_latest";
       // Aplica auto se: (a) nunca foi escolhida ou (b) foi vinda do nomus_sync mas
       // ainda assim queremos a regra UF/ICMS. Mantemos manual intocada.
       if (isManual) {
         autoAppliedRef.current.add(it.id);
         continue;
       }
-      if (!hasChoice) {
+      if (!hasChoice || shouldRefreshAuto) {
         applyAuto(it.id, it.nomusProductId);
         autoAppliedRef.current.add(it.id);
       } else {
