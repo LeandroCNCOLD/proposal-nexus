@@ -17,6 +17,8 @@ export type ItemPriceTable = {
 export type MatchMethod =
   | "auto_uf_max_icms"
   | "auto_max_icms"
+  | "auto_uf_min_icms"
+  | "auto_min_icms"
   | "auto_latest"
   | "manual"
   | "nomus_sync";
@@ -43,24 +45,24 @@ export function selectTableForItem(
   const active = tables.filter((t) => t.isActive);
   if (active.length === 0) return null;
 
-  // 1. Compatíveis com a UF do cliente, ordenadas por ICMS desc
+  // 1. Compatíveis com a UF do cliente, ordenadas pelo menor ICMS disponível
   if (uf) {
-    const compatible = active.filter((t) => t.ufs.includes(uf));
+    const compatible = active.filter((t) => t.ufs.map((u) => u.toUpperCase()).includes(uf));
     if (compatible.length > 0) {
       const sorted = [...compatible].sort(
-        (a, b) => (b.icmsPct ?? -Infinity) - (a.icmsPct ?? -Infinity),
+        (a, b) => (a.icmsPct ?? Infinity) - (b.icmsPct ?? Infinity),
       );
-      return { table: sorted[0], method: "auto_uf_max_icms" };
+      return { table: sorted[0], method: "auto_uf_min_icms" };
     }
   }
 
-  // 2. Fallback: maior ICMS dentre as ativas (UF não coberta)
+  // 2. Fallback: menor ICMS dentre as ativas (UF não coberta)
   const withIcms = active.filter((t) => t.icmsPct != null);
   if (withIcms.length > 0) {
     const sorted = [...withIcms].sort(
-      (a, b) => (b.icmsPct ?? -Infinity) - (a.icmsPct ?? -Infinity),
+      (a, b) => (a.icmsPct ?? Infinity) - (b.icmsPct ?? Infinity),
     );
-    return { table: sorted[0], method: "auto_max_icms" };
+    return { table: sorted[0], method: "auto_min_icms" };
   }
 
   // 3. Fallback: tabela ativa mais recente (sem ICMS cadastrado)
