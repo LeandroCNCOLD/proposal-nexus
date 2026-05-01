@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
 import { nomusGetItemDetail } from "@/integrations/nomus/server.functions";
 import { brl, num } from "@/lib/format";
-import { ProposalItemLucroAnalysis, type ProposalAnaliseLucro } from "@/components/ProposalItemLucroAnalysis";
+import { ProposalItemLucroAnalysis, type ProposalAnaliseLucro, type ItemCostSnapshot } from "@/components/ProposalItemLucroAnalysis";
 
 export type PrefillItem = {
   id: string;
