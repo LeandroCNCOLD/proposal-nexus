@@ -294,5 +294,7 @@ export function computeProposalTotals(
     margem_bruta_pct: margemBrutaPct,
     margem_liquida_pct: margemLiquidaPct,
     impostos_total: impostos,
+    custo_taxa_financeira: custoTaxaFinanceira,
+    outras_despesas_total: outrasDespesas,
   };
 }
