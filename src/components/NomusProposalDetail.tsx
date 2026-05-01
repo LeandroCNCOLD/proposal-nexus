@@ -219,7 +219,13 @@ export function NomusProposalDetail({
         it.priceTableMatchMethod === "auto_latest";
       // Aplica auto se: (a) nunca foi escolhida, (b) auto antiga, ou (c) tem
       // tabela mas ainda não populamos os custos (snapshot faltando).
-      if (isManual && it.hasCostSnapshot) {
+      if (isManual) {
+        if (!it.hasCostSnapshot && it.priceTableId && it.nomusProductId) {
+          // Re-grava a mesma tabela manual para preencher os custos.
+          const tables = tablesByProduct.get(it.nomusProductId) ?? [];
+          const current = tables.find((t) => t.id === it.priceTableId);
+          if (current) applyManual(it.id, current);
+        }
         autoAppliedRef.current.add(it.id);
         continue;
       }
