@@ -8,6 +8,7 @@ import type { ProposalTemplate } from "../template.types";
 import { renderBlock } from "./BlockPdfRenderer";
 import { buildStyles, defaultTheme, type PdfTheme } from "./styles";
 import { fmtDateBR } from "./utils";
+import type { ProposalDocumentContext } from "@/features/proposal-context/document-context.types";
 
 export interface ProposalPdfData {
   proposal: {
@@ -34,6 +35,8 @@ export interface ProposalPdfData {
   pages: DocumentPage[];
   tables: ProposalTable[];
   template: ProposalTemplate | null;
+  /** Contexto unificado da proposta — usado para resolver variáveis {{key}}. */
+  documentContext?: ProposalDocumentContext | null;
 }
 
 export function ProposalPdfDocument({ data }: { data: ProposalPdfData }) {
