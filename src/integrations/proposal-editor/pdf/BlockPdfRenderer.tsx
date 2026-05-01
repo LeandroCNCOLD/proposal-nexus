@@ -9,6 +9,9 @@ import type { PdfStyles, PdfTheme } from "./styles";
 import { fmtCurrency, fmtDateBR, fmtNumber } from "./utils";
 import { renderRichHtml } from "./rich-text";
 import { layoutToPdfBoxStyle } from "../box-style";
+import { CoverMainCnColdPdf } from "./cn-cold-covers/CoverMainCnColdPdf";
+import { CoverInstitutionalCnColdPdf } from "./cn-cold-covers/CoverInstitutionalCnColdPdf";
+import { CoverClientsCasesCnColdPdf } from "./cn-cold-covers/CoverClientsCasesCnColdPdf";
 
 interface BlockRenderContext {
   styles: PdfStyles;
@@ -314,6 +317,13 @@ export function renderBlock(block: DocumentBlock, ctx: BlockRenderContext): Reac
         </View>
       );
     }
+
+    case "cover_main_cn_cold":
+      return CoverMainCnColdPdf(block, { template, proposal });
+    case "cover_institutional_cn_cold":
+      return CoverInstitutionalCnColdPdf(block, { template, proposal });
+    case "cover_clients_cases_cn_cold":
+      return CoverClientsCasesCnColdPdf(block, { template, proposal });
 
     default:
       return (
