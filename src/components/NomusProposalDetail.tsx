@@ -184,7 +184,12 @@ export function NomusProposalDetail({
         // Por isso priorizamos product_code como chave de matching.
         return {
           id: local?.id ?? it.id,
+          nomusItemId: it.nomus_item_id,
           nomusProductId: it.product_code ?? it.nomus_product_id,
+          description: it.description ?? "",
+          quantity: Number(it.quantity ?? 1),
+          unitPrice: Number(it.unit_price ?? 0),
+          position: it.position,
           priceTableId: local?.price_table_id ?? null,
           priceTableSelectedAt: local?.price_table_selected_at ?? null,
           priceTableMatchMethod: local?.price_table_match_method ?? null,
