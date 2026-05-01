@@ -123,9 +123,15 @@ export const setProposalItemPriceTable = createServerFn({ method: "POST" })
     z
       .object({
         proposalItemId: z.string().uuid(),
+        proposalId: z.string().uuid(),
+        nomusItemId: z.string().nullable(),
+        description: z.string(),
+        quantity: z.number(),
+        itemUnitPrice: z.number(),
+        position: z.number().nullable(),
         priceTableId: z.string().uuid().nullable(),
         priceTableName: z.string().nullable(),
-        unitPrice: z.number().nullable(),
+        priceTableUnitPrice: z.number().nullable(),
         matchMethod: z.enum([
           "auto_uf_max_icms",
           "auto_max_icms",
@@ -140,16 +146,31 @@ export const setProposalItemPriceTable = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context, data }) => {
     const { supabase } = context;
-    const { error } = await supabase
-      .from("proposal_items")
-      .update({
-        price_table_id: data.priceTableId,
-        price_table_name: data.priceTableName,
-        price_table_unit_price: data.unitPrice,
-        price_table_match_method: data.matchMethod,
-        price_table_selected_at: new Date().toISOString(),
-      })
-      .eq("id", data.proposalItemId);
+    const selectedAt = new Date().toISOString();
+    const pricePayload = {
+      price_table_id: data.priceTableId,
+      price_table_name: data.priceTableName,
+      price_table_unit_price: data.priceTableUnitPrice,
+      price_table_match_method: data.matchMethod,
+      price_table_selected_at: selectedAt,
+    };
+    const { error } = data.nomusItemId
+      ? await supabase.from("proposal_items").upsert(
+          {
+            proposal_id: data.proposalId,
+            nomus_item_id: data.nomusItemId,
+            description: data.description || "Item da proposta",
+            quantity: data.quantity,
+            unit_price: data.itemUnitPrice,
+            position: data.position,
+            ...pricePayload,
+          },
+          { onConflict: "proposal_id,nomus_item_id" },
+        )
+      : await supabase
+          .from("proposal_items")
+          .update(pricePayload)
+          .eq("id", data.proposalItemId);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
