@@ -98,6 +98,12 @@ export type ComputeProposalTotalsInput = {
    * Nomus, popular esse campo. Se presente, ele tem prioridade absoluta.
    */
   nomusOfficial?: Partial<NomusProposalTotals> | null;
+  /**
+   * Custo adicional vindo da simulação da taxa financeira salva na proposta
+   * (proposals.financial_additional_cost). É somado às "Outras despesas
+   * acessórias" e, portanto, deduzido do valor líquido / lucro.
+   */
+  financialAdditionalCost?: number | null;
 };
 
 const n = (v: number | null | undefined): number => Number(v ?? 0);
