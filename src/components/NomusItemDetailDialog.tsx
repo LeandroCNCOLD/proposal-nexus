@@ -197,6 +197,7 @@ export function NomusItemDetailDialog({ itemId, prefillItem, open, onOpenChange,
                 <ProposalItemLucroAnalysis
                   analiseLucro={analiseLucro}
                   proposalAnaliseLucro={proposalAnaliseLucro ?? null}
+                  itemSnapshot={itemCostSnapshot ?? null}
                   ratio={
                     proposalProductsTotal && proposalProductsTotal > 0
                       ? Number(prefillItem?.total_with_discount ?? prefillItem?.total ?? 0) / proposalProductsTotal
