@@ -84,11 +84,11 @@ export function useItemPriceTables(opts: {
           nomusItemId: input.item.nomusItemId,
           description: input.item.description,
           quantity: input.item.quantity,
-          unitPrice: input.item.unitPrice,
+          itemUnitPrice: input.item.unitPrice,
           position: input.item.position,
           priceTableId: input.table?.id ?? null,
           priceTableName: input.table?.name ?? null,
-          unitPrice: input.table?.unitPrice ?? null,
+          priceTableUnitPrice: input.table?.unitPrice ?? null,
           matchMethod: input.method as Exclude<MatchMethod, "nomus_sync">,
         },
       });
