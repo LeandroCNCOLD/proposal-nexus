@@ -304,6 +304,7 @@ export function BlockRenderer({
           template={template}
           assets={assets}
           proposalContext={proposalContext}
+          documentContext={documentContext}
           proposalId={proposalId}
           pageId={pageId}
           pageTitle={pageTitle}
@@ -322,6 +323,7 @@ function BlockBody({
   template,
   assets,
   proposalContext,
+  documentContext,
   proposalId,
   pageId,
   pageTitle,
@@ -334,6 +336,7 @@ function BlockBody({
   template: ProposalTemplate | null;
   assets: TemplateAsset[];
   proposalContext: ProposalDynamicContext;
+  documentContext?: ProposalDocumentContext | null;
   proposalId?: string;
   pageId?: string;
   pageTitle?: string;
