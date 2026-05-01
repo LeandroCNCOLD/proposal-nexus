@@ -582,6 +582,7 @@ function ProposalEditorPage() {
             template={bundleData?.template ?? null}
             assets={bundleData?.assets ?? []}
             proposalContext={ctxData ?? {}}
+            documentContext={documentContext ?? null}
             selectedBlockId={selectedBlockId}
             onSelectBlock={setSelectedBlockId}
             onSelect={setSelectedId}
