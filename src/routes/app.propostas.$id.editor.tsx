@@ -39,6 +39,7 @@ import {
 import type { DocumentPage } from "@/integrations/proposal-editor/types";
 import type { ProposalTemplate, TemplateAsset } from "@/integrations/proposal-editor/template.types";
 import type { ProposalDynamicContext } from "@/components/proposal-editor/BlockRenderer";
+import { useProposalDocumentContext } from "@/features/proposal-context/use-proposal-document-context";
 import { PageSidebar } from "@/components/proposal-editor/PageSidebar";
 // (Paleta global removida — agora a paleta é contextual por página, dentro de PageSidebar.)
 import { ProposalCanvas } from "@/components/proposal-editor/ProposalCanvas";
