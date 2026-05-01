@@ -116,6 +116,7 @@ export function computeProposalTotals(
   input: ComputeProposalTotalsInput,
 ): ProposalTotalsResult {
   const { items, snapshots, nomus, nomusOfficial } = input;
+  const custoTaxaFinanceira = Math.max(0, n(input.financialAdditionalCost));
 
   // Impostos / despesas vêm sempre dos campos do Nomus (não dependem de
   // snapshot por item).
@@ -128,11 +129,12 @@ export function computeProposalTotals(
     n(nomus?.issqn_recolher) +
     n(nomus?.simples_nacional_recolher);
 
-  const outrasDespesas =
+  const outrasDespesasNomus =
     n(nomus?.comissoes_venda) +
     n(nomus?.frete_valor) +
     n(nomus?.seguros_valor) +
     n(nomus?.despesas_acessorias);
+  const outrasDespesas = outrasDespesasNomus + custoTaxaFinanceira;
 
   // ─── 1) Totais oficiais Nomus (futuro) ───────────────────────────────
   if (nomusOfficial && nomusOfficial.valor_produtos != null) {
