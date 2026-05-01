@@ -244,8 +244,9 @@ export function NomusProposalDetail({
         // popular aqui (ex.: p.nomus_totais_oficiais ?? null) e a UI passa
         // a refletir esses números automaticamente.
         nomusOfficial: null,
+        financialAdditionalCost,
       }),
-    [items, localItemsByNomusId, p],
+    [items, localItemsByNomusId, p, financialAdditionalCost],
   );
 
   // Auto-aplicar sugestão para itens sem escolha (ou auto antiga sem snapshot).
