@@ -129,6 +129,8 @@ export const setProposalItemPriceTable = createServerFn({ method: "POST" })
         matchMethod: z.enum([
           "auto_uf_max_icms",
           "auto_max_icms",
+          "auto_uf_min_icms",
+          "auto_min_icms",
           "auto_latest",
           "manual",
         ]),
