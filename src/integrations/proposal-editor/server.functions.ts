@@ -557,18 +557,30 @@ export const generateProposalPdf = createServerFn({ method: "POST" })
       .select("*")
       .eq("proposal_id", proposalId);
 
-    // Template (cores, dados bancários, branding)
-    let template = null;
+    // Template (cores, dados bancários, branding) + assets (capa/contracapa/banners)
+    let template: ProposalTemplate | null = null;
+    let templateAssets: TemplateAsset[] = [];
     if (doc.template_id) {
       const { data: tpl } = await supabase
         .from("proposal_templates")
         .select("*")
         .eq("id", doc.template_id)
         .maybeSingle();
-      template = tpl;
+      template = (tpl as ProposalTemplate | null) ?? null;
+      const { data: assetRows } = await supabase
+        .from("proposal_template_assets")
+        .select("*")
+        .eq("template_id", doc.template_id);
+      templateAssets = (assetRows ?? []).map(
+        (a: { storage_path: string } & Record<string, unknown>) => ({
+          ...(a as unknown as TemplateAsset),
+          url: supabase.storage.from(TEMPLATE_BUCKET).getPublicUrl(a.storage_path).data.publicUrl,
+        }),
+      );
     } else {
       const bundle = await loadDefaultTemplateBundle(supabase);
       template = bundle?.template ?? null;
+      templateAssets = bundle?.assets ?? [];
     }
 
     // Renderiza
