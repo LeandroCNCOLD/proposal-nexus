@@ -27,6 +27,11 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  CN_COLD_SNIPPETS,
+  SNIPPET_DRAG_MIME,
+  serializeSnippet,
+} from "@/features/proposal-snippets/cn-cold-snippets";
 
 export interface PaletteItem {
   /** Tipo de bloco que será criado ao soltar. */
@@ -39,6 +44,8 @@ export interface PaletteItem {
   category?: string;
   /** Palavras-chave extras p/ busca. */
   keywords?: string[];
+  /** Quando definido, o drop expande para um snippet pré-montado. */
+  snippetId?: string;
 }
 
 interface PaletteGroup {
@@ -48,6 +55,21 @@ interface PaletteGroup {
 
 /** Catálogo completo de campos arrastáveis. */
 export const ALL_PALETTE_GROUPS: PaletteGroup[] = [
+  {
+    label: "CN Cold — Modelo Básico",
+    items: [
+      // marcador especial: snippets usam outro MIME no drag
+      ...CN_COLD_SNIPPETS.map((s) => ({
+        blockType: "rich_text" as BlockType,
+        label: s.label,
+        category: "CN Cold",
+        keywords: ["cn cold", "snippet", "box", s.id],
+        // tag interna para distinguir snippets na renderização
+        // (não é serializado para o drop padrão — usamos snippetId)
+        snippetId: s.id,
+      })),
+    ],
+  },
   {
     label: "Capas CN Cold",
     items: [
@@ -218,6 +240,9 @@ function DraggableItem({ item, onRemove }: { item: PaletteItem; onRemove?: () =>
       draggable
       onDragStart={(e) => {
         e.dataTransfer.effectAllowed = "copy";
+        if (item.snippetId) {
+          e.dataTransfer.setData(SNIPPET_DRAG_MIME, serializeSnippet(item.snippetId));
+        }
         e.dataTransfer.setData(PALETTE_DRAG_MIME, serializePaletteItem(item));
         e.dataTransfer.setData("text/plain", item.label);
       }}

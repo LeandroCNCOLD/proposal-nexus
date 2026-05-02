@@ -87,7 +87,8 @@ export function renderBlock(block: DocumentBlock, ctx: BlockRenderContext): Reac
 
     case "rich_text": {
       const html = (block.data.html as string) ?? "";
-      const rendered = renderRichHtml(html, styles, documentContext);
+      const omitEmpty = block.data.omitEmpty === true;
+      const rendered = renderRichHtml(html, styles, documentContext, { omitEmpty });
       return (
         <View key={key} style={{ marginBottom: 6 }}>
           {block.title ? <Text style={styles.blockTitle}>{block.title}</Text> : null}

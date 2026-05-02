@@ -74,6 +74,83 @@ export function resolveVariablesHtml(
   });
 }
 
+/**
+ * Variante "omit-empty": remove parágrafos/linhas inteiras quando TODAS as
+ * variáveis dentro deles resolvem para vazio. Usado para boxes pré-prontos
+ * onde uma linha sem dado não deve aparecer (ex.: "Validade: {{...}}").
+ *
+ * Regras:
+ *   - Trabalha por blocos delimitados por <p>...</p>, <li>...</li> ou <br/>.
+ *   - Um bloco é descartado se contém ≥1 variável e TODAS resolvem para vazio
+ *     E o restante do texto (fora as variáveis) é apenas separadores/labels
+ *     curtos sem conteúdo informativo significativo (heurística: vira vazio
+ *     ao remover variáveis e pontuação).
+ *   - Blocos sem variáveis são preservados.
+ *   - Variáveis parcialmente preenchidas → bloco mantido, vazias viram "".
+ */
+export function resolveVariablesHtmlOmitEmpty(
+  html: string | null | undefined,
+  ctx: ProposalDocumentContext | null | undefined,
+): string {
+  if (!html) return "";
+  // Quebra em blocos preservando os delimitadores
+  const blockRe = /(<p[^>]*>[\s\S]*?<\/p>|<li[^>]*>[\s\S]*?<\/li>|<br\s*\/?>)/gi;
+  const parts = html.split(blockRe).filter((p) => p !== "");
+  return parts
+    .map((part) => {
+      const isBlock = /^<(p|li|br)/i.test(part);
+      if (!isBlock) return resolveBlockOrDrop(part, ctx, false);
+      return resolveBlockOrDrop(part, ctx, true);
+    })
+    .filter((s) => s !== null)
+    .join("");
+}
+
+/** Versão texto-puro (sem HTML) que descarta linhas com variáveis vazias. */
+export function resolveVariablesOmitEmpty(
+  text: string | null | undefined,
+  ctx: ProposalDocumentContext | null | undefined,
+): string {
+  if (!text) return "";
+  return text
+    .split(/\r?\n/)
+    .map((line) => resolveBlockOrDrop(line, ctx, true))
+    .filter((s) => s !== null)
+    .join("\n");
+}
+
+function resolveBlockOrDrop(
+  block: string,
+  ctx: ProposalDocumentContext | null | undefined,
+  canDrop: boolean,
+): string | null {
+  let varCount = 0;
+  let emptyCount = 0;
+  const replaced = block.replace(VAR_RE, (raw, key: string) => {
+    varCount++;
+    const known = VARIABLE_KEYS.has(key);
+    if (!known) {
+      emptyCount++;
+      return "";
+    }
+    const v = getVariableValue(key, ctx);
+    if (v == null || v === "") {
+      emptyCount++;
+      return "";
+    }
+    return v;
+  });
+  if (canDrop && varCount > 0 && emptyCount === varCount) {
+    // Descarta o bloco se sobrou apenas estrutura/separadores sem texto útil.
+    const stripped = replaced
+      .replace(/<[^>]+>/g, "")
+      .replace(/[\s:·\-—|,.;]+/g, "")
+      .trim();
+    if (stripped === "") return null;
+  }
+  return replaced;
+}
+
 function escapeHtml(s: string): string {
   return s
     .replace(/&/g, "&amp;")

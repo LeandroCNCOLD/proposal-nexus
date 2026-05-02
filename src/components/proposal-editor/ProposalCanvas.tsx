@@ -26,6 +26,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { PageChrome } from "./PageChrome";
 import { PALETTE_DRAG_MIME, parsePaletteItem } from "./FieldsPalette";
+import {
+  SNIPPET_DRAG_MIME,
+  parseSnippetPayload,
+  CN_COLD_SNIPPETS_BY_ID,
+} from "@/features/proposal-snippets/cn-cold-snippets";
 import { ContainerToolbar, isInsideContainer } from "./ContainerToolbar";
 import {
   HorizontalRuler,
@@ -309,6 +314,31 @@ export function ProposalCanvas({
     pageId: string,
     e: React.DragEvent<HTMLDivElement>,
   ) => {
+    // 1) Snippet pré-montado (CN Cold) — expande para vários blocos
+    const snippetRaw = e.dataTransfer.getData(SNIPPET_DRAG_MIME);
+    if (snippetRaw) {
+      const payload = parseSnippetPayload(snippetRaw);
+      const snippet = payload ? CN_COLD_SNIPPETS_BY_ID.get(payload.snippetId) : null;
+      if (snippet) {
+        e.preventDefault();
+        e.stopPropagation();
+        const page = pages.find((p) => p.id === pageId);
+        if (!page) return;
+        const rect = e.currentTarget.getBoundingClientRect();
+        const dropY = Math.max(0, Math.round(e.clientY - rect.top));
+        const startY = Math.min(Math.max(120, dropY), pageH - 200);
+        const created = snippet.build(startY, pageW).map((b, i) => ({
+          ...b,
+          order: page.blocks.length + i,
+        }));
+        updatePage(pageId, { blocks: [...page.blocks, ...created] });
+        onSelect(pageId);
+        if (created[0]) onSelectBlock(created[0].id);
+        return;
+      }
+    }
+
+    // 2) Fluxo normal — item da paleta
     const raw = e.dataTransfer.getData(PALETTE_DRAG_MIME);
     if (!raw) return;
     const item = parsePaletteItem(raw);
