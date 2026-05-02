@@ -1,0 +1,97 @@
+{
+  "cases": [
+    {
+      "id": "relatorio_001",
+      "name": "Câmara Pequena - Conservação",
+      "externalSystem": "KFCalc/SEQCT exemplo",
+      "inputs": {
+        "volumeM3": 18.5,
+        "internalTempC": 9,
+        "externalTempC": 35,
+        "processTimeH": 24,
+        "safetyFactor": 1.1
+      },
+      "kfcalcResult": {
+        "components": {
+          "infiltracao": 232.67,
+          "produto": 0,
+          "trocas_ar": 520.29,
+          "iluminacao": 28.67,
+          "motores": 0,
+          "pessoas": 116.5
+        },
+        "totalSemSeguranca": 898.1299999999999,
+        "fatorSeguranca": 1.1,
+        "totalComSeguranca": 987.943
+      },
+      "coldproResult": {
+        "totalComSegurancaKcalH": 987.943,
+        "source": "proxy compat"
+      },
+      "comparison": {
+        "absoluteDifferenceKcalH": 0,
+        "percentDifference": 0,
+        "status": "OK"
+      },
+      "diagnosis": [
+        "Verificar possível duplicidade infiltração/trocas de ar.",
+        "Carga de produto ausente ou simplificada.",
+        "Verificar cargas auxiliares zeradas."
+      ],
+      "recommendations": [
+        "Separar regra de infiltração e trocas de ar para evitar dupla contagem.",
+        "Adicionar massa, Cp, deltaT e tempo do produto para recalcular carga do zero.",
+        "Preencher motores, iluminação e pessoas antes de comparar com KFCalc/SEQCT.",
+        "Conferir se todos os valores estão em kcal/h antes da comparação."
+      ]
+    },
+    {
+      "id": "relatorio_002",
+      "name": "Câmara Grande - Congelamento",
+      "externalSystem": "KFCalc/SEQCT exemplo",
+      "inputs": {
+        "volumeM3": 24000,
+        "internalTempC": 2,
+        "externalTempC": 20,
+        "processTimeH": 24,
+        "safetyFactor": 1.1
+      },
+      "kfcalcResult": {
+        "components": {
+          "infiltracao": 0,
+          "produto": 1,
+          "trocas_ar": 9488.37,
+          "iluminacao": 35.83,
+          "motores": 29695.82,
+          "pessoas": 0
+        },
+        "totalSemSeguranca": 39221.020000000004,
+        "fatorSeguranca": 1.1,
+        "totalComSeguranca": 43143.12200000001
+      },
+      "coldproResult": {
+        "totalComSegurancaKcalH": 43143.12200000001,
+        "source": "proxy compat"
+      },
+      "comparison": {
+        "absoluteDifferenceKcalH": 0,
+        "percentDifference": 0,
+        "status": "OK"
+      },
+      "diagnosis": [
+        "Verificar cargas auxiliares zeradas."
+      ],
+      "recommendations": [
+        "Preencher motores, iluminação e pessoas antes de comparar com KFCalc/SEQCT.",
+        "Conferir se todos os valores estão em kcal/h antes da comparação."
+      ]
+    }
+  ],
+  "summary": {
+    "totalCases": 2,
+    "ok": 2,
+    "warning": 0,
+    "divergent": 0,
+    "mainDivergenceCauses": []
+  }
+}
