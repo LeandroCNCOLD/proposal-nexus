@@ -627,6 +627,7 @@ export const generateProposalPdf = createServerFn({ method: "POST" })
           tables: (tables as any) ?? [],
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           template: template as any,
+          assets: templateAssets,
           documentContext: docContext,
         },
       }) as never,
