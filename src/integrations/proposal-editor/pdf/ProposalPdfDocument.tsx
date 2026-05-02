@@ -1,14 +1,20 @@
 // Documento PDF principal do Page Builder. Itera por DocumentPage[] e
 // renderiza cada página com seus blocos.
 import type { ReactElement } from "react";
-import { Document, Page, Text, View } from "@react-pdf/renderer";
+import { Document, Image, Page, Text, View } from "@react-pdf/renderer";
 import type { DocumentPage } from "../types";
 import type { ProposalTable } from "../types";
-import type { ProposalTemplate } from "../template.types";
+import type { ProposalTemplate, TemplateAsset } from "../template.types";
 import { renderBlock } from "./BlockPdfRenderer";
 import { buildStyles, defaultTheme, type PdfTheme } from "./styles";
 import { fmtDateBR } from "./utils";
 import type { ProposalDocumentContext } from "@/features/proposal-context/document-context.types";
+
+/** Procura asset por kind no array (case-insensitive). */
+function findAsset(assets: TemplateAsset[] | undefined, kind: string): TemplateAsset | undefined {
+  if (!assets || assets.length === 0) return undefined;
+  return assets.find((a) => (a.asset_kind ?? "").toLowerCase() === kind.toLowerCase());
+}
 
 export interface ProposalPdfData {
   proposal: {
