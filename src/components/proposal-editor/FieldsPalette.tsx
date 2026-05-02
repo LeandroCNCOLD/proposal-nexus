@@ -44,6 +44,8 @@ export interface PaletteItem {
   category?: string;
   /** Palavras-chave extras p/ busca. */
   keywords?: string[];
+  /** Quando definido, o drop expande para um snippet pré-montado. */
+  snippetId?: string;
 }
 
 interface PaletteGroup {
