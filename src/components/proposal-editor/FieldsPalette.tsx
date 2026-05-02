@@ -240,6 +240,9 @@ function DraggableItem({ item, onRemove }: { item: PaletteItem; onRemove?: () =>
       draggable
       onDragStart={(e) => {
         e.dataTransfer.effectAllowed = "copy";
+        if (item.snippetId) {
+          e.dataTransfer.setData(SNIPPET_DRAG_MIME, serializeSnippet(item.snippetId));
+        }
         e.dataTransfer.setData(PALETTE_DRAG_MIME, serializePaletteItem(item));
         e.dataTransfer.setData("text/plain", item.label);
       }}
