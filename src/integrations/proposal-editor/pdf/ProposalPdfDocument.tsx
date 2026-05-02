@@ -1,14 +1,20 @@
 // Documento PDF principal do Page Builder. Itera por DocumentPage[] e
 // renderiza cada página com seus blocos.
 import type { ReactElement } from "react";
-import { Document, Page, Text, View } from "@react-pdf/renderer";
+import { Document, Image, Page, Text, View } from "@react-pdf/renderer";
 import type { DocumentPage } from "../types";
 import type { ProposalTable } from "../types";
-import type { ProposalTemplate } from "../template.types";
+import type { ProposalTemplate, TemplateAsset } from "../template.types";
 import { renderBlock } from "./BlockPdfRenderer";
 import { buildStyles, defaultTheme, type PdfTheme } from "./styles";
 import { fmtDateBR } from "./utils";
 import type { ProposalDocumentContext } from "@/features/proposal-context/document-context.types";
+
+/** Procura asset por kind no array (case-insensitive). */
+function findAsset(assets: TemplateAsset[] | undefined, kind: string): TemplateAsset | undefined {
+  if (!assets || assets.length === 0) return undefined;
+  return assets.find((a) => (a.asset_kind ?? "").toLowerCase() === kind.toLowerCase());
+}
 
 export interface ProposalPdfData {
   proposal: {
@@ -35,12 +41,14 @@ export interface ProposalPdfData {
   pages: DocumentPage[];
   tables: ProposalTable[];
   template: ProposalTemplate | null;
+  /** Assets do template (capa cheia, contracapa, banners). */
+  assets?: TemplateAsset[];
   /** Contexto unificado da proposta — usado para resolver variáveis {{key}}. */
   documentContext?: ProposalDocumentContext | null;
 }
 
 export function ProposalPdfDocument({ data }: { data: ProposalPdfData }) {
-  const { proposal, pages, tables, template, documentContext } = data;
+  const { proposal, pages, tables, template, documentContext, assets } = data;
 
   const theme: PdfTheme = {
     ...defaultTheme,
@@ -67,6 +75,11 @@ export function ProposalPdfDocument({ data }: { data: ProposalPdfData }) {
   const showRevisionCover = (proposal.revision ?? 0) > 0 && (proposal.revision_history?.length ?? 0) > 1;
   let coverInserted = false;
 
+  const coverFullAsset = findAsset(assets, "cover_full");
+  const backCoverAsset = findAsset(assets, "clients_full");
+  const headerBannerAsset = findAsset(assets, "header_banner");
+  const footerBannerAsset = findAsset(assets, "footer_banner");
+
   return (
     <Document
       title={`Proposta ${proposal.number} — ${proposal.title}`}
@@ -76,14 +89,18 @@ export function ProposalPdfDocument({ data }: { data: ProposalPdfData }) {
         const nodes: ReactElement[] = [];
         if (page.type === "cover") {
           nodes.push(
-            <CoverPdfPage
-              key={page.id}
-              page={page}
-              proposal={proposal}
-              template={template}
-              theme={theme}
-              styles={styles}
-            />,
+            coverFullAsset ? (
+              <FullImagePage key={page.id} url={coverFullAsset.url} />
+            ) : (
+              <CoverPdfPage
+                key={page.id}
+                page={page}
+                proposal={proposal}
+                template={template}
+                theme={theme}
+                styles={styles}
+              />
+            ),
           );
           if (showRevisionCover && !coverInserted) {
             coverInserted = true;
@@ -109,12 +126,29 @@ export function ProposalPdfDocument({ data }: { data: ProposalPdfData }) {
               styles={styles}
               tablesByPage={tablesByPage}
               documentContext={documentContext ?? null}
+              headerBannerUrl={headerBannerAsset?.url}
+              footerBannerUrl={footerBannerAsset?.url}
             />,
           );
         }
         return nodes;
       })}
+      {backCoverAsset ? (
+        <FullImagePage key="__back_cover__" url={backCoverAsset.url} />
+      ) : null}
     </Document>
+  );
+}
+
+/** Página A4 com uma única imagem cobrindo toda a área (capa/contracapa). */
+function FullImagePage({ url }: { url: string }) {
+  return (
+    <Page size="A4" style={{ padding: 0, margin: 0 }}>
+      <Image
+        src={url}
+        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+      />
+    </Page>
   );
 }
 
@@ -174,6 +208,8 @@ interface StandardPageProps extends PageProps {
   totalPages: number;
   tablesByPage: Map<string, ProposalTable[]>;
   documentContext: ProposalDocumentContext | null;
+  headerBannerUrl?: string;
+  footerBannerUrl?: string;
 }
 
 function StandardPdfPage({
@@ -186,12 +222,38 @@ function StandardPdfPage({
   styles,
   tablesByPage,
   documentContext,
+  headerBannerUrl,
+  footerBannerUrl,
 }: StandardPageProps) {
+  void theme;
   const sortedBlocks = [...page.blocks].sort((a, b) => a.order - b.order);
+  const hasHeaderBanner = !!headerBannerUrl && !page.hideHeader;
+  const hasFooterBanner = !!footerBannerUrl && !page.hideFooter;
+
+  // Quando há banner de imagem, recolhe padding p/ ele encostar no topo/base.
+  const pageStyle = {
+    ...styles.page,
+    ...(hasHeaderBanner ? { paddingTop: 70 } : {}),
+    ...(hasFooterBanner ? { paddingBottom: 70 } : {}),
+  };
 
   return (
-    <Page size="A4" style={styles.page}>
-      {!page.hideHeader ? (
+    <Page size="A4" style={pageStyle}>
+      {hasHeaderBanner ? (
+        <Image
+          src={headerBannerUrl!}
+          fixed
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            width: "100%",
+            height: 50,
+            objectFit: "cover",
+          }}
+        />
+      ) : !page.hideHeader ? (
         <View style={styles.pageHeader} fixed>
           <Text style={styles.pageHeaderTitle}>{page.title}</Text>
           <Text style={styles.pageHeaderMeta}>
@@ -212,7 +274,21 @@ function StandardPdfPage({
         }),
       )}
 
-      {!page.hideFooter ? (
+      {hasFooterBanner ? (
+        <Image
+          src={footerBannerUrl!}
+          fixed
+          style={{
+            position: "absolute",
+            bottom: 0,
+            left: 0,
+            right: 0,
+            width: "100%",
+            height: 50,
+            objectFit: "cover",
+          }}
+        />
+      ) : !page.hideFooter ? (
         <View style={styles.pageFooter} fixed>
           <Text>
             {page.footerText ??
