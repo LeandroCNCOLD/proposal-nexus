@@ -6,7 +6,7 @@
 import { Text, View } from "@react-pdf/renderer";
 import type { PdfStyles } from "./styles";
 import type { ProposalDocumentContext } from "@/features/proposal-context/document-context.types";
-import { resolveVariables } from "@/features/proposal-variables/resolve-variables";
+import { resolveVariables, resolveVariablesHtmlOmitEmpty } from "@/features/proposal-variables/resolve-variables";
 
 type InlineMarks = {
   bold?: boolean;
@@ -148,8 +148,13 @@ export function renderRichHtml(
   html: string | null | undefined,
   styles: PdfStyles,
   ctx?: ProposalDocumentContext | null,
+  options?: { omitEmpty?: boolean },
 ): React.ReactNode {
-  const resolved = ctx ? resolveVariables(html ?? "", ctx) : (html ?? "");
+  const resolved = ctx
+    ? options?.omitEmpty
+      ? resolveVariablesHtmlOmitEmpty(html ?? "", ctx)
+      : resolveVariables(html ?? "", ctx)
+    : (html ?? "");
   const blocks = parseRichHtml(resolved);
   if (blocks.length === 0) return null;
   return blocks.map((b, i) => {
