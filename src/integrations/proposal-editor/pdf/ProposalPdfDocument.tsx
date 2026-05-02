@@ -75,6 +75,11 @@ export function ProposalPdfDocument({ data }: { data: ProposalPdfData }) {
   const showRevisionCover = (proposal.revision ?? 0) > 0 && (proposal.revision_history?.length ?? 0) > 1;
   let coverInserted = false;
 
+  const coverFullAsset = findAsset(assets, "cover_full");
+  const backCoverAsset = findAsset(assets, "clients_full");
+  const headerBannerAsset = findAsset(assets, "header_banner");
+  const footerBannerAsset = findAsset(assets, "footer_banner");
+
   return (
     <Document
       title={`Proposta ${proposal.number} — ${proposal.title}`}
@@ -84,14 +89,18 @@ export function ProposalPdfDocument({ data }: { data: ProposalPdfData }) {
         const nodes: ReactElement[] = [];
         if (page.type === "cover") {
           nodes.push(
-            <CoverPdfPage
-              key={page.id}
-              page={page}
-              proposal={proposal}
-              template={template}
-              theme={theme}
-              styles={styles}
-            />,
+            coverFullAsset ? (
+              <FullImagePage key={page.id} url={coverFullAsset.url} />
+            ) : (
+              <CoverPdfPage
+                key={page.id}
+                page={page}
+                proposal={proposal}
+                template={template}
+                theme={theme}
+                styles={styles}
+              />
+            ),
           );
           if (showRevisionCover && !coverInserted) {
             coverInserted = true;
@@ -117,12 +126,29 @@ export function ProposalPdfDocument({ data }: { data: ProposalPdfData }) {
               styles={styles}
               tablesByPage={tablesByPage}
               documentContext={documentContext ?? null}
+              headerBannerUrl={headerBannerAsset?.url}
+              footerBannerUrl={footerBannerAsset?.url}
             />,
           );
         }
         return nodes;
       })}
+      {backCoverAsset ? (
+        <FullImagePage key="__back_cover__" url={backCoverAsset.url} />
+      ) : null}
     </Document>
+  );
+}
+
+/** Página A4 com uma única imagem cobrindo toda a área (capa/contracapa). */
+function FullImagePage({ url }: { url: string }) {
+  return (
+    <Page size="A4" style={{ padding: 0, margin: 0 }}>
+      <Image
+        src={url}
+        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+      />
+    </Page>
   );
 }
 
