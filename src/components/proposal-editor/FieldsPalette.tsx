@@ -54,6 +54,21 @@ interface PaletteGroup {
 /** Catálogo completo de campos arrastáveis. */
 export const ALL_PALETTE_GROUPS: PaletteGroup[] = [
   {
+    label: "CN Cold — Modelo Básico",
+    items: [
+      // marcador especial: snippets usam outro MIME no drag
+      ...CN_COLD_SNIPPETS.map((s) => ({
+        blockType: "rich_text" as BlockType,
+        label: s.label,
+        category: "CN Cold",
+        keywords: ["cn cold", "snippet", "box", s.id],
+        // tag interna para distinguir snippets na renderização
+        // (não é serializado para o drop padrão — usamos snippetId)
+        snippetId: s.id,
+      })),
+    ],
+  },
+  {
     label: "Capas CN Cold",
     items: [
       { blockType: "cover_main_cn_cold", label: "🎨 Capa Principal (CN Cold)", category: "Capas", keywords: ["capa", "cover", "proposta", "principal"] },
