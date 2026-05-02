@@ -226,17 +226,33 @@ function ProposalEditorPage() {
   });
 
   const previewMut = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (previewWindow?: Window | null) => {
       // Garante que mudanças locais estão salvas antes de gerar
       if (dirty) await saveMut.mutateAsync();
-      return genPdf({ data: { proposalId: id, mode: "preview" } });
+      const result = await genPdf({ data: { proposalId: id, mode: "preview" } });
+      return { result, previewWindow };
     },
-    onSuccess: (res) => {
-      window.open(res.url, "_blank", "noopener");
+    onSuccess: ({ result, previewWindow }) => {
+      if (previewWindow && !previewWindow.closed) {
+        previewWindow.location.href = result.url;
+      } else {
+        window.open(result.url, "_blank", "noopener");
+      }
       toast.success("Pré-visualização gerada");
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error, previewWindow) => {
+      if (previewWindow && !previewWindow.closed) previewWindow.close();
+      toast.error(e.message);
+    },
   });
+
+  const handlePreviewPdf = () => {
+    const previewWindow = window.open("about:blank", "_blank");
+    previewWindow?.document.write(
+      "<html><head><title>Gerando PDF...</title></head><body style='font-family:system-ui,sans-serif;padding:24px;color:#0f172a'>Gerando pré-visualização do PDF...</body></html>",
+    );
+    previewMut.mutate(previewWindow);
+  };
 
   const versionMut = useMutation({
     mutationFn: async () => {
@@ -425,7 +441,7 @@ function ProposalEditorPage() {
           <Button
             size="sm"
             variant="outline"
-            onClick={() => previewMut.mutate()}
+            onClick={handlePreviewPdf}
             disabled={previewMut.isPending}
           >
             {previewMut.isPending ? (
