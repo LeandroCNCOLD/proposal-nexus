@@ -208,6 +208,8 @@ interface StandardPageProps extends PageProps {
   totalPages: number;
   tablesByPage: Map<string, ProposalTable[]>;
   documentContext: ProposalDocumentContext | null;
+  headerBannerUrl?: string;
+  footerBannerUrl?: string;
 }
 
 function StandardPdfPage({
@@ -220,12 +222,38 @@ function StandardPdfPage({
   styles,
   tablesByPage,
   documentContext,
+  headerBannerUrl,
+  footerBannerUrl,
 }: StandardPageProps) {
+  void theme;
   const sortedBlocks = [...page.blocks].sort((a, b) => a.order - b.order);
+  const hasHeaderBanner = !!headerBannerUrl && !page.hideHeader;
+  const hasFooterBanner = !!footerBannerUrl && !page.hideFooter;
+
+  // Quando há banner de imagem, recolhe padding p/ ele encostar no topo/base.
+  const pageStyle = {
+    ...styles.page,
+    ...(hasHeaderBanner ? { paddingTop: 70 } : {}),
+    ...(hasFooterBanner ? { paddingBottom: 70 } : {}),
+  };
 
   return (
-    <Page size="A4" style={styles.page}>
-      {!page.hideHeader ? (
+    <Page size="A4" style={pageStyle}>
+      {hasHeaderBanner ? (
+        <Image
+          src={headerBannerUrl!}
+          fixed
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            width: "100%",
+            height: 50,
+            objectFit: "cover",
+          }}
+        />
+      ) : !page.hideHeader ? (
         <View style={styles.pageHeader} fixed>
           <Text style={styles.pageHeaderTitle}>{page.title}</Text>
           <Text style={styles.pageHeaderMeta}>
@@ -246,7 +274,21 @@ function StandardPdfPage({
         }),
       )}
 
-      {!page.hideFooter ? (
+      {hasFooterBanner ? (
+        <Image
+          src={footerBannerUrl!}
+          fixed
+          style={{
+            position: "absolute",
+            bottom: 0,
+            left: 0,
+            right: 0,
+            width: "100%",
+            height: 50,
+            objectFit: "cover",
+          }}
+        />
+      ) : !page.hideFooter ? (
         <View style={styles.pageFooter} fixed>
           <Text>
             {page.footerText ??
