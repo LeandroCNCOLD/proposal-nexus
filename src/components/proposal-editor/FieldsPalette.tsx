@@ -27,6 +27,11 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  CN_COLD_SNIPPETS,
+  SNIPPET_DRAG_MIME,
+  serializeSnippet,
+} from "@/features/proposal-snippets/cn-cold-snippets";
 
 export interface PaletteItem {
   /** Tipo de bloco que será criado ao soltar. */
