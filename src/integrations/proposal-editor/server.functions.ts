@@ -721,8 +721,9 @@ export const createProposalSendVersion = createServerFn({ method: "POST" })
       .select("*")
       .eq("proposal_id", proposalId);
 
-    // 4) Template
+    // 4) Template + assets
     let template: Record<string, unknown> | null = null;
+    let templateAssets: TemplateAsset[] = [];
     if (doc.template_id) {
       const { data: tpl } = await supabase
         .from("proposal_templates")
@@ -730,9 +731,20 @@ export const createProposalSendVersion = createServerFn({ method: "POST" })
         .eq("id", doc.template_id)
         .maybeSingle();
       template = tpl as Record<string, unknown> | null;
+      const { data: assetRows } = await supabase
+        .from("proposal_template_assets")
+        .select("*")
+        .eq("template_id", doc.template_id);
+      templateAssets = (assetRows ?? []).map(
+        (a: { storage_path: string } & Record<string, unknown>) => ({
+          ...(a as unknown as TemplateAsset),
+          url: supabase.storage.from(TEMPLATE_BUCKET).getPublicUrl(a.storage_path).data.publicUrl,
+        }),
+      );
     } else {
       const bundle = await loadDefaultTemplateBundle(supabase);
       template = (bundle?.template ?? null) as Record<string, unknown> | null;
+      templateAssets = bundle?.assets ?? [];
     }
 
     // 5) Renderiza PDF + merge anexos
