@@ -41,12 +41,14 @@ export interface ProposalPdfData {
   pages: DocumentPage[];
   tables: ProposalTable[];
   template: ProposalTemplate | null;
+  /** Assets do template (capa cheia, contracapa, banners). */
+  assets?: TemplateAsset[];
   /** Contexto unificado da proposta — usado para resolver variáveis {{key}}. */
   documentContext?: ProposalDocumentContext | null;
 }
 
 export function ProposalPdfDocument({ data }: { data: ProposalPdfData }) {
-  const { proposal, pages, tables, template, documentContext } = data;
+  const { proposal, pages, tables, template, documentContext, assets } = data;
 
   const theme: PdfTheme = {
     ...defaultTheme,
