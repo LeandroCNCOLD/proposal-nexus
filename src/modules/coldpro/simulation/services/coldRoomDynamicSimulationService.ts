@@ -21,6 +21,8 @@ import { DOOR_PROTECTION_FACTORS } from "../types/coldRoomSimulation.types";
 import { generateWeatherProfile } from "./weatherProfileService";
 import { calculateThermalMass } from "./thermalMassService";
 import { evaluateEquipmentPerformance } from "./equipmentPerformanceBridge";
+import { DoorLoadService } from "./doorLoadService";
+import { ChamberProfileService } from "./chamberProfileService";
 
 // ─── Constantes físicas ───────────────────────────────────────────────────────
 const AIR_DENSITY_KG_M3 = 1.2;
@@ -209,15 +211,36 @@ export async function runColdRoomDynamicSimulation(input: ColdRoomSimulationInpu
 
   // Estado inicial
   let roomTemp = input.initial_room_temperature_c ?? operation.setpoint_c;
-  let compressorStatus: "ON" | "OFF" = "OFF";
-  const doorEvents = input.door_events ?? [];
+  let compressorStatus: "ON" | "OFF" | "DEFROST" = "OFF";
+
+  // Gerar eventos de porta a partir do cronograma programado (se fornecido)
+  const generatedDoorEvents = input.door_schedule?.length
+    ? DoorLoadService.generateDoorEvents(
+        input.door_schedule.map((d) => ({
+          ...d,
+          simulation_days: operation.simulation_days,
+        }))
+      )
+    : [];
+  const doorEvents: DoorOpeningEvent[] = [
+    ...(input.door_events ?? []),
+    ...generatedDoorEvents,
+  ];
+
+  // Configuração de degelo
+  const defrost = input.defrost_config;
+  const intRhPct = defrost?.internal_relative_humidity_pct ?? 85;
 
   const timeline: ColdRoomSimulationTimeStep[] = [];
   const alerts: SimulationAlert[] = [];
 
-  // Contadores para alertas
+  // Contadores para alertas e acumuladores de gelo/porta
   let overloadSteps = 0;
   let outOfRangeSteps = 0;
+  let totalFrostKg = 0;
+  let totalDoorOpenings = 0;
+  let totalDoorInfiltrationKcal = 0;
+  let totalLatentLoadKcal = 0;
 
   for (let i = 0; i < climateData.length; i++) {
     const climate = climateData[i];
@@ -227,21 +250,57 @@ export async function runColdRoomDynamicSimulation(input: ColdRoomSimulationInpu
     const timestamp = climate.timestamp;
     const hour = new Date(timestamp).getHours();
 
-    // ── Lógica de controle liga/desliga ──────────────────────────────────────
-    const diff = operation.differential_c;
-    if (roomTemp >= operation.setpoint_c + diff / 2) compressorStatus = "ON";
-    if (roomTemp <= operation.setpoint_c - diff / 2) compressorStatus = "OFF";
+    // ── Verificar se está em degelo ──────────────────────────────────────────
+    const isDefrostStep = defrost
+      ? ChamberProfileService.isMachineInDefrost(
+          timestamp,
+          defrost.defrost_cycles_per_day,
+          defrost.defrost_duration_minutes
+        )
+      : false;
 
-    // ── Cargas térmicas do passo ─────────────────────────────────────────────
+    if (isDefrostStep && defrost?.compressor_off_during_defrost) {
+      compressorStatus = "DEFROST";
+    } else {
+      // ── Lógica de controle liga/desliga ────────────────────────────────
+      const diff = operation.differential_c;
+      if (compressorStatus === "DEFROST") compressorStatus = "OFF"; // Retorna do degelo
+      if (roomTemp >= operation.setpoint_c + diff / 2) compressorStatus = "ON";
+      if (roomTemp <= operation.setpoint_c - diff / 2) compressorStatus = "OFF";
+    }
+
+    // ── Cargas térmicas do passo ──────────────────────────────────────────
     const transmissionLoad = calcTransmissionLoad(
       input.envelope_surfaces, extTemp, roomTemp, solar,
     ) * stepH;
 
     const infiltrationLoad = calcInfiltrationLoad(
-      extTemp, extRh, roomTemp, 85,
+      extTemp, extRh, roomTemp, intRhPct,
       doorEvents, timestamp, operation.simulation_step_minutes,
       geometry.volume_m3,
     );
+
+    // Contar aberturas de porta neste passo
+    const stepSeconds = operation.simulation_step_minutes * 60;
+    const stepTimeMs = new Date(timestamp).getTime();
+    const doorOpeningsInStep = doorEvents.filter((d) => {
+      const dt = new Date(d.timestamp).getTime();
+      return dt >= stepTimeMs && dt < stepTimeMs + stepSeconds * 1000;
+    });
+    totalDoorOpenings += doorOpeningsInStep.length;
+    if (doorOpeningsInStep.length > 0) {
+      totalDoorInfiltrationKcal += infiltrationLoad;
+    }
+
+    // Análise de gelo (apenas câmaras negativas)
+    const iceAnalysis = ChamberProfileService.analyzeIceRiskStep(
+      extTemp, extRh, roomTemp, intRhPct,
+      infiltrationLoad > 0 ? geometry.volume_m3 * 0.1 : 0 // Estimar vazão de infiltração
+    );
+    const latentLoadKcal = iceAnalysis.latentLoadKw * 860 * stepH;
+    const frostKgStep = iceAnalysis.frostKgH * stepH;
+    totalFrostKg += frostKgStep;
+    totalLatentLoadKcal += latentLoadKcal;
 
     const productLoad = calcProductLoad(product, timestamp, operation.simulation_step_minutes, roomTemp);
 
@@ -249,7 +308,7 @@ export async function runColdRoomDynamicSimulation(input: ColdRoomSimulationInpu
 
     const totalLoad = transmissionLoad + infiltrationLoad + productLoad + internalLoad;
 
-    // ── Performance do equipamento ───────────────────────────────────────────
+    // ── Performance do equipamento ──────────────────────────────────────────
     const perfResult = evaluateEquipmentPerformance({
       room_temperature_c: roomTemp,
       external_temperature_c: extTemp,
@@ -257,11 +316,10 @@ export async function runColdRoomDynamicSimulation(input: ColdRoomSimulationInpu
       nominal_capacity_kcal_h: equipment.nominal_capacity_kcal_h,
     });
 
-    const equipCapacity = compressorStatus === "ON"
-      ? perfResult.cooling_capacity_kcal_h * stepH
-      : 0;
-    const equipPower = compressorStatus === "ON" ? perfResult.electrical_power_kw : 0;
-    const cop = compressorStatus === "ON" ? perfResult.cop : 0;
+    const isCompressorOn = compressorStatus === "ON";
+    const equipCapacity = isCompressorOn ? perfResult.cooling_capacity_kcal_h * stepH : 0;
+    const equipPower = isCompressorOn ? perfResult.electrical_power_kw : 0;
+    const cop = isCompressorOn ? perfResult.cop : 0;
 
     // ── Balanço térmico ──────────────────────────────────────────────────────
     const thermalBalance = totalLoad - equipCapacity;
@@ -327,6 +385,10 @@ export async function runColdRoomDynamicSimulation(input: ColdRoomSimulationInpu
       equipment_utilization_pct: Math.round(utilizationPct),
       thermal_balance_kcal_h: Math.round(thermalBalance),
       delta_temperature_c: Math.round(deltaTemp * 1000) / 1000,
+      // Novos campos
+      latent_load_kcal_h: Math.round(latentLoadKcal),
+      frost_kg: Math.round(frostKgStep * 1000) / 1000,
+      is_defrost_step: isDefrostStep,
     });
   }
 
@@ -346,6 +408,26 @@ export async function runColdRoomDynamicSimulation(input: ColdRoomSimulationInpu
   const maxUtilization = Math.max(...timeline.map((t) => t.equipment_utilization_pct));
   const peakLoad = Math.max(...loads);
   const recommendedCapacity = peakLoad * 1.1; // 10% de margem sobre o pico
+
+  // Avaliar perfil de câmara (gelo, degelo, risco)
+  const chamberProfileResult = defrost
+    ? ChamberProfileService.evaluateChamberProfile(
+        {
+          environment_type: (input as any).environment_type ?? "cold_room",
+          setpoint_c: operation.setpoint_c,
+          defrost_type: defrost.defrost_type,
+          defrost_cycles_per_day: defrost.defrost_cycles_per_day,
+          defrost_duration_minutes: defrost.defrost_duration_minutes,
+        },
+        totalFrostKg,
+        loads.reduce((s, l) => s + l, 0),
+        totalLatentLoadKcal
+      )
+    : null;
+
+  const defrostDowntimeHoursDay = defrost
+    ? (defrost.defrost_cycles_per_day * defrost.defrost_duration_minutes) / 60
+    : 0;
 
   const summary: ColdRoomSimulationSummary = {
     simulation_period_days: operation.simulation_days,
@@ -369,6 +451,22 @@ export async function runColdRoomDynamicSimulation(input: ColdRoomSimulationInpu
       : "--",
     recommended_min_capacity_kcal_h: Math.round(recommendedCapacity),
     capacity_adequate: (equipment.nominal_capacity_kcal_h ?? 0) >= recommendedCapacity,
+    // Novos campos: portas
+    total_door_openings: totalDoorOpenings,
+    total_door_infiltration_load_kcal: Math.round(totalDoorInfiltrationKcal),
+    door_infiltration_pct_of_total: loads.reduce((s, l) => s + l, 0) > 0
+      ? Math.round((totalDoorInfiltrationKcal / loads.reduce((s, l) => s + l, 0)) * 1000) / 10
+      : 0,
+    // Novos campos: gelo e degelo
+    total_frost_kg: Math.round(totalFrostKg * 10) / 10,
+    frost_kg_per_day: Math.round((totalFrostKg / (operation.simulation_days || 1)) * 10) / 10,
+    latent_load_pct: chamberProfileResult?.latent_load_pct ?? 0,
+    ice_risk_level: chamberProfileResult?.risk_level ?? "n/a",
+    defrost_downtime_hours_per_day: Math.round(defrostDowntimeHoursDay * 10) / 10,
+    defrost_cycles_per_day: defrost?.defrost_cycles_per_day ?? 0,
+    recommended_defrost_cycles: chamberProfileResult?.recommended_defrost_cycles ?? 0,
+    machine_downtime_hours_total: Math.round(defrostDowntimeHoursDay * (operation.simulation_days || 1) * 10) / 10,
+    defrost_warnings: chamberProfileResult?.warnings ?? [],
   };
 
   // Alertas finais de capacidade
@@ -385,6 +483,39 @@ export async function runColdRoomDynamicSimulation(input: ColdRoomSimulationInpu
       severity: "critical",
       code: "TEMP_VIOLATION",
       message: `Temperatura interna ultrapassou o limite máximo por ${summary.temperature_out_of_range_hours.toFixed(1)} horas`,
+    });
+  }
+
+  // Alertas de gelo e degelo
+  if (summary.ice_risk_level === "critical" || summary.ice_risk_level === "high") {
+    alerts.unshift({
+      severity: summary.ice_risk_level === "critical" ? "critical" : "warning",
+      code: "ICE_RISK",
+      message: `Risco ${summary.ice_risk_level === "critical" ? "CRÍTICO" : "ALTO"} de formação de gelo: ${summary.frost_kg_per_day} kg/dia estimados. ${summary.defrost_warnings.join(" ")}`
+    });
+  }
+
+  if (summary.recommended_defrost_cycles > summary.defrost_cycles_per_day && summary.defrost_cycles_per_day > 0) {
+    alerts.push({
+      severity: "warning",
+      code: "DEFROST_INSUFFICIENT",
+      message: `Ciclos de degelo insuficientes. Configurado: ${summary.defrost_cycles_per_day}/dia. Recomendado: ${summary.recommended_defrost_cycles}/dia.`,
+    });
+  }
+
+  if (summary.machine_downtime_hours_total > 0) {
+    alerts.push({
+      severity: "info",
+      code: "DEFROST_DOWNTIME",
+      message: `Máquina parada para degelo: ${summary.defrost_downtime_hours_per_day.toFixed(1)}h/dia (${summary.machine_downtime_hours_total.toFixed(0)}h no período simulado).`,
+    });
+  }
+
+  if (totalDoorOpenings > 0) {
+    alerts.push({
+      severity: "info",
+      code: "DOOR_INFILTRATION",
+      message: `${totalDoorOpenings} aberturas de porta simuladas. Infiltração por portas: ${summary.door_infiltration_pct_of_total.toFixed(1)}% da carga total.`,
     });
   }
 
