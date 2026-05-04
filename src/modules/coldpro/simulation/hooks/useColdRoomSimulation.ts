@@ -316,29 +316,60 @@ export function useColdRoomSimulation(
     setSaveError(null);
 
     try {
+      // Executar simulação localmente primeiro
+      const input = buildSimulationInput(environment, calculationResult, config);
+      if (!input) {
+        setSaveError("Dados insuficientes para simulação.");
+        return;
+      }
+      const simResult = runColdRoomDynamicSimulation(input);
+      setResult(simResult);
+
+      const weatherProfile = (config.weather_profile_type === "annual"
+        ? "annual_average"
+        : config.weather_profile_type === "manual"
+        ? "custom"
+        : config.weather_profile_type) as
+        | "hot_day" | "cold_day" | "rainy_day" | "dry_day" | "humid_day" | "annual_average" | "custom";
+
+      const stepMin = config.simulation_step_minutes === 10 ? 15 : config.simulation_step_minutes;
+      const compressorOnSteps = simResult.timeline.filter((t) => t.compressor_status === "ON").length;
+      const totalSteps = Math.max(1, simResult.timeline.length);
+      const hoursAbove = simResult.timeline.filter((t) => t.room_temperature_c > config.setpoint_c).length / Math.max(1, 60 / stepMin);
+      const hoursBelow = simResult.timeline.filter((t) => t.room_temperature_c < config.setpoint_c).length / Math.max(1, 60 / stepMin);
+      const adequacy = simResult.summary.capacity_adequate ? "adequate" : "undersized";
+
       const saved = await saveSimulation({
         data: {
           environmentId: environment.id,
           name: name ?? `Simulação ${new Date().toLocaleDateString("pt-BR")}`,
           config: {
-            weatherProfile: config.weather_profile_type,
+            weatherProfile,
             simulationPeriodDays: config.simulation_days,
-            timeStepMinutes: config.simulation_step_minutes as any,
+            timeStepMinutes: stepMin as 5 | 15 | 30 | 60,
             setpointC: config.setpoint_c,
             differentialC: config.differential_c,
             customExternalTempC: config.custom_max_temp_c ?? null,
+          },
+          result: {
+            maxInternalTempC: simResult.summary.max_room_temperature_c,
+            minInternalTempC: simResult.summary.min_room_temperature_c,
+            avgInternalTempC: simResult.summary.average_room_temperature_c,
+            hoursAboveSetpoint: hoursAbove,
+            hoursBelowSetpoint: hoursBelow,
+            compressorOnHours: simResult.summary.compressor_runtime_hours,
+            compressorOnPercent: simResult.summary.compressor_runtime_pct,
+            totalEnergyKwh: simResult.summary.total_energy_kwh,
+            avgCop: simResult.summary.average_cop,
+            peakLoadKcalH: simResult.summary.peak_load_kcal_h,
+            equipmentAdequacy: adequacy,
+            timeline: simResult.timeline as any,
+            alerts: simResult.alerts as any,
           },
         },
       });
 
       setLastSavedId(saved.simulation.id);
-
-      // Também executar localmente para exibir os gráficos
-      const input = buildSimulationInput(environment, calculationResult, config);
-      if (input) {
-        const simResult = runColdRoomDynamicSimulation(input);
-        setResult(simResult);
-      }
 
       // Atualizar histórico
       await loadHistory();
