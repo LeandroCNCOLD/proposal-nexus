@@ -169,7 +169,7 @@ function buildSimulationInput(
   };
 
   const internalLoads: InternalLoadProfile = {
-    lighting_kw: Number(env.lighting_kw ?? (calcResult.lighting_kcal_h ?? 0) / 860 ?? 0.5),
+    lighting_kw: Number(env.lighting_kw ?? (calcResult.lighting_kcal_h ?? 0) / 860 ?? 0.5) || 0.5,
     people_count: Number(env.people_count ?? 2),
     people_heat_kcal_h_person: Number(env.people_heat_kcal_h ?? 270),
     motors_hp: Number(env.motors_hp ?? 0),
