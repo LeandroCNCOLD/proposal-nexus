@@ -405,6 +405,155 @@ export const COLDPRO_FIELD_HELP = {
     title: "Comparativo com aba Produtos",
     content: `Compara a carga calculada pelo motor do túnel com a carga consolidada da aba Produtos. Diferenças grandes podem indicar duplicidade, conversão incorreta, dados divergentes ou uso de modelos diferentes. O sistema deve alertar, mas não sobrescrever automaticamente os valores.`,
   },
+  // ─────────────────────────────────────────────────────────────────────────
+  // MELHORIA 3.1 — Textos de ajuda para campos de Ambiente, Isolamento, Infiltração e Cargas Extras
+  // ─────────────────────────────────────────────────────────────────────────
+  internalTemp: {
+    title: "Temperatura interna da câmara",
+    content: `Temperatura de operação no interior da câmara fria (°C). Para câmaras de resfriamento, valores típicos são entre 0°C e 12°C. Para câmaras de congelamento, entre -18°C e -35°C. Este valor é o principal determinante da carga de transmissão e do ΔT de projeto.`,
+  },
+  externalTemp: {
+    title: "Temperatura externa (ambiente)",
+    content: `Temperatura do ambiente externo à câmara (°C). Se não informada, o sistema usa o padrão da região climática selecionada. Para projetos em regiões quentes (Centro-Oeste, Norte/Nordeste), use 38–40°C. Para o interior de SP, use 38°C. Para a Grande SP, use 35°C.`,
+  },
+  wallThickness: {
+    title: "Espessura do painel de parede (mm)",
+    content: [
+      "Define a espessura do painel isotérmico das paredes em milímetros.",
+      "Valores típicos por aplicação:",
+      "• Câmara de resfriamento (0°C a 10°C): 75–100 mm",
+      "• Câmara de congelamento (-18°C a -25°C): 100–150 mm",
+      "• Câmara de congelamento profundo (< -30°C): 150–200 mm",
+      "• Túnel de congelamento: 150–200 mm",
+      "A espessura impacta diretamente o U-value e a carga de transmissão.",
+    ],
+  },
+  ceilingThickness: {
+    title: "Espessura do painel de teto (mm)",
+    content: `Espessura do painel isotérmico do teto. Geralmente igual ou maior que as paredes, pois o teto recebe maior carga solar e convectiva. Para câmaras externas, recomenda-se adicionar 25–50 mm em relação às paredes.`,
+  },
+  floorThickness: {
+    title: "Espessura do painel de piso (mm)",
+    content: `Espessura do painel isotérmico do piso, quando aplicável. Para câmaras de congelamento, o piso deve ser isolado para evitar congelamento do solo e danos estruturais. Câmaras de resfriamento podem usar piso de concreto sem isolamento.`,
+  },
+  safetyFactor: {
+    title: "Fator de segurança (%)",
+    content: [
+      "Percentual adicionado sobre a carga térmica calculada para cobrir incertezas de projeto.",
+      "Valores recomendados por situação:",
+      "• Projeto com dados completos e confiáveis: 5–10%",
+      "• Projeto com dados estimados: 10–15%",
+      "• Câmaras com alta variação de carga (açougue, padaria): 15–20%",
+      "• Túneis de congelamento com produto variável: 20–25%",
+      "Não use fatores acima de 30% — prefira revisar as premissas.",
+    ],
+  },
+  compressorRuntimeHours: {
+    title: "Horas de operação do compressor por dia",
+    content: `Número de horas por dia em que o compressor opera efetivamente (não inclui tempo de degelo ou parada). Valor típico: 16–20 h/dia. Este valor é usado para ratear a carga de infiltração, degelo e cargas internas ao longo do período de operação real do sistema.`,
+  },
+  doorOpenings: {
+    title: "Número de aberturas de porta por dia",
+    content: [
+      "Quantidade total de vezes que a porta é aberta por dia.",
+      "Valores típicos por tipo de operação:",
+      "• Câmara de armazenagem (baixo giro): 5–15 aberturas/dia",
+      "• Câmara de expedição (médio giro): 20–50 aberturas/dia",
+      "• Câmara de produção (alto giro): 50–150 aberturas/dia",
+      "• Câmara de açougue/padaria: 100–200 aberturas/dia",
+      "Cada abertura gera infiltração de ar quente e úmido.",
+    ],
+  },
+  doorOpenSeconds: {
+    title: "Tempo médio de abertura por abertura (segundos)",
+    content: `Tempo médio que a porta permanece aberta a cada abertura. Valor típico: 30–60 segundos para operação normal. Câmaras com porta rápida: 5–15 segundos. Câmaras com antecâmara: pode ser maior pois o ar quente fica na antecâmara.`,
+  },
+  airChangesPerHour: {
+    title: "Trocas de ar por hora (ACH)",
+    content: [
+      "Número de vezes que o volume interno da câmara é renovado por hora.",
+      "Usado para câmaras com ventilação forçada, câmaras de maturação ou câmaras com controle de atmosfera.",
+      "Valores típicos:",
+      "• Câmara fria convencional: 0 (sem renovação forçada)",
+      "• Câmara de maturação de banana: 0.5–2 ACH",
+      "• Câmara de sementes com controle de umidade: 1–4 ACH",
+      "• Câmara de desverdecimento cítrico: 2–6 ACH",
+    ],
+  },
+  freshAirM3H: {
+    title: "Renovação de ar fresco (m³/h)",
+    content: `Vazão de ar externo injetado continuamente na câmara (m³/h). Usado em câmaras que precisam de renovação de ar para controle de CO₂, etileno ou umidade. Esta carga é contínua e pode ser significativa em câmaras de maturação e armazenamento de sementes.`,
+  },
+  doorInfiltrationM3Day: {
+    title: "Infiltração manual de porta (m³/dia)",
+    content: `Volume de ar que entra pela porta por dia (m³/dia), informado manualmente quando o cálculo automático por aberturas não é adequado. Use este campo quando você já tem uma medição ou estimativa da infiltração total da porta. Atenção: este valor é em m³/DIA, não m³/hora.`,
+  },
+  peopleCount: {
+    title: "Número de pessoas na câmara",
+    content: `Quantidade máxima de pessoas operando simultaneamente dentro da câmara. Cada pessoa dissipa aproximadamente 270 kcal/h em trabalho moderado dentro de câmaras frias (ASHRAE). Em câmaras de congelamento, a dissipação pode ser maior devido ao esforço adicional com EPIs.`,
+  },
+  lightingPowerW: {
+    title: "Potência de iluminação (W)",
+    content: `Potência total das luminárias instaladas dentro da câmara (W). Toda a energia elétrica das luminárias se converte em calor dentro da câmara. Use luminárias LED certificadas para câmaras frias (IP65 ou IP67) para reduzir esta carga. Valor típico: 40–100 W por luminária.`,
+  },
+  motorsPowerKw: {
+    title: "Potência de motores internos (kW)",
+    content: [
+      "Potência total dos motores e equipamentos elétricos operando dentro da câmara (kW).",
+      "Inclui: empilhadeiras elétricas, transpaleteiras, esteiras, bombas, agitadores.",
+      "O fator de dissipação (0 a 1) indica quanto da potência elétrica se converte em calor dentro da câmara:",
+      "• Motor totalmente interno: fator 1.0 (100% vira calor)",
+      "• Motor parcialmente externo: fator 0.5",
+      "• Motor totalmente externo (apenas eixo entra): fator 0.0",
+    ],
+  },
+  solAirOrientation: {
+    title: "Orientação solar da face (temperatura sol-ar)",
+    content: [
+      "Orientação geográfica da face externa do painel em relação ao sol.",
+      "Usado para calcular o ganho solar adicional em painéis opacos (temperatura sol-ar — ASHRAE).",
+      "Faces mais expostas ao sol recebem mais carga:",
+      "• Telhado: maior carga solar (750 W/m² de pico)",
+      "• Faces E e W: carga alta (420 W/m²)",
+      "• Faces NE e NW: carga média (280 W/m²)",
+      "• Face N: carga baixa (150 W/m²)",
+      "• Face S: carga mínima (120 W/m²)",
+    ],
+  },
+  panelColor: {
+    title: "Cor do painel externo",
+    content: [
+      "Cor da superfície externa do painel isotérmico. Afeta a absortividade solar.",
+      "• Branco: absortividade 0.25 (menor ganho solar — recomendado para telhados)",
+      "• Claro (cinza, bege): absortividade 0.45",
+      "• Médio (azul, verde): absortividade 0.65",
+      "• Escuro (marrom, preto): absortividade 0.90 (maior ganho solar — evitar em telhados)",
+      "Painéis brancos em telhados podem reduzir a carga de transmissão em até 15%.",
+    ],
+  },
+  pullDownTimeH: {
+    title: "Tempo de pull-down (horas)",
+    content: `Tempo desejado para resfriar a câmara da temperatura ambiente até a temperatura de operação na primeira partida (horas). Valores típicos: 4–12 horas. Tempos menores exigem equipamento maior. Este cálculo é adicional ao regime permanente e serve para dimensionar o equipamento para a partida a frio.`,
+  },
+  defrostCyclesPerDay: {
+    title: "Ciclos de degelo por dia",
+    content: [
+      "Número de ciclos de degelo do evaporador por dia.",
+      "Valores típicos:",
+      "• Câmara de resfriamento (0°C a 5°C): 1–2 ciclos/dia",
+      "• Câmara de congelamento (-18°C a -25°C): 2–4 ciclos/dia",
+      "• Túnel de congelamento: 1 ciclo por turno (2–3/dia)",
+      "Mais ciclos por dia podem indicar excesso de infiltração ou evaporador subdimensionado.",
+    ],
+  },
+  defrostDurationMinutes: {
+    title: "Duração do ciclo de degelo (minutos)",
+    content: `Tempo de cada ciclo de degelo em minutos. Valores típicos: 20–45 minutos para degelo elétrico, 15–30 minutos para degelo a gás quente. A duração afeta a potência elétrica necessária nos resistores: ciclos mais curtos exigem resistores mais potentes.`,
+  },
+  evaporatorMassKg: {
+    title: "Massa do evaporador (kg)",
+    content: `Massa total do evaporador (serpentina + carcaça) em kg. Usada para calcular a energia necessária para aquecer o próprio evaporador durante o degelo. Para evaporadores pequenos (câmaras < 50 m³): 30–80 kg. Para evaporadores grandes (câmaras > 200 m³): 150–400 kg.`,
+  },
 } as const satisfies Record<string, ColdProFieldHelp>;
 
 export type ColdProFieldHelpKey = keyof typeof COLDPRO_FIELD_HELP;
