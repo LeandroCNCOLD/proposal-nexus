@@ -36,6 +36,8 @@ import {
   AreaChart,
   Area,
 } from "recharts";
+import { SimulationChartPanel } from "../components/SimulationChartPanel";
+import { SimulationAIInsightPanel } from "../components/SimulationAIInsightPanel";
 
 // ─── Helpers de formatação ────────────────────────────────────────────────────
 
@@ -598,9 +600,11 @@ interface ColdRoomSimulationTabProps {
   environment: any;
   /** Resultado do cálculo estático (do coldpro-calculation.engine) */
   calculationResult: any;
+  /** Callback para análise via IA */
+  onAnalyze?: (question: string) => Promise<string>;
 }
 
-export function ColdRoomSimulationTab({ environment, calculationResult }: ColdRoomSimulationTabProps) {
+export function ColdRoomSimulationTab({ environment, calculationResult, onAnalyze }: ColdRoomSimulationTabProps) {
   const { result, isRunning, error, config, setConfig, runSimulation, reset } =
     useColdRoomSimulation(environment, calculationResult);
 
@@ -670,7 +674,23 @@ export function ColdRoomSimulationTab({ environment, calculationResult }: ColdRo
 
       {/* Resultados */}
       {result && !isRunning && (
-        <ResultsPanel result={result} setpoint={config.setpoint_c} />
+        <>
+          <ResultsPanel result={result} setpoint={config.setpoint_c} />
+
+          {/* Gráficos interativos com filtro de período */}
+          <SimulationChartPanel
+            chartData={result.timeline}
+            setpoint={config.setpoint_c}
+          />
+
+          {/* Análise de IA */}
+          {onAnalyze && (
+            <SimulationAIInsightPanel
+              result={result}
+              onAnalyze={onAnalyze}
+            />
+          )}
+        </>
       )}
     </div>
   );
