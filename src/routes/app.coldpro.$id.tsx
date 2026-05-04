@@ -17,12 +17,14 @@ import {
   useGenerateColdProMemorialPdf,
   useAnalyzeColdProMemorial,
 } from "@/features/coldpro/use-coldpro";
-import { ColdProEnvironmentForm, type ColdProEnvironmentFormHandle } from "@/components/coldpro/ColdProEnvironmentForm";
-import { ColdProProductForm, type ColdProProductFormHandle } from "@/components/coldpro/ColdProProductForm";
-import { ColdProTunnelForm, type ColdProTunnelFormHandle } from "@/components/coldpro/ColdProTunnelForm";
+import { ColdProEnvironmentForm } from "@/components/coldpro/ColdProEnvironmentForm";
+import { ColdProProductForm } from "@/components/coldpro/ColdProProductForm";
+import { ColdProTunnelForm } from "@/components/coldpro/ColdProTunnelForm";
 import { ColdProResultCard } from "@/components/coldpro/ColdProResultCard";
-import { ColdProExtraLoadsForm, type ColdProExtraLoadsFormHandle } from "@/components/coldpro/ColdProExtraLoadsForm";
+import { ColdProExtraLoadsForm } from "@/components/coldpro/ColdProExtraLoadsForm";
 import { ColdProStepper, COLDPRO_STEPS } from "@/components/coldpro/ColdProStepper";
+import { ColdRoomSimulationTab } from "@/modules/coldpro/simulation/pages/ColdRoomSimulationTab";
+import { ColdRoomFinalReportTab } from "@/modules/coldpro/simulation/pages/ColdRoomFinalReportTab";
 import { ColdProReport } from "@/components/coldpro/ColdProReport";
 import { ColdProProjectResultDashboard } from "@/modules/coldpro/components/results/ColdProProjectResultDashboard";
 import { EnergySummary } from "@/modules/coldpro/components/results/EnergySummary";
@@ -32,7 +34,6 @@ import { ColdProRealSelection } from "@/components/coldpro/ColdProRealSelection"
 import { ColdProSectionLoadSummary } from "@/components/coldpro/ColdProSectionLoadSummary";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { saveCatalogEquipmentSelection } from "@/features/coldpro/catalog-selection.functions";
-import { calculateProductLoadBreakdown } from "@/features/coldpro/coldpro-calculation.engine";
 import { calculateExtraLoadPreview } from "@/features/coldpro/extra-loads-preview";
 import { databaseToTunnelInput } from "@/modules/coldpro/adapters/databaseToTunnelInput";
 import { calculateTunnelEngine } from "@/modules/coldpro/engines/tunnelEngine";
@@ -70,16 +71,6 @@ function formatNumber(value: unknown, decimals = 2) {
 
 function formatKw(value: unknown) {
   return toFiniteValue(value) !== null ? `${formatNumber(value, 2)} kW` : "—";
-}
-
-function productMovementSummary(product: any) {
-  const mode = String(product?.product_load_mode ?? product?.movement_basis ?? "daily_intake");
-  const daily = firstFinite(product?.daily_movement_kg, product?.mass_kg_day) ?? 0;
-  const hourly = firstFinite(product?.hourly_movement_kg, product?.mass_kg_hour) ?? 0;
-  if (mode === "storage_turnover" || product?.movement_basis === "calculated_from_stock") return `${fmt(product?.stored_mass_kg)} kg estoque · ${fmt(product?.daily_turnover_percent)}% giro · ${fmt(daily)} kg/dia · ${fmt(hourly)} kg/h`;
-  if (mode === "hourly_intake" || product?.movement_basis === "manual_hourly") return `${fmt(hourly)} kg/h direto`;
-  if (mode === "room_pull_down_or_freezing" || product?.movement_basis === "batch_recovery") return `${fmt(product?.freezing_batch_mass_kg ?? daily)} kg/lote · ${fmt(product?.freezing_batch_time_h ?? product?.recovery_time_h)} h`;
-  return `${fmt(daily)} kg/dia · ${fmt(product?.recovery_time_h ?? product?.process_time_h)} h · ${fmt(hourly)} kg/h`;
 }
 
 
@@ -309,10 +300,6 @@ function ColdProProjectPage() {
   const [energyTariff, setEnergyTariff] = React.useState("0.95");
   const [commercialQuantity, setCommercialQuantity] = React.useState("1");
   const [equipmentUnitPrice, setEquipmentUnitPrice] = React.useState("0");
-  const environmentFormRef = React.useRef<ColdProEnvironmentFormHandle | null>(null);
-  const productFormRef = React.useRef<ColdProProductFormHandle | null>(null);
-  const extraLoadsFormRef = React.useRef<ColdProExtraLoadsFormHandle | null>(null);
-  const tunnelFormRef = React.useRef<ColdProTunnelFormHandle | null>(null);
 
   const environments = data?.environments ?? [];
   const selectedEnv = environments.find((env: any) => env.id === selectedEnvId) ?? environments[0];
@@ -334,33 +321,12 @@ function ColdProProjectPage() {
     [data?.selections, selection, selectedEnv?.id],
   );
   const tunnelPreview = tunnel && selectedEnv ? calculateTunnelEngine(databaseToTunnelInput(tunnel, selectedEnv)) : null;
-  const productPreviewBreakdown = products.map((product: any) => calculateProductLoadBreakdown(product));
-  const directProductPreviewLoad = productPreviewBreakdown.reduce((sum: number, item: any) => sum + Number(item.total_kcal_h ?? 0), 0);
-  const packagingPreviewLoad = products.reduce((sum: number, product: any) => {
-    const mass = Number(product.packaging_mass_kg_day ?? 0);
-    const cp = Number(product.packaging_specific_heat_kcal_kg_c ?? 0);
-    const tin = Number(product.packaging_inlet_temp_c ?? product.inlet_temp_c ?? 0);
-    const tout = Number(product.packaging_outlet_temp_c ?? product.outlet_temp_c ?? 0);
-    const hours = Number(product.process_time_h ?? product.recovery_time_h ?? 24) || 24;
-    return sum + (mass * cp * Math.abs(tin - tout)) / hours;
-  }, 0);
-  const auditTunnel = result?.calculation_breakdown?.tunnel ?? result?.calculationBreakdown?.tunnel ?? tunnelPreview ?? tunnel;
-  const technicalAudit = React.useMemo(() => auditColdProTechnicalConsistency({ environment: selectedEnv, result, tunnel: auditTunnel, products, advancedProcesses: [], selection }), [selectedEnv, result, auditTunnel, products, selection]);
+  const technicalAudit = React.useMemo(() => auditColdProTechnicalConsistency({ environment: selectedEnv, result, tunnel: tunnelPreview ?? tunnel, products, advancedProcesses: [], selection }), [selectedEnv, result, tunnelPreview, tunnel, products, selection]);
   const environmentLoad = Number(result?.transmission_kcal_h ?? 0);
-  const tunnelPreviewProductLoad = tunnelPreview ? tunnelPreview.productLoadKW * 859.845 : 0;
-  const tunnelPreviewPackagingLoad = tunnelPreview ? tunnelPreview.packagingLoadKW * 859.845 : 0;
-  const tunnelPreviewInternalLoad = tunnelPreview ? tunnelPreview.internalLoadKW * 859.845 : 0;
   const savedProductLoad = Number(result?.product_kcal_h ?? 0) + Number(result?.packaging_kcal_h ?? 0) + Number(result?.calculation_breakdown?.respiration_kcal_h ?? 0) + Number(result?.tunnel_internal_load_kcal_h ?? 0);
-  const productPreviewLoad = directProductPreviewLoad + packagingPreviewLoad;
-  const productLoad = savedProductLoad > 0 ? savedProductLoad : productPreviewLoad > 0 ? productPreviewLoad : tunnelPreviewProductLoad + tunnelPreviewPackagingLoad + tunnelPreviewInternalLoad;
-  const hasTunnelProduct = Boolean(tunnel && [tunnel.product_name, tunnel.product_id, tunnelPreview?.productLoadKW].some((value) => (typeof value === "number" ? value > 0 : String(value ?? "").trim().length > 0)));
+  const productLoad = savedProductLoad > 0 ? savedProductLoad : Number(tunnelPreview?.totalKcalH ?? 0);
   const extraPreview = calculateExtraLoadPreview(selectedEnv ?? {});
-  const savedExtraLoad = result ? Number(result.infiltration_kcal_h ?? 0) + Number(result.people_kcal_h ?? 0) + Number(result.lighting_kcal_h ?? 0) + Number(result.motors_kcal_h ?? 0) + Number(result.fans_kcal_h ?? 0) + Number(result.defrost_kcal_h ?? 0) + Number(result.other_kcal_h ?? 0) + Number(result.calculation_breakdown?.evaporator_frost?.additional_load_kcal_h ?? 0) : 0;
-  const extraLoad = result ? savedExtraLoad : extraPreview.subtotal_kcal_h;
-  const projectBaseLoadKcalH = environmentLoad + productLoad;
-  const projectSubtotalPreviewKcalH = result ? Number(result.subtotal_kcal_h ?? projectBaseLoadKcalH + extraLoad) : projectBaseLoadKcalH + extraPreview.subtotal_kcal_h;
-  const projectSafetyPreviewKcalH = result ? Number(result.safety_kcal_h ?? 0) : projectSubtotalPreviewKcalH * (Number(selectedEnv?.safety_factor_percent ?? 0) / 100);
-  const projectTotalWithSafetyPreviewKcalH = result ? Number(result.total_required_kcal_h ?? projectSubtotalPreviewKcalH + projectSafetyPreviewKcalH) : projectSubtotalPreviewKcalH + projectSafetyPreviewKcalH;
+  const extraLoad = result ? Number(result.infiltration_kcal_h ?? 0) + Number(result.people_kcal_h ?? 0) + Number(result.lighting_kcal_h ?? 0) + Number(result.motors_kcal_h ?? 0) + Number(result.fans_kcal_h ?? 0) + Number(result.defrost_kcal_h ?? 0) + Number(result.other_kcal_h ?? 0) : extraPreview.subtotal_kcal_h;
   const catalogFanLoadKcalH = Number(selection?.curve_metadata?.fan_power_kw ?? 0) * Number(selection?.quantity ?? 1) * 859.845;
   const selectedQuantity = firstFinite(selection?.quantity, selection?.curve_metadata?.quantidade) ?? 1;
   const energy = result?.energySimulation ?? result?.energy_simulation ?? result?.calculation_breakdown?.energySimulation ?? result?.calculation_breakdown?.energy_simulation ?? {};
@@ -402,7 +368,7 @@ function ColdProProjectPage() {
 
   const completed: Record<number, boolean> = {
     0: !!selectedEnv?.length_m,
-    1: products.length > 0 || hasTunnelProduct,
+    1: products.length > 0 || !!tunnel,
     2: !!selectedEnv?.safety_factor_percent,
     3: !!result,
   };
@@ -447,14 +413,10 @@ function ColdProProjectPage() {
   async function handleCalculate() {
     if (!selectedEnv) return;
     try {
-      if (stepIndex !== COLDPRO_STEPS.length - 1) {
-        const saved = await saveCurrentStepBeforeNavigation();
-        if (!saved) return;
-      }
       const calculated = await calculate.mutateAsync(selectedEnv.id);
       toast.success("Carga térmica calculada");
       setStepIndex(COLDPRO_STEPS.length - 1);
-      const postAudit = auditColdProTechnicalConsistency({ environment: selectedEnv, result: calculated, tunnel: calculated?.calculation_breakdown?.tunnel ?? null, products, advancedProcesses: [], selection });
+      const postAudit = auditColdProTechnicalConsistency({ environment: selectedEnv, result: calculated, tunnel: tunnelPreview ?? tunnel, products, advancedProcesses: [], selection });
       if (["blast_freezer", "cooling_tunnel"].includes(String(selectedEnv.environment_type)) && !postAudit.isBlocked) {
         try {
           await autoSelect.mutateAsync({ environmentId: selectedEnv.id, minQuantity: 1, equipmentKind: null });
@@ -478,47 +440,29 @@ function ColdProProjectPage() {
     try {
       await calculate.mutateAsync(environmentId);
       toast.success(successMessage);
-      return true;
     } catch (e: any) {
       toast.warning(e?.message ? `Dados salvos, mas o recálculo falhou: ${e.message}` : "Dados salvos, mas o recálculo falhou.");
-      return true;
     }
   }
 
   async function handleSaveTunnel(payload: any) {
-    if (!selectedEnv) return false;
+    if (!selectedEnv) return;
     try {
       await upsertTunnel.mutateAsync(payload);
       await handleRecalculateEnvironment(selectedEnv.id, "Túnel salvo e carga recalculada");
-      return true;
     } catch (e: any) {
       toast.error(e?.message ?? "Erro ao salvar");
-      return false;
     }
   }
 
   async function handleSaveProduct(payload: any) {
-    if (!selectedEnv) return false;
+    if (!selectedEnv) return;
     try {
       const row = await upsertProduct.mutateAsync(payload);
       setEditingProductId(row?.id ?? null);
       await handleRecalculateEnvironment(selectedEnv.id, payload.id ? "Produto salvo e carga recalculada" : "Produto adicionado e carga recalculada");
-      return true;
     } catch (e: any) {
       toast.error(e?.message ?? "Erro ao salvar");
-      return false;
-    }
-  }
-
-  async function handleSaveEnvironmentPatch(patch: Record<string, unknown>, successMessage: string) {
-    if (!selectedEnv) return false;
-    try {
-      await updateEnv.mutateAsync({ id: selectedEnv.id, patch });
-      toast.success(successMessage);
-      return true;
-    } catch (e: any) {
-      toast.error(e?.message ?? "Erro ao salvar");
-      return false;
     }
   }
 
@@ -594,27 +538,8 @@ function ColdProProjectPage() {
     }
   }
 
-  async function saveCurrentStepBeforeNavigation() {
-    if (!selectedEnv) return true;
-    if (stepIndex === 0) return environmentFormRef.current ? environmentFormRef.current.save() : true;
-    if (stepIndex === 1 && ["blast_freezer", "cooling_tunnel"].includes(String(selectedEnv.environment_type))) {
-      return tunnelFormRef.current ? tunnelFormRef.current.save() : true;
-    }
-    if (stepIndex === 1) return productFormRef.current ? productFormRef.current.save() : true;
-    if (stepIndex === 2) return extraLoadsFormRef.current ? extraLoadsFormRef.current.save() : true;
-    return true;
-  }
-
-  async function next() {
-    const saved = await saveCurrentStepBeforeNavigation();
-    if (!saved) return;
+  function next() {
     setStepIndex((i) => Math.min(i + 1, COLDPRO_STEPS.length - 1));
-  }
-  async function goToStep(index: number) {
-    if (index === stepIndex) return;
-    const saved = await saveCurrentStepBeforeNavigation();
-    if (!saved) return;
-    setStepIndex(index);
   }
   function prev() {
     setStepIndex((i) => Math.max(i - 1, 0));
@@ -769,7 +694,7 @@ function ColdProProjectPage() {
                 <ColdProStepper
                   currentStep={stepIndex}
                   completed={completed}
-                  onStepClick={goToStep}
+                  onStepClick={setStepIndex}
                 />
               </div>
 
@@ -793,11 +718,18 @@ function ColdProProjectPage() {
               {stepIndex === 0 && (
                 <div className="space-y-3">
                   <ColdProEnvironmentForm
-                    ref={environmentFormRef}
                     environment={selectedEnv}
                     insulationMaterials={data?.insulationMaterials ?? []}
                     thermalMaterials={data?.thermalMaterials ?? []}
-                    onSave={(patch) => handleSaveEnvironmentPatch(patch, "Ambiente salvo")}
+                    onSave={(patch) => {
+                      updateEnv.mutate(
+                        { id: selectedEnv.id, patch },
+                        {
+                          onSuccess: () => toast.success("Ambiente salvo"),
+                          onError: (e: any) => toast.error(e?.message ?? "Erro ao salvar"),
+                        },
+                      );
+                    }}
                   />
                   <ColdProSectionLoadSummary
                     title="Prévia da carga do ambiente"
@@ -813,7 +745,6 @@ function ColdProProjectPage() {
                 <div className="space-y-3">
                   {["blast_freezer", "cooling_tunnel"].includes(selectedEnv.environment_type) ? (
                     <ColdProTunnelForm
-                      ref={tunnelFormRef}
                       environmentId={selectedEnv.id}
                       environment={selectedEnv}
                       product={products[0] ?? null}
@@ -823,7 +754,6 @@ function ColdProProjectPage() {
                     />
                   ) : (
                     <ColdProProductForm
-                      ref={productFormRef}
                       environmentId={selectedEnv.id}
                       product={products.find((p: any) => p.id === editingProductId) ?? products[0] ?? null}
                       productCatalog={data?.productCatalog ?? []}
@@ -835,10 +765,10 @@ function ColdProProjectPage() {
                   <ColdProSectionLoadSummary
                     title="Prévia da carga de produto"
                     rows={[
-                      { label: "Produto", value: Number(result?.product_kcal_h ?? 0) || directProductPreviewLoad || tunnelPreviewProductLoad },
-                      { label: "Embalagem", value: Number(result?.packaging_kcal_h ?? 0) || packagingPreviewLoad || tunnelPreviewPackagingLoad },
+                      { label: "Produto", value: Number(result?.product_kcal_h ?? 0) || (tunnelPreview ? tunnelPreview.productLoadKW * 859.845 : 0) },
+                      { label: "Embalagem", value: Number(result?.packaging_kcal_h ?? 0) || (tunnelPreview ? tunnelPreview.packagingLoadKW * 859.845 : 0) },
                       { label: "Respiração", value: result?.calculation_breakdown?.respiration_kcal_h },
-                      { label: "Túnel / cargas internas", value: Number(result?.tunnel_internal_load_kcal_h ?? 0) || tunnelPreviewInternalLoad },
+                      { label: "Túnel / processo", value: Number(result?.tunnel_internal_load_kcal_h ?? 0) || (tunnelPreview ? tunnelPreview.internalLoadKW * 859.845 : 0) },
                     ]}
                     totalLabel="Total calculado da aba Produtos"
                     total={productLoad}
@@ -847,13 +777,13 @@ function ColdProProjectPage() {
                   <div className="rounded-lg border bg-background p-3">
                     <h3 className="mb-3 text-base font-semibold">Produtos cadastrados</h3>
                     {products.length === 0 ? (
-                      <div className="text-sm text-muted-foreground">{hasTunnelProduct ? `Produto/processo do túnel: ${tunnel?.product_name ?? "informado na configuração do túnel"}.` : "Nenhum produto/processo cadastrado."}</div>
+                      <div className="text-sm text-muted-foreground">Nenhum produto/processo cadastrado.</div>
                     ) : (
                       <div className="space-y-2">
                         {products.map((p: any) => (
                           <div key={p.id} className="flex flex-wrap items-center justify-between gap-3 rounded-md border px-3 py-2 text-sm">
                             <div>
-                              <b>{p.product_name}</b> · {productMovementSummary(p)} · entrada {p.inlet_temp_c}°C → final{" "}
+                              <b>{p.product_name}</b> · {fmt(p.mass_kg_day)} kg/dia · entrada {p.inlet_temp_c}°C → final{" "}
                               {p.outlet_temp_c}°C
                             </div>
                             <div className="flex gap-2">
@@ -872,11 +802,17 @@ function ColdProProjectPage() {
               {stepIndex === 2 && (
                 <div className="space-y-3">
                   <ColdProExtraLoadsForm
-                    ref={extraLoadsFormRef}
                     environment={selectedEnv}
                     catalogFanLoadKcalH={catalogFanLoadKcalH}
-                    projectBaseLoadKcalH={projectBaseLoadKcalH}
-                    onSave={(patch) => handleSaveEnvironmentPatch(patch, "Cargas extras salvas")}
+                    onSave={(patch) =>
+                      updateEnv.mutate(
+                        { id: selectedEnv.id, patch },
+                        {
+                          onSuccess: () => toast.success("Cargas extras salvas"),
+                          onError: (e: any) => toast.error(e?.message ?? "Erro ao salvar"),
+                        },
+                      )
+                    }
                   />
                   <ColdProSectionLoadSummary
                     title="Prévia das cargas extras"
@@ -887,12 +823,11 @@ function ColdProProjectPage() {
                       { label: "Motores", value: result?.motors_kcal_h ?? extraPreview.motors_kcal_h },
                       { label: "Ventiladores", value: result?.fans_kcal_h ?? extraPreview.fans_kcal_h },
                       { label: "Degelo", value: result?.defrost_kcal_h ?? extraPreview.defrost_kcal_h },
-                      { label: "Impacto gelo", value: result?.calculation_breakdown?.evaporator_frost?.additional_load_kcal_h ?? extraPreview.evaporator_frost.additional_load_kcal_h },
                       { label: "Outras cargas", value: result?.other_kcal_h ?? extraPreview.other_kcal_h },
-                      { label: "Segurança global", value: projectSafetyPreviewKcalH, muted: true },
+                      { label: "Segurança", value: result?.safety_kcal_h ?? extraPreview.safety_kcal_h, muted: true },
                     ]}
-                    totalLabel="Total do projeto com segurança"
-                    total={projectTotalWithSafetyPreviewKcalH}
+                    totalLabel="Total calculado da aba Cargas extras + segurança"
+                    total={result ? extraLoad + Number(result.safety_kcal_h ?? 0) : extraPreview.total_with_safety_kcal_h}
                   />
                 </div>
               )}
@@ -937,18 +872,11 @@ function ColdProProjectPage() {
                     </div>
                   </div>
 
-                  {result && technicalAudit.isBlocked ? (
+                  {result && technicalAudit.isPreliminary ? (
                     <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
                       <div className="font-semibold">Resultado preliminar. Corrigir dados obrigatórios antes da emissão técnica.</div>
                       <ul className="mt-2 list-disc space-y-1 pl-5">
-                        {technicalAudit.blockers.map((item) => <li key={item.code}>{item.message}</li>)}
-                      </ul>
-                    </div>
-                  ) : result && technicalAudit.warnings.length > 0 ? (
-                    <div className="rounded-lg border border-border bg-muted/20 p-3 text-sm text-muted-foreground">
-                      <div className="font-semibold text-foreground">Resultado com observações técnicas.</div>
-                      <ul className="mt-2 list-disc space-y-1 pl-5">
-                        {technicalAudit.warnings.map((item) => <li key={item.code}>{item.message}</li>)}
+                        {[...technicalAudit.blockers, ...technicalAudit.warnings].map((item) => <li key={item.code}>{item.message}</li>)}
                       </ul>
                     </div>
                   ) : null}
@@ -1149,6 +1077,24 @@ function ColdProProjectPage() {
                 </div>
               )}
 
+              {/* STEP 4 — SIMULAÇÃO DINÂMICA */}
+              {stepIndex === 4 && (
+                <ColdRoomSimulationTab
+                  environment={selectedEnv}
+                  calculationResult={selectedEnv?.result ?? null}
+                />
+              )}
+
+              {/* STEP 5 — RELATÓRIO FINAL */}
+              {stepIndex === 5 && (
+                <ColdRoomFinalReportTab
+                  environment={selectedEnv}
+                  calculationResult={selectedEnv?.result ?? null}
+                  simulationResult={null}
+                  projectName={project?.name}
+                />
+              )}
+
               {/* Navegação inferior */}
               <div className="flex items-center justify-between rounded-lg border bg-background px-3 py-2 shadow-sm print:hidden">
                 <button
@@ -1165,7 +1111,7 @@ function ColdProProjectPage() {
                 <button
                   type="button"
                   onClick={next}
-                  disabled={stepIndex === COLDPRO_STEPS.length - 1 || upsertTunnel.isPending || calculate.isPending}
+                  disabled={stepIndex === COLDPRO_STEPS.length - 1}
                   className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-1.5 text-sm font-medium text-primary-foreground shadow-sm transition hover:bg-primary/90 disabled:opacity-40"
                 >
                   Próxima etapa <ArrowRight className="h-4 w-4" />

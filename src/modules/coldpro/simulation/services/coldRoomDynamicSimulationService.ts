@@ -1,0 +1,390 @@
+/**
+ * SERVIÇO PRINCIPAL DE SIMULAÇÃO DINÂMICA DE CÂMARA FRIA
+ * Loop de simulação por intervalo de tempo integrando:
+ * - Cargas térmicas dinâmicas (transmissão, infiltração, produto, internas)
+ * - Curvas polinomiais dos equipamentos (via equipmentPerformanceBridge)
+ * - Lógica de controle liga/desliga (setpoint + diferencial)
+ * - Balanço térmico e atualização da temperatura interna
+ * - Geração de alertas automáticos
+ */
+
+import type {
+  ColdRoomSimulationInput,
+  ColdRoomSimulationResult,
+  ColdRoomSimulationTimeStep,
+  ColdRoomSimulationSummary,
+  SimulationAlert,
+  ExternalClimatePoint,
+  DoorOpeningEvent,
+} from "../types/coldRoomSimulation.types";
+import { DOOR_PROTECTION_FACTORS } from "../types/coldRoomSimulation.types";
+import { generateSyntheticWeatherProfile } from "./weatherProfileService";
+import { calculateThermalMass } from "./thermalMassService";
+import { evaluateEquipmentPerformance } from "./equipmentPerformanceBridge";
+
+// ─── Constantes físicas ───────────────────────────────────────────────────────
+const AIR_DENSITY_KG_M3 = 1.2;
+const AIR_CP_KCAL_KG_C = 0.24;
+const WATER_LATENT_HEAT_KCAL_KG = 597;
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function saturationPressure(tempC: number): number {
+  // Fórmula de Antoine simplificada (kPa)
+  return 0.6108 * Math.exp((17.27 * tempC) / (tempC + 237.3));
+}
+
+function absoluteHumidity(tempC: number, rhPct: number): number {
+  // kg_água / kg_ar_seco
+  const psat = saturationPressure(tempC);
+  const pw = (rhPct / 100) * psat;
+  return 0.622 * pw / (101.325 - pw);
+}
+
+function airEnthalpy(tempC: number, rhPct: number): number {
+  // kcal/kg_ar_seco
+  const w = absoluteHumidity(tempC, rhPct);
+  return AIR_CP_KCAL_KG_C * tempC + w * (597 + 0.441 * tempC);
+}
+
+function solarFactor(solarRadiation: number, absorptance: number): number {
+  // Fator de temperatura sol-ar (°C) = α × G / h_ext
+  // h_ext ≈ 23 W/m²·°C (coeficiente externo convectivo)
+  return (absorptance * solarRadiation) / (23 * 1.163); // 1.163 = W→kcal/h/m²
+}
+
+// ─── Cálculo de transmissão dinâmica ─────────────────────────────────────────
+
+function calcTransmissionLoad(
+  surfaces: ColdRoomSimulationInput["envelope_surfaces"],
+  extTemp: number,
+  intTemp: number,
+  solarRadiation: number,
+): number {
+  return surfaces.reduce((sum, surf) => {
+    const absorptance = surf.solar_absorptance ?? 0.4;
+    const sf = surf.has_solar_gain && solarRadiation > 0
+      ? solarFactor(solarRadiation, absorptance)
+      : 0;
+    const effectiveExtTemp = extTemp + sf;
+    const load = surf.u_value_kcal_h_m2_c * surf.area_m2 * (effectiveExtTemp - intTemp);
+    return sum + Math.max(0, load);
+  }, 0);
+}
+
+// ─── Cálculo de infiltração dinâmica ─────────────────────────────────────────
+
+function calcInfiltrationLoad(
+  extTemp: number,
+  extRhPct: number,
+  intTemp: number,
+  intRhPct: number,
+  doorEvents: DoorOpeningEvent[],
+  timestamp: string,
+  stepMinutes: number,
+  volumeM3: number,
+): number {
+  const stepSeconds = stepMinutes * 60;
+  let totalMassKg = 0;
+
+  // Infiltração por abertura de porta
+  for (const door of doorEvents) {
+    const doorTime = new Date(door.timestamp).getTime();
+    const stepTime = new Date(timestamp).getTime();
+    const stepEnd = stepTime + stepSeconds * 1000;
+
+    // Verificar se a abertura de porta ocorre neste passo
+    if (doorTime >= stepTime && doorTime < stepEnd) {
+      const protectionFactor = DOOR_PROTECTION_FACTORS[door.protection_type];
+      // Velocidade de infiltração: modelo de fluxo gravitacional
+      const deltaT = Math.abs(extTemp - intTemp);
+      const velocityMs = Math.sqrt(2 * 9.81 * door.opening_area_m2 * deltaT / (273 + intTemp));
+      const flowM3s = door.opening_area_m2 * velocityMs * 0.5; // fator de contração
+      const massKg = flowM3s * door.duration_seconds * AIR_DENSITY_KG_M3 * protectionFactor;
+      totalMassKg += massKg;
+    }
+  }
+
+  // Infiltração contínua mínima (trocas de ar por vazamentos)
+  const airChangesPerHour = 0.1; // 0.1 trocas/h para câmara bem vedada
+  const continuousMassKg = volumeM3 * AIR_DENSITY_KG_M3 * airChangesPerHour * (stepMinutes / 60);
+  totalMassKg += continuousMassKg;
+
+  if (totalMassKg <= 0) return 0;
+
+  const intRh = intRhPct ?? 85;
+  const hExt = airEnthalpy(extTemp, extRhPct);
+  const hInt = airEnthalpy(intTemp, intRh);
+  const deltaH = hExt - hInt;
+
+  return Math.max(0, totalMassKg * deltaH);
+}
+
+// ─── Cálculo de carga de produto ─────────────────────────────────────────────
+
+function calcProductLoad(
+  product: ColdRoomSimulationInput["product"],
+  timestamp: string,
+  stepMinutes: number,
+  intTemp: number,
+): number {
+  const stepSeconds = stepMinutes * 60;
+  const stepTime = new Date(timestamp).getTime();
+  const stepEnd = stepTime + stepSeconds * 1000;
+
+  // Verificar se há entrada de produto neste passo
+  let massInStep = 0;
+  for (const event of product.inlet_schedule) {
+    const eventTime = new Date(event.timestamp).getTime();
+    if (eventTime >= stepTime && eventTime < stepEnd) {
+      massInStep += event.mass_kg;
+    }
+  }
+
+  if (massInStep <= 0) return 0;
+
+  // Carga sensível do produto
+  const sensibleLoad = massInStep * product.specific_heat_kcal_kg_c *
+    (product.inlet_temperature_c - intTemp);
+
+  // Calor de respiração (NUNCA para sementes)
+  let respirationLoad = 0;
+  if (product.respiration_heat_enabled && product.product_type !== "seed" &&
+      product.respiration_heat_kcal_kg_day) {
+    respirationLoad = massInStep * product.respiration_heat_kcal_kg_day * (stepMinutes / (24 * 60));
+  }
+
+  return Math.max(0, sensibleLoad + respirationLoad);
+}
+
+// ─── Cálculo de cargas internas ───────────────────────────────────────────────
+
+function calcInternalLoad(
+  loads: ColdRoomSimulationInput["internal_loads"],
+  hour: number,
+): number {
+  const [activeStart, activeEnd] = loads.active_hours ?? [6, 22];
+  const isActive = hour >= activeStart && hour < activeEnd;
+  if (!isActive) return 0;
+
+  const lighting = loads.lighting_kw * 860;
+  const people = loads.people_count * loads.people_heat_kcal_h_person;
+  const motors = loads.motors_kw * 860 + loads.motors_hp * 632;
+
+  return lighting + people + motors;
+}
+
+// ─── Loop principal de simulação ──────────────────────────────────────────────
+
+export function runColdRoomDynamicSimulation(input: ColdRoomSimulationInput): ColdRoomSimulationResult {
+  const { operation, geometry, product, internal_loads, equipment } = input;
+
+  // Gerar perfil climático se não fornecido
+  const climateData: ExternalClimatePoint[] = input.climate_data?.length
+    ? input.climate_data
+    : generateSyntheticWeatherProfile({
+        type: input.weather_profile_type,
+        simulation_days: operation.simulation_days,
+        step_minutes: operation.simulation_step_minutes,
+      });
+
+  // Calcular massa térmica da câmara
+  const thermalMass = calculateThermalMass({
+    volume_m3: geometry.volume_m3,
+    floor_area_m2: geometry.floor_area_m2,
+    wall_area_m2: geometry.wall_area_m2,
+    stored_product_mass_kg: product.total_stored_mass_kg,
+    product_specific_heat_kcal_kg_c: product.specific_heat_kcal_kg_c,
+    panel_thickness_m: 0.1,
+  });
+
+  const C_total = thermalMass.total_thermal_capacity_kcal_c;
+  const stepH = operation.simulation_step_minutes / 60; // horas por passo
+
+  // Estado inicial
+  let roomTemp = input.initial_room_temperature_c ?? operation.setpoint_c;
+  let compressorStatus: "ON" | "OFF" = "OFF";
+  const doorEvents = input.door_events ?? [];
+
+  const timeline: ColdRoomSimulationTimeStep[] = [];
+  const alerts: SimulationAlert[] = [];
+
+  // Contadores para alertas
+  let overloadSteps = 0;
+  let outOfRangeSteps = 0;
+
+  for (let i = 0; i < climateData.length; i++) {
+    const climate = climateData[i];
+    const extTemp = climate.external_temperature_c;
+    const extRh = climate.external_relative_humidity_pct;
+    const solar = climate.solar_radiation_w_m2 ?? 0;
+    const timestamp = climate.timestamp;
+    const hour = new Date(timestamp).getHours();
+
+    // ── Lógica de controle liga/desliga ──────────────────────────────────────
+    const diff = operation.differential_c;
+    if (roomTemp >= operation.setpoint_c + diff / 2) compressorStatus = "ON";
+    if (roomTemp <= operation.setpoint_c - diff / 2) compressorStatus = "OFF";
+
+    // ── Cargas térmicas do passo ─────────────────────────────────────────────
+    const transmissionLoad = calcTransmissionLoad(
+      input.envelope_surfaces, extTemp, roomTemp, solar,
+    ) * stepH;
+
+    const infiltrationLoad = calcInfiltrationLoad(
+      extTemp, extRh, roomTemp, 85,
+      doorEvents, timestamp, operation.simulation_step_minutes,
+      geometry.volume_m3,
+    );
+
+    const productLoad = calcProductLoad(product, timestamp, operation.simulation_step_minutes, roomTemp);
+
+    const internalLoad = calcInternalLoad(internal_loads, hour) * stepH;
+
+    const totalLoad = transmissionLoad + infiltrationLoad + productLoad + internalLoad;
+
+    // ── Performance do equipamento ───────────────────────────────────────────
+    const perfResult = evaluateEquipmentPerformance({
+      room_temperature_c: roomTemp,
+      external_temperature_c: extTemp,
+      equipment_model: equipment,
+      nominal_capacity_kcal_h: equipment.nominal_capacity_kcal_h,
+    });
+
+    const equipCapacity = compressorStatus === "ON"
+      ? perfResult.cooling_capacity_kcal_h * stepH
+      : 0;
+    const equipPower = compressorStatus === "ON" ? perfResult.electrical_power_kw : 0;
+    const cop = compressorStatus === "ON" ? perfResult.cop : 0;
+
+    // ── Balanço térmico ──────────────────────────────────────────────────────
+    const thermalBalance = totalLoad - equipCapacity;
+    const deltaTemp = C_total > 0 ? thermalBalance / C_total : 0;
+    roomTemp = roomTemp + deltaTemp;
+
+    // Limitar temperatura (física)
+    const maxAllowed = operation.max_temperature_c ?? operation.setpoint_c + 10;
+    const minAllowed = operation.min_temperature_c ?? operation.setpoint_c - 10;
+    roomTemp = Math.max(minAllowed, Math.min(maxAllowed, roomTemp));
+
+    const utilizationPct = compressorStatus === "ON" ? perfResult.utilization_pct : 0;
+
+    // ── Alertas por passo ────────────────────────────────────────────────────
+    if (utilizationPct > 95) {
+      overloadSteps++;
+      if (overloadSteps === 1 || overloadSteps % 24 === 0) {
+        alerts.push({
+          severity: "warning",
+          code: "EQUIPMENT_OVERLOAD",
+          message: `Equipamento operando a ${utilizationPct.toFixed(1)}% da capacidade`,
+          timestamp,
+          step_index: i,
+        });
+      }
+    }
+
+    const maxTemp = operation.max_temperature_c ?? operation.setpoint_c + 3;
+    if (roomTemp > maxTemp) {
+      outOfRangeSteps++;
+      if (outOfRangeSteps === 1 || outOfRangeSteps % 12 === 0) {
+        alerts.push({
+          severity: "critical",
+          code: "TEMP_OUT_OF_RANGE",
+          message: `Temperatura interna ${roomTemp.toFixed(1)}°C acima do limite máximo ${maxTemp}°C`,
+          timestamp,
+          step_index: i,
+        });
+      }
+    }
+
+    if (perfResult.warnings.length > 0 && i === 0) {
+      for (const w of perfResult.warnings) {
+        alerts.push({ severity: "info", code: "EQUIPMENT_WARNING", message: w, timestamp, step_index: i });
+      }
+    }
+
+    timeline.push({
+      timestamp,
+      step_index: i,
+      external_temperature_c: extTemp,
+      external_relative_humidity_pct: extRh,
+      room_temperature_c: Math.round(roomTemp * 100) / 100,
+      transmission_load_kcal_h: Math.round(transmissionLoad),
+      infiltration_load_kcal_h: Math.round(infiltrationLoad),
+      product_load_kcal_h: Math.round(productLoad),
+      internal_load_kcal_h: Math.round(internalLoad),
+      total_load_kcal_h: Math.round(totalLoad),
+      equipment_capacity_kcal_h: Math.round(equipCapacity),
+      equipment_power_kw: Math.round(equipPower * 100) / 100,
+      cop: Math.round(cop * 100) / 100,
+      compressor_status: compressorStatus,
+      equipment_utilization_pct: Math.round(utilizationPct),
+      thermal_balance_kcal_h: Math.round(thermalBalance),
+      delta_temperature_c: Math.round(deltaTemp * 1000) / 1000,
+    });
+  }
+
+  // ── Resumo ────────────────────────────────────────────────────────────────
+  const temps = timeline.map((t) => t.room_temperature_c);
+  const loads = timeline.map((t) => t.total_load_kcal_h);
+  const peakIdx = loads.indexOf(Math.max(...loads));
+  const compressorOnSteps = timeline.filter((t) => t.compressor_status === "ON").length;
+  const totalSteps = timeline.length;
+  const stepsPerHour = 60 / operation.simulation_step_minutes;
+  const compressorHours = compressorOnSteps / stepsPerHour;
+  const totalHours = totalSteps / stepsPerHour;
+  const outOfRangeHours = outOfRangeSteps / stepsPerHour;
+  const totalEnergyKwh = timeline.reduce((s, t) => s + t.equipment_power_kw * stepH, 0);
+  const avgCop = timeline.filter((t) => t.cop > 0).reduce((s, t) => s + t.cop, 0) /
+    Math.max(1, timeline.filter((t) => t.cop > 0).length);
+  const maxUtilization = Math.max(...timeline.map((t) => t.equipment_utilization_pct));
+  const peakLoad = Math.max(...loads);
+  const recommendedCapacity = peakLoad * 1.1; // 10% de margem sobre o pico
+
+  const summary: ColdRoomSimulationSummary = {
+    simulation_period_days: operation.simulation_days,
+    simulation_steps_total: totalSteps,
+    max_room_temperature_c: Math.max(...temps),
+    min_room_temperature_c: Math.min(...temps),
+    average_room_temperature_c: temps.reduce((s, t) => s + t, 0) / temps.length,
+    total_cooling_load_kcal: loads.reduce((s, l) => s + l, 0),
+    total_cooling_capacity_kcal: timeline.reduce((s, t) => s + t.equipment_capacity_kcal_h, 0),
+    total_energy_kwh: Math.round(totalEnergyKwh),
+    average_cop: Math.round(avgCop * 100) / 100,
+    compressor_runtime_hours: Math.round(compressorHours * 10) / 10,
+    compressor_runtime_pct: Math.round((compressorHours / totalHours) * 1000) / 10,
+    max_equipment_utilization_pct: Math.round(maxUtilization),
+    temperature_out_of_range_hours: Math.round(outOfRangeHours * 10) / 10,
+    peak_load_kcal_h: Math.round(peakLoad),
+    peak_load_timestamp: timeline[peakIdx]?.timestamp ?? "",
+    peak_external_temp_c: timeline[peakIdx]?.external_temperature_c ?? 0,
+    worst_hour: timeline[peakIdx]?.timestamp
+      ? new Date(timeline[peakIdx].timestamp).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
+      : "--",
+    recommended_min_capacity_kcal_h: Math.round(recommendedCapacity),
+    capacity_adequate: (equipment.nominal_capacity_kcal_h ?? 0) >= recommendedCapacity,
+  };
+
+  // Alertas finais de capacidade
+  if (!summary.capacity_adequate) {
+    alerts.unshift({
+      severity: "critical",
+      code: "CAPACITY_INSUFFICIENT",
+      message: `Capacidade nominal do equipamento insuficiente para o pico térmico. Mínimo recomendado: ${Math.round(recommendedCapacity).toLocaleString("pt-BR")} kcal/h`,
+    });
+  }
+
+  if (summary.temperature_out_of_range_hours > 2) {
+    alerts.unshift({
+      severity: "critical",
+      code: "TEMP_VIOLATION",
+      message: `Temperatura interna ultrapassou o limite máximo por ${summary.temperature_out_of_range_hours.toFixed(1)} horas`,
+    });
+  }
+
+  // Amostrar dados para gráficos (máx 500 pontos)
+  const sampleRate = Math.max(1, Math.floor(timeline.length / 500));
+  const chartData = timeline.filter((_, i) => i % sampleRate === 0);
+
+  return { summary, timeline, alerts, chart_data: chartData };
+}
