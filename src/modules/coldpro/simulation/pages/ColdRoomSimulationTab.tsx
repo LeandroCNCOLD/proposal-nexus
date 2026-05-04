@@ -11,10 +11,14 @@ import {
   BarChart3,
   CheckCircle,
   Clock,
+  DoorOpen,
+  Droplets,
   Info,
   Play,
   RefreshCw,
+  Snowflake,
   Thermometer,
+  Timer,
   Zap,
 } from "lucide-react";
 import { useColdRoomSimulation, type SimulationConfig } from "../hooks/useColdRoomSimulation";
@@ -232,6 +236,110 @@ function ConfigPanel({
           </button>
         </div>
       </div>
+
+      {/* Configuração de Portas */}
+      <div className="mt-4 border-t pt-4">
+        <h4 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <DoorOpen className="h-3.5 w-3.5" /> Operação de Portas
+        </h4>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div>
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">Aberturas / hora</label>
+            <input
+              type="number"
+              className="w-full rounded-md border bg-background px-2.5 py-1.5 text-sm"
+              value={config.door_openings_per_hour ?? 4}
+              min={0} max={60} step={1}
+              onChange={(e) => setConfig((c) => ({ ...c, door_openings_per_hour: Number(e.target.value) }))}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">Duração por abertura (s)</label>
+            <input
+              type="number"
+              className="w-full rounded-md border bg-background px-2.5 py-1.5 text-sm"
+              value={config.door_duration_seconds ?? 30}
+              min={5} max={300} step={5}
+              onChange={(e) => setConfig((c) => ({ ...c, door_duration_seconds: Number(e.target.value) }))}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">Horário ativo (início h)</label>
+            <input
+              type="number"
+              className="w-full rounded-md border bg-background px-2.5 py-1.5 text-sm"
+              value={config.door_active_start_hour ?? 8}
+              min={0} max={23} step={1}
+              onChange={(e) => setConfig((c) => ({ ...c, door_active_start_hour: Number(e.target.value) }))}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">Horário ativo (fim h)</label>
+            <input
+              type="number"
+              className="w-full rounded-md border bg-background px-2.5 py-1.5 text-sm"
+              value={config.door_active_end_hour ?? 18}
+              min={1} max={24} step={1}
+              onChange={(e) => setConfig((c) => ({ ...c, door_active_end_hour: Number(e.target.value) }))}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Configuração de Degelo */}
+      <div className="mt-4 border-t pt-4">
+        <h4 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <Snowflake className="h-3.5 w-3.5" /> Perfil de Degelo
+        </h4>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div>
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">Tipo de degelo</label>
+            <select
+              className="w-full rounded-md border bg-background px-2.5 py-1.5 text-sm"
+              value={config.defrost_type ?? "none"}
+              onChange={(e) => setConfig((c) => ({ ...c, defrost_type: e.target.value as any }))}
+            >
+              <option value="none">Sem degelo</option>
+              <option value="electrical">Elétrico</option>
+              <option value="hot_gas">Gás quente</option>
+              <option value="air">A ar</option>
+              <option value="water">Água</option>
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">Ciclos / dia</label>
+            <input
+              type="number"
+              className="w-full rounded-md border bg-background px-2.5 py-1.5 text-sm"
+              value={config.defrost_cycles_per_day ?? 0}
+              min={0} max={12} step={1}
+              disabled={!config.defrost_type || config.defrost_type === "none"}
+              onChange={(e) => setConfig((c) => ({ ...c, defrost_cycles_per_day: Number(e.target.value) }))}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">Duração (min/ciclo)</label>
+            <input
+              type="number"
+              className="w-full rounded-md border bg-background px-2.5 py-1.5 text-sm"
+              value={config.defrost_duration_minutes ?? 30}
+              min={5} max={120} step={5}
+              disabled={!config.defrost_type || config.defrost_type === "none"}
+              onChange={(e) => setConfig((c) => ({ ...c, defrost_duration_minutes: Number(e.target.value) }))}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">UR interna alvo (%)</label>
+            <input
+              type="number"
+              className="w-full rounded-md border bg-background px-2.5 py-1.5 text-sm"
+              value={config.internal_rh_pct ?? 85}
+              min={50} max={98} step={1}
+              onChange={(e) => setConfig((c) => ({ ...c, internal_rh_pct: Number(e.target.value) }))}
+            />
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -331,6 +439,71 @@ function ResultsPanel({ result, setpoint }: { result: ColdRoomSimulationResult; 
         />
       </div>
 
+      {/* KPIs de Portas */}
+      {summary.total_door_openings > 0 && (
+        <div>
+          <h4 className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <DoorOpen className="h-3.5 w-3.5" /> Operação de Portas
+          </h4>
+          <div className="grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(160px,1fr))]">
+            <KpiCard
+              label="Total de Aberturas"
+              value={fmtInt(summary.total_door_openings)}
+              unit="aberturas no período"
+              icon={<DoorOpen className="h-3.5 w-3.5" />}
+            />
+            <KpiCard
+              label="Infiltração por Portas"
+              value={fmt(summary.door_infiltration_pct_of_total)}
+              unit={`% da carga total · ${fmtInt(summary.total_door_infiltration_load_kcal)} kcal`}
+              icon={<Droplets className="h-3.5 w-3.5" />}
+              status={summary.door_infiltration_pct_of_total > 30 ? "warning" : "ok"}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* KPIs de Gelo e Degelo */}
+      {(summary.defrost_cycles_per_day > 0 || summary.total_frost_kg > 0) && (
+        <div>
+          <h4 className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <Snowflake className="h-3.5 w-3.5" /> Gelo e Degelo
+          </h4>
+          <div className="grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(160px,1fr))]">
+            <KpiCard
+              label="Risco de Formação de Gelo"
+              value={summary.ice_risk_level === "n/a" ? "N/A" : summary.ice_risk_level.toUpperCase()}
+              unit={`${fmt(summary.frost_kg_per_day)} kg/dia estimados`}
+              icon={<Snowflake className="h-3.5 w-3.5" />}
+              status={summary.ice_risk_level === "critical" ? "critical" : summary.ice_risk_level === "high" ? "warning" : "ok"}
+            />
+            <KpiCard
+              label="Carga Latente (Umidade)"
+              value={fmt(summary.latent_load_pct)}
+              unit="% da carga de infiltração"
+              icon={<Droplets className="h-3.5 w-3.5" />}
+              status={summary.latent_load_pct > 50 ? "warning" : "ok"}
+            />
+            <KpiCard
+              label="Máquina Parada (Degelo)"
+              value={fmt(summary.defrost_downtime_hours_per_day)}
+              unit={`h/dia · ${fmtInt(summary.machine_downtime_hours_total)}h no período`}
+              icon={<Timer className="h-3.5 w-3.5" />}
+              status={summary.defrost_downtime_hours_per_day > 3 ? "warning" : "ok"}
+            />
+            {summary.recommended_defrost_cycles > 0 && (
+              <KpiCard
+                label="Ciclos de Degelo"
+                value={`${summary.defrost_cycles_per_day} / ${summary.recommended_defrost_cycles}`}
+                unit="configurado / recomendado por dia"
+                icon={<Activity className="h-3.5 w-3.5" />}
+                status={summary.defrost_cycles_per_day < summary.recommended_defrost_cycles ? "warning" : "ok"}
+              />
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Gráfico de temperatura */}
       <div className="rounded-lg border bg-background p-4">
         <h4 className="mb-3 text-sm font-semibold">Temperatura Interna vs. Externa</h4>
@@ -341,7 +514,7 @@ function ResultsPanel({ result, setpoint }: { result: ColdRoomSimulationResult; 
             <YAxis tick={{ fontSize: 10 }} unit="°C" />
             <Tooltip
               contentStyle={{ fontSize: 11 }}
-              formatter={(v: any) => [`${fmt(Number(v))}°C`] as [string]}
+              formatter={(v: number) => [`${fmt(v)}°C`]}
             />
             <Legend wrapperStyle={{ fontSize: 11 }} />
             <ReferenceLine y={setpoint} stroke="#22c55e" strokeDasharray="4 4" label={{ value: "Setpoint", fontSize: 10, fill: "#22c55e" }} />
@@ -372,7 +545,7 @@ function ResultsPanel({ result, setpoint }: { result: ColdRoomSimulationResult; 
             <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
             <XAxis dataKey="time" tick={{ fontSize: 10 }} interval="preserveStartEnd" />
             <YAxis tick={{ fontSize: 10 }} unit=" kcal/h" width={80} />
-            <Tooltip contentStyle={{ fontSize: 11 }} formatter={(v: any) => [fmtInt(Number(v)) + " kcal/h"] as [string]} />
+            <Tooltip contentStyle={{ fontSize: 11 }} formatter={(v: number) => [fmtInt(v) + " kcal/h"]} />
             <Legend wrapperStyle={{ fontSize: 11 }} />
             <Area
               type="monotone"
@@ -402,7 +575,7 @@ function ResultsPanel({ result, setpoint }: { result: ColdRoomSimulationResult; 
             <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
             <XAxis dataKey="time" tick={{ fontSize: 10 }} interval="preserveStartEnd" />
             <YAxis tick={{ fontSize: 10 }} unit=" kW" />
-            <Tooltip contentStyle={{ fontSize: 11 }} formatter={(v: any) => [fmt(Number(v)) + " kW"] as [string]} />
+            <Tooltip contentStyle={{ fontSize: 11 }} formatter={(v: number) => [fmt(v) + " kW"]} />
             <Area
               type="monotone"
               dataKey="Potência (kW)"

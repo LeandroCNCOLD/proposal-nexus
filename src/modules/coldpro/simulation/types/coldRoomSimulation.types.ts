@@ -103,6 +103,39 @@ export const DOOR_PROTECTION_FACTORS: Record<DoorOpeningEvent["protection_type"]
   antechamber: 0.35,
 };
 
+/**
+ * Configuração de porta para geração automática de cronograma.
+ * O usuário informa a frequência e a duração; o sistema gera os eventos.
+ */
+export interface DoorScheduleConfig {
+  door_id: string;
+  door_label?: string;
+  opening_area_m2: number;
+  protection_type: DoorOpeningEvent["protection_type"];
+  openings_per_hour: number;          // Ex: 4 = 1 abertura a cada 15 min
+  duration_seconds_per_opening: number; // Ex: 30 = 30 segundos por abertura
+  active_start_hour: number;           // Ex: 8 = começa às 8h
+  active_end_hour: number;             // Ex: 18 = termina às 18h
+}
+
+// ─── Perfil de câmara e degelo ────────────────────────────────────────────────
+
+export type DefrostType = "electrical" | "hot_gas" | "air" | "water" | "none";
+
+/**
+ * Configuração de degelo e perfil da câmara.
+ * Determina como o simulador trata a máquina parada, risco de gelo e umidade.
+ */
+export interface ChamberDefrostConfig {
+  defrost_type: DefrostType;
+  defrost_cycles_per_day: number;      // Ex: 4 = a cada 6h
+  defrost_duration_minutes: number;    // Ex: 30 = 30 min por ciclo
+  /** Se true, o compressor é desligado durante o degelo (downtime real) */
+  compressor_off_during_defrost: boolean;
+  /** UR interna alvo (%) — afeta risco de gelo e carga latente */
+  internal_relative_humidity_pct: number;
+}
+
 // ─── Cargas internas ──────────────────────────────────────────────────────────
 
 export interface InternalLoadProfile {
@@ -152,11 +185,17 @@ export interface ColdRoomSimulationInput {
   weather_profile_type: WeatherProfileType;
   climate_data?: ExternalClimatePoint[];
   product: ProductLoadProfile;
+  /** Eventos explícitos de abertura de porta (gerados por DoorLoadService) */
   door_events?: DoorOpeningEvent[];
+  /** Configuração de portas para geração automática de cronograma */
+  door_schedule?: DoorScheduleConfig[];
+  /** Configuração de degelo e perfil da câmara */
+  defrost_config?: ChamberDefrostConfig;
   internal_loads: InternalLoadProfile;
   equipment: EquipmentPolynomialModel;
   /** Temperatura inicial da câmara no início da simulação */
   initial_room_temperature_c?: number;
+  simulation_days?: number;
 }
 
 // ─── Passo de tempo ───────────────────────────────────────────────────────────
@@ -175,10 +214,16 @@ export interface ColdRoomSimulationTimeStep {
   equipment_capacity_kcal_h: number;
   equipment_power_kw: number;
   cop: number;
-  compressor_status: "ON" | "OFF";
+  compressor_status: "ON" | "OFF" | "DEFROST";
   equipment_utilization_pct: number;
   thermal_balance_kcal_h: number;
   delta_temperature_c: number;
+  /** Carga latente de infiltração (umidade) neste passo */
+  latent_load_kcal_h?: number;
+  /** Acumulo de gelo estimado neste passo (kg) */
+  frost_kg?: number;
+  /** Indica se a máquina está em degelo neste passo */
+  is_defrost_step?: boolean;
 }
 
 // ─── Alertas ──────────────────────────────────────────────────────────────────
@@ -215,6 +260,22 @@ export interface ColdRoomSimulationSummary {
   worst_hour: string;
   recommended_min_capacity_kcal_h: number;
   capacity_adequate: boolean;
+
+  // ─── Novos campos: portas ───────────────────────────────────────────────────────
+  total_door_openings: number;
+  total_door_infiltration_load_kcal: number;
+  door_infiltration_pct_of_total: number;
+
+  // ─── Novos campos: gelo e degelo ──────────────────────────────────────────────
+  total_frost_kg: number;
+  frost_kg_per_day: number;
+  latent_load_pct: number;
+  ice_risk_level: "low" | "medium" | "high" | "critical" | "n/a";
+  defrost_downtime_hours_per_day: number;
+  defrost_cycles_per_day: number;
+  recommended_defrost_cycles: number;
+  machine_downtime_hours_total: number;
+  defrost_warnings: string[];
 }
 
 export interface ColdRoomSimulationResult {

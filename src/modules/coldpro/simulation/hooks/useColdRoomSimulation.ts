@@ -32,6 +32,17 @@ export interface SimulationConfig {
   simulation_step_minutes: 5 | 10 | 15 | 30 | 60;
   setpoint_c: number;
   differential_c: number;
+  // Operação de portas
+  door_openings_per_hour?: number;
+  door_duration_seconds?: number;
+  door_active_start_hour?: number;
+  door_active_end_hour?: number;
+  // Degelo e perfil de câmara
+  defrost_type?: "electrical" | "hot_gas" | "air" | "water" | "none";
+  defrost_cycles_per_day?: number;
+  defrost_duration_minutes?: number;
+  internal_rh_pct?: number;
+  compressor_off_during_defrost?: boolean;
 }
 
 export interface SavedSimulationMeta {
@@ -71,6 +82,15 @@ const DEFAULT_CONFIG: SimulationConfig = {
   simulation_step_minutes: 15,
   setpoint_c: 2,
   differential_c: 2,
+  door_openings_per_hour: 4,
+  door_duration_seconds: 30,
+  door_active_start_hour: 8,
+  door_active_end_hour: 18,
+  defrost_type: "none",
+  defrost_cycles_per_day: 0,
+  defrost_duration_minutes: 30,
+  internal_rh_pct: 85,
+  compressor_off_during_defrost: true,
 };
 
 /**
@@ -169,7 +189,7 @@ function buildSimulationInput(
   };
 
   const internalLoads: InternalLoadProfile = {
-    lighting_kw: Number(env.lighting_kw ?? (calcResult.lighting_kcal_h ? calcResult.lighting_kcal_h / 860 : 0.5)),
+    lighting_kw: Number(env.lighting_kw ?? (calcResult.lighting_kcal_h ?? 0) / 860 ?? 0.5),
     people_count: Number(env.people_count ?? 2),
     people_heat_kcal_h_person: Number(env.people_heat_kcal_h ?? 270),
     motors_hp: Number(env.motors_hp ?? 0),
@@ -221,12 +241,38 @@ function buildSimulationInput(
     internal_loads: internalLoads,
     equipment,
     initial_room_temperature_c: config.setpoint_c + 2,
+    simulation_days: config.simulation_days,
     // Injetar dados de localização para a API climática
     project_ibge_code: env.client_ibge_code,
     project_city_name: env.client_city,
     project_state_code: env.client_state,
     project_latitude: env.client_latitude,
     project_longitude: env.client_longitude,
+    // Cronograma de abertura de portas
+    door_schedule: (config.door_openings_per_hour ?? 0) > 0
+      ? [{
+          door_id: "main_door",
+          door_label: "Porta principal",
+          opening_area_m2: Number(env.door_area_m2 ?? 2.0),
+          protection_type: (env.door_protection_type ?? "curtain") as any,
+          openings_per_hour: config.door_openings_per_hour!,
+          duration_seconds_per_opening: config.door_duration_seconds ?? 30,
+          active_start_hour: config.door_active_start_hour ?? 8,
+          active_end_hour: config.door_active_end_hour ?? 18,
+        }]
+      : undefined,
+    // Configuração de degelo
+    defrost_config: config.defrost_type && config.defrost_type !== "none"
+      ? {
+          defrost_type: config.defrost_type,
+          defrost_cycles_per_day: config.defrost_cycles_per_day ?? 4,
+          defrost_duration_minutes: config.defrost_duration_minutes ?? 30,
+          compressor_off_during_defrost: config.compressor_off_during_defrost ?? true,
+          internal_relative_humidity_pct: config.internal_rh_pct ?? 85,
+        }
+      : undefined,
+    // Tipo de ambiente para análise de perfil
+    environment_type: env.environment_type,
   } as any;
 }
 
@@ -322,32 +368,29 @@ export function useColdRoomSimulation(
     setSaveError(null);
 
     try {
-      // Executar simulação localmente primeiro
-      const input = buildSimulationInput(environment, calculationResult, config);
-      if (!input) {
-        setSaveError("Dados insuficientes para simulação.");
-        return;
-      }
-      const simResult = await runColdRoomDynamicSimulation(input);
-      setResult(simResult);
-
       const saved = await saveSimulation({
         data: {
           environmentId: environment.id,
           name: name ?? `Simulação ${new Date().toLocaleDateString("pt-BR")}`,
           config: {
-            weatherProfile: (config.weather_profile_type === "annual" ? "annual_average" : config.weather_profile_type === "manual" ? "custom" : config.weather_profile_type) as any,
+            weatherProfile: config.weather_profile_type,
             simulationPeriodDays: config.simulation_days,
             timeStepMinutes: config.simulation_step_minutes as any,
             setpointC: config.setpoint_c,
             differentialC: config.differential_c,
             customExternalTempC: config.custom_max_temp_c ?? null,
           },
-          result: simResult as any,
-        } as any,
+        },
       });
 
       setLastSavedId(saved.simulation.id);
+
+      // Também executar localmente para exibir os gráficos
+      const input = buildSimulationInput(environment, calculationResult, config);
+      if (input) {
+        const simResult = await runColdRoomDynamicSimulation(input);
+        setResult(simResult);
+      }
 
       // Atualizar histórico
       await loadHistory();
