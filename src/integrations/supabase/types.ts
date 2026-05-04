@@ -486,6 +486,60 @@ export type Database = {
         }
         Relationships: []
       }
+      coldpro_calculation_snapshots: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          environment_id: string
+          id: string
+          input_hash: string
+          is_baseline: boolean
+          label: string
+          result_id: string | null
+          snapshot_data: Json
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          environment_id: string
+          id?: string
+          input_hash?: string
+          is_baseline?: boolean
+          label?: string
+          result_id?: string | null
+          snapshot_data?: Json
+          version?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          environment_id?: string
+          id?: string
+          input_hash?: string
+          is_baseline?: boolean
+          label?: string
+          result_id?: string | null
+          snapshot_data?: Json
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coldpro_calculation_snapshots_environment_id_fkey"
+            columns: ["environment_id"]
+            isOneToOne: false
+            referencedRelation: "coldpro_environments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coldpro_calculation_snapshots_result_id_fkey"
+            columns: ["result_id"]
+            isOneToOne: false
+            referencedRelation: "coldpro_results"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       coldpro_catalog_import_rows: {
         Row: {
           created_at: string
@@ -2711,6 +2765,111 @@ export type Database = {
             columns: ["environment_id"]
             isOneToOne: false
             referencedRelation: "coldpro_environments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      coldpro_simulations: {
+        Row: {
+          alerts: Json
+          avg_cop: number | null
+          avg_internal_temp_c: number | null
+          compressor_on_hours: number
+          compressor_on_percent: number
+          created_at: string
+          created_by: string | null
+          differential_c: number
+          environment_id: string
+          equipment_adequacy: string
+          hours_above_setpoint: number
+          hours_below_setpoint: number
+          id: string
+          is_latest: boolean
+          max_internal_temp_c: number | null
+          min_internal_temp_c: number | null
+          name: string
+          peak_load_kcal_h: number
+          result_id: string | null
+          setpoint_c: number
+          simulation_data: Json
+          simulation_period_days: number
+          time_step_minutes: number
+          total_energy_kwh: number
+          updated_at: string
+          version: number
+          weather_profile: string
+        }
+        Insert: {
+          alerts?: Json
+          avg_cop?: number | null
+          avg_internal_temp_c?: number | null
+          compressor_on_hours?: number
+          compressor_on_percent?: number
+          created_at?: string
+          created_by?: string | null
+          differential_c?: number
+          environment_id: string
+          equipment_adequacy?: string
+          hours_above_setpoint?: number
+          hours_below_setpoint?: number
+          id?: string
+          is_latest?: boolean
+          max_internal_temp_c?: number | null
+          min_internal_temp_c?: number | null
+          name?: string
+          peak_load_kcal_h?: number
+          result_id?: string | null
+          setpoint_c?: number
+          simulation_data?: Json
+          simulation_period_days?: number
+          time_step_minutes?: number
+          total_energy_kwh?: number
+          updated_at?: string
+          version?: number
+          weather_profile?: string
+        }
+        Update: {
+          alerts?: Json
+          avg_cop?: number | null
+          avg_internal_temp_c?: number | null
+          compressor_on_hours?: number
+          compressor_on_percent?: number
+          created_at?: string
+          created_by?: string | null
+          differential_c?: number
+          environment_id?: string
+          equipment_adequacy?: string
+          hours_above_setpoint?: number
+          hours_below_setpoint?: number
+          id?: string
+          is_latest?: boolean
+          max_internal_temp_c?: number | null
+          min_internal_temp_c?: number | null
+          name?: string
+          peak_load_kcal_h?: number
+          result_id?: string | null
+          setpoint_c?: number
+          simulation_data?: Json
+          simulation_period_days?: number
+          time_step_minutes?: number
+          total_energy_kwh?: number
+          updated_at?: string
+          version?: number
+          weather_profile?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coldpro_simulations_environment_id_fkey"
+            columns: ["environment_id"]
+            isOneToOne: false
+            referencedRelation: "coldpro_environments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coldpro_simulations_result_id_fkey"
+            columns: ["result_id"]
+            isOneToOne: false
+            referencedRelation: "coldpro_results"
             referencedColumns: ["id"]
           },
         ]
