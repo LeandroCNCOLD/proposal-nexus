@@ -183,8 +183,8 @@ export async function runColdRoomDynamicSimulation(input: ColdRoomSimulationInpu
   const climateData: ExternalClimatePoint[] = input.climate_data?.length
     ? input.climate_data
        : await generateWeatherProfile({
-        type: input.weather_profile_type || "annual",
-        simulation_days: input.simulation_days || 365,
+        type: (input as any).weather_profile_type || "annual",
+        simulation_days: operation.simulation_days || 365,
         step_minutes: operation.simulation_step_minutes,
       }, 
       (input as any).project_ibge_code,
