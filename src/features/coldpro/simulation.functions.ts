@@ -104,7 +104,7 @@ export const saveSimulation = createServerFn({ method: "POST" })
       .single();
 
     if (error) throw new Error(error.message);
-    return { simulation: saved as { id: string } & any };
+    return { simulation: saved as { id: string; [key: string]: any } };
   });
 
 // ─── Listar Simulações ───────────────────────────────────────────────────────
