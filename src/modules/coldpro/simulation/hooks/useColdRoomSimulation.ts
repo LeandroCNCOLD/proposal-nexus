@@ -322,6 +322,15 @@ export function useColdRoomSimulation(
     setSaveError(null);
 
     try {
+      // Executar simulação localmente primeiro
+      const input = buildSimulationInput(environment, calculationResult, config);
+      if (!input) {
+        setSaveError("Dados insuficientes para simulação.");
+        return;
+      }
+      const simResult = await runColdRoomDynamicSimulation(input);
+      setResult(simResult);
+
       const saved = await saveSimulation({
         data: {
           environmentId: environment.id,
@@ -334,17 +343,11 @@ export function useColdRoomSimulation(
             differentialC: config.differential_c,
             customExternalTempC: config.custom_max_temp_c ?? null,
           },
-        },
+          result: simResult as any,
+        } as any,
       });
 
       setLastSavedId(saved.simulation.id);
-
-      // Também executar localmente para exibir os gráficos
-      const input = buildSimulationInput(environment, calculationResult, config);
-      if (input) {
-        const simResult = await runColdRoomDynamicSimulation(input);
-        setResult(simResult);
-      }
 
       // Atualizar histórico
       await loadHistory();
