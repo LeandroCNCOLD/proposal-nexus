@@ -72,7 +72,7 @@ export const saveSimulation = createServerFn({ method: "POST" })
 
     const version = (count ?? 0) + 1;
 
-    const insertRow: Record<string, unknown> = {
+    const insertRow: any = {
       environment_id: data.environmentId,
       result_id: result?.id ?? null,
       name: data.name,
@@ -104,7 +104,7 @@ export const saveSimulation = createServerFn({ method: "POST" })
       .single();
 
     if (error) throw new Error(error.message);
-    return { simulation: saved as { id: string } & Record<string, unknown> };
+    return { simulation: saved as { id: string } & any };
   });
 
 // ─── Listar Simulações ───────────────────────────────────────────────────────
@@ -122,7 +122,7 @@ export const listSimulations = createServerFn({ method: "GET" })
       .order("created_at", { ascending: false });
 
     if (error) throw new Error(error.message);
-    return (simulations ?? []) as Array<Record<string, unknown>>;
+    return (simulations ?? []) as Array<any>;
   });
 
 // ─── Buscar Simulação por ID ─────────────────────────────────────────────────
@@ -138,7 +138,7 @@ export const getSimulation = createServerFn({ method: "GET" })
       .single();
 
     if (error) throw new Error(error.message);
-    return simulation as Record<string, unknown>;
+    return simulation as any;
   });
 
 // ─── Buscar Última Simulação do Ambiente ─────────────────────────────────────
@@ -155,7 +155,7 @@ export const getLatestSimulation = createServerFn({ method: "GET" })
       .maybeSingle();
 
     if (error) throw new Error(error.message);
-    return (simulation ?? null) as Record<string, unknown> | null;
+    return (simulation ?? null) as any | null;
   });
 
 // ─── Deletar Simulação ───────────────────────────────────────────────────────
@@ -217,7 +217,7 @@ export const saveCalculationSnapshot = createServerFn({ method: "POST" })
       .single();
 
     if (error) throw new Error(error.message);
-    return saved as Record<string, unknown>;
+    return saved as any;
   });
 
 export const listCalculationSnapshots = createServerFn({ method: "GET" })
@@ -231,5 +231,5 @@ export const listCalculationSnapshots = createServerFn({ method: "GET" })
       .order("created_at", { ascending: false });
 
     if (error) throw new Error(error.message);
-    return (snapshots ?? []) as Array<Record<string, unknown>>;
+    return (snapshots ?? []) as Array<any>;
   });
