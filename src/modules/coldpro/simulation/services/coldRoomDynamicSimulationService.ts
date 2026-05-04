@@ -185,7 +185,7 @@ export async function runColdRoomDynamicSimulation(input: ColdRoomSimulationInpu
        : await generateWeatherProfile({
         type: input.weather_profile_type || "annual",
         simulation_days: input.simulation_days || 365,
-        step_minutes: stepMinutes,
+        step_minutes: operation.simulation_step_minutes,
       }, 
       (input as any).project_ibge_code,
       (input as any).project_city_name,
