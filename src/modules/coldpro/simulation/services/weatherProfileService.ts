@@ -5,6 +5,7 @@
  */
 
 import type { ExternalClimatePoint, WeatherProfileType } from "../types/coldRoomSimulation.types";
+import { ClimateCacheService } from "../../climate/climateCacheService";
 
 interface WeatherProfileInput {
   type: WeatherProfileType;
@@ -69,6 +70,86 @@ function annualMaxTemp(dayOfYear: number, baseMax: number): number {
   // Verão (jan/fev) quente, inverno (jun/jul) mais frio
   const phase = ((dayOfYear - 15) * 2 * Math.PI) / 365;
   return baseMax + 4 * Math.cos(phase);
+}
+
+export async function generateWeatherProfile(
+  input: WeatherProfileInput,
+  ibgeCode?: string,
+  cityName?: string,
+  stateCode?: string,
+  latitude?: number,
+  longitude?: number
+): Promise<ExternalClimatePoint[]> {
+  // Se houver dados de localização e o tipo for anual/manual, tentar usar dados reais
+  if (ibgeCode && latitude && longitude && (input.type === "annual" || input.type === "manual")) {
+    try {
+      const realProfile = await ClimateCacheService.getOrFetchProfile(
+        ibgeCode,
+        cityName || "Desconhecida",
+        stateCode || "XX",
+        latitude,
+        longitude
+      );
+      if (realProfile) {
+        return generateRealWeatherProfile(input, realProfile);
+      }
+    } catch (error) {
+      console.error("Erro ao buscar perfil climático real, usando sintético como fallback:", error);
+    }
+  }
+
+  // Fallback para perfil sintético
+  return generateSyntheticWeatherProfile(input);
+}
+
+function generateRealWeatherProfile(
+  input: WeatherProfileInput,
+  realProfile: any
+): ExternalClimatePoint[] {
+  const stepsPerDay = Math.floor((24 * 60) / input.step_minutes);
+  const totalSteps = stepsPerDay * input.simulation_days;
+  const points: ExternalClimatePoint[] = [];
+
+  const startDate = new Date();
+  startDate.setHours(0, 0, 0, 0);
+
+  for (let i = 0; i < totalSteps; i++) {
+    const minutesFromStart = i * input.step_minutes;
+    const timestamp = new Date(startDate.getTime() + minutesFromStart * 60 * 1000);
+    
+    // Obter mês (0-11) e hora (0-23)
+    const month = timestamp.getMonth();
+    const hour = timestamp.getHours();
+    
+    // Buscar temperatura e umidade reais para este mês/hora
+    const extTemp = realProfile.temperatures_monthly[month][hour];
+    const rh = realProfile.humidity_monthly[month][hour];
+    
+    // Estimar radiação solar (simplificada baseada na hora e temperatura máxima do mês)
+    const monthMaxTemp = Math.max(...realProfile.temperatures_monthly[month]);
+    const maxSolar = monthMaxTemp > 30 ? 900 : 600;
+    const isRainy = rh > 85;
+    const solar = hourlySolar(hour, maxSolar, isRainy);
+
+    let condition: ExternalClimatePoint["weather_condition"] = "sunny";
+    if (hour < 6 || hour >= 20) condition = "night";
+    else if (isRainy) condition = "rain";
+    else if (extTemp < 20) condition = "cold";
+    else if (extTemp > 33) condition = "hot";
+    else if (solar < 300) condition = "cloudy";
+
+    points.push({
+      timestamp: timestamp.toISOString(),
+      external_temperature_c: extTemp,
+      external_relative_humidity_pct: rh,
+      solar_radiation_w_m2: Math.round(solar),
+      rain: isRainy,
+      wind_speed_m_s: isRainy ? 3.5 : 1.5,
+      weather_condition: condition,
+    });
+  }
+
+  return points;
 }
 
 export function generateSyntheticWeatherProfile(input: WeatherProfileInput): ExternalClimatePoint[] {
