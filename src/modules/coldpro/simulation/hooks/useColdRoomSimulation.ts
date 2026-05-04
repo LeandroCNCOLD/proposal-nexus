@@ -221,7 +221,13 @@ function buildSimulationInput(
     internal_loads: internalLoads,
     equipment,
     initial_room_temperature_c: config.setpoint_c + 2,
-  };
+    // Injetar dados de localização para a API climática
+    project_ibge_code: env.client_ibge_code,
+    project_city_name: env.client_city,
+    project_state_code: env.client_state,
+    project_latitude: env.client_latitude,
+    project_longitude: env.client_longitude,
+  } as any;
 }
 
 function buildInletSchedule(dailyMassKg: number, entryTempC: number, days: number) {
@@ -283,9 +289,9 @@ export function useColdRoomSimulation(
         setIsRunning(false);
         return;
       }
-      setTimeout(() => {
+      setTimeout(async () => {
         try {
-          const simResult = runColdRoomDynamicSimulation(input);
+          const simResult = await runColdRoomDynamicSimulation(input);
           setResult(simResult);
         } catch (e: any) {
           setError(e?.message ?? "Erro ao executar simulação");
@@ -336,7 +342,7 @@ export function useColdRoomSimulation(
       // Também executar localmente para exibir os gráficos
       const input = buildSimulationInput(environment, calculationResult, config);
       if (input) {
-        const simResult = runColdRoomDynamicSimulation(input);
+        const simResult = await runColdRoomDynamicSimulation(input);
         setResult(simResult);
       }
 

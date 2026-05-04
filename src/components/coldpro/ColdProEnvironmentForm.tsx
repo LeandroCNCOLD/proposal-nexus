@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Box, DraftingCompass, Droplets, Grid3X3, Save, ShieldCheck, Thermometer } from "lucide-react";
+import { Box, DraftingCompass, Droplets, Grid3X3, Loader2, MapPin, Save, ShieldCheck, Thermometer } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -16,6 +16,8 @@ import {
   numberOrNull,
 } from "./ColdProFormPrimitives";
 import { calculateFaceTransmission, calculateSeedDehumidificationLoad } from "@/features/coldpro/coldpro-calculation.engine";
+import { CepService } from "@/modules/coldpro/climate/cepService";
+import { ClimateCacheService } from "@/modules/coldpro/climate/climateCacheService";
 
 type Props = {
   environment: any;
@@ -306,12 +308,96 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
   const [floorInsulationMaterialId, setFloorInsulationMaterialId] = React.useState<string>(environment?.insulation_material_id ?? "");
   const [panelMaterialKey, setPanelMaterialKey] = React.useState<string>(environment?.insulation_material_id ? `legacy:${environment.insulation_material_id}` : "");
   const [soilRegion, setSoilRegion] = React.useState("");
+
+  // Estado do campo CEP
+  const [cepInput, setCepInput] = React.useState<string>(environment?.client_cep ?? "");
+  const [cepLoading, setCepLoading] = React.useState(false);
+  const [cepLoadingStage, setCepLoadingStage] = React.useState<"cep" | "cache" | "api" | null>(null);
+  const [cepError, setCepError] = React.useState<string | null>(null);
+  const [climateLoaded, setClimateLoaded] = React.useState(false);
+  const [climateFromCache, setClimateFromCache] = React.useState(false);
+
   React.useEffect(() => setForm(environment), [environment]);
   React.useEffect(() => {
     const legacyKey = environment?.insulation_material_id ? `legacy:${environment.insulation_material_id}` : "";
     setFloorInsulationMaterialId(legacyKey);
     setPanelMaterialKey(legacyKey);
   }, [environment]);
+
+  /**
+   * Busca o endereço pelo CEP e carrega o perfil climático do município.
+   * Preenche automaticamente: cidade, UF, temperatura externa e umidade.
+   */
+  const handleCepSearch = React.useCallback(async (cep: string) => {
+    const cleanCep = cep.replace(/\D/g, "");
+    if (cleanCep.length !== 8) return;
+
+    setCepLoading(true);
+    setCepLoadingStage("cep");
+    setCepError(null);
+    setClimateLoaded(false);
+    setClimateFromCache(false);
+
+    try {
+      // 1. Buscar endereço via ViaCEP (inclui geocoding automático)
+      const address = await CepService.fetchAddressByCep(cleanCep);
+      if (!address) {
+        setCepError("CEP não encontrado. Verifique o número informado.");
+        return;
+      }
+
+      // 2. Atualizar dados do endereço no formulário
+      setForm((prev: any) => ({
+        ...prev,
+        client_cep: CepService.formatCep(cleanCep),
+        client_city: address.localidade,
+        client_state: address.uf,
+        client_ibge_code: address.ibge,
+        client_latitude: address.latitude,
+        client_longitude: address.longitude,
+      }));
+
+      // 3. Buscar perfil climático (cache Supabase → Open-Meteo ERA5)
+      if (address.ibge && address.latitude && address.longitude) {
+        setCepLoadingStage("cache");
+
+        // Verificar cache primeiro para atualizar o label do loading
+        const { data: cached } = await (await import("@/integrations/supabase/client"))
+          .supabase.from("coldpro_climate_cache").select("ibge_code").eq("ibge_code", address.ibge).maybeSingle();
+
+        if (!cached) {
+          setCepLoadingStage("api");
+        }
+
+        const climateProfile = await ClimateCacheService.getOrFetchProfile(
+          address.ibge,
+          address.localidade,
+          address.uf,
+          address.latitude,
+          address.longitude
+        );
+
+        if (climateProfile) {
+          const maxTemp = climateProfile.temp_max_c;
+          const avgHumidity = climateProfile.humidity_avg_pct;
+
+          setForm((prev: any) => ({
+            ...prev,
+            external_temp_c: Math.round(maxTemp * 10) / 10,
+            external_relative_humidity_percent: avgHumidity,
+          }));
+
+          setClimateLoaded(true);
+          setClimateFromCache(!!cached);
+        }
+      }
+    } catch (error: any) {
+      setCepError(error?.message ?? "Erro ao buscar CEP. Tente novamente.");
+    } finally {
+      setCepLoading(false);
+      setCepLoadingStage(null);
+    }
+  }, []);
 
   const isClimatized = form?.environment_type === "climatized_room";
   const isSeed = form?.environment_type === "seed_storage";
@@ -588,6 +674,86 @@ export function ColdProEnvironmentForm({ environment, insulationMaterials, therm
                   <ColdProInput {...num("compressor_runtime_hours_day")} />
                   <ColdProValidationMessage tone="error">{hoursError ? "Horas devem estar entre 0 e 24." : ""}</ColdProValidationMessage>
                 </ColdProField>
+              </div>
+            </div>
+          </ColdProFormSection>
+
+          {/* Seção de Localização do Cliente */}
+          <ColdProFormSection
+            title="Localização do cliente"
+            description="Informe o CEP do cliente para buscar automaticamente a cidade e o perfil climático real da localidade."
+            icon={<MapPin className="h-4 w-4" />}
+          >
+            <div className="grid grid-cols-1 gap-x-10 md:grid-cols-2">
+              <div>
+                <ColdProField label="CEP do cliente">
+                  <div className="flex gap-2">
+                    <ColdProInput
+                      type="text"
+                      value={cepInput}
+                      placeholder="00000-000"
+                      maxLength={9}
+                      onChange={(e) => {
+                        const raw = e.target.value.replace(/\D/g, "").slice(0, 8);
+                        const formatted = raw.length > 5 ? `${raw.slice(0, 5)}-${raw.slice(5)}` : raw;
+                        setCepInput(formatted);
+                        setCepError(null);
+                        if (raw.length === 8) handleCepSearch(raw);
+                      }}
+                      className="flex-1"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleCepSearch(cepInput)}
+                      disabled={cepLoading || cepInput.replace(/\D/g, "").length !== 8}
+                      className="flex items-center gap-1 rounded-md border border-input bg-background px-3 py-2 text-sm font-medium hover:bg-accent disabled:opacity-50"
+                    >
+                      {cepLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <MapPin className="h-4 w-4" />}
+                      {cepLoading
+                        ? cepLoadingStage === "api" ? "Buscando clima..." : cepLoadingStage === "cache" ? "Verificando cache..." : "Buscando CEP..."
+                        : "Buscar"}
+                    </button>
+                  </div>
+                  {cepError && <ColdProValidationMessage tone="error">{cepError}</ColdProValidationMessage>}
+                  {climateLoaded && (
+                    <p className="mt-1 text-xs text-green-600">
+                      ✅ Perfil climático {climateFromCache ? "(cache local)" : "(Open-Meteo ERA5)"} carregado para {form?.client_city}/{form?.client_state}.
+                      Temperatura máxima: {form?.external_temp_c}°C · UR: {form?.external_relative_humidity_percent}%.
+                    </p>
+                  )}
+                </ColdProField>
+                <ColdProField label="Cidade">
+                  <ColdProInput
+                    type="text"
+                    value={form?.client_city ?? ""}
+                    placeholder="Preenchido automaticamente pelo CEP"
+                    onChange={(e) => set("client_city", e.target.value)}
+                    className="text-left"
+                  />
+                </ColdProField>
+              </div>
+              <div>
+                <ColdProField label="Estado (UF)">
+                  <ColdProInput
+                    type="text"
+                    value={form?.client_state ?? ""}
+                    placeholder="UF"
+                    maxLength={2}
+                    onChange={(e) => set("client_state", e.target.value.toUpperCase())}
+                    className="text-left uppercase"
+                  />
+                </ColdProField>
+                {form?.client_ibge_code && (
+                  <ColdProField label="Código IBGE">
+                    <ColdProInput
+                      type="text"
+                      value={form?.client_ibge_code ?? ""}
+                      readOnly
+                      className="text-left text-muted-foreground"
+                    />
+                    <ColdProFieldHint>Código IBGE do município — usado para buscar o perfil climático real.</ColdProFieldHint>
+                  </ColdProField>
+                )}
               </div>
             </div>
           </ColdProFormSection>
