@@ -18,7 +18,7 @@ export function ColdProExtraLoadsForm({ environment, catalogFanLoadKcalH = 0, on
   const num = (key: string) => ({ type: "number" as const, step: "0.0001", value: form?.[key] ?? "", onChange: (e: React.ChangeEvent<HTMLInputElement>) => set(key, numberOrNull(e.target.value)) });
   const select = (key: string) => ({ value: form?.[key] ?? "", onChange: (e: React.ChangeEvent<HTMLSelectElement>) => set(key, e.target.value), className: "h-10 w-full rounded-md border bg-background px-3 text-sm" });
 
-  const hoursInvalid = [form.people_hours_day, form.lighting_hours_day, form.motors_hours_day].some((v) => Number(v ?? 0) < 0 || Number(v ?? 0) > 24);
+  const hoursInvalid = [form.people_hours_day, form.lighting_hours_day, form.motors_hours_day, form.operation_hours_day, form.compressor_runtime_hours_day].some((v) => Number(v ?? 0) < 0 || Number(v ?? 0) > 24);
   const negativeInvalid = [form.door_openings_per_day, form.door_width_m, form.door_height_m, form.infiltration_factor, form.air_changes_per_hour, form.fresh_air_m3_h, form.door_infiltration_m3_h, form.people_count, form.lighting_power_w, form.motors_power_kw, form.fans_kcal_h, form.defrost_kcal_h, form.other_kcal_h, form.safety_factor_percent].some((v) => Number(v ?? 0) < 0);
   const canSave = !hoursInvalid && !negativeInvalid;
   const preview = calculateExtraLoadPreview(form ?? {});
@@ -77,12 +77,11 @@ export function ColdProExtraLoadsForm({ environment, catalogFanLoadKcalH = 0, on
             <ColdProFormSection title="Horas de Operação Diária" description="Defina as horas de operação para cálculo correto de infiltração, degelo e pessoas.">
               <div className="grid grid-cols-1 gap-x-10 md:grid-cols-2">
                 <div>
-                  <ColdProField label="Horas de operação" unit="h/dia" description="Tempo total de funcionamento do ambiente por dia"><ColdProInput {...num("operating_hours_per_day")} /></ColdProField>
-                  <ColdProField label="Horas de recuperação infiltração" unit="h/dia" description="Tempo para recuperar temperatura após infiltração"><ColdProInput {...num("infiltration_recovery_hours_per_day")} /></ColdProField>
+                  {/* Bug 3 fix: campos renomeados para bater com o banco de dados e o engine */}
+                  <ColdProField label="Horas de operação" unit="h/dia" description="Tempo total de funcionamento do ambiente por dia (salvo como operation_hours_day)"><ColdProInput {...num("operation_hours_day")} /></ColdProField>
+                  <ColdProField label="Horas compressor" unit="h/dia" description="Horas diárias de funcionamento do compressor — usadas para ratear cargas de pessoas, iluminação, motores e degelo (padrão: 20h)"><ColdProInput {...num("compressor_runtime_hours_day")} /></ColdProField>
                 </div>
                 <div>
-                  <ColdProField label="Horas de recuperação degelo" unit="h/dia" description="Tempo para recuperar temperatura após degelo"><ColdProInput {...num("defrost_recovery_hours_per_day")} /></ColdProField>
-                  <ColdProField label="Horas compressor" unit="h/dia" description="Tempo de funcionamento do compressor (padrão: 16h)"><ColdProInput {...num("compressor_hours_per_day")} /></ColdProField>
                 </div>
               </div>
             </ColdProFormSection>
@@ -112,7 +111,7 @@ export function ColdProExtraLoadsForm({ environment, catalogFanLoadKcalH = 0, on
                   </ColdProField>
                   <ColdProField label="Trocas de ar adicionais" unit="vol/h"><ColdProInput {...num("air_changes_per_hour")} /></ColdProField>
                   <ColdProField label="Ar externo contínuo" unit="m³/h"><ColdProInput {...num("fresh_air_m3_h")} /></ColdProField>
-                  <ColdProField label="Infiltração porta adicional" unit="m³/dia"><ColdProInput {...num("door_infiltration_m3_h")} /></ColdProField>
+                  <ColdProField label="Infiltração porta adicional" unit="m³/dia" description="Volume de ar infiltrado adicionalmente por abertura de porta, em m³ por dia (campo door_infiltration_m3_h)"><ColdProInput {...num("door_infiltration_m3_h")} /></ColdProField>
                   <ColdProCalculatedInfo label="Carga de infiltração" value={`${fmtColdPro(preview.infiltration_kcal_h)} kcal/h`} description={`Sensível ${fmtColdPro(preview.infiltration_breakdown.sensibleKcalH)} · latente ${fmtColdPro(preview.infiltration_breakdown.latentKcalH)} · ar ${fmtColdPro(preview.infiltration_breakdown.totalInfiltrationM3Day)} m³/dia`} tone={preview.infiltration_kcal_h > 0 ? "success" : "warning"} />
                 </div>
               </div>

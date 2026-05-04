@@ -87,7 +87,10 @@ export function calculateTechnicalInfiltration(env: any) {
   const internalTempC = num(env.internal_temp_c);
   const externalTempC = env.external_temp_c !== null && env.external_temp_c !== undefined ? num(env.external_temp_c) : regionDefaults.externalTempC;
   const compressorHoursDay = Math.max(1, num(env.compressor_runtime_hours_day, 20) || 20);
-  const infiltrationAveragingHoursDay = 24;
+  // Bug 4 fix: infiltração era rateada em 24h fixas, mas o compressor opera por menos horas.
+  // Usar as horas do compressor garante que a carga de infiltração diária seja distribuída
+  // corretamente pelo período em que o equipamento precisa removê-la.
+  const infiltrationAveragingHoursDay = compressorHoursDay;
   const applicationType = applicationTypeFromEnvironment(env.environment_type);
   const externalRH = env.external_relative_humidity_percent !== null && env.external_relative_humidity_percent !== undefined && num(env.external_relative_humidity_percent) > 0 ? num(env.external_relative_humidity_percent) / 100 : regionDefaults.externalRH;
   const internalRHWasInformed = env.relative_humidity_percent !== null && env.relative_humidity_percent !== undefined && num(env.relative_humidity_percent) > 0;
@@ -101,8 +104,11 @@ export function calculateTechnicalInfiltration(env: any) {
   const doorInfiltrationM3Day = doorAreaM2 * airVelocityMS * secondsOpenDay * correctionFactor;
   const airChangesM3H = Math.max(0, num(env.volume_m3)) * Math.max(0, num(env.air_changes_per_hour));
   const freshAirM3H = Math.max(0, num(env.fresh_air_m3_h));
-  const manualDoorM3H = Math.max(0, num(env.door_infiltration_m3_h));
-  const continuousInfiltrationM3Day = (airChangesM3H + freshAirM3H + manualDoorM3H) * 24;
+  // Bug 2 fix: door_infiltration_m3_h é informado em m³/dia na UI, mas era tratado como m³/h e
+  // multiplicado por 24, inflando a infiltração contínua em até 24x.
+  // A correção separa a porta manual (já em m³/dia) das trocas contínuas (em m³/h).
+  const manualDoorM3Day = Math.max(0, num(env.door_infiltration_m3_h));
+  const continuousInfiltrationM3Day = (airChangesM3H + freshAirM3H) * 24 + manualDoorM3Day;
   const totalInfiltrationM3Day = doorInfiltrationM3Day + continuousInfiltrationM3Day;
   const deltaT = Math.max(0, externalTempC - internalTempC);
   const sensibleKcalDay = totalInfiltrationM3Day * THERMAL_CONSTANTS.air.densityKgM3 * THERMAL_CONSTANTS.air.cpKcalKgC * deltaT;
@@ -135,7 +141,7 @@ export function calculateTechnicalInfiltration(env: any) {
     doorInfiltrationM3Day: round(doorInfiltrationM3Day),
     airChangesM3H: round(airChangesM3H),
     freshAirM3H: round(freshAirM3H),
-    manualDoorM3H: round(manualDoorM3H),
+    manualDoorM3H: round(manualDoorM3Day),
     continuousInfiltrationM3Day: round(continuousInfiltrationM3Day),
     totalInfiltrationM3Day: round(totalInfiltrationM3Day),
     externalAbsoluteHumidityKgM3: round(externalAbsoluteHumidityKgM3, 6),
@@ -154,8 +160,8 @@ export function calculateTechnicalInfiltration(env: any) {
       door_infiltration: "V_porta = A x velocidade_ar x tempo_total_abertura x fator_correcao",
       psychrometric: "Delta umidade = umidade_absoluta_externa - umidade_absoluta_interna",
       ice: "gelo_kg_dia = volume_ar_infiltrado x Delta umidade",
-      sensible: "Q_sensível = V_ar_diário x densidade_ar x cp_ar x DeltaT / 24h",
-      latent: "Q_latente = gelo_kg_dia x calor_latente_vapor_para_gelo / 24h",
+      sensible: "Q_sensível = V_ar_diário x densidade_ar x cp_ar x DeltaT / horas_compressor",
+      latent: "Q_latente = gelo_kg_dia x calor_latente_vapor_para_gelo / horas_compressor",
     },
   };
 }
