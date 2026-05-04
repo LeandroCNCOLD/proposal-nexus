@@ -169,7 +169,7 @@ function buildSimulationInput(
   };
 
   const internalLoads: InternalLoadProfile = {
-    lighting_kw: Number(env.lighting_kw ?? (calcResult.lighting_kcal_h ?? 0) / 860) || 0.5,
+    lighting_kw: Number(env.lighting_kw ?? (calcResult.lighting_kcal_h ?? 0) / 860 ?? 0.5),
     people_count: Number(env.people_count ?? 2),
     people_heat_kcal_h_person: Number(env.people_heat_kcal_h ?? 270),
     motors_hp: Number(env.motors_hp ?? 0),
@@ -221,7 +221,13 @@ function buildSimulationInput(
     internal_loads: internalLoads,
     equipment,
     initial_room_temperature_c: config.setpoint_c + 2,
-  };
+    // Injetar dados de localização para a API climática
+    project_ibge_code: env.client_ibge_code,
+    project_city_name: env.client_city,
+    project_state_code: env.client_state,
+    project_latitude: env.client_latitude,
+    project_longitude: env.client_longitude,
+  } as any;
 }
 
 function buildInletSchedule(dailyMassKg: number, entryTempC: number, days: number) {
@@ -283,9 +289,9 @@ export function useColdRoomSimulation(
         setIsRunning(false);
         return;
       }
-      setTimeout(() => {
+      setTimeout(async () => {
         try {
-          const simResult = runColdRoomDynamicSimulation(input);
+          const simResult = await runColdRoomDynamicSimulation(input);
           setResult(simResult);
         } catch (e: any) {
           setError(e?.message ?? "Erro ao executar simulação");
@@ -316,60 +322,29 @@ export function useColdRoomSimulation(
     setSaveError(null);
 
     try {
-      // Executar simulação localmente primeiro
-      const input = buildSimulationInput(environment, calculationResult, config);
-      if (!input) {
-        setSaveError("Dados insuficientes para simulação.");
-        return;
-      }
-      const simResult = runColdRoomDynamicSimulation(input);
-      setResult(simResult);
-
-      const weatherProfile = (config.weather_profile_type === "annual"
-        ? "annual_average"
-        : config.weather_profile_type === "manual"
-        ? "custom"
-        : config.weather_profile_type) as
-        | "hot_day" | "cold_day" | "rainy_day" | "dry_day" | "humid_day" | "annual_average" | "custom";
-
-      const stepMin = config.simulation_step_minutes === 10 ? 15 : config.simulation_step_minutes;
-      const compressorOnSteps = simResult.timeline.filter((t) => t.compressor_status === "ON").length;
-      const totalSteps = Math.max(1, simResult.timeline.length);
-      const hoursAbove = simResult.timeline.filter((t) => t.room_temperature_c > config.setpoint_c).length / Math.max(1, 60 / stepMin);
-      const hoursBelow = simResult.timeline.filter((t) => t.room_temperature_c < config.setpoint_c).length / Math.max(1, 60 / stepMin);
-      const adequacy = simResult.summary.capacity_adequate ? "adequate" : "undersized";
-
       const saved = await saveSimulation({
         data: {
           environmentId: environment.id,
           name: name ?? `Simulação ${new Date().toLocaleDateString("pt-BR")}`,
           config: {
-            weatherProfile,
+            weatherProfile: config.weather_profile_type,
             simulationPeriodDays: config.simulation_days,
-            timeStepMinutes: stepMin as 5 | 15 | 30 | 60,
+            timeStepMinutes: config.simulation_step_minutes as any,
             setpointC: config.setpoint_c,
             differentialC: config.differential_c,
             customExternalTempC: config.custom_max_temp_c ?? null,
-          },
-          result: {
-            maxInternalTempC: simResult.summary.max_room_temperature_c,
-            minInternalTempC: simResult.summary.min_room_temperature_c,
-            avgInternalTempC: simResult.summary.average_room_temperature_c,
-            hoursAboveSetpoint: hoursAbove,
-            hoursBelowSetpoint: hoursBelow,
-            compressorOnHours: simResult.summary.compressor_runtime_hours,
-            compressorOnPercent: simResult.summary.compressor_runtime_pct,
-            totalEnergyKwh: simResult.summary.total_energy_kwh,
-            avgCop: simResult.summary.average_cop,
-            peakLoadKcalH: simResult.summary.peak_load_kcal_h,
-            equipmentAdequacy: adequacy,
-            timeline: simResult.timeline as any,
-            alerts: simResult.alerts as any,
           },
         },
       });
 
       setLastSavedId(saved.simulation.id);
+
+      // Também executar localmente para exibir os gráficos
+      const input = buildSimulationInput(environment, calculationResult, config);
+      if (input) {
+        const simResult = await runColdRoomDynamicSimulation(input);
+        setResult(simResult);
+      }
 
       // Atualizar histórico
       await loadHistory();

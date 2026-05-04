@@ -18,7 +18,7 @@ import type {
   DoorOpeningEvent,
 } from "../types/coldRoomSimulation.types";
 import { DOOR_PROTECTION_FACTORS } from "../types/coldRoomSimulation.types";
-import { generateSyntheticWeatherProfile } from "./weatherProfileService";
+import { generateWeatherProfile } from "./weatherProfileService";
 import { calculateThermalMass } from "./thermalMassService";
 import { evaluateEquipmentPerformance } from "./equipmentPerformanceBridge";
 
@@ -176,17 +176,23 @@ function calcInternalLoad(
 
 // ─── Loop principal de simulação ──────────────────────────────────────────────
 
-export function runColdRoomDynamicSimulation(input: ColdRoomSimulationInput): ColdRoomSimulationResult {
+export async function runColdRoomDynamicSimulation(input: ColdRoomSimulationInput): Promise<ColdRoomSimulationResult> {
   const { operation, geometry, product, internal_loads, equipment } = input;
 
   // Gerar perfil climático se não fornecido
   const climateData: ExternalClimatePoint[] = input.climate_data?.length
     ? input.climate_data
-    : generateSyntheticWeatherProfile({
-        type: input.weather_profile_type,
-        simulation_days: operation.simulation_days,
-        step_minutes: operation.simulation_step_minutes,
-      });
+       : await generateWeatherProfile({
+        type: input.weather_profile_type || "annual",
+        simulation_days: input.simulation_days || 365,
+        step_minutes: stepMinutes,
+      }, 
+      (input as any).project_ibge_code,
+      (input as any).project_city_name,
+      (input as any).project_state_code,
+      (input as any).project_latitude,
+      (input as any).project_longitude
+    );
 
   // Calcular massa térmica da câmara
   const thermalMass = calculateThermalMass({
