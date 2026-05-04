@@ -23,6 +23,8 @@ import { ColdProTunnelForm } from "@/components/coldpro/ColdProTunnelForm";
 import { ColdProResultCard } from "@/components/coldpro/ColdProResultCard";
 import { ColdProExtraLoadsForm } from "@/components/coldpro/ColdProExtraLoadsForm";
 import { ColdProStepper, COLDPRO_STEPS } from "@/components/coldpro/ColdProStepper";
+import { ColdRoomSimulationTab } from "@/modules/coldpro/simulation/pages/ColdRoomSimulationTab";
+import { ColdRoomFinalReportTab } from "@/modules/coldpro/simulation/pages/ColdRoomFinalReportTab";
 import { ColdProReport } from "@/components/coldpro/ColdProReport";
 import { ColdProProjectResultDashboard } from "@/modules/coldpro/components/results/ColdProProjectResultDashboard";
 import { EnergySummary } from "@/modules/coldpro/components/results/EnergySummary";
@@ -1073,6 +1075,24 @@ function ColdProProjectPage() {
                   ) : null}
 
                 </div>
+              )}
+
+              {/* STEP 4 — SIMULAÇÃO DINÂMICA */}
+              {stepIndex === 4 && (
+                <ColdRoomSimulationTab
+                  environment={selectedEnv}
+                  calculationResult={selectedEnv?.result ?? null}
+                />
+              )}
+
+              {/* STEP 5 — RELATÓRIO FINAL */}
+              {stepIndex === 5 && (
+                <ColdRoomFinalReportTab
+                  environment={selectedEnv}
+                  calculationResult={selectedEnv?.result ?? null}
+                  simulationResult={null}
+                  projectName={project?.name}
+                />
               )}
 
               {/* Navegação inferior */}
