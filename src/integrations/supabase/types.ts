@@ -644,6 +644,66 @@ export type Database = {
         }
         Relationships: []
       }
+      coldpro_climate_cache: {
+        Row: {
+          city_name: string
+          created_at: string
+          data_period_end: string | null
+          data_period_start: string | null
+          data_source: string
+          humidity_avg_pct: number
+          humidity_monthly: Json
+          ibge_code: string
+          id: string
+          latitude: number
+          longitude: number
+          state_code: string
+          temp_avg_c: number
+          temp_max_c: number
+          temp_min_c: number
+          temperatures_monthly: Json
+          updated_at: string
+        }
+        Insert: {
+          city_name: string
+          created_at?: string
+          data_period_end?: string | null
+          data_period_start?: string | null
+          data_source?: string
+          humidity_avg_pct: number
+          humidity_monthly: Json
+          ibge_code: string
+          id?: string
+          latitude: number
+          longitude: number
+          state_code: string
+          temp_avg_c: number
+          temp_max_c: number
+          temp_min_c: number
+          temperatures_monthly: Json
+          updated_at?: string
+        }
+        Update: {
+          city_name?: string
+          created_at?: string
+          data_period_end?: string | null
+          data_period_start?: string | null
+          data_source?: string
+          humidity_avg_pct?: number
+          humidity_monthly?: Json
+          ibge_code?: string
+          id?: string
+          latitude?: number
+          longitude?: number
+          state_code?: string
+          temp_avg_c?: number
+          temp_max_c?: number
+          temp_min_c?: number
+          temperatures_monthly?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
       coldpro_environment_products: {
         Row: {
           allow_phase_change: boolean
