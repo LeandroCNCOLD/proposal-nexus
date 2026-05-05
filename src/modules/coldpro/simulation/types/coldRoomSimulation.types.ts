@@ -278,10 +278,48 @@ export interface ColdRoomSimulationSummary {
   defrost_warnings: string[];
 }
 
+// ─── Estado térmico (acumulativo entre passos) ───────────────────────────────
+
+/** Lote de produto armazenado dentro da câmara — persiste entre passos */
+export interface ProductBatchState {
+  batch_id: string;
+  /** Quando o lote entrou na câmara */
+  entered_at: string;
+  /** Massa atual do lote (kg) — pode reduzir por saída parcial */
+  mass_kg: number;
+  /** Temperatura atual do lote (°C) — evolui passo a passo */
+  temperature_c: number;
+  /** Temperatura inicial de entrada (referência) */
+  inlet_temperature_c: number;
+  /** Calor específico (kcal/kg·°C) */
+  specific_heat_kcal_kg_c: number;
+  /** Tipo do produto — sementes não geram calor de respiração */
+  product_type: ProductLoadProfile["product_type"];
+  /** Calor de respiração (kcal/kg·dia) — 0 para sementes */
+  respiration_heat_kcal_kg_day: number;
+}
+
+/** Estado térmico completo da câmara em um instante */
+export interface ColdRoomState {
+  timestamp: string;
+  room_air_temperature_c: number;
+  room_relative_humidity_pct: number;
+  stored_product_batches: ProductBatchState[];
+  total_stored_mass_kg: number;
+  average_product_temperature_c: number;
+  compressor_status: "ON" | "OFF" | "DEFROST";
+  /** Déficit térmico acumulado (kcal) — quando a carga supera a capacidade */
+  accumulated_thermal_deficit_kcal: number;
+  /** Energia elétrica consumida acumulada (kWh) */
+  accumulated_energy_kwh: number;
+}
+
 export interface ColdRoomSimulationResult {
   summary: ColdRoomSimulationSummary;
   timeline: ColdRoomSimulationTimeStep[];
   alerts: SimulationAlert[];
   /** Dados prontos para gráficos (amostrados para não sobrecarregar a UI) */
   chart_data: ColdRoomSimulationTimeStep[];
+  /** Estado final da câmara (último passo) */
+  final_state?: ColdRoomState;
 }
