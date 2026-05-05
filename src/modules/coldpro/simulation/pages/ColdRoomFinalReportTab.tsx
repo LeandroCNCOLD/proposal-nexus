@@ -183,7 +183,7 @@ export function ColdRoomFinalReportTab({
 
       {/* 4. Resultados da Simulação Dinâmica */}
       {hasSim && (
-        <ReportSection title="4. Simulação Dinâmica" icon={<Activity className="h-4 w-4" />}>
+        <ReportSection title="4. Diagnóstico de Comportamento da Câmara" icon={<Activity className="h-4 w-4" />}>
           <DataRow label="Período simulado" value={`${simulationResult.summary.simulation_period_days} dia(s)`} />
           <DataRow label="Temperatura máxima interna" value={`${fmt(simulationResult.summary.max_room_temperature_c)} °C`} />
           <DataRow label="Temperatura média interna" value={`${fmt(simulationResult.summary.average_room_temperature_c)} °C`} />
