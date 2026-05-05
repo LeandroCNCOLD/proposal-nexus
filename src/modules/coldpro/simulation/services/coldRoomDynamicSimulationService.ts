@@ -282,9 +282,28 @@ export async function runColdRoomDynamicSimulation(input: ColdRoomSimulationInpu
   const C_total = thermalMass.total_thermal_capacity_kcal_c;
   const stepH = operation.simulation_step_minutes / 60; // horas por passo
 
-  // Estado inicial
+  // Estado inicial — temperatura do ar e dos batches existentes
   let roomTemp = input.initial_room_temperature_c ?? operation.setpoint_c;
   let compressorStatus: "ON" | "OFF" | "DEFROST" = "OFF";
+
+  // Batches persistentes — modela o estoque ao longo do tempo
+  const batches: ProductBatchState[] = [];
+  // Se houver massa pré-existente declarada, considerá-la já em equilíbrio com o setpoint
+  if ((product.total_stored_mass_kg ?? 0) > 0) {
+    batches.push({
+      batch_id: "initial_stock",
+      entered_at: climateData[0]?.timestamp ?? new Date().toISOString(),
+      mass_kg: product.total_stored_mass_kg!,
+      temperature_c: product.target_temperature_c ?? operation.setpoint_c,
+      inlet_temperature_c: product.target_temperature_c ?? operation.setpoint_c,
+      specific_heat_kcal_kg_c: product.specific_heat_kcal_kg_c,
+      product_type: product.product_type,
+      respiration_heat_kcal_kg_day:
+        product.respiration_heat_enabled && product.product_type !== "seed"
+          ? product.respiration_heat_kcal_kg_day ?? 0
+          : 0,
+    });
+  }
 
   // Gerar eventos de porta a partir do cronograma programado (se fornecido)
   const generatedDoorEvents = input.door_schedule?.length
@@ -307,13 +326,23 @@ export async function runColdRoomDynamicSimulation(input: ColdRoomSimulationInpu
   const timeline: ColdRoomSimulationTimeStep[] = [];
   const alerts: SimulationAlert[] = [];
 
-  // Contadores para alertas e acumuladores de gelo/porta
+  // Contadores e acumuladores de estado
   let overloadSteps = 0;
   let outOfRangeSteps = 0;
   let totalFrostKg = 0;
   let totalDoorOpenings = 0;
   let totalDoorInfiltrationKcal = 0;
   let totalLatentLoadKcal = 0;
+  let totalProductInletKg = 0;
+  let accumulatedDeficitKcal = 0;
+  let accumulatedEnergyKwh = 0;
+  // Para detectar dias com déficit / produto sem atingir target
+  const dailyDeficit = new Map<string, number>();
+  const dailyProductTargetReached = new Map<string, boolean>();
+  const targetTemp = product.target_temperature_c;
+  // Pulldown tracking: timestamp de entrada → timestamp de atingimento do target
+  const pulldownStartByBatch = new Map<string, number>();
+  const pulldownDurationsHours: number[] = [];
 
   for (let i = 0; i < climateData.length; i++) {
     const climate = climateData[i];
