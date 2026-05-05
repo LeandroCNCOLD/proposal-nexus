@@ -224,6 +224,14 @@ export interface ColdRoomSimulationTimeStep {
   frost_kg?: number;
   /** Indica se a máquina está em degelo neste passo */
   is_defrost_step?: boolean;
+  /** Massa total de produto armazenada neste passo (kg) */
+  stored_mass_kg?: number;
+  /** Temperatura média ponderada do produto armazenado (°C) */
+  average_product_temperature_c?: number;
+  /** Número de lotes ativos neste passo */
+  active_batches?: number;
+  /** Déficit térmico acumulado até este passo (kcal) */
+  accumulated_thermal_deficit_kcal?: number;
 }
 
 // ─── Alertas ──────────────────────────────────────────────────────────────────
@@ -276,6 +284,58 @@ export interface ColdRoomSimulationSummary {
   recommended_defrost_cycles: number;
   machine_downtime_hours_total: number;
   defrost_warnings: string[];
+
+  // ─── Novos campos: estado térmico acumulativo ─────────────────────────────
+  /** Massa total armazenada no fim da simulação (kg) */
+  final_stored_mass_kg: number;
+  /** Temperatura média do produto no fim da simulação (°C) */
+  final_average_product_temperature_c: number;
+  /** Total de produto que entrou ao longo do período (kg) */
+  total_product_inlet_kg: number;
+  /** Déficit térmico total acumulado (kcal) — não recuperado pela máquina */
+  total_thermal_deficit_kcal: number;
+  /** Número de dias com déficit térmico (não recuperação do setpoint) */
+  days_with_thermal_deficit: number;
+  /** Número de dias em que o produto não atingiu a temperatura alvo */
+  days_product_target_not_reached: number;
+  /** Tempo médio de pulldown (horas) — do inlet até atingir target */
+  average_pulldown_hours: number;
+}
+
+// ─── Estado térmico (acumulativo entre passos) ───────────────────────────────
+
+/** Lote de produto armazenado dentro da câmara — persiste entre passos */
+export interface ProductBatchState {
+  batch_id: string;
+  /** Quando o lote entrou na câmara */
+  entered_at: string;
+  /** Massa atual do lote (kg) — pode reduzir por saída parcial */
+  mass_kg: number;
+  /** Temperatura atual do lote (°C) — evolui passo a passo */
+  temperature_c: number;
+  /** Temperatura inicial de entrada (referência) */
+  inlet_temperature_c: number;
+  /** Calor específico (kcal/kg·°C) */
+  specific_heat_kcal_kg_c: number;
+  /** Tipo do produto — sementes não geram calor de respiração */
+  product_type: ProductLoadProfile["product_type"];
+  /** Calor de respiração (kcal/kg·dia) — 0 para sementes */
+  respiration_heat_kcal_kg_day: number;
+}
+
+/** Estado térmico completo da câmara em um instante */
+export interface ColdRoomState {
+  timestamp: string;
+  room_air_temperature_c: number;
+  room_relative_humidity_pct: number;
+  stored_product_batches: ProductBatchState[];
+  total_stored_mass_kg: number;
+  average_product_temperature_c: number;
+  compressor_status: "ON" | "OFF" | "DEFROST";
+  /** Déficit térmico acumulado (kcal) — quando a carga supera a capacidade */
+  accumulated_thermal_deficit_kcal: number;
+  /** Energia elétrica consumida acumulada (kWh) */
+  accumulated_energy_kwh: number;
 }
 
 export interface ColdRoomSimulationResult {
@@ -284,4 +344,6 @@ export interface ColdRoomSimulationResult {
   alerts: SimulationAlert[];
   /** Dados prontos para gráficos (amostrados para não sobrecarregar a UI) */
   chart_data: ColdRoomSimulationTimeStep[];
+  /** Estado final da câmara (último passo) */
+  final_state?: ColdRoomState;
 }
