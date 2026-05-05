@@ -189,7 +189,7 @@ export function ColdRoomFinalReportTab({
           <DataRow label="Temperatura média interna" value={`${fmt(simulationResult.summary.average_room_temperature_c)} °C`} />
           <DataRow label="Temperatura mínima interna" value={`${fmt(simulationResult.summary.min_room_temperature_c)} °C`} />
           <Divider />
-          <DataRow label="Pico de carga térmica" value={`${fmtInt(simulationResult.summary.peak_load_kcal_h)} kcal/h (${simulationResult.summary.worst_hour})`} />
+          <DataRow label="Carga térmica dinâmica no período (pico)" value={`${fmtInt(simulationResult.summary.peak_load_kcal_h)} kcal/h (${simulationResult.summary.worst_hour})`} />
           <DataRow label="Capacidade mínima recomendada" value={`${fmtInt(simulationResult.summary.recommended_min_capacity_kcal_h)} kcal/h`} />
           <DataRow label="Capacidade adequada" value={simulationResult.summary.capacity_adequate ? "Sim ✓" : "Não — subdimensionado!"} highlight={!simulationResult.summary.capacity_adequate} />
           <Divider />
