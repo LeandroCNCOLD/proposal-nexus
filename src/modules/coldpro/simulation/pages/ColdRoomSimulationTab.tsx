@@ -36,6 +36,8 @@ import {
   AreaChart,
   Area,
 } from "recharts";
+import { SimulationChartPanel } from "../components/SimulationChartPanel";
+import { SimulationAIInsightPanel } from "../components/SimulationAIInsightPanel";
 
 // ─── Helpers de formatação ────────────────────────────────────────────────────
 
@@ -514,7 +516,7 @@ function ResultsPanel({ result, setpoint }: { result: ColdRoomSimulationResult; 
             <YAxis tick={{ fontSize: 10 }} unit="°C" />
             <Tooltip
               contentStyle={{ fontSize: 11 }}
-              formatter={(v: number) => [`${fmt(v)}°C`]}
+              formatter={(v: any) => [`${fmt(v)}°C`]}
             />
             <Legend wrapperStyle={{ fontSize: 11 }} />
             <ReferenceLine y={setpoint} stroke="#22c55e" strokeDasharray="4 4" label={{ value: "Setpoint", fontSize: 10, fill: "#22c55e" }} />
@@ -545,7 +547,7 @@ function ResultsPanel({ result, setpoint }: { result: ColdRoomSimulationResult; 
             <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
             <XAxis dataKey="time" tick={{ fontSize: 10 }} interval="preserveStartEnd" />
             <YAxis tick={{ fontSize: 10 }} unit=" kcal/h" width={80} />
-            <Tooltip contentStyle={{ fontSize: 11 }} formatter={(v: number) => [fmtInt(v) + " kcal/h"]} />
+            <Tooltip contentStyle={{ fontSize: 11 }} formatter={(v: any) => [fmtInt(v) + " kcal/h"]} />
             <Legend wrapperStyle={{ fontSize: 11 }} />
             <Area
               type="monotone"
@@ -575,7 +577,7 @@ function ResultsPanel({ result, setpoint }: { result: ColdRoomSimulationResult; 
             <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
             <XAxis dataKey="time" tick={{ fontSize: 10 }} interval="preserveStartEnd" />
             <YAxis tick={{ fontSize: 10 }} unit=" kW" />
-            <Tooltip contentStyle={{ fontSize: 11 }} formatter={(v: number) => [fmt(v) + " kW"]} />
+            <Tooltip contentStyle={{ fontSize: 11 }} formatter={(v: any) => [fmt(v) + " kW"]} />
             <Area
               type="monotone"
               dataKey="Potência (kW)"
@@ -598,9 +600,11 @@ interface ColdRoomSimulationTabProps {
   environment: any;
   /** Resultado do cálculo estático (do coldpro-calculation.engine) */
   calculationResult: any;
+  /** Callback para análise via IA */
+  onAnalyze?: (question: string) => Promise<string>;
 }
 
-export function ColdRoomSimulationTab({ environment, calculationResult }: ColdRoomSimulationTabProps) {
+export function ColdRoomSimulationTab({ environment, calculationResult, onAnalyze }: ColdRoomSimulationTabProps) {
   const { result, isRunning, error, config, setConfig, runSimulation, reset } =
     useColdRoomSimulation(environment, calculationResult);
 
@@ -670,7 +674,23 @@ export function ColdRoomSimulationTab({ environment, calculationResult }: ColdRo
 
       {/* Resultados */}
       {result && !isRunning && (
-        <ResultsPanel result={result} setpoint={config.setpoint_c} />
+        <>
+          <ResultsPanel result={result} setpoint={config.setpoint_c} />
+
+          {/* Gráficos interativos com filtro de período */}
+          <SimulationChartPanel
+            chartData={result.timeline}
+            setpoint={config.setpoint_c}
+          />
+
+          {/* Análise de IA */}
+          {onAnalyze && (
+            <SimulationAIInsightPanel
+              result={result}
+              onAnalyze={onAnalyze}
+            />
+          )}
+        </>
       )}
     </div>
   );

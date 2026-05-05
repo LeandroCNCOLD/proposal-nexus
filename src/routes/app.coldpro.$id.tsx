@@ -1082,6 +1082,10 @@ function ColdProProjectPage() {
                 <ColdRoomSimulationTab
                   environment={selectedEnv}
                   calculationResult={result ?? null}
+                  onAnalyze={async (question) => {
+                    const response = await handleAnalyzeMemorial(question);
+                    return response ?? "";
+                  }}
                 />
               )}
 

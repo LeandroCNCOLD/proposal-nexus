@@ -189,7 +189,7 @@ function buildSimulationInput(
   };
 
   const internalLoads: InternalLoadProfile = {
-    lighting_kw: Number(env.lighting_kw ?? (calcResult.lighting_kcal_h ?? 0) / 860 ?? 0.5),
+    lighting_kw: env.lighting_kw != null ? Number(env.lighting_kw) : ((calcResult.lighting_kcal_h ?? 0) / 860) || 0.5,
     people_count: Number(env.people_count ?? 2),
     people_heat_kcal_h_person: Number(env.people_heat_kcal_h ?? 270),
     motors_hp: Number(env.motors_hp ?? 0),
@@ -368,29 +368,29 @@ export function useColdRoomSimulation(
     setSaveError(null);
 
     try {
+      // Executar localmente primeiro
+      const input = buildSimulationInput(environment, calculationResult, config);
+      if (!input) throw new Error("Não foi possível preparar a simulação");
+      const simResult = await runColdRoomDynamicSimulation(input);
+      setResult(simResult);
+
       const saved = await saveSimulation({
         data: {
           environmentId: environment.id,
           name: name ?? `Simulação ${new Date().toLocaleDateString("pt-BR")}`,
           config: {
-            weatherProfile: config.weather_profile_type,
+            weatherProfile: config.weather_profile_type as any,
             simulationPeriodDays: config.simulation_days,
             timeStepMinutes: config.simulation_step_minutes as any,
             setpointC: config.setpoint_c,
             differentialC: config.differential_c,
             customExternalTempC: config.custom_max_temp_c ?? null,
           },
+          result: simResult as any,
         },
       });
 
       setLastSavedId(saved.simulation.id);
-
-      // Também executar localmente para exibir os gráficos
-      const input = buildSimulationInput(environment, calculationResult, config);
-      if (input) {
-        const simResult = await runColdRoomDynamicSimulation(input);
-        setResult(simResult);
-      }
 
       // Atualizar histórico
       await loadHistory();
