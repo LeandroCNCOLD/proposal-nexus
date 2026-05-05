@@ -117,7 +117,7 @@ export function ColdRoomFinalReportTab({
               Memorial de Cálculo — Relatório Final
             </h3>
             <p className="text-sm text-muted-foreground">
-              Consolidação completa do cálculo estático de carga térmica e da simulação dinâmica.
+              Consolidação completa do cálculo estático de carga térmica e da Simulação Dinâmica de Comportamento da Câmara.
             </p>
           </div>
           <div className="text-right text-xs text-muted-foreground">
@@ -183,13 +183,13 @@ export function ColdRoomFinalReportTab({
 
       {/* 4. Resultados da Simulação Dinâmica */}
       {hasSim && (
-        <ReportSection title="4. Simulação Dinâmica" icon={<Activity className="h-4 w-4" />}>
+        <ReportSection title="4. Diagnóstico de Comportamento da Câmara" icon={<Activity className="h-4 w-4" />}>
           <DataRow label="Período simulado" value={`${simulationResult.summary.simulation_period_days} dia(s)`} />
           <DataRow label="Temperatura máxima interna" value={`${fmt(simulationResult.summary.max_room_temperature_c)} °C`} />
           <DataRow label="Temperatura média interna" value={`${fmt(simulationResult.summary.average_room_temperature_c)} °C`} />
           <DataRow label="Temperatura mínima interna" value={`${fmt(simulationResult.summary.min_room_temperature_c)} °C`} />
           <Divider />
-          <DataRow label="Pico de carga térmica" value={`${fmtInt(simulationResult.summary.peak_load_kcal_h)} kcal/h (${simulationResult.summary.worst_hour})`} />
+          <DataRow label="Carga térmica dinâmica no período (pico)" value={`${fmtInt(simulationResult.summary.peak_load_kcal_h)} kcal/h (${simulationResult.summary.worst_hour})`} />
           <DataRow label="Capacidade mínima recomendada" value={`${fmtInt(simulationResult.summary.recommended_min_capacity_kcal_h)} kcal/h`} />
           <DataRow label="Capacidade adequada" value={simulationResult.summary.capacity_adequate ? "Sim ✓" : "Não — subdimensionado!"} highlight={!simulationResult.summary.capacity_adequate} />
           <Divider />
@@ -244,7 +244,7 @@ export function ColdRoomFinalReportTab({
             )}
             {hasSim && (
               <p>
-                A simulação dinâmica confirmou que a temperatura interna se manteve entre{" "}
+                A Simulação Dinâmica de Comportamento da Câmara confirmou que a temperatura interna se manteve entre{" "}
                 {fmt(simulationResult!.summary.min_room_temperature_c)}°C e{" "}
                 {fmt(simulationResult!.summary.max_room_temperature_c)}°C, com o compressor operando{" "}
                 {fmt(simulationResult!.summary.compressor_runtime_pct, 0)}% do tempo e consumo estimado de{" "}
@@ -253,7 +253,7 @@ export function ColdRoomFinalReportTab({
             )}
             {!hasSim && (
               <p className="text-yellow-700 dark:text-yellow-400">
-                Execute a simulação dinâmica na aba anterior para obter a análise de comportamento temporal da câmara.
+                Execute a Simulação Dinâmica de Comportamento da Câmara na aba anterior para obter o diagnóstico operacional ao longo do tempo.
               </p>
             )}
           </div>

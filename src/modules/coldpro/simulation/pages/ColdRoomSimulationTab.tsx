@@ -618,11 +618,12 @@ export function ColdRoomSimulationTab({ environment, calculationResult, onAnalyz
           <div>
             <h3 className="mb-1 flex items-center gap-2 text-base font-semibold">
               <Activity className="h-4 w-4 text-primary" />
-              Simulação Dinâmica
+              Simulação Dinâmica de Comportamento da Câmara
             </h3>
             <p className="text-sm text-muted-foreground">
-              Simula o comportamento térmico da câmara ao longo do tempo, com variação de temperatura
-              externa, entradas de produto e lógica de controle liga/desliga do compressor.
+              Análise térmica operacional com clima, produto, portas, equipamentos e desempenho ao longo do tempo.
+              Simule o comportamento térmico e operacional da câmara fria considerando clima externo, movimentação de produto,
+              abertura de portas, cargas internas e desempenho real dos equipamentos.
             </p>
           </div>
           {result && (
@@ -668,7 +669,7 @@ export function ColdRoomSimulationTab({ environment, calculationResult, onAnalyz
       {isRunning && (
         <div className="flex items-center justify-center gap-3 rounded-lg border bg-muted/20 p-8">
           <RefreshCw className="h-5 w-5 animate-spin text-primary" />
-          <span className="text-sm text-muted-foreground">Executando simulação dinâmica...</span>
+          <span className="text-sm text-muted-foreground">Executando simulação dinâmica de comportamento...</span>
         </div>
       )}
 

@@ -231,7 +231,7 @@ export function SimulationAIInsightPanel({ result, onAnalyze }: SimulationAIInsi
             ? "O período é MENSAL. Analise variação semanal, dias críticos do mês e se o equipamento sustenta a operação em sequências consecutivas de carga alta."
             : "O período é ANUAL. Você DEVE analisar o comportamento mês a mês (verão vs inverno), identificar meses críticos, validar se o equipamento dá conta de todo o ciclo anual de carga e produto, e estimar consumo energético sazonal.";
 
-      const question = `Você é um engenheiro especialista em refrigeração industrial analisando o resultado de uma simulação DINÂMICA de câmara fria que rodou por **${period.periodDays} dias** com passo de tempo curto, considerando: clima horário real, entrada/saída diária de produto, ciclos de abertura de porta, ciclos de degelo e curva polinomial real do equipamento.
+      const question = `Você é um engenheiro especialista em refrigeração industrial fazendo a **Análise de Comportamento Térmico-Operacional** do módulo **Simulação Dinâmica de Comportamento da Câmara**, que rodou por **${period.periodDays} dias** com passo de tempo curto, considerando: clima horário real, entrada/saída diária de produto, ciclos de abertura de porta, ciclos de degelo e curva polinomial real do equipamento. Refira-se ao módulo SEMPRE como "Simulação Dinâmica de Comportamento da Câmara" — nunca como "cálculo de carga", "simulação de carga" ou "carga térmica estática".
 
 ## Contexto temporal
 ${horizonGuidance}
@@ -296,7 +296,7 @@ Responda em **Português** e em **Markdown**, raciocinando sobre o comportamento
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2 text-indigo-700 dark:text-indigo-400">
           <Sparkles className="h-5 w-5" />
-          <h3 className="font-semibold">Análise Inteligente da Simulação</h3>
+          <h3 className="font-semibold">Análise de Comportamento Térmico-Operacional</h3>
         </div>
         {!analysis && !isAnalyzing && (
           <button
