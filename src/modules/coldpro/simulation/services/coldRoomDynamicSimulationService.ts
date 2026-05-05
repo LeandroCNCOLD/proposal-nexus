@@ -367,6 +367,9 @@ export async function runColdRoomDynamicSimulation(input: ColdRoomSimulationInpu
       }
     }
 
+    const maxTempLimit = operation.max_temperature_c ?? operation.setpoint_c + 3;
+    const isOutOfRange = roomTemp > maxTempLimit;
+
     timeline.push({
       timestamp,
       step_index: i,
@@ -385,6 +388,7 @@ export async function runColdRoomDynamicSimulation(input: ColdRoomSimulationInpu
       equipment_utilization_pct: Math.round(utilizationPct),
       thermal_balance_kcal_h: Math.round(thermalBalance),
       delta_temperature_c: Math.round(deltaTemp * 1000) / 1000,
+      is_out_of_temperature_range: isOutOfRange,
       // Novos campos
       latent_load_kcal_h: Math.round(latentLoadKcal),
       frost_kg: Math.round(frostKgStep * 1000) / 1000,
@@ -409,12 +413,16 @@ export async function runColdRoomDynamicSimulation(input: ColdRoomSimulationInpu
   const peakLoad = Math.max(...loads);
   const recommendedCapacity = peakLoad * 1.1; // 10% de margem sobre o pico
 
-  // ── Correção 1: Dias críticos calculados por data real (nunca > simulation_days) ──
+  // ── Correção 1: Dias críticos calculados por data real com 3 critérios (nunca > simulation_days) ──
   const criticalDaysSet = new Set<string>();
   const installedCapacity = equipment.nominal_capacity_kcal_h ?? 0;
   for (const step of timeline) {
-    if (step.total_load_kcal_h > installedCapacity) {
-      criticalDaysSet.add(step.timestamp.slice(0, 10));
+    const dateKey = step.timestamp.slice(0, 10);
+    const hasCapacityDeficit = step.total_load_kcal_h > step.equipment_capacity_kcal_h;
+    const hasTemperatureIssue = step.is_out_of_temperature_range === true;
+    const hasThermalDeficit = step.thermal_balance_kcal_h > 0;
+    if (hasCapacityDeficit || hasTemperatureIssue || hasThermalDeficit) {
+      criticalDaysSet.add(dateKey);
     }
   }
   const criticalDaysCount = Math.min(criticalDaysSet.size, operation.simulation_days);

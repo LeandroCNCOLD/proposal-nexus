@@ -224,6 +224,8 @@ export interface ColdRoomSimulationTimeStep {
   frost_kg?: number;
   /** Indica se a máquina está em degelo neste passo */
   is_defrost_step?: boolean;
+  /** Indica se a temperatura interna está acima do limite máximo neste passo */
+  is_out_of_temperature_range?: boolean;
 }
 
 // ─── Alertas ──────────────────────────────────────────────────────────────────
