@@ -171,19 +171,40 @@ function buildSimulationInput(
     },
   ];
 
+  // Herdar dados de produto do cálculo térmico base (correção: produto não pode ser zerado se o memorial tem produto)
+  const staticProductKcalH = Number(
+    calcResult.product_kcal_h ??
+    calcResult.breakdown?.product ??
+    calcResult.product_load_kcal_h ??
+    0
+  );
+  const dailyMassFromCalc = Number(
+    env.daily_intake_kg ??
+    env.product_daily_kg ??
+    env.daily_movement_kg ??
+    (calcResult.products?.[0]?.mass_kg_day) ??
+    0
+  );
+  const entryTempFromCalc = Number(
+    env.product_entry_temp_c ??
+    env.entry_temperature_c ??
+    (calcResult.products?.[0]?.entry_temperature_c) ??
+    20
+  );
+
   const product: ProductLoadProfile = {
-    product_name: env.product_name ?? "Produto genérico",
+    product_name: env.product_name ?? calcResult.products?.[0]?.product_name ?? "Produto genérico",
     product_type: env.environment_type === "seed_storage" ? "seed" : "generic",
-    daily_inlet_mass_kg: Number(env.daily_intake_kg ?? env.product_daily_kg ?? 0),
-    inlet_temperature_c: Number(env.product_entry_temp_c ?? 20),
+    daily_inlet_mass_kg: dailyMassFromCalc,
+    inlet_temperature_c: entryTempFromCalc,
     target_temperature_c: config.setpoint_c,
-    specific_heat_kcal_kg_c: Number(env.product_specific_heat_above ?? 0.85),
+    specific_heat_kcal_kg_c: Number(env.product_specific_heat_above ?? calcResult.products?.[0]?.specific_heat_above ?? 0.85),
     respiration_heat_enabled: env.environment_type !== "seed_storage",
     respiration_heat_kcal_kg_day: Number(env.respiration_heat_kcal_kg_day ?? 0),
-    total_stored_mass_kg: Number(env.product_storage_mass_kg ?? 0),
+    total_stored_mass_kg: Number(env.product_storage_mass_kg ?? env.stored_mass_kg ?? 0),
     inlet_schedule: buildInletSchedule(
-      Number(env.daily_intake_kg ?? 0),
-      Number(env.product_entry_temp_c ?? 20),
+      dailyMassFromCalc,
+      entryTempFromCalc,
       config.simulation_days,
     ),
   };
@@ -273,6 +294,14 @@ function buildSimulationInput(
       : undefined,
     // Tipo de ambiente para análise de perfil
     environment_type: env.environment_type,
+    // Dados do cálculo estático para validação de consistência na simulação
+    static_required_capacity_kcal_h: Number(
+      calcResult.total_kcal_h ??
+      calcResult.required_capacity_kcal_h ??
+      calcResult.subtotal_kcal_h ??
+      0
+    ),
+    static_product_load_kcal_h: staticProductKcalH,
   } as any;
 }
 

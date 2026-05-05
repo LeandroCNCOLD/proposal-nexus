@@ -409,6 +409,79 @@ export async function runColdRoomDynamicSimulation(input: ColdRoomSimulationInpu
   const peakLoad = Math.max(...loads);
   const recommendedCapacity = peakLoad * 1.1; // 10% de margem sobre o pico
 
+  // ── Correção 1: Dias críticos calculados por data real (nunca > simulation_days) ──
+  const criticalDaysSet = new Set<string>();
+  const installedCapacity = equipment.nominal_capacity_kcal_h ?? 0;
+  for (const step of timeline) {
+    if (step.total_load_kcal_h > installedCapacity) {
+      criticalDaysSet.add(step.timestamp.slice(0, 10));
+    }
+  }
+  const criticalDaysCount = Math.min(criticalDaysSet.size, operation.simulation_days);
+
+  // ── Correção 2: Déficit acumulado real (apenas passos onde carga > capacidade entregue) ──
+  const accumulatedDeficitKcal = timeline.reduce((sum, step) => {
+    const delivered = step.equipment_capacity_kcal_h;
+    const demanded = step.total_load_kcal_h;
+    return demanded > delivered ? sum + (demanded - delivered) : sum;
+  }, 0);
+
+  // ── Correção 3: Superdimensionamento separado (estático vs dinâmico) ──
+  const totalLoadKcal = loads.reduce((s, l) => s + l, 0);
+  const avgLoadKcalH = totalHours > 0 ? totalLoadKcal / totalHours : 0;
+  const staticRequiredKcalH = Number((input as any).static_required_capacity_kcal_h ?? 0);
+  const staticSurplusPct = staticRequiredKcalH > 0
+    ? Math.round(((installedCapacity - staticRequiredKcalH) / staticRequiredKcalH) * 1000) / 10
+    : null;
+  const dynamicAvgSurplusPct = avgLoadKcalH > 0
+    ? Math.round(((installedCapacity - avgLoadKcalH) / avgLoadKcalH) * 1000) / 10
+    : null;
+  const dynamicRecommendedSurplusPct = recommendedCapacity > 0
+    ? Math.round(((installedCapacity - recommendedCapacity) / recommendedCapacity) * 1000) / 10
+    : null;
+  const capacityCoveragePct = totalLoadKcal > 0
+    ? Math.round((timeline.reduce((s, t) => s + t.equipment_capacity_kcal_h, 0) / totalLoadKcal) * 1000) / 10
+    : 100;
+
+  // ── Correção 4: Classificação de capacidade em 4 níveis ──
+  const compressorRuntimePct = Math.round((compressorHours / totalHours) * 1000) / 10;
+  const doorPctOfTotal = totalLoadKcal > 0
+    ? Math.round((totalDoorInfiltrationKcal / totalLoadKcal) * 1000) / 10
+    : 0;
+  let capacityAssessment: "NOMINALLY_ADEQUATE" | "ADEQUATE_WITH_OPERATIONAL_RISK" | "UNDER_STRESS" | "INSUFFICIENT";
+  if (installedCapacity < recommendedCapacity || outOfRangeHours > 5 || compressorRuntimePct > 95) {
+    capacityAssessment = "INSUFFICIENT";
+  } else if (outOfRangeHours > 0 || compressorRuntimePct > 90 || (accumulatedDeficitKcal > 0 && outOfRangeHours > 0)) {
+    capacityAssessment = "UNDER_STRESS";
+  } else if (installedCapacity >= recommendedCapacity && doorPctOfTotal > 40) {
+    capacityAssessment = "ADEQUATE_WITH_OPERATIONAL_RISK";
+  } else {
+    capacityAssessment = "NOMINALLY_ADEQUATE";
+  }
+
+  // ── Correção 5: Validação de déficit vs temperatura (inconsistência) ──
+  const deficitInconsistencyWarning =
+    accumulatedDeficitKcal > 0 &&
+    outOfRangeHours === 0 &&
+    compressorRuntimePct < 80 &&
+    installedCapacity >= recommendedCapacity
+      ? "Déficit térmico acumulado positivo, mas sem reflexo em temperatura fora do range. Validar metodologia do déficit acumulado."
+      : null;
+
+  // ── Correção 6: Validação de percentuais de carga ──
+  const transmissionTotal = timeline.reduce((s, t) => s + t.transmission_load_kcal_h, 0);
+  const infiltrationTotal = timeline.reduce((s, t) => s + t.infiltration_load_kcal_h, 0);
+  const productTotal = timeline.reduce((s, t) => s + t.product_load_kcal_h, 0);
+  const internalTotal = timeline.reduce((s, t) => s + t.internal_load_kcal_h, 0);
+  const transmissionPct = totalLoadKcal > 0 ? Math.round((transmissionTotal / totalLoadKcal) * 1000) / 10 : 0;
+  const infiltrationPct = totalLoadKcal > 0 ? Math.round((infiltrationTotal / totalLoadKcal) * 1000) / 10 : 0;
+  const productPct = totalLoadKcal > 0 ? Math.round((productTotal / totalLoadKcal) * 1000) / 10 : 0;
+  const internalPct = totalLoadKcal > 0 ? Math.round((internalTotal / totalLoadKcal) * 1000) / 10 : 0;
+  const percentSum = transmissionPct + infiltrationPct + productPct + internalPct;
+  const percentSumWarning = percentSum < 98 || percentSum > 102
+    ? `A soma percentual das cargas (${percentSum.toFixed(1)}%) não fecha em 100%. Verificar duplicidade ou sobreposição entre categorias.`
+    : null;
+
   // Avaliar perfil de câmara (gelo, degelo, risco)
   const chamberProfileResult = defrost
     ? ChamberProfileService.evaluateChamberProfile(
@@ -435,12 +508,12 @@ export async function runColdRoomDynamicSimulation(input: ColdRoomSimulationInpu
     max_room_temperature_c: Math.max(...temps),
     min_room_temperature_c: Math.min(...temps),
     average_room_temperature_c: temps.reduce((s, t) => s + t, 0) / temps.length,
-    total_cooling_load_kcal: loads.reduce((s, l) => s + l, 0),
+    total_cooling_load_kcal: totalLoadKcal,
     total_cooling_capacity_kcal: timeline.reduce((s, t) => s + t.equipment_capacity_kcal_h, 0),
     total_energy_kwh: Math.round(totalEnergyKwh),
     average_cop: Math.round(avgCop * 100) / 100,
     compressor_runtime_hours: Math.round(compressorHours * 10) / 10,
-    compressor_runtime_pct: Math.round((compressorHours / totalHours) * 1000) / 10,
+    compressor_runtime_pct: compressorRuntimePct,
     max_equipment_utilization_pct: Math.round(maxUtilization),
     temperature_out_of_range_hours: Math.round(outOfRangeHours * 10) / 10,
     peak_load_kcal_h: Math.round(peakLoad),
@@ -450,14 +523,32 @@ export async function runColdRoomDynamicSimulation(input: ColdRoomSimulationInpu
       ? new Date(timeline[peakIdx].timestamp).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
       : "--",
     recommended_min_capacity_kcal_h: Math.round(recommendedCapacity),
-    capacity_adequate: (equipment.nominal_capacity_kcal_h ?? 0) >= recommendedCapacity,
-    // Novos campos: portas
+    capacity_adequate: installedCapacity >= recommendedCapacity,
+    // Diagnóstico de capacidade em 4 níveis
+    capacity_assessment: capacityAssessment,
+    // Superdimensionamento separado por base de cálculo
+    installed_capacity_kcal_h: Math.round(installedCapacity),
+    average_dynamic_load_kcal_h: Math.round(avgLoadKcalH),
+    static_surplus_pct: staticSurplusPct,
+    dynamic_avg_surplus_pct: dynamicAvgSurplusPct,
+    dynamic_recommended_surplus_pct: dynamicRecommendedSurplusPct,
+    capacity_coverage_pct: capacityCoveragePct,
+    // Déficit acumulado real
+    accumulated_deficit_kcal: Math.round(accumulatedDeficitKcal),
+    critical_days_count: criticalDaysCount,
+    // Inconsistências detectadas
+    deficit_inconsistency_warning: deficitInconsistencyWarning,
+    percent_sum_warning: percentSumWarning,
+    // Composição percentual das cargas (base correta: carga total dinâmica)
+    transmission_pct: transmissionPct,
+    infiltration_pct: infiltrationPct,
+    product_pct: productPct,
+    internal_pct: internalPct,
+    // Portas
     total_door_openings: totalDoorOpenings,
     total_door_infiltration_load_kcal: Math.round(totalDoorInfiltrationKcal),
-    door_infiltration_pct_of_total: loads.reduce((s, l) => s + l, 0) > 0
-      ? Math.round((totalDoorInfiltrationKcal / loads.reduce((s, l) => s + l, 0)) * 1000) / 10
-      : 0,
-    // Novos campos: gelo e degelo
+    door_infiltration_pct_of_total: doorPctOfTotal,
+    // Gelo e degelo
     total_frost_kg: Math.round(totalFrostKg * 10) / 10,
     frost_kg_per_day: Math.round((totalFrostKg / (operation.simulation_days || 1)) * 10) / 10,
     latent_load_pct: chamberProfileResult?.latent_load_pct ?? 0,
@@ -469,12 +560,24 @@ export async function runColdRoomDynamicSimulation(input: ColdRoomSimulationInpu
     defrost_warnings: chamberProfileResult?.warnings ?? [],
   };
 
-  // Alertas finais de capacidade
-  if (!summary.capacity_adequate) {
+  // Alertas finais de capacidade — baseados na classificação em 4 níveis
+  if (summary.capacity_assessment === "INSUFFICIENT") {
     alerts.unshift({
       severity: "critical",
       code: "CAPACITY_INSUFFICIENT",
-      message: `Capacidade nominal do equipamento insuficiente para o pico térmico. Mínimo recomendado: ${Math.round(recommendedCapacity).toLocaleString("pt-BR")} kcal/h`,
+      message: `Capacidade nominal insuficiente para o pico térmico dinâmico. Mínimo recomendado: ${Math.round(recommendedCapacity).toLocaleString("pt-BR")} kcal/h. Instalado: ${Math.round(installedCapacity).toLocaleString("pt-BR")} kcal/h.`,
+    });
+  } else if (summary.capacity_assessment === "UNDER_STRESS") {
+    alerts.unshift({
+      severity: "warning",
+      code: "CAPACITY_UNDER_STRESS",
+      message: `Equipamento sob estresse: ${summary.temperature_out_of_range_hours.toFixed(1)}h fora do range e/ou compressor a ${compressorRuntimePct.toFixed(1)}% do tempo. Avaliar aumento de capacidade.`,
+    });
+  } else if (summary.capacity_assessment === "ADEQUATE_WITH_OPERATIONAL_RISK") {
+    alerts.unshift({
+      severity: "warning",
+      code: "CAPACITY_OPERATIONAL_RISK",
+      message: `Capacidade nominalmente adequada, mas com risco operacional: infiltração por portas representa ${doorPctOfTotal.toFixed(1)}% da carga total. Revisar operação das portas.`,
     });
   }
 
@@ -483,6 +586,34 @@ export async function runColdRoomDynamicSimulation(input: ColdRoomSimulationInpu
       severity: "critical",
       code: "TEMP_VIOLATION",
       message: `Temperatura interna ultrapassou o limite máximo por ${summary.temperature_out_of_range_hours.toFixed(1)} horas`,
+    });
+  }
+
+  // Alerta de inconsistência: déficit acumulado sem reflexo em temperatura
+  if (deficitInconsistencyWarning) {
+    alerts.push({
+      severity: "info",
+      code: "DEFICIT_INCONSISTENCY",
+      message: deficitInconsistencyWarning,
+    });
+  }
+
+  // Alerta de percentuais de carga não fechando
+  if (percentSumWarning) {
+    alerts.push({
+      severity: "warning",
+      code: "LOAD_PERCENT_MISMATCH",
+      message: percentSumWarning,
+    });
+  }
+
+  // Alerta de produto zerado quando cálculo estático tem produto
+  const staticProductLoad = Number((input as any).static_product_load_kcal_h ?? 0);
+  if (staticProductLoad > 0 && productTotal === 0) {
+    alerts.push({
+      severity: "warning",
+      code: "PRODUCT_LOAD_NOT_INHERITED",
+      message: `A simulação dinâmica não herdou a carga de produto/processo do cálculo térmico base (${Math.round(staticProductLoad).toLocaleString("pt-BR")} kcal/h). Verifique os dados de produto no formulário.`,
     });
   }
 
