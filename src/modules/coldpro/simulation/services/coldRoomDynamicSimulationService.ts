@@ -684,9 +684,45 @@ export async function runColdRoomDynamicSimulation(input: ColdRoomSimulationInpu
     });
   }
 
+  // Alertas de déficit acumulado / produto não atinge target
+  if (summary.total_thermal_deficit_kcal > 0 && summary.days_with_thermal_deficit > 0) {
+    alerts.push({
+      severity: summary.days_with_thermal_deficit >= 3 ? "critical" : "warning",
+      code: "THERMAL_DEFICIT",
+      message: `Déficit térmico acumulado: ${summary.total_thermal_deficit_kcal.toLocaleString("pt-BR")} kcal em ${summary.days_with_thermal_deficit} dia(s). A máquina não recupera o setpoint nesses dias.`,
+    });
+  }
+  if (summary.days_product_target_not_reached > 0) {
+    alerts.push({
+      severity: "warning",
+      code: "PRODUCT_TARGET_NOT_REACHED",
+      message: `O produto não atingiu a temperatura alvo (${product.target_temperature_c.toFixed(1)}°C) em ${summary.days_product_target_not_reached} dia(s) do período.`,
+    });
+  }
+  if (summary.average_pulldown_hours > 0) {
+    alerts.push({
+      severity: "info",
+      code: "PULLDOWN_TIME",
+      message: `Tempo médio de pulldown do produto: ${summary.average_pulldown_hours.toFixed(1)} h.`,
+    });
+  }
+
   // Amostrar dados para gráficos (máx 500 pontos)
   const sampleRate = Math.max(1, Math.floor(timeline.length / 500));
   const chartData = timeline.filter((_, i) => i % sampleRate === 0);
 
-  return { summary, timeline, alerts, chart_data: chartData };
+  const finalAgg = batchesAggregate(batches);
+  const finalState: ColdRoomState = {
+    timestamp: timeline[timeline.length - 1]?.timestamp ?? new Date().toISOString(),
+    room_air_temperature_c: roomTemp,
+    room_relative_humidity_pct: intRhPct,
+    stored_product_batches: batches.filter((b) => b.mass_kg > 0),
+    total_stored_mass_kg: finalAgg.totalMassKg,
+    average_product_temperature_c: finalAgg.averageTempC,
+    compressor_status: compressorStatus,
+    accumulated_thermal_deficit_kcal: accumulatedDeficitKcal,
+    accumulated_energy_kwh: accumulatedEnergyKwh,
+  };
+
+  return { summary, timeline, alerts, chart_data: chartData, final_state: finalState };
 }
