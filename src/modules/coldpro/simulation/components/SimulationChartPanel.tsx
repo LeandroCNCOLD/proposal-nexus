@@ -100,7 +100,7 @@ export function SimulationChartPanel({ chartData, setpoint }: SimulationChartPan
             <Tooltip 
               contentStyle={{ fontSize: 12, borderRadius: '8px', border: '1px solid #e2e8f0' }}
               labelStyle={{ fontWeight: 'bold', marginBottom: '4px' }}
-              formatter={(value: number) => [`${value.toFixed(1)}°C`]}
+              formatter={(value: any) => [`${value.toFixed(1)}°C`]}
             />
             <Legend wrapperStyle={{ fontSize: 12, paddingTop: '10px' }} />
             <ReferenceLine y={setpoint} stroke="#22c55e" strokeDasharray="4 4" label={{ value: "Setpoint", position: "insideTopLeft", fontSize: 11, fill: "#22c55e" }} />
@@ -119,7 +119,7 @@ export function SimulationChartPanel({ chartData, setpoint }: SimulationChartPan
               <CartesianGrid strokeDasharray="3 3" className="stroke-border" vertical={false} />
               <XAxis dataKey="time" tick={{ fontSize: 10 }} minTickGap={30} />
               <YAxis tick={{ fontSize: 10 }} width={45} />
-              <Tooltip contentStyle={{ fontSize: 11 }} formatter={(value: number) => [`${Math.round(value)} kcal/h`]} />
+              <Tooltip contentStyle={{ fontSize: 11 }} formatter={(value: any) => [`${Math.round(value)} kcal/h`]} />
               <Legend wrapperStyle={{ fontSize: 11 }} />
               <Area type="monotone" name="Carga Total" dataKey="total_load_kcal_h" stroke="#ef4444" fill="#ef444420" dot={false} strokeWidth={2} />
               <Area type="step" name="Capacidade (Eq.)" dataKey="equipment_capacity_kcal_h" stroke="#22c55e" fill="#22c55e10" dot={false} strokeWidth={1.5} strokeDasharray="3 3" />
@@ -136,7 +136,7 @@ export function SimulationChartPanel({ chartData, setpoint }: SimulationChartPan
               <YAxis tick={{ fontSize: 10 }} ticks={[0, 0.5, 1]} tickFormatter={(val) => val === 1 ? 'ON' : val === 0.5 ? 'DEF' : 'OFF'} width={40} />
               <Tooltip 
                 contentStyle={{ fontSize: 11 }} 
-                formatter={(value: number) => [value === 1 ? 'Ligado' : value === 0.5 ? 'Degelo' : 'Desligado', 'Status']} 
+                formatter={(value: any) => [value === 1 ? 'Ligado' : value === 0.5 ? 'Degelo' : 'Desligado', 'Status']} 
               />
               <Area type="step" name="Status" dataKey="compressorNum" stroke="#8b5cf6" fill="#8b5cf630" dot={false} strokeWidth={2} />
             </AreaChart>
