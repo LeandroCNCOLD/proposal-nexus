@@ -404,7 +404,23 @@ export async function runColdRoomDynamicSimulation(input: ColdRoomSimulationInpu
     totalFrostKg += frostKgStep;
     totalLatentLoadKcal += latentLoadKcal;
 
-    const productLoad = calcProductLoad(product, timestamp, operation.simulation_step_minutes, roomTemp);
+    // Avança batches: aplica entradas, evolui temperatura de cada lote, retorna carga
+    const productStep = stepProductBatches(
+      batches,
+      product,
+      timestamp,
+      operation.simulation_step_minutes,
+      roomTemp,
+    );
+    totalProductInletKg += productStep.newMassKg;
+    // Registrar início de pulldown para batches que acabaram de entrar
+    for (const b of batches) {
+      if (b.entered_at === timestamp && !pulldownStartByBatch.has(b.batch_id)) {
+        pulldownStartByBatch.set(b.batch_id, new Date(timestamp).getTime());
+      }
+    }
+
+    const productLoad = productStep.sensibleLoadKcal + productStep.respirationLoadKcal;
 
     const internalLoad = calcInternalLoad(internal_loads, hour) * stepH;
 
@@ -428,10 +444,36 @@ export async function runColdRoomDynamicSimulation(input: ColdRoomSimulationInpu
     const deltaTemp = C_total > 0 ? thermalBalance / C_total : 0;
     roomTemp = roomTemp + deltaTemp;
 
+    // Acumular déficit térmico (carga não atendida pela máquina)
+    if (thermalBalance > 0) {
+      accumulatedDeficitKcal += thermalBalance;
+      const day = timestamp.slice(0, 10);
+      dailyDeficit.set(day, (dailyDeficit.get(day) ?? 0) + thermalBalance);
+    }
+    accumulatedEnergyKwh += equipPower * stepH;
+
     // Limitar temperatura (física)
     const maxAllowed = operation.max_temperature_c ?? operation.setpoint_c + 10;
     const minAllowed = operation.min_temperature_c ?? operation.setpoint_c - 10;
     roomTemp = Math.max(minAllowed, Math.min(maxAllowed, roomTemp));
+
+    // Atualizar tracking de pulldown e flag diário de produto-no-target
+    const dayKey = timestamp.slice(0, 10);
+    let dayHasProductOk = dailyProductTargetReached.get(dayKey) ?? null;
+    for (const b of batches) {
+      const start = pulldownStartByBatch.get(b.batch_id);
+      if (start !== undefined && b.temperature_c <= targetTemp + 0.5) {
+        const durMs = new Date(timestamp).getTime() - start;
+        pulldownDurationsHours.push(durMs / 3_600_000);
+        pulldownStartByBatch.delete(b.batch_id);
+      }
+    }
+    // Para o dia: existe ao menos 1 batch e todos estão dentro do target?
+    const allOk =
+      batches.length === 0 ||
+      batches.every((b) => b.mass_kg <= 0 || b.temperature_c <= targetTemp + 1);
+    if (dayHasProductOk === null) dailyProductTargetReached.set(dayKey, allOk);
+    else dailyProductTargetReached.set(dayKey, dayHasProductOk && allOk);
 
     const utilizationPct = compressorStatus === "ON" ? perfResult.utilization_pct : 0;
 
