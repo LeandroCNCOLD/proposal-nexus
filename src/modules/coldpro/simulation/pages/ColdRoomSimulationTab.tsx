@@ -669,7 +669,7 @@ export function ColdRoomSimulationTab({ environment, calculationResult, onAnalyz
       {isRunning && (
         <div className="flex items-center justify-center gap-3 rounded-lg border bg-muted/20 p-8">
           <RefreshCw className="h-5 w-5 animate-spin text-primary" />
-          <span className="text-sm text-muted-foreground">Executando simulação dinâmica...</span>
+          <span className="text-sm text-muted-foreground">Executando simulação dinâmica de comportamento...</span>
         </div>
       )}
 
