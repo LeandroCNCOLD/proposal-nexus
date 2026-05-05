@@ -617,6 +617,21 @@ export async function runColdRoomDynamicSimulation(input: ColdRoomSimulationInpu
     recommended_defrost_cycles: chamberProfileResult?.recommended_defrost_cycles ?? 0,
     machine_downtime_hours_total: Math.round(defrostDowntimeHoursDay * (operation.simulation_days || 1) * 10) / 10,
     defrost_warnings: chamberProfileResult?.warnings ?? [],
+    // Estado térmico acumulativo
+    final_stored_mass_kg: Math.round(batchesAggregate(batches).totalMassKg),
+    final_average_product_temperature_c:
+      Math.round(batchesAggregate(batches).averageTempC * 10) / 10,
+    total_product_inlet_kg: Math.round(totalProductInletKg),
+    total_thermal_deficit_kcal: Math.round(accumulatedDeficitKcal),
+    days_with_thermal_deficit: Array.from(dailyDeficit.values()).filter((v) => v > 0).length,
+    days_product_target_not_reached: Array.from(dailyProductTargetReached.values()).filter(
+      (v) => v === false,
+    ).length,
+    average_pulldown_hours: pulldownDurationsHours.length
+      ? Math.round(
+          (pulldownDurationsHours.reduce((s, x) => s + x, 0) / pulldownDurationsHours.length) * 10,
+        ) / 10
+      : 0,
   };
 
   // Alertas finais de capacidade
