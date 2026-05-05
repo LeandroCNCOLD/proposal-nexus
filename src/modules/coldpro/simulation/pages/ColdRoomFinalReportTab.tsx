@@ -117,7 +117,7 @@ export function ColdRoomFinalReportTab({
               Memorial de Cálculo — Relatório Final
             </h3>
             <p className="text-sm text-muted-foreground">
-              Consolidação completa do cálculo estático de carga térmica e da simulação dinâmica.
+              Consolidação completa do cálculo estático de carga térmica e da Simulação Dinâmica de Comportamento da Câmara.
             </p>
           </div>
           <div className="text-right text-xs text-muted-foreground">
