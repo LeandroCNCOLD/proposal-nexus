@@ -218,6 +218,11 @@ export function SimulationAIInsightPanel({ result, onAnalyze }: SimulationAIInsi
 
       const period = buildPeriodNarrative(result, inferredSetpoint, undefined);
 
+      // Clamp dias críticos ao período simulado (não permite 31 dias críticos em 30 dias)
+      const simDays = Math.max(1, Math.round(summary.simulation_period_days));
+      const daysDeficit = Math.min(summary.days_with_thermal_deficit ?? 0, simDays);
+      const daysTargetMissed = Math.min(summary.days_product_target_not_reached ?? 0, simDays);
+
       const isShort = period.periodDays <= 2;
       const isWeek = period.periodDays > 2 && period.periodDays <= 14;
       const isMonth = period.periodDays > 14 && period.periodDays <= 60;
