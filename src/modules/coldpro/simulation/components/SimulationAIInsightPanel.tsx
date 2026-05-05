@@ -256,6 +256,14 @@ ${horizonGuidance}
 - Carga latente: ${summary.latent_load_pct.toFixed(1)}% · Downtime de degelo: ${summary.defrost_downtime_hours_per_day.toFixed(2)} h/dia (${summary.machine_downtime_hours_total.toFixed(1)} h no período)
 - Ciclos de degelo configurados: ${summary.defrost_cycles_per_day}/dia · Recomendado: ${summary.recommended_defrost_cycles}/dia
 
+### Estado térmico acumulativo (movimentação de produto)
+- Produto total que entrou no período: ${summary.total_product_inlet_kg.toLocaleString("pt-BR")} kg
+- Estoque final na câmara: ${summary.final_stored_mass_kg.toLocaleString("pt-BR")} kg @ ${summary.final_average_product_temperature_c.toFixed(1)}°C
+- Tempo médio de pulldown (entrada → atingir target): ${summary.average_pulldown_hours.toFixed(1)} h
+- Dias com déficit térmico (carga > capacidade): ${summary.days_with_thermal_deficit}
+- Dias em que o produto NÃO atingiu o target: ${summary.days_product_target_not_reached}
+- Déficit térmico acumulado total: ${summary.total_thermal_deficit_kcal.toLocaleString("pt-BR")} kcal
+
 ## Recortes temporais relevantes (use estes dados para fundamentar a análise)
 ${period.narrative}
 
