@@ -218,6 +218,11 @@ export function SimulationAIInsightPanel({ result, onAnalyze }: SimulationAIInsi
 
       const period = buildPeriodNarrative(result, inferredSetpoint, undefined);
 
+      // Clamp dias críticos ao período simulado (não permite 31 dias críticos em 30 dias)
+      const simDays = Math.max(1, Math.round(summary.simulation_period_days));
+      const daysDeficit = Math.min(summary.days_with_thermal_deficit ?? 0, simDays);
+      const daysTargetMissed = Math.min(summary.days_product_target_not_reached ?? 0, simDays);
+
       const isShort = period.periodDays <= 2;
       const isWeek = period.periodDays > 2 && period.periodDays <= 14;
       const isMonth = period.periodDays > 14 && period.periodDays <= 60;
@@ -231,56 +236,81 @@ export function SimulationAIInsightPanel({ result, onAnalyze }: SimulationAIInsi
             ? "O período é MENSAL. Analise variação semanal, dias críticos do mês e se o equipamento sustenta a operação em sequências consecutivas de carga alta."
             : "O período é ANUAL. Você DEVE analisar o comportamento mês a mês (verão vs inverno), identificar meses críticos, validar se o equipamento dá conta de todo o ciclo anual de carga e produto, e estimar consumo energético sazonal.";
 
-      const question = `Você é um engenheiro especialista em refrigeração industrial fazendo a **Análise de Comportamento Térmico-Operacional** do módulo **Simulação Dinâmica de Comportamento da Câmara**, que rodou por **${period.periodDays} dias** com passo de tempo curto, considerando: clima horário real, entrada/saída diária de produto, ciclos de abertura de porta, ciclos de degelo e curva polinomial real do equipamento. Refira-se ao módulo SEMPRE como "Simulação Dinâmica de Comportamento da Câmara" — nunca como "cálculo de carga", "simulação de carga" ou "carga térmica estática".
+      const totalLoadKcal = summary.total_cooling_load_kcal;
+      const totalCapKcal = summary.total_cooling_capacity_kcal;
+      const deliveredPct = totalLoadKcal > 0 ? (totalCapKcal / totalLoadKcal) * 100 : 0;
+      const periodHours = simDays * 24;
+      const avgLoadKcalH = periodHours > 0 ? totalLoadKcal / periodHours : 0;
+      const avgCapDeliveredKcalH = periodHours > 0 ? totalCapKcal / periodHours : 0;
+
+      const question = `Você é um engenheiro especialista em refrigeração industrial fazendo a **Análise de Comportamento Térmico-Operacional** do módulo **Simulação Dinâmica de Comportamento da Câmara**, que rodou por **${period.periodDays} dias** com passo de tempo curto, considerando: clima horário real, entrada/saída diária de produto, ciclos de abertura de porta, ciclos de degelo e curva polinomial real do equipamento. Refira-se ao módulo SEMPRE como "Simulação Dinâmica de Comportamento da Câmara".
 
 ## Contexto temporal
 ${horizonGuidance}
 
-## Resumo consolidado do período inteiro
-- Período: ${summary.simulation_period_days} dias (${summary.simulation_steps_total} passos de simulação)
-- Temp. interna: média ${summary.average_room_temperature_c.toFixed(1)}°C / mín ${summary.min_room_temperature_c.toFixed(1)}°C / máx ${summary.max_room_temperature_c.toFixed(1)}°C
+## ⚠️ DICIONÁRIO DE UNIDADES (use rigorosamente, não confunda)
+- **kcal/h** = potência/carga instantânea ou capacidade horária (taxa).
+- **kcal** = energia acumulada no período (integral de kcal/h × horas).
+- **kW** = potência elétrica do compressor.
+- **kWh** = energia elétrica consumida no período.
+- **% utilização** = carga instantânea ÷ capacidade instantânea do equipamento.
+- **% runtime** = horas ligado ÷ horas do período.
+- NUNCA compare kcal acumulado com kcal/h horário. NUNCA chame "consumo total" de kcal/h.
+
+## Resumo consolidado do período (${simDays} dias = ${periodHours} h)
+
+### Cargas e capacidade
+- **Carga horária média do período**: ${avgLoadKcalH.toFixed(0)} kcal/h
+- **Pico de carga (instantâneo)**: ${summary.peak_load_kcal_h.toFixed(0)} kcal/h em ${summary.peak_load_timestamp} (T_ext no pico: ${summary.peak_external_temp_c.toFixed(1)}°C)
+- **Capacidade horária média entregue**: ${avgCapDeliveredKcalH.toFixed(0)} kcal/h
+- **Energia térmica demandada (acumulada)**: ${totalLoadKcal.toFixed(0)} kcal
+- **Energia térmica entregue (acumulada)**: ${totalCapKcal.toFixed(0)} kcal (${deliveredPct.toFixed(1)}% da demanda)
+- **Déficit térmico acumulado**: ${summary.total_thermal_deficit_kcal.toLocaleString("pt-BR")} kcal
+- **Utilização máx do equipamento**: ${summary.max_equipment_utilization_pct.toFixed(1)}%
+- **Capacidade adequada?** ${summary.capacity_adequate ? "Sim" : "NÃO"} (mín. recomendado: ${summary.recommended_min_capacity_kcal_h.toFixed(0)} kcal/h)
+
+### Temperatura interna
+- Média ${summary.average_room_temperature_c.toFixed(1)}°C / mín ${summary.min_room_temperature_c.toFixed(1)}°C / máx ${summary.max_room_temperature_c.toFixed(1)}°C
 - Horas fora da faixa: ${summary.temperature_out_of_range_hours.toFixed(1)} h
-- Pico de carga: ${summary.peak_load_kcal_h.toFixed(0)} kcal/h em ${summary.peak_load_timestamp} (T_ext no pico: ${summary.peak_external_temp_c.toFixed(1)}°C)
-- Carga total acumulada: ${summary.total_cooling_load_kcal.toFixed(0)} kcal · Capacidade entregue: ${summary.total_cooling_capacity_kcal.toFixed(0)} kcal
-- Consumo elétrico do período: ${summary.total_energy_kwh.toFixed(1)} kWh · COP médio: ${summary.average_cop.toFixed(2)}
-- Compressor ligado: ${summary.compressor_runtime_hours.toFixed(1)} h (${summary.compressor_runtime_pct.toFixed(1)}% do período)
-- Utilização máx do equipamento: ${summary.max_equipment_utilization_pct.toFixed(1)}%
-- Capacidade adequada para o período? ${summary.capacity_adequate ? "Sim" : "NÃO"} (mín. recomendado: ${summary.recommended_min_capacity_kcal_h.toFixed(0)} kcal/h)
+
+### Compressor / energia elétrica
+- Runtime: ${summary.compressor_runtime_hours.toFixed(1)} h (${summary.compressor_runtime_pct.toFixed(1)}% do período)
+- **Consumo elétrico do período**: ${summary.total_energy_kwh.toFixed(1)} kWh (NÃO confundir com kcal)
+- COP médio: ${summary.average_cop.toFixed(2)}
 
 ### Portas (acumulado do período)
-- Total de aberturas: ${summary.total_door_openings}
-- Carga total por portas: ${summary.total_door_infiltration_load_kcal.toFixed(0)} kcal (${summary.door_infiltration_pct_of_total.toFixed(1)}% da carga total do período)
+- Aberturas: ${summary.total_door_openings} · Energia infiltrada: ${summary.total_door_infiltration_load_kcal.toFixed(0)} kcal (${summary.door_infiltration_pct_of_total.toFixed(1)}% da demanda total)
 
 ### Gelo / Degelo
-- Risco de gelo: ${summary.ice_risk_level} · Acúmulo total: ${summary.total_frost_kg.toFixed(1)} kg (${summary.frost_kg_per_day.toFixed(2)} kg/dia)
-- Carga latente: ${summary.latent_load_pct.toFixed(1)}% · Downtime de degelo: ${summary.defrost_downtime_hours_per_day.toFixed(2)} h/dia (${summary.machine_downtime_hours_total.toFixed(1)} h no período)
-- Ciclos de degelo configurados: ${summary.defrost_cycles_per_day}/dia · Recomendado: ${summary.recommended_defrost_cycles}/dia
+- Risco: ${summary.ice_risk_level} · Acúmulo: ${summary.total_frost_kg.toFixed(1)} kg (${summary.frost_kg_per_day.toFixed(2)} kg/dia)
+- Carga latente: ${summary.latent_load_pct.toFixed(1)}% · Downtime degelo: ${summary.defrost_downtime_hours_per_day.toFixed(2)} h/dia (${summary.machine_downtime_hours_total.toFixed(1)} h no período)
+- Ciclos: ${summary.defrost_cycles_per_day}/dia · Recomendado: ${summary.recommended_defrost_cycles}/dia
 
-### Estado térmico acumulativo (movimentação de produto)
-- Produto total que entrou no período: ${summary.total_product_inlet_kg.toLocaleString("pt-BR")} kg
-- Estoque final na câmara: ${summary.final_stored_mass_kg.toLocaleString("pt-BR")} kg @ ${summary.final_average_product_temperature_c.toFixed(1)}°C
-- Tempo médio de pulldown (entrada → atingir target): ${summary.average_pulldown_hours.toFixed(1)} h
-- Dias com déficit térmico (carga > capacidade): ${summary.days_with_thermal_deficit}
-- Dias em que o produto NÃO atingiu o target: ${summary.days_product_target_not_reached}
-- Déficit térmico acumulado total: ${summary.total_thermal_deficit_kcal.toLocaleString("pt-BR")} kcal
+### Estado térmico acumulativo (produto)
+- Produto que entrou no período: ${summary.total_product_inlet_kg.toLocaleString("pt-BR")} kg
+- Estoque final: ${summary.final_stored_mass_kg.toLocaleString("pt-BR")} kg @ ${summary.final_average_product_temperature_c.toFixed(1)}°C
+- Pulldown médio (entrada → target): ${summary.average_pulldown_hours.toFixed(1)} h
+- **Dias críticos (carga > capacidade): ${daysDeficit} de ${simDays}** (limitado ao período simulado)
+- **Dias em que produto não atingiu target: ${daysTargetMissed} de ${simDays}**
 
-## Recortes temporais relevantes (use estes dados para fundamentar a análise)
+## Recortes temporais
 ${period.narrative}
 
 ## O que você DEVE fazer
-Responda em **Português** e em **Markdown**, raciocinando sobre o comportamento do sistema **ao longo de TODO o período simulado** — não apenas em valores médios. Sua análise precisa ser sensível ao horizonte:
+Responda em **Português** e **Markdown**. Análise sensível ao horizonte (${period.periodDays} dias):
 
-1. **Comportamento ao longo do período (${period.periodDays} dias)** — Como o sistema evoluiu? Há acúmulo térmico (a câmara não recupera entre dias)? Em quais dias/meses específicos isso aconteceu? Cite as datas dos recortes acima.
-2. **Resposta a eventos diários** — Como o equipamento respondeu à entrada diária de produto? O pulldown acontece dentro do dia (a câmara baixa antes do próximo lote chegar)? Há acúmulo de carga por produtos sucessivos?
-3. **Impacto da variação climática externa** — ${isAnnual ? "Compare verão vs inverno mês a mês. O equipamento atende a demanda nos meses críticos?" : "Como a oscilação dia/noite e dia-a-dia afeta a operação?"} Use os dias mais quentes e mais frios listados.
-4. **Portas e degelo no contexto do período** — A frequência atual de aberturas é sustentável? O ciclo de degelo é suficiente para o acúmulo de gelo previsto no período?
-5. **Veredito de seleção** — Considerando o período inteiro (${period.periodDays} dias), o equipamento está dimensionado adequadamente, ou há risco de não atender em condições extremas? Recomende ajustes específicos (capacidade, número de aberturas/dia, ciclos de degelo, setpoint).
+1. **Comportamento ao longo do período** — Há acúmulo térmico (drift)? Em quais dias/meses?
+2. **Resposta a eventos diários** — Pulldown acontece dentro do dia? Há acúmulo entre lotes?
+3. **Impacto climático** — ${isAnnual ? "Compare verão vs inverno mês a mês." : "Como a oscilação dia/noite afeta a operação?"}
+4. **Portas e degelo** — Sustentável? Ciclos suficientes?
+5. **Veredito de seleção** — Equipamento adequado para o período inteiro? Recomende ajustes específicos.
 
 ⚠️ Regras críticas:
-- Diferencie claramente "comportamento típico" vs "comportamento em dias críticos".
-- Se o período é ${period.periodDays} dias, NUNCA fale como se fosse outro horizonte.
-- Use números e datas concretas dos recortes acima — não generalize.
-- Se houver drift (temperatura subindo dia a dia), trate como sinal de subdimensionamento mesmo que a média esteja boa.`;
+- **NUNCA** informe número de dias críticos maior que ${simDays} (período simulado).
+- **NUNCA** misture kcal (energia) com kcal/h (taxa). Releia o dicionário acima antes de citar qualquer número.
+- Use números e datas concretas dos recortes — não generalize.
+- Diferencie "típico" vs "dias críticos".
+- Se houver drift (T subindo dia a dia), trate como subdimensionamento mesmo com média boa.`;
 
       const response = await onAnalyze(question);
       setAnalysis(response);
