@@ -16,8 +16,6 @@ import type {
   SimulationAlert,
   ExternalClimatePoint,
   DoorOpeningEvent,
-  ProductBatchState,
-  ColdRoomState,
 } from "../types/coldRoomSimulation.types";
 import { DOOR_PROTECTION_FACTORS } from "../types/coldRoomSimulation.types";
 import { generateWeatherProfile } from "./weatherProfileService";
@@ -124,112 +122,41 @@ function calcInfiltrationLoad(
   return Math.max(0, totalMassKg * deltaH);
 }
 
-// ─── Cálculo de carga de produto (BATCHES PERSISTENTES) ─────────────────────
-//
-// O produto que entrou hoje continua dentro amanhã. Cada lote (batch) tem
-// sua própria temperatura, que evolui passo a passo segundo a troca de
-// calor entre o produto e o ar da câmara. Isto modela:
-//   - calor sensível durante o pulldown (ΔT entre produto e ar)
-//   - calor de respiração contínuo (não para sementes)
-//   - inércia térmica do estoque acumulado
-//
-// Coeficiente de transferência produto↔ar: estimativa empírica baseada em
-// área superficial específica do estoque. Usamos h ≈ 8 kcal/h·m²·°C com
-// área específica ≈ 0.05 m²/kg (caixaria/granel ventilado), o que dá uma
-// constante de tempo da ordem de 10–20 h para um lote típico.
-const PRODUCT_AIR_HTC_KCAL_H_KG_C = 8 * 0.05; // ≈ 0.4 kcal/h·kg·°C
+// ─── Cálculo de carga de produto ─────────────────────────────────────────────
 
-interface ProductStepResult {
-  /** Carga sensível (kcal) entregue ao ar pelo produto neste passo */
-  sensibleLoadKcal: number;
-  /** Carga de respiração (kcal) neste passo */
-  respirationLoadKcal: number;
-  /** Massa que entrou neste passo (kg) — para acumular total_inlet */
-  newMassKg: number;
-}
-
-/**
- * Atualiza os batches IN-PLACE: aplica entradas novas, evolui temperatura
- * de cada batch trocando calor com o ar da câmara, calcula carga total
- * imposta ao ar.
- */
-function stepProductBatches(
-  batches: ProductBatchState[],
+function calcProductLoad(
   product: ColdRoomSimulationInput["product"],
   timestamp: string,
   stepMinutes: number,
-  airTempC: number,
-): ProductStepResult {
+  intTemp: number,
+): number {
   const stepSeconds = stepMinutes * 60;
-  const stepHours = stepMinutes / 60;
   const stepTime = new Date(timestamp).getTime();
   const stepEnd = stepTime + stepSeconds * 1000;
 
-  // 1) Adicionar batches novos para entradas neste passo
-  let newMassKg = 0;
+  // Verificar se há entrada de produto neste passo
+  let massInStep = 0;
   for (const event of product.inlet_schedule) {
     const eventTime = new Date(event.timestamp).getTime();
-    if (eventTime >= stepTime && eventTime < stepEnd && event.mass_kg > 0) {
-      newMassKg += event.mass_kg;
-      batches.push({
-        batch_id: `b_${eventTime}_${batches.length}`,
-        entered_at: event.timestamp,
-        mass_kg: event.mass_kg,
-        temperature_c: event.temperature_c,
-        inlet_temperature_c: event.temperature_c,
-        specific_heat_kcal_kg_c: product.specific_heat_kcal_kg_c,
-        product_type: product.product_type,
-        respiration_heat_kcal_kg_day:
-          product.respiration_heat_enabled && product.product_type !== "seed"
-            ? product.respiration_heat_kcal_kg_day ?? 0
-            : 0,
-      });
+    if (eventTime >= stepTime && eventTime < stepEnd) {
+      massInStep += event.mass_kg;
     }
   }
 
-  // 2) Evoluir cada batch trocando calor com o ar
-  let sensibleLoadKcal = 0;
-  let respirationLoadKcal = 0;
-  for (const b of batches) {
-    if (b.mass_kg <= 0) continue;
+  if (massInStep <= 0) return 0;
 
-    // Carga sensível: produto cede calor ao ar enquanto T_prod > T_ar
-    // Q (kcal/h) = h * m * (T_prod - T_ar)  (sinal positivo = aquece o ar)
-    const qSensibleKcalH = PRODUCT_AIR_HTC_KCAL_H_KG_C * b.mass_kg * (b.temperature_c - airTempC);
-    const qSensibleKcal = qSensibleKcalH * stepHours;
+  // Carga sensível do produto
+  const sensibleLoad = massInStep * product.specific_heat_kcal_kg_c *
+    (product.inlet_temperature_c - intTemp);
 
-    // Atualizar temperatura do batch (o calor que ele cede sai dele)
-    const cBatch = b.mass_kg * b.specific_heat_kcal_kg_c;
-    if (cBatch > 0) {
-      b.temperature_c = b.temperature_c - qSensibleKcal / cBatch;
-      // Não pode ficar abaixo do ar (equilíbrio físico)
-      if (qSensibleKcal > 0 && b.temperature_c < airTempC) b.temperature_c = airTempC;
-      if (qSensibleKcal < 0 && b.temperature_c > airTempC) b.temperature_c = airTempC;
-    }
-
-    // Carga de respiração contínua (apenas frutas/carne/etc, não sementes)
-    const qRespKcal = b.respiration_heat_kcal_kg_day * b.mass_kg * (stepHours / 24);
-
-    // Apenas a parte que aquece o ar entra como carga (sensível positiva)
-    sensibleLoadKcal += Math.max(0, qSensibleKcal);
-    respirationLoadKcal += qRespKcal;
+  // Calor de respiração (NUNCA para sementes)
+  let respirationLoad = 0;
+  if (product.respiration_heat_enabled && product.product_type !== "seed" &&
+      product.respiration_heat_kcal_kg_day) {
+    respirationLoad = massInStep * product.respiration_heat_kcal_kg_day * (stepMinutes / (24 * 60));
   }
 
-  return { sensibleLoadKcal, respirationLoadKcal, newMassKg };
-}
-
-function batchesAggregate(batches: ProductBatchState[]) {
-  let totalMass = 0;
-  let weightedTemp = 0;
-  for (const b of batches) {
-    if (b.mass_kg <= 0) continue;
-    totalMass += b.mass_kg;
-    weightedTemp += b.mass_kg * b.temperature_c;
-  }
-  return {
-    totalMassKg: totalMass,
-    averageTempC: totalMass > 0 ? weightedTemp / totalMass : 0,
-  };
+  return Math.max(0, sensibleLoad + respirationLoad);
 }
 
 // ─── Cálculo de cargas internas ───────────────────────────────────────────────
@@ -282,28 +209,9 @@ export async function runColdRoomDynamicSimulation(input: ColdRoomSimulationInpu
   const C_total = thermalMass.total_thermal_capacity_kcal_c;
   const stepH = operation.simulation_step_minutes / 60; // horas por passo
 
-  // Estado inicial — temperatura do ar e dos batches existentes
+  // Estado inicial
   let roomTemp = input.initial_room_temperature_c ?? operation.setpoint_c;
   let compressorStatus: "ON" | "OFF" | "DEFROST" = "OFF";
-
-  // Batches persistentes — modela o estoque ao longo do tempo
-  const batches: ProductBatchState[] = [];
-  // Se houver massa pré-existente declarada, considerá-la já em equilíbrio com o setpoint
-  if ((product.total_stored_mass_kg ?? 0) > 0) {
-    batches.push({
-      batch_id: "initial_stock",
-      entered_at: climateData[0]?.timestamp ?? new Date().toISOString(),
-      mass_kg: product.total_stored_mass_kg!,
-      temperature_c: product.target_temperature_c ?? operation.setpoint_c,
-      inlet_temperature_c: product.target_temperature_c ?? operation.setpoint_c,
-      specific_heat_kcal_kg_c: product.specific_heat_kcal_kg_c,
-      product_type: product.product_type,
-      respiration_heat_kcal_kg_day:
-        product.respiration_heat_enabled && product.product_type !== "seed"
-          ? product.respiration_heat_kcal_kg_day ?? 0
-          : 0,
-    });
-  }
 
   // Gerar eventos de porta a partir do cronograma programado (se fornecido)
   const generatedDoorEvents = input.door_schedule?.length
@@ -326,23 +234,13 @@ export async function runColdRoomDynamicSimulation(input: ColdRoomSimulationInpu
   const timeline: ColdRoomSimulationTimeStep[] = [];
   const alerts: SimulationAlert[] = [];
 
-  // Contadores e acumuladores de estado
+  // Contadores para alertas e acumuladores de gelo/porta
   let overloadSteps = 0;
   let outOfRangeSteps = 0;
   let totalFrostKg = 0;
   let totalDoorOpenings = 0;
   let totalDoorInfiltrationKcal = 0;
   let totalLatentLoadKcal = 0;
-  let totalProductInletKg = 0;
-  let accumulatedDeficitKcal = 0;
-  let accumulatedEnergyKwh = 0;
-  // Para detectar dias com déficit / produto sem atingir target
-  const dailyDeficit = new Map<string, number>();
-  const dailyProductTargetReached = new Map<string, boolean>();
-  const targetTemp = product.target_temperature_c;
-  // Pulldown tracking: timestamp de entrada → timestamp de atingimento do target
-  const pulldownStartByBatch = new Map<string, number>();
-  const pulldownDurationsHours: number[] = [];
 
   for (let i = 0; i < climateData.length; i++) {
     const climate = climateData[i];
@@ -404,23 +302,7 @@ export async function runColdRoomDynamicSimulation(input: ColdRoomSimulationInpu
     totalFrostKg += frostKgStep;
     totalLatentLoadKcal += latentLoadKcal;
 
-    // Avança batches: aplica entradas, evolui temperatura de cada lote, retorna carga
-    const productStep = stepProductBatches(
-      batches,
-      product,
-      timestamp,
-      operation.simulation_step_minutes,
-      roomTemp,
-    );
-    totalProductInletKg += productStep.newMassKg;
-    // Registrar início de pulldown para batches que acabaram de entrar
-    for (const b of batches) {
-      if (b.entered_at === timestamp && !pulldownStartByBatch.has(b.batch_id)) {
-        pulldownStartByBatch.set(b.batch_id, new Date(timestamp).getTime());
-      }
-    }
-
-    const productLoad = productStep.sensibleLoadKcal + productStep.respirationLoadKcal;
+    const productLoad = calcProductLoad(product, timestamp, operation.simulation_step_minutes, roomTemp);
 
     const internalLoad = calcInternalLoad(internal_loads, hour) * stepH;
 
@@ -444,36 +326,10 @@ export async function runColdRoomDynamicSimulation(input: ColdRoomSimulationInpu
     const deltaTemp = C_total > 0 ? thermalBalance / C_total : 0;
     roomTemp = roomTemp + deltaTemp;
 
-    // Acumular déficit térmico (carga não atendida pela máquina)
-    if (thermalBalance > 0) {
-      accumulatedDeficitKcal += thermalBalance;
-      const day = timestamp.slice(0, 10);
-      dailyDeficit.set(day, (dailyDeficit.get(day) ?? 0) + thermalBalance);
-    }
-    accumulatedEnergyKwh += equipPower * stepH;
-
     // Limitar temperatura (física)
     const maxAllowed = operation.max_temperature_c ?? operation.setpoint_c + 10;
     const minAllowed = operation.min_temperature_c ?? operation.setpoint_c - 10;
     roomTemp = Math.max(minAllowed, Math.min(maxAllowed, roomTemp));
-
-    // Atualizar tracking de pulldown e flag diário de produto-no-target
-    const dayKey = timestamp.slice(0, 10);
-    let dayHasProductOk = dailyProductTargetReached.get(dayKey) ?? null;
-    for (const b of batches) {
-      const start = pulldownStartByBatch.get(b.batch_id);
-      if (start !== undefined && b.temperature_c <= targetTemp + 0.5) {
-        const durMs = new Date(timestamp).getTime() - start;
-        pulldownDurationsHours.push(durMs / 3_600_000);
-        pulldownStartByBatch.delete(b.batch_id);
-      }
-    }
-    // Para o dia: existe ao menos 1 batch e todos estão dentro do target?
-    const allOk =
-      batches.length === 0 ||
-      batches.every((b) => b.mass_kg <= 0 || b.temperature_c <= targetTemp + 1);
-    if (dayHasProductOk === null) dailyProductTargetReached.set(dayKey, allOk);
-    else dailyProductTargetReached.set(dayKey, dayHasProductOk && allOk);
 
     const utilizationPct = compressorStatus === "ON" ? perfResult.utilization_pct : 0;
 
@@ -511,7 +367,8 @@ export async function runColdRoomDynamicSimulation(input: ColdRoomSimulationInpu
       }
     }
 
-    const stockAgg = batchesAggregate(batches);
+    const maxTempLimit = operation.max_temperature_c ?? operation.setpoint_c + 3;
+    const isOutOfRange = roomTemp > maxTempLimit;
 
     timeline.push({
       timestamp,
@@ -531,14 +388,11 @@ export async function runColdRoomDynamicSimulation(input: ColdRoomSimulationInpu
       equipment_utilization_pct: Math.round(utilizationPct),
       thermal_balance_kcal_h: Math.round(thermalBalance),
       delta_temperature_c: Math.round(deltaTemp * 1000) / 1000,
+      is_out_of_temperature_range: isOutOfRange,
+      // Novos campos
       latent_load_kcal_h: Math.round(latentLoadKcal),
       frost_kg: Math.round(frostKgStep * 1000) / 1000,
       is_defrost_step: isDefrostStep,
-      // Estado térmico acumulativo
-      stored_mass_kg: Math.round(stockAgg.totalMassKg),
-      average_product_temperature_c: Math.round(stockAgg.averageTempC * 10) / 10,
-      active_batches: batches.filter((b) => b.mass_kg > 0).length,
-      accumulated_thermal_deficit_kcal: Math.round(accumulatedDeficitKcal),
     });
   }
 
@@ -558,6 +412,83 @@ export async function runColdRoomDynamicSimulation(input: ColdRoomSimulationInpu
   const maxUtilization = Math.max(...timeline.map((t) => t.equipment_utilization_pct));
   const peakLoad = Math.max(...loads);
   const recommendedCapacity = peakLoad * 1.1; // 10% de margem sobre o pico
+
+  // ── Correção 1: Dias críticos calculados por data real com 3 critérios (nunca > simulation_days) ──
+  const criticalDaysSet = new Set<string>();
+  const installedCapacity = equipment.nominal_capacity_kcal_h ?? 0;
+  for (const step of timeline) {
+    const dateKey = step.timestamp.slice(0, 10);
+    const hasCapacityDeficit = step.total_load_kcal_h > step.equipment_capacity_kcal_h;
+    const hasTemperatureIssue = step.is_out_of_temperature_range === true;
+    const hasThermalDeficit = step.thermal_balance_kcal_h > 0;
+    if (hasCapacityDeficit || hasTemperatureIssue || hasThermalDeficit) {
+      criticalDaysSet.add(dateKey);
+    }
+  }
+  const criticalDaysCount = Math.min(criticalDaysSet.size, operation.simulation_days);
+
+  // ── Correção 2: Déficit acumulado real (apenas passos onde carga > capacidade entregue) ──
+  const accumulatedDeficitKcal = timeline.reduce((sum, step) => {
+    const delivered = step.equipment_capacity_kcal_h;
+    const demanded = step.total_load_kcal_h;
+    return demanded > delivered ? sum + (demanded - delivered) : sum;
+  }, 0);
+
+  // ── Correção 3: Superdimensionamento separado (estático vs dinâmico) ──
+  const totalLoadKcal = loads.reduce((s, l) => s + l, 0);
+  const avgLoadKcalH = totalHours > 0 ? totalLoadKcal / totalHours : 0;
+  const staticRequiredKcalH = Number((input as any).static_required_capacity_kcal_h ?? 0);
+  const staticSurplusPct = staticRequiredKcalH > 0
+    ? Math.round(((installedCapacity - staticRequiredKcalH) / staticRequiredKcalH) * 1000) / 10
+    : null;
+  const dynamicAvgSurplusPct = avgLoadKcalH > 0
+    ? Math.round(((installedCapacity - avgLoadKcalH) / avgLoadKcalH) * 1000) / 10
+    : null;
+  const dynamicRecommendedSurplusPct = recommendedCapacity > 0
+    ? Math.round(((installedCapacity - recommendedCapacity) / recommendedCapacity) * 1000) / 10
+    : null;
+  const capacityCoveragePct = totalLoadKcal > 0
+    ? Math.round((timeline.reduce((s, t) => s + t.equipment_capacity_kcal_h, 0) / totalLoadKcal) * 1000) / 10
+    : 100;
+
+  // ── Correção 4: Classificação de capacidade em 4 níveis ──
+  const compressorRuntimePct = Math.round((compressorHours / totalHours) * 1000) / 10;
+  const doorPctOfTotal = totalLoadKcal > 0
+    ? Math.round((totalDoorInfiltrationKcal / totalLoadKcal) * 1000) / 10
+    : 0;
+  let capacityAssessment: "NOMINALLY_ADEQUATE" | "ADEQUATE_WITH_OPERATIONAL_RISK" | "UNDER_STRESS" | "INSUFFICIENT";
+  if (installedCapacity < recommendedCapacity || outOfRangeHours > 5 || compressorRuntimePct > 95) {
+    capacityAssessment = "INSUFFICIENT";
+  } else if (outOfRangeHours > 0 || compressorRuntimePct > 90 || (accumulatedDeficitKcal > 0 && outOfRangeHours > 0)) {
+    capacityAssessment = "UNDER_STRESS";
+  } else if (installedCapacity >= recommendedCapacity && doorPctOfTotal > 40) {
+    capacityAssessment = "ADEQUATE_WITH_OPERATIONAL_RISK";
+  } else {
+    capacityAssessment = "NOMINALLY_ADEQUATE";
+  }
+
+  // ── Correção 5: Validação de déficit vs temperatura (inconsistência) ──
+  const deficitInconsistencyWarning =
+    accumulatedDeficitKcal > 0 &&
+    outOfRangeHours === 0 &&
+    compressorRuntimePct < 80 &&
+    installedCapacity >= recommendedCapacity
+      ? "Déficit térmico acumulado positivo, mas sem reflexo em temperatura fora do range. Validar metodologia do déficit acumulado."
+      : null;
+
+  // ── Correção 6: Validação de percentuais de carga ──
+  const transmissionTotal = timeline.reduce((s, t) => s + t.transmission_load_kcal_h, 0);
+  const infiltrationTotal = timeline.reduce((s, t) => s + t.infiltration_load_kcal_h, 0);
+  const productTotal = timeline.reduce((s, t) => s + t.product_load_kcal_h, 0);
+  const internalTotal = timeline.reduce((s, t) => s + t.internal_load_kcal_h, 0);
+  const transmissionPct = totalLoadKcal > 0 ? Math.round((transmissionTotal / totalLoadKcal) * 1000) / 10 : 0;
+  const infiltrationPct = totalLoadKcal > 0 ? Math.round((infiltrationTotal / totalLoadKcal) * 1000) / 10 : 0;
+  const productPct = totalLoadKcal > 0 ? Math.round((productTotal / totalLoadKcal) * 1000) / 10 : 0;
+  const internalPct = totalLoadKcal > 0 ? Math.round((internalTotal / totalLoadKcal) * 1000) / 10 : 0;
+  const percentSum = transmissionPct + infiltrationPct + productPct + internalPct;
+  const percentSumWarning = percentSum < 98 || percentSum > 102
+    ? `A soma percentual das cargas (${percentSum.toFixed(1)}%) não fecha em 100%. Verificar duplicidade ou sobreposição entre categorias.`
+    : null;
 
   // Avaliar perfil de câmara (gelo, degelo, risco)
   const chamberProfileResult = defrost
@@ -585,12 +516,12 @@ export async function runColdRoomDynamicSimulation(input: ColdRoomSimulationInpu
     max_room_temperature_c: Math.max(...temps),
     min_room_temperature_c: Math.min(...temps),
     average_room_temperature_c: temps.reduce((s, t) => s + t, 0) / temps.length,
-    total_cooling_load_kcal: loads.reduce((s, l) => s + l, 0),
+    total_cooling_load_kcal: totalLoadKcal,
     total_cooling_capacity_kcal: timeline.reduce((s, t) => s + t.equipment_capacity_kcal_h, 0),
     total_energy_kwh: Math.round(totalEnergyKwh),
     average_cop: Math.round(avgCop * 100) / 100,
     compressor_runtime_hours: Math.round(compressorHours * 10) / 10,
-    compressor_runtime_pct: Math.round((compressorHours / totalHours) * 1000) / 10,
+    compressor_runtime_pct: compressorRuntimePct,
     max_equipment_utilization_pct: Math.round(maxUtilization),
     temperature_out_of_range_hours: Math.round(outOfRangeHours * 10) / 10,
     peak_load_kcal_h: Math.round(peakLoad),
@@ -600,14 +531,32 @@ export async function runColdRoomDynamicSimulation(input: ColdRoomSimulationInpu
       ? new Date(timeline[peakIdx].timestamp).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
       : "--",
     recommended_min_capacity_kcal_h: Math.round(recommendedCapacity),
-    capacity_adequate: (equipment.nominal_capacity_kcal_h ?? 0) >= recommendedCapacity,
-    // Novos campos: portas
+    capacity_adequate: installedCapacity >= recommendedCapacity,
+    // Diagnóstico de capacidade em 4 níveis
+    capacity_assessment: capacityAssessment,
+    // Superdimensionamento separado por base de cálculo
+    installed_capacity_kcal_h: Math.round(installedCapacity),
+    average_dynamic_load_kcal_h: Math.round(avgLoadKcalH),
+    static_surplus_pct: staticSurplusPct,
+    dynamic_avg_surplus_pct: dynamicAvgSurplusPct,
+    dynamic_recommended_surplus_pct: dynamicRecommendedSurplusPct,
+    capacity_coverage_pct: capacityCoveragePct,
+    // Déficit acumulado real
+    accumulated_deficit_kcal: Math.round(accumulatedDeficitKcal),
+    critical_days_count: criticalDaysCount,
+    // Inconsistências detectadas
+    deficit_inconsistency_warning: deficitInconsistencyWarning,
+    percent_sum_warning: percentSumWarning,
+    // Composição percentual das cargas (base correta: carga total dinâmica)
+    transmission_pct: transmissionPct,
+    infiltration_pct: infiltrationPct,
+    product_pct: productPct,
+    internal_pct: internalPct,
+    // Portas
     total_door_openings: totalDoorOpenings,
     total_door_infiltration_load_kcal: Math.round(totalDoorInfiltrationKcal),
-    door_infiltration_pct_of_total: loads.reduce((s, l) => s + l, 0) > 0
-      ? Math.round((totalDoorInfiltrationKcal / loads.reduce((s, l) => s + l, 0)) * 1000) / 10
-      : 0,
-    // Novos campos: gelo e degelo
+    door_infiltration_pct_of_total: doorPctOfTotal,
+    // Gelo e degelo
     total_frost_kg: Math.round(totalFrostKg * 10) / 10,
     frost_kg_per_day: Math.round((totalFrostKg / (operation.simulation_days || 1)) * 10) / 10,
     latent_load_pct: chamberProfileResult?.latent_load_pct ?? 0,
@@ -617,29 +566,26 @@ export async function runColdRoomDynamicSimulation(input: ColdRoomSimulationInpu
     recommended_defrost_cycles: chamberProfileResult?.recommended_defrost_cycles ?? 0,
     machine_downtime_hours_total: Math.round(defrostDowntimeHoursDay * (operation.simulation_days || 1) * 10) / 10,
     defrost_warnings: chamberProfileResult?.warnings ?? [],
-    // Estado térmico acumulativo
-    final_stored_mass_kg: Math.round(batchesAggregate(batches).totalMassKg),
-    final_average_product_temperature_c:
-      Math.round(batchesAggregate(batches).averageTempC * 10) / 10,
-    total_product_inlet_kg: Math.round(totalProductInletKg),
-    total_thermal_deficit_kcal: Math.round(accumulatedDeficitKcal),
-    days_with_thermal_deficit: Array.from(dailyDeficit.values()).filter((v) => v > 0).length,
-    days_product_target_not_reached: Array.from(dailyProductTargetReached.values()).filter(
-      (v) => v === false,
-    ).length,
-    average_pulldown_hours: pulldownDurationsHours.length
-      ? Math.round(
-          (pulldownDurationsHours.reduce((s, x) => s + x, 0) / pulldownDurationsHours.length) * 10,
-        ) / 10
-      : 0,
   };
 
-  // Alertas finais de capacidade
-  if (!summary.capacity_adequate) {
+  // Alertas finais de capacidade — baseados na classificação em 4 níveis
+  if (summary.capacity_assessment === "INSUFFICIENT") {
     alerts.unshift({
       severity: "critical",
       code: "CAPACITY_INSUFFICIENT",
-      message: `Capacidade nominal do equipamento insuficiente para o pico térmico. Mínimo recomendado: ${Math.round(recommendedCapacity).toLocaleString("pt-BR")} kcal/h`,
+      message: `Capacidade nominal insuficiente para o pico térmico dinâmico. Mínimo recomendado: ${Math.round(recommendedCapacity).toLocaleString("pt-BR")} kcal/h. Instalado: ${Math.round(installedCapacity).toLocaleString("pt-BR")} kcal/h.`,
+    });
+  } else if (summary.capacity_assessment === "UNDER_STRESS") {
+    alerts.unshift({
+      severity: "warning",
+      code: "CAPACITY_UNDER_STRESS",
+      message: `Equipamento sob estresse: ${summary.temperature_out_of_range_hours.toFixed(1)}h fora do range e/ou compressor a ${compressorRuntimePct.toFixed(1)}% do tempo. Avaliar aumento de capacidade.`,
+    });
+  } else if (summary.capacity_assessment === "ADEQUATE_WITH_OPERATIONAL_RISK") {
+    alerts.unshift({
+      severity: "warning",
+      code: "CAPACITY_OPERATIONAL_RISK",
+      message: `Capacidade nominalmente adequada, mas com risco operacional: infiltração por portas representa ${doorPctOfTotal.toFixed(1)}% da carga total. Revisar operação das portas.`,
     });
   }
 
@@ -648,6 +594,34 @@ export async function runColdRoomDynamicSimulation(input: ColdRoomSimulationInpu
       severity: "critical",
       code: "TEMP_VIOLATION",
       message: `Temperatura interna ultrapassou o limite máximo por ${summary.temperature_out_of_range_hours.toFixed(1)} horas`,
+    });
+  }
+
+  // Alerta de inconsistência: déficit acumulado sem reflexo em temperatura
+  if (deficitInconsistencyWarning) {
+    alerts.push({
+      severity: "info",
+      code: "DEFICIT_INCONSISTENCY",
+      message: deficitInconsistencyWarning,
+    });
+  }
+
+  // Alerta de percentuais de carga não fechando
+  if (percentSumWarning) {
+    alerts.push({
+      severity: "warning",
+      code: "LOAD_PERCENT_MISMATCH",
+      message: percentSumWarning,
+    });
+  }
+
+  // Alerta de produto zerado quando cálculo estático tem produto
+  const staticProductLoad = Number((input as any).static_product_load_kcal_h ?? 0);
+  if (staticProductLoad > 0 && productTotal === 0) {
+    alerts.push({
+      severity: "warning",
+      code: "PRODUCT_LOAD_NOT_INHERITED",
+      message: `A simulação dinâmica não herdou a carga de produto/processo do cálculo térmico base (${Math.round(staticProductLoad).toLocaleString("pt-BR")} kcal/h). Verifique os dados de produto no formulário.`,
     });
   }
 
@@ -684,45 +658,9 @@ export async function runColdRoomDynamicSimulation(input: ColdRoomSimulationInpu
     });
   }
 
-  // Alertas de déficit acumulado / produto não atinge target
-  if (summary.total_thermal_deficit_kcal > 0 && summary.days_with_thermal_deficit > 0) {
-    alerts.push({
-      severity: summary.days_with_thermal_deficit >= 3 ? "critical" : "warning",
-      code: "THERMAL_DEFICIT",
-      message: `Déficit térmico acumulado: ${summary.total_thermal_deficit_kcal.toLocaleString("pt-BR")} kcal em ${summary.days_with_thermal_deficit} dia(s). A máquina não recupera o setpoint nesses dias.`,
-    });
-  }
-  if (summary.days_product_target_not_reached > 0) {
-    alerts.push({
-      severity: "warning",
-      code: "PRODUCT_TARGET_NOT_REACHED",
-      message: `O produto não atingiu a temperatura alvo (${product.target_temperature_c.toFixed(1)}°C) em ${summary.days_product_target_not_reached} dia(s) do período.`,
-    });
-  }
-  if (summary.average_pulldown_hours > 0) {
-    alerts.push({
-      severity: "info",
-      code: "PULLDOWN_TIME",
-      message: `Tempo médio de pulldown do produto: ${summary.average_pulldown_hours.toFixed(1)} h.`,
-    });
-  }
-
   // Amostrar dados para gráficos (máx 500 pontos)
   const sampleRate = Math.max(1, Math.floor(timeline.length / 500));
   const chartData = timeline.filter((_, i) => i % sampleRate === 0);
 
-  const finalAgg = batchesAggregate(batches);
-  const finalState: ColdRoomState = {
-    timestamp: timeline[timeline.length - 1]?.timestamp ?? new Date().toISOString(),
-    room_air_temperature_c: roomTemp,
-    room_relative_humidity_pct: intRhPct,
-    stored_product_batches: batches.filter((b) => b.mass_kg > 0),
-    total_stored_mass_kg: finalAgg.totalMassKg,
-    average_product_temperature_c: finalAgg.averageTempC,
-    compressor_status: compressorStatus,
-    accumulated_thermal_deficit_kcal: accumulatedDeficitKcal,
-    accumulated_energy_kwh: accumulatedEnergyKwh,
-  };
-
-  return { summary, timeline, alerts, chart_data: chartData, final_state: finalState };
+  return { summary, timeline, alerts, chart_data: chartData };
 }
