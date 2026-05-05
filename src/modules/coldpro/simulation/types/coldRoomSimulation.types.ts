@@ -284,6 +284,22 @@ export interface ColdRoomSimulationSummary {
   recommended_defrost_cycles: number;
   machine_downtime_hours_total: number;
   defrost_warnings: string[];
+
+  // ─── Novos campos: estado térmico acumulativo ─────────────────────────────
+  /** Massa total armazenada no fim da simulação (kg) */
+  final_stored_mass_kg: number;
+  /** Temperatura média do produto no fim da simulação (°C) */
+  final_average_product_temperature_c: number;
+  /** Total de produto que entrou ao longo do período (kg) */
+  total_product_inlet_kg: number;
+  /** Déficit térmico total acumulado (kcal) — não recuperado pela máquina */
+  total_thermal_deficit_kcal: number;
+  /** Número de dias com déficit térmico (não recuperação do setpoint) */
+  days_with_thermal_deficit: number;
+  /** Número de dias em que o produto não atingiu a temperatura alvo */
+  days_product_target_not_reached: number;
+  /** Tempo médio de pulldown (horas) — do inlet até atingir target */
+  average_pulldown_hours: number;
 }
 
 // ─── Estado térmico (acumulativo entre passos) ───────────────────────────────
