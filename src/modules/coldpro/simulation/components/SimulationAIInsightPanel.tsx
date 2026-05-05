@@ -296,7 +296,7 @@ Responda em **Português** e em **Markdown**, raciocinando sobre o comportamento
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2 text-indigo-700 dark:text-indigo-400">
           <Sparkles className="h-5 w-5" />
-          <h3 className="font-semibold">Análise Inteligente da Simulação</h3>
+          <h3 className="font-semibold">Análise de Comportamento Térmico-Operacional</h3>
         </div>
         {!analysis && !isAnalyzing && (
           <button
