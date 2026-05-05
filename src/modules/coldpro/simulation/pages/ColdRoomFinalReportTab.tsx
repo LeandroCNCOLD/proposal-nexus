@@ -244,7 +244,7 @@ export function ColdRoomFinalReportTab({
             )}
             {hasSim && (
               <p>
-                A simulação dinâmica confirmou que a temperatura interna se manteve entre{" "}
+                A Simulação Dinâmica de Comportamento da Câmara confirmou que a temperatura interna se manteve entre{" "}
                 {fmt(simulationResult!.summary.min_room_temperature_c)}°C e{" "}
                 {fmt(simulationResult!.summary.max_room_temperature_c)}°C, com o compressor operando{" "}
                 {fmt(simulationResult!.summary.compressor_runtime_pct, 0)}% do tempo e consumo estimado de{" "}
@@ -253,7 +253,7 @@ export function ColdRoomFinalReportTab({
             )}
             {!hasSim && (
               <p className="text-yellow-700 dark:text-yellow-400">
-                Execute a simulação dinâmica na aba anterior para obter a análise de comportamento temporal da câmara.
+                Execute a Simulação Dinâmica de Comportamento da Câmara na aba anterior para obter o diagnóstico operacional ao longo do tempo.
               </p>
             )}
           </div>
