@@ -224,6 +224,14 @@ export interface ColdRoomSimulationTimeStep {
   frost_kg?: number;
   /** Indica se a máquina está em degelo neste passo */
   is_defrost_step?: boolean;
+  /** Massa total de produto armazenada neste passo (kg) */
+  stored_mass_kg?: number;
+  /** Temperatura média ponderada do produto armazenado (°C) */
+  average_product_temperature_c?: number;
+  /** Número de lotes ativos neste passo */
+  active_batches?: number;
+  /** Déficit térmico acumulado até este passo (kcal) */
+  accumulated_thermal_deficit_kcal?: number;
 }
 
 // ─── Alertas ──────────────────────────────────────────────────────────────────
