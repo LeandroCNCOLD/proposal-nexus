@@ -124,41 +124,112 @@ function calcInfiltrationLoad(
   return Math.max(0, totalMassKg * deltaH);
 }
 
-// ─── Cálculo de carga de produto ─────────────────────────────────────────────
+// ─── Cálculo de carga de produto (BATCHES PERSISTENTES) ─────────────────────
+//
+// O produto que entrou hoje continua dentro amanhã. Cada lote (batch) tem
+// sua própria temperatura, que evolui passo a passo segundo a troca de
+// calor entre o produto e o ar da câmara. Isto modela:
+//   - calor sensível durante o pulldown (ΔT entre produto e ar)
+//   - calor de respiração contínuo (não para sementes)
+//   - inércia térmica do estoque acumulado
+//
+// Coeficiente de transferência produto↔ar: estimativa empírica baseada em
+// área superficial específica do estoque. Usamos h ≈ 8 kcal/h·m²·°C com
+// área específica ≈ 0.05 m²/kg (caixaria/granel ventilado), o que dá uma
+// constante de tempo da ordem de 10–20 h para um lote típico.
+const PRODUCT_AIR_HTC_KCAL_H_KG_C = 8 * 0.05; // ≈ 0.4 kcal/h·kg·°C
 
-function calcProductLoad(
+interface ProductStepResult {
+  /** Carga sensível (kcal) entregue ao ar pelo produto neste passo */
+  sensibleLoadKcal: number;
+  /** Carga de respiração (kcal) neste passo */
+  respirationLoadKcal: number;
+  /** Massa que entrou neste passo (kg) — para acumular total_inlet */
+  newMassKg: number;
+}
+
+/**
+ * Atualiza os batches IN-PLACE: aplica entradas novas, evolui temperatura
+ * de cada batch trocando calor com o ar da câmara, calcula carga total
+ * imposta ao ar.
+ */
+function stepProductBatches(
+  batches: ProductBatchState[],
   product: ColdRoomSimulationInput["product"],
   timestamp: string,
   stepMinutes: number,
-  intTemp: number,
-): number {
+  airTempC: number,
+): ProductStepResult {
   const stepSeconds = stepMinutes * 60;
+  const stepHours = stepMinutes / 60;
   const stepTime = new Date(timestamp).getTime();
   const stepEnd = stepTime + stepSeconds * 1000;
 
-  // Verificar se há entrada de produto neste passo
-  let massInStep = 0;
+  // 1) Adicionar batches novos para entradas neste passo
+  let newMassKg = 0;
   for (const event of product.inlet_schedule) {
     const eventTime = new Date(event.timestamp).getTime();
-    if (eventTime >= stepTime && eventTime < stepEnd) {
-      massInStep += event.mass_kg;
+    if (eventTime >= stepTime && eventTime < stepEnd && event.mass_kg > 0) {
+      newMassKg += event.mass_kg;
+      batches.push({
+        batch_id: `b_${eventTime}_${batches.length}`,
+        entered_at: event.timestamp,
+        mass_kg: event.mass_kg,
+        temperature_c: event.temperature_c,
+        inlet_temperature_c: event.temperature_c,
+        specific_heat_kcal_kg_c: product.specific_heat_kcal_kg_c,
+        product_type: product.product_type,
+        respiration_heat_kcal_kg_day:
+          product.respiration_heat_enabled && product.product_type !== "seed"
+            ? product.respiration_heat_kcal_kg_day ?? 0
+            : 0,
+      });
     }
   }
 
-  if (massInStep <= 0) return 0;
+  // 2) Evoluir cada batch trocando calor com o ar
+  let sensibleLoadKcal = 0;
+  let respirationLoadKcal = 0;
+  for (const b of batches) {
+    if (b.mass_kg <= 0) continue;
 
-  // Carga sensível do produto
-  const sensibleLoad = massInStep * product.specific_heat_kcal_kg_c *
-    (product.inlet_temperature_c - intTemp);
+    // Carga sensível: produto cede calor ao ar enquanto T_prod > T_ar
+    // Q (kcal/h) = h * m * (T_prod - T_ar)  (sinal positivo = aquece o ar)
+    const qSensibleKcalH = PRODUCT_AIR_HTC_KCAL_H_KG_C * b.mass_kg * (b.temperature_c - airTempC);
+    const qSensibleKcal = qSensibleKcalH * stepHours;
 
-  // Calor de respiração (NUNCA para sementes)
-  let respirationLoad = 0;
-  if (product.respiration_heat_enabled && product.product_type !== "seed" &&
-      product.respiration_heat_kcal_kg_day) {
-    respirationLoad = massInStep * product.respiration_heat_kcal_kg_day * (stepMinutes / (24 * 60));
+    // Atualizar temperatura do batch (o calor que ele cede sai dele)
+    const cBatch = b.mass_kg * b.specific_heat_kcal_kg_c;
+    if (cBatch > 0) {
+      b.temperature_c = b.temperature_c - qSensibleKcal / cBatch;
+      // Não pode ficar abaixo do ar (equilíbrio físico)
+      if (qSensibleKcal > 0 && b.temperature_c < airTempC) b.temperature_c = airTempC;
+      if (qSensibleKcal < 0 && b.temperature_c > airTempC) b.temperature_c = airTempC;
+    }
+
+    // Carga de respiração contínua (apenas frutas/carne/etc, não sementes)
+    const qRespKcal = b.respiration_heat_kcal_kg_day * b.mass_kg * (stepHours / 24);
+
+    // Apenas a parte que aquece o ar entra como carga (sensível positiva)
+    sensibleLoadKcal += Math.max(0, qSensibleKcal);
+    respirationLoadKcal += qRespKcal;
   }
 
-  return Math.max(0, sensibleLoad + respirationLoad);
+  return { sensibleLoadKcal, respirationLoadKcal, newMassKg };
+}
+
+function batchesAggregate(batches: ProductBatchState[]) {
+  let totalMass = 0;
+  let weightedTemp = 0;
+  for (const b of batches) {
+    if (b.mass_kg <= 0) continue;
+    totalMass += b.mass_kg;
+    weightedTemp += b.mass_kg * b.temperature_c;
+  }
+  return {
+    totalMassKg: totalMass,
+    averageTempC: totalMass > 0 ? weightedTemp / totalMass : 0,
+  };
 }
 
 // ─── Cálculo de cargas internas ───────────────────────────────────────────────
