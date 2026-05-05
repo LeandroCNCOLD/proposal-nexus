@@ -16,6 +16,8 @@ import type {
   SimulationAlert,
   ExternalClimatePoint,
   DoorOpeningEvent,
+  ProductBatchState,
+  ColdRoomState,
 } from "../types/coldRoomSimulation.types";
 import { DOOR_PROTECTION_FACTORS } from "../types/coldRoomSimulation.types";
 import { generateWeatherProfile } from "./weatherProfileService";
