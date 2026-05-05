@@ -511,6 +511,8 @@ export async function runColdRoomDynamicSimulation(input: ColdRoomSimulationInpu
       }
     }
 
+    const stockAgg = batchesAggregate(batches);
+
     timeline.push({
       timestamp,
       step_index: i,
@@ -529,10 +531,14 @@ export async function runColdRoomDynamicSimulation(input: ColdRoomSimulationInpu
       equipment_utilization_pct: Math.round(utilizationPct),
       thermal_balance_kcal_h: Math.round(thermalBalance),
       delta_temperature_c: Math.round(deltaTemp * 1000) / 1000,
-      // Novos campos
       latent_load_kcal_h: Math.round(latentLoadKcal),
       frost_kg: Math.round(frostKgStep * 1000) / 1000,
       is_defrost_step: isDefrostStep,
+      // Estado térmico acumulativo
+      stored_mass_kg: Math.round(stockAgg.totalMassKg),
+      average_product_temperature_c: Math.round(stockAgg.averageTempC * 10) / 10,
+      active_batches: batches.filter((b) => b.mass_kg > 0).length,
+      accumulated_thermal_deficit_kcal: Math.round(accumulatedDeficitKcal),
     });
   }
 
