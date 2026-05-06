@@ -278,6 +278,16 @@ export interface ColdRoomSimulationSummary {
   recommended_defrost_cycles: number;
   machine_downtime_hours_total: number;
   defrost_warnings: string[];
+
+  // ─── Campos opcionais usados pelo painel de IA / análise dinâmica ─────────────
+  days_with_thermal_deficit?: number;
+  days_product_target_not_reached?: number;
+  total_thermal_deficit_kcal?: number;
+  total_product_inlet_kg?: number;
+  final_stored_mass_kg?: number;
+  final_average_product_temperature_c?: number;
+  average_pulldown_hours?: number;
+  capacity_assessment?: string;
 }
 
 export interface ColdRoomSimulationResult {
