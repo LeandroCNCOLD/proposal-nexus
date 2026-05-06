@@ -265,56 +265,80 @@ export function makeBlock(
   };
 }
 
+/**
+ * Estilo padrão TRANSPARENTE aplicado a todo bloco novo no editor CN COLD.
+ * As páginas têm imagens de fundo; nenhum bloco deve criar caixa branca,
+ * borda ou sombra automaticamente. O usuário ativa fundo manualmente pelo
+ * BoxStyleEditor.
+ */
+export const TRANSPARENT_BLOCK_STYLE = {
+  background: "transparent" as const,
+  bgMode: "none" as const,
+  bgColor: "transparent",
+  bgOpacity: 0,
+  borderWidth: 0,
+  borderColor: "transparent",
+  borderStyle: "solid" as const,
+  borderRadius: 0,
+};
+
+/** Mescla o estilo transparente padrão a um layout. */
+export function withTransparentBlockStyle<T extends Partial<BlockLayout>>(layout: T): T & BlockLayout {
+  return { ...TRANSPARENT_BLOCK_STYLE, ...layout } as T & BlockLayout;
+}
+
 /** Layout default centralizado para blocos novos adicionados à mão. */
 export function defaultLayoutFor(type: BlockType, index = 0): BlockLayout {
   const baseY = 120 + index * 80;
+  const t = (extra: Partial<BlockLayout>): BlockLayout =>
+    withTransparentBlockStyle(extra as BlockLayout);
   switch (type) {
     case "heading":
-      return { x: 60, y: baseY, w: 696, h: 60 };
+      return t({ x: 60, y: baseY, w: 696, h: 60 });
     case "rich_text":
-      return { x: 60, y: baseY, w: 696, h: 180 };
+      return t({ x: 60, y: baseY, w: 696, h: 180 });
     case "image":
-      return { x: 60, y: baseY, w: 400, h: 260 };
+      return t({ x: 60, y: baseY, w: 400, h: 260 });
     case "client_info_box":
     case "project_info_box":
     case "responsible_info_box":
-      return { x: 60, y: baseY, w: 696, h: 160, background: "transparent" };
+      return t({ x: 60, y: baseY, w: 696, h: 160 });
     case "proposal_number_box":
-      return { x: 540, y: 960, w: 220, h: 56, background: "white", align: "right" };
+      return t({ x: 540, y: 960, w: 220, h: 56, align: "right" });
     case "proposal_summary_box":
-      return { x: 60, y: baseY, w: 696, h: 220, background: "white" };
+      return t({ x: 60, y: baseY, w: 696, h: 220 });
     case "dynamic_field":
-      return { x: 60, y: baseY, w: 320, h: 40, background: "transparent" };
+      return t({ x: 60, y: baseY, w: 320, h: 40 });
     case "bank_data":
-      return { x: 60, y: baseY, w: 696, h: 220, background: "white" };
+      return t({ x: 60, y: baseY, w: 696, h: 220 });
     case "signature":
-      return { x: 60, y: baseY, w: 360, h: 100 };
+      return t({ x: 60, y: baseY, w: 360, h: 100 });
     case "attached_pdf":
-      return { x: 60, y: baseY, w: 696, h: 80, background: "muted" };
+      return t({ x: 60, y: baseY, w: 696, h: 80 });
     case "investment_table":
     case "tax_table":
     case "payment_table":
     case "characteristics_table":
     case "equipments_table":
     case "technical_table":
-      return { x: 60, y: baseY, w: 696, h: 280 };
+      return t({ x: 60, y: baseY, w: 696, h: 280 });
     case "differentials_list":
     case "cases_list":
-      return { x: 60, y: baseY, w: 696, h: 320 };
+      return t({ x: 60, y: baseY, w: 696, h: 320 });
     case "included_items":
     case "excluded_items":
-      return { x: 60, y: baseY, w: 696, h: 200 };
+      return t({ x: 60, y: baseY, w: 696, h: 200 });
     case "key_value_list":
-      return { x: 60, y: baseY, w: 696, h: 180 };
+      return t({ x: 60, y: baseY, w: 696, h: 180 });
     case "cover_identity":
     case "cover_main_cn_cold":
     case "cover_institutional_cn_cold":
     case "cover_clients_cases_cn_cold":
-      return { x: 0, y: 0, w: A4_W, h: A4_H };
+      return t({ x: 0, y: 0, w: A4_W, h: A4_H });
     case "container":
-      return { x: 60, y: baseY, w: 696, h: 240, background: "white" };
+      return t({ x: 60, y: baseY, w: 696, h: 240 });
     default:
-      return { x: 60, y: baseY, w: 696, h: 160 };
+      return t({ x: 60, y: baseY, w: 696, h: 160 });
   }
 }
 
