@@ -66,7 +66,7 @@ export function InlineTablePreview({ proposalId, pageId, blockType, title }: Pro
 
   if (isLoading) {
     return (
-      <div className="rounded border border-dashed bg-muted/30 p-3 text-xs opacity-70">
+      <div className="rounded border border-dashed border-border/40 bg-transparent p-3 text-xs opacity-70">
         Carregando tabela…
       </div>
     );
@@ -77,7 +77,7 @@ export function InlineTablePreview({ proposalId, pageId, blockType, title }: Pro
 
   if (!table || !table.rows || table.rows.length === 0) {
     return (
-      <div className="rounded border border-dashed bg-muted/30 p-3 text-xs">
+      <div className="rounded border border-dashed border-border/40 bg-transparent p-3 text-xs">
         <p className="font-semibold">{title ?? "Tabela"}</p>
         <p className="mt-1 opacity-70">
           Nenhum item cadastrado ainda. Adicione linhas na aba <strong>Tabelas</strong> desta página.
