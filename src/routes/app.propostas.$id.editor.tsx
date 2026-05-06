@@ -36,7 +36,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { DocumentPage } from "@/integrations/proposal-editor/types";
+import type { DocumentPage, BlockLayout } from "@/integrations/proposal-editor/types";
+import { normalizeTransparentLayout } from "@/integrations/proposal-editor/types";
 import type { ProposalTemplate, TemplateAsset } from "@/integrations/proposal-editor/template.types";
 import type { ProposalDynamicContext } from "@/components/proposal-editor/BlockRenderer";
 import { useProposalDocumentContext } from "@/features/proposal-context/use-proposal-document-context";
@@ -177,7 +178,19 @@ function ProposalEditorPage() {
     if (!doc) return;
     if (hydratedFor.current === doc.id) return;
     hydratedFor.current = doc.id;
-    const ps = (doc.pages as unknown as DocumentPage[]) ?? [];
+    const raw = (doc.pages as unknown as DocumentPage[]) ?? [];
+    // Normaliza blocos antigos com background "white"/"muted" sem estilo manual
+    // para transparente. Preserva customizações do usuário (bgMode solid/gradient,
+    // border > 0). Documentos novos já nascem transparentes.
+    const ps: DocumentPage[] = raw.map((p) => ({
+      ...p,
+      blocks: (p.blocks ?? []).map((b) => {
+        const layout = b.data?.layout as BlockLayout | undefined;
+        if (!layout) return b;
+        const normalized = normalizeTransparentLayout(layout);
+        return { ...b, data: { ...b.data, layout: normalized } };
+      }),
+    }));
     setPages(ps);
     if (!selectedId && ps.length > 0) setSelectedId(ps[0].id);
     setDirty(false);
