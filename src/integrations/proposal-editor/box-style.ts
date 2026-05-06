@@ -11,11 +11,12 @@ export function layoutToBoxStyle(
   const s: React.CSSProperties = {};
   const opacity = (layout.bgOpacity ?? 100) / 100;
 
+  // Padrão CN COLD: transparente. Só aplica fundo se bgMode estiver explícito,
+  // ou se o legado layout.background tiver sido configurado para "primary"
+  // (capa/chrome). "white" e "muted" não geram mais fundo automático.
   const mode =
     layout.bgMode ??
-    (layout.background === "white" || layout.background === "primary" || layout.background === "muted"
-      ? "solid"
-      : "none");
+    (layout.background === "primary" ? "solid" : "none");
 
   if (mode === "solid") {
     let color = layout.bgColor;
@@ -55,9 +56,7 @@ export function layoutToPdfBoxStyle(
   const opacity = (layout.bgOpacity ?? 100) / 100;
   const mode =
     layout.bgMode ??
-    (layout.background === "white" || layout.background === "primary" || layout.background === "muted"
-      ? "solid"
-      : "none");
+    (layout.background === "primary" ? "solid" : "none");
 
   if (mode === "solid") {
     let color = layout.bgColor;
