@@ -288,6 +288,7 @@ export interface ColdRoomSimulationSummary {
   final_average_product_temperature_c?: number;
   average_pulldown_hours?: number;
   capacity_assessment?: string;
+  installed_capacity_kcal_h?: number;
 }
 
 export interface ColdRoomSimulationResult {
