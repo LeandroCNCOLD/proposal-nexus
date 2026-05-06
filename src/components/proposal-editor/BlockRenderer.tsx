@@ -978,7 +978,7 @@ function BlockBody({
               <li className="opacity-60">{emptyText}</li>
             ) : (
               items.map((d, i) => (
-                <li key={i} className="rounded border bg-white/60 p-2">
+                <li key={i} className="rounded border border-border/40 bg-transparent p-2">
                   <p className="font-semibold">{d.titulo}</p>
                   {d.descricao ? <p className="text-xs opacity-80">{d.descricao}</p> : null}
                 </li>
@@ -1005,7 +1005,7 @@ function BlockBody({
               <p className="col-span-2 text-xs opacity-60">{emptyText}</p>
             ) : (
               items.map((c, i) => (
-                <div key={i} className="rounded border bg-white/60 p-2 text-xs">
+                <div key={i} className="rounded border border-border/40 bg-transparent p-2 text-xs">
                   <p className="font-semibold">{c.titulo}</p>
                   {c.cliente ? <p className="opacity-70">{c.cliente}</p> : null}
                   {c.descricao ? <p className="mt-1 opacity-80">{c.descricao}</p> : null}
@@ -1034,7 +1034,7 @@ function BlockBody({
         );
       }
       return (
-        <div className="rounded border border-dashed bg-muted/40 p-3 text-xs opacity-80">
+        <div className="rounded border border-dashed border-border/40 bg-transparent p-3 text-xs opacity-80">
           <p className="font-semibold">{block.title ?? blockKindLabel(block.type)}</p>
           <p className="mt-1">
             Tabela estruturada — abra a aba de tabelas para editar o conteúdo.
@@ -1056,7 +1056,7 @@ function BlockBody({
             <p className="opacity-60">Defina os dados bancários no template.</p>
           ) : (
             banks.map((b, i) => (
-              <div key={i} className="rounded border bg-white/60 p-2">
+              <div key={i} className="rounded border border-border/40 bg-transparent p-2">
                 <p className="font-semibold">{b.banco}</p>
                 {b.agencia ? <p>Agência: {b.agencia}</p> : null}
                 {b.conta ? <p>Conta: {b.conta}</p> : null}

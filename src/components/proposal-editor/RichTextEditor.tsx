@@ -165,7 +165,7 @@ function Toolbar({
   const currentSize = (editor.getAttributes("textStyle").fontSize as string) ?? "";
 
   return (
-    <div className="flex flex-wrap items-center gap-0.5 border-b bg-muted/30 px-2 py-1">
+    <div className="flex flex-wrap items-center gap-0.5 border-b border-border/40 bg-transparent px-2 py-1">
       {!minimal && (
         <>
           <select
@@ -606,7 +606,7 @@ export function RichTextEditor({
   return (
     <div
       ref={wrapperRef}
-      className={cn("relative rounded-md border bg-background", className)}
+      className={cn("relative rounded-md border border-transparent bg-transparent", className)}
       onDrop={(e) => {
         const txt = e.dataTransfer.getData("text/plain");
         if (txt && /^\{\{[a-zA-Z0-9_.]+\}\}$/.test(txt.trim())) {
