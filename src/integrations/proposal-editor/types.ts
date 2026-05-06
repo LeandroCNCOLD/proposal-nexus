@@ -318,6 +318,30 @@ export function defaultLayoutFor(type: BlockType, index = 0): BlockLayout {
   }
 }
 
+/**
+ * Campos pré-populados por tipo de bloco. Quando o usuário arrasta uma caixa
+ * para o documento, ela já vem com os campos sugeridos (chaves vazias) para
+ * que os labels e a resolução híbrida pelo contexto apareçam imediatamente.
+ */
+export function defaultDataFor(type: BlockType): Record<string, unknown> {
+  switch (type) {
+    case "client_info_box":
+      return { cliente: "", cnpj: "", endereco: "", cidade: "", contato: "", email: "", telefone: "" };
+    case "client_info":
+      return { cliente: "", cnpj: "", endereco: "", contato: "" };
+    case "project_info_box":
+      return { projeto: "", numero: "", revisao: "", data: "", validade: "", prazo_entrega: "" };
+    case "project_info":
+      return { projeto: "", numero: "", data: "", revisao: "" };
+    case "responsible_info_box":
+      return { responsavel: "", cargo: "", email: "", telefone: "" };
+    case "responsible_info":
+      return { responsavel: "", cargo: "", email: "", telefone: "" };
+    default:
+      return {};
+  }
+}
+
 export function makeDefaultBlocksForPage(type: PageType): DocumentBlock[] {
   const orderedFromList = (list: DocumentBlock[]): DocumentBlock[] =>
     list.map((b, i) => ({ ...b, order: i }));
