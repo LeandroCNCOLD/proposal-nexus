@@ -31,6 +31,7 @@ import {
   SNIPPET_DRAG_MIME,
   parseSnippetPayload,
   CN_COLD_SNIPPETS_BY_ID,
+  prefillSnippetBlocks,
 } from "@/features/proposal-snippets/cn-cold-snippets";
 import { ContainerToolbar, isInsideContainer } from "./ContainerToolbar";
 import {
