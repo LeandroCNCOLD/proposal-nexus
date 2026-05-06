@@ -36,7 +36,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { DocumentPage } from "@/integrations/proposal-editor/types";
+import type { DocumentPage, BlockLayout } from "@/integrations/proposal-editor/types";
+import { normalizeTransparentLayout } from "@/integrations/proposal-editor/types";
 import type { ProposalTemplate, TemplateAsset } from "@/integrations/proposal-editor/template.types";
 import type { ProposalDynamicContext } from "@/components/proposal-editor/BlockRenderer";
 import { useProposalDocumentContext } from "@/features/proposal-context/use-proposal-document-context";
