@@ -297,9 +297,17 @@ export function ProposalCanvas({
     const src = page.blocks.find((b) => b.id === blockId);
     if (!src) return;
     const layout = (src.data.layout as BlockLayout | undefined) ?? defaultLayoutFor(src.type);
+    const normalized = normalizeTransparentLayout(layout);
     const cloned = makeBlock(
       src.type,
-      { ...src.data, layout: { ...layout, x: Math.min(layout.x + 20, pageW - layout.w - 10), y: Math.min(layout.y + 20, pageH - layout.h - 10) } },
+      {
+        ...src.data,
+        layout: {
+          ...normalized,
+          x: Math.min(normalized.x + 20, pageW - normalized.w - 10),
+          y: Math.min(normalized.y + 20, pageH - normalized.h - 10),
+        },
+      },
       { title: src.title, source: src.source, order: page.blocks.length },
     );
     updatePage(pageId, { blocks: [...page.blocks, cloned] });
