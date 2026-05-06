@@ -8,6 +8,7 @@ import {
   makeBlock,
   defaultLayoutFor,
   defaultDataFor,
+  normalizeTransparentLayout,
   A4_W,
   A4_H,
   type BlockType,
