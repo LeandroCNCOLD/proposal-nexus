@@ -391,7 +391,7 @@ export function makeDefaultBlocksForPage(type: PageType): DocumentBlock[] {
         makeBlock(
           "proposal_number_box",
           {},
-          { source: "nomus", layout: { x: 540, y: 960, w: 220, h: 60, background: "white", align: "right" } },
+          { source: "nomus", layout: { x: 540, y: 960, w: 220, h: 60, background: "transparent", bgMode: "none", align: "right" } },
         ),
       ]);
 
@@ -420,17 +420,17 @@ export function makeDefaultBlocksForPage(type: PageType): DocumentBlock[] {
         makeBlock(
           "client_info_box",
           { cliente: "", cnpj: "", endereco: "", contato: "" },
-          { source: "nomus", layout: { x: 60, y: 200, w: 696, h: 200, background: "white" } },
+          { source: "nomus", layout: { x: 60, y: 200, w: 696, h: 200, background: "transparent", bgMode: "none" } },
         ),
         makeBlock(
           "project_info_box",
           { projeto: "", numero: "", data: "", revisao: "" },
-          { source: "nomus", layout: { x: 60, y: 420, w: 696, h: 180, background: "white" } },
+          { source: "nomus", layout: { x: 60, y: 420, w: 696, h: 180, background: "transparent", bgMode: "none" } },
         ),
         makeBlock(
           "responsible_info_box",
           { responsavel: "", cargo: "", email: "", telefone: "" },
-          { source: "nomus", layout: { x: 60, y: 620, w: 696, h: 180, background: "white" } },
+          { source: "nomus", layout: { x: 60, y: 620, w: 696, h: 180, background: "transparent", bgMode: "none" } },
         ),
       ]);
 
@@ -478,7 +478,7 @@ export function makeDefaultBlocksForPage(type: PageType): DocumentBlock[] {
       return orderedFromList([
         makeBlock("heading", { text: "Condições de pagamento", level: 1 }, { layout: { x: 60, y: 120, w: 696, h: 60 } }),
         makeBlock("payment_table", { rows: [] }, { source: "nomus", layout: { x: 60, y: 200, w: 696, h: 220 } }),
-        makeBlock("bank_data", {}, { source: "template", title: "Dados bancários", layout: { x: 60, y: 440, w: 696, h: 280, background: "white" } }),
+        makeBlock("bank_data", {}, { source: "template", title: "Dados bancários", layout: { x: 60, y: 440, w: 696, h: 280, background: "transparent", bgMode: "none" } }),
         makeBlock("rich_text", { html: "" }, { title: "Observação financeira", layout: { x: 60, y: 740, w: 696, h: 220 } }),
       ]);
 
