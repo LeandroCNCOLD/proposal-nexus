@@ -290,10 +290,10 @@ export interface ColdRoomSimulationSummary {
   capacity_assessment?: string;
   installed_capacity_kcal_h?: number;
   average_dynamic_load_kcal_h?: number;
-  static_surplus_pct?: number;
-  dynamic_avg_surplus_pct?: number;
-  dynamic_recommended_surplus_pct?: number;
-  capacity_coverage_pct?: number;
+  static_surplus_pct?: number | null;
+  dynamic_avg_surplus_pct?: number | null;
+  dynamic_recommended_surplus_pct?: number | null;
+  capacity_coverage_pct?: number | null;
   accumulated_deficit_kcal?: number;
   critical_days_count?: number;
   deficit_inconsistency_warning?: string | null;
