@@ -265,7 +265,7 @@ ${horizonGuidance}
 - **Capacidade horária média entregue**: ${avgCapDeliveredKcalH.toFixed(0)} kcal/h
 - **Energia térmica demandada (acumulada)**: ${totalLoadKcal.toFixed(0)} kcal
 - **Energia térmica entregue (acumulada)**: ${totalCapKcal.toFixed(0)} kcal (${deliveredPct.toFixed(1)}% da demanda)
-- **Déficit térmico acumulado**: ${summary.total_thermal_deficit_kcal.toLocaleString("pt-BR")} kcal
+- **Déficit térmico acumulado**: ${(summary.total_thermal_deficit_kcal ?? 0).toLocaleString("pt-BR")} kcal
 - **Utilização máx do equipamento**: ${summary.max_equipment_utilization_pct.toFixed(1)}%
 - **Capacidade adequada?** ${summary.capacity_adequate ? "Sim" : "NÃO"} (mín. recomendado: ${summary.recommended_min_capacity_kcal_h.toFixed(0)} kcal/h)
 
