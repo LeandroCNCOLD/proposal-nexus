@@ -60,7 +60,9 @@ const layoutFull = (y: number, h: number, pageW: number): BlockLayout => ({
   y,
   w: pageW - BOX_PAD_X * 2,
   h,
-  background: "white",
+  // Padrão transparente — o usuário pode mudar pela toolbar "Caixa".
+  background: "transparent",
+  bgMode: "none",
 });
 
 /* ------------------------------------------------------------------ */
