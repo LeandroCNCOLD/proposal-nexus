@@ -301,11 +301,13 @@ export function normalizeTransparentLayout(layout?: Partial<BlockLayout>): Block
     (typeof l.borderWidth === "number" && l.borderWidth > 0) ||
     (typeof l.bgOpacity === "number" && l.bgOpacity > 0 && l.bgMode !== "none");
   if (userConfigured) {
-    // Preserva customização manual; apenas garante chaves base presentes.
     return { x: 0, y: 0, w: 696, h: 100, ...(l as BlockLayout) };
   }
-  // Sem estilo manual: força transparência, removendo legado white/muted.
   return {
+    x: 0,
+    y: 0,
+    w: 696,
+    h: 100,
     ...(l as BlockLayout),
     ...TRANSPARENT_BLOCK_STYLE,
   };
