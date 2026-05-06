@@ -123,15 +123,8 @@ export function NomusProposalDetail({
 
   const [openItem, setOpenItem] = useState<ItemRow | null>(null);
 
-  if (isLoading) {
-    return <LoadingState label="Carregando dados do Nomus…" />;
-  }
-  if (!data?.prop) {
-    return <EmptyState title="Dados do Nomus ainda não sincronizados" description="As informações detalhadas aparecerão aqui quando a proposta estiver sincronizada." />;
-  }
-
-  const p = data.prop;
-  const items = data.items;
+  const p = data?.prop ?? null;
+  const items = data?.items ?? [];
 
   // ─── Per-item price tables ─────────────────────────────────────────────────
   // Carrega os proposal_items locais para mapear nomus_item_id → id local +
@@ -288,6 +281,13 @@ export function NomusProposalDetail({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tablesByProduct, itemsForHook, localProposalId]);
 
+
+  if (isLoading) {
+    return <LoadingState label="Carregando dados do Nomus…" />;
+  }
+  if (!p) {
+    return <EmptyState title="Dados do Nomus ainda não sincronizados" description="As informações detalhadas aparecerão aqui quando a proposta estiver sincronizada." />;
+  }
 
   return (
     <div className="space-y-6">

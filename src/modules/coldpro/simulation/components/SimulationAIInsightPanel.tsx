@@ -265,7 +265,7 @@ ${horizonGuidance}
 - **Capacidade horária média entregue**: ${avgCapDeliveredKcalH.toFixed(0)} kcal/h
 - **Energia térmica demandada (acumulada)**: ${totalLoadKcal.toFixed(0)} kcal
 - **Energia térmica entregue (acumulada)**: ${totalCapKcal.toFixed(0)} kcal (${deliveredPct.toFixed(1)}% da demanda)
-- **Déficit térmico acumulado**: ${summary.total_thermal_deficit_kcal.toLocaleString("pt-BR")} kcal
+- **Déficit térmico acumulado**: ${(summary.total_thermal_deficit_kcal ?? 0).toLocaleString("pt-BR")} kcal
 - **Utilização máx do equipamento**: ${summary.max_equipment_utilization_pct.toFixed(1)}%
 - **Capacidade adequada?** ${summary.capacity_adequate ? "Sim" : "NÃO"} (mín. recomendado: ${summary.recommended_min_capacity_kcal_h.toFixed(0)} kcal/h)
 
@@ -287,9 +287,9 @@ ${horizonGuidance}
 - Ciclos: ${summary.defrost_cycles_per_day}/dia · Recomendado: ${summary.recommended_defrost_cycles}/dia
 
 ### Estado térmico acumulativo (produto)
-- Produto que entrou no período: ${summary.total_product_inlet_kg.toLocaleString("pt-BR")} kg
-- Estoque final: ${summary.final_stored_mass_kg.toLocaleString("pt-BR")} kg @ ${summary.final_average_product_temperature_c.toFixed(1)}°C
-- Pulldown médio (entrada → target): ${summary.average_pulldown_hours.toFixed(1)} h
+- Produto que entrou no período: ${(summary.total_product_inlet_kg ?? 0).toLocaleString("pt-BR")} kg
+- Estoque final: ${(summary.final_stored_mass_kg ?? 0).toLocaleString("pt-BR")} kg @ ${(summary.final_average_product_temperature_c ?? 0).toFixed(1)}°C
+- Pulldown médio (entrada → target): ${(summary.average_pulldown_hours ?? 0).toFixed(1)} h
 - **Dias críticos (carga > capacidade): ${daysDeficit} de ${simDays}** (limitado ao período simulado)
 - **Dias em que produto não atingiu target: ${daysTargetMissed} de ${simDays}**
 
