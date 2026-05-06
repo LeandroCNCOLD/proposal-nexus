@@ -287,6 +287,30 @@ export function withTransparentBlockStyle<T extends Partial<BlockLayout>>(layout
   return { ...TRANSPARENT_BLOCK_STYLE, ...layout } as T & BlockLayout;
 }
 
+/**
+ * Normaliza um layout antigo: se NÃO tiver estilo manual avançado
+ * (`bgMode === "solid" | "gradient"`, `borderWidth > 0`, `bgOpacity` definido)
+ * remove fundos legados (`white`/`muted`) e converte para transparente.
+ * Estilos definidos manualmente pelo usuário são preservados.
+ */
+export function normalizeTransparentLayout(layout?: Partial<BlockLayout>): BlockLayout {
+  const l = layout ?? {};
+  const userConfigured =
+    l.bgMode === "solid" ||
+    l.bgMode === "gradient" ||
+    (typeof l.borderWidth === "number" && l.borderWidth > 0) ||
+    (typeof l.bgOpacity === "number" && l.bgOpacity > 0 && l.bgMode !== "none");
+  if (userConfigured) {
+    // Preserva customização manual; apenas garante chaves base presentes.
+    return { x: 0, y: 0, w: 696, h: 100, ...(l as BlockLayout) };
+  }
+  // Sem estilo manual: força transparência, removendo legado white/muted.
+  return {
+    ...(l as BlockLayout),
+    ...TRANSPARENT_BLOCK_STYLE,
+  };
+}
+
 /** Layout default centralizado para blocos novos adicionados à mão. */
 export function defaultLayoutFor(type: BlockType, index = 0): BlockLayout {
   const baseY = 120 + index * 80;
