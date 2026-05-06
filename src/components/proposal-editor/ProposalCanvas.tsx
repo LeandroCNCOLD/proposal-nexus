@@ -358,7 +358,7 @@ export function ProposalCanvas({
       x: Math.min(Math.max(0, dropX - 20), pageW - baseLayout.w - 10),
       y: Math.min(Math.max(0, dropY - 10), pageH - baseLayout.h - 10),
     };
-    const data: Record<string, unknown> = { layout };
+    const data: Record<string, unknown> = { ...defaultDataFor(item.blockType), layout };
     if (item.blockType === "dynamic_field" && item.fieldKey) {
       data.fieldKey = item.fieldKey;
       data.label = item.label;
