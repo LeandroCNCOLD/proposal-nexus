@@ -7,6 +7,7 @@ import { Rnd } from "react-rnd";
 import {
   makeBlock,
   defaultLayoutFor,
+  defaultDataFor,
   A4_W,
   A4_H,
   type BlockType,
