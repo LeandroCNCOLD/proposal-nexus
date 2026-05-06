@@ -15,6 +15,8 @@ import {
   type BlockLayout,
   type DocumentBlock,
 } from "@/integrations/proposal-editor/types";
+import type { ProposalDocumentContext } from "@/features/proposal-context/document-context.types";
+import { resolveVariables } from "@/features/proposal-variables/resolve-variables";
 
 export interface CnColdSnippet {
   /** Identificador estável usado no payload de drag. */
@@ -26,8 +28,14 @@ export interface CnColdSnippet {
   /**
    * Função que produz os blocos a inserir, dado um Y inicial e a largura
    * útil do papel. Cada snippet decide a altura de cada bloco.
+   * Se `ctx` for fornecido, as variáveis `{{...}}` são pré-resolvidas
+   * para os valores reais da proposta.
    */
-  build: (startY: number, pageW: number) => DocumentBlock[];
+  build: (
+    startY: number,
+    pageW: number,
+    ctx?: ProposalDocumentContext | null,
+  ) => DocumentBlock[];
 }
 
 /* ------------------------------------------------------------------ */
