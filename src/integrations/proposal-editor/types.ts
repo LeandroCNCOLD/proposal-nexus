@@ -278,7 +278,7 @@ export function defaultLayoutFor(type: BlockType, index = 0): BlockLayout {
     case "client_info_box":
     case "project_info_box":
     case "responsible_info_box":
-      return { x: 60, y: baseY, w: 696, h: 160, background: "white" };
+      return { x: 60, y: baseY, w: 696, h: 160, background: "transparent" };
     case "proposal_number_box":
       return { x: 540, y: 960, w: 220, h: 56, background: "white", align: "right" };
     case "proposal_summary_box":
@@ -315,6 +315,30 @@ export function defaultLayoutFor(type: BlockType, index = 0): BlockLayout {
       return { x: 60, y: baseY, w: 696, h: 240, background: "white" };
     default:
       return { x: 60, y: baseY, w: 696, h: 160 };
+  }
+}
+
+/**
+ * Campos pré-populados por tipo de bloco. Quando o usuário arrasta uma caixa
+ * para o documento, ela já vem com os campos sugeridos (chaves vazias) para
+ * que os labels e a resolução híbrida pelo contexto apareçam imediatamente.
+ */
+export function defaultDataFor(type: BlockType): Record<string, unknown> {
+  switch (type) {
+    case "client_info_box":
+      return { cliente: "", cnpj: "", endereco: "", cidade: "", contato: "", email: "", telefone: "" };
+    case "client_info":
+      return { cliente: "", cnpj: "", endereco: "", contato: "" };
+    case "project_info_box":
+      return { projeto: "", numero: "", revisao: "", data: "", validade: "", prazo_entrega: "" };
+    case "project_info":
+      return { projeto: "", numero: "", data: "", revisao: "" };
+    case "responsible_info_box":
+      return { responsavel: "", cargo: "", email: "", telefone: "" };
+    case "responsible_info":
+      return { responsavel: "", cargo: "", email: "", telefone: "" };
+    default:
+      return {};
   }
 }
 

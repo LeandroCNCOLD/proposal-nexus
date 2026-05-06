@@ -7,6 +7,7 @@ import { Rnd } from "react-rnd";
 import {
   makeBlock,
   defaultLayoutFor,
+  defaultDataFor,
   A4_W,
   A4_H,
   type BlockType,
@@ -306,7 +307,7 @@ export function ProposalCanvas({
     const page = pages.find((p) => p.id === pageId);
     if (!page) return;
     const layout = defaultLayoutFor(type, page.blocks.length);
-    const newBlock = makeBlock(type, { layout }, { order: page.blocks.length });
+    const newBlock = makeBlock(type, { ...defaultDataFor(type), layout }, { order: page.blocks.length });
     updatePage(pageId, { blocks: [...page.blocks, newBlock] });
   };
 
@@ -357,7 +358,7 @@ export function ProposalCanvas({
       x: Math.min(Math.max(0, dropX - 20), pageW - baseLayout.w - 10),
       y: Math.min(Math.max(0, dropY - 10), pageH - baseLayout.h - 10),
     };
-    const data: Record<string, unknown> = { layout };
+    const data: Record<string, unknown> = { ...defaultDataFor(item.blockType), layout };
     if (item.blockType === "dynamic_field" && item.fieldKey) {
       data.fieldKey = item.fieldKey;
       data.label = item.label;

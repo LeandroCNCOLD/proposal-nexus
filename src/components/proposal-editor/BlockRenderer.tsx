@@ -641,10 +641,10 @@ function BlockBody({
                 <div key={key} className="grid grid-cols-[120px_1fr_auto] gap-2">
                   <span className="text-xs opacity-70">{labelForField(block.type, key)}</span>
                   <Input
-                    value={manualStr}
+                    value={isEmpty && suggestion ? suggestion : manualStr}
                     disabled={locked}
                     placeholder={suggestion ?? undefined}
-                    title={isEmpty && suggestion ? `Sugestão da proposta: ${suggestion} (duplo clique para usar)` : undefined}
+                    title={isEmpty && suggestion ? `Valor do contexto: ${suggestion} (edite para sobrescrever)` : undefined}
                     onChange={(e) => setData({ [key]: e.target.value })}
                     onDoubleClick={() => {
                       if (!locked && isEmpty && suggestion) setData({ [key]: suggestion });
