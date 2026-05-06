@@ -306,8 +306,7 @@ export function ProposalCanvas({
   const addBlock = (pageId: string, type: BlockType) => {
     const page = pages.find((p) => p.id === pageId);
     if (!page) return;
-    const layout = defaultLayoutFor(type, page.blocks.length);
-    const newBlock = makeBlock(type, { layout }, { order: page.blocks.length });
+    const newBlock = makeBlock(type, { ...defaultDataFor(type), layout }, { order: page.blocks.length });
     updatePage(pageId, { blocks: [...page.blocks, newBlock] });
   };
 
