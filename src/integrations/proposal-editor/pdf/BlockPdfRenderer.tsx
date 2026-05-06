@@ -293,8 +293,9 @@ export function renderBlock(block: DocumentBlock, ctx: BlockRenderContext): Reac
       const boxStyle = advancedHas
         ? layoutToPdfBoxStyle(layout, template?.primary_color ?? undefined)
         : (() => {
+            // Padrão CN COLD: transparente. Sem fundo branco automático.
             const bgKind = layout?.background;
-            const fillBg = bgKind === "white" ? "#ffffff" : undefined;
+            const fillBg = bgKind === "primary" ? template?.primary_color ?? "#0c2340" : undefined;
             return { backgroundColor: fillBg, borderRadius: fillBg ? 4 : undefined };
           })();
       return (
