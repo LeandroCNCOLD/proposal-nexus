@@ -117,10 +117,10 @@ export function BlockRenderer({
     );
   const cardBg = useMemo(() => {
     if (hasAdvancedBox) return "";
+    // Padrão CN COLD: blocos nascem transparentes. Apenas "primary" mantém
+    // o tratamento legado de texto branco — fundo é aplicado via cardStyle.
     const bg = layout?.background ?? "transparent";
-    if (bg === "white") return "bg-white shadow-sm";
     if (bg === "primary") return "text-white";
-    if (bg === "muted") return "bg-muted/60";
     return "";
   }, [layout?.background, hasAdvancedBox]);
   const cardStyle: React.CSSProperties = useMemo(() => {
