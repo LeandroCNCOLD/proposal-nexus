@@ -15,19 +15,34 @@ import {
   type BlockLayout,
   type DocumentBlock,
 } from "@/integrations/proposal-editor/types";
+import type { ProposalDocumentContext } from "@/features/proposal-context/document-context.types";
+import { resolveVariables } from "@/features/proposal-variables/resolve-variables";
 
 export interface CnColdSnippet {
-  /** Identificador estável usado no payload de drag. */
   id: string;
-  /** Rótulo mostrado na paleta. */
   label: string;
-  /** Descrição curta opcional. */
   description?: string;
-  /**
-   * Função que produz os blocos a inserir, dado um Y inicial e a largura
-   * útil do papel. Cada snippet decide a altura de cada bloco.
-   */
   build: (startY: number, pageW: number) => DocumentBlock[];
+}
+
+/**
+ * Pré-resolve variáveis `{{...}}` no html dos blocos rich_text com base no
+ * contexto da proposta. Variáveis sem valor permanecem como `{{key}}`.
+ */
+export function prefillSnippetBlocks(
+  blocks: DocumentBlock[],
+  ctx: ProposalDocumentContext | null | undefined,
+): DocumentBlock[] {
+  if (!ctx) return blocks;
+  return blocks.map((b) => {
+    if (b.type !== "rich_text") return b;
+    const html = b.data?.html as string | undefined;
+    if (!html) return b;
+    const resolved = resolveVariables(html, ctx, {
+      fallback: (key) => `{{${key}}}`,
+    });
+    return { ...b, data: { ...b.data, html: resolved } };
+  });
 }
 
 /* ------------------------------------------------------------------ */
@@ -60,7 +75,9 @@ const layoutFull = (y: number, h: number, pageW: number): BlockLayout => ({
   y,
   w: pageW - BOX_PAD_X * 2,
   h,
-  background: "white",
+  // Padrão transparente — o usuário pode mudar pela toolbar "Caixa".
+  background: "transparent",
+  bgMode: "none",
 });
 
 /* ------------------------------------------------------------------ */
