@@ -300,17 +300,11 @@ export function normalizeTransparentLayout(layout?: Partial<BlockLayout>): Block
     l.bgMode === "gradient" ||
     (typeof l.borderWidth === "number" && l.borderWidth > 0) ||
     (typeof l.bgOpacity === "number" && l.bgOpacity > 0 && l.bgMode !== "none");
+  const base: BlockLayout = { x: 0, y: 0, w: 696, h: 100 };
   if (userConfigured) {
-    return { x: 0, y: 0, w: 696, h: 100, ...(l as BlockLayout) };
+    return { ...base, ...(l as BlockLayout) };
   }
-  return {
-    x: 0,
-    y: 0,
-    w: 696,
-    h: 100,
-    ...(l as BlockLayout),
-    ...TRANSPARENT_BLOCK_STYLE,
-  };
+  return { ...base, ...(l as BlockLayout), ...TRANSPARENT_BLOCK_STYLE };
 }
 
 /** Layout default centralizado para blocos novos adicionados à mão. */
