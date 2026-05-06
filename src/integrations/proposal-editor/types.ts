@@ -278,7 +278,7 @@ export function defaultLayoutFor(type: BlockType, index = 0): BlockLayout {
     case "client_info_box":
     case "project_info_box":
     case "responsible_info_box":
-      return { x: 60, y: baseY, w: 696, h: 160, background: "white" };
+      return { x: 60, y: baseY, w: 696, h: 160, background: "transparent" };
     case "proposal_number_box":
       return { x: 540, y: 960, w: 220, h: 56, background: "white", align: "right" };
     case "proposal_summary_box":
