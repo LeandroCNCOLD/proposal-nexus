@@ -329,7 +329,9 @@ export function ProposalCanvas({
         const rect = e.currentTarget.getBoundingClientRect();
         const dropY = Math.max(0, Math.round(e.clientY - rect.top));
         const startY = Math.min(Math.max(120, dropY), pageH - 200);
-        const created = snippet.build(startY, pageW).map((b, i) => ({
+        const built = snippet.build(startY, pageW);
+        const prefilled = prefillSnippetBlocks(built, documentContext ?? null);
+        const created = prefilled.map((b, i) => ({
           ...b,
           order: page.blocks.length + i,
         }));
