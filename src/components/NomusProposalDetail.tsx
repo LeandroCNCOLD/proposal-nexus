@@ -282,6 +282,13 @@ export function NomusProposalDetail({
   }, [tablesByProduct, itemsForHook, localProposalId]);
 
 
+  if (isLoading) {
+    return <LoadingState label="Carregando dados do Nomus…" />;
+  }
+  if (!p) {
+    return <EmptyState title="Dados do Nomus ainda não sincronizados" description="As informações detalhadas aparecerão aqui quando a proposta estiver sincronizada." />;
+  }
+
   return (
     <div className="space-y-6">
       {/* ============ Informações gerais Nomus ============ */}
