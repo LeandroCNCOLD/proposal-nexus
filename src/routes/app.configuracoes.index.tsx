@@ -465,63 +465,72 @@ function SettingsPage() {
                 ))}
               </div>
 
-              <div className="rounded-lg border bg-background/40 p-4">
-                <div className="mb-3 flex items-center justify-between gap-3">
-                  <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Matriz de acesso por módulo
-                  </h3>
-                  <Badge variant="outline">{APP_MODULES.length} módulos</Badge>
+              <Collapsible className="rounded-lg border bg-background/40">
+                <div className="flex items-center justify-between gap-3 p-4">
+                  <div>
+                    <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Matriz de acesso por módulo (avançado)
+                    </h3>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Personalize quais módulos cada perfil pode acessar.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline">{APP_MODULES.length} módulos</Badge>
+                    <CollapsibleTrigger asChild>
+                      <Button size="sm" variant="outline">
+                        Mostrar / ocultar
+                      </Button>
+                    </CollapsibleTrigger>
+                  </div>
                 </div>
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="min-w-44">Módulo</TableHead>
-                        {ACCESS_ROLES.map((role) => (
-                          <TableHead key={role} className="min-w-32 text-center">
-                            {ROLE_LABELS[role]}
-                          </TableHead>
-                        ))}
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {APP_MODULES.map((module) => (
-                        <TableRow key={module.key}>
-                          <TableCell className="font-medium">{module.label}</TableCell>
-                          {ACCESS_ROLES.map((role) => {
-                            const allowed = roleCanAccessPath(role, module.path, moduleAccess);
-                            return (
-                              <TableCell key={`${module.key}-${role}`} className="text-center">
-                                <button
-                                  type="button"
-                                  onClick={() => toggleModuleAccess(role, module, !allowed)}
-                                  className={`inline-flex h-7 w-7 items-center justify-center rounded-full border transition-colors hover:opacity-100 ${allowed ? "border-success/30 bg-success/10 text-success hover:bg-success/20" : "border-destructive/20 bg-destructive/5 text-destructive/70 opacity-70 hover:bg-destructive/10"}`}
-                                  title={
-                                    allowed
-                                      ? "Clique para remover o acesso"
-                                      : "Clique para liberar o acesso"
-                                  }
-                                  aria-label={
-                                    allowed
-                                      ? `Remover acesso de ${ROLE_LABELS[role]} ao módulo ${module.label}`
-                                      : `Liberar acesso de ${ROLE_LABELS[role]} ao módulo ${module.label}`
-                                  }
-                                >
-                                  {allowed ? (
-                                    <Eye className="h-3.5 w-3.5" />
-                                  ) : (
-                                    <EyeOff className="h-3.5 w-3.5" />
-                                  )}
-                                </button>
-                              </TableCell>
-                            );
-                          })}
+                <CollapsibleContent>
+                  <div className="overflow-x-auto px-4 pb-4">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="min-w-44">Módulo</TableHead>
+                          {ACCESS_ROLES.map((role) => (
+                            <TableHead key={role} className="min-w-32 text-center">
+                              {ROLE_LABELS[role]}
+                            </TableHead>
+                          ))}
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </div>
+                      </TableHeader>
+                      <TableBody>
+                        {APP_MODULES.map((module) => (
+                          <TableRow key={module.key}>
+                            <TableCell className="font-medium">{module.label}</TableCell>
+                            {ACCESS_ROLES.map((role) => {
+                              const allowed = roleCanAccessPath(role, module.path, moduleAccess);
+                              return (
+                                <TableCell key={`${module.key}-${role}`} className="text-center">
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleModuleAccess(role, module, !allowed)}
+                                    className={`inline-flex h-7 w-7 items-center justify-center rounded-full border transition-colors hover:opacity-100 ${allowed ? "border-success/30 bg-success/10 text-success hover:bg-success/20" : "border-destructive/20 bg-destructive/5 text-destructive/70 opacity-70 hover:bg-destructive/10"}`}
+                                    title={
+                                      allowed
+                                        ? "Clique para remover o acesso"
+                                        : "Clique para liberar o acesso"
+                                    }
+                                  >
+                                    {allowed ? (
+                                      <Eye className="h-3.5 w-3.5" />
+                                    ) : (
+                                      <EyeOff className="h-3.5 w-3.5" />
+                                    )}
+                                  </button>
+                                </TableCell>
+                              );
+                            })}
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
 
               <div>
                 <div className="mb-2 flex items-center justify-between gap-3">
