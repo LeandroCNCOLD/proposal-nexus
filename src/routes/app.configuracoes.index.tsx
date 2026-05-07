@@ -240,6 +240,40 @@ function SettingsPage() {
     refreshAccess();
   };
 
+  const setPrimaryRole = async (profileId: string, role: AppRole) => {
+    const current = userRoles.filter((item) => item.user_id === profileId);
+    const toRemove = current.filter((item) => item.role !== role);
+    if (toRemove.length) {
+      const { error } = await supabase
+        .from("user_roles")
+        .delete()
+        .in("id", toRemove.map((item) => item.id));
+      if (error) return toast.error(error.message);
+    }
+    if (!current.some((item) => item.role === role)) {
+      const { error } = await supabase.from("user_roles").insert({ user_id: profileId, role });
+      if (error) return toast.error(error.message);
+    }
+    refreshAccess();
+    toast.success(`Perfil definido como ${ROLE_LABELS[role]}.`);
+  };
+
+  const generatePassword = () => {
+    const chars = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
+    let pwd = "";
+    for (let i = 0; i < 10; i++) pwd += chars[Math.floor(Math.random() * chars.length)];
+    return pwd;
+  };
+
+  const copyToClipboard = async (text: string, label = "Senha") => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success(`${label} copiada para a área de transferência.`);
+    } catch {
+      toast.error("Não foi possível copiar.");
+    }
+  };
+
   const toggleModuleAccess = async (
     role: AppRole,
     module: (typeof APP_MODULES)[number],
