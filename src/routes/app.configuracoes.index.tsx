@@ -642,15 +642,17 @@ function SettingsPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Usuário</TableHead>
-                      <TableHead>Acesso</TableHead>
-                      <TableHead>Perfis / módulos liberados</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="min-w-48">Perfil principal</TableHead>
+                      <TableHead>Perfis adicionais</TableHead>
                       <TableHead>Senha provisória</TableHead>
-                      <TableHead className="text-right">Controle</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredProfiles.map((item) => {
                       const assignedRoles = rolesByUser.get(item.id) ?? [];
+                      const primaryRole = assignedRoles[0];
                       return (
                         <TableRow key={item.id}>
                           <TableCell>
@@ -676,28 +678,45 @@ function SettingsPage() {
                             </div>
                           </TableCell>
                           <TableCell>
-                            <div className="flex max-w-xl flex-wrap gap-1.5">
-                              {ACCESS_ROLES.map((role) => (
-                                <label
-                                  key={role}
-                                  className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs"
-                                >
-                                  <input
-                                    type="checkbox"
-                                    checked={assignedRoles.includes(role)}
-                                    onChange={(event) =>
-                                      toggleRole(item.id, role, event.target.checked)
-                                    }
-                                  />
-                                  {ROLE_LABELS[role]}
-                                </label>
-                              ))}
+                            <Select
+                              value={primaryRole ?? ""}
+                              onValueChange={(value) =>
+                                setPrimaryRole(item.id, value as AppRole)
+                              }
+                            >
+                              <SelectTrigger className="h-9">
+                                <SelectValue placeholder="Selecionar perfil" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {ACCESS_ROLES.map((role) => (
+                                  <SelectItem key={role} value={role}>
+                                    {ROLE_LABELS[role]}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex max-w-md flex-wrap gap-1">
+                              {ACCESS_ROLES.map((role) => {
+                                const checked = assignedRoles.includes(role);
+                                return (
+                                  <button
+                                    key={role}
+                                    type="button"
+                                    onClick={() => toggleRole(item.id, role, !checked)}
+                                    className={`rounded-md border px-2 py-0.5 text-[11px] transition-colors ${checked ? "border-primary/40 bg-primary/10 text-primary" : "border-border bg-background text-muted-foreground hover:bg-muted"}`}
+                                  >
+                                    {ROLE_LABELS[role]}
+                                  </button>
+                                );
+                              })}
                             </div>
                           </TableCell>
                           <TableCell>
-                            <div className="flex min-w-56 gap-2">
+                            <div className="flex min-w-56 gap-1">
                               <Input
-                                type="password"
+                                type="text"
                                 autoComplete="new-password"
                                 value={profileTemporaryPasswords[item.id] ?? ""}
                                 onChange={(event) =>
@@ -707,31 +726,47 @@ function SettingsPage() {
                                   }))
                                 }
                                 placeholder="Nova provisória"
+                                className="font-mono text-xs"
                               />
                               <Button
-                                size="sm"
+                                size="icon"
                                 variant="outline"
+                                title="Gerar senha"
+                                onClick={() => {
+                                  const pwd = generatePassword();
+                                  setProfileTemporaryPasswords((c) => ({ ...c, [item.id]: pwd }));
+                                  copyToClipboard(pwd);
+                                }}
+                              >
+                                <Sparkles className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="outline"
+                                title="Aplicar nova senha"
                                 onClick={() => resetProfilePassword(item.id)}
                               >
-                                Resetar
+                                <KeyRound className="h-4 w-4" />
                               </Button>
                             </div>
                           </TableCell>
                           <TableCell className="text-right">
-                            <div className="flex justify-end gap-2">
+                            <div className="flex justify-end gap-1">
                               <Button
                                 size="icon"
                                 variant="outline"
+                                title="Liberar acesso"
                                 onClick={() => updateProfileStatus(item.id, "active")}
                               >
-                                <CheckCircle2 className="h-4 w-4" />
+                                <CheckCircle2 className="h-4 w-4 text-success" />
                               </Button>
                               <Button
                                 size="icon"
                                 variant="outline"
+                                title="Bloquear acesso"
                                 onClick={() => updateProfileStatus(item.id, "blocked")}
                               >
-                                <XCircle className="h-4 w-4" />
+                                <XCircle className="h-4 w-4 text-destructive" />
                               </Button>
                             </div>
                           </TableCell>
