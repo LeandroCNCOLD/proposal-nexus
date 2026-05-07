@@ -584,24 +584,39 @@ function SettingsPage() {
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            <Input
-                              type="password"
-                              autoComplete="new-password"
-                              disabled={item.status === "approved"}
-                              value={temporaryPasswords[item.id] ?? ""}
-                              onChange={(event) =>
-                                setTemporaryPasswords((current) => ({
-                                  ...current,
-                                  [item.id]: event.target.value,
-                                }))
-                              }
-                              placeholder="Mín. 8 caracteres"
-                            />
+                            <div className="flex gap-1">
+                              <Input
+                                type="text"
+                                autoComplete="new-password"
+                                disabled={item.status === "approved"}
+                                value={temporaryPasswords[item.id] ?? ""}
+                                onChange={(event) =>
+                                  setTemporaryPasswords((current) => ({
+                                    ...current,
+                                    [item.id]: event.target.value,
+                                  }))
+                                }
+                                placeholder="Mín. 8 caracteres"
+                                className="font-mono text-xs"
+                              />
+                              <Button
+                                size="icon"
+                                variant="outline"
+                                title="Gerar senha"
+                                disabled={item.status === "approved"}
+                                onClick={() => {
+                                  const pwd = generatePassword();
+                                  setTemporaryPasswords((c) => ({ ...c, [item.id]: pwd }));
+                                  copyToClipboard(pwd);
+                                }}
+                              >
+                                <Sparkles className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </TableCell>
                           <TableCell className="text-right">
                             <Button
                               size="sm"
-                              variant="outline"
                               onClick={() =>
                                 updateQueueStatus(
                                   item.id,
