@@ -6,12 +6,26 @@ import {
   Clock3,
   Eye,
   EyeOff,
+  KeyRound,
   RefreshCw,
   Search,
   ShieldCheck,
+  Sparkles,
   UserPlus,
   XCircle,
 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
 import { useAuth } from "@/hooks/useAuth";
@@ -226,6 +240,40 @@ function SettingsPage() {
     refreshAccess();
   };
 
+  const setPrimaryRole = async (profileId: string, role: AppRole) => {
+    const current = userRoles.filter((item) => item.user_id === profileId);
+    const toRemove = current.filter((item) => item.role !== role);
+    if (toRemove.length) {
+      const { error } = await supabase
+        .from("user_roles")
+        .delete()
+        .in("id", toRemove.map((item) => item.id));
+      if (error) return toast.error(error.message);
+    }
+    if (!current.some((item) => item.role === role)) {
+      const { error } = await supabase.from("user_roles").insert({ user_id: profileId, role });
+      if (error) return toast.error(error.message);
+    }
+    refreshAccess();
+    toast.success(`Perfil definido como ${ROLE_LABELS[role]}.`);
+  };
+
+  const generatePassword = () => {
+    const chars = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
+    let pwd = "";
+    for (let i = 0; i < 10; i++) pwd += chars[Math.floor(Math.random() * chars.length)];
+    return pwd;
+  };
+
+  const copyToClipboard = async (text: string, label = "Senha") => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success(`${label} copiada para a área de transferência.`);
+    } catch {
+      toast.error("Não foi possível copiar.");
+    }
+  };
+
   const toggleModuleAccess = async (
     role: AppRole,
     module: (typeof APP_MODULES)[number],
@@ -417,63 +465,72 @@ function SettingsPage() {
                 ))}
               </div>
 
-              <div className="rounded-lg border bg-background/40 p-4">
-                <div className="mb-3 flex items-center justify-between gap-3">
-                  <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Matriz de acesso por módulo
-                  </h3>
-                  <Badge variant="outline">{APP_MODULES.length} módulos</Badge>
+              <Collapsible className="rounded-lg border bg-background/40">
+                <div className="flex items-center justify-between gap-3 p-4">
+                  <div>
+                    <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Matriz de acesso por módulo (avançado)
+                    </h3>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Personalize quais módulos cada perfil pode acessar.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline">{APP_MODULES.length} módulos</Badge>
+                    <CollapsibleTrigger asChild>
+                      <Button size="sm" variant="outline">
+                        Mostrar / ocultar
+                      </Button>
+                    </CollapsibleTrigger>
+                  </div>
                 </div>
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="min-w-44">Módulo</TableHead>
-                        {ACCESS_ROLES.map((role) => (
-                          <TableHead key={role} className="min-w-32 text-center">
-                            {ROLE_LABELS[role]}
-                          </TableHead>
-                        ))}
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {APP_MODULES.map((module) => (
-                        <TableRow key={module.key}>
-                          <TableCell className="font-medium">{module.label}</TableCell>
-                          {ACCESS_ROLES.map((role) => {
-                            const allowed = roleCanAccessPath(role, module.path, moduleAccess);
-                            return (
-                              <TableCell key={`${module.key}-${role}`} className="text-center">
-                                <button
-                                  type="button"
-                                  onClick={() => toggleModuleAccess(role, module, !allowed)}
-                                  className={`inline-flex h-7 w-7 items-center justify-center rounded-full border transition-colors hover:opacity-100 ${allowed ? "border-success/30 bg-success/10 text-success hover:bg-success/20" : "border-destructive/20 bg-destructive/5 text-destructive/70 opacity-70 hover:bg-destructive/10"}`}
-                                  title={
-                                    allowed
-                                      ? "Clique para remover o acesso"
-                                      : "Clique para liberar o acesso"
-                                  }
-                                  aria-label={
-                                    allowed
-                                      ? `Remover acesso de ${ROLE_LABELS[role]} ao módulo ${module.label}`
-                                      : `Liberar acesso de ${ROLE_LABELS[role]} ao módulo ${module.label}`
-                                  }
-                                >
-                                  {allowed ? (
-                                    <Eye className="h-3.5 w-3.5" />
-                                  ) : (
-                                    <EyeOff className="h-3.5 w-3.5" />
-                                  )}
-                                </button>
-                              </TableCell>
-                            );
-                          })}
+                <CollapsibleContent>
+                  <div className="overflow-x-auto px-4 pb-4">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="min-w-44">Módulo</TableHead>
+                          {ACCESS_ROLES.map((role) => (
+                            <TableHead key={role} className="min-w-32 text-center">
+                              {ROLE_LABELS[role]}
+                            </TableHead>
+                          ))}
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </div>
+                      </TableHeader>
+                      <TableBody>
+                        {APP_MODULES.map((module) => (
+                          <TableRow key={module.key}>
+                            <TableCell className="font-medium">{module.label}</TableCell>
+                            {ACCESS_ROLES.map((role) => {
+                              const allowed = roleCanAccessPath(role, module.path, moduleAccess);
+                              return (
+                                <TableCell key={`${module.key}-${role}`} className="text-center">
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleModuleAccess(role, module, !allowed)}
+                                    className={`inline-flex h-7 w-7 items-center justify-center rounded-full border transition-colors hover:opacity-100 ${allowed ? "border-success/30 bg-success/10 text-success hover:bg-success/20" : "border-destructive/20 bg-destructive/5 text-destructive/70 opacity-70 hover:bg-destructive/10"}`}
+                                    title={
+                                      allowed
+                                        ? "Clique para remover o acesso"
+                                        : "Clique para liberar o acesso"
+                                    }
+                                  >
+                                    {allowed ? (
+                                      <Eye className="h-3.5 w-3.5" />
+                                    ) : (
+                                      <EyeOff className="h-3.5 w-3.5" />
+                                    )}
+                                  </button>
+                                </TableCell>
+                              );
+                            })}
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
 
               <div>
                 <div className="mb-2 flex items-center justify-between gap-3">
@@ -527,24 +584,39 @@ function SettingsPage() {
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            <Input
-                              type="password"
-                              autoComplete="new-password"
-                              disabled={item.status === "approved"}
-                              value={temporaryPasswords[item.id] ?? ""}
-                              onChange={(event) =>
-                                setTemporaryPasswords((current) => ({
-                                  ...current,
-                                  [item.id]: event.target.value,
-                                }))
-                              }
-                              placeholder="Mín. 8 caracteres"
-                            />
+                            <div className="flex gap-1">
+                              <Input
+                                type="text"
+                                autoComplete="new-password"
+                                disabled={item.status === "approved"}
+                                value={temporaryPasswords[item.id] ?? ""}
+                                onChange={(event) =>
+                                  setTemporaryPasswords((current) => ({
+                                    ...current,
+                                    [item.id]: event.target.value,
+                                  }))
+                                }
+                                placeholder="Mín. 8 caracteres"
+                                className="font-mono text-xs"
+                              />
+                              <Button
+                                size="icon"
+                                variant="outline"
+                                title="Gerar senha"
+                                disabled={item.status === "approved"}
+                                onClick={() => {
+                                  const pwd = generatePassword();
+                                  setTemporaryPasswords((c) => ({ ...c, [item.id]: pwd }));
+                                  copyToClipboard(pwd);
+                                }}
+                              >
+                                <Sparkles className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </TableCell>
                           <TableCell className="text-right">
                             <Button
                               size="sm"
-                              variant="outline"
                               onClick={() =>
                                 updateQueueStatus(
                                   item.id,
@@ -570,15 +642,17 @@ function SettingsPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Usuário</TableHead>
-                      <TableHead>Acesso</TableHead>
-                      <TableHead>Perfis / módulos liberados</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="min-w-48">Perfil principal</TableHead>
+                      <TableHead>Perfis adicionais</TableHead>
                       <TableHead>Senha provisória</TableHead>
-                      <TableHead className="text-right">Controle</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredProfiles.map((item) => {
                       const assignedRoles = rolesByUser.get(item.id) ?? [];
+                      const primaryRole = assignedRoles[0];
                       return (
                         <TableRow key={item.id}>
                           <TableCell>
@@ -604,28 +678,45 @@ function SettingsPage() {
                             </div>
                           </TableCell>
                           <TableCell>
-                            <div className="flex max-w-xl flex-wrap gap-1.5">
-                              {ACCESS_ROLES.map((role) => (
-                                <label
-                                  key={role}
-                                  className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs"
-                                >
-                                  <input
-                                    type="checkbox"
-                                    checked={assignedRoles.includes(role)}
-                                    onChange={(event) =>
-                                      toggleRole(item.id, role, event.target.checked)
-                                    }
-                                  />
-                                  {ROLE_LABELS[role]}
-                                </label>
-                              ))}
+                            <Select
+                              value={primaryRole ?? ""}
+                              onValueChange={(value) =>
+                                setPrimaryRole(item.id, value as AppRole)
+                              }
+                            >
+                              <SelectTrigger className="h-9">
+                                <SelectValue placeholder="Selecionar perfil" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {ACCESS_ROLES.map((role) => (
+                                  <SelectItem key={role} value={role}>
+                                    {ROLE_LABELS[role]}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex max-w-md flex-wrap gap-1">
+                              {ACCESS_ROLES.map((role) => {
+                                const checked = assignedRoles.includes(role);
+                                return (
+                                  <button
+                                    key={role}
+                                    type="button"
+                                    onClick={() => toggleRole(item.id, role, !checked)}
+                                    className={`rounded-md border px-2 py-0.5 text-[11px] transition-colors ${checked ? "border-primary/40 bg-primary/10 text-primary" : "border-border bg-background text-muted-foreground hover:bg-muted"}`}
+                                  >
+                                    {ROLE_LABELS[role]}
+                                  </button>
+                                );
+                              })}
                             </div>
                           </TableCell>
                           <TableCell>
-                            <div className="flex min-w-56 gap-2">
+                            <div className="flex min-w-56 gap-1">
                               <Input
-                                type="password"
+                                type="text"
                                 autoComplete="new-password"
                                 value={profileTemporaryPasswords[item.id] ?? ""}
                                 onChange={(event) =>
@@ -635,31 +726,47 @@ function SettingsPage() {
                                   }))
                                 }
                                 placeholder="Nova provisória"
+                                className="font-mono text-xs"
                               />
                               <Button
-                                size="sm"
+                                size="icon"
                                 variant="outline"
+                                title="Gerar senha"
+                                onClick={() => {
+                                  const pwd = generatePassword();
+                                  setProfileTemporaryPasswords((c) => ({ ...c, [item.id]: pwd }));
+                                  copyToClipboard(pwd);
+                                }}
+                              >
+                                <Sparkles className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="outline"
+                                title="Aplicar nova senha"
                                 onClick={() => resetProfilePassword(item.id)}
                               >
-                                Resetar
+                                <KeyRound className="h-4 w-4" />
                               </Button>
                             </div>
                           </TableCell>
                           <TableCell className="text-right">
-                            <div className="flex justify-end gap-2">
+                            <div className="flex justify-end gap-1">
                               <Button
                                 size="icon"
                                 variant="outline"
+                                title="Liberar acesso"
                                 onClick={() => updateProfileStatus(item.id, "active")}
                               >
-                                <CheckCircle2 className="h-4 w-4" />
+                                <CheckCircle2 className="h-4 w-4 text-success" />
                               </Button>
                               <Button
                                 size="icon"
                                 variant="outline"
+                                title="Bloquear acesso"
                                 onClick={() => updateProfileStatus(item.id, "blocked")}
                               >
-                                <XCircle className="h-4 w-4" />
+                                <XCircle className="h-4 w-4 text-destructive" />
                               </Button>
                             </div>
                           </TableCell>
