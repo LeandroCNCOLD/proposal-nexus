@@ -6,12 +6,26 @@ import {
   Clock3,
   Eye,
   EyeOff,
+  KeyRound,
   RefreshCw,
   Search,
   ShieldCheck,
+  Sparkles,
   UserPlus,
   XCircle,
 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
 import { useAuth } from "@/hooks/useAuth";
