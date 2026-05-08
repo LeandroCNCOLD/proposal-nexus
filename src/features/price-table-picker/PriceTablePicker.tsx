@@ -26,6 +26,8 @@ type Props = {
   nomusPriceTableName?: string | null;
   /** Callback chamado quando a tabela ativa muda (após auto-default ou seleção). */
   onSelected?: (table: EquipmentPriceTable | null) => void;
+  /** Quando true, exibe apenas o nome da tabela aplicada (sem dropdown). */
+  readOnly?: boolean;
 };
 
 function normalizeName(s: string | null | undefined): string {
