@@ -152,6 +152,12 @@ function NomusPage() {
         subtitle="Sincronize clientes, produtos, condições de pagamento e propostas com o ERP"
         actions={
           <div className="flex items-center gap-2">
+            <Link to="/app/configuracoes/nomus/status">
+              <Button variant="outline">
+                <Activity className="mr-2 h-4 w-4" />
+                Status detalhado
+              </Button>
+            </Link>
             <Link to="/app/configuracoes/nomus/importar-custos">
               <Button variant="outline">
                 <FileSpreadsheet className="mr-2 h-4 w-4" />
