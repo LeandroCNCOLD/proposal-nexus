@@ -55,13 +55,19 @@ export function PriceTablePicker({ proposalId, clientUf, selectedPriceTableId, n
     return new Set(tables.filter((t) => (t.ufs ?? []).includes(uf)).map((t) => t.id));
   }, [tables, uf]);
 
-  // Default: maior ICMS dentre as elegíveis (ou nada se UF desconhecida/sem cobertura)
+  // Default: 1) tabela cujo nome bate com o que o Nomus já tem na proposta;
+  // 2) maior ICMS dentre as elegíveis para a UF do cliente.
   const defaultId = useMemo(() => {
+    const target = normalizeName(nomusPriceTableName);
+    if (target) {
+      const match = tables.find((t) => normalizeName(t.name) === target);
+      if (match) return match.id;
+    }
     const eligibles = tables.filter((t) => eligibleIds.has(t.id));
     if (eligibles.length === 0) return null;
     const sorted = [...eligibles].sort((a, b) => (b.icmsPct ?? -Infinity) - (a.icmsPct ?? -Infinity));
     return sorted[0]?.id ?? null;
-  }, [tables, eligibleIds]);
+  }, [tables, eligibleIds, nomusPriceTableName]);
 
   const activeId = selectedPriceTableId ?? null;
   const activeTable = tables.find((t) => t.id === activeId) ?? null;
