@@ -47,6 +47,7 @@ import { Route as ApiPublicNomusTabelaPrecoProbeRouteImport } from './routes/api
 import { Route as ApiPublicNomusTabelaPrecoDeepProbeRouteImport } from './routes/api.public.nomus.tabela-preco-deep-probe'
 import { Route as ApiPublicNomusProdutoProbeRouteImport } from './routes/api.public.nomus.produto-probe'
 import { Route as ApiPublicNomusExhaustiveProbeRouteImport } from './routes/api.public.nomus.exhaustive-probe'
+import { Route as ApiPublicHooksSyncPriceTablesRouteImport } from './routes/api.public.hooks.sync-price-tables'
 import { Route as ApiPublicHooksNomusCronRouteImport } from './routes/api.public.hooks.nomus-cron'
 
 const LoginRoute = LoginRouteImport.update({
@@ -249,6 +250,12 @@ const ApiPublicNomusExhaustiveProbeRoute =
     path: '/api/public/nomus/exhaustive-probe',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksSyncPriceTablesRoute =
+  ApiPublicHooksSyncPriceTablesRouteImport.update({
+    id: '/api/public/hooks/sync-price-tables',
+    path: '/api/public/hooks/sync-price-tables',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksNomusCronRoute = ApiPublicHooksNomusCronRouteImport.update({
   id: '/api/public/hooks/nomus-cron',
   path: '/api/public/hooks/nomus-cron',
@@ -285,6 +292,7 @@ export interface FileRoutesByFullPath {
   '/app/configuracoes/': typeof AppConfiguracoesIndexRoute
   '/app/propostas/': typeof AppPropostasIndexRoute
   '/api/public/hooks/nomus-cron': typeof ApiPublicHooksNomusCronRoute
+  '/api/public/hooks/sync-price-tables': typeof ApiPublicHooksSyncPriceTablesRoute
   '/api/public/nomus/exhaustive-probe': typeof ApiPublicNomusExhaustiveProbeRoute
   '/api/public/nomus/produto-probe': typeof ApiPublicNomusProdutoProbeRoute
   '/api/public/nomus/tabela-preco-deep-probe': typeof ApiPublicNomusTabelaPrecoDeepProbeRoute
@@ -323,6 +331,7 @@ export interface FileRoutesByTo {
   '/app/configuracoes': typeof AppConfiguracoesIndexRoute
   '/app/propostas': typeof AppPropostasIndexRoute
   '/api/public/hooks/nomus-cron': typeof ApiPublicHooksNomusCronRoute
+  '/api/public/hooks/sync-price-tables': typeof ApiPublicHooksSyncPriceTablesRoute
   '/api/public/nomus/exhaustive-probe': typeof ApiPublicNomusExhaustiveProbeRoute
   '/api/public/nomus/produto-probe': typeof ApiPublicNomusProdutoProbeRoute
   '/api/public/nomus/tabela-preco-deep-probe': typeof ApiPublicNomusTabelaPrecoDeepProbeRoute
@@ -365,6 +374,7 @@ export interface FileRoutesById {
   '/app/configuracoes/': typeof AppConfiguracoesIndexRoute
   '/app/propostas/': typeof AppPropostasIndexRoute
   '/api/public/hooks/nomus-cron': typeof ApiPublicHooksNomusCronRoute
+  '/api/public/hooks/sync-price-tables': typeof ApiPublicHooksSyncPriceTablesRoute
   '/api/public/nomus/exhaustive-probe': typeof ApiPublicNomusExhaustiveProbeRoute
   '/api/public/nomus/produto-probe': typeof ApiPublicNomusProdutoProbeRoute
   '/api/public/nomus/tabela-preco-deep-probe': typeof ApiPublicNomusTabelaPrecoDeepProbeRoute
@@ -408,6 +418,7 @@ export interface FileRouteTypes {
     | '/app/configuracoes/'
     | '/app/propostas/'
     | '/api/public/hooks/nomus-cron'
+    | '/api/public/hooks/sync-price-tables'
     | '/api/public/nomus/exhaustive-probe'
     | '/api/public/nomus/produto-probe'
     | '/api/public/nomus/tabela-preco-deep-probe'
@@ -446,6 +457,7 @@ export interface FileRouteTypes {
     | '/app/configuracoes'
     | '/app/propostas'
     | '/api/public/hooks/nomus-cron'
+    | '/api/public/hooks/sync-price-tables'
     | '/api/public/nomus/exhaustive-probe'
     | '/api/public/nomus/produto-probe'
     | '/api/public/nomus/tabela-preco-deep-probe'
@@ -487,6 +499,7 @@ export interface FileRouteTypes {
     | '/app/configuracoes/'
     | '/app/propostas/'
     | '/api/public/hooks/nomus-cron'
+    | '/api/public/hooks/sync-price-tables'
     | '/api/public/nomus/exhaustive-probe'
     | '/api/public/nomus/produto-probe'
     | '/api/public/nomus/tabela-preco-deep-probe'
@@ -505,6 +518,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   ApiNomusTestRoute: typeof ApiNomusTestRoute
   ApiPublicHooksNomusCronRoute: typeof ApiPublicHooksNomusCronRoute
+  ApiPublicHooksSyncPriceTablesRoute: typeof ApiPublicHooksSyncPriceTablesRoute
   ApiPublicNomusExhaustiveProbeRoute: typeof ApiPublicNomusExhaustiveProbeRoute
   ApiPublicNomusProdutoProbeRoute: typeof ApiPublicNomusProdutoProbeRoute
   ApiPublicNomusTabelaPrecoDeepProbeRoute: typeof ApiPublicNomusTabelaPrecoDeepProbeRoute
@@ -779,6 +793,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicNomusExhaustiveProbeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/sync-price-tables': {
+      id: '/api/public/hooks/sync-price-tables'
+      path: '/api/public/hooks/sync-price-tables'
+      fullPath: '/api/public/hooks/sync-price-tables'
+      preLoaderRoute: typeof ApiPublicHooksSyncPriceTablesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/nomus-cron': {
       id: '/api/public/hooks/nomus-cron'
       path: '/api/public/hooks/nomus-cron'
@@ -903,6 +924,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   ApiNomusTestRoute: ApiNomusTestRoute,
   ApiPublicHooksNomusCronRoute: ApiPublicHooksNomusCronRoute,
+  ApiPublicHooksSyncPriceTablesRoute: ApiPublicHooksSyncPriceTablesRoute,
   ApiPublicNomusExhaustiveProbeRoute: ApiPublicNomusExhaustiveProbeRoute,
   ApiPublicNomusProdutoProbeRoute: ApiPublicNomusProdutoProbeRoute,
   ApiPublicNomusTabelaPrecoDeepProbeRoute:

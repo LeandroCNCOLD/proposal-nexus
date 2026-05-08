@@ -987,7 +987,7 @@ function pickPriceItemProductId(raw: Json): string | null {
   return produto && typeof produto === "object" ? pickStr(produto as Json, "id", "codigo", "idProduto", "codigoProduto") : null;
 }
 
-async function syncPriceTableItems(args: { priceTableId: string; tableNomusId: string; source: Json; triggeredBy: string | null }) {
+export async function syncPriceTableItems(args: { priceTableId: string; tableNomusId: string; source: Json; triggeredBy: string | null }) {
   // O endpoint /tabelasPreco/{id} NÃO retorna os itens. É preciso chamar
   // /tabelasPreco/{id}/itens, que devolve o objeto da tabela com a chave
   // `itensTabelaPreco`. O endpoint pagina via ?pagina=N (50 itens/página).
