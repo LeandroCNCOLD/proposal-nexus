@@ -267,7 +267,9 @@ export function ProposalItemsTable({
                       />
                     </div>
                   ) : (
-                    item.priceTableName ?? "—"
+                    <span className="text-foreground">
+                      {item.priceTableName ?? selectedTable?.name ?? "—"}
+                    </span>
                   )}
                 </TableCell>
                 <TableCell className="min-w-72">
