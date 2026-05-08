@@ -968,7 +968,7 @@ export const nomusSyncPaymentTerms = createServerFn({ method: "POST" })
     });
   });
 
-const PRICE_ITEM_ARRAY_KEYS = ["itensTabelaPreco", "itens", "items", "produtos", "tabelaPrecoItens", "regist
+const PRICE_ITEM_ARRAY_KEYS = ["itensTabelaPreco", "itens", "items", "produtos", "tabelaPrecoItens", "registros", "lista", "data", "content"];
 
 function extractPriceTableItems(payload: unknown): Json[] {
   if (!payload || typeof payload !== "object") return [];
