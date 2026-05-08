@@ -22,11 +22,22 @@ type Props = {
   clientUf?: string | null;
   /** Tabela já escolhida e salva na proposta local. */
   selectedPriceTableId?: string | null;
+  /** Nome da tabela vinda da proposta no Nomus — usado como default quando ainda não há escolha local. */
+  nomusPriceTableName?: string | null;
   /** Callback chamado quando a tabela ativa muda (após auto-default ou seleção). */
   onSelected?: (table: EquipmentPriceTable | null) => void;
 };
 
-export function PriceTablePicker({ proposalId, clientUf, selectedPriceTableId, onSelected }: Props) {
+function normalizeName(s: string | null | undefined): string {
+  return (s ?? "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+export function PriceTablePicker({ proposalId, clientUf, selectedPriceTableId, nomusPriceTableName, onSelected }: Props) {
   const qc = useQueryClient();
   const list = useServerFn(listEquipmentPriceTables);
   const save = useServerFn(setProposalPriceTable);
@@ -44,13 +55,19 @@ export function PriceTablePicker({ proposalId, clientUf, selectedPriceTableId, o
     return new Set(tables.filter((t) => (t.ufs ?? []).includes(uf)).map((t) => t.id));
   }, [tables, uf]);
 
-  // Default: maior ICMS dentre as elegíveis (ou nada se UF desconhecida/sem cobertura)
+  // Default: 1) tabela cujo nome bate com o que o Nomus já tem na proposta;
+  // 2) maior ICMS dentre as elegíveis para a UF do cliente.
   const defaultId = useMemo(() => {
+    const target = normalizeName(nomusPriceTableName);
+    if (target) {
+      const match = tables.find((t) => normalizeName(t.name) === target);
+      if (match) return match.id;
+    }
     const eligibles = tables.filter((t) => eligibleIds.has(t.id));
     if (eligibles.length === 0) return null;
     const sorted = [...eligibles].sort((a, b) => (b.icmsPct ?? -Infinity) - (a.icmsPct ?? -Infinity));
     return sorted[0]?.id ?? null;
-  }, [tables, eligibleIds]);
+  }, [tables, eligibleIds, nomusPriceTableName]);
 
   const activeId = selectedPriceTableId ?? null;
   const activeTable = tables.find((t) => t.id === activeId) ?? null;

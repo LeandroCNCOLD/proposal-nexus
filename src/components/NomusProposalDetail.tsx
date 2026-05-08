@@ -326,6 +326,7 @@ export function NomusProposalDetail({
                   proposalId={localProposalId}
                   clientUf={localClient?.state ?? null}
                   selectedPriceTableId={selectedPriceTableId ?? null}
+                  nomusPriceTableName={p.tabela_preco_nome}
                 />
               ) : (
                 p.tabela_preco_nome
