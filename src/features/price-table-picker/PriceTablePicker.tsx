@@ -39,7 +39,7 @@ function normalizeName(s: string | null | undefined): string {
     .trim();
 }
 
-export function PriceTablePicker({ proposalId, clientUf, selectedPriceTableId, nomusPriceTableName, onSelected }: Props) {
+export function PriceTablePicker({ proposalId, clientUf, selectedPriceTableId, nomusPriceTableName, onSelected, readOnly }: Props) {
   const qc = useQueryClient();
   const list = useServerFn(listEquipmentPriceTables);
   const save = useServerFn(setProposalPriceTable);
