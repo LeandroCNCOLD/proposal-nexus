@@ -135,6 +135,20 @@ export function PriceTablePicker({ proposalId, clientUf, selectedPriceTableId, n
 
   const noUfCoverage = uf && eligibleIds.size === 0;
 
+  if (readOnly) {
+    const display = activeTable?.name ?? nomusPriceTableName ?? "—";
+    return (
+      <div className="space-y-1">
+        <div className="text-sm font-medium text-foreground">{display}</div>
+        {activeTable?.icmsPct != null && (
+          <div className="text-[11px] text-muted-foreground">
+            ICMS desta tabela: <strong>{activeTable.icmsPct}%</strong>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-1.5">
       <Select value={activeId ?? undefined} onValueChange={(v) => manualSave.mutate(v)}>
