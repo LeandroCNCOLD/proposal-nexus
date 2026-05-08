@@ -22,11 +22,22 @@ type Props = {
   clientUf?: string | null;
   /** Tabela já escolhida e salva na proposta local. */
   selectedPriceTableId?: string | null;
+  /** Nome da tabela vinda da proposta no Nomus — usado como default quando ainda não há escolha local. */
+  nomusPriceTableName?: string | null;
   /** Callback chamado quando a tabela ativa muda (após auto-default ou seleção). */
   onSelected?: (table: EquipmentPriceTable | null) => void;
 };
 
-export function PriceTablePicker({ proposalId, clientUf, selectedPriceTableId, onSelected }: Props) {
+function normalizeName(s: string | null | undefined): string {
+  return (s ?? "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+export function PriceTablePicker({ proposalId, clientUf, selectedPriceTableId, nomusPriceTableName, onSelected }: Props) {
   const qc = useQueryClient();
   const list = useServerFn(listEquipmentPriceTables);
   const save = useServerFn(setProposalPriceTable);
