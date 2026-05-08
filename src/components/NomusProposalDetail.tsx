@@ -186,12 +186,12 @@ export function NomusProposalDetail({
       items.map((it) => {
         const local = it.nomus_item_id ? localItemsByNomusId.get(it.nomus_item_id) : null;
         // Em nomus_price_table_items.nomus_product_id está armazenado o
-        // CÓDIGO do produto (ex.: CN-030-LT-EV-6-22T-NA), não o id interno.
-        // Por isso priorizamos product_code como chave de matching.
+        // ID NUMÉRICO do produto no Nomus (ex.: "8620"), não o código.
+        // Por isso priorizamos nomus_product_id como chave de matching.
         return {
           id: local?.id ?? it.id,
           nomusItemId: it.nomus_item_id,
-          nomusProductId: it.product_code ?? it.nomus_product_id,
+          nomusProductId: it.nomus_product_id ?? it.product_code,
           description: it.description ?? "",
           quantity: Number(it.quantity ?? 1),
           unitPrice: Number(it.unit_price ?? 0),
