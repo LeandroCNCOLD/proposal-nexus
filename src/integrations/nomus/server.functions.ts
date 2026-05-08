@@ -1060,7 +1060,7 @@ async function syncPriceTableItems(args: { priceTableId: string; tableNomusId: s
     if (error) throw new Error(error.message);
     upserted += 1;
   }
-  return { upserted, skipped, detailStatus: detail.ok ? detail.status : detail.status, detailError: detail.ok ? null : detail.error };
+  return { upserted, skipped, detailStatus: lastStatus, detailError: lastError };
 }
 
 export const nomusSyncPriceTables = createServerFn({ method: "POST" })
