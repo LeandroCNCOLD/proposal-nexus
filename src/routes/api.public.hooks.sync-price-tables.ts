@@ -123,23 +123,16 @@ async function backfillProposalItems(proposalId?: string): Promise<{ updated: nu
   }
 
   // 3. Carrega itens das propostas que precisam matching (com cliente UF).
-  const { data: pItemsRaw, error: pErr } = await supabaseAdmin
+  let q = supabaseAdmin
     .from("proposal_items")
     .select("id, proposal_id, nomus_item_id, nomus_product_id, unit_price, price_table_match_method, proposals!inner(id, client_id, clients(state))")
-    .not("nomus_product_id", "is", null)
-    .neq("price_table_match_method", "manual")
-    .eq(proposalId ? "proposal_id" : "id", proposalId ?? "id"); // when not provided, fall through
-  // The above eq trick only works if proposalId provided; for null case, redo.
-  let pItems = pItemsRaw ?? [];
-  if (!proposalId) {
-    const fallback = await supabaseAdmin
-      .from("proposal_items")
-      .select("id, proposal_id, nomus_item_id, nomus_product_id, unit_price, price_table_match_method, proposals!inner(id, client_id, clients(state))")
-      .not("nomus_product_id", "is", null);
-    if (fallback.error) throw new Error(fallback.error.message);
-    pItems = (fallback.data ?? []).filter((r) => (r as { price_table_match_method?: string | null }).price_table_match_method !== "manual");
-  }
-  if (pErr && proposalId) throw new Error(pErr.message);
+    .not("nomus_product_id", "is", null);
+  if (proposalId) q = q.eq("proposal_id", proposalId);
+  const { data: pItemsRaw, error: pErr } = await q;
+  if (pErr) throw new Error(pErr.message);
+  const pItems = (pItemsRaw ?? []).filter(
+    (r) => (r as { price_table_match_method?: string | null }).price_table_match_method !== "manual",
+  );
 
   let updated = 0;
   let skipped = 0;
