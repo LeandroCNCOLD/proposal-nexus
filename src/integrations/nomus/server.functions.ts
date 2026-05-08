@@ -988,17 +988,35 @@ function pickPriceItemProductId(raw: Json): string | null {
 }
 
 async function syncPriceTableItems(args: { priceTableId: string; tableNomusId: string; source: Json; triggeredBy: string | null }) {
-  const detail = await nomusFetch<unknown>(`${NOMUS_ENDPOINTS.tabelas_preco}/${encodeURIComponent(args.tableNomusId)}`, {
-    method: "GET",
-    entity: "tabelas_preco",
-    operation: "get-items",
-    direction: "pull",
-    triggeredBy: args.triggeredBy,
-    timeoutMs: 12_000,
-    maxAttempts: 1,
-  });
-  const detailPayload = detail.ok && detail.data && typeof detail.data === "object" ? (detail.data as Json) : null;
-  const items = extractPriceTableItems(detailPayload ?? args.source);
+  // O endpoint /tabelasPreco/{id} NÃO retorna os itens. É preciso chamar
+  // /tabelasPreco/{id}/itens, que devolve o objeto da tabela com a chave
+  // `itensTabelaPreco`. O endpoint pagina via ?pagina=N (50 itens/página).
+  const items: Json[] = [];
+  let lastStatus = 0;
+  let lastError: string | null = null;
+  for (let pagina = 1; pagina <= 200; pagina++) {
+    const detail = await nomusFetch<unknown>(`${NOMUS_ENDPOINTS.tabelas_preco}/${encodeURIComponent(args.tableNomusId)}/itens`, {
+      method: "GET",
+      query: { pagina },
+      entity: "tabelas_preco",
+      operation: "get-items",
+      direction: "pull",
+      triggeredBy: args.triggeredBy,
+      timeoutMs: 20_000,
+      maxAttempts: 1,
+    });
+    lastStatus = detail.status;
+    if (!detail.ok) {
+      if (detail.status === 400) break; // fim da paginação
+      lastError = detail.error;
+      break;
+    }
+    const detailPayload = detail.data && typeof detail.data === "object" ? (detail.data as Json) : null;
+    const batch = extractPriceTableItems(detailPayload ?? args.source);
+    if (batch.length === 0) break;
+    items.push(...batch);
+    if (batch.length < 50) break;
+  }
   let upserted = 0;
   let skipped = 0;
   for (const item of items) {
