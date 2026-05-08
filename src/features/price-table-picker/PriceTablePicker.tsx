@@ -26,6 +26,8 @@ type Props = {
   nomusPriceTableName?: string | null;
   /** Callback chamado quando a tabela ativa muda (após auto-default ou seleção). */
   onSelected?: (table: EquipmentPriceTable | null) => void;
+  /** Quando true, exibe apenas o nome da tabela aplicada (sem dropdown). */
+  readOnly?: boolean;
 };
 
 function normalizeName(s: string | null | undefined): string {
@@ -37,7 +39,7 @@ function normalizeName(s: string | null | undefined): string {
     .trim();
 }
 
-export function PriceTablePicker({ proposalId, clientUf, selectedPriceTableId, nomusPriceTableName, onSelected }: Props) {
+export function PriceTablePicker({ proposalId, clientUf, selectedPriceTableId, nomusPriceTableName, onSelected, readOnly }: Props) {
   const qc = useQueryClient();
   const list = useServerFn(listEquipmentPriceTables);
   const save = useServerFn(setProposalPriceTable);
@@ -132,6 +134,20 @@ export function PriceTablePicker({ proposalId, clientUf, selectedPriceTableId, n
   }
 
   const noUfCoverage = uf && eligibleIds.size === 0;
+
+  if (readOnly) {
+    const display = activeTable?.name ?? nomusPriceTableName ?? "—";
+    return (
+      <div className="space-y-1">
+        <div className="text-sm font-medium text-foreground">{display}</div>
+        {activeTable?.icmsPct != null && (
+          <div className="text-[11px] text-muted-foreground">
+            ICMS desta tabela: <strong>{activeTable.icmsPct}%</strong>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-1.5">

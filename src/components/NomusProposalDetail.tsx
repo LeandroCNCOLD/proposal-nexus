@@ -327,6 +327,7 @@ export function NomusProposalDetail({
                   clientUf={localClient?.state ?? null}
                   selectedPriceTableId={selectedPriceTableId ?? null}
                   nomusPriceTableName={p.tabela_preco_nome}
+                  readOnly
                 />
               ) : (
                 p.tabela_preco_nome
@@ -364,16 +365,6 @@ export function NomusProposalDetail({
           showPriceTableComparison={!!localProposalId}
           tablesByProduct={localProposalId ? tablesByProduct : undefined}
           clientUf={localClient?.state ?? null}
-          onChangeItemTable={
-            localProposalId
-              ? (proposalItemId, table) => applyManual(proposalItemId, table)
-              : undefined
-          }
-          onResetItemTable={
-            localProposalId
-              ? (proposalItemId, productId) => applyAuto(proposalItemId, productId)
-              : undefined
-          }
           items={items.map((it) => {
             const local = it.nomus_item_id
               ? localItemsByNomusId.get(it.nomus_item_id)
