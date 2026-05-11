@@ -45,6 +45,7 @@ import { Route as AppConfiguracoesNomusStatusRouteImport } from './routes/app.co
 import { Route as AppConfiguracoesNomusImportarCustosRouteImport } from './routes/app.configuracoes.nomus.importar-custos'
 import { Route as ApiPublicNomusTabelaPrecoProbeRouteImport } from './routes/api.public.nomus.tabela-preco-probe'
 import { Route as ApiPublicNomusTabelaPrecoDeepProbeRouteImport } from './routes/api.public.nomus.tabela-preco-deep-probe'
+import { Route as ApiPublicNomusPropostaCoverageProbeRouteImport } from './routes/api.public.nomus.proposta-coverage-probe'
 import { Route as ApiPublicNomusProdutoProbeRouteImport } from './routes/api.public.nomus.produto-probe'
 import { Route as ApiPublicNomusExhaustiveProbeRouteImport } from './routes/api.public.nomus.exhaustive-probe'
 import { Route as ApiPublicHooksSyncPriceTablesRouteImport } from './routes/api.public.hooks.sync-price-tables'
@@ -238,6 +239,12 @@ const ApiPublicNomusTabelaPrecoDeepProbeRoute =
     path: '/api/public/nomus/tabela-preco-deep-probe',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicNomusPropostaCoverageProbeRoute =
+  ApiPublicNomusPropostaCoverageProbeRouteImport.update({
+    id: '/api/public/nomus/proposta-coverage-probe',
+    path: '/api/public/nomus/proposta-coverage-probe',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicNomusProdutoProbeRoute =
   ApiPublicNomusProdutoProbeRouteImport.update({
     id: '/api/public/nomus/produto-probe',
@@ -295,6 +302,7 @@ export interface FileRoutesByFullPath {
   '/api/public/hooks/sync-price-tables': typeof ApiPublicHooksSyncPriceTablesRoute
   '/api/public/nomus/exhaustive-probe': typeof ApiPublicNomusExhaustiveProbeRoute
   '/api/public/nomus/produto-probe': typeof ApiPublicNomusProdutoProbeRoute
+  '/api/public/nomus/proposta-coverage-probe': typeof ApiPublicNomusPropostaCoverageProbeRoute
   '/api/public/nomus/tabela-preco-deep-probe': typeof ApiPublicNomusTabelaPrecoDeepProbeRoute
   '/api/public/nomus/tabela-preco-probe': typeof ApiPublicNomusTabelaPrecoProbeRoute
   '/app/configuracoes/nomus/importar-custos': typeof AppConfiguracoesNomusImportarCustosRoute
@@ -334,6 +342,7 @@ export interface FileRoutesByTo {
   '/api/public/hooks/sync-price-tables': typeof ApiPublicHooksSyncPriceTablesRoute
   '/api/public/nomus/exhaustive-probe': typeof ApiPublicNomusExhaustiveProbeRoute
   '/api/public/nomus/produto-probe': typeof ApiPublicNomusProdutoProbeRoute
+  '/api/public/nomus/proposta-coverage-probe': typeof ApiPublicNomusPropostaCoverageProbeRoute
   '/api/public/nomus/tabela-preco-deep-probe': typeof ApiPublicNomusTabelaPrecoDeepProbeRoute
   '/api/public/nomus/tabela-preco-probe': typeof ApiPublicNomusTabelaPrecoProbeRoute
   '/app/configuracoes/nomus/importar-custos': typeof AppConfiguracoesNomusImportarCustosRoute
@@ -377,6 +386,7 @@ export interface FileRoutesById {
   '/api/public/hooks/sync-price-tables': typeof ApiPublicHooksSyncPriceTablesRoute
   '/api/public/nomus/exhaustive-probe': typeof ApiPublicNomusExhaustiveProbeRoute
   '/api/public/nomus/produto-probe': typeof ApiPublicNomusProdutoProbeRoute
+  '/api/public/nomus/proposta-coverage-probe': typeof ApiPublicNomusPropostaCoverageProbeRoute
   '/api/public/nomus/tabela-preco-deep-probe': typeof ApiPublicNomusTabelaPrecoDeepProbeRoute
   '/api/public/nomus/tabela-preco-probe': typeof ApiPublicNomusTabelaPrecoProbeRoute
   '/app/configuracoes/nomus/importar-custos': typeof AppConfiguracoesNomusImportarCustosRoute
@@ -421,6 +431,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/sync-price-tables'
     | '/api/public/nomus/exhaustive-probe'
     | '/api/public/nomus/produto-probe'
+    | '/api/public/nomus/proposta-coverage-probe'
     | '/api/public/nomus/tabela-preco-deep-probe'
     | '/api/public/nomus/tabela-preco-probe'
     | '/app/configuracoes/nomus/importar-custos'
@@ -460,6 +471,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/sync-price-tables'
     | '/api/public/nomus/exhaustive-probe'
     | '/api/public/nomus/produto-probe'
+    | '/api/public/nomus/proposta-coverage-probe'
     | '/api/public/nomus/tabela-preco-deep-probe'
     | '/api/public/nomus/tabela-preco-probe'
     | '/app/configuracoes/nomus/importar-custos'
@@ -502,6 +514,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/sync-price-tables'
     | '/api/public/nomus/exhaustive-probe'
     | '/api/public/nomus/produto-probe'
+    | '/api/public/nomus/proposta-coverage-probe'
     | '/api/public/nomus/tabela-preco-deep-probe'
     | '/api/public/nomus/tabela-preco-probe'
     | '/app/configuracoes/nomus/importar-custos'
@@ -521,6 +534,7 @@ export interface RootRouteChildren {
   ApiPublicHooksSyncPriceTablesRoute: typeof ApiPublicHooksSyncPriceTablesRoute
   ApiPublicNomusExhaustiveProbeRoute: typeof ApiPublicNomusExhaustiveProbeRoute
   ApiPublicNomusProdutoProbeRoute: typeof ApiPublicNomusProdutoProbeRoute
+  ApiPublicNomusPropostaCoverageProbeRoute: typeof ApiPublicNomusPropostaCoverageProbeRoute
   ApiPublicNomusTabelaPrecoDeepProbeRoute: typeof ApiPublicNomusTabelaPrecoDeepProbeRoute
   ApiPublicNomusTabelaPrecoProbeRoute: typeof ApiPublicNomusTabelaPrecoProbeRoute
 }
@@ -779,6 +793,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicNomusTabelaPrecoDeepProbeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/nomus/proposta-coverage-probe': {
+      id: '/api/public/nomus/proposta-coverage-probe'
+      path: '/api/public/nomus/proposta-coverage-probe'
+      fullPath: '/api/public/nomus/proposta-coverage-probe'
+      preLoaderRoute: typeof ApiPublicNomusPropostaCoverageProbeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/nomus/produto-probe': {
       id: '/api/public/nomus/produto-probe'
       path: '/api/public/nomus/produto-probe'
@@ -927,6 +948,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicHooksSyncPriceTablesRoute: ApiPublicHooksSyncPriceTablesRoute,
   ApiPublicNomusExhaustiveProbeRoute: ApiPublicNomusExhaustiveProbeRoute,
   ApiPublicNomusProdutoProbeRoute: ApiPublicNomusProdutoProbeRoute,
+  ApiPublicNomusPropostaCoverageProbeRoute:
+    ApiPublicNomusPropostaCoverageProbeRoute,
   ApiPublicNomusTabelaPrecoDeepProbeRoute:
     ApiPublicNomusTabelaPrecoDeepProbeRoute,
   ApiPublicNomusTabelaPrecoProbeRoute: ApiPublicNomusTabelaPrecoProbeRoute,
