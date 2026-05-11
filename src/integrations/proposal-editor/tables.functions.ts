@@ -199,13 +199,12 @@ export const populateEquipamentosFromItems = createServerFn({ method: "POST" })
         .select("nomus_proposal_id, nomus_id")
         .eq("id", proposalId)
         .single();
-      const nomusKey = proposal?.nomus_proposal_id ?? proposal?.nomus_id;
-      if (nomusKey) {
-        const { data: np } = await supabase
-          .from("nomus_proposals")
-          .select("id")
-          .eq("nomus_id", nomusKey)
-          .maybeSingle();
+      if (proposal?.nomus_proposal_id || proposal?.nomus_id) {
+        let npQuery = supabase.from("nomus_proposals").select("id");
+        npQuery = proposal.nomus_proposal_id
+          ? npQuery.eq("id", proposal.nomus_proposal_id)
+          : npQuery.eq("nomus_id", proposal.nomus_id as string);
+        const { data: np } = await npQuery.maybeSingle();
         if (np) {
           const { data: nomusItems } = await supabase
             .from("nomus_proposal_items")
