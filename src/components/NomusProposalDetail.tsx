@@ -126,6 +126,22 @@ export function NomusProposalDetail({
   const p = data?.prop ?? null;
   const items = data?.items ?? [];
 
+  // Nome da tabela "dominante" entre os itens — usada como fallback
+  // quando o Nomus não devolve a tabela na proposta (lista resumida).
+  const dominantItemTableName = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const it of items) {
+      const name = it.price_table_name?.trim();
+      if (!name) continue;
+      counts.set(name, (counts.get(name) ?? 0) + 1);
+    }
+    let best: { name: string; n: number } | null = null;
+    for (const [name, n] of counts) {
+      if (!best || n > best.n) best = { name, n };
+    }
+    return best?.name ?? null;
+  }, [items]);
+
   // ─── Per-item price tables ─────────────────────────────────────────────────
   // Carrega os proposal_items locais para mapear nomus_item_id → id local +
   // estado atual da tabela escolhida (price_table_id, match_method, snapshot).
