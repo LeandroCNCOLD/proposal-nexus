@@ -265,13 +265,12 @@ export const autoFillFromNomus = createServerFn({ method: "POST" })
 
     let nomusProp: Record<string, unknown> | null = null;
     let nomusItems: Array<Record<string, unknown>> = [];
-    const nomusKey = proposal.nomus_proposal_id ?? proposal.nomus_id;
-    if (nomusKey) {
-      const { data: np } = await supabase
-        .from("nomus_proposals")
-        .select("*")
-        .eq("nomus_id", nomusKey)
-        .maybeSingle();
+    if (proposal.nomus_proposal_id || proposal.nomus_id) {
+      let npQuery = supabase.from("nomus_proposals").select("*");
+      npQuery = proposal.nomus_proposal_id
+        ? npQuery.eq("id", proposal.nomus_proposal_id)
+        : npQuery.eq("nomus_id", proposal.nomus_id as string);
+      const { data: np } = await npQuery.maybeSingle();
       if (np) {
         nomusProp = np as Record<string, unknown>;
         const { data: items } = await supabase

@@ -100,16 +100,17 @@ export const importNomusTributos = createServerFn({ method: "POST" })
       .single();
     if (pErr) throw new Error(pErr.message);
 
-    const nomusKey = proposal.nomus_proposal_id ?? proposal.nomus_id;
-    if (!nomusKey) throw new Error("Proposta não está vinculada ao Nomus.");
+    if (!proposal.nomus_proposal_id && !proposal.nomus_id) {
+      throw new Error("Proposta não está vinculada ao Nomus.");
+    }
 
-    const { data: np } = await supabase
-      .from("nomus_proposals")
-      .select(
-        "valor_produtos, icms_recolher, icms_st_recolher, ipi_recolher, pis_recolher, cofins_recolher, issqn_recolher, simples_nacional_recolher, cbs_recolher, ibs_recolher, ibs_estadual_recolher",
-      )
-      .eq("nomus_id", nomusKey)
-      .maybeSingle();
+    const npCols =
+      "valor_produtos, icms_recolher, icms_st_recolher, ipi_recolher, pis_recolher, cofins_recolher, issqn_recolher, simples_nacional_recolher, cbs_recolher, ibs_recolher, ibs_estadual_recolher";
+    let npQuery = supabase.from("nomus_proposals").select(npCols);
+    npQuery = proposal.nomus_proposal_id
+      ? npQuery.eq("id", proposal.nomus_proposal_id)
+      : npQuery.eq("nomus_id", proposal.nomus_id as string);
+    const { data: np } = await npQuery.maybeSingle();
     if (!np) throw new Error("Proposta Nomus não encontrada / sem detalhes sincronizados.");
 
     const base = Number(np.valor_produtos ?? 0);
@@ -198,13 +199,12 @@ export const populateEquipamentosFromItems = createServerFn({ method: "POST" })
         .select("nomus_proposal_id, nomus_id")
         .eq("id", proposalId)
         .single();
-      const nomusKey = proposal?.nomus_proposal_id ?? proposal?.nomus_id;
-      if (nomusKey) {
-        const { data: np } = await supabase
-          .from("nomus_proposals")
-          .select("id")
-          .eq("nomus_id", nomusKey)
-          .maybeSingle();
+      if (proposal?.nomus_proposal_id || proposal?.nomus_id) {
+        let npQuery = supabase.from("nomus_proposals").select("id");
+        npQuery = proposal.nomus_proposal_id
+          ? npQuery.eq("id", proposal.nomus_proposal_id)
+          : npQuery.eq("nomus_id", proposal.nomus_id as string);
+        const { data: np } = await npQuery.maybeSingle();
         if (np) {
           const { data: nomusItems } = await supabase
             .from("nomus_proposal_items")
