@@ -992,6 +992,7 @@ export async function syncPriceTableItems(args: { priceTableId: string; tableNom
   // /tabelasPreco/{id}/itens, que devolve o objeto da tabela com a chave
   // `itensTabelaPreco`. O endpoint pagina via ?pagina=N (50 itens/página).
   const items: Json[] = [];
+  const seenIds = new Set<string>();
   let lastStatus = 0;
   let lastError: string | null = null;
   for (let pagina = 1; pagina <= 200; pagina++) {
@@ -1002,8 +1003,8 @@ export async function syncPriceTableItems(args: { priceTableId: string; tableNom
       operation: "get-items",
       direction: "pull",
       triggeredBy: args.triggeredBy,
-      timeoutMs: 20_000,
-      maxAttempts: 1,
+      timeoutMs: 60_000,
+      maxAttempts: 3,
     });
     lastStatus = detail.status;
     if (!detail.ok) {
@@ -1014,7 +1015,18 @@ export async function syncPriceTableItems(args: { priceTableId: string; tableNom
     const detailPayload = detail.data && typeof detail.data === "object" ? (detail.data as Json) : null;
     const batch = extractPriceTableItems(detailPayload ?? args.source);
     if (batch.length === 0) break;
-    items.push(...batch);
+    // Dedupe: se a página inteira é composta apenas de IDs já vistos, a API
+    // está ignorando o parâmetro `pagina` (ou já chegamos ao fim). Encerra.
+    let novos = 0;
+    for (const it of batch) {
+      const pid = pickPriceItemProductId(it);
+      const key = pid ?? JSON.stringify(it);
+      if (seenIds.has(key)) continue;
+      seenIds.add(key);
+      items.push(it);
+      novos += 1;
+    }
+    if (novos === 0) break;
     if (batch.length < 50) break;
   }
   let upserted = 0;
