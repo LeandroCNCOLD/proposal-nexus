@@ -8378,7 +8378,18 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      v_proposal_lead_matches: {
+        Row: {
+          client_name: string | null
+          cnpj_digits: string | null
+          lead_code: string | null
+          lead_id: string | null
+          match_type: string | null
+          proposal_id: string | null
+          proposal_title: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       _parse_nomus_date: { Args: { s: string }; Returns: string }
