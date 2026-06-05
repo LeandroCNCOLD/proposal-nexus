@@ -29,7 +29,11 @@ export function CallLogDrawer({ pipeline, open, onClose }: Props) {
 
   async function handleSubmit() {
     if (!form.result) return
+    if (form.result === 'Outros' && !form.other_reason.trim()) return
     const today = new Date()
+    const obs = form.result === 'Outros'
+      ? `[Outros: ${form.other_reason.trim()}]${form.observation ? `\n${form.observation}` : ''}`
+      : form.observation || null
     await insert.mutateAsync({
       pipeline_id: pipeline.id,
       sdr_id: null,
@@ -40,7 +44,7 @@ export function CallLogDrawer({ pipeline, open, onClose }: Props) {
       result: form.result,
       temperature_after: form.temperature_after || null,
       meeting_booked: form.meeting_booked,
-      observation: form.observation || null,
+      observation: obs,
     })
     onClose()
   }
