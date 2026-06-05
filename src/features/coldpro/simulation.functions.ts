@@ -8,7 +8,7 @@ import { z } from "zod";
 import { createServerFn } from "@tanstack/react-start";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { runColdRoomSimulation } from "@/modules/coldpro/simulation/services/coldRoomDynamicSimulationService";
+import { runColdRoomDynamicSimulation } from "@/modules/coldpro/simulation/services/coldRoomDynamicSimulationService";
 
 // ─── Schemas ────────────────────────────────────────────────────────────────
 
@@ -103,7 +103,7 @@ export const saveSimulation = createServerFn({ method: "POST" })
       },
     };
 
-    const simResult = runColdRoomSimulation(simInput);
+    const simResult = runColdRoomDynamicSimulation(simInput);
 
     // Persistir no banco
     const { data: saved, error } = await supabase
