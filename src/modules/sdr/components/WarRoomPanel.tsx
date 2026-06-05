@@ -277,11 +277,6 @@ export function WarRoomPanel() {
           </CardContent>
         </Card>
 
-        {/* Alertas automáticos */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-bold flex items-center gap-2">
-              <ShieldAlert className="h-4 w-4 text-amber-600" /> Alertas automáticos
         {/* Reuniões de Hoje */}
         <Card className="border-blue-200">
           <CardHeader className="pb-3 flex flex-row items-center justify-between">
