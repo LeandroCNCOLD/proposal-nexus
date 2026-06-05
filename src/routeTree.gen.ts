@@ -37,6 +37,7 @@ import { Route as AppPropostasPedidosNfRouteImport } from './routes/app.proposta
 import { Route as AppPropostasNovaRouteImport } from './routes/app.propostas.nova'
 import { Route as AppPropostasIdRouteImport } from './routes/app.propostas.$id'
 import { Route as AppCrmIdRouteImport } from './routes/app.crm.$id'
+import { Route as AppConfiguracoesPermissoesRouteImport } from './routes/app.configuracoes.permissoes'
 import { Route as AppConfiguracoesNomusRouteImport } from './routes/app.configuracoes.nomus'
 import { Route as AppConfiguracoesApiNomusRouteImport } from './routes/app.configuracoes.api-nomus'
 import { Route as AppColdproProdutosRouteImport } from './routes/app.coldpro.produtos'
@@ -195,6 +196,12 @@ const AppCrmIdRoute = AppCrmIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => AppCrmRoute,
 } as any)
+const AppConfiguracoesPermissoesRoute =
+  AppConfiguracoesPermissoesRouteImport.update({
+    id: '/permissoes',
+    path: '/permissoes',
+    getParentRoute: () => AppConfiguracoesRoute,
+  } as any)
 const AppConfiguracoesNomusRoute = AppConfiguracoesNomusRouteImport.update({
   id: '/nomus',
   path: '/nomus',
@@ -305,6 +312,7 @@ export interface FileRoutesByFullPath {
   '/app/coldpro/produtos': typeof AppColdproProdutosRoute
   '/app/configuracoes/api-nomus': typeof AppConfiguracoesApiNomusRoute
   '/app/configuracoes/nomus': typeof AppConfiguracoesNomusRouteWithChildren
+  '/app/configuracoes/permissoes': typeof AppConfiguracoesPermissoesRoute
   '/app/crm/$id': typeof AppCrmIdRoute
   '/app/propostas/$id': typeof AppPropostasIdRouteWithChildren
   '/app/propostas/nova': typeof AppPropostasNovaRoute
@@ -349,6 +357,7 @@ export interface FileRoutesByTo {
   '/app/coldpro/produtos': typeof AppColdproProdutosRoute
   '/app/configuracoes/api-nomus': typeof AppConfiguracoesApiNomusRoute
   '/app/configuracoes/nomus': typeof AppConfiguracoesNomusRouteWithChildren
+  '/app/configuracoes/permissoes': typeof AppConfiguracoesPermissoesRoute
   '/app/crm/$id': typeof AppCrmIdRoute
   '/app/propostas/nova': typeof AppPropostasNovaRoute
   '/app/propostas/pedidos-nf': typeof AppPropostasPedidosNfRoute
@@ -395,6 +404,7 @@ export interface FileRoutesById {
   '/app/coldpro/produtos': typeof AppColdproProdutosRoute
   '/app/configuracoes/api-nomus': typeof AppConfiguracoesApiNomusRoute
   '/app/configuracoes/nomus': typeof AppConfiguracoesNomusRouteWithChildren
+  '/app/configuracoes/permissoes': typeof AppConfiguracoesPermissoesRoute
   '/app/crm/$id': typeof AppCrmIdRoute
   '/app/propostas/$id': typeof AppPropostasIdRouteWithChildren
   '/app/propostas/nova': typeof AppPropostasNovaRoute
@@ -443,6 +453,7 @@ export interface FileRouteTypes {
     | '/app/coldpro/produtos'
     | '/app/configuracoes/api-nomus'
     | '/app/configuracoes/nomus'
+    | '/app/configuracoes/permissoes'
     | '/app/crm/$id'
     | '/app/propostas/$id'
     | '/app/propostas/nova'
@@ -487,6 +498,7 @@ export interface FileRouteTypes {
     | '/app/coldpro/produtos'
     | '/app/configuracoes/api-nomus'
     | '/app/configuracoes/nomus'
+    | '/app/configuracoes/permissoes'
     | '/app/crm/$id'
     | '/app/propostas/nova'
     | '/app/propostas/pedidos-nf'
@@ -532,6 +544,7 @@ export interface FileRouteTypes {
     | '/app/coldpro/produtos'
     | '/app/configuracoes/api-nomus'
     | '/app/configuracoes/nomus'
+    | '/app/configuracoes/permissoes'
     | '/app/crm/$id'
     | '/app/propostas/$id'
     | '/app/propostas/nova'
@@ -768,6 +781,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppCrmIdRouteImport
       parentRoute: typeof AppCrmRoute
     }
+    '/app/configuracoes/permissoes': {
+      id: '/app/configuracoes/permissoes'
+      path: '/permissoes'
+      fullPath: '/app/configuracoes/permissoes'
+      preLoaderRoute: typeof AppConfiguracoesPermissoesRouteImport
+      parentRoute: typeof AppConfiguracoesRoute
+    }
     '/app/configuracoes/nomus': {
       id: '/app/configuracoes/nomus'
       path: '/nomus'
@@ -900,6 +920,7 @@ const AppConfiguracoesNomusRouteWithChildren =
 interface AppConfiguracoesRouteChildren {
   AppConfiguracoesApiNomusRoute: typeof AppConfiguracoesApiNomusRoute
   AppConfiguracoesNomusRoute: typeof AppConfiguracoesNomusRouteWithChildren
+  AppConfiguracoesPermissoesRoute: typeof AppConfiguracoesPermissoesRoute
   AppConfiguracoesIndexRoute: typeof AppConfiguracoesIndexRoute
   AppConfiguracoesTemplatesIdRoute: typeof AppConfiguracoesTemplatesIdRoute
   AppConfiguracoesTemplatesIndexRoute: typeof AppConfiguracoesTemplatesIndexRoute
@@ -908,6 +929,7 @@ interface AppConfiguracoesRouteChildren {
 const AppConfiguracoesRouteChildren: AppConfiguracoesRouteChildren = {
   AppConfiguracoesApiNomusRoute: AppConfiguracoesApiNomusRoute,
   AppConfiguracoesNomusRoute: AppConfiguracoesNomusRouteWithChildren,
+  AppConfiguracoesPermissoesRoute: AppConfiguracoesPermissoesRoute,
   AppConfiguracoesIndexRoute: AppConfiguracoesIndexRoute,
   AppConfiguracoesTemplatesIdRoute: AppConfiguracoesTemplatesIdRoute,
   AppConfiguracoesTemplatesIndexRoute: AppConfiguracoesTemplatesIndexRoute,

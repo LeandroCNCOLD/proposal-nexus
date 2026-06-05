@@ -1,8 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
-import { UserPlus, Trash2 } from "lucide-react";
+import { UserPlus, Trash2, ShieldCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
 import { useAuth, type AppRole } from "@/hooks/useAuth";
@@ -103,6 +103,13 @@ function SettingsPage() {
               <p className="text-xs text-muted-foreground">
                 Apenas administradores, diretoria e gerência comercial podem cadastrar novos usuários.
               </p>
+            )}
+            {canManage && (
+              <Button asChild variant="outline" size="sm" className="mt-3 gap-2">
+                <Link to="/app/configuracoes/permissoes">
+                  <ShieldCheck className="h-4 w-4" /> Gerenciar permissões por módulo
+                </Link>
+              </Button>
             )}
           </div>
         </div>
