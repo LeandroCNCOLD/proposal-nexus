@@ -16,6 +16,8 @@ import { Textarea } from '@/components/ui/textarea'
 import { Unlock, Clock, MapPin, Phone, DollarSign, ChevronDown, ChevronUp, Mail, Building2, FileText, Calendar, AlertTriangle, History, Paperclip, MessageCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { CallScriptDialog } from '@/modules/sdr/components/CallScriptDialog'
+import { useProposalLeadMatches, type ProposalLeadMatch } from '@/hooks/use-proposal-lead-matches'
+import { useMemo } from 'react'
 
 export const Route = createFileRoute('/app/sdr/wallet')({
   component: WalletPage,
@@ -50,6 +52,9 @@ function WalletPage() {
     enabled: !!user,
   })
 
+  const leadIds = useMemo(() => leads.map(l => l.id), [leads])
+  const { byLead: proposalMatches } = useProposalLeadMatches({ leadIds })
+
   const unlockMut = useMutation({
     mutationFn: (id: string) => unlockLead(id),
     onSuccess: () => {
@@ -82,6 +87,7 @@ function WalletPage() {
               key={lead.id}
               lead={lead}
               sdrName={sdrName}
+              proposalMatch={proposalMatches.get(lead.id) ?? null}
               onOpenScript={() => setScriptLead(lead)}
               onUnlock={() => {
                 if (confirm(`Devolver "${lead.client_name}" ao banco?`)) unlockMut.mutate(lead.id)
@@ -100,7 +106,12 @@ function WalletPage() {
   )
 }
 
-function LeadCard({ lead, sdrName, onUnlock, onOpenScript }: {
+function LeadCard({ lead, sdrName, onUnlock, onOpenScript, proposalMatch }: {
+  lead: CrmPipeline
+  sdrName: string
+  onUnlock: () => void
+  onOpenScript: () => void
+  proposalMatch?: ProposalLeadMatch | null
   lead: CrmPipeline
   sdrName: string
   onUnlock: () => void
@@ -244,6 +255,16 @@ function LeadCard({ lead, sdrName, onUnlock, onOpenScript }: {
             <Badge variant="secondary">{lead.temperature}</Badge>
             <Badge variant="outline">{lead.sdr_status}</Badge>
             {lead.priority && <Badge>{lead.priority}</Badge>}
+            {proposalMatch && (
+              <Link
+                to="/app/propostas/$id"
+                params={{ id: proposalMatch.proposal_id }}
+                title={proposalMatch.match_type === 'cnpj' ? 'Casado por CNPJ' : 'Casado por título'}
+                className="inline-flex items-center gap-1 rounded-md bg-emerald-500/10 text-emerald-700 ring-1 ring-emerald-500/20 px-2 py-0.5 text-[11px] font-medium hover:bg-emerald-500/20"
+              >
+                <FileText className="w-3 h-3" /> Proposta Nomus
+              </Link>
+            )}
           </div>
           {lead.razao_social && lead.razao_social !== lead.client_name && (
             <div className="text-sm text-muted-foreground mt-1">

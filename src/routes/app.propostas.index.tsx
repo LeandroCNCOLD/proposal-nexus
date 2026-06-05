@@ -6,6 +6,8 @@ import { Plus, Search, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { nomusKickoffSyncProposals } from "@/integrations/nomus/server.functions";
+import { useProposalLeadMatches } from "@/hooks/use-proposal-lead-matches";
+import { Link2 } from "lucide-react";
 
 import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -21,6 +23,7 @@ export const Route = createFileRoute("/app/propostas/")({ component: ProposalsLi
 function ProposalsList() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [onlyWithLead, setOnlyWithLead] = useState(false);
   const queryClient = useQueryClient();
   const kickoffSync = useServerFn(nomusKickoffSyncProposals);
 
@@ -101,6 +104,11 @@ function ProposalsList() {
       });
     },
   });
+
+  const proposalIds = useMemo(() => proposals.map((p) => p.id), [proposals]);
+  const { byProposal: leadMatches } = useProposalLeadMatches({ proposalIds });
+
+
 
   // Formata CNPJ no padrão 00.000.000/0000-00
   const formatCNPJ = (raw: string | null | undefined) => {
@@ -206,6 +214,7 @@ function ProposalsList() {
     // 1) Aplica filtros de status e busca
     const list = proposals.filter((p) => {
       if (statusFilter !== "all" && p.status !== statusFilter) return false;
+      if (onlyWithLead && !leadMatches.has(p.id)) return false;
       if (!search) return true;
       const q = search.toLowerCase();
       const parsed = parseTitle(p.title);
@@ -244,7 +253,7 @@ function ProposalsList() {
 
     // 3) Ordena pela data real do Nomus (mais recente primeiro)
     return latest.sort(compareNomusNewestFirst);
-  }, [proposals, search, statusFilter]);
+  }, [proposals, search, statusFilter, onlyWithLead, leadMatches]);
 
   return (
     <>
@@ -274,6 +283,15 @@ function ProposalsList() {
             {ALL_STATUSES.map((s) => <SelectItem key={s} value={s}>{STATUS_LABELS[s]}</SelectItem>)}
           </SelectContent>
         </Select>
+        <label className="inline-flex items-center gap-2 text-sm text-muted-foreground select-none">
+          <input
+            type="checkbox"
+            checked={onlyWithLead}
+            onChange={(e) => setOnlyWithLead(e.target.checked)}
+            className="h-4 w-4"
+          />
+          Somente com lead SDR
+        </label>
       </div>
 
       <div className="rounded-xl border bg-card shadow-[var(--shadow-sm)] overflow-x-auto">
@@ -291,13 +309,14 @@ function ProposalsList() {
               <TableHead>Validade</TableHead>
               <TableHead>Criada</TableHead>
               <TableHead>Última atualização</TableHead>
+              <TableHead>Lead SDR</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-12">Carregando...</TableCell></TableRow>
+              <TableRow><TableCell colSpan={12} className="text-center text-muted-foreground py-12">Carregando...</TableCell></TableRow>
             ) : filtered.length === 0 ? (
-              <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-12">Nenhuma proposta encontrada.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={12} className="text-center text-muted-foreground py-12">Nenhuma proposta encontrada.</TableCell></TableRow>
             ) : filtered.map((p) => {
               const parsed = parseTitle(p.title);
               const displayNumber = parsed.cn || p.number;
@@ -343,6 +362,23 @@ function ProposalsList() {
                 <TableCell className="text-sm text-muted-foreground">{dateBR(p.valid_until)}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">{dateBR((p as any)._nomus?.criada_em_nomus ?? (p as any)._nomus?.data_emissao ?? p.created_at)}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">{dateBR(p.updated_at)}</TableCell>
+                <TableCell>
+                  {(() => {
+                    const m = leadMatches.get(p.id);
+                    if (!m) return <span className="text-xs text-muted-foreground">—</span>;
+                    const tip = m.match_type === "cnpj" ? "Casado por CNPJ" : "Casado por título/código";
+                    return (
+                      <Link
+                        to="/app/sdr/bank"
+                        title={`${tip}${m.lead_code ? ` · ${m.lead_code}` : ""}`}
+                        className="inline-flex items-center gap-1 rounded-md bg-emerald-500/10 text-emerald-700 ring-1 ring-emerald-500/20 px-2 py-0.5 text-[11px] font-medium hover:bg-emerald-500/20"
+                      >
+                        <Link2 className="h-3 w-3" />
+                        Lead SDR
+                      </Link>
+                    );
+                  })()}
+                </TableCell>
               </TableRow>
               );
             })}
