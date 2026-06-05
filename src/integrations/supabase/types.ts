@@ -4007,6 +4007,10 @@ export type Database = {
           id: string
           internal_note: string | null
           last_contact_at: string | null
+          lock_expires_at: string | null
+          locked_at: string | null
+          locked_by_sdr_id: string | null
+          locked_by_sdr_name: string | null
           meeting_date: string | null
           meeting_scheduled: boolean
           next_contact_at: string | null
@@ -4035,6 +4039,10 @@ export type Database = {
           id?: string
           internal_note?: string | null
           last_contact_at?: string | null
+          lock_expires_at?: string | null
+          locked_at?: string | null
+          locked_by_sdr_id?: string | null
+          locked_by_sdr_name?: string | null
           meeting_date?: string | null
           meeting_scheduled?: boolean
           next_contact_at?: string | null
@@ -4063,6 +4071,10 @@ export type Database = {
           id?: string
           internal_note?: string | null
           last_contact_at?: string | null
+          lock_expires_at?: string | null
+          locked_at?: string | null
+          locked_by_sdr_id?: string | null
+          locked_by_sdr_name?: string | null
           meeting_date?: string | null
           meeting_scheduled?: boolean
           next_contact_at?: string | null
@@ -8103,6 +8115,7 @@ export type Database = {
         Args: { p_table_type: string }
         Returns: Json
       }
+      release_expired_locks: { Args: never; Returns: undefined }
       sync_digits_only: { Args: { value: string }; Returns: string }
       sync_jsonb_hash: { Args: { payload: Json }; Returns: string }
       sync_normalize_cn_cold_model: { Args: { value: string }; Returns: string }
