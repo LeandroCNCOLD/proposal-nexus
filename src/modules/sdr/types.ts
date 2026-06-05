@@ -105,9 +105,13 @@ export interface CrmWeeklyReview {
   next_week_plan: string | null
 }
 
+export const SDR_DAILY_GOAL = 15
+
 export interface SdrMetrics {
   name: string
   totalCalls: number
+  completedContacts: number
+  attempts: number
   realAnswers: number
   answerRate: number
   meetingsBooked: number
@@ -115,6 +119,8 @@ export interface SdrMetrics {
   conversionRate: number
   hotDeals: number
   closedDeals: number
+  goalPct: number
+  goalReached: boolean
 }
 
 export interface PipelineFilters {
