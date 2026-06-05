@@ -113,19 +113,35 @@ function LeadCard({ lead, sdrName, onUnlock, onOpenScript }: {
   const [meetingBooked, setMeetingBooked] = useState(false)
   const [meetingDate, setMeetingDate] = useState('')
   const [closer, setCloser] = useState<string>('')
+  const nowLocal = () => {
+    const d = new Date()
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset())
+    return d.toISOString().slice(0, 16)
+  }
+  const [attemptAt, setAttemptAt] = useState<string>(nowLocal())
 
   const remaining = daysUntil(lead.lock_expires_at)
+
+  const { data: callLogs = [] } = useQuery({
+    queryKey: ['call-logs', lead.id],
+    queryFn: () => fetchCallLogs({ pipelineId: lead.id }),
+    refetchInterval: 60_000,
+  })
+  const attemptCount = callLogs.length
+  const alertManagement = attemptCount >= 3
 
   const registerMut = useMutation({
     mutationFn: async () => {
       if (!result) throw new Error('Escolha o resultado da ligação')
-      const today = new Date().toISOString().slice(0, 10)
+      const when = attemptAt ? new Date(attemptAt) : new Date()
+      const dateStr = when.toISOString().slice(0, 10)
+      const timeStr = when.toTimeString().slice(0, 5)
       await insertCallLog({
         pipeline_id: lead.id,
         sdr_id: lead.locked_by_sdr_id,
         sdr_name: sdrName,
-        call_date: today,
-        call_time: new Date().toTimeString().slice(0, 5),
+        call_date: dateStr,
+        call_time: timeStr,
         duration_min: null,
         result: result as CallResult,
         temperature_after: tempAfter || null,
@@ -133,11 +149,35 @@ function LeadCard({ lead, sdrName, onUnlock, onOpenScript }: {
         observation: observation || null,
       })
 
+      // Alerta para gestão na 3ª tentativa (sem reunião agendada)
+      if (attemptCount + 1 >= 3 && !meetingBooked) {
+        try {
+          const { data: { user: authUser } } = await supabase.auth.getUser()
+          await supabase.from('audit_logs').insert({
+            user_id: authUser?.id ?? null,
+            action: 'SDR_ALERT_3_ATTEMPTS',
+            entity_type: 'sdr_lead',
+            entity_id: lead.id,
+            changes: {
+              lead_code: lead.lead_code,
+              client_name: lead.client_name,
+              sdr_name: sdrName,
+              attempt_number: attemptCount + 1,
+              last_result: result,
+              observation: observation || null,
+              triggered_at: new Date().toISOString(),
+            },
+          })
+        } catch (err) {
+          console.error('Falha ao registrar alerta de gestão', err)
+        }
+      }
+
       const updates: Array<Promise<unknown>> = [renewLock(lead.id)]
       if (tempAfter)   updates.push(updatePipelineField(lead.id, 'temperature', tempAfter))
       if (observation) updates.push(updatePipelineField(lead.id, 'call_observation', observation))
       if (nextStep)    updates.push(updatePipelineField(lead.id, 'next_step', nextStep))
-      updates.push(updatePipelineField(lead.id, 'last_contact_at', new Date().toISOString()))
+      updates.push(updatePipelineField(lead.id, 'last_contact_at', when.toISOString()))
       updates.push(updatePipelineField(lead.id, 'call_result', result as CallResult))
 
       if (meetingBooked) {
@@ -152,9 +192,18 @@ function LeadCard({ lead, sdrName, onUnlock, onOpenScript }: {
       await Promise.all(updates)
     },
     onSuccess: () => {
-      toast.success(meetingBooked ? 'Reunião agendada — Closer notificado!' : 'Ligação registrada e lock renovado.')
+      const willAlert = attemptCount + 1 >= 3 && !meetingBooked
+      toast.success(
+        meetingBooked
+          ? 'Reunião agendada — Closer notificado!'
+          : willAlert
+            ? `Tentativa #${attemptCount + 1} registrada — Gestão notificada!`
+            : `Tentativa #${attemptCount + 1} registrada e lock renovado.`,
+      )
       setResult(''); setObservation(''); setNextStep(''); setMeetingBooked(false); setMeetingDate(''); setCloser('')
+      setAttemptAt(nowLocal())
       qc.invalidateQueries({ queryKey: ['my-wallet'] })
+      qc.invalidateQueries({ queryKey: ['call-logs', lead.id] })
     },
     onError: (e: Error) => toast.error(e.message),
   })
