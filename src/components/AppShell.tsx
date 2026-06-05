@@ -4,7 +4,7 @@ import {
   FileBarChart, FileCheck2, FolderUp, Settings, LogOut,
   Search, Bell, Snowflake, ChevronDown, CheckSquare, PlugZap, Database,
   LayoutTemplate, Kanban, Thermometer, PackageSearch,
-  LayoutList, Zap, Flame, BarChart2, Briefcase,
+  Zap, Flame, BarChart2, Briefcase,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { ROLE_LABELS } from "@/lib/proposal";
@@ -36,7 +36,6 @@ const NAV = [
   { group: "SDR — Pré-Venda", items: [
     { to: "/app/sdr/bank", label: "Banco de Leads", icon: Database },
     { to: "/app/sdr/wallet", label: "Minha Carteira", icon: Briefcase },
-    { to: "/app/sdr", label: "Pipeline Master", icon: LayoutList, exact: true },
     { to: "/app/sdr/war-room", label: "War Room", icon: Zap },
     { to: "/app/sdr/hot-deals", label: "Hot Leads", icon: Flame },
     { to: "/app/sdr/sdr-performance", label: "SDR Performance", icon: BarChart2 },
