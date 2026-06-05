@@ -255,6 +255,16 @@ function LeadCard({ lead, sdrName, onUnlock, onOpenScript, proposalMatch }: {
             <Badge variant="secondary">{lead.temperature}</Badge>
             <Badge variant="outline">{lead.sdr_status}</Badge>
             {lead.priority && <Badge>{lead.priority}</Badge>}
+            {proposalMatch && (
+              <Link
+                to="/app/propostas/$id"
+                params={{ id: proposalMatch.proposal_id }}
+                title={proposalMatch.match_type === 'cnpj' ? 'Casado por CNPJ' : 'Casado por título'}
+                className="inline-flex items-center gap-1 rounded-md bg-emerald-500/10 text-emerald-700 ring-1 ring-emerald-500/20 px-2 py-0.5 text-[11px] font-medium hover:bg-emerald-500/20"
+              >
+                <FileText className="w-3 h-3" /> Proposta Nomus
+              </Link>
+            )}
           </div>
           {lead.razao_social && lead.razao_social !== lead.client_name && (
             <div className="text-sm text-muted-foreground mt-1">
