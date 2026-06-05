@@ -35,6 +35,7 @@ async function fetchPerf() {
 }
 
 function SdrPerformancePage() {
+  const { names: sdrNames } = useSdrNames()
   const { data, isLoading, error } = useQuery({
     queryKey: ['sdr-performance'],
     queryFn: fetchPerf,
@@ -44,7 +45,7 @@ function SdrPerformancePage() {
 
   const aggs: Agg[] = useMemo(() => {
     const map = new Map<string, Agg>()
-    for (const n of SDR_NAMES) {
+    for (const n of sdrNames) {
       map.set(n, { name: n, completedDay: 0, attemptsDay: 0, meetingsDay: 0, hotDay: 0, completedMonth: 0, attemptsMonth: 0, meetingsMonth: 0 })
     }
     for (const l of data?.day ?? []) {
