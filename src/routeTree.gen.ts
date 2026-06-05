@@ -12,7 +12,11 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as CrmIndexRouteImport } from './routes/crm/index'
 import { Route as AppIndexRouteImport } from './routes/app.index'
+import { Route as CrmWarRoomRouteImport } from './routes/crm/war-room'
+import { Route as CrmSdrPerformanceRouteImport } from './routes/crm/sdr-performance'
+import { Route as CrmHotDealsRouteImport } from './routes/crm/hot-deals'
 import { Route as AppTarefasRouteImport } from './routes/app.tarefas'
 import { Route as AppRelatoriosRouteImport } from './routes/app.relatorios'
 import { Route as AppEquipamentosRouteImport } from './routes/app.equipamentos'
@@ -63,10 +67,30 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CrmIndexRoute = CrmIndexRouteImport.update({
+  id: '/crm/',
+  path: '/crm/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AppRoute,
+} as any)
+const CrmWarRoomRoute = CrmWarRoomRouteImport.update({
+  id: '/crm/war-room',
+  path: '/crm/war-room',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CrmSdrPerformanceRoute = CrmSdrPerformanceRouteImport.update({
+  id: '/crm/sdr-performance',
+  path: '/crm/sdr-performance',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CrmHotDealsRoute = CrmHotDealsRouteImport.update({
+  id: '/crm/hot-deals',
+  path: '/crm/hot-deals',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AppTarefasRoute = AppTarefasRouteImport.update({
   id: '/tarefas',
@@ -262,7 +286,11 @@ export interface FileRoutesByFullPath {
   '/app/equipamentos': typeof AppEquipamentosRoute
   '/app/relatorios': typeof AppRelatoriosRoute
   '/app/tarefas': typeof AppTarefasRoute
+  '/crm/hot-deals': typeof CrmHotDealsRoute
+  '/crm/sdr-performance': typeof CrmSdrPerformanceRoute
+  '/crm/war-room': typeof CrmWarRoomRoute
   '/app/': typeof AppIndexRoute
+  '/crm/': typeof CrmIndexRoute
   '/api/nomus/test': typeof ApiNomusTestRoute
   '/app/coldpro/$id': typeof AppColdproIdRoute
   '/app/coldpro/catalogo': typeof AppColdproCatalogoRoute
@@ -300,7 +328,11 @@ export interface FileRoutesByTo {
   '/app/equipamentos': typeof AppEquipamentosRoute
   '/app/relatorios': typeof AppRelatoriosRoute
   '/app/tarefas': typeof AppTarefasRoute
+  '/crm/hot-deals': typeof CrmHotDealsRoute
+  '/crm/sdr-performance': typeof CrmSdrPerformanceRoute
+  '/crm/war-room': typeof CrmWarRoomRoute
   '/app': typeof AppIndexRoute
+  '/crm': typeof CrmIndexRoute
   '/api/nomus/test': typeof ApiNomusTestRoute
   '/app/coldpro/$id': typeof AppColdproIdRoute
   '/app/coldpro/catalogo': typeof AppColdproCatalogoRoute
@@ -340,7 +372,11 @@ export interface FileRoutesById {
   '/app/equipamentos': typeof AppEquipamentosRoute
   '/app/relatorios': typeof AppRelatoriosRoute
   '/app/tarefas': typeof AppTarefasRoute
+  '/crm/hot-deals': typeof CrmHotDealsRoute
+  '/crm/sdr-performance': typeof CrmSdrPerformanceRoute
+  '/crm/war-room': typeof CrmWarRoomRoute
   '/app/': typeof AppIndexRoute
+  '/crm/': typeof CrmIndexRoute
   '/api/nomus/test': typeof ApiNomusTestRoute
   '/app/coldpro/$id': typeof AppColdproIdRoute
   '/app/coldpro/catalogo': typeof AppColdproCatalogoRoute
@@ -382,7 +418,11 @@ export interface FileRouteTypes {
     | '/app/equipamentos'
     | '/app/relatorios'
     | '/app/tarefas'
+    | '/crm/hot-deals'
+    | '/crm/sdr-performance'
+    | '/crm/war-room'
     | '/app/'
+    | '/crm/'
     | '/api/nomus/test'
     | '/app/coldpro/$id'
     | '/app/coldpro/catalogo'
@@ -420,7 +460,11 @@ export interface FileRouteTypes {
     | '/app/equipamentos'
     | '/app/relatorios'
     | '/app/tarefas'
+    | '/crm/hot-deals'
+    | '/crm/sdr-performance'
+    | '/crm/war-room'
     | '/app'
+    | '/crm'
     | '/api/nomus/test'
     | '/app/coldpro/$id'
     | '/app/coldpro/catalogo'
@@ -459,7 +503,11 @@ export interface FileRouteTypes {
     | '/app/equipamentos'
     | '/app/relatorios'
     | '/app/tarefas'
+    | '/crm/hot-deals'
+    | '/crm/sdr-performance'
+    | '/crm/war-room'
     | '/app/'
+    | '/crm/'
     | '/api/nomus/test'
     | '/app/coldpro/$id'
     | '/app/coldpro/catalogo'
@@ -490,6 +538,10 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
+  CrmHotDealsRoute: typeof CrmHotDealsRoute
+  CrmSdrPerformanceRoute: typeof CrmSdrPerformanceRoute
+  CrmWarRoomRoute: typeof CrmWarRoomRoute
+  CrmIndexRoute: typeof CrmIndexRoute
   ApiNomusTestRoute: typeof ApiNomusTestRoute
   ApiPublicHooksNomusCronRoute: typeof ApiPublicHooksNomusCronRoute
   ApiPublicNomusExhaustiveProbeRoute: typeof ApiPublicNomusExhaustiveProbeRoute
@@ -521,12 +573,40 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/crm/': {
+      id: '/crm/'
+      path: '/crm'
+      fullPath: '/crm/'
+      preLoaderRoute: typeof CrmIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/app/': {
       id: '/app/'
       path: '/'
       fullPath: '/app/'
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/crm/war-room': {
+      id: '/crm/war-room'
+      path: '/crm/war-room'
+      fullPath: '/crm/war-room'
+      preLoaderRoute: typeof CrmWarRoomRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/crm/sdr-performance': {
+      id: '/crm/sdr-performance'
+      path: '/crm/sdr-performance'
+      fullPath: '/crm/sdr-performance'
+      preLoaderRoute: typeof CrmSdrPerformanceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/crm/hot-deals': {
+      id: '/crm/hot-deals'
+      path: '/crm/hot-deals'
+      fullPath: '/crm/hot-deals'
+      preLoaderRoute: typeof CrmHotDealsRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/app/tarefas': {
       id: '/app/tarefas'
@@ -879,6 +959,10 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
+  CrmHotDealsRoute: CrmHotDealsRoute,
+  CrmSdrPerformanceRoute: CrmSdrPerformanceRoute,
+  CrmWarRoomRoute: CrmWarRoomRoute,
+  CrmIndexRoute: CrmIndexRoute,
   ApiNomusTestRoute: ApiNomusTestRoute,
   ApiPublicHooksNomusCronRoute: ApiPublicHooksNomusCronRoute,
   ApiPublicNomusExhaustiveProbeRoute: ApiPublicNomusExhaustiveProbeRoute,
@@ -890,12 +974,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-  }
-}
