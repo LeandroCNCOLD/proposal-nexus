@@ -123,6 +123,40 @@ function BankPage() {
     })
   }, [rows, search, uf, minValue, temp])
 
+  const sorted = useMemo(() => {
+    if (!sortKey || !sortDir) return filtered
+    const tempOrder: Record<string, number> = { 'Frio': 0, 'Morno': 1, 'Quente': 2, 'Muito Quente': 3 }
+    const statusVal = (r: any) => {
+      const frozen = !!r.locked_by_sdr_name?.startsWith(MANAGER_FREEZE_PREFIX)
+      if (frozen) return 3
+      if (r.locked_by_sdr_id === user?.id) return 1
+      if (r.locked_by_sdr_id) return 2
+      return 0
+    }
+    const getVal = (r: any): string | number => {
+      switch (sortKey) {
+        case 'lead_code': return r.lead_code ?? ''
+        case 'client_name': return (r.client_name ?? '').toLowerCase()
+        case 'contact_name': return (r.contact_name ?? '').toLowerCase()
+        case 'state': return r.state ?? ''
+        case 'value': return r.value ?? 0
+        case 'cadastro': return new Date(r.proposal_date || r.created_at || 0).getTime()
+        case 'last_contact_at': return new Date(r.last_contact_at || 0).getTime()
+        case 'days_open': return daysSince(r.proposal_date || r.created_at) ?? -1
+        case 'temperature': return tempOrder[r.temperature] ?? -1
+        case 'status': return statusVal(r)
+      }
+    }
+    const copy = [...filtered]
+    copy.sort((a, b) => {
+      const va = getVal(a); const vb = getVal(b)
+      if (va < vb) return sortDir === 'asc' ? -1 : 1
+      if (va > vb) return sortDir === 'asc' ? 1 : -1
+      return 0
+    })
+    return copy
+  }, [filtered, sortKey, sortDir, user?.id])
+
   const atLimit = canPickLeads && myLockCount >= SDR_LOCK_LIMIT
 
   return (
