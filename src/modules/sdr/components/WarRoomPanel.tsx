@@ -7,7 +7,8 @@ import { Phone, Flame, CalendarCheck, Trophy, ShieldAlert, PhoneCall } from 'luc
 import { formatCurrency } from '@/lib/utils'
 import { supabase } from '@/integrations/supabase/client'
 import { fetchHotDeals, fetchDashboardKpis } from '../services'
-import { SDR_DAILY_GOAL, SDR_NAMES, type CrmCallLog, type CrmPipeline } from '../types'
+import { SDR_DAILY_GOAL, type CrmCallLog, type CrmPipeline } from '../types'
+import { useSdrNames } from '../hooks/use-team-members'
 
 type DailyRow = {
   name: string
