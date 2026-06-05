@@ -319,6 +319,22 @@ function LeadCard({ lead, sdrName, onUnlock, onOpenScript }: {
         </div>
       )}
 
+      {/* CONTADOR DE TENTATIVAS + ALERTA */}
+      <div className="flex items-center justify-between gap-2 border-t pt-3 flex-wrap">
+        <div className="flex items-center gap-2 text-sm">
+          <Phone className="w-4 h-4 text-muted-foreground" />
+          <span className="font-semibold">Tentativas de contato:</span>
+          <Badge variant={alertManagement ? 'destructive' : 'secondary'}>{attemptCount}</Badge>
+          <span className="text-xs text-muted-foreground">próxima será #{attemptCount + 1}</span>
+        </div>
+        {alertManagement && (
+          <Badge variant="destructive" className="flex items-center gap-1">
+            <AlertTriangle className="w-3 h-3" />
+            ALERTA — Gestão notificada (3+ tentativas)
+          </Badge>
+        )}
+      </div>
+
       {/* REGISTRO DE LIGAÇÃO */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 border-t pt-3">
         <div className="space-y-2">
@@ -327,6 +343,9 @@ function LeadCard({ lead, sdrName, onUnlock, onOpenScript }: {
             <option value="">Selecione...</option>
             {CALL_RESULT_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
           </select>
+
+          <label className="text-xs font-semibold">Data e hora da tentativa *</label>
+          <Input type="datetime-local" value={attemptAt} onChange={e => setAttemptAt(e.target.value)} />
 
           <label className="text-xs font-semibold">Temperatura após ligação</label>
           <select value={tempAfter} onChange={e => setTempAfter(e.target.value as Temperature)} className="w-full border rounded px-2 py-1.5 text-sm">
@@ -360,9 +379,54 @@ function LeadCard({ lead, sdrName, onUnlock, onOpenScript }: {
 
       <div className="flex justify-end gap-2 border-t pt-3">
         <Button onClick={() => registerMut.mutate()} disabled={!result || registerMut.isPending}>
-          {registerMut.isPending ? 'Salvando...' : 'Registrar ligação'}
+          {registerMut.isPending ? 'Salvando...' : `Registrar tentativa #${attemptCount + 1}`}
         </Button>
       </div>
+
+      {/* LINHA DO TEMPO */}
+      <CallTimeline logs={callLogs} />
+    </div>
+  )
+}
+
+function CallTimeline({ logs }: { logs: CrmCallLog[] }) {
+  const sorted = [...logs].sort((a, b) => {
+    const ka = `${a.call_date}T${a.call_time ?? '00:00'}`
+    const kb = `${b.call_date}T${b.call_time ?? '00:00'}`
+    return kb.localeCompare(ka)
+  })
+  return (
+    <div className="border-t pt-3">
+      <div className="text-xs font-bold uppercase tracking-wide text-muted-foreground flex items-center gap-1 mb-2">
+        <History className="w-3 h-3" /> Linha do tempo · {sorted.length} {sorted.length === 1 ? 'evento' : 'eventos'}
+      </div>
+      {sorted.length === 0 ? (
+        <p className="text-xs text-muted-foreground italic">Nenhuma tentativa registrada ainda.</p>
+      ) : (
+        <ol className="relative border-l-2 border-muted ml-2 space-y-3">
+          {sorted.map((log, idx) => {
+            const attempt = sorted.length - idx
+            const when = new Date(`${log.call_date}T${log.call_time ?? '00:00'}:00`)
+            const isAlert = attempt >= 3 && !log.meeting_booked
+            return (
+              <li key={log.id} className="ml-4 relative">
+                <span className={`absolute -left-[1.4rem] top-1 w-3 h-3 rounded-full border-2 border-background ${isAlert ? 'bg-red-500' : log.meeting_booked ? 'bg-green-500' : 'bg-blue-500'}`} />
+                <div className="text-xs flex items-center gap-2 flex-wrap">
+                  <Badge variant={isAlert ? 'destructive' : 'outline'} className="text-[10px]">#{attempt}</Badge>
+                  <span className="font-semibold">{when.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</span>
+                  <span className="text-muted-foreground">· {log.sdr_name}</span>
+                  {log.temperature_after && <Badge variant="secondary" className="text-[10px]">{log.temperature_after}</Badge>}
+                  {log.meeting_booked && <Badge className="text-[10px] bg-green-600">Reunião agendada</Badge>}
+                </div>
+                <div className="text-xs mt-0.5">{log.result || '—'}</div>
+                {log.observation && (
+                  <div className="text-xs text-muted-foreground italic mt-0.5">"{log.observation}"</div>
+                )}
+              </li>
+            )
+          })}
+        </ol>
+      )}
     </div>
   )
 }
