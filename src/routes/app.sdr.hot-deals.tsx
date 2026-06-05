@@ -1,11 +1,14 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { fetchHotDeals } from '@/modules/sdr/services'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Card, CardContent } from '@/components/ui/card'
 import { formatCurrency } from '@/lib/utils'
+import { useAuth } from '@/hooks/useAuth'
+import { CallScriptDialog } from '@/modules/sdr/components/CallScriptDialog'
+import { Phone } from 'lucide-react'
 import type { Temperature, CrmPipeline } from '@/modules/sdr/types'
 
 export const Route = createFileRoute('/app/sdr/hot-deals')({
@@ -26,9 +29,14 @@ function urgencyBadge(days: number) {
 }
 
 function HotDealsPage() {
+  const { user, hasAnyRole } = useAuth()
+  const isManager = hasAnyRole(['gerente_comercial', 'diretoria', 'admin'])
+  const [scriptLead, setScriptLead] = useState<CrmPipeline | null>(null)
+
   const { data = [], isLoading, error } = useQuery({
-    queryKey: ['crm', 'hot-deals', 'page'],
-    queryFn: () => fetchHotDeals(60),
+    queryKey: ['crm', 'hot-deals', 'page', isManager ? 'all' : user?.id],
+    queryFn: () => fetchHotDeals(60, isManager ? null : user?.id ?? null),
+    enabled: !!user,
     refetchInterval: 60_000,
     staleTime: 30_000,
   })
@@ -46,7 +54,9 @@ function HotDealsPage() {
       <div>
         <h1 className="text-2xl font-bold text-red-800">Hot Leads</h1>
         <p className="text-sm text-muted-foreground">
-          Leads com maior valor e urgência · Prioridade Alta · {sorted.length} propostas
+          {isManager
+            ? `Todos os leads de alta prioridade · ${sorted.length} propostas`
+            : `Seus leads de alta prioridade · ${sorted.length} propostas · clique para ligar`}
         </p>
       </div>
 
@@ -65,15 +75,28 @@ function HotDealsPage() {
       )}
 
       {!isLoading && !error && sorted.length === 0 && (
-        <p className="text-sm text-muted-foreground">Nenhum hot lead no momento.</p>
+        <p className="text-sm text-muted-foreground">
+          {isManager
+            ? 'Nenhum hot lead no momento.'
+            : 'Você ainda não tem hot leads na sua carteira. Vá ao Banco de Leads para pegar leads de alta prioridade.'}
+        </p>
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
         {sorted.map((deal: CrmPipeline) => {
           const days = deal.days_without_contact ?? 0
           const urg = urgencyBadge(days)
+          const clickable = !isManager
           return (
-            <div key={deal.id} className="relative rounded-xl border bg-white p-4 space-y-3 shadow-sm">
+            <button
+              type="button"
+              key={deal.id}
+              onClick={() => clickable && setScriptLead(deal)}
+              disabled={!clickable}
+              className={`relative text-left rounded-xl border bg-white p-4 space-y-3 shadow-sm transition ${
+                clickable ? 'hover:shadow-md hover:border-red-300 cursor-pointer' : 'cursor-default'
+              }`}
+            >
               {urg && (
                 <Badge className={`absolute top-3 right-3 text-[10px] ${urg.cls}`}>
                   {urg.label}
@@ -93,10 +116,21 @@ function HotDealsPage() {
                   {days} dias sem contato
                 </span>
               </div>
-            </div>
+              {clickable && (
+                <div className="flex items-center gap-1 text-xs text-green-700 font-semibold pt-1">
+                  <Phone className="w-3 h-3" /> Clique para ligar
+                </div>
+              )}
+            </button>
           )
         })}
       </div>
+
+      <CallScriptDialog
+        lead={scriptLead}
+        open={!!scriptLead}
+        onOpenChange={(o) => !o && setScriptLead(null)}
+      />
     </div>
   )
 }
