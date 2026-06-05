@@ -178,14 +178,18 @@ export async function updatePipelineField(id: string, field: keyof CrmPipeline, 
   if (error) throw error
 }
 
-export async function fetchHotDeals(limit = 30) {
-  const { data, error } = await supabase
+export async function fetchHotDeals(limit = 30, sdrId?: string | null) {
+  let q = supabase
     .from('sdr_leads')
     .select('*')
     .eq('priority', 'Alta')
     .not('sdr_status', 'in', '("Kill / Arquivar","Fechado")')
     .order('value', { ascending: false })
     .limit(limit)
+
+  if (sdrId) q = q.eq('locked_by_sdr_id', sdrId)
+
+  const { data, error } = await q
   if (error) throw error
 
   const today = Date.now()
