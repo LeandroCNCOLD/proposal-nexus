@@ -9,10 +9,10 @@ function LiveClock() {
   }, []);
   const label = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   return (
-    <div className="hidden md:flex items-center gap-2">
-      <span className="font-mono text-sm font-bold tabular-nums text-[#0F2D5E]">{label}</span>
-      <span className="inline-flex items-center gap-1 rounded-full bg-green-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">
-        <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" /> Ao vivo
+    <div className="hidden md:flex items-center gap-2 ml-auto">
+      <span className="font-mono text-xl font-bold tabular-nums text-[#0F2D5E]">{label}</span>
+      <span className="inline-flex items-center gap-1 rounded-full bg-green-600 px-2 py-1 text-xs font-semibold text-white">
+        <span className="h-2 w-2 rounded-full bg-white animate-pulse" /> Ao vivo
       </span>
     </div>
   );
