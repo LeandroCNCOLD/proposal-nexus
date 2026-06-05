@@ -46,8 +46,10 @@ export function PipelineMasterTable() {
   const [drawer, setDrawer] = useState<CrmPipeline | null>(null)
   const [sortKey, setSortKey] = useState<'value' | 'days_without_contact'>('value')
   const [sortAsc, setSortAsc] = useState(false)
+  const [onlyActive, setOnlyActive] = useState(true)
 
-  const sorted = [...data].sort((a, b) => {
+  const filtered = onlyActive ? data.filter(r => !INACTIVE_STATUSES.includes(r.sdr_status)) : data
+  const sorted = [...filtered].sort((a, b) => {
     const av = (a[sortKey] ?? 0) as number
     const bv = (b[sortKey] ?? 0) as number
     return sortAsc ? av - bv : bv - av
@@ -63,6 +65,17 @@ export function PipelineMasterTable() {
   return (
     <div className="space-y-4">
       <PipelineFiltersBar filters={filters} onChange={applyFilter} onReset={resetFilters} />
+      <div className="flex items-center justify-between gap-3 px-1">
+        <div className="flex items-center gap-2">
+          <Switch id="only-active" checked={onlyActive} onCheckedChange={setOnlyActive} />
+          <Label htmlFor="only-active" className="text-sm cursor-pointer">
+            Apenas propostas ativas
+          </Label>
+        </div>
+        <span className="text-xs text-muted-foreground">
+          {sorted.length} de {data.length} propostas
+        </span>
+      </div>
       <div className="rounded-lg border overflow-x-auto">
         <Table>
           <TableHeader>
