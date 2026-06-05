@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { SdrPerformanceCard } from '@/modules/crm/components/SdrPerformanceCard'
 
-export const Route = createFileRoute('/crm/sdr-performance')({
+export const Route = createFileRoute('/app/crm-sdr/sdr-performance')({
   component: () => (
     <div className="p-6 space-y-4">
       <div>

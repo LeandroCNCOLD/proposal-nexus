@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { PipelineMasterTable } from '@/modules/crm/components/PipelineMasterTable'
 
-export const Route = createFileRoute('/crm/')({
+export const Route = createFileRoute('/app/crm-sdr/')({
   component: CrmPipelinePage,
 })
 
