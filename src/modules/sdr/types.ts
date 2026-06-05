@@ -152,5 +152,5 @@ export const CALL_RESULT_OPTIONS: CallResult[] = [
   'Não atendeu - WhatsApp','Não atendeu - Caixa postal',
   'Número inválido','Concorrente ganhou','Outros',
 ]
-export const SDR_NAMES = ['Katlin','Silmar','Tais','Vitor'] as const
-export const CLOSER_NAMES = ['Rafael','Elton','Rodrigo','Leandro'] as const
+// SDRs e Closers agora vêm do banco (profiles + user_roles).
+// Use useSdrNames() e useCloserNames() em '@/modules/sdr/hooks/use-team-members'.
