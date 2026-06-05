@@ -86,16 +86,12 @@ function HotDealsPage() {
         {sorted.map((deal: CrmPipeline) => {
           const days = deal.days_without_contact ?? 0
           const urg = urgencyBadge(days)
-          const clickable = !isManager
           return (
             <button
               type="button"
               key={deal.id}
-              onClick={() => clickable && setScriptLead(deal)}
-              disabled={!clickable}
-              className={`relative text-left rounded-xl border bg-white p-4 space-y-3 shadow-sm transition ${
-                clickable ? 'hover:shadow-md hover:border-red-300 cursor-pointer' : 'cursor-default'
-              }`}
+              onClick={() => setScriptLead(deal)}
+              className="relative text-left rounded-xl border bg-white p-4 space-y-3 shadow-sm transition hover:shadow-md hover:border-red-300 cursor-pointer"
             >
               {urg && (
                 <Badge className={`absolute top-3 right-3 text-[10px] ${urg.cls}`}>
@@ -116,11 +112,9 @@ function HotDealsPage() {
                   {days} dias sem contato
                 </span>
               </div>
-              {clickable && (
-                <div className="flex items-center gap-1 text-xs text-green-700 font-semibold pt-1">
-                  <Phone className="w-3 h-3" /> Clique para ligar
-                </div>
-              )}
+              <div className="flex items-center gap-1 text-xs text-green-700 font-semibold pt-1">
+                <Phone className="w-3 h-3" /> Clique para abrir
+              </div>
             </button>
           )
         })}
