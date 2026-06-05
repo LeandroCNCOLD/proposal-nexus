@@ -30,7 +30,14 @@ const InviteSchema = z.object({
     "admin",
   ]),
   password: z.string().min(8).max(72).optional().nullable(),
+  // Overrides iniciais (opcional). 'grant' adiciona algo não previsto no perfil
+  // e 'revoke' tira uma permissão herdada do perfil.
+  overrides: z.array(z.object({
+    permissionKey: z.string().min(1).max(120),
+    effect: z.enum(["grant", "revoke"]),
+  })).max(200).optional(),
 });
+
 
 async function ensureManager(supabase: any, userId: string) {
   const { data: roles, error } = await supabase
@@ -89,8 +96,27 @@ export const inviteNewUser = createServerFn({ method: "POST" })
         { onConflict: "user_id,role" },
       );
 
+    // Aplica overrides iniciais, se houver
+    if (data.overrides && data.overrides.length > 0) {
+      await supabaseAdmin
+        .from("user_permission_overrides")
+        .delete()
+        .eq("user_id", newUserId);
+      const rows = data.overrides.map((o) => ({
+        user_id: newUserId!,
+        permission_key: o.permissionKey,
+        effect: o.effect,
+        created_by: userId,
+      }));
+      const { error: ovErr } = await supabaseAdmin
+        .from("user_permission_overrides")
+        .insert(rows);
+      if (ovErr) throw new Error(ovErr.message);
+    }
+
     return { ok: true, userId: newUserId };
   });
+
 
 export const listAppUsers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])

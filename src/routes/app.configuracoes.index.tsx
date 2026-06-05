@@ -1,24 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
-import { UserPlus, Trash2, ShieldCheck } from "lucide-react";
+import { Trash2, ShieldCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
 import { useAuth, type AppRole } from "@/hooks/useAuth";
 import { ROLE_LABELS } from "@/lib/proposal";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -28,11 +16,11 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import {
-  inviteNewUser,
   listAppUsers,
   setUserPrimaryRole,
   deleteAppUser,
 } from "@/lib/user-admin.functions";
+import { NewUserWizard } from "@/components/admin/NewUserWizard";
 
 export const Route = createFileRoute("/app/configuracoes/")({ component: SettingsPage });
 
@@ -97,7 +85,7 @@ function SettingsPage() {
                   Cadastre um novo usuário e atribua o nível de acesso.
                 </p>
               </div>
-              {canManage && <NewUserDialog />}
+              {canManage && <NewUserWizard />}
             </div>
             {!canManage && (
               <p className="text-xs text-muted-foreground">
@@ -220,118 +208,5 @@ function UsersTable({ currentUserId }: { currentUserId: string }) {
         </table>
       </div>
     </div>
-  );
-}
-
-function NewUserDialog() {
-  const invite = useServerFn(inviteNewUser);
-  const qc = useQueryClient();
-  const [open, setOpen] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [fullName, setFullName] = useState("");
-  const [email, setEmail] = useState("");
-  const [role, setRole] = useState<AppRole>("vendedor");
-  const [password, setPassword] = useState("");
-
-  const reset = () => {
-    setFullName("");
-    setEmail("");
-    setRole("vendedor");
-    setPassword("");
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!fullName.trim() || !email.trim()) {
-      toast.error("Nome e e-mail são obrigatórios.");
-      return;
-    }
-    if (password && password.length < 8) {
-      toast.error("Senha deve ter ao menos 8 caracteres (ou deixe em branco para enviar convite).");
-      return;
-    }
-    setSubmitting(true);
-    try {
-      await invite({
-        data: {
-          fullName: fullName.trim(),
-          email: email.trim().toLowerCase(),
-          role,
-          password: password || null,
-        },
-      });
-      toast.success(password ? "Usuário criado com sucesso." : "Convite enviado por e-mail.");
-      reset();
-      setOpen(false);
-      qc.invalidateQueries({ queryKey: ["app-users"] });
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro ao cadastrar usuário.");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button size="sm" className="gap-2">
-          <UserPlus className="h-4 w-4" />
-          Novo usuário
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Cadastrar novo usuário</DialogTitle>
-          <DialogDescription>
-            Defina o nível de acesso. Deixe a senha em branco para enviar um convite por e-mail.
-          </DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="new-user-name">Nome completo</Label>
-            <Input id="new-user-name" value={fullName} onChange={(e) => setFullName(e.target.value)} required maxLength={120} />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="new-user-email">E-mail</Label>
-            <Input id="new-user-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required maxLength={255} />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="new-user-role">Nível de acesso</Label>
-            <Select value={role} onValueChange={(v) => setRole(v as AppRole)}>
-              <SelectTrigger id="new-user-role">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {ASSIGNABLE_ROLES.map((r) => (
-                  <SelectItem key={r} value={r}>
-                    {ROLE_LABELS[r]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="new-user-pass">Senha inicial (opcional)</Label>
-            <Input
-              id="new-user-pass"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Em branco = enviar convite por e-mail"
-              minLength={8}
-              maxLength={72}
-            />
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={submitting}>
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={submitting}>
-              {submitting ? "Cadastrando..." : "Cadastrar"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
   );
 }
