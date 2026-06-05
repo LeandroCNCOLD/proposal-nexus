@@ -3827,12 +3827,15 @@ export type Database = {
         Row: {
           call_date: string
           call_time: string | null
+          channel: string
           created_at: string
           duration_min: number | null
           id: string
           meeting_booked: boolean
           observation: string | null
           pipeline_id: string | null
+          proof_path: string | null
+          proof_validated: boolean
           result: string | null
           sdr_id: string | null
           sdr_name: string
@@ -3841,12 +3844,15 @@ export type Database = {
         Insert: {
           call_date?: string
           call_time?: string | null
+          channel?: string
           created_at?: string
           duration_min?: number | null
           id?: string
           meeting_booked?: boolean
           observation?: string | null
           pipeline_id?: string | null
+          proof_path?: string | null
+          proof_validated?: boolean
           result?: string | null
           sdr_id?: string | null
           sdr_name: string
@@ -3855,12 +3861,15 @@ export type Database = {
         Update: {
           call_date?: string
           call_time?: string | null
+          channel?: string
           created_at?: string
           duration_min?: number | null
           id?: string
           meeting_booked?: boolean
           observation?: string | null
           pipeline_id?: string | null
+          proof_path?: string | null
+          proof_validated?: boolean
           result?: string | null
           sdr_id?: string | null
           sdr_name?: string
