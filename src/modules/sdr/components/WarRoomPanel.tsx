@@ -1,12 +1,15 @@
 import { useEffect, useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { Link } from '@tanstack/react-router'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Phone, Flame, CalendarCheck, Trophy, ShieldAlert, PhoneCall } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Phone, Flame, CalendarCheck, Trophy, ShieldAlert, PhoneCall, Calendar as CalendarIcon, Clock } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import { supabase } from '@/integrations/supabase/client'
 import { fetchHotDeals, fetchDashboardKpis } from '../services'
+import { fetchAgendaHoje, CORES_TIPO } from '@/modules/crm/services-agenda'
 import { SDR_DAILY_GOAL, type CrmCallLog, type CrmPipeline } from '../types'
 import { useSdrNames } from '../hooks/use-team-members'
 
@@ -68,6 +71,13 @@ export function WarRoomPanel() {
   const kpis = useQuery({
     queryKey: ['war-room', 'kpis'],
     queryFn: fetchDashboardKpis,
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+  })
+
+  const agendaHoje = useQuery({
+    queryKey: ['war-room', 'agenda-hoje'],
+    queryFn: fetchAgendaHoje,
     refetchInterval: 60_000,
     staleTime: 30_000,
   })
@@ -237,7 +247,7 @@ export function WarRoomPanel() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Hot Leads — Ação Obrigatória Hoje */}
-        <Card className="lg:col-span-2 border-red-200">
+        <Card className="border-red-200">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-bold text-red-800 flex items-center gap-2">
               <Flame className="h-4 w-4" /> Hot Leads — Ação Obrigatória Hoje
@@ -262,6 +272,42 @@ export function WarRoomPanel() {
                   </div>
                   <span className="text-sm font-bold shrink-0 text-[#0F2D5E]">{formatCurrency(deal.value)}</span>
                 </div>
+              )
+            })}
+          </CardContent>
+        </Card>
+
+        {/* Reuniões de Hoje */}
+        <Card className="border-blue-200">
+          <CardHeader className="pb-3 flex flex-row items-center justify-between">
+            <CardTitle className="text-sm font-bold text-blue-800 flex items-center gap-2">
+              <CalendarIcon className="h-4 w-4" /> Reuniões de Hoje
+            </CardTitle>
+            <Button asChild size="sm" variant="ghost" className="h-6 text-xs text-blue-700">
+              <Link to="/app/agenda">Ver agenda →</Link>
+            </Button>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {agendaHoje.isLoading && <Skeleton className="h-16 w-full" />}
+            {!agendaHoje.isLoading && (agendaHoje.data ?? []).length === 0 && (
+              <p className="text-xs text-muted-foreground">Sem reuniões agendadas para hoje.</p>
+            )}
+            {(agendaHoje.data ?? []).slice(0, 5).map((r: any) => {
+              const hora = r.data_hora ? new Date(r.data_hora).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '--:--'
+              const cor = (CORES_TIPO as any)[r.tipo] ?? 'bg-gray-100 text-gray-800'
+              return (
+                <Link key={r.id} to="/app/agenda/$id" params={{ id: r.id }} className="block">
+                  <div className="flex items-center gap-2 py-1.5 border-b last:border-0 hover:bg-muted/40 rounded px-1 -mx-1">
+                    <div className="flex items-center gap-1 shrink-0 text-xs font-bold text-[#0F2D5E] tabular-nums">
+                      <Clock className="h-3 w-3" /> {hora}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{r.titulo}</p>
+                      <p className="text-xs text-muted-foreground truncate">{r.cliente_nome ?? '—'}</p>
+                    </div>
+                    <Badge className={`text-[10px] shrink-0 ${cor}`}>{r.tipo}</Badge>
+                  </div>
+                </Link>
               )
             })}
           </CardContent>

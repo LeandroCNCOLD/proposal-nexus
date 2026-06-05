@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, Link } from '@tanstack/react-router'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import { useState, useEffect } from 'react'
 import { fetchMyWallet, unlockLead, renewLock, updatePipelineField, fetchCallLogs, insertCallLog } from '@/modules/sdr/services'
@@ -266,6 +266,9 @@ function LeadCard({ lead, sdrName, onUnlock, onOpenScript }: {
         <div className="flex gap-2 flex-wrap">
           <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={onOpenScript}>
             <Phone className="w-3 h-3 mr-1" /> Ligar / Script
+          </Button>
+          <Button asChild size="sm" variant="outline" className="border-blue-300 text-blue-700 hover:bg-blue-50">
+            <Link to="/app/agenda"><Calendar className="w-3 h-3 mr-1" /> Agendar</Link>
           </Button>
           <Button size="sm" variant="outline" onClick={() => setExpanded(e => !e)}>
             {expanded ? <ChevronUp className="w-3 h-3 mr-1" /> : <ChevronDown className="w-3 h-3 mr-1" />}
