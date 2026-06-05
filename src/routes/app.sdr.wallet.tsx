@@ -5,14 +5,14 @@ import { fetchMyWallet, unlockLead, renewLock, updatePipelineField, fetchCallLog
 import { supabase } from '@/integrations/supabase/client'
 import { useAuth } from '@/hooks/useAuth'
 import {
-  CALL_RESULT_OPTIONS, TEMPERATURE_OPTIONS, CLOSER_NAMES,
-  type CrmPipeline, type CrmCallLog, type CallResult, type Temperature, type SdrStatus,
+  CALL_RESULT_OPTIONS, TEMPERATURE_OPTIONS, CLOSER_NAMES, CALL_CHANNEL_OPTIONS,
+  type CrmPipeline, type CrmCallLog, type CallResult, type Temperature, type SdrStatus, type CallChannel,
 } from '@/modules/sdr/types'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { Unlock, Clock, MapPin, Phone, DollarSign, ChevronDown, ChevronUp, Mail, Building2, FileText, Calendar, AlertTriangle, History } from 'lucide-react'
+import { Unlock, Clock, MapPin, Phone, DollarSign, ChevronDown, ChevronUp, Mail, Building2, FileText, Calendar, AlertTriangle, History, Paperclip, MessageCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { CallScriptDialog } from '@/modules/sdr/components/CallScriptDialog'
 
