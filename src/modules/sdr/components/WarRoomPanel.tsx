@@ -44,6 +44,7 @@ function barColorByCompleted(completed: number): string {
 }
 
 export function WarRoomPanel() {
+  const { names: sdrNames } = useSdrNames()
   const [now, setNow] = useState(() => new Date())
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 1000)
