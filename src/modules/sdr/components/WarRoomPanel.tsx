@@ -75,6 +75,13 @@ export function WarRoomPanel() {
     staleTime: 30_000,
   })
 
+  const agendaHoje = useQuery({
+    queryKey: ['war-room', 'agenda-hoje'],
+    queryFn: fetchAgendaHoje,
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+  })
+
   const rows: DailyRow[] = useMemo(() => {
     const map = new Map<string, DailyRow>()
     for (const n of sdrNames) map.set(n, { name: n, completed: 0, attempts: 0, meetings: 0 })
