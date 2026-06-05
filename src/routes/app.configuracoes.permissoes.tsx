@@ -95,6 +95,7 @@ function RoleTemplatesPanel() {
   const [role, setRole] = useState<AppRole>("sdr");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
+  const [filter, setFilter] = useState("");
 
   const { data: templates, isLoading } = useQuery({
     queryKey: ["role-templates"],
@@ -103,8 +104,11 @@ function RoleTemplatesPanel() {
 
   useEffect(() => {
     const list = (templates?.[role] ?? []) as string[];
-    setSelected(new Set(list));
+    // Se não há nada salvo para esse perfil, sugere o pacote padrão
+    const initial = list.length > 0 ? list : (DEFAULT_ROLE_PACKAGES[role] ?? []);
+    setSelected(new Set(initial));
   }, [role, templates]);
+
 
   const toggle = (key: string) => {
     const next = new Set(selected);
