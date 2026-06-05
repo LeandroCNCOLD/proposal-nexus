@@ -96,8 +96,27 @@ export const inviteNewUser = createServerFn({ method: "POST" })
         { onConflict: "user_id,role" },
       );
 
+    // Aplica overrides iniciais, se houver
+    if (data.overrides && data.overrides.length > 0) {
+      await supabaseAdmin
+        .from("user_permission_overrides")
+        .delete()
+        .eq("user_id", newUserId);
+      const rows = data.overrides.map((o) => ({
+        user_id: newUserId!,
+        permission_key: o.permissionKey,
+        effect: o.effect,
+        created_by: userId,
+      }));
+      const { error: ovErr } = await supabaseAdmin
+        .from("user_permission_overrides")
+        .insert(rows);
+      if (ovErr) throw new Error(ovErr.message);
+    }
+
     return { ok: true, userId: newUserId };
   });
+
 
 export const listAppUsers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
