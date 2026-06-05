@@ -3,8 +3,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Switch } from '@/components/ui/switch'
-import { Label } from '@/components/ui/label'
 import { Phone, ChevronUp, ChevronDown } from 'lucide-react'
 import { useCrmPipeline } from '../hooks/use-crm-pipeline'
 import { PipelineFiltersBar } from './PipelineFiltersBar'
@@ -46,9 +44,8 @@ export function PipelineMasterTable() {
   const [drawer, setDrawer] = useState<CrmPipeline | null>(null)
   const [sortKey, setSortKey] = useState<'value' | 'days_without_contact'>('value')
   const [sortAsc, setSortAsc] = useState(false)
-  const [onlyActive, setOnlyActive] = useState(true)
 
-  const filtered = onlyActive ? data.filter(r => !INACTIVE_STATUSES.includes(r.sdr_status)) : data
+  const filtered = data.filter(r => !INACTIVE_STATUSES.includes(r.sdr_status))
   const sorted = [...filtered].sort((a, b) => {
     const av = (a[sortKey] ?? 0) as number
     const bv = (b[sortKey] ?? 0) as number
@@ -65,13 +62,7 @@ export function PipelineMasterTable() {
   return (
     <div className="space-y-4">
       <PipelineFiltersBar filters={filters} onChange={applyFilter} onReset={resetFilters} />
-      <div className="flex items-center justify-between gap-3 px-1">
-        <div className="flex items-center gap-2">
-          <Switch id="only-active" checked={onlyActive} onCheckedChange={setOnlyActive} />
-          <Label htmlFor="only-active" className="text-sm cursor-pointer">
-            Apenas propostas ativas
-          </Label>
-        </div>
+      <div className="flex items-center justify-end gap-3 px-1">
         <span className="text-xs text-muted-foreground">
           {sorted.length} de {data.length} propostas
         </span>
