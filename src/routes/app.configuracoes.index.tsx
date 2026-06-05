@@ -1,24 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
-import { UserPlus, Trash2, ShieldCheck } from "lucide-react";
+import { Trash2, ShieldCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
 import { useAuth, type AppRole } from "@/hooks/useAuth";
 import { ROLE_LABELS } from "@/lib/proposal";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -28,11 +16,11 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import {
-  inviteNewUser,
   listAppUsers,
   setUserPrimaryRole,
   deleteAppUser,
 } from "@/lib/user-admin.functions";
+import { NewUserWizard } from "@/components/admin/NewUserWizard";
 
 export const Route = createFileRoute("/app/configuracoes/")({ component: SettingsPage });
 
