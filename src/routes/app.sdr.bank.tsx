@@ -42,6 +42,9 @@ function ageBadgeClass(days: number | null) {
   return 'bg-red-100 text-red-800'
 }
 
+type SortKey = 'lead_code' | 'client_name' | 'contact_name' | 'state' | 'value' | 'cadastro' | 'last_contact_at' | 'days_open' | 'temperature' | 'status'
+type SortDir = 'asc' | 'desc' | null
+
 function BankPage() {
   const { user, hasAnyRole } = useAuth()
   const qc = useQueryClient()
@@ -49,6 +52,15 @@ function BankPage() {
   const [uf, setUf] = useState('')
   const [minValue, setMinValue] = useState('')
   const [temp, setTemp] = useState('')
+  const [sortKey, setSortKey] = useState<SortKey | null>(null)
+  const [sortDir, setSortDir] = useState<SortDir>(null)
+
+  const toggleSort = (key: SortKey) => {
+    if (sortKey !== key) { setSortKey(key); setSortDir('asc'); return }
+    if (sortDir === 'asc') { setSortDir('desc'); return }
+    if (sortDir === 'desc') { setSortKey(null); setSortDir(null); return }
+    setSortDir('asc')
+  }
 
   // Qualquer usuário autenticado pode pegar leads para sua carteira.
   const canPickLeads = !!user
