@@ -53,7 +53,14 @@ export interface CrmPipeline {
   internal_note: string | null
   days_without_contact: number | null
   value_range: string | null
+  locked_by_sdr_id: string | null
+  locked_by_sdr_name: string | null
+  locked_at: string | null
+  lock_expires_at: string | null
 }
+
+export const SDR_LOCK_LIMIT = 30
+export const SDR_LOCK_DAYS = 7
 
 export interface CrmCallLog {
   id: string
