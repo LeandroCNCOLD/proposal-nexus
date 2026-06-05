@@ -104,6 +104,13 @@ function SettingsPage() {
                 Apenas administradores, diretoria e gerência comercial podem cadastrar novos usuários.
               </p>
             )}
+            {canManage && (
+              <Button asChild variant="outline" size="sm" className="mt-3 gap-2">
+                <Link to="/app/configuracoes/permissoes">
+                  <ShieldCheck className="h-4 w-4" /> Gerenciar permissões por módulo
+                </Link>
+              </Button>
+            )}
           </div>
         </div>
 
