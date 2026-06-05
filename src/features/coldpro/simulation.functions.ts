@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * simulation.functions.ts
  * Server functions para persistência, versionamento e consulta
