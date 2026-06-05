@@ -62,13 +62,7 @@ export function PipelineMasterTable() {
   return (
     <div className="space-y-4">
       <PipelineFiltersBar filters={filters} onChange={applyFilter} onReset={resetFilters} />
-      <div className="flex items-center justify-between gap-3 px-1">
-        <div className="flex items-center gap-2">
-          <Switch id="only-active" checked={onlyActive} onCheckedChange={setOnlyActive} />
-          <Label htmlFor="only-active" className="text-sm cursor-pointer">
-            Apenas propostas ativas
-          </Label>
-        </div>
+      <div className="flex items-center justify-end gap-3 px-1">
         <span className="text-xs text-muted-foreground">
           {sorted.length} de {data.length} propostas
         </span>
