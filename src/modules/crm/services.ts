@@ -155,12 +155,20 @@ export async function fetchDashboardKpis() {
   const today = new Date().toISOString().slice(0, 10)
 
   const [pipeline, callsToday] = await Promise.all([
-    supabase.from('crm_pipeline').select('sdr_status, temperature, priority, value, days_without_contact'),
+    supabase.from('crm_pipeline')
+      .select('sdr_status, temperature, priority, value, last_contact_at'),
     supabase.from('crm_call_logs').select('id', { count: 'exact', head: true }).eq('call_date', today),
   ])
 
   if (pipeline.error) throw pipeline.error
-  const rows = (pipeline.data ?? []) as Pick<CrmPipeline, 'sdr_status' | 'temperature' | 'priority' | 'value' | 'days_without_contact'>[]
+
+  const todayTs = Date.now()
+  const rows = (pipeline.data ?? []).map(r => ({
+    ...r,
+    days_without_contact: r.last_contact_at
+      ? Math.floor((todayTs - new Date(r.last_contact_at).getTime()) / 86_400_000)
+      : null,
+  })) as Pick<CrmPipeline, 'sdr_status' | 'temperature' | 'priority' | 'value' | 'days_without_contact'>[]
   const active = rows.filter(r => !['Kill / Arquivar','Fechado','Perdido (com motivo)'].includes(r.sdr_status))
 
   return {
