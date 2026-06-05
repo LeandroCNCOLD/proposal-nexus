@@ -3,13 +3,17 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
+import { Label } from '@/components/ui/label'
 import { Phone, ChevronUp, ChevronDown } from 'lucide-react'
 import { useCrmPipeline } from '../hooks/use-crm-pipeline'
 import { PipelineFiltersBar } from './PipelineFiltersBar'
 import { CallLogDrawer } from './CallLogDrawer'
 import { SDR_STATUS_OPTIONS, TEMPERATURE_OPTIONS, PRIORITY_OPTIONS } from '../types'
-import type { CrmPipeline, Temperature, Priority } from '../types'
+import type { CrmPipeline, Temperature, Priority, SdrStatus } from '../types'
 import { formatCurrency } from '@/lib/utils'
+
+const INACTIVE_STATUSES: SdrStatus[] = ['Perdido (com motivo)', 'Kill / Arquivar', 'Fechado']
 
 const TEMP_COLOR: Record<Temperature, string> = {
   Frio: 'bg-blue-100 text-blue-800',
@@ -42,8 +46,10 @@ export function PipelineMasterTable() {
   const [drawer, setDrawer] = useState<CrmPipeline | null>(null)
   const [sortKey, setSortKey] = useState<'value' | 'days_without_contact'>('value')
   const [sortAsc, setSortAsc] = useState(false)
+  const [onlyActive, setOnlyActive] = useState(true)
 
-  const sorted = [...data].sort((a, b) => {
+  const filtered = onlyActive ? data.filter(r => !INACTIVE_STATUSES.includes(r.sdr_status)) : data
+  const sorted = [...filtered].sort((a, b) => {
     const av = (a[sortKey] ?? 0) as number
     const bv = (b[sortKey] ?? 0) as number
     return sortAsc ? av - bv : bv - av
@@ -59,6 +65,17 @@ export function PipelineMasterTable() {
   return (
     <div className="space-y-4">
       <PipelineFiltersBar filters={filters} onChange={applyFilter} onReset={resetFilters} />
+      <div className="flex items-center justify-between gap-3 px-1">
+        <div className="flex items-center gap-2">
+          <Switch id="only-active" checked={onlyActive} onCheckedChange={setOnlyActive} />
+          <Label htmlFor="only-active" className="text-sm cursor-pointer">
+            Apenas propostas ativas
+          </Label>
+        </div>
+        <span className="text-xs text-muted-foreground">
+          {sorted.length} de {data.length} propostas
+        </span>
+      </div>
       <div className="rounded-lg border overflow-x-auto">
         <Table>
           <TableHeader>
