@@ -78,6 +78,9 @@ export interface CrmPipeline {
 export const SDR_LOCK_LIMIT = 30
 export const SDR_LOCK_DAYS = 7
 
+export type CallChannel = 'Telefone' | 'WhatsApp' | 'E-mail' | 'Outro'
+export const CALL_CHANNEL_OPTIONS: CallChannel[] = ['Telefone', 'WhatsApp', 'E-mail', 'Outro']
+
 export interface CrmCallLog {
   id: string
   created_at: string
@@ -91,6 +94,9 @@ export interface CrmCallLog {
   temperature_after: Temperature | null
   meeting_booked: boolean
   observation: string | null
+  channel?: CallChannel
+  proof_path?: string | null
+  proof_validated?: boolean
 }
 
 export interface CrmWeeklyReview {
