@@ -26,7 +26,7 @@ function fmtBRL(v: number) {
 }
 
 function BankPage() {
-  const { user, hasAnyRole } = useAuth()
+  const { user } = useAuth()
   const qc = useQueryClient()
   const [search, setSearch] = useState('')
   const [uf, setUf] = useState('')
