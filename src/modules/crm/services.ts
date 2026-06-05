@@ -19,7 +19,15 @@ export async function fetchPipeline(filters: Partial<PipelineFilters> = {}) {
 
   const { data, error } = await q
   if (error) throw error
-  return (data ?? []) as CrmPipeline[]
+
+  const today = Date.now()
+  const withDays = (data ?? []).map(row => ({
+    ...row,
+    days_without_contact: row.last_contact_at
+      ? Math.floor((today - new Date(row.last_contact_at).getTime()) / 86_400_000)
+      : null,
+  }))
+  return withDays as CrmPipeline[]
 }
 
 export async function upsertPipelineRow(row: Partial<CrmPipeline> & { id?: string }) {
