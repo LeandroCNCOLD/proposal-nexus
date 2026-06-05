@@ -3885,6 +3885,54 @@ export type Database = {
           },
         ]
       }
+      crm_call_script_templates: {
+        Row: {
+          closing: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          discovery_questions: Json
+          id: string
+          is_active: boolean
+          is_default: boolean
+          name: string
+          objections: Json
+          opening: string
+          updated_at: string
+          whatsapp_followup: string
+        }
+        Insert: {
+          closing?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          discovery_questions?: Json
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          name: string
+          objections?: Json
+          opening?: string
+          updated_at?: string
+          whatsapp_followup?: string
+        }
+        Update: {
+          closing?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          discovery_questions?: Json
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          name?: string
+          objections?: Json
+          opening?: string
+          updated_at?: string
+          whatsapp_followup?: string
+        }
+        Relationships: []
+      }
       crm_followups: {
         Row: {
           created_at: string
