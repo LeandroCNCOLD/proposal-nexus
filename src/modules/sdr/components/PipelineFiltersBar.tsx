@@ -29,14 +29,14 @@ export function PipelineFiltersBar({ filters, onChange, onReset }: Props) {
         <SelectTrigger className="w-32"><SelectValue placeholder="SDR" /></SelectTrigger>
         <SelectContent>
           <SelectItem value={ALL}>Todos SDRs</SelectItem>
-          {SDR_NAMES.map(n => <SelectItem key={n} value={n}>{n}</SelectItem>)}
+          {sdrNames.map(n => <SelectItem key={n} value={n}>{n}</SelectItem>)}
         </SelectContent>
       </Select>
       <Select value={filters.closerName ?? ALL} onValueChange={v => onChange({ closerName: v === ALL ? null : v })}>
         <SelectTrigger className="w-36"><SelectValue placeholder="Closer" /></SelectTrigger>
         <SelectContent>
           <SelectItem value={ALL}>Todos Closers</SelectItem>
-          {CLOSER_NAMES.map(n => <SelectItem key={n} value={n}>{n}</SelectItem>)}
+          {closerNames.map(n => <SelectItem key={n} value={n}>{n}</SelectItem>)}
         </SelectContent>
       </Select>
       <Select value={filters.temperature ?? ALL} onValueChange={v => onChange({ temperature: (v === ALL ? null : v) as any })}>
