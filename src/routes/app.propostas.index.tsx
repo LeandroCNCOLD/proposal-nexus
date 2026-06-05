@@ -214,6 +214,7 @@ function ProposalsList() {
     // 1) Aplica filtros de status e busca
     const list = proposals.filter((p) => {
       if (statusFilter !== "all" && p.status !== statusFilter) return false;
+      if (onlyWithLead && !leadMatches.has(p.id)) return false;
       if (!search) return true;
       const q = search.toLowerCase();
       const parsed = parseTitle(p.title);
