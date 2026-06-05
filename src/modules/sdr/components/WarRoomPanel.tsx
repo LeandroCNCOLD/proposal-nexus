@@ -282,6 +282,47 @@ export function WarRoomPanel() {
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-bold flex items-center gap-2">
               <ShieldAlert className="h-4 w-4 text-amber-600" /> Alertas automáticos
+        {/* Reuniões de Hoje */}
+        <Card className="border-blue-200">
+          <CardHeader className="pb-3 flex flex-row items-center justify-between">
+            <CardTitle className="text-sm font-bold text-blue-800 flex items-center gap-2">
+              <CalendarIcon className="h-4 w-4" /> Reuniões de Hoje
+            </CardTitle>
+            <Button asChild size="sm" variant="ghost" className="h-6 text-xs text-blue-700">
+              <Link to="/app/agenda">Ver agenda →</Link>
+            </Button>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {agendaHoje.isLoading && <Skeleton className="h-16 w-full" />}
+            {!agendaHoje.isLoading && (agendaHoje.data ?? []).length === 0 && (
+              <p className="text-xs text-muted-foreground">Sem reuniões agendadas para hoje.</p>
+            )}
+            {(agendaHoje.data ?? []).slice(0, 5).map((r: any) => {
+              const hora = r.data_hora ? new Date(r.data_hora).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '--:--'
+              const cor = (CORES_TIPO as any)[r.tipo] ?? 'bg-gray-100 text-gray-800'
+              return (
+                <Link key={r.id} to="/app/agenda/$id" params={{ id: r.id }} className="block">
+                  <div className="flex items-center gap-2 py-1.5 border-b last:border-0 hover:bg-muted/40 rounded px-1 -mx-1">
+                    <div className="flex items-center gap-1 shrink-0 text-xs font-bold text-[#0F2D5E] tabular-nums">
+                      <Clock className="h-3 w-3" /> {hora}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{r.titulo}</p>
+                      <p className="text-xs text-muted-foreground truncate">{r.cliente_nome ?? '—'}</p>
+                    </div>
+                    <Badge className={`text-[10px] shrink-0 ${cor}`}>{r.tipo}</Badge>
+                  </div>
+                </Link>
+              )
+            })}
+          </CardContent>
+        </Card>
+
+        {/* Alertas automáticos */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-bold flex items-center gap-2">
+              <ShieldAlert className="h-4 w-4 text-amber-600" /> Alertas automáticos
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
