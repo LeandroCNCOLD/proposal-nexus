@@ -88,6 +88,16 @@ function BankPage() {
     },
   })
 
+  const freezeMut = useMutation({
+    mutationFn: (id: string) => freezeLead(id, user!.id, sdrName),
+    onSuccess: () => {
+      toast.success('Lead bloqueado — ninguém pode entrar em contato.')
+      qc.invalidateQueries({ queryKey: ['proposal-bank'] })
+      qc.invalidateQueries({ queryKey: ['my-wallet'] })
+    },
+    onError: () => toast.error('Não foi possível bloquear o lead.'),
+  })
+
   const filtered = useMemo(() => {
     return rows.filter(r => {
       if (search) {
