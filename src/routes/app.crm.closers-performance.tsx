@@ -86,7 +86,8 @@ async function fetchData(mes: string) {
     supabase
       .from("proposals")
       .select("id,sales_owner_id,nomus_seller_name,status,total_value,closed_value,closed_at,created_at")
-      .or(`created_at.gte.${start},closed_at.gte.${start}`)
+      .gte("created_at", `${start}T00:00:00`)
+      .lte("created_at", `${end}T23:59:59`)
       .eq("is_active", true),
     supabase.from("crm_closer_metas").select("*").eq("mes", start),
     supabase.auth.getUser(),
@@ -95,6 +96,17 @@ async function fetchData(mes: string) {
   if (agendaRes.error) throw agendaRes.error;
   if (proposalsRes.error) throw proposalsRes.error;
   if (metasRes.error) throw metasRes.error;
+
+  return {
+    profiles: (profilesRes.data ?? []) as Profile[],
+    closerIds: new Set((rolesRes.data ?? []).map((r) => r.user_id as string)),
+    agenda: (agendaRes.data ?? []) as Agenda[],
+    proposals: (proposalsRes.data ?? []) as Proposal[],
+    metas: (metasRes.data ?? []) as Meta[],
+    me: meRes.data.user?.id ?? null,
+  };
+}
+
 
   return {
     profiles: (profilesRes.data ?? []) as Profile[],
