@@ -85,7 +85,7 @@ function SettingsPage() {
                   Cadastre um novo usuário e atribua o nível de acesso.
                 </p>
               </div>
-              {canManage && <NewUserDialog />}
+              {canManage && <NewUserWizard />}
             </div>
             {!canManage && (
               <p className="text-xs text-muted-foreground">
