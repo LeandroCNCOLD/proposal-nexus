@@ -1,0 +1,1 @@
+ALTER TABLE public.crm_pipeline ADD CONSTRAINT crm_pipeline_proposal_number_key UNIQUE (proposal_number);
