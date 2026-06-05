@@ -309,6 +309,7 @@ function ProposalsList() {
               <TableHead>Validade</TableHead>
               <TableHead>Criada</TableHead>
               <TableHead>Última atualização</TableHead>
+              <TableHead>Lead SDR</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
