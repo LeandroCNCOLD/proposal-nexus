@@ -3871,7 +3871,7 @@ export type Database = {
             foreignKeyName: "crm_call_logs_pipeline_id_fkey"
             columns: ["pipeline_id"]
             isOneToOne: false
-            referencedRelation: "crm_pipeline"
+            referencedRelation: "sdr_leads"
             referencedColumns: ["id"]
           },
         ]
@@ -3993,105 +3993,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      crm_pipeline: {
-        Row: {
-          call_observation: string | null
-          call_result: string | null
-          city: string | null
-          client_name: string
-          closer_confirmed: string
-          closer_id: string | null
-          closer_name: string | null
-          created_at: string
-          id: string
-          internal_note: string | null
-          last_contact_at: string | null
-          lock_expires_at: string | null
-          locked_at: string | null
-          locked_by_sdr_id: string | null
-          locked_by_sdr_name: string | null
-          meeting_date: string | null
-          meeting_scheduled: boolean
-          next_contact_at: string | null
-          next_step: string | null
-          priority: string
-          probability_pct: number | null
-          proposal_number: string
-          sdr_id: string | null
-          sdr_name: string | null
-          sdr_status: string
-          state: string | null
-          temperature: string
-          updated_at: string
-          value: number
-          value_range: string | null
-        }
-        Insert: {
-          call_observation?: string | null
-          call_result?: string | null
-          city?: string | null
-          client_name: string
-          closer_confirmed?: string
-          closer_id?: string | null
-          closer_name?: string | null
-          created_at?: string
-          id?: string
-          internal_note?: string | null
-          last_contact_at?: string | null
-          lock_expires_at?: string | null
-          locked_at?: string | null
-          locked_by_sdr_id?: string | null
-          locked_by_sdr_name?: string | null
-          meeting_date?: string | null
-          meeting_scheduled?: boolean
-          next_contact_at?: string | null
-          next_step?: string | null
-          priority?: string
-          probability_pct?: number | null
-          proposal_number: string
-          sdr_id?: string | null
-          sdr_name?: string | null
-          sdr_status?: string
-          state?: string | null
-          temperature?: string
-          updated_at?: string
-          value?: number
-          value_range?: string | null
-        }
-        Update: {
-          call_observation?: string | null
-          call_result?: string | null
-          city?: string | null
-          client_name?: string
-          closer_confirmed?: string
-          closer_id?: string | null
-          closer_name?: string | null
-          created_at?: string
-          id?: string
-          internal_note?: string | null
-          last_contact_at?: string | null
-          lock_expires_at?: string | null
-          locked_at?: string | null
-          locked_by_sdr_id?: string | null
-          locked_by_sdr_name?: string | null
-          meeting_date?: string | null
-          meeting_scheduled?: boolean
-          next_contact_at?: string | null
-          next_step?: string | null
-          priority?: string
-          probability_pct?: number | null
-          proposal_number?: string
-          sdr_id?: string | null
-          sdr_name?: string | null
-          sdr_status?: string
-          state?: string | null
-          temperature?: string
-          updated_at?: string
-          value?: number
-          value_range?: string | null
-        }
-        Relationships: []
       }
       crm_process_meta: {
         Row: {
@@ -7339,6 +7240,105 @@ export type Database = {
           module_path?: string
           role?: Database["public"]["Enums"]["app_role"]
           updated_at?: string
+        }
+        Relationships: []
+      }
+      sdr_leads: {
+        Row: {
+          call_observation: string | null
+          call_result: string | null
+          city: string | null
+          client_name: string
+          closer_confirmed: string
+          closer_id: string | null
+          closer_name: string | null
+          created_at: string
+          id: string
+          internal_note: string | null
+          last_contact_at: string | null
+          lead_code: string
+          lock_expires_at: string | null
+          locked_at: string | null
+          locked_by_sdr_id: string | null
+          locked_by_sdr_name: string | null
+          meeting_date: string | null
+          meeting_scheduled: boolean
+          next_contact_at: string | null
+          next_step: string | null
+          priority: string
+          probability_pct: number | null
+          sdr_id: string | null
+          sdr_name: string | null
+          sdr_status: string
+          state: string | null
+          temperature: string
+          updated_at: string
+          value: number
+          value_range: string | null
+        }
+        Insert: {
+          call_observation?: string | null
+          call_result?: string | null
+          city?: string | null
+          client_name: string
+          closer_confirmed?: string
+          closer_id?: string | null
+          closer_name?: string | null
+          created_at?: string
+          id?: string
+          internal_note?: string | null
+          last_contact_at?: string | null
+          lead_code: string
+          lock_expires_at?: string | null
+          locked_at?: string | null
+          locked_by_sdr_id?: string | null
+          locked_by_sdr_name?: string | null
+          meeting_date?: string | null
+          meeting_scheduled?: boolean
+          next_contact_at?: string | null
+          next_step?: string | null
+          priority?: string
+          probability_pct?: number | null
+          sdr_id?: string | null
+          sdr_name?: string | null
+          sdr_status?: string
+          state?: string | null
+          temperature?: string
+          updated_at?: string
+          value?: number
+          value_range?: string | null
+        }
+        Update: {
+          call_observation?: string | null
+          call_result?: string | null
+          city?: string | null
+          client_name?: string
+          closer_confirmed?: string
+          closer_id?: string | null
+          closer_name?: string | null
+          created_at?: string
+          id?: string
+          internal_note?: string | null
+          last_contact_at?: string | null
+          lead_code?: string
+          lock_expires_at?: string | null
+          locked_at?: string | null
+          locked_by_sdr_id?: string | null
+          locked_by_sdr_name?: string | null
+          meeting_date?: string | null
+          meeting_scheduled?: boolean
+          next_contact_at?: string | null
+          next_step?: string | null
+          priority?: string
+          probability_pct?: number | null
+          sdr_id?: string | null
+          sdr_name?: string | null
+          sdr_status?: string
+          state?: string | null
+          temperature?: string
+          updated_at?: string
+          value?: number
+          value_range?: string | null
         }
         Relationships: []
       }

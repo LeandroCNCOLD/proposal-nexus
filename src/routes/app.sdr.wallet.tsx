@@ -1,13 +1,13 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import { useState } from 'react'
-import { fetchMyWallet, unlockLead, renewLock, updatePipelineField } from '@/modules/crm/services'
-import { insertCallLog } from '@/modules/crm/services'
+import { fetchMyWallet, unlockLead, renewLock, updatePipelineField } from '@/modules/sdr/services'
+import { insertCallLog } from '@/modules/sdr/services'
 import { useAuth } from '@/hooks/useAuth'
 import {
   CALL_RESULT_OPTIONS, TEMPERATURE_OPTIONS, SDR_STATUS_OPTIONS, CLOSER_NAMES,
   type CrmPipeline, type CallResult, type Temperature, type SdrStatus,
-} from '@/modules/crm/types'
+} from '@/modules/sdr/types'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -15,7 +15,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Unlock, Clock, MapPin, Phone, DollarSign } from 'lucide-react'
 import { toast } from 'sonner'
 
-export const Route = createFileRoute('/app/crm-sdr/wallet')({
+export const Route = createFileRoute('/app/sdr/wallet')({
   component: WalletPage,
 })
 
@@ -62,7 +62,7 @@ function WalletPage() {
         <div className="text-center py-12 text-muted-foreground">Carregando...</div>
       ) : leads.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground">
-          Você ainda não pegou nenhum lead. Vá ao <strong>Banco de Propostas</strong> para começar.
+          Você ainda não pegou nenhum lead. Vá ao <strong>Banco de Leads</strong> para começar.
         </div>
       ) : (
         <div className="space-y-3">
@@ -142,7 +142,7 @@ function LeadCard({ lead, sdrName, onUnlock }: { lead: CrmPipeline; sdrName: str
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-mono text-xs text-muted-foreground">{lead.proposal_number}</span>
+            <span className="font-mono text-xs text-muted-foreground">{lead.lead_code}</span>
             <h3 className="font-bold text-lg">{lead.client_name}</h3>
             <Badge variant="secondary">{lead.temperature}</Badge>
             <Badge variant="outline">{lead.sdr_status}</Badge>

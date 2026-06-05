@@ -1,16 +1,16 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
-import { fetchProposalBank, lockLead, unlockLead, countMyLocks } from '@/modules/crm/services'
+import { fetchProposalBank, lockLead, unlockLead, countMyLocks } from '@/modules/sdr/services'
 import { useAuth } from '@/hooks/useAuth'
-import { SDR_LOCK_LIMIT } from '@/modules/crm/types'
+import { SDR_LOCK_LIMIT } from '@/modules/sdr/types'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Lock, Unlock, Briefcase } from 'lucide-react'
 import { toast } from 'sonner'
 
-export const Route = createFileRoute('/app/crm-sdr/bank')({
+export const Route = createFileRoute('/app/sdr/bank')({
   component: BankPage,
 })
 
@@ -74,7 +74,7 @@ function BankPage() {
     return rows.filter(r => {
       if (search) {
         const s = search.toLowerCase()
-        if (!r.client_name?.toLowerCase().includes(s) && !r.proposal_number?.toLowerCase().includes(s)) return false
+        if (!r.client_name?.toLowerCase().includes(s) && !r.lead_code?.toLowerCase().includes(s)) return false
       }
       if (uf && r.state !== uf.toUpperCase()) return false
       if (minValue && r.value < Number(minValue)) return false
@@ -89,9 +89,9 @@ function BankPage() {
     <div className="p-6 space-y-4">
       <div className="flex items-end justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold text-[#0F2D5E]">Banco de Propostas</h1>
+          <h1 className="text-2xl font-bold text-[#0F2D5E]">Banco de Leads</h1>
           <p className="text-sm text-muted-foreground">
-            {filtered.length} de {rows.length} propostas ativas
+            {filtered.length} de {rows.length} leads ativos
             {canPickLeads && <> · Você tem <strong>{myLockCount}/{SDR_LOCK_LIMIT}</strong> leads na carteira</>}
           </p>
         </div>
@@ -101,7 +101,7 @@ function BankPage() {
       </div>
 
       <div className="flex flex-wrap gap-2 items-center bg-muted/30 p-3 rounded-md">
-        <Input placeholder="Buscar cliente ou nº proposta" value={search} onChange={e => setSearch(e.target.value)} className="w-64" />
+        <Input placeholder="Buscar cliente ou código" value={search} onChange={e => setSearch(e.target.value)} className="w-64" />
         <Input placeholder="UF" value={uf} onChange={e => setUf(e.target.value)} className="w-20" maxLength={2} />
         <Input placeholder="Valor mín." type="number" value={minValue} onChange={e => setMinValue(e.target.value)} className="w-32" />
         <select value={temp} onChange={e => setTemp(e.target.value)} className="border rounded px-2 py-1.5 text-sm">
@@ -120,7 +120,7 @@ function BankPage() {
           <table className="w-full text-sm">
             <thead className="bg-muted/50">
               <tr className="text-left">
-                <th className="px-3 py-2">Proposta</th>
+                <th className="px-3 py-2">Lead</th>
                 <th className="px-3 py-2">Cliente</th>
                 <th className="px-3 py-2">UF</th>
                 <th className="px-3 py-2 text-right">Valor</th>
@@ -135,7 +135,7 @@ function BankPage() {
                 const lockedByOther = !!r.locked_by_sdr_id && !lockedByMe
                 return (
                   <tr key={r.id} className="border-t hover:bg-muted/20">
-                    <td className="px-3 py-2 font-mono text-xs">{r.proposal_number}</td>
+                    <td className="px-3 py-2 font-mono text-xs">{r.lead_code}</td>
                     <td className="px-3 py-2 font-semibold">{r.client_name}</td>
                     <td className="px-3 py-2">{r.state || '—'}</td>
                     <td className="px-3 py-2 text-right">{fmtBRL(r.value)}</td>
@@ -169,7 +169,7 @@ function BankPage() {
                 )
               })}
               {filtered.length === 0 && (
-                <tr><td colSpan={7} className="text-center py-8 text-muted-foreground">Nenhuma proposta encontrada</td></tr>
+                <tr><td colSpan={7} className="text-center py-8 text-muted-foreground">Nenhuma lead encontrada</td></tr>
               )}
             </tbody>
           </table>

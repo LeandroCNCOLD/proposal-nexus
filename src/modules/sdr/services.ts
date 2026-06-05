@@ -17,14 +17,14 @@ function withDaysWithoutContact<T extends { last_contact_at: string | null }>(ro
 /** Banco de Propostas: TODAS as propostas ativas (inclui leads travados por outros SDRs). */
 export async function fetchProposalBank(filters: Partial<PipelineFilters> = {}) {
   let q = supabase
-    .from('crm_pipeline')
+    .from('sdr_leads')
     .select('*')
     .not('sdr_status', 'in', `("${INACTIVE_STATUSES.join('","')}")`)
     .order('priority', { ascending: true })
     .order('value', { ascending: false })
 
   if (filters.search)
-    q = q.or(`client_name.ilike.%${filters.search}%,proposal_number.ilike.%${filters.search}%`)
+    q = q.or(`client_name.ilike.%${filters.search}%,lead_code.ilike.%${filters.search}%`)
   if (filters.temperature) q = q.eq('temperature', filters.temperature)
   if (filters.priority)    q = q.eq('priority', filters.priority)
   if (filters.minValue)    q = q.gte('value', filters.minValue)
@@ -40,7 +40,7 @@ export async function lockLead(pipelineId: string, sdrId: string, sdrName: strin
   expires.setDate(expires.getDate() + SDR_LOCK_DAYS)
 
   const { data, error } = await supabase
-    .from('crm_pipeline')
+    .from('sdr_leads')
     .update({
       locked_by_sdr_id: sdrId,
       locked_by_sdr_name: sdrName,
@@ -61,7 +61,7 @@ export async function lockLead(pipelineId: string, sdrId: string, sdrName: strin
 /** Devolve o lead ao banco. */
 export async function unlockLead(pipelineId: string) {
   const { error } = await supabase
-    .from('crm_pipeline')
+    .from('sdr_leads')
     .update({
       locked_by_sdr_id: null,
       locked_by_sdr_name: null,
@@ -76,7 +76,7 @@ export async function unlockLead(pipelineId: string) {
 /** Minha Carteira: leads travados pelo SDR. */
 export async function fetchMyWallet(sdrId: string) {
   const { data, error } = await supabase
-    .from('crm_pipeline')
+    .from('sdr_leads')
     .select('*')
     .eq('locked_by_sdr_id', sdrId)
     .order('locked_at', { ascending: false })
@@ -89,7 +89,7 @@ export async function renewLock(pipelineId: string) {
   const expires = new Date()
   expires.setDate(expires.getDate() + SDR_LOCK_DAYS)
   const { error } = await supabase
-    .from('crm_pipeline')
+    .from('sdr_leads')
     .update({ lock_expires_at: expires.toISOString(), updated_at: new Date().toISOString() })
     .eq('id', pipelineId)
   if (error) throw error
@@ -98,7 +98,7 @@ export async function renewLock(pipelineId: string) {
 /** Conta quantos leads o SDR tem travados (para checar limite). */
 export async function countMyLocks(sdrId: string) {
   const { count, error } = await supabase
-    .from('crm_pipeline')
+    .from('sdr_leads')
     .select('id', { count: 'exact', head: true })
     .eq('locked_by_sdr_id', sdrId)
   if (error) throw error
@@ -108,13 +108,13 @@ export async function countMyLocks(sdrId: string) {
 
 export async function fetchPipeline(filters: Partial<PipelineFilters> = {}) {
   let q = supabase
-    .from('crm_pipeline')
+    .from('sdr_leads')
     .select('*')
     .order('priority', { ascending: true })
     .order('value', { ascending: false })
 
   if (filters.search)
-    q = q.or(`client_name.ilike.%${filters.search}%,proposal_number.ilike.%${filters.search}%`)
+    q = q.or(`client_name.ilike.%${filters.search}%,lead_code.ilike.%${filters.search}%`)
   if (filters.sdrName)     q = q.eq('sdr_name', filters.sdrName)
   if (filters.closerName)  q = q.eq('closer_name', filters.closerName)
   if (filters.status)      q = q.eq('sdr_status', filters.status)
@@ -139,7 +139,7 @@ export async function upsertPipelineRow(row: Partial<CrmPipeline> & { id?: strin
   const dbRow = { ...row } as Record<string, unknown>
   delete dbRow.days_without_contact
   const { data, error } = await supabase
-    .from('crm_pipeline')
+    .from('sdr_leads')
     .upsert(dbRow as Partial<CrmPipeline>, { onConflict: 'id' })
     .select()
     .single()
@@ -149,7 +149,7 @@ export async function upsertPipelineRow(row: Partial<CrmPipeline> & { id?: strin
 
 export async function updatePipelineField(id: string, field: keyof CrmPipeline, value: unknown) {
   const { error } = await supabase
-    .from('crm_pipeline')
+    .from('sdr_leads')
     .update({ [field]: value, updated_at: new Date().toISOString() })
     .eq('id', id)
   if (error) throw error
@@ -157,7 +157,7 @@ export async function updatePipelineField(id: string, field: keyof CrmPipeline, 
 
 export async function fetchHotDeals(limit = 30) {
   const { data, error } = await supabase
-    .from('crm_pipeline')
+    .from('sdr_leads')
     .select('*')
     .eq('priority', 'Alta')
     .not('sdr_status', 'in', '("Kill / Arquivar","Fechado")')
@@ -262,7 +262,7 @@ export async function fetchDashboardKpis() {
   const today = new Date().toISOString().slice(0, 10)
 
   const [pipeline, callsToday] = await Promise.all([
-    supabase.from('crm_pipeline')
+    supabase.from('sdr_leads')
       .select('sdr_status, temperature, priority, value, last_contact_at'),
     supabase.from('crm_call_logs').select('id', { count: 'exact', head: true }).eq('call_date', today),
   ])

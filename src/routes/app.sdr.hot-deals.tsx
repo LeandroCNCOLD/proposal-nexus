@@ -1,11 +1,11 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
-import { fetchHotDeals } from '@/modules/crm/services'
+import { fetchHotDeals } from '@/modules/sdr/services'
 import { Badge } from '@/components/ui/badge'
 import { formatCurrency } from '@/lib/utils'
-import type { Temperature } from '@/modules/crm/types'
+import type { Temperature } from '@/modules/sdr/types'
 
-export const Route = createFileRoute('/app/crm-sdr/hot-deals')({
+export const Route = createFileRoute('/app/sdr/hot-deals')({
   component: HotDealsPage,
 })
 
@@ -28,7 +28,7 @@ function HotDealsPage() {
           <div key={deal.id} className={`rounded-xl border p-4 space-y-3 ${i < 5 ? 'border-red-300 bg-red-50' : i < 10 ? 'border-orange-200 bg-orange-50' : 'bg-white'}`}>
             <div className="flex justify-between gap-2">
               <div>
-                <p className="text-xs font-mono text-muted-foreground">{deal.proposal_number}</p>
+                <p className="text-xs font-mono text-muted-foreground">{deal.lead_code}</p>
                 <p className="font-semibold text-sm">{deal.client_name}</p>
               </div>
               <Badge className={`text-xs shrink-0 ${TEMP_COLOR[deal.temperature]}`}>{deal.temperature}</Badge>

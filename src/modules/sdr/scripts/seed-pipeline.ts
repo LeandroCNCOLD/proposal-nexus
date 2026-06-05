@@ -7,8 +7,8 @@ export async function seedPipelineData() {
   for (let i = 0; i < PIPELINE_DATA.length; i += BATCH_SIZE) {
     const batch = PIPELINE_DATA.slice(i, i + BATCH_SIZE)
     const { error } = await supabase
-      .from('crm_pipeline')
-      .upsert(batch, { onConflict: 'proposal_number' })
+      .from('sdr_leads')
+      .upsert(batch, { onConflict: 'lead_code' })
     if (error) {
       console.error(`Erro no lote ${i}:`, error.message)
       continue

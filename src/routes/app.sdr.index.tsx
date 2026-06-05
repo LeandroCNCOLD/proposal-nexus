@@ -1,8 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { PipelineMasterTable } from '@/modules/crm/components/PipelineMasterTable'
-import { seedPipelineData } from '@/modules/crm/scripts/seed-pipeline'
+import { PipelineMasterTable } from '@/modules/sdr/components/PipelineMasterTable'
+import { seedPipelineData } from '@/modules/sdr/scripts/seed-pipeline'
 
-export const Route = createFileRoute('/app/crm-sdr/')({
+export const Route = createFileRoute('/app/sdr/')({
   component: CrmPipelinePage,
 })
 
@@ -23,7 +23,7 @@ function CrmPipelinePage() {
           onClick={handleSeed}
           className="mb-4 px-4 py-2 bg-orange-500 text-white rounded text-sm font-bold"
         >
-          🌱 Popular banco com propostas ativas
+          🌱 Popular banco com leads ativos
         </button>
       )}
       <PipelineMasterTable />
