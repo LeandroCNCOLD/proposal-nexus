@@ -362,6 +362,23 @@ function ProposalsList() {
                 <TableCell className="text-sm text-muted-foreground">{dateBR(p.valid_until)}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">{dateBR((p as any)._nomus?.criada_em_nomus ?? (p as any)._nomus?.data_emissao ?? p.created_at)}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">{dateBR(p.updated_at)}</TableCell>
+                <TableCell>
+                  {(() => {
+                    const m = leadMatches.get(p.id);
+                    if (!m) return <span className="text-xs text-muted-foreground">—</span>;
+                    const tip = m.match_type === "cnpj" ? "Casado por CNPJ" : "Casado por título/código";
+                    return (
+                      <Link
+                        to="/app/sdr/bank"
+                        title={`${tip}${m.lead_code ? ` · ${m.lead_code}` : ""}`}
+                        className="inline-flex items-center gap-1 rounded-md bg-emerald-500/10 text-emerald-700 ring-1 ring-emerald-500/20 px-2 py-0.5 text-[11px] font-medium hover:bg-emerald-500/20"
+                      >
+                        <Link2 className="h-3 w-3" />
+                        Lead SDR
+                      </Link>
+                    );
+                  })()}
+                </TableCell>
               </TableRow>
               );
             })}
