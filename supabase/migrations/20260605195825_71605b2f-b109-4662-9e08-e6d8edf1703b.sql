@@ -1,0 +1,1 @@
+GRANT SELECT, INSERT, UPDATE ON public.crm_pipeline TO sandbox_exec;
