@@ -5,9 +5,10 @@ import { fetchMyWallet, unlockLead, renewLock, updatePipelineField, fetchCallLog
 import { supabase } from '@/integrations/supabase/client'
 import { useAuth } from '@/hooks/useAuth'
 import {
-  CALL_RESULT_OPTIONS, TEMPERATURE_OPTIONS, CLOSER_NAMES, CALL_CHANNEL_OPTIONS,
+  CALL_RESULT_OPTIONS, TEMPERATURE_OPTIONS, CALL_CHANNEL_OPTIONS,
   type CrmPipeline, type CrmCallLog, type CallResult, type Temperature, type SdrStatus, type CallChannel,
 } from '@/modules/sdr/types'
+import { useCloserNames } from '@/modules/sdr/hooks/use-team-members'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
