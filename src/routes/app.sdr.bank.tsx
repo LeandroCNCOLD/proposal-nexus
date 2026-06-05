@@ -25,6 +25,23 @@ function fmtBRL(v: number) {
   return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })
 }
 
+function fmtDate(d?: string | null) {
+  return d ? new Date(d).toLocaleDateString('pt-BR') : '—'
+}
+
+function daysSince(d?: string | null) {
+  if (!d) return null
+  return Math.floor((Date.now() - new Date(d).getTime()) / 86_400_000)
+}
+
+function ageBadgeClass(days: number | null) {
+  if (days == null) return 'bg-muted text-muted-foreground'
+  if (days <= 7) return 'bg-green-100 text-green-800'
+  if (days <= 30) return 'bg-yellow-100 text-yellow-800'
+  if (days <= 60) return 'bg-orange-100 text-orange-800'
+  return 'bg-red-100 text-red-800'
+}
+
 function BankPage() {
   const { user } = useAuth()
   const qc = useQueryClient()
@@ -125,7 +142,9 @@ function BankPage() {
                 <th className="px-3 py-2">Contato</th>
                 <th className="px-3 py-2">UF</th>
                 <th className="px-3 py-2 text-right">Valor</th>
-                <th className="px-3 py-2">Data</th>
+                <th className="px-3 py-2">Cadastro</th>
+                <th className="px-3 py-2">Última interação</th>
+                <th className="px-3 py-2 text-center">Dias aberto</th>
                 <th className="px-3 py-2">Temp.</th>
                 <th className="px-3 py-2">Status</th>
                 <th className="px-3 py-2 text-right">Ação</th>
@@ -151,7 +170,23 @@ function BankPage() {
                     </td>
                     <td className="px-3 py-2">{r.state || '—'}</td>
                     <td className="px-3 py-2 text-right font-semibold">{fmtBRL(r.value)}</td>
-                    <td className="px-3 py-2 text-xs">{r.proposal_date ? new Date(r.proposal_date).toLocaleDateString('pt-BR') : '—'}</td>
+                    <td className="px-3 py-2 text-xs whitespace-nowrap">{fmtDate(r.created_at)}</td>
+                    <td className="px-3 py-2 text-xs whitespace-nowrap">
+                      <div>{fmtDate(r.last_contact_at)}</div>
+                      {r.days_without_contact != null && (
+                        <div className="text-[10px] text-muted-foreground">há {r.days_without_contact}d</div>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 text-center">
+                      {(() => {
+                        const d = daysSince(r.created_at)
+                        return (
+                          <Badge className={ageBadgeClass(d)} variant="secondary">
+                            {d == null ? '—' : `${d}d`}
+                          </Badge>
+                        )
+                      })()}
+                    </td>
                     <td className="px-3 py-2">
                       <Badge className={TEMP_COLORS[r.temperature] || ''} variant="secondary">{r.temperature}</Badge>
                     </td>
@@ -195,7 +230,7 @@ function BankPage() {
                 )
               })}
               {filtered.length === 0 && (
-                <tr><td colSpan={9} className="text-center py-8 text-muted-foreground">Nenhuma lead encontrada</td></tr>
+                <tr><td colSpan={11} className="text-center py-8 text-muted-foreground">Nenhuma lead encontrada</td></tr>
               )}
             </tbody>
           </table>
