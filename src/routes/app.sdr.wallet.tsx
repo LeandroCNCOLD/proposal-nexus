@@ -106,7 +106,12 @@ function WalletPage() {
   )
 }
 
-function LeadCard({ lead, sdrName, onUnlock, onOpenScript }: {
+function LeadCard({ lead, sdrName, onUnlock, onOpenScript, proposalMatch }: {
+  lead: CrmPipeline
+  sdrName: string
+  onUnlock: () => void
+  onOpenScript: () => void
+  proposalMatch?: ProposalLeadMatch | null
   lead: CrmPipeline
   sdrName: string
   onUnlock: () => void
