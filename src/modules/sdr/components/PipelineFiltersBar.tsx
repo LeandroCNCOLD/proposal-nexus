@@ -2,7 +2,8 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { X } from 'lucide-react'
-import { SDR_STATUS_OPTIONS, TEMPERATURE_OPTIONS, PRIORITY_OPTIONS, SDR_NAMES, CLOSER_NAMES } from '../types'
+import { SDR_STATUS_OPTIONS, TEMPERATURE_OPTIONS, PRIORITY_OPTIONS } from '../types'
+import { useSdrNames, useCloserNames } from '../hooks/use-team-members'
 import type { PipelineFilters } from '../types'
 
 const ALL = '__all__'
@@ -14,6 +15,8 @@ interface Props {
 }
 
 export function PipelineFiltersBar({ filters, onChange, onReset }: Props) {
+  const { names: sdrNames } = useSdrNames()
+  const { names: closerNames } = useCloserNames()
   return (
     <div className="flex flex-wrap gap-2 items-center mb-4">
       <Input
@@ -26,14 +29,14 @@ export function PipelineFiltersBar({ filters, onChange, onReset }: Props) {
         <SelectTrigger className="w-32"><SelectValue placeholder="SDR" /></SelectTrigger>
         <SelectContent>
           <SelectItem value={ALL}>Todos SDRs</SelectItem>
-          {SDR_NAMES.map(n => <SelectItem key={n} value={n}>{n}</SelectItem>)}
+          {sdrNames.map(n => <SelectItem key={n} value={n}>{n}</SelectItem>)}
         </SelectContent>
       </Select>
       <Select value={filters.closerName ?? ALL} onValueChange={v => onChange({ closerName: v === ALL ? null : v })}>
         <SelectTrigger className="w-36"><SelectValue placeholder="Closer" /></SelectTrigger>
         <SelectContent>
           <SelectItem value={ALL}>Todos Closers</SelectItem>
-          {CLOSER_NAMES.map(n => <SelectItem key={n} value={n}>{n}</SelectItem>)}
+          {closerNames.map(n => <SelectItem key={n} value={n}>{n}</SelectItem>)}
         </SelectContent>
       </Select>
       <Select value={filters.temperature ?? ALL} onValueChange={v => onChange({ temperature: (v === ALL ? null : v) as any })}>

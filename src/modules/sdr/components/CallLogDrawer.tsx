@@ -6,7 +6,8 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { useCallLog } from '../hooks/use-call-log'
-import { CALL_RESULT_OPTIONS, TEMPERATURE_OPTIONS, SDR_NAMES } from '../types'
+import { CALL_RESULT_OPTIONS, TEMPERATURE_OPTIONS } from '../types'
+import { useSdrNames } from '../hooks/use-team-members'
 import type { CrmPipeline } from '../types'
 import { formatCurrency } from '@/lib/utils'
 
@@ -14,8 +15,9 @@ interface Props { pipeline: CrmPipeline; open: boolean; onClose: () => void }
 
 export function CallLogDrawer({ pipeline, open, onClose }: Props) {
   const { insert } = useCallLog({ pipelineId: pipeline.id })
+  const { names: sdrNames } = useSdrNames()
   const [form, setForm] = useState({
-    sdr_name: pipeline.sdr_name ?? SDR_NAMES[0],
+    sdr_name: pipeline.sdr_name ?? '',
     result: '' as any,
     temperature_after: pipeline.temperature as any,
     meeting_booked: false,
@@ -58,7 +60,7 @@ export function CallLogDrawer({ pipeline, open, onClose }: Props) {
             <Label className="text-xs font-semibold">SDR</Label>
             <Select value={form.sdr_name} onValueChange={v => set('sdr_name', v as any)}>
               <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>{SDR_NAMES.map(n => <SelectItem key={n} value={n}>{n}</SelectItem>)}</SelectContent>
+              <SelectContent>{sdrNames.map(n => <SelectItem key={n} value={n}>{n}</SelectItem>)}</SelectContent>
             </Select>
           </div>
           <div className="space-y-1.5">

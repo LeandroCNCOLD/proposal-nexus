@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Plus, Phone, CalendarCheck, Flame, CheckCircle2 } from 'lucide-react'
-import { SDR_DAILY_GOAL, SDR_NAMES, type CrmCallLog } from '@/modules/sdr/types'
+import { SDR_DAILY_GOAL, type CrmCallLog } from '@/modules/sdr/types'
+import { useSdrNames } from '@/modules/sdr/hooks/use-team-members'
 
 export const Route = createFileRoute('/app/sdr/sdr-performance')({
   component: SdrPerformancePage,
@@ -34,6 +35,7 @@ async function fetchPerf() {
 }
 
 function SdrPerformancePage() {
+  const { names: sdrNames } = useSdrNames()
   const { data, isLoading, error } = useQuery({
     queryKey: ['sdr-performance'],
     queryFn: fetchPerf,
@@ -43,7 +45,7 @@ function SdrPerformancePage() {
 
   const aggs: Agg[] = useMemo(() => {
     const map = new Map<string, Agg>()
-    for (const n of SDR_NAMES) {
+    for (const n of sdrNames) {
       map.set(n, { name: n, completedDay: 0, attemptsDay: 0, meetingsDay: 0, hotDay: 0, completedMonth: 0, attemptsMonth: 0, meetingsMonth: 0 })
     }
     for (const l of data?.day ?? []) {
@@ -62,7 +64,7 @@ function SdrPerformancePage() {
       if (l.meeting_booked) a.meetingsMonth++
     }
     return Array.from(map.values())
-  }, [data])
+  }, [data, sdrNames])
 
   const ranking = useMemo(() => [...aggs].sort((a, b) => b.completedMonth - a.completedMonth), [aggs])
 

@@ -7,7 +7,8 @@ import { Phone, Flame, CalendarCheck, Trophy, ShieldAlert, PhoneCall } from 'luc
 import { formatCurrency } from '@/lib/utils'
 import { supabase } from '@/integrations/supabase/client'
 import { fetchHotDeals, fetchDashboardKpis } from '../services'
-import { SDR_DAILY_GOAL, SDR_NAMES, type CrmCallLog, type CrmPipeline } from '../types'
+import { SDR_DAILY_GOAL, type CrmCallLog, type CrmPipeline } from '../types'
+import { useSdrNames } from '../hooks/use-team-members'
 
 type DailyRow = {
   name: string
@@ -43,6 +44,7 @@ function barColorByCompleted(completed: number): string {
 }
 
 export function WarRoomPanel() {
+  const { names: sdrNames } = useSdrNames()
   const [now, setNow] = useState(() => new Date())
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 1000)
@@ -72,7 +74,7 @@ export function WarRoomPanel() {
 
   const rows: DailyRow[] = useMemo(() => {
     const map = new Map<string, DailyRow>()
-    for (const n of SDR_NAMES) map.set(n, { name: n, completed: 0, attempts: 0, meetings: 0 })
+    for (const n of sdrNames) map.set(n, { name: n, completed: 0, attempts: 0, meetings: 0 })
     for (const l of todayLogs.data ?? []) {
       const key = l.sdr_name || '—'
       if (!map.has(key)) map.set(key, { name: key, completed: 0, attempts: 0, meetings: 0 })
@@ -82,7 +84,7 @@ export function WarRoomPanel() {
       if (l.meeting_booked) r.meetings++
     }
     return Array.from(map.values()).sort((a, b) => b.completed - a.completed)
-  }, [todayLogs.data])
+  }, [todayLogs.data, sdrNames])
 
   const totalCompleted = rows.reduce((s, r) => s + r.completed, 0)
   const totalAttempts  = rows.reduce((s, r) => s + r.attempts,  0)
@@ -155,8 +157,8 @@ export function WarRoomPanel() {
           icon={<Phone className="h-5 w-5 text-green-600" />}
           label="Concluídos hoje"
           value={isLoading ? '—' : totalCompleted}
-          sub={`Meta do time: ${SDR_DAILY_GOAL * SDR_NAMES.length}`}
-          highlight={totalCompleted >= SDR_DAILY_GOAL * SDR_NAMES.length ? 'green' : undefined}
+          sub={`Meta do time: ${SDR_DAILY_GOAL * Math.max(sdrNames.length, 1)}`}
+          highlight={totalCompleted >= SDR_DAILY_GOAL * Math.max(sdrNames.length, 1) ? 'green' : undefined}
         />
         <KpiCard
           icon={<PhoneCall className="h-5 w-5 text-blue-600" />}
