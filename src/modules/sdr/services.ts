@@ -232,28 +232,43 @@ export async function fetchSdrMetrics(startDate: string, endDate: string) {
   if (error) throw error
 
   const logs = (data ?? []) as Pick<CrmCallLog, 'sdr_name' | 'result' | 'meeting_booked' | 'temperature_after'>[]
-  const map = new Map<string, { total: number; answered: number; meetings: number; hot: number }>()
+
+  // Regra oficial:
+  // - "Atendeu*" = contato CONCLUÍDO (conta na meta diária de 15)
+  // - qualquer outro resultado = TENTATIVA (não conta)
+  const isCompleted = (result: string | null) => result?.startsWith('Atendeu') ?? false
+  const isAttempt   = (result: string | null) => result !== null && !result.startsWith('Atendeu')
+
+  const map = new Map<string, { completed: number; attempts: number; meetings: number; hot: number }>()
 
   for (const l of logs) {
-    if (!map.has(l.sdr_name)) map.set(l.sdr_name, { total: 0, answered: 0, meetings: 0, hot: 0 })
+    if (!map.has(l.sdr_name)) map.set(l.sdr_name, { completed: 0, attempts: 0, meetings: 0, hot: 0 })
     const m = map.get(l.sdr_name)!
-    m.total++
-    if (l.result?.startsWith('Atendeu')) m.answered++
+    if (isCompleted(l.result)) m.completed++
+    if (isAttempt(l.result))   m.attempts++
     if (l.meeting_booked) m.meetings++
     if (l.temperature_after === 'Quente' || l.temperature_after === 'Muito Quente') m.hot++
   }
 
-  return Array.from(map.entries()).map(([name, m]) => ({
-    name,
-    totalCalls: m.total,
-    realAnswers: m.answered,
-    answerRate: m.total ? Math.round((m.answered / m.total) * 100) : 0,
-    meetingsBooked: m.meetings,
-    meetingsHeld: 0,
-    conversionRate: m.total ? Math.round((m.meetings / m.total) * 100) : 0,
-    hotDeals: m.hot,
-    closedDeals: 0,
-  }))
+  const GOAL = 15
+  return Array.from(map.entries()).map(([name, m]) => {
+    const totalCalls = m.completed + m.attempts
+    return {
+      name,
+      completedContacts: m.completed,
+      attempts: m.attempts,
+      totalCalls,
+      realAnswers: m.completed,
+      answerRate: totalCalls ? Math.round((m.completed / totalCalls) * 100) : 0,
+      meetingsBooked: m.meetings,
+      meetingsHeld: 0,
+      conversionRate: m.completed ? Math.round((m.meetings / m.completed) * 100) : 0,
+      hotDeals: m.hot,
+      closedDeals: 0,
+      goalPct: Math.round((m.completed / GOAL) * 100),
+      goalReached: m.completed >= GOAL,
+    }
+  })
 }
 
 export async function fetchWeeklyReviews(limit = 12) {
