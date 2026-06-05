@@ -169,7 +169,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">{initial}</AvatarFallback>
                 </Avatar>
                 <div className="hidden text-left md:block">
-                  <div className="text-xs font-medium leading-tight">{user?.email}</div>
+                  <div className="text-xs font-medium leading-tight">{displayName}</div>
                   <div className="text-[10px] text-muted-foreground">{primaryRole ? ROLE_LABELS[primaryRole] : "Sem perfil"}</div>
                 </div>
                 <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
