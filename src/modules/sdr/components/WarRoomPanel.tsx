@@ -84,7 +84,7 @@ export function WarRoomPanel() {
       if (l.meeting_booked) r.meetings++
     }
     return Array.from(map.values()).sort((a, b) => b.completed - a.completed)
-  }, [todayLogs.data])
+  }, [todayLogs.data, sdrNames])
 
   const totalCompleted = rows.reduce((s, r) => s + r.completed, 0)
   const totalAttempts  = rows.reduce((s, r) => s + r.attempts,  0)
