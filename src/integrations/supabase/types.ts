@@ -8198,6 +8198,14 @@ export type Database = {
           reference_temperature_c: number
         }[]
       }
+      get_team_members_by_role: {
+        Args: { _role: Database["public"]["Enums"]["app_role"] }
+        Returns: {
+          email: string
+          full_name: string
+          user_id: string
+        }[]
+      }
       get_user_permissions: { Args: { _user_id: string }; Returns: string[] }
       has_any_role: {
         Args: {
