@@ -1,15 +1,18 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Phone, MessageCircle, Mail, Copy, Check } from 'lucide-react'
-import { useState } from 'react'
+import { Textarea } from '@/components/ui/textarea'
+import { Phone, MessageCircle, Mail, Copy, Check, Save } from 'lucide-react'
+import { useState, useMemo } from 'react'
 import { toast } from 'sonner'
 import type { CrmPipeline } from '../types'
+import { insertCallLog } from '../services'
 
 interface Props {
   lead: CrmPipeline | null
   open: boolean
   onOpenChange: (open: boolean) => void
+  onSaved?: () => void
 }
 
 function fmtBRL(v: number | null | undefined) {
@@ -29,26 +32,30 @@ function whatsappUrl(phone: string | null, message: string) {
   return `https://wa.me/${intl}?text=${encodeURIComponent(message)}`
 }
 
-export function CallScriptDialog({ lead, open, onOpenChange }: Props) {
+export function CallScriptDialog({ lead, open, onOpenChange, onSaved }: Props) {
   const [copied, setCopied] = useState<string | null>(null)
+  const [answers, setAnswers] = useState<Record<number, string>>({})
+  const [openingNote, setOpeningNote] = useState('')
+  const [closingNote, setClosingNote] = useState('')
+  const [saving, setSaving] = useState(false)
 
-  if (!lead) return null
-
-  const contactName = lead.contact_name || 'Cliente'
+  const contactName = lead?.contact_name || 'Cliente'
   const firstName = contactName.split(' ')[0]
-  const sdrName = lead.sdr_name || 'SDR'
-  const company = lead.razao_social || lead.client_name
-  const proposalRef = lead.proposal_title || lead.lead_code
+  const sdrName = lead?.sdr_name || 'SDR'
+  const company = lead?.razao_social || lead?.client_name || ''
+  const proposalRef = lead?.proposal_title || lead?.lead_code || ''
 
-  const openingScript = `Olá, ${firstName}! Aqui é o ${sdrName} da CN Cold. Tudo bem? Estou ligando referente à proposta ${proposalRef} (${lead.lead_code}) no valor de ${fmtBRL(lead.value)} que enviamos${lead.proposal_date ? ` em ${new Date(lead.proposal_date).toLocaleDateString('pt-BR')}` : ''}. Tem 2 minutinhos para conversarmos?`
-
-  const discoveryQuestions = [
+  const discoveryQuestions = useMemo(() => lead ? [
     `Você conseguiu analisar a proposta da ${company}?`,
     `O escopo (${lead.proposal_desc?.slice(0, 120) || 'projeto'}${lead.proposal_desc && lead.proposal_desc.length > 120 ? '...' : ''}) atende ao que vocês precisam?`,
     `Qual a previsão de fechamento que vocês estão trabalhando?`,
     `Quem mais participa da decisão além de você?`,
     `Já receberam propostas de concorrentes? Como estamos no comparativo?`,
-  ]
+  ] : [], [lead, company])
+
+  if (!lead) return null
+
+  const openingScript = `Olá, ${firstName}! Aqui é o ${sdrName} da CN Cold. Tudo bem? Estou ligando referente à proposta ${proposalRef} (${lead.lead_code}) no valor de ${fmtBRL(lead.value)} que enviamos${lead.proposal_date ? ` em ${new Date(lead.proposal_date).toLocaleDateString('pt-BR')}` : ''}. Tem 2 minutinhos para conversarmos?`
 
   const objectionHandling = [
     { obj: 'Preço alto', resp: `O valor de ${fmtBRL(lead.value)} reflete a engenharia CN Cold + 10 anos de garantia. Posso te mostrar o ROI vs. equipamento comercial?` },
@@ -69,6 +76,59 @@ export function CallScriptDialog({ lead, open, onOpenChange }: Props) {
   }
 
   const phone = lead.contact_mobile || lead.contact_phone
+
+  const buildObservation = () => {
+    const parts: string[] = []
+    parts.push('📞 Script de ligação concluído')
+    if (openingNote.trim()) parts.push(`\n— Abertura: ${openingNote.trim()}`)
+    const qa = discoveryQuestions
+      .map((q, i) => ({ q, a: (answers[i] || '').trim() }))
+      .filter(x => x.a)
+    if (qa.length) {
+      parts.push('\n— Descoberta:')
+      qa.forEach(({ q, a }, i) => parts.push(`${i + 1}. ${q}\n   → ${a}`))
+    }
+    if (closingNote.trim()) parts.push(`\n— Fechamento: ${closingNote.trim()}`)
+    return parts.join('\n')
+  }
+
+  const handleSaveAsCompleted = async () => {
+    if (!lead) return
+    const hasAnyAnswer = Object.values(answers).some(v => v.trim()) || openingNote.trim() || closingNote.trim()
+    if (!hasAnyAnswer) {
+      toast.error('Preencha ao menos uma resposta antes de salvar.')
+      return
+    }
+    setSaving(true)
+    try {
+      const now = new Date()
+      await insertCallLog({
+        pipeline_id: lead.id,
+        sdr_id: lead.sdr_id,
+        sdr_name: lead.sdr_name || 'SDR',
+        call_date: now.toISOString().slice(0, 10),
+        call_time: now.toTimeString().slice(0, 8),
+        duration_min: null,
+        result: 'Atendeu - Muito interessado',
+        temperature_after: lead.temperature,
+        meeting_booked: false,
+        observation: buildObservation(),
+        channel: 'Telefone',
+        proof_path: null,
+        proof_validated: true,
+      } as any)
+      toast.success('Atividade salva como concluída na linha do tempo!')
+      setAnswers({})
+      setOpeningNote('')
+      setClosingNote('')
+      onSaved?.()
+      onOpenChange(false)
+    } catch (e: any) {
+      toast.error(e?.message || 'Erro ao salvar atividade')
+    } finally {
+      setSaving(false)
+    }
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -130,33 +190,37 @@ export function CallScriptDialog({ lead, open, onOpenChange }: Props) {
           </div>
           <div><strong>Título:</strong> {lead.proposal_title || '—'}</div>
           {lead.proposal_desc && <div className="text-muted-foreground text-xs">{lead.proposal_desc}</div>}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs mt-2">
-            <div><span className="text-muted-foreground">CNPJ:</span> {lead.cnpj || '—'}</div>
-            <div><span className="text-muted-foreground">Desconto:</span> {lead.discount_pct ?? 0}%</div>
-            <div><span className="text-muted-foreground">Validade:</span> {lead.validity_days || 0} dias</div>
-            <div><span className="text-muted-foreground">Versão:</span> {lead.proposal_version || 0}</div>
-            <div><span className="text-muted-foreground">Data proposta:</span> {lead.proposal_date ? new Date(lead.proposal_date).toLocaleDateString('pt-BR') : '—'}</div>
-            <div><span className="text-muted-foreground">Entrega prevista:</span> {lead.expected_delivery ? new Date(lead.expected_delivery).toLocaleDateString('pt-BR') : '—'}</div>
-            <div><span className="text-muted-foreground">Fechamento esperado:</span> {lead.expected_closing ? new Date(lead.expected_closing).toLocaleDateString('pt-BR') : '—'}</div>
-            <div><span className="text-muted-foreground">Closer:</span> {lead.closer_name || '—'}</div>
-          </div>
-          {lead.delivery_term && (
-            <div className="text-xs mt-2 pt-2 border-t">
-              <span className="text-muted-foreground">Prazo:</span> {lead.delivery_term}
-            </div>
-          )}
         </div>
 
-        {/* SCRIPT */}
+        {/* 1 - Abertura */}
         <ScriptBlock title="1️⃣ Abertura" text={openingScript} onCopy={() => copy(openingScript, 'open')} copied={copied === 'open'} />
-
-        <div className="border rounded-md p-3 bg-blue-50/40">
-          <div className="text-sm font-semibold mb-2 flex items-center gap-2">2️⃣ Descoberta — perguntas chave</div>
-          <ol className="list-decimal list-inside space-y-1 text-sm">
-            {discoveryQuestions.map((q, i) => <li key={i}>{q}</li>)}
-          </ol>
+        <div className="px-1">
+          <label className="text-xs text-muted-foreground">Resposta/observação do cliente na abertura</label>
+          <Textarea
+            value={openingNote}
+            onChange={(e) => setOpeningNote(e.target.value)}
+            placeholder="Ex: cliente atendeu, demonstrou interesse..."
+            rows={2}
+          />
         </div>
 
+        {/* 2 - Descoberta com campos de resposta */}
+        <div className="border rounded-md p-3 bg-blue-50/40 space-y-3">
+          <div className="text-sm font-semibold flex items-center gap-2">2️⃣ Descoberta — perguntas e respostas</div>
+          {discoveryQuestions.map((q, i) => (
+            <div key={i} className="space-y-1">
+              <div className="text-sm font-medium">{i + 1}. {q}</div>
+              <Textarea
+                value={answers[i] || ''}
+                onChange={(e) => setAnswers(prev => ({ ...prev, [i]: e.target.value }))}
+                placeholder="Resposta do cliente..."
+                rows={2}
+              />
+            </div>
+          ))}
+        </div>
+
+        {/* 3 - Objeções */}
         <div className="border rounded-md p-3 bg-amber-50/40">
           <div className="text-sm font-semibold mb-2">3️⃣ Quebra de objeções</div>
           <div className="space-y-2">
@@ -169,7 +233,17 @@ export function CallScriptDialog({ lead, open, onOpenChange }: Props) {
           </div>
         </div>
 
+        {/* 4 - Fechamento */}
         <ScriptBlock title="4️⃣ Fechamento da ligação" text={closingScript} onCopy={() => copy(closingScript, 'close')} copied={copied === 'close'} />
+        <div className="px-1">
+          <label className="text-xs text-muted-foreground">Resposta/combinado final com o cliente</label>
+          <Textarea
+            value={closingNote}
+            onChange={(e) => setClosingNote(e.target.value)}
+            placeholder="Ex: ficou de retornar dia X, pediu para enviar resumo..."
+            rows={2}
+          />
+        </div>
 
         {/* WhatsApp follow-up */}
         <div className="border rounded-md p-3 bg-green-50/40 space-y-2">
@@ -189,14 +263,16 @@ export function CallScriptDialog({ lead, open, onOpenChange }: Props) {
           </div>
         </div>
 
-        {/* Última interação */}
-        {(lead.call_observation || lead.internal_note) && (
-          <div className="border rounded-md p-3 text-sm">
-            <div className="font-semibold mb-1">📝 Histórico relevante</div>
-            {lead.call_observation && <p className="text-muted-foreground">{lead.call_observation}</p>}
-            {lead.internal_note && <p className="text-xs text-muted-foreground italic mt-1">Nota interna: {lead.internal_note}</p>}
-          </div>
-        )}
+        {/* Salvar como atividade concluída */}
+        <div className="sticky bottom-0 bg-background border-t pt-3 flex justify-end gap-2">
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
+            Cancelar
+          </Button>
+          <Button onClick={handleSaveAsCompleted} disabled={saving} className="bg-green-600 hover:bg-green-700">
+            <Save className="w-4 h-4 mr-1" />
+            {saving ? 'Salvando...' : 'Salvar e concluir atividade'}
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   )
