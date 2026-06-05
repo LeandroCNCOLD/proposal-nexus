@@ -44,7 +44,7 @@ function ClosersPerformancePage() {
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["closers-perf", mes],
-    queryFn: () => fetchData(mes),
+    queryFn: () => fetchClosersPerfData(mes),
     refetchInterval: 60_000,
     staleTime: 30_000,
   });
