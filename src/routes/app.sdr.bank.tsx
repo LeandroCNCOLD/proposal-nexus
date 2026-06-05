@@ -170,7 +170,23 @@ function BankPage() {
                     </td>
                     <td className="px-3 py-2">{r.state || '—'}</td>
                     <td className="px-3 py-2 text-right font-semibold">{fmtBRL(r.value)}</td>
-                    <td className="px-3 py-2 text-xs">{r.proposal_date ? new Date(r.proposal_date).toLocaleDateString('pt-BR') : '—'}</td>
+                    <td className="px-3 py-2 text-xs whitespace-nowrap">{fmtDate(r.created_at)}</td>
+                    <td className="px-3 py-2 text-xs whitespace-nowrap">
+                      <div>{fmtDate(r.last_contact_at)}</div>
+                      {r.days_without_contact != null && (
+                        <div className="text-[10px] text-muted-foreground">há {r.days_without_contact}d</div>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 text-center">
+                      {(() => {
+                        const d = daysSince(r.created_at)
+                        return (
+                          <Badge className={ageBadgeClass(d)} variant="secondary">
+                            {d == null ? '—' : `${d}d`}
+                          </Badge>
+                        )
+                      })()}
+                    </td>
                     <td className="px-3 py-2">
                       <Badge className={TEMP_COLORS[r.temperature] || ''} variant="secondary">{r.temperature}</Badge>
                     </td>
@@ -214,7 +230,7 @@ function BankPage() {
                 )
               })}
               {filtered.length === 0 && (
-                <tr><td colSpan={9} className="text-center py-8 text-muted-foreground">Nenhuma lead encontrada</td></tr>
+                <tr><td colSpan={11} className="text-center py-8 text-muted-foreground">Nenhuma lead encontrada</td></tr>
               )}
             </tbody>
           </table>
