@@ -156,8 +156,21 @@ function BankPage() {
                       <Badge className={TEMP_COLORS[r.temperature] || ''} variant="secondary">{r.temperature}</Badge>
                     </td>
                     <td className="px-3 py-2 text-xs">
-                      {lockedByMe && <Badge className="bg-blue-100 text-blue-800"><Briefcase className="w-3 h-3 mr-1" />Minha carteira</Badge>}
-                      {lockedByOther && <Badge className="bg-orange-100 text-orange-800"><Lock className="w-3 h-3 mr-1" />{r.locked_by_sdr_name}</Badge>}
+                      {lockedByMe && (
+                        <Badge className="bg-blue-100 text-blue-800">
+                          <Briefcase className="w-3 h-3 mr-1" />Minha carteira
+                        </Badge>
+                      )}
+                      {lockedByOther && (
+                        <div className="space-y-1">
+                          <Badge className="bg-orange-100 text-orange-800">
+                            <Lock className="w-3 h-3 mr-1" />Em atendimento
+                          </Badge>
+                          <div className="text-[11px] font-medium text-orange-900">
+                            {r.locked_by_sdr_name || 'Outro usuário'}
+                          </div>
+                        </div>
+                      )}
                       {!r.locked_by_sdr_id && <Badge variant="outline" className="text-green-700 border-green-300">Livre</Badge>}
                     </td>
                     <td className="px-3 py-2 text-right">
