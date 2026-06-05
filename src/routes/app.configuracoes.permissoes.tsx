@@ -2,11 +2,12 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Save, Shield, UserCog } from "lucide-react";
+import { ArrowLeft, Save, Search, Shield, UserCog } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -18,7 +19,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth, type AppRole } from "@/hooks/useAuth";
 import { ROLE_LABELS } from "@/lib/proposal";
-import { PERMISSION_MODULES } from "@/lib/permissions";
+import { PERMISSION_MODULES, DEFAULT_ROLE_PACKAGES } from "@/lib/permissions";
 import {
   listRoleTemplates,
   setRoleTemplate,
