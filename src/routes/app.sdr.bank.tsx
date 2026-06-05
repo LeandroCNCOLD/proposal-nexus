@@ -165,6 +165,7 @@ function BankPage() {
               {filtered.map(r => {
                 const lockedByMe = r.locked_by_sdr_id === user?.id
                 const lockedByOther = !!r.locked_by_sdr_id && !lockedByMe
+                const isFrozen = !!r.locked_by_sdr_name?.startsWith(MANAGER_FREEZE_PREFIX)
                 return (
                   <tr key={r.id} className="border-t hover:bg-muted/20 align-top">
                     <td className="px-3 py-2 font-mono text-xs">{r.lead_code}</td>
@@ -202,12 +203,15 @@ function BankPage() {
                       <Badge className={TEMP_COLORS[r.temperature] || ''} variant="secondary">{r.temperature}</Badge>
                     </td>
                     <td className="px-3 py-2 text-xs">
-                      {lockedByMe && (
+                      {isFrozen ? (
+                        <Badge className="bg-red-100 text-red-800">
+                          <ShieldAlert className="w-3 h-3 mr-1" />Bloqueado pelo gestor
+                        </Badge>
+                      ) : lockedByMe ? (
                         <Badge className="bg-blue-100 text-blue-800">
                           <Briefcase className="w-3 h-3 mr-1" />Minha carteira
                         </Badge>
-                      )}
-                      {lockedByOther && (
+                      ) : lockedByOther ? (
                         <div className="space-y-1">
                           <Badge className="bg-orange-100 text-orange-800">
                             <Lock className="w-3 h-3 mr-1" />Em atendimento
@@ -216,10 +220,11 @@ function BankPage() {
                             {r.locked_by_sdr_name || 'Outro usuário'}
                           </div>
                         </div>
+                      ) : (
+                        <Badge variant="outline" className="text-green-700 border-green-300">Livre</Badge>
                       )}
-                      {!r.locked_by_sdr_id && <Badge variant="outline" className="text-green-700 border-green-300">Livre</Badge>}
                     </td>
-                    <td className="px-3 py-2 text-right">
+                    <td className="px-3 py-2 text-right space-x-1 whitespace-nowrap">
                       {canPickLeads && !r.locked_by_sdr_id && (
                         <Button
                           size="sm"
@@ -231,9 +236,29 @@ function BankPage() {
                           <Lock className="w-3 h-3 mr-1" /> Pegar
                         </Button>
                       )}
-                      {lockedByMe && (
+                      {lockedByMe && !isFrozen && (
                         <Button size="sm" variant="outline" onClick={() => unlockMut.mutate(r.id)}>
                           <Unlock className="w-3 h-3 mr-1" /> Devolver
+                        </Button>
+                      )}
+                      {isManager && !isFrozen && (
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          disabled={freezeMut.isPending}
+                          onClick={() => {
+                            if (confirm('Bloquear este lead? Ninguém poderá entrar em contato até você desbloquear.')) {
+                              freezeMut.mutate(r.id)
+                            }
+                          }}
+                          title="Bloquear lead (gestor)"
+                        >
+                          <ShieldAlert className="w-3 h-3 mr-1" /> Bloquear
+                        </Button>
+                      )}
+                      {isManager && isFrozen && (
+                        <Button size="sm" variant="outline" onClick={() => unlockMut.mutate(r.id)}>
+                          <Unlock className="w-3 h-3 mr-1" /> Desbloquear
                         </Button>
                       )}
                     </td>
