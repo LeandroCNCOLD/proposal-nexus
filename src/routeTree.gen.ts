@@ -35,6 +35,7 @@ import { Route as AppCrmIdRouteImport } from './routes/app.crm.$id'
 import { Route as AppCrmSdrWarRoomRouteImport } from './routes/app.crm-sdr.war-room'
 import { Route as AppCrmSdrSdrPerformanceRouteImport } from './routes/app.crm-sdr.sdr-performance'
 import { Route as AppCrmSdrHotDealsRouteImport } from './routes/app.crm-sdr.hot-deals'
+import { Route as AppCrmSdrBankRouteImport } from './routes/app.crm-sdr.bank'
 import { Route as AppConfiguracoesNomusRouteImport } from './routes/app.configuracoes.nomus'
 import { Route as AppConfiguracoesApiNomusRouteImport } from './routes/app.configuracoes.api-nomus'
 import { Route as AppColdproProdutosRouteImport } from './routes/app.coldpro.produtos'
@@ -183,6 +184,11 @@ const AppCrmSdrHotDealsRoute = AppCrmSdrHotDealsRouteImport.update({
   path: '/crm-sdr/hot-deals',
   getParentRoute: () => AppRoute,
 } as any)
+const AppCrmSdrBankRoute = AppCrmSdrBankRouteImport.update({
+  id: '/crm-sdr/bank',
+  path: '/crm-sdr/bank',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppConfiguracoesNomusRoute = AppConfiguracoesNomusRouteImport.update({
   id: '/nomus',
   path: '/nomus',
@@ -293,6 +299,7 @@ export interface FileRoutesByFullPath {
   '/app/coldpro/produtos': typeof AppColdproProdutosRoute
   '/app/configuracoes/api-nomus': typeof AppConfiguracoesApiNomusRoute
   '/app/configuracoes/nomus': typeof AppConfiguracoesNomusRouteWithChildren
+  '/app/crm-sdr/bank': typeof AppCrmSdrBankRoute
   '/app/crm-sdr/hot-deals': typeof AppCrmSdrHotDealsRoute
   '/app/crm-sdr/sdr-performance': typeof AppCrmSdrSdrPerformanceRoute
   '/app/crm-sdr/war-room': typeof AppCrmSdrWarRoomRoute
@@ -335,6 +342,7 @@ export interface FileRoutesByTo {
   '/app/coldpro/produtos': typeof AppColdproProdutosRoute
   '/app/configuracoes/api-nomus': typeof AppConfiguracoesApiNomusRoute
   '/app/configuracoes/nomus': typeof AppConfiguracoesNomusRouteWithChildren
+  '/app/crm-sdr/bank': typeof AppCrmSdrBankRoute
   '/app/crm-sdr/hot-deals': typeof AppCrmSdrHotDealsRoute
   '/app/crm-sdr/sdr-performance': typeof AppCrmSdrSdrPerformanceRoute
   '/app/crm-sdr/war-room': typeof AppCrmSdrWarRoomRoute
@@ -379,6 +387,7 @@ export interface FileRoutesById {
   '/app/coldpro/produtos': typeof AppColdproProdutosRoute
   '/app/configuracoes/api-nomus': typeof AppConfiguracoesApiNomusRoute
   '/app/configuracoes/nomus': typeof AppConfiguracoesNomusRouteWithChildren
+  '/app/crm-sdr/bank': typeof AppCrmSdrBankRoute
   '/app/crm-sdr/hot-deals': typeof AppCrmSdrHotDealsRoute
   '/app/crm-sdr/sdr-performance': typeof AppCrmSdrSdrPerformanceRoute
   '/app/crm-sdr/war-room': typeof AppCrmSdrWarRoomRoute
@@ -425,6 +434,7 @@ export interface FileRouteTypes {
     | '/app/coldpro/produtos'
     | '/app/configuracoes/api-nomus'
     | '/app/configuracoes/nomus'
+    | '/app/crm-sdr/bank'
     | '/app/crm-sdr/hot-deals'
     | '/app/crm-sdr/sdr-performance'
     | '/app/crm-sdr/war-room'
@@ -467,6 +477,7 @@ export interface FileRouteTypes {
     | '/app/coldpro/produtos'
     | '/app/configuracoes/api-nomus'
     | '/app/configuracoes/nomus'
+    | '/app/crm-sdr/bank'
     | '/app/crm-sdr/hot-deals'
     | '/app/crm-sdr/sdr-performance'
     | '/app/crm-sdr/war-room'
@@ -510,6 +521,7 @@ export interface FileRouteTypes {
     | '/app/coldpro/produtos'
     | '/app/configuracoes/api-nomus'
     | '/app/configuracoes/nomus'
+    | '/app/crm-sdr/bank'
     | '/app/crm-sdr/hot-deals'
     | '/app/crm-sdr/sdr-performance'
     | '/app/crm-sdr/war-room'
@@ -730,6 +742,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppCrmSdrHotDealsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/crm-sdr/bank': {
+      id: '/app/crm-sdr/bank'
+      path: '/crm-sdr/bank'
+      fullPath: '/app/crm-sdr/bank'
+      preLoaderRoute: typeof AppCrmSdrBankRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/configuracoes/nomus': {
       id: '/app/configuracoes/nomus'
       path: '/nomus'
@@ -918,6 +937,7 @@ interface AppRouteChildren {
   AppColdproIdRoute: typeof AppColdproIdRoute
   AppColdproCatalogoRoute: typeof AppColdproCatalogoRoute
   AppColdproProdutosRoute: typeof AppColdproProdutosRoute
+  AppCrmSdrBankRoute: typeof AppCrmSdrBankRoute
   AppCrmSdrHotDealsRoute: typeof AppCrmSdrHotDealsRoute
   AppCrmSdrSdrPerformanceRoute: typeof AppCrmSdrSdrPerformanceRoute
   AppCrmSdrWarRoomRoute: typeof AppCrmSdrWarRoomRoute
@@ -945,6 +965,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppColdproIdRoute: AppColdproIdRoute,
   AppColdproCatalogoRoute: AppColdproCatalogoRoute,
   AppColdproProdutosRoute: AppColdproProdutosRoute,
+  AppCrmSdrBankRoute: AppCrmSdrBankRoute,
   AppCrmSdrHotDealsRoute: AppCrmSdrHotDealsRoute,
   AppCrmSdrSdrPerformanceRoute: AppCrmSdrSdrPerformanceRoute,
   AppCrmSdrWarRoomRoute: AppCrmSdrWarRoomRoute,
