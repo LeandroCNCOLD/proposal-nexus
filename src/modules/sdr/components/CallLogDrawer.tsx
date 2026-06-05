@@ -19,6 +19,7 @@ export function CallLogDrawer({ pipeline, open, onClose }: Props) {
   const [form, setForm] = useState({
     sdr_name: pipeline.sdr_name ?? '',
     result: '' as any,
+    other_reason: '',
     temperature_after: pipeline.temperature as any,
     meeting_booked: false,
     observation: '',
