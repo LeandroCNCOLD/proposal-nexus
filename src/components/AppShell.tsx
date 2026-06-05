@@ -4,6 +4,7 @@ import {
   FileBarChart, FileCheck2, FolderUp, Settings, LogOut,
   Search, Bell, Snowflake, ChevronDown, CheckSquare, PlugZap, Database,
   LayoutTemplate, Kanban, Thermometer, PackageSearch,
+  LayoutList, Zap, Flame, BarChart2,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { ROLE_LABELS } from "@/lib/proposal";
@@ -32,6 +33,12 @@ import { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 const NAV = [
+  { group: "CRM", items: [
+    { to: "/crm", label: "Pipeline Master", icon: LayoutList, exact: true },
+    { to: "/crm/war-room", label: "War Room", icon: Zap },
+    { to: "/crm/hot-deals", label: "Hot Deals", icon: Flame },
+    { to: "/crm/sdr-performance", label: "SDR Performance", icon: BarChart2 },
+  ]},
   { group: "Operação", items: [
     { to: "/app", label: "Dashboard", icon: LayoutDashboard, exact: true },
     { to: "/app/crm", label: "Funil / CRM", icon: Kanban },
