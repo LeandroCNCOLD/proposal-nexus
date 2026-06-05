@@ -1,0 +1,1 @@
+GRANT INSERT, SELECT, UPDATE, DELETE ON public.sdr_leads TO sandbox_exec;
