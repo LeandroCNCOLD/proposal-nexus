@@ -4052,6 +4052,53 @@ export type Database = {
         }
         Relationships: []
       }
+      crm_closer_metas: {
+        Row: {
+          closer_nome: string
+          created_at: string
+          id: string
+          mes: string
+          meta_ganhas: number
+          meta_propostas: number
+          meta_receita: number
+          meta_reunioes: number
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          closer_nome: string
+          created_at?: string
+          id?: string
+          mes: string
+          meta_ganhas?: number
+          meta_propostas?: number
+          meta_receita?: number
+          meta_reunioes?: number
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          closer_nome?: string
+          created_at?: string
+          id?: string
+          mes?: string
+          meta_ganhas?: number
+          meta_propostas?: number
+          meta_receita?: number
+          meta_reunioes?: number
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_closer_metas_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       crm_followups: {
         Row: {
           created_at: string
