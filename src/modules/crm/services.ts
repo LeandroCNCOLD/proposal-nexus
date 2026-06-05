@@ -1,5 +1,110 @@
 import { supabase } from '@/integrations/supabase/client'
 import type { CrmPipeline, CrmCallLog, CrmWeeklyReview, PipelineFilters, SdrStatus } from './types'
+import { SDR_LOCK_DAYS } from './types'
+
+const INACTIVE_STATUSES: SdrStatus[] = ['Perdido (com motivo)', 'Kill / Arquivar', 'Fechado']
+
+function withDaysWithoutContact<T extends { last_contact_at: string | null }>(rows: T[]): (T & { days_without_contact: number | null })[] {
+  const now = Date.now()
+  return rows.map(r => ({
+    ...r,
+    days_without_contact: r.last_contact_at
+      ? Math.floor((now - new Date(r.last_contact_at).getTime()) / 86_400_000)
+      : null,
+  }))
+}
+
+/** Banco de Propostas: TODAS as propostas ativas (inclui leads travados por outros SDRs). */
+export async function fetchProposalBank(filters: Partial<PipelineFilters> = {}) {
+  let q = supabase
+    .from('crm_pipeline')
+    .select('*')
+    .not('sdr_status', 'in', `("${INACTIVE_STATUSES.join('","')}")`)
+    .order('priority', { ascending: true })
+    .order('value', { ascending: false })
+
+  if (filters.search)
+    q = q.or(`client_name.ilike.%${filters.search}%,proposal_number.ilike.%${filters.search}%`)
+  if (filters.temperature) q = q.eq('temperature', filters.temperature)
+  if (filters.priority)    q = q.eq('priority', filters.priority)
+  if (filters.minValue)    q = q.gte('value', filters.minValue)
+
+  const { data, error } = await q
+  if (error) throw error
+  return withDaysWithoutContact(data ?? []) as CrmPipeline[]
+}
+
+/** Trava o lead para o SDR. Falha silenciosa se já estiver travado por outro. */
+export async function lockLead(pipelineId: string, sdrId: string, sdrName: string) {
+  const expires = new Date()
+  expires.setDate(expires.getDate() + SDR_LOCK_DAYS)
+
+  const { data, error } = await supabase
+    .from('crm_pipeline')
+    .update({
+      locked_by_sdr_id: sdrId,
+      locked_by_sdr_name: sdrName,
+      locked_at: new Date().toISOString(),
+      lock_expires_at: expires.toISOString(),
+      sdr_name: sdrName,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', pipelineId)
+    .is('locked_by_sdr_id', null)
+    .select()
+    .single()
+
+  if (error) throw error
+  return data as CrmPipeline
+}
+
+/** Devolve o lead ao banco. */
+export async function unlockLead(pipelineId: string) {
+  const { error } = await supabase
+    .from('crm_pipeline')
+    .update({
+      locked_by_sdr_id: null,
+      locked_by_sdr_name: null,
+      locked_at: null,
+      lock_expires_at: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', pipelineId)
+  if (error) throw error
+}
+
+/** Minha Carteira: leads travados pelo SDR. */
+export async function fetchMyWallet(sdrId: string) {
+  const { data, error } = await supabase
+    .from('crm_pipeline')
+    .select('*')
+    .eq('locked_by_sdr_id', sdrId)
+    .order('locked_at', { ascending: false })
+  if (error) throw error
+  return withDaysWithoutContact(data ?? []) as CrmPipeline[]
+}
+
+/** Renova o lock por mais SDR_LOCK_DAYS dias (chamar a cada atividade). */
+export async function renewLock(pipelineId: string) {
+  const expires = new Date()
+  expires.setDate(expires.getDate() + SDR_LOCK_DAYS)
+  const { error } = await supabase
+    .from('crm_pipeline')
+    .update({ lock_expires_at: expires.toISOString(), updated_at: new Date().toISOString() })
+    .eq('id', pipelineId)
+  if (error) throw error
+}
+
+/** Conta quantos leads o SDR tem travados (para checar limite). */
+export async function countMyLocks(sdrId: string) {
+  const { count, error } = await supabase
+    .from('crm_pipeline')
+    .select('id', { count: 'exact', head: true })
+    .eq('locked_by_sdr_id', sdrId)
+  if (error) throw error
+  return count ?? 0
+}
+
 
 export async function fetchPipeline(filters: Partial<PipelineFilters> = {}) {
   let q = supabase
