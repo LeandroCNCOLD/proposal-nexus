@@ -45,6 +45,7 @@ import { Route as AppConfiguracoesApiNomusRouteImport } from './routes/app.confi
 import { Route as AppColdproProdutosRouteImport } from './routes/app.coldpro.produtos'
 import { Route as AppColdproCatalogoRouteImport } from './routes/app.coldpro.catalogo'
 import { Route as AppColdproIdRouteImport } from './routes/app.coldpro.$id'
+import { Route as AppAgendaIdRouteImport } from './routes/app.agenda.$id'
 import { Route as ApiNomusTestRouteImport } from './routes/api.nomus.test'
 import { Route as AppPropostasIdIndexRouteImport } from './routes/app.propostas.$id.index'
 import { Route as AppConfiguracoesTemplatesIndexRouteImport } from './routes/app.configuracoes.templates.index'
@@ -240,6 +241,11 @@ const AppColdproIdRoute = AppColdproIdRouteImport.update({
   path: '/coldpro/$id',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAgendaIdRoute = AppAgendaIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => AppAgendaRoute,
+} as any)
 const ApiNomusTestRoute = ApiNomusTestRouteImport.update({
   id: '/api/nomus/test',
   path: '/api/nomus/test',
@@ -307,7 +313,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
-  '/app/agenda': typeof AppAgendaRoute
+  '/app/agenda': typeof AppAgendaRouteWithChildren
   '/app/aprovacoes': typeof AppAprovacoesRoute
   '/app/clientes': typeof AppClientesRoute
   '/app/competitiva': typeof AppCompetitivaRoute
@@ -320,6 +326,7 @@ export interface FileRoutesByFullPath {
   '/app/tarefas': typeof AppTarefasRoute
   '/app/': typeof AppIndexRoute
   '/api/nomus/test': typeof ApiNomusTestRoute
+  '/app/agenda/$id': typeof AppAgendaIdRoute
   '/app/coldpro/$id': typeof AppColdproIdRoute
   '/app/coldpro/catalogo': typeof AppColdproCatalogoRoute
   '/app/coldpro/produtos': typeof AppColdproProdutosRoute
@@ -355,7 +362,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
-  '/app/agenda': typeof AppAgendaRoute
+  '/app/agenda': typeof AppAgendaRouteWithChildren
   '/app/aprovacoes': typeof AppAprovacoesRoute
   '/app/clientes': typeof AppClientesRoute
   '/app/competitiva': typeof AppCompetitivaRoute
@@ -367,6 +374,7 @@ export interface FileRoutesByTo {
   '/app/tarefas': typeof AppTarefasRoute
   '/app': typeof AppIndexRoute
   '/api/nomus/test': typeof ApiNomusTestRoute
+  '/app/agenda/$id': typeof AppAgendaIdRoute
   '/app/coldpro/$id': typeof AppColdproIdRoute
   '/app/coldpro/catalogo': typeof AppColdproCatalogoRoute
   '/app/coldpro/produtos': typeof AppColdproProdutosRoute
@@ -403,7 +411,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
-  '/app/agenda': typeof AppAgendaRoute
+  '/app/agenda': typeof AppAgendaRouteWithChildren
   '/app/aprovacoes': typeof AppAprovacoesRoute
   '/app/clientes': typeof AppClientesRoute
   '/app/competitiva': typeof AppCompetitivaRoute
@@ -416,6 +424,7 @@ export interface FileRoutesById {
   '/app/tarefas': typeof AppTarefasRoute
   '/app/': typeof AppIndexRoute
   '/api/nomus/test': typeof ApiNomusTestRoute
+  '/app/agenda/$id': typeof AppAgendaIdRoute
   '/app/coldpro/$id': typeof AppColdproIdRoute
   '/app/coldpro/catalogo': typeof AppColdproCatalogoRoute
   '/app/coldpro/produtos': typeof AppColdproProdutosRoute
@@ -467,6 +476,7 @@ export interface FileRouteTypes {
     | '/app/tarefas'
     | '/app/'
     | '/api/nomus/test'
+    | '/app/agenda/$id'
     | '/app/coldpro/$id'
     | '/app/coldpro/catalogo'
     | '/app/coldpro/produtos'
@@ -514,6 +524,7 @@ export interface FileRouteTypes {
     | '/app/tarefas'
     | '/app'
     | '/api/nomus/test'
+    | '/app/agenda/$id'
     | '/app/coldpro/$id'
     | '/app/coldpro/catalogo'
     | '/app/coldpro/produtos'
@@ -562,6 +573,7 @@ export interface FileRouteTypes {
     | '/app/tarefas'
     | '/app/'
     | '/api/nomus/test'
+    | '/app/agenda/$id'
     | '/app/coldpro/$id'
     | '/app/coldpro/catalogo'
     | '/app/coldpro/produtos'
@@ -861,6 +873,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppColdproIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/agenda/$id': {
+      id: '/app/agenda/$id'
+      path: '/$id'
+      fullPath: '/app/agenda/$id'
+      preLoaderRoute: typeof AppAgendaIdRouteImport
+      parentRoute: typeof AppAgendaRoute
+    }
     '/api/nomus/test': {
       id: '/api/nomus/test'
       path: '/api/nomus/test'
@@ -941,6 +960,18 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AppAgendaRouteChildren {
+  AppAgendaIdRoute: typeof AppAgendaIdRoute
+}
+
+const AppAgendaRouteChildren: AppAgendaRouteChildren = {
+  AppAgendaIdRoute: AppAgendaIdRoute,
+}
+
+const AppAgendaRouteWithChildren = AppAgendaRoute._addFileChildren(
+  AppAgendaRouteChildren,
+)
+
 interface AppConfiguracoesNomusRouteChildren {
   AppConfiguracoesNomusImportarCustosRoute: typeof AppConfiguracoesNomusImportarCustosRoute
 }
@@ -1002,7 +1033,7 @@ const AppPropostasIdRouteWithChildren = AppPropostasIdRoute._addFileChildren(
 )
 
 interface AppRouteChildren {
-  AppAgendaRoute: typeof AppAgendaRoute
+  AppAgendaRoute: typeof AppAgendaRouteWithChildren
   AppAprovacoesRoute: typeof AppAprovacoesRoute
   AppClientesRoute: typeof AppClientesRoute
   AppCompetitivaRoute: typeof AppCompetitivaRoute
@@ -1033,7 +1064,7 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
-  AppAgendaRoute: AppAgendaRoute,
+  AppAgendaRoute: AppAgendaRouteWithChildren,
   AppAprovacoesRoute: AppAprovacoesRoute,
   AppClientesRoute: AppClientesRoute,
   AppCompetitivaRoute: AppCompetitivaRoute,
