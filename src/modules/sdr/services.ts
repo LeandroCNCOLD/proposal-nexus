@@ -98,10 +98,12 @@ export async function fetchMyWallet(sdrId: string) {
     .from('sdr_leads')
     .select('*')
     .eq('locked_by_sdr_id', sdrId)
+    .not('locked_by_sdr_name', 'ilike', `${MANAGER_FREEZE_PREFIX}%`)
     .order('locked_at', { ascending: false })
   if (error) throw error
   return withDaysWithoutContact(data ?? []) as CrmPipeline[]
 }
+
 
 /** Renova o lock por mais SDR_LOCK_DAYS dias (chamar a cada atividade). */
 export async function renewLock(pipelineId: string) {
