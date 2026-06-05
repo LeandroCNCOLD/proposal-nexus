@@ -75,6 +75,18 @@ export function CallLogDrawer({ pipeline, open, onClose }: Props) {
               <SelectContent>{CALL_RESULT_OPTIONS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
             </Select>
           </div>
+          {form.result === 'Outros' && (
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Explique o motivo *</Label>
+              <Textarea
+                rows={3}
+                placeholder="Descreva o que aconteceu / o motivo do resultado..."
+                value={form.other_reason}
+                onChange={e => set('other_reason', e.target.value)}
+                className="resize-none"
+              />
+            </div>
+          )}
           <div className="space-y-1.5">
             <Label className="text-xs font-semibold">Temperatura</Label>
             <Select value={form.temperature_after} onValueChange={v => set('temperature_after', v as any)}>
