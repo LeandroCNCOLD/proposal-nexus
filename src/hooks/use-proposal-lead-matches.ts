@@ -38,8 +38,8 @@ export function useProposalLeadMatches(opts: {
     queryKey: ["proposal-lead-matches", { proposalIds, leadIds }],
     enabled,
     queryFn: async () => {
-      let q = supabase
-        .from("v_proposal_lead_matches" as any)
+      let q: any = (supabase as any)
+        .from("v_proposal_lead_matches")
         .select("proposal_id, lead_id, match_type, proposal_title, lead_code, client_name");
       if (proposalIds.length > 0) q = q.in("proposal_id", proposalIds);
       if (leadIds.length > 0) q = q.in("lead_id", leadIds);
@@ -48,7 +48,7 @@ export function useProposalLeadMatches(opts: {
         console.warn("[proposal-lead-matches] erro:", error.message);
         return [] as ProposalLeadMatch[];
       }
-      return (data ?? []) as ProposalLeadMatch[];
+      return ((data ?? []) as unknown) as ProposalLeadMatch[];
     },
   });
 
