@@ -31,9 +31,10 @@ export async function fetchPipeline(filters: Partial<PipelineFilters> = {}) {
 }
 
 export async function upsertPipelineRow(row: Partial<CrmPipeline> & { id?: string }) {
+  const { days_without_contact: _, ...dbRow } = row as Record<string, unknown>
   const { data, error } = await supabase
     .from('crm_pipeline')
-    .upsert(row, { onConflict: 'id' })
+    .upsert(dbRow as Partial<CrmPipeline>, { onConflict: 'id' })
     .select()
     .single()
   if (error) throw error
