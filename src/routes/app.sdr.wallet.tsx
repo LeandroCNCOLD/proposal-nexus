@@ -224,6 +224,7 @@ function LeadCard({ lead, sdrName, onUnlock, onOpenScript }: {
             : `Tentativa #${attemptCount + 1} registrada e lock renovado.`,
       )
       setResult(''); setObservation(''); setNextStep(''); setMeetingBooked(false); setMeetingDate(''); setCloser('')
+      setChannel('Telefone'); setProofFile(null)
       setAttemptAt(nowLocal())
       qc.invalidateQueries({ queryKey: ['my-wallet'] })
       qc.invalidateQueries({ queryKey: ['call-logs', lead.id] })
