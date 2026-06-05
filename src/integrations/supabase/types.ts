@@ -7845,6 +7845,7 @@ export type Database = {
     }
     Functions: {
       _parse_nomus_date: { Args: { s: string }; Returns: string }
+      can_access_proposal: { Args: { _proposal_id: string }; Returns: boolean }
       can_manage_user_access: { Args: { _user_id: string }; Returns: boolean }
       coldpro_calculate_coil_volume_l: {
         Args: {
