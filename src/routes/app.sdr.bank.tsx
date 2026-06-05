@@ -7,8 +7,10 @@ import { SDR_LOCK_LIMIT } from '@/modules/sdr/types'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Lock, Unlock, Briefcase, ShieldAlert, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react'
+import { Lock, Unlock, Briefcase, ShieldAlert, ArrowUp, ArrowDown, ArrowUpDown, FileText } from 'lucide-react'
 import { toast } from 'sonner'
+import { Link } from '@tanstack/react-router'
+import { useProposalLeadMatches } from '@/hooks/use-proposal-lead-matches'
 
 export const Route = createFileRoute('/app/sdr/bank')({
   component: BankPage,
