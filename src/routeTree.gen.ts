@@ -23,6 +23,7 @@ import { Route as AppConcorrentesRouteImport } from './routes/app.concorrentes'
 import { Route as AppCompetitivaRouteImport } from './routes/app.competitiva'
 import { Route as AppClientesRouteImport } from './routes/app.clientes'
 import { Route as AppAprovacoesRouteImport } from './routes/app.aprovacoes'
+import { Route as AppAgendaRouteImport } from './routes/app.agenda'
 import { Route as AppSdrIndexRouteImport } from './routes/app.sdr.index'
 import { Route as AppPropostasIndexRouteImport } from './routes/app.propostas.index'
 import { Route as AppConfiguracoesIndexRouteImport } from './routes/app.configuracoes.index'
@@ -124,6 +125,11 @@ const AppClientesRoute = AppClientesRouteImport.update({
 const AppAprovacoesRoute = AppAprovacoesRouteImport.update({
   id: '/aprovacoes',
   path: '/aprovacoes',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAgendaRoute = AppAgendaRouteImport.update({
+  id: '/agenda',
+  path: '/agenda',
   getParentRoute: () => AppRoute,
 } as any)
 const AppSdrIndexRoute = AppSdrIndexRouteImport.update({
@@ -301,6 +307,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
+  '/app/agenda': typeof AppAgendaRoute
   '/app/aprovacoes': typeof AppAprovacoesRoute
   '/app/clientes': typeof AppClientesRoute
   '/app/competitiva': typeof AppCompetitivaRoute
@@ -348,6 +355,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/app/agenda': typeof AppAgendaRoute
   '/app/aprovacoes': typeof AppAprovacoesRoute
   '/app/clientes': typeof AppClientesRoute
   '/app/competitiva': typeof AppCompetitivaRoute
@@ -395,6 +403,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
+  '/app/agenda': typeof AppAgendaRoute
   '/app/aprovacoes': typeof AppAprovacoesRoute
   '/app/clientes': typeof AppClientesRoute
   '/app/competitiva': typeof AppCompetitivaRoute
@@ -445,6 +454,7 @@ export interface FileRouteTypes {
     | '/'
     | '/app'
     | '/login'
+    | '/app/agenda'
     | '/app/aprovacoes'
     | '/app/clientes'
     | '/app/competitiva'
@@ -492,6 +502,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/login'
+    | '/app/agenda'
     | '/app/aprovacoes'
     | '/app/clientes'
     | '/app/competitiva'
@@ -538,6 +549,7 @@ export interface FileRouteTypes {
     | '/'
     | '/app'
     | '/login'
+    | '/app/agenda'
     | '/app/aprovacoes'
     | '/app/clientes'
     | '/app/competitiva'
@@ -693,6 +705,13 @@ declare module '@tanstack/react-router' {
       path: '/aprovacoes'
       fullPath: '/app/aprovacoes'
       preLoaderRoute: typeof AppAprovacoesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/agenda': {
+      id: '/app/agenda'
+      path: '/agenda'
+      fullPath: '/app/agenda'
+      preLoaderRoute: typeof AppAgendaRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/sdr/': {
@@ -983,6 +1002,7 @@ const AppPropostasIdRouteWithChildren = AppPropostasIdRoute._addFileChildren(
 )
 
 interface AppRouteChildren {
+  AppAgendaRoute: typeof AppAgendaRoute
   AppAprovacoesRoute: typeof AppAprovacoesRoute
   AppClientesRoute: typeof AppClientesRoute
   AppCompetitivaRoute: typeof AppCompetitivaRoute
@@ -1013,6 +1033,7 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppAgendaRoute: AppAgendaRoute,
   AppAprovacoesRoute: AppAprovacoesRoute,
   AppClientesRoute: AppClientesRoute,
   AppCompetitivaRoute: AppCompetitivaRoute,
