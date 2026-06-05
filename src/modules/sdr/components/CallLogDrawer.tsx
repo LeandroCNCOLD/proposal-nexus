@@ -49,7 +49,7 @@ export function CallLogDrawer({ pipeline, open, onClose }: Props) {
           <SheetTitle className="text-base">Registrar Ligação</SheetTitle>
           <p className="text-sm text-muted-foreground">
             <span className="font-semibold">{pipeline.client_name}</span>
-            {' · '}<span className="font-mono text-xs">{pipeline.proposal_number}</span>
+            {' · '}<span className="font-mono text-xs">{pipeline.lead_code}</span>
             {' · '}{formatCurrency(pipeline.value)}
           </p>
         </SheetHeader>

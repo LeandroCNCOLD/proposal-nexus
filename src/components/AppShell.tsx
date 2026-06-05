@@ -34,12 +34,12 @@ import { cn } from "@/lib/utils";
 
 const NAV = [
   { group: "CRM", items: [
-    { to: "/app/crm-sdr/bank", label: "Banco de Propostas", icon: Database },
-    { to: "/app/crm-sdr/wallet", label: "Minha Carteira", icon: Briefcase },
-    { to: "/app/crm-sdr", label: "Pipeline Master", icon: LayoutList, exact: true },
-    { to: "/app/crm-sdr/war-room", label: "War Room", icon: Zap },
-    { to: "/app/crm-sdr/hot-deals", label: "Hot Deals", icon: Flame },
-    { to: "/app/crm-sdr/sdr-performance", label: "SDR Performance", icon: BarChart2 },
+    { to: "/app/sdr/bank", label: "Banco de Propostas", icon: Database },
+    { to: "/app/sdr/wallet", label: "Minha Carteira", icon: Briefcase },
+    { to: "/app/sdr", label: "Pipeline Master", icon: LayoutList, exact: true },
+    { to: "/app/sdr/war-room", label: "War Room", icon: Zap },
+    { to: "/app/sdr/hot-deals", label: "Hot Deals", icon: Flame },
+    { to: "/app/sdr/sdr-performance", label: "SDR Performance", icon: BarChart2 },
   ]},
   { group: "Operação", items: [
     { to: "/app", label: "Dashboard", icon: LayoutDashboard, exact: true },

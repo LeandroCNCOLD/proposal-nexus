@@ -29,7 +29,7 @@ export interface CrmPipeline {
   id: string
   created_at: string
   updated_at: string
-  proposal_number: string
+  lead_code: string
   client_name: string
   city: string | null
   state: string | null

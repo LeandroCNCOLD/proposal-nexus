@@ -89,7 +89,7 @@ export function PipelineMasterTable() {
           <TableBody>
             {sorted.map(row => (
               <TableRow key={row.id} className={`${rowBg(row)} transition-colors`}>
-                <TableCell className="font-mono text-xs">{row.proposal_number}</TableCell>
+                <TableCell className="font-mono text-xs">{row.lead_code}</TableCell>
                 <TableCell className="max-w-[180px] truncate font-medium text-sm">{row.client_name}</TableCell>
                 <TableCell className="text-xs text-center">{row.state}</TableCell>
                 <TableCell className={`text-right text-sm ${row.value >= 2_000_000 ? 'font-bold' : ''}`}>

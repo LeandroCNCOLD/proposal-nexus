@@ -1,9 +1,9 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
-import { fetchProposalBank, lockLead, unlockLead, countMyLocks } from '@/modules/crm/services'
+import { fetchProposalBank, lockLead, unlockLead, countMyLocks } from '@/modules/sdr/services'
 import { useAuth } from '@/hooks/useAuth'
-import { SDR_LOCK_LIMIT } from '@/modules/crm/types'
+import { SDR_LOCK_LIMIT } from '@/modules/sdr/types'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -74,7 +74,7 @@ function BankPage() {
     return rows.filter(r => {
       if (search) {
         const s = search.toLowerCase()
-        if (!r.client_name?.toLowerCase().includes(s) && !r.proposal_number?.toLowerCase().includes(s)) return false
+        if (!r.client_name?.toLowerCase().includes(s) && !r.lead_code?.toLowerCase().includes(s)) return false
       }
       if (uf && r.state !== uf.toUpperCase()) return false
       if (minValue && r.value < Number(minValue)) return false
@@ -135,7 +135,7 @@ function BankPage() {
                 const lockedByOther = !!r.locked_by_sdr_id && !lockedByMe
                 return (
                   <tr key={r.id} className="border-t hover:bg-muted/20">
-                    <td className="px-3 py-2 font-mono text-xs">{r.proposal_number}</td>
+                    <td className="px-3 py-2 font-mono text-xs">{r.lead_code}</td>
                     <td className="px-3 py-2 font-semibold">{r.client_name}</td>
                     <td className="px-3 py-2">{r.state || '—'}</td>
                     <td className="px-3 py-2 text-right">{fmtBRL(r.value)}</td>
