@@ -7243,6 +7243,27 @@ export type Database = {
         }
         Relationships: []
       }
+      role_permission_templates: {
+        Row: {
+          created_at: string
+          id: string
+          permission_key: string
+          role: Database["public"]["Enums"]["app_role"]
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          permission_key: string
+          role: Database["public"]["Enums"]["app_role"]
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          permission_key?: string
+          role?: Database["public"]["Enums"]["app_role"]
+        }
+        Relationships: []
+      }
       sdr_leads: {
         Row: {
           call_observation: string | null
@@ -8084,6 +8105,33 @@ export type Database = {
         }
         Relationships: []
       }
+      user_permission_overrides: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          effect: string
+          id: string
+          permission_key: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          effect: string
+          id?: string
+          permission_key: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          effect?: string
+          id?: string
+          permission_key?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -8141,11 +8189,16 @@ export type Database = {
           reference_temperature_c: number
         }[]
       }
+      get_user_permissions: { Args: { _user_id: string }; Returns: string[] }
       has_any_role: {
         Args: {
           _roles: Database["public"]["Enums"]["app_role"][]
           _user_id: string
         }
+        Returns: boolean
+      }
+      has_permission: {
+        Args: { _permission_key: string; _user_id: string }
         Returns: boolean
       }
       has_role: {
