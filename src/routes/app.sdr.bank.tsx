@@ -159,6 +159,12 @@ function BankPage() {
 
   const atLimit = canPickLeads && myLockCount >= SDR_LOCK_LIMIT
 
+  const frozenLeads = useMemo(
+    () => rows.filter(r => !!r.locked_by_sdr_name?.startsWith(MANAGER_FREEZE_PREFIX)),
+    [rows],
+  )
+  const [showFrozen, setShowFrozen] = useState(false)
+
   return (
     <div className="p-6 space-y-4">
       <div className="flex items-end justify-between gap-4 flex-wrap">
@@ -167,12 +173,71 @@ function BankPage() {
           <p className="text-sm text-muted-foreground">
             {filtered.length} de {rows.length} leads ativos
             {canPickLeads && <> · Você tem <strong>{myLockCount}/{SDR_LOCK_LIMIT}</strong> leads na carteira</>}
+            {' · '}
+            <button
+              type="button"
+              onClick={() => setShowFrozen(true)}
+              className="inline-flex items-center gap-1 text-red-700 hover:underline font-medium"
+              title="Ver leads bloqueados"
+            >
+              <ShieldAlert className="w-3 h-3" />
+              {frozenLeads.length} bloqueado{frozenLeads.length === 1 ? '' : 's'}
+            </button>
           </p>
         </div>
         {atLimit && (
           <Badge variant="destructive">Limite de {SDR_LOCK_LIMIT} leads atingido — devolva algum para pegar mais</Badge>
         )}
       </div>
+
+      {showFrozen && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => setShowFrozen(false)}>
+          <div className="bg-background rounded-lg shadow-xl max-w-3xl w-full max-h-[80vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="px-4 py-3 border-b flex items-center justify-between">
+              <h2 className="font-bold text-[#0F2D5E] flex items-center gap-2">
+                <ShieldAlert className="w-4 h-4 text-red-600" />
+                Leads Bloqueados ({frozenLeads.length})
+              </h2>
+              <Button size="sm" variant="ghost" onClick={() => setShowFrozen(false)}>Fechar</Button>
+            </div>
+            <div className="overflow-y-auto">
+              {frozenLeads.length === 0 ? (
+                <div className="p-8 text-center text-muted-foreground text-sm">Nenhum lead bloqueado.</div>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/50 sticky top-0">
+                    <tr className="text-left">
+                      <th className="px-3 py-2">Lead</th>
+                      <th className="px-3 py-2">Cliente</th>
+                      <th className="px-3 py-2">Bloqueado por</th>
+                      <th className="px-3 py-2 text-right">Valor</th>
+                      {isManager && <th className="px-3 py-2 text-right">Ação</th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {frozenLeads.map(r => (
+                      <tr key={r.id} className="border-t">
+                        <td className="px-3 py-2 font-mono text-xs">{r.lead_code}</td>
+                        <td className="px-3 py-2">{r.client_name}</td>
+                        <td className="px-3 py-2 text-xs">{r.locked_by_sdr_name?.replace(MANAGER_FREEZE_PREFIX, '').replace(/^\s*\(|\)\s*$/g, '') || '—'}</td>
+                        <td className="px-3 py-2 text-right">{fmtBRL(r.value)}</td>
+                        {isManager && (
+                          <td className="px-3 py-2 text-right">
+                            <Button size="sm" variant="outline" onClick={() => unlockMut.mutate(r.id)}>
+                              <Unlock className="w-3 h-3 mr-1" /> Desbloquear
+                            </Button>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
 
       <div className="flex flex-wrap gap-2 items-center bg-muted/30 p-3 rounded-md">
         <Input placeholder="Buscar cliente ou código" value={search} onChange={e => setSearch(e.target.value)} className="w-64" />
