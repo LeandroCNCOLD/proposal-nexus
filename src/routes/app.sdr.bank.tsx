@@ -1,13 +1,13 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
-import { fetchProposalBank, lockLead, unlockLead, countMyLocks } from '@/modules/sdr/services'
+import { fetchProposalBank, lockLead, unlockLead, countMyLocks, freezeLead, MANAGER_FREEZE_PREFIX } from '@/modules/sdr/services'
 import { useAuth } from '@/hooks/useAuth'
 import { SDR_LOCK_LIMIT } from '@/modules/sdr/types'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Lock, Unlock, Briefcase } from 'lucide-react'
+import { Lock, Unlock, Briefcase, ShieldAlert } from 'lucide-react'
 import { toast } from 'sonner'
 
 export const Route = createFileRoute('/app/sdr/bank')({
