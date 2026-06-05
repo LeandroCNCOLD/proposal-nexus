@@ -26,17 +26,15 @@ function fmtBRL(v: number) {
 }
 
 function BankPage() {
-  const { user, hasAnyRole } = useAuth()
+  const { user } = useAuth()
   const qc = useQueryClient()
   const [search, setSearch] = useState('')
   const [uf, setUf] = useState('')
   const [minValue, setMinValue] = useState('')
   const [temp, setTemp] = useState('')
 
-  const isManager = hasAnyRole(['admin', 'diretoria', 'gerente_comercial'])
-  // SDR pega leads; Closer/Gestor apenas visualizam.
-  // Tratamos qualquer usuário não-gestor como SDR aqui.
-  const canPickLeads = !!user && !isManager
+  // Qualquer usuário autenticado pode pegar leads para sua carteira.
+  const canPickLeads = !!user
 
   const sdrName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'SDR'
 
