@@ -30,7 +30,14 @@ const InviteSchema = z.object({
     "admin",
   ]),
   password: z.string().min(8).max(72).optional().nullable(),
+  // Overrides iniciais (opcional). 'grant' adiciona algo não previsto no perfil
+  // e 'revoke' tira uma permissão herdada do perfil.
+  overrides: z.array(z.object({
+    permissionKey: z.string().min(1).max(120),
+    effect: z.enum(["grant", "revoke"]),
+  })).max(200).optional(),
 });
+
 
 async function ensureManager(supabase: any, userId: string) {
   const { data: roles, error } = await supabase
