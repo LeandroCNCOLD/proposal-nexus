@@ -136,6 +136,12 @@ function ClosersPerformancePage() {
         map.set(a.closer_nome, { nome: a.closer_nome, userId: null });
       }
     });
+    data.proposals.forEach((p) => {
+      const nome = p.nomus_seller_name?.trim();
+      if (nome && !map.has(nome)) {
+        map.set(nome, { nome, userId: p.sales_owner_id ?? null });
+      }
+    });
     return Array.from(map.values()).sort((a, b) => a.nome.localeCompare(b.nome));
   }, [data]);
 
