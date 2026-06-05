@@ -87,6 +87,7 @@ function WalletPage() {
               key={lead.id}
               lead={lead}
               sdrName={sdrName}
+              proposalMatch={proposalMatches.get(lead.id) ?? null}
               onOpenScript={() => setScriptLead(lead)}
               onUnlock={() => {
                 if (confirm(`Devolver "${lead.client_name}" ao banco?`)) unlockMut.mutate(lead.id)
