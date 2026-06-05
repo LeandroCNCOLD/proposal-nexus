@@ -131,6 +131,7 @@ const UpdateRoleSchema = z.object({
   userId: z.string().uuid(),
   role: z.enum([
     "vendedor",
+    "sdr",
     "gerente_comercial",
     "engenharia",
     "orcamentista",
