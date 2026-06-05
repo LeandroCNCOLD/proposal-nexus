@@ -108,15 +108,6 @@ async function fetchData(mes: string) {
 }
 
 
-  return {
-    profiles: (profilesRes.data ?? []) as Profile[],
-    closerIds: new Set((rolesRes.data ?? []).map((r) => r.user_id as string)),
-    agenda: (agendaRes.data ?? []) as Agenda[],
-    proposals: (proposalsRes.data ?? []) as Proposal[],
-    metas: (metasRes.data ?? []) as Meta[],
-    me: meRes.data.user?.id ?? null,
-  };
-}
 
 // ============== component ==============
 function ClosersPerformancePage() {
