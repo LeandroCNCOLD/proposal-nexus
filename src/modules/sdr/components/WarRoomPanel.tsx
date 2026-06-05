@@ -2,11 +2,12 @@ import { useEffect, useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Phone, Flame, AlertTriangle, CalendarCheck, Trophy, ShieldAlert } from 'lucide-react'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Phone, Flame, CalendarCheck, Trophy, ShieldAlert, PhoneCall } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import { supabase } from '@/integrations/supabase/client'
 import { fetchHotDeals, fetchDashboardKpis } from '../services'
-import { SDR_DAILY_GOAL, SDR_NAMES, type CrmCallLog } from '../types'
+import { SDR_DAILY_GOAL, SDR_NAMES, type CrmCallLog, type CrmPipeline } from '../types'
 
 type DailyRow = {
   name: string
@@ -28,8 +29,20 @@ async function fetchTodayCallLogs(): Promise<CrmCallLog[]> {
   return (data ?? []) as CrmCallLog[]
 }
 
+function urgencyBadge(days: number | null) {
+  const d = days ?? 0
+  if (d > 180) return { label: 'CRÍTICO', cls: 'bg-red-600 text-white' }
+  if (d >= 60) return { label: 'URGENTE', cls: 'bg-orange-500 text-white' }
+  return { label: 'ATENÇÃO', cls: 'bg-yellow-400 text-yellow-900' }
+}
+
+function barColorByCompleted(completed: number): string {
+  if (completed >= SDR_DAILY_GOAL) return 'bg-[#3B6D11]'
+  if (completed >= 8) return 'bg-[#854F0B]'
+  return 'bg-[#A32D2D]'
+}
+
 export function WarRoomPanel() {
-  // Relógio ao vivo (HH:MM:SS)
   const [now, setNow] = useState(() => new Date())
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 1000)
@@ -59,7 +72,6 @@ export function WarRoomPanel() {
 
   const rows: DailyRow[] = useMemo(() => {
     const map = new Map<string, DailyRow>()
-    // Inicializa todos os SDRs conhecidos
     for (const n of SDR_NAMES) map.set(n, { name: n, completed: 0, attempts: 0, meetings: 0 })
     for (const l of todayLogs.data ?? []) {
       const key = l.sdr_name || '—'
@@ -75,20 +87,19 @@ export function WarRoomPanel() {
   const totalCompleted = rows.reduce((s, r) => s + r.completed, 0)
   const totalAttempts  = rows.reduce((s, r) => s + r.attempts,  0)
   const totalMeetings  = rows.reduce((s, r) => s + r.meetings,  0)
-  const teamGoal       = SDR_DAILY_GOAL * Math.max(SDR_NAMES.length, rows.length)
+  const totalCallsToday = totalCompleted + totalAttempts
 
-  const topHot = useMemo(() => {
+  // Hot leads ordenados por urgência + valor
+  const topHot: CrmPipeline[] = useMemo(() => {
     const list = [...(hotDeals.data ?? [])]
     list.sort((a, b) => {
-      const da = a.days_without_contact ?? 0
-      const db = b.days_without_contact ?? 0
-      if (db !== da) return db - da
-      return (b.value ?? 0) - (a.value ?? 0)
+      const sa = (a.value ?? 0) * (1 + (a.days_without_contact ?? 0) / 100)
+      const sb = (b.value ?? 0) * (1 + (b.days_without_contact ?? 0) / 100)
+      return sb - sa
     })
-    return list.slice(0, 5)
+    return list.slice(0, 6)
   }, [hotDeals.data])
 
-  // Alertas automáticos
   const alerts = useMemo(() => {
     const out: { tone: 'red' | 'orange' | 'yellow' | 'green'; text: string }[] = []
     for (const r of rows) {
@@ -99,15 +110,7 @@ export function WarRoomPanel() {
       if ((d.value ?? 0) >= 1_000_000 && (d.days_without_contact ?? 0) > 30) {
         out.push({
           tone: 'orange',
-          text: `Lead grande (${formatCurrency(d.value)}) sem contato há ${d.days_without_contact}d: ${d.client_name}.`,
-        })
-      }
-    }
-    for (const d of hotDeals.data ?? []) {
-      if (d.meeting_scheduled && (!d.closer_name || d.closer_confirmed !== 'Sim')) {
-        out.push({
-          tone: 'yellow',
-          text: `Reunião sem Closer confirmado: ${d.client_name}${d.closer_name ? ` (Closer: ${d.closer_name})` : ''}.`,
+          text: `Lead grande (${formatCurrency(d.value)}) sem contato há ${d.days_without_contact} dias: ${d.client_name}.`,
         })
       }
     }
@@ -116,6 +119,19 @@ export function WarRoomPanel() {
 
   const todayLabel = now.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
   const clockLabel = now.toLocaleTimeString('pt-BR', { hour12: false })
+
+  const isLoading = todayLogs.isLoading || hotDeals.isLoading || kpis.isLoading
+  const hasError = todayLogs.error || hotDeals.error || kpis.error
+
+  if (hasError) {
+    return (
+      <Card className="border-red-300 bg-red-50">
+        <CardContent className="pt-6 text-red-800 text-sm">
+          Erro ao carregar dados do War Room. Verifique sua conexão e tente novamente.
+        </CardContent>
+      </Card>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -137,49 +153,53 @@ export function WarRoomPanel() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <KpiCard
           icon={<Phone className="h-5 w-5 text-green-600" />}
-          label="Contatos concluídos hoje"
-          value={totalCompleted}
-          sub={`Meta do time: ${teamGoal}`}
-          highlight={totalCompleted >= teamGoal ? 'green' : undefined}
+          label="Concluídos hoje"
+          value={isLoading ? '—' : totalCompleted}
+          sub={`Meta do time: ${SDR_DAILY_GOAL * SDR_NAMES.length}`}
+          highlight={totalCompleted >= SDR_DAILY_GOAL * SDR_NAMES.length ? 'green' : undefined}
         />
         <KpiCard
-          icon={<CalendarCheck className="h-5 w-5 text-blue-600" />}
-          label="Reuniões agendadas hoje"
-          value={totalMeetings}
-          sub="somando todos os SDRs"
+          icon={<PhoneCall className="h-5 w-5 text-blue-600" />}
+          label="Ligações hoje (total)"
+          value={isLoading ? '—' : totalCallsToday}
+          sub={`${totalAttempts} tentativas + ${totalCompleted} concluídos`}
         />
         <KpiCard
-          icon={<AlertTriangle className="h-5 w-5 text-amber-500" />}
-          label="Tentativas (não contam)"
-          value={totalAttempts}
-          sub="caixa postal, WhatsApp, etc."
+          icon={<CalendarCheck className="h-5 w-5 text-indigo-600" />}
+          label="Reuniões hoje"
+          value={isLoading ? '—' : totalMeetings}
+          sub="agendadas por SDRs"
         />
         <KpiCard
           icon={<Flame className="h-5 w-5 text-red-500" />}
-          label="Leads sem contato >10d"
-          value={kpis.data?.overdue10Days ?? '—'}
-          sub="pipeline ativo"
+          label="Quentes (pipeline)"
+          value={isLoading ? '—' : (kpis.data?.hotDeals ?? 0)}
+          sub="Quente + Muito Quente, ativos"
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Tabela de meta por SDR */}
-        <Card className="lg:col-span-2">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-bold flex items-center gap-2">
-              <Trophy className="h-4 w-4 text-amber-500" />
-              Meta por SDR ({SDR_DAILY_GOAL} contatos concluídos)
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
+      {/* Meta diária por SDR */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-bold flex items-center gap-2">
+            <Trophy className="h-4 w-4 text-amber-500" />
+            Meta diária por SDR — {SDR_DAILY_GOAL} contatos concluídos
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="space-y-2">
+              {[0,1,2,3].map(i => <Skeleton key={i} className="h-9 w-full" />)}
+            </div>
+          ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="text-xs text-muted-foreground">
                   <tr className="text-left border-b">
                     <th className="py-2 pr-2">SDR</th>
-                    <th className="py-2 px-2 w-[40%]">Progresso</th>
-                    <th className="py-2 px-2 text-center">Concluídos</th>
-                    <th className="py-2 px-2 text-center">Tentativas</th>
+                    <th className="py-2 px-2 w-[35%]">Barra de progresso</th>
+                    <th className="py-2 px-2 text-center">Concluídos hoje</th>
+                    <th className="py-2 px-2 text-center">Tentativas hoje</th>
                     <th className="py-2 px-2 text-center">Reuniões</th>
                     <th className="py-2 pl-2 text-right">% da meta</th>
                   </tr>
@@ -187,10 +207,7 @@ export function WarRoomPanel() {
                 <tbody>
                   {rows.map(r => {
                     const pct = Math.round((r.completed / SDR_DAILY_GOAL) * 100)
-                    const barColor =
-                      pct >= 100 ? 'bg-green-500' :
-                      pct >= 50  ? 'bg-orange-400' :
-                                   'bg-red-500'
+                    const barColor = barColorByCompleted(r.completed)
                     return (
                       <tr key={r.name} className="border-b last:border-0">
                         <td className="py-2 pr-2 font-semibold">{r.name}</td>
@@ -209,63 +226,68 @@ export function WarRoomPanel() {
                 </tbody>
               </table>
             </div>
-            <p className="text-[11px] text-muted-foreground mt-3">
-              Contato concluído = cliente atendeu (resultado começando com "Atendeu"). Caixa postal / WhatsApp / número inválido = tentativa, não conta na meta.
-            </p>
-          </CardContent>
-        </Card>
+          )}
+          <p className="text-[11px] text-muted-foreground mt-3">
+            Contato concluído = cliente atendeu a ligação. Caixa postal, WhatsApp, número inválido = tentativa, não conta na meta.
+          </p>
+        </CardContent>
+      </Card>
 
-        <div className="space-y-6">
-          {/* Hot leads do dia */}
-          <Card className="border-red-200">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-bold text-red-800 flex items-center gap-2">
-                <Flame className="h-4 w-4" /> Hot leads do dia
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {topHot.length === 0 && (
-                <p className="text-xs text-muted-foreground">Sem dados.</p>
-              )}
-              {topHot.map((deal, i) => (
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Hot Leads — Ação Obrigatória Hoje */}
+        <Card className="lg:col-span-2 border-red-200">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-bold text-red-800 flex items-center gap-2">
+              <Flame className="h-4 w-4" /> Hot Leads — Ação Obrigatória Hoje
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {isLoading && <Skeleton className="h-16 w-full" />}
+            {!isLoading && topHot.length === 0 && (
+              <p className="text-xs text-muted-foreground">Sem hot leads no momento.</p>
+            )}
+            {topHot.map((deal) => {
+              const days = deal.days_without_contact ?? 0
+              const u = urgencyBadge(days)
+              return (
                 <div key={deal.id} className="flex items-center gap-3 py-2 border-b last:border-0">
-                  <span className={`text-xs font-bold w-5 ${i < 2 ? 'text-red-600' : 'text-muted-foreground'}`}>{i+1}</span>
+                  <Badge className={`text-[10px] shrink-0 ${u.cls}`}>{u.label}</Badge>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold truncate">{deal.client_name}</p>
                     <p className="text-xs text-muted-foreground truncate">
-                      {deal.closer_name ?? deal.sdr_name ?? '—'} · {deal.days_without_contact ?? 0}d sem contato · {deal.temperature}
+                      {deal.closer_name ?? deal.sdr_name ?? '—'} · {days} dias sem contato · {deal.temperature}
                     </p>
                   </div>
-                  <span className="text-sm font-bold shrink-0">{formatCurrency(deal.value)}</span>
+                  <span className="text-sm font-bold shrink-0 text-[#0F2D5E]">{formatCurrency(deal.value)}</span>
                 </div>
-              ))}
-            </CardContent>
-          </Card>
+              )
+            })}
+          </CardContent>
+        </Card>
 
-          {/* Alertas automáticos */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-bold flex items-center gap-2">
-                <ShieldAlert className="h-4 w-4 text-amber-600" /> Alertas automáticos
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {alerts.length === 0 && (
-                <p className="text-xs text-muted-foreground">Nenhum alerta no momento. Bom trabalho!</p>
-              )}
-              {alerts.map((a, i) => {
-                const cls =
-                  a.tone === 'red'    ? 'bg-red-50 border-red-200 text-red-800' :
-                  a.tone === 'orange' ? 'bg-orange-50 border-orange-200 text-orange-800' :
-                  a.tone === 'yellow' ? 'bg-yellow-50 border-yellow-200 text-yellow-800' :
-                                        'bg-green-50 border-green-200 text-green-800'
-                return (
-                  <div key={i} className={`text-xs border rounded px-2 py-1.5 ${cls}`}>{a.text}</div>
-                )
-              })}
-            </CardContent>
-          </Card>
-        </div>
+        {/* Alertas automáticos */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-bold flex items-center gap-2">
+              <ShieldAlert className="h-4 w-4 text-amber-600" /> Alertas automáticos
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {alerts.length === 0 && (
+              <p className="text-xs text-muted-foreground">Nenhum alerta no momento.</p>
+            )}
+            {alerts.map((a, i) => {
+              const cls =
+                a.tone === 'red'    ? 'bg-red-50 border-red-200 text-red-800' :
+                a.tone === 'orange' ? 'bg-orange-50 border-orange-200 text-orange-800' :
+                a.tone === 'yellow' ? 'bg-yellow-50 border-yellow-200 text-yellow-800' :
+                                      'bg-green-50 border-green-200 text-green-800'
+              return (
+                <div key={i} className={`text-xs border rounded px-2 py-1.5 ${cls}`}>{a.text}</div>
+              )
+            })}
+          </CardContent>
+        </Card>
       </div>
     </div>
   )
