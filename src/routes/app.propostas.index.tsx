@@ -23,6 +23,7 @@ export const Route = createFileRoute("/app/propostas/")({ component: ProposalsLi
 function ProposalsList() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [onlyWithLead, setOnlyWithLead] = useState(false);
   const queryClient = useQueryClient();
   const kickoffSync = useServerFn(nomusKickoffSyncProposals);
 
