@@ -5,17 +5,19 @@ import { Badge } from '@/components/ui/badge'
 import { formatCurrency } from '@/lib/utils'
 import type { Temperature } from '@/modules/crm/types'
 
-export const Route = createFileRoute('/crm/hot-deals')({
+export const Route = createFileRoute('/app/hot-deals')({
   component: HotDealsPage,
 })
 
 const TEMP_COLOR: Record<Temperature, string> = {
-  Frio:'bg-blue-100 text-blue-800', Morno:'bg-yellow-100 text-yellow-800',
-  Quente:'bg-orange-100 text-orange-800', 'Muito Quente':'bg-red-100 text-red-800',
+  Frio: 'bg-blue-100 text-blue-800',
+  Morno: 'bg-yellow-100 text-yellow-800',
+  Quente: 'bg-orange-100 text-orange-800',
+  'Muito Quente': 'bg-red-100 text-red-800',
 }
 
 function HotDealsPage() {
-  const { data = [], isLoading } = useQuery({ queryKey:['crm','hot-deals'], queryFn:()=>fetchHotDeals(30) })
+  const { data = [], isLoading } = useQuery({ queryKey: ['crm', 'hot-deals'], queryFn: () => fetchHotDeals(30) })
   return (
     <div className="p-6 space-y-6">
       <div>
@@ -25,7 +27,7 @@ function HotDealsPage() {
       {isLoading && <p className="text-muted-foreground">Carregando...</p>}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
         {data.map((deal, i) => (
-          <div key={deal.id} className={`rounded-xl border p-4 space-y-3 ${i<5?'border-red-300 bg-red-50':i<10?'border-orange-200 bg-orange-50':'bg-white'}`}>
+          <div key={deal.id} className={`rounded-xl border p-4 space-y-3 ${i < 5 ? 'border-red-300 bg-red-50' : i < 10 ? 'border-orange-200 bg-orange-50' : 'bg-white'}`}>
             <div className="flex justify-between gap-2">
               <div>
                 <p className="text-xs font-mono text-muted-foreground">{deal.proposal_number}</p>

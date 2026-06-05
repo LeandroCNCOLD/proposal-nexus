@@ -34,10 +34,10 @@ import { cn } from "@/lib/utils";
 
 const NAV = [
   { group: "CRM", items: [
-    { to: "/crm", label: "Pipeline Master", icon: LayoutList, exact: true },
-    { to: "/crm/war-room", label: "War Room", icon: Zap },
-    { to: "/crm/hot-deals", label: "Hot Deals", icon: Flame },
-    { to: "/crm/sdr-performance", label: "SDR Performance", icon: BarChart2 },
+    { to: "/app/pipeline", label: "Pipeline Master", icon: LayoutList },
+    { to: "/app/war-room", label: "War Room", icon: Zap },
+    { to: "/app/hot-deals", label: "Hot Deals", icon: Flame },
+    { to: "/app/sdr-performance", label: "SDR Performance", icon: BarChart2 },
   ]},
   { group: "Operação", items: [
     { to: "/app", label: "Dashboard", icon: LayoutDashboard, exact: true },
