@@ -86,7 +86,8 @@ async function fetchData(mes: string) {
     supabase
       .from("proposals")
       .select("id,sales_owner_id,nomus_seller_name,status,total_value,closed_value,closed_at,created_at")
-      .or(`created_at.gte.${start},closed_at.gte.${start}`)
+      .gte("created_at", `${start}T00:00:00`)
+      .lte("created_at", `${end}T23:59:59`)
       .eq("is_active", true),
     supabase.from("crm_closer_metas").select("*").eq("mes", start),
     supabase.auth.getUser(),
@@ -105,6 +106,8 @@ async function fetchData(mes: string) {
     me: meRes.data.user?.id ?? null,
   };
 }
+
+
 
 // ============== component ==============
 function ClosersPerformancePage() {
@@ -131,6 +134,12 @@ function ClosersPerformancePage() {
     data.agenda.forEach((a) => {
       if (a.closer_nome && !map.has(a.closer_nome)) {
         map.set(a.closer_nome, { nome: a.closer_nome, userId: null });
+      }
+    });
+    data.proposals.forEach((p) => {
+      const nome = p.nomus_seller_name?.trim();
+      if (nome && !map.has(nome)) {
+        map.set(nome, { nome, userId: p.sales_owner_id ?? null });
       }
     });
     return Array.from(map.values()).sort((a, b) => a.nome.localeCompare(b.nome));
