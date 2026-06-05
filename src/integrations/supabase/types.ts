@@ -3823,6 +3823,59 @@ export type Database = {
           },
         ]
       }
+      crm_call_logs: {
+        Row: {
+          call_date: string
+          call_time: string | null
+          created_at: string
+          duration_min: number | null
+          id: string
+          meeting_booked: boolean
+          observation: string | null
+          pipeline_id: string | null
+          result: string | null
+          sdr_id: string | null
+          sdr_name: string
+          temperature_after: string | null
+        }
+        Insert: {
+          call_date?: string
+          call_time?: string | null
+          created_at?: string
+          duration_min?: number | null
+          id?: string
+          meeting_booked?: boolean
+          observation?: string | null
+          pipeline_id?: string | null
+          result?: string | null
+          sdr_id?: string | null
+          sdr_name: string
+          temperature_after?: string | null
+        }
+        Update: {
+          call_date?: string
+          call_time?: string | null
+          created_at?: string
+          duration_min?: number | null
+          id?: string
+          meeting_booked?: boolean
+          observation?: string | null
+          pipeline_id?: string | null
+          result?: string | null
+          sdr_id?: string | null
+          sdr_name?: string
+          temperature_after?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_call_logs_pipeline_id_fkey"
+            columns: ["pipeline_id"]
+            isOneToOne: false
+            referencedRelation: "crm_pipeline"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       crm_followups: {
         Row: {
           created_at: string
@@ -3940,6 +3993,93 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      crm_pipeline: {
+        Row: {
+          call_observation: string | null
+          call_result: string | null
+          city: string | null
+          client_name: string
+          closer_confirmed: string
+          closer_id: string | null
+          closer_name: string | null
+          created_at: string
+          id: string
+          internal_note: string | null
+          last_contact_at: string | null
+          meeting_date: string | null
+          meeting_scheduled: boolean
+          next_contact_at: string | null
+          next_step: string | null
+          priority: string
+          probability_pct: number | null
+          proposal_number: string
+          sdr_id: string | null
+          sdr_name: string | null
+          sdr_status: string
+          state: string | null
+          temperature: string
+          updated_at: string
+          value: number
+          value_range: string | null
+        }
+        Insert: {
+          call_observation?: string | null
+          call_result?: string | null
+          city?: string | null
+          client_name: string
+          closer_confirmed?: string
+          closer_id?: string | null
+          closer_name?: string | null
+          created_at?: string
+          id?: string
+          internal_note?: string | null
+          last_contact_at?: string | null
+          meeting_date?: string | null
+          meeting_scheduled?: boolean
+          next_contact_at?: string | null
+          next_step?: string | null
+          priority?: string
+          probability_pct?: number | null
+          proposal_number: string
+          sdr_id?: string | null
+          sdr_name?: string | null
+          sdr_status?: string
+          state?: string | null
+          temperature?: string
+          updated_at?: string
+          value?: number
+          value_range?: string | null
+        }
+        Update: {
+          call_observation?: string | null
+          call_result?: string | null
+          city?: string | null
+          client_name?: string
+          closer_confirmed?: string
+          closer_id?: string | null
+          closer_name?: string | null
+          created_at?: string
+          id?: string
+          internal_note?: string | null
+          last_contact_at?: string | null
+          meeting_date?: string | null
+          meeting_scheduled?: boolean
+          next_contact_at?: string | null
+          next_step?: string | null
+          priority?: string
+          probability_pct?: number | null
+          proposal_number?: string
+          sdr_id?: string | null
+          sdr_name?: string | null
+          sdr_status?: string
+          state?: string | null
+          temperature?: string
+          updated_at?: string
+          value?: number
+          value_range?: string | null
+        }
+        Relationships: []
       }
       crm_process_meta: {
         Row: {
@@ -4075,6 +4215,36 @@ export type Database = {
           },
         ]
       }
+      crm_team_members: {
+        Row: {
+          active: boolean
+          avatar_url: string | null
+          created_at: string
+          id: string
+          name: string
+          role: string
+          user_id: string | null
+        }
+        Insert: {
+          active?: boolean
+          avatar_url?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          role: string
+          user_id?: string | null
+        }
+        Update: {
+          active?: boolean
+          avatar_url?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          role?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       crm_user_funnels: {
         Row: {
           created_at: string
@@ -4102,6 +4272,45 @@ export type Database = {
           tipo?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      crm_weekly_reviews: {
+        Row: {
+          bottlenecks: string | null
+          created_at: string
+          hot_deals_count: number
+          id: string
+          learnings: string | null
+          meetings_booked: number
+          meetings_held: number
+          next_week_plan: string | null
+          total_calls: number
+          week_start: string
+        }
+        Insert: {
+          bottlenecks?: string | null
+          created_at?: string
+          hot_deals_count?: number
+          id?: string
+          learnings?: string | null
+          meetings_booked?: number
+          meetings_held?: number
+          next_week_plan?: string | null
+          total_calls?: number
+          week_start: string
+        }
+        Update: {
+          bottlenecks?: string | null
+          created_at?: string
+          hot_deals_count?: number
+          id?: string
+          learnings?: string | null
+          meetings_booked?: number
+          meetings_held?: number
+          next_week_plan?: string | null
+          total_calls?: number
+          week_start?: string
         }
         Relationships: []
       }
