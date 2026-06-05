@@ -1,38 +1,78 @@
-Plano para retirar Processos Especiais desta etapa do ColdPro
+# Separar CRM SDR de Propostas Nomus
 
-1. Remover a aba da navegação
-- Alterar o stepper do cálculo para ficar com 4 etapas:
-  - Ambiente
-  - Produtos
-  - Cargas extras
-  - Resultado
-- Ajustar os índices das etapas na tela para que Cargas extras e Resultado ocupem os lugares corretos.
-- Garantir que, ao salvar/calcular, o sistema avance para a etapa Resultado sem tentar passar por Processos Especiais.
+Hoje o CRM SDR usa a tabela `crm_pipeline` e a UI fala "Proposta", o que causa confusão com as propostas formais do Nomus (`nomus_proposals`). Vamos isolar o módulo SDR como um sistema de **gestão de leads de pré-venda**, sem duplicar dados nem quebrar o que existe.
 
-2. Remover a tela/formulário de Processos Especiais
-- Remover da página do projeto ColdPro o uso do formulário `ColdProAdvancedProcessForm`.
-- Remover o botão/fluxo de salvar processo especial nessa tela.
-- Remover o resumo “Prévia dos processos especiais”.
-- Remover imports e hooks relacionados à aba para evitar código morto na interface.
+## O que muda
 
-3. Tirar Processos Especiais do cálculo de carga térmica
-- Ajustar o motor `calculateColdProLoad` para não somar `advanced_processes` no subtotal.
-- Manter o retorno compatível, mas com `advanced_processes` vazio e `advanced_processes_kcal_h = 0`, para relatórios antigos não quebrarem.
-- Ajustar a função de cálculo do ambiente para não buscar nem enviar `coldpro_advanced_processes` ao motor.
-- O cálculo final passará a considerar apenas ambiente, produtos/túnel, desumidificação de sementes, infiltração, cargas internas, ventiladores, degelo, outros e segurança.
+### 1. Banco — renomear tabela
+- `crm_pipeline` → `sdr_leads` (mantém todas as colunas, dados, índices e policies)
+- Atualizar a função `release_expired_locks()` para apontar para `sdr_leads`
+- Migração usa `ALTER TABLE ... RENAME` (não perde dado nenhum)
 
-4. Limpar relatórios e gráficos
-- Remover a linha “Processos especiais” do ranking/distribuição de carga.
-- Evitar que relatórios e dashboards exibam carga de processos especiais salva anteriormente.
-- Preservar a compatibilidade com dados antigos, porém sem incluir essa parcela no resultado normalizado.
+### 2. Módulo frontend
+- `src/modules/crm/` → `src/modules/sdr/`
+- Componentes:
+  - `PipelineMasterTable` → `LeadsTable`
+  - `CallLogDrawer` permanece
+  - `WarRoomPanel`, `SdrPerformanceCard` permanecem
+- Hooks: `use-crm-pipeline` → `use-sdr-leads`
+- Services: todas as queries passam a apontar para `sdr_leads`
+- Types: `CrmPipelineRow` → `SdrLead`
 
-5. Atualizar relatórios já calculados
-- Após a mudança do motor, executar uma rotina de recálculo para os ambientes já existentes.
-- Isso vai sobrescrever os resultados salvos com `advanced_processes_kcal_h = 0`, refletindo a nova regra.
-- Manter os cadastros antigos de processos especiais no banco sem uso, para uma futura segunda etapa se vocês quiserem reativar/migrar esses dados.
+### 3. Rotas
+- `/app/crm-sdr/*` → `/app/sdr/*`
+  - `/app/sdr/bank` — Banco de Leads (era Banco de Propostas)
+  - `/app/sdr/wallet` — Minha Carteira
+  - `/app/sdr/hot-deals` — Hot Leads
+  - `/app/sdr/war-room` — War Room
+  - `/app/sdr/sdr-performance` — Performance
+  - `/app/sdr/` (index) — Pipeline Master
 
-6. Validar
-- Rodar verificação TypeScript.
-- Rodar build de produção.
-- Conferir que a página ColdPro abre com 4 abas e sem “Processos Especiais”.
-- Conferir que o cálculo e o botão “Recalcular ambiente” seguem funcionando.
+### 4. Linguagem da UI
+Em todo o módulo SDR, trocar:
+- "Proposta" → "Lead"
+- "Nº Proposta" → "Código / Ref" (campo `proposal_number` vira `lead_code` no DB)
+- "Banco de Propostas" → "Banco de Leads"
+- "Propostas Ativas" → "Leads Ativos"
+
+Isso deixa claro que **Lead (SDR) ≠ Proposta (Nomus)**.
+
+### 5. Sidebar
+Renomear o grupo "CRM / SDR" para **"SDR — Pré-Venda"** com os mesmos itens sob a nova rota.
+
+## O que NÃO muda
+
+- Propostas Nomus (`nomus_proposals`, `proposals`) — intocadas
+- Lógica de travamento de leads (lock por SDR, limite de 30, expiração 7 dias)
+- Seed script — só ajusta nome da tabela
+- Histórico de chamadas, war room, performance — mesma lógica, novo nome
+
+## Detalhes técnicos
+
+```text
+Migração SQL (não destrutiva):
+  ALTER TABLE public.crm_pipeline RENAME TO sdr_leads;
+  ALTER TABLE public.sdr_leads RENAME COLUMN proposal_number TO lead_code;
+  -- recriar release_expired_locks() apontando para sdr_leads
+  -- renomear policies/índices para refletir novo nome
+
+Frontend:
+  - rg + sed para trocar 'crm_pipeline' → 'sdr_leads' em services/hooks
+  - rg + sed para trocar 'proposal_number' → 'lead_code'
+  - Renomear arquivos de rota app.crm-sdr.* → app.sdr.*
+  - Atualizar src/integrations/supabase/types.ts será regenerado automaticamente
+  - Atualizar AppShell sidebar
+```
+
+## Fora de escopo (perguntar depois se quiser)
+
+- Sincronização automática Nomus → sdr_leads (hoje é seed manual)
+- Conversão "Lead virou Proposta" (criar `nomus_proposal` a partir de um `sdr_lead` ganho)
+- Renomear `crm_call_logs`, `crm_followups`, `crm_funnel_stages` etc. — mantemos prefixo `crm_` nessas (são genéricas de pré-venda)
+
+## Próximo passo
+
+Quando você aprovar este plano, eu executo em 3 fases:
+1. Migração SQL (renomear tabela + coluna + função)
+2. Refatoração frontend (módulo, rotas, sidebar, textos)
+3. Verificar build e testar no preview
