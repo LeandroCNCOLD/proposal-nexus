@@ -15,8 +15,9 @@ interface Props { pipeline: CrmPipeline; open: boolean; onClose: () => void }
 
 export function CallLogDrawer({ pipeline, open, onClose }: Props) {
   const { insert } = useCallLog({ pipelineId: pipeline.id })
+  const { names: sdrNames } = useSdrNames()
   const [form, setForm] = useState({
-    sdr_name: pipeline.sdr_name ?? SDR_NAMES[0],
+    sdr_name: pipeline.sdr_name ?? '',
     result: '' as any,
     temperature_after: pipeline.temperature as any,
     meeting_booked: false,
