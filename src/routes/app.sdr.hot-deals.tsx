@@ -1,47 +1,101 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
+import { useMemo } from 'react'
 import { fetchHotDeals } from '@/modules/sdr/services'
 import { Badge } from '@/components/ui/badge'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Card, CardContent } from '@/components/ui/card'
 import { formatCurrency } from '@/lib/utils'
-import type { Temperature } from '@/modules/sdr/types'
+import type { Temperature, CrmPipeline } from '@/modules/sdr/types'
 
 export const Route = createFileRoute('/app/sdr/hot-deals')({
   component: HotDealsPage,
 })
 
 const TEMP_COLOR: Record<Temperature, string> = {
-  Frio: 'bg-blue-100 text-blue-800', Morno: 'bg-yellow-100 text-yellow-800',
-  Quente: 'bg-orange-100 text-orange-800', 'Muito Quente': 'bg-red-100 text-red-800',
+  Frio: 'bg-blue-100 text-blue-700',
+  Morno: 'bg-yellow-100 text-yellow-800',
+  Quente: 'bg-orange-100 text-orange-700',
+  'Muito Quente': 'bg-red-100 text-red-700',
+}
+
+function urgencyBadge(days: number) {
+  if (days > 180) return { label: 'CRÍTICO', cls: 'bg-red-600 text-white' }
+  if (days >= 61) return { label: 'URGENTE', cls: 'bg-orange-500 text-white' }
+  return null
 }
 
 function HotDealsPage() {
-  const { data = [], isLoading } = useQuery({ queryKey: ['crm', 'hot-deals'], queryFn: () => fetchHotDeals(30) })
+  const { data = [], isLoading, error } = useQuery({
+    queryKey: ['crm', 'hot-deals', 'page'],
+    queryFn: () => fetchHotDeals(60),
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+  })
+
+  const sorted = useMemo(() => {
+    return [...data].sort((a, b) => {
+      const sa = (a.value ?? 0) * (1 + (a.days_without_contact ?? 0) / 100)
+      const sb = (b.value ?? 0) * (1 + (b.days_without_contact ?? 0) / 100)
+      return sb - sa
+    })
+  }, [data])
+
   return (
     <div className="p-6 space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-red-800">Hot Leads</h1>
-        <p className="text-sm text-muted-foreground">Prioridade Alta · {data.length} propostas</p>
+        <p className="text-sm text-muted-foreground">
+          Leads com maior valor e urgência · Prioridade Alta · {sorted.length} propostas
+        </p>
       </div>
-      {isLoading && <p className="text-muted-foreground">Carregando...</p>}
+
+      {error && (
+        <Card className="border-red-300 bg-red-50">
+          <CardContent className="pt-6 text-red-800 text-sm">
+            Erro ao carregar Hot Leads. Verifique sua conexão e tente novamente.
+          </CardContent>
+        </Card>
+      )}
+
+      {isLoading && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+          {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-44 w-full rounded-xl" />)}
+        </div>
+      )}
+
+      {!isLoading && !error && sorted.length === 0 && (
+        <p className="text-sm text-muted-foreground">Nenhum hot lead no momento.</p>
+      )}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-        {data.map((deal, i) => (
-          <div key={deal.id} className={`rounded-xl border p-4 space-y-3 ${i < 5 ? 'border-red-300 bg-red-50' : i < 10 ? 'border-orange-200 bg-orange-50' : 'bg-white'}`}>
-            <div className="flex justify-between gap-2">
+        {sorted.map((deal: CrmPipeline) => {
+          const days = deal.days_without_contact ?? 0
+          const urg = urgencyBadge(days)
+          return (
+            <div key={deal.id} className="relative rounded-xl border bg-white p-4 space-y-3 shadow-sm">
+              {urg && (
+                <Badge className={`absolute top-3 right-3 text-[10px] ${urg.cls}`}>
+                  {urg.label}
+                </Badge>
+              )}
               <div>
                 <p className="text-xs font-mono text-muted-foreground">{deal.lead_code}</p>
-                <p className="font-semibold text-sm">{deal.client_name}</p>
+                <p className="font-semibold text-sm mt-0.5 pr-16">{deal.client_name}</p>
               </div>
-              <Badge className={`text-xs shrink-0 ${TEMP_COLOR[deal.temperature]}`}>{deal.temperature}</Badge>
+              <p className="text-2xl font-bold text-[#0F2D5E]">{formatCurrency(deal.value)}</p>
+              <Badge className={`text-xs ${TEMP_COLOR[deal.temperature]}`}>{deal.temperature}</Badge>
+              <div className="flex justify-between text-xs pt-1 border-t">
+                <span className="text-muted-foreground">
+                  Closer: <strong className="text-foreground">{deal.closer_name ?? '—'}</strong>
+                </span>
+                <span className={days > 30 ? 'text-red-600 font-semibold' : 'text-muted-foreground'}>
+                  {days} dias sem contato
+                </span>
+              </div>
             </div>
-            <p className="text-xl font-bold text-[#0F2D5E]">{formatCurrency(deal.value)}</p>
-            <div className="flex justify-between text-xs text-muted-foreground">
-              <span>Closer: <strong>{deal.closer_name ?? '—'}</strong></span>
-              <span className={(deal.days_without_contact ?? 0) > 10 ? 'text-red-600 font-semibold' : ''}>
-                {deal.days_without_contact ?? 0}d sem contato
-              </span>
-            </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
     </div>
   )
