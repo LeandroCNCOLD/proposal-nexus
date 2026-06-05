@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge'
 import { formatCurrency } from '@/lib/utils'
 import type { Temperature } from '@/modules/crm/types'
 
-export const Route = createFileRoute('/app/crm-sdr/hot-deals')({
+export const Route = createFileRoute('/app/sdr/hot-deals')({
   component: HotDealsPage,
 })
 

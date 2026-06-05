@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { Lock, Unlock, Briefcase } from 'lucide-react'
 import { toast } from 'sonner'
 
-export const Route = createFileRoute('/app/crm-sdr/bank')({
+export const Route = createFileRoute('/app/sdr/bank')({
   component: BankPage,
 })
 
