@@ -122,9 +122,11 @@ export async function countMyLocks(sdrId: string) {
     .from('sdr_leads')
     .select('id', { count: 'exact', head: true })
     .eq('locked_by_sdr_id', sdrId)
+    .not('locked_by_sdr_name', 'ilike', `${MANAGER_FREEZE_PREFIX}%`)
   if (error) throw error
   return count ?? 0
 }
+
 
 
 export async function fetchPipeline(filters: Partial<PipelineFilters> = {}) {
