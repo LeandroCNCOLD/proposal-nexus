@@ -40,6 +40,7 @@ const MANAGER_ROLES: AppRole[] = ["admin", "gerente_comercial", "diretoria"];
 
 const ASSIGNABLE_ROLES: AppRole[] = [
   "vendedor",
+  "sdr",
   "gerente_comercial",
   "engenharia",
   "orcamentista",
