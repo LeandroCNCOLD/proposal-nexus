@@ -58,6 +58,25 @@ export async function lockLead(pipelineId: string, sdrId: string, sdrName: strin
   return data as CrmPipeline
 }
 
+export const MANAGER_FREEZE_PREFIX = '🔒 Bloqueado pelo gestor'
+
+/** Gestor bloqueia o lead para que ninguém entre em contato. Sobrescreve lock existente. */
+export async function freezeLead(pipelineId: string, managerId: string, managerName: string) {
+  const expires = new Date()
+  expires.setFullYear(expires.getFullYear() + 5)
+  const { error } = await supabase
+    .from('sdr_leads')
+    .update({
+      locked_by_sdr_id: managerId,
+      locked_by_sdr_name: `${MANAGER_FREEZE_PREFIX} (${managerName})`,
+      locked_at: new Date().toISOString(),
+      lock_expires_at: expires.toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', pipelineId)
+  if (error) throw error
+}
+
 /** Devolve o lead ao banco. */
 export async function unlockLead(pipelineId: string) {
   const { error } = await supabase
