@@ -62,7 +62,7 @@ function WalletPage() {
         <div className="text-center py-12 text-muted-foreground">Carregando...</div>
       ) : leads.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground">
-          Você ainda não pegou nenhum lead. Vá ao <strong>Banco de Propostas</strong> para começar.
+          Você ainda não pegou nenhum lead. Vá ao <strong>Banco de Leads</strong> para começar.
         </div>
       ) : (
         <div className="space-y-3">

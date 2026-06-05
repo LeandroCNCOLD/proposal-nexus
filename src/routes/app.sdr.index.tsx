@@ -23,7 +23,7 @@ function CrmPipelinePage() {
           onClick={handleSeed}
           className="mb-4 px-4 py-2 bg-orange-500 text-white rounded text-sm font-bold"
         >
-          🌱 Popular banco com propostas ativas
+          🌱 Popular banco com leads ativos
         </button>
       )}
       <PipelineMasterTable />
