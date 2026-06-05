@@ -7,6 +7,7 @@ type AppRole = Database["public"]["Enums"]["app_role"];
 
 const ALL_ROLES: AppRole[] = [
   "vendedor",
+  "sdr",
   "gerente_comercial",
   "engenharia",
   "orcamentista",
@@ -20,6 +21,7 @@ const InviteSchema = z.object({
   fullName: z.string().trim().min(1).max(120),
   role: z.enum([
     "vendedor",
+    "sdr",
     "gerente_comercial",
     "engenharia",
     "orcamentista",
@@ -129,6 +131,7 @@ const UpdateRoleSchema = z.object({
   userId: z.string().uuid(),
   role: z.enum([
     "vendedor",
+    "sdr",
     "gerente_comercial",
     "engenharia",
     "orcamentista",
