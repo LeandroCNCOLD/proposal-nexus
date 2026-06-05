@@ -16,6 +16,8 @@ import { Textarea } from '@/components/ui/textarea'
 import { Unlock, Clock, MapPin, Phone, DollarSign, ChevronDown, ChevronUp, Mail, Building2, FileText, Calendar, AlertTriangle, History, Paperclip, MessageCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { CallScriptDialog } from '@/modules/sdr/components/CallScriptDialog'
+import { useProposalLeadMatches, type ProposalLeadMatch } from '@/hooks/use-proposal-lead-matches'
+import { useMemo } from 'react'
 
 export const Route = createFileRoute('/app/sdr/wallet')({
   component: WalletPage,
