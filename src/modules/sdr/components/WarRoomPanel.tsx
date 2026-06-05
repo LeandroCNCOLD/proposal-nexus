@@ -74,7 +74,7 @@ export function WarRoomPanel() {
 
   const rows: DailyRow[] = useMemo(() => {
     const map = new Map<string, DailyRow>()
-    for (const n of SDR_NAMES) map.set(n, { name: n, completed: 0, attempts: 0, meetings: 0 })
+    for (const n of sdrNames) map.set(n, { name: n, completed: 0, attempts: 0, meetings: 0 })
     for (const l of todayLogs.data ?? []) {
       const key = l.sdr_name || '—'
       if (!map.has(key)) map.set(key, { name: key, completed: 0, attempts: 0, meetings: 0 })
