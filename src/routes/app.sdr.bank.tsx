@@ -75,6 +75,10 @@ function BankPage() {
     queryFn: () => fetchProposalBank(),
   })
 
+  const { byLead: nomusByLead } = useProposalLeadMatches({
+    leadIds: useMemo(() => rows.map(r => r.id), [rows]),
+  })
+
   const { data: myLockCount = 0 } = useQuery({
     queryKey: ['my-lock-count', user?.id],
     queryFn: () => (user ? countMyLocks(user.id) : Promise.resolve(0)),
