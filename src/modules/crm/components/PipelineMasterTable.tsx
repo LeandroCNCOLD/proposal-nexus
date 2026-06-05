@@ -3,8 +3,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Switch } from '@/components/ui/switch'
-import { Label } from '@/components/ui/label'
 import { Phone, ChevronUp, ChevronDown } from 'lucide-react'
 import { useCrmPipeline } from '../hooks/use-crm-pipeline'
 import { PipelineFiltersBar } from './PipelineFiltersBar'
