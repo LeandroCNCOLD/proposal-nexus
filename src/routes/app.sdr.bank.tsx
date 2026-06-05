@@ -194,21 +194,21 @@ function BankPage() {
           <table className="w-full text-sm">
             <thead className="bg-muted/50">
               <tr className="text-left">
-                <th className="px-3 py-2">Lead</th>
-                <th className="px-3 py-2">Cliente / Razão Social</th>
-                <th className="px-3 py-2">Contato</th>
-                <th className="px-3 py-2">UF</th>
-                <th className="px-3 py-2 text-right">Valor</th>
-                <th className="px-3 py-2">Cadastro</th>
-                <th className="px-3 py-2">Última interação</th>
-                <th className="px-3 py-2 text-center">Dias aberto</th>
-                <th className="px-3 py-2">Temp.</th>
-                <th className="px-3 py-2">Status</th>
+                <SortableTh label="Lead" sk="lead_code" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
+                <SortableTh label="Cliente / Razão Social" sk="client_name" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
+                <SortableTh label="Contato" sk="contact_name" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
+                <SortableTh label="UF" sk="state" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
+                <SortableTh label="Valor" sk="value" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="right" />
+                <SortableTh label="Cadastro" sk="cadastro" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
+                <SortableTh label="Última interação" sk="last_contact_at" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
+                <SortableTh label="Dias aberto" sk="days_open" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="center" />
+                <SortableTh label="Temp." sk="temperature" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
+                <SortableTh label="Status" sk="status" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
                 <th className="px-3 py-2 text-right">Ação</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map(r => {
+              {sorted.map(r => {
                 const lockedByMe = r.locked_by_sdr_id === user?.id
                 const lockedByOther = !!r.locked_by_sdr_id && !lockedByMe
                 const isFrozen = !!r.locked_by_sdr_name?.startsWith(MANAGER_FREEZE_PREFIX)
