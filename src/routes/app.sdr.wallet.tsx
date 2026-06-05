@@ -1,18 +1,18 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import { useState } from 'react'
-import { fetchMyWallet, unlockLead, renewLock, updatePipelineField } from '@/modules/sdr/services'
-import { insertCallLog } from '@/modules/sdr/services'
+import { fetchMyWallet, unlockLead, renewLock, updatePipelineField, fetchCallLogs, insertCallLog } from '@/modules/sdr/services'
+import { supabase } from '@/integrations/supabase/client'
 import { useAuth } from '@/hooks/useAuth'
 import {
   CALL_RESULT_OPTIONS, TEMPERATURE_OPTIONS, CLOSER_NAMES,
-  type CrmPipeline, type CallResult, type Temperature, type SdrStatus,
+  type CrmPipeline, type CrmCallLog, type CallResult, type Temperature, type SdrStatus,
 } from '@/modules/sdr/types'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { Unlock, Clock, MapPin, Phone, DollarSign, ChevronDown, ChevronUp, Mail, Building2, FileText, Calendar } from 'lucide-react'
+import { Unlock, Clock, MapPin, Phone, DollarSign, ChevronDown, ChevronUp, Mail, Building2, FileText, Calendar, AlertTriangle, History } from 'lucide-react'
 import { toast } from 'sonner'
 import { CallScriptDialog } from '@/modules/sdr/components/CallScriptDialog'
 
@@ -113,19 +113,35 @@ function LeadCard({ lead, sdrName, onUnlock, onOpenScript }: {
   const [meetingBooked, setMeetingBooked] = useState(false)
   const [meetingDate, setMeetingDate] = useState('')
   const [closer, setCloser] = useState<string>('')
+  const nowLocal = () => {
+    const d = new Date()
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset())
+    return d.toISOString().slice(0, 16)
+  }
+  const [attemptAt, setAttemptAt] = useState<string>(nowLocal())
 
   const remaining = daysUntil(lead.lock_expires_at)
+
+  const { data: callLogs = [] } = useQuery({
+    queryKey: ['call-logs', lead.id],
+    queryFn: () => fetchCallLogs({ pipelineId: lead.id }),
+    refetchInterval: 60_000,
+  })
+  const attemptCount = callLogs.length
+  const alertManagement = attemptCount >= 3
 
   const registerMut = useMutation({
     mutationFn: async () => {
       if (!result) throw new Error('Escolha o resultado da ligação')
-      const today = new Date().toISOString().slice(0, 10)
+      const when = attemptAt ? new Date(attemptAt) : new Date()
+      const dateStr = when.toISOString().slice(0, 10)
+      const timeStr = when.toTimeString().slice(0, 5)
       await insertCallLog({
         pipeline_id: lead.id,
         sdr_id: lead.locked_by_sdr_id,
         sdr_name: sdrName,
-        call_date: today,
-        call_time: new Date().toTimeString().slice(0, 5),
+        call_date: dateStr,
+        call_time: timeStr,
         duration_min: null,
         result: result as CallResult,
         temperature_after: tempAfter || null,
@@ -133,11 +149,35 @@ function LeadCard({ lead, sdrName, onUnlock, onOpenScript }: {
         observation: observation || null,
       })
 
+      // Alerta para gestão na 3ª tentativa (sem reunião agendada)
+      if (attemptCount + 1 >= 3 && !meetingBooked) {
+        try {
+          const { data: { user: authUser } } = await supabase.auth.getUser()
+          await supabase.from('audit_logs').insert({
+            user_id: authUser?.id ?? null,
+            action: 'SDR_ALERT_3_ATTEMPTS',
+            entity_type: 'sdr_lead',
+            entity_id: lead.id,
+            changes: {
+              lead_code: lead.lead_code,
+              client_name: lead.client_name,
+              sdr_name: sdrName,
+              attempt_number: attemptCount + 1,
+              last_result: result,
+              observation: observation || null,
+              triggered_at: new Date().toISOString(),
+            },
+          })
+        } catch (err) {
+          console.error('Falha ao registrar alerta de gestão', err)
+        }
+      }
+
       const updates: Array<Promise<unknown>> = [renewLock(lead.id)]
       if (tempAfter)   updates.push(updatePipelineField(lead.id, 'temperature', tempAfter))
       if (observation) updates.push(updatePipelineField(lead.id, 'call_observation', observation))
       if (nextStep)    updates.push(updatePipelineField(lead.id, 'next_step', nextStep))
-      updates.push(updatePipelineField(lead.id, 'last_contact_at', new Date().toISOString()))
+      updates.push(updatePipelineField(lead.id, 'last_contact_at', when.toISOString()))
       updates.push(updatePipelineField(lead.id, 'call_result', result as CallResult))
 
       if (meetingBooked) {
@@ -152,9 +192,18 @@ function LeadCard({ lead, sdrName, onUnlock, onOpenScript }: {
       await Promise.all(updates)
     },
     onSuccess: () => {
-      toast.success(meetingBooked ? 'Reunião agendada — Closer notificado!' : 'Ligação registrada e lock renovado.')
+      const willAlert = attemptCount + 1 >= 3 && !meetingBooked
+      toast.success(
+        meetingBooked
+          ? 'Reunião agendada — Closer notificado!'
+          : willAlert
+            ? `Tentativa #${attemptCount + 1} registrada — Gestão notificada!`
+            : `Tentativa #${attemptCount + 1} registrada e lock renovado.`,
+      )
       setResult(''); setObservation(''); setNextStep(''); setMeetingBooked(false); setMeetingDate(''); setCloser('')
+      setAttemptAt(nowLocal())
       qc.invalidateQueries({ queryKey: ['my-wallet'] })
+      qc.invalidateQueries({ queryKey: ['call-logs', lead.id] })
     },
     onError: (e: Error) => toast.error(e.message),
   })
@@ -270,6 +319,22 @@ function LeadCard({ lead, sdrName, onUnlock, onOpenScript }: {
         </div>
       )}
 
+      {/* CONTADOR DE TENTATIVAS + ALERTA */}
+      <div className="flex items-center justify-between gap-2 border-t pt-3 flex-wrap">
+        <div className="flex items-center gap-2 text-sm">
+          <Phone className="w-4 h-4 text-muted-foreground" />
+          <span className="font-semibold">Tentativas de contato:</span>
+          <Badge variant={alertManagement ? 'destructive' : 'secondary'}>{attemptCount}</Badge>
+          <span className="text-xs text-muted-foreground">próxima será #{attemptCount + 1}</span>
+        </div>
+        {alertManagement && (
+          <Badge variant="destructive" className="flex items-center gap-1">
+            <AlertTriangle className="w-3 h-3" />
+            ALERTA — Gestão notificada (3+ tentativas)
+          </Badge>
+        )}
+      </div>
+
       {/* REGISTRO DE LIGAÇÃO */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 border-t pt-3">
         <div className="space-y-2">
@@ -278,6 +343,9 @@ function LeadCard({ lead, sdrName, onUnlock, onOpenScript }: {
             <option value="">Selecione...</option>
             {CALL_RESULT_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
           </select>
+
+          <label className="text-xs font-semibold">Data e hora da tentativa *</label>
+          <Input type="datetime-local" value={attemptAt} onChange={e => setAttemptAt(e.target.value)} />
 
           <label className="text-xs font-semibold">Temperatura após ligação</label>
           <select value={tempAfter} onChange={e => setTempAfter(e.target.value as Temperature)} className="w-full border rounded px-2 py-1.5 text-sm">
@@ -311,9 +379,54 @@ function LeadCard({ lead, sdrName, onUnlock, onOpenScript }: {
 
       <div className="flex justify-end gap-2 border-t pt-3">
         <Button onClick={() => registerMut.mutate()} disabled={!result || registerMut.isPending}>
-          {registerMut.isPending ? 'Salvando...' : 'Registrar ligação'}
+          {registerMut.isPending ? 'Salvando...' : `Registrar tentativa #${attemptCount + 1}`}
         </Button>
       </div>
+
+      {/* LINHA DO TEMPO */}
+      <CallTimeline logs={callLogs} />
+    </div>
+  )
+}
+
+function CallTimeline({ logs }: { logs: CrmCallLog[] }) {
+  const sorted = [...logs].sort((a, b) => {
+    const ka = `${a.call_date}T${a.call_time ?? '00:00'}`
+    const kb = `${b.call_date}T${b.call_time ?? '00:00'}`
+    return kb.localeCompare(ka)
+  })
+  return (
+    <div className="border-t pt-3">
+      <div className="text-xs font-bold uppercase tracking-wide text-muted-foreground flex items-center gap-1 mb-2">
+        <History className="w-3 h-3" /> Linha do tempo · {sorted.length} {sorted.length === 1 ? 'evento' : 'eventos'}
+      </div>
+      {sorted.length === 0 ? (
+        <p className="text-xs text-muted-foreground italic">Nenhuma tentativa registrada ainda.</p>
+      ) : (
+        <ol className="relative border-l-2 border-muted ml-2 space-y-3">
+          {sorted.map((log, idx) => {
+            const attempt = sorted.length - idx
+            const when = new Date(`${log.call_date}T${log.call_time ?? '00:00'}:00`)
+            const isAlert = attempt >= 3 && !log.meeting_booked
+            return (
+              <li key={log.id} className="ml-4 relative">
+                <span className={`absolute -left-[1.4rem] top-1 w-3 h-3 rounded-full border-2 border-background ${isAlert ? 'bg-red-500' : log.meeting_booked ? 'bg-green-500' : 'bg-blue-500'}`} />
+                <div className="text-xs flex items-center gap-2 flex-wrap">
+                  <Badge variant={isAlert ? 'destructive' : 'outline'} className="text-[10px]">#{attempt}</Badge>
+                  <span className="font-semibold">{when.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</span>
+                  <span className="text-muted-foreground">· {log.sdr_name}</span>
+                  {log.temperature_after && <Badge variant="secondary" className="text-[10px]">{log.temperature_after}</Badge>}
+                  {log.meeting_booked && <Badge className="text-[10px] bg-green-600">Reunião agendada</Badge>}
+                </div>
+                <div className="text-xs mt-0.5">{log.result || '—'}</div>
+                {log.observation && (
+                  <div className="text-xs text-muted-foreground italic mt-0.5">"{log.observation}"</div>
+                )}
+              </li>
+            )
+          })}
+        </ol>
+      )}
     </div>
   )
 }
