@@ -7,7 +7,7 @@ import { SDR_LOCK_LIMIT } from '@/modules/sdr/types'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Lock, Unlock, Briefcase, ShieldAlert } from 'lucide-react'
+import { Lock, Unlock, Briefcase, ShieldAlert, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react'
 import { toast } from 'sonner'
 
 export const Route = createFileRoute('/app/sdr/bank')({
@@ -42,6 +42,9 @@ function ageBadgeClass(days: number | null) {
   return 'bg-red-100 text-red-800'
 }
 
+type SortKey = 'lead_code' | 'client_name' | 'contact_name' | 'state' | 'value' | 'cadastro' | 'last_contact_at' | 'days_open' | 'temperature' | 'status'
+type SortDir = 'asc' | 'desc' | null
+
 function BankPage() {
   const { user, hasAnyRole } = useAuth()
   const qc = useQueryClient()
@@ -49,6 +52,15 @@ function BankPage() {
   const [uf, setUf] = useState('')
   const [minValue, setMinValue] = useState('')
   const [temp, setTemp] = useState('')
+  const [sortKey, setSortKey] = useState<SortKey | null>(null)
+  const [sortDir, setSortDir] = useState<SortDir>(null)
+
+  const toggleSort = (key: SortKey) => {
+    if (sortKey !== key) { setSortKey(key); setSortDir('asc'); return }
+    if (sortDir === 'asc') { setSortDir('desc'); return }
+    if (sortDir === 'desc') { setSortKey(null); setSortDir(null); return }
+    setSortDir('asc')
+  }
 
   // Qualquer usuário autenticado pode pegar leads para sua carteira.
   const canPickLeads = !!user
@@ -111,6 +123,40 @@ function BankPage() {
     })
   }, [rows, search, uf, minValue, temp])
 
+  const sorted = useMemo(() => {
+    if (!sortKey || !sortDir) return filtered
+    const tempOrder: Record<string, number> = { 'Frio': 0, 'Morno': 1, 'Quente': 2, 'Muito Quente': 3 }
+    const statusVal = (r: any) => {
+      const frozen = !!r.locked_by_sdr_name?.startsWith(MANAGER_FREEZE_PREFIX)
+      if (frozen) return 3
+      if (r.locked_by_sdr_id === user?.id) return 1
+      if (r.locked_by_sdr_id) return 2
+      return 0
+    }
+    const getVal = (r: any): string | number => {
+      switch (sortKey) {
+        case 'lead_code': return r.lead_code ?? ''
+        case 'client_name': return (r.client_name ?? '').toLowerCase()
+        case 'contact_name': return (r.contact_name ?? '').toLowerCase()
+        case 'state': return r.state ?? ''
+        case 'value': return r.value ?? 0
+        case 'cadastro': return new Date(r.proposal_date || r.created_at || 0).getTime()
+        case 'last_contact_at': return new Date(r.last_contact_at || 0).getTime()
+        case 'days_open': return daysSince(r.proposal_date || r.created_at) ?? -1
+        case 'temperature': return tempOrder[r.temperature] ?? -1
+        case 'status': return statusVal(r)
+      }
+    }
+    const copy = [...filtered]
+    copy.sort((a, b) => {
+      const va = getVal(a); const vb = getVal(b)
+      if (va < vb) return sortDir === 'asc' ? -1 : 1
+      if (va > vb) return sortDir === 'asc' ? 1 : -1
+      return 0
+    })
+    return copy
+  }, [filtered, sortKey, sortDir, user?.id])
+
   const atLimit = canPickLeads && myLockCount >= SDR_LOCK_LIMIT
 
   return (
@@ -148,21 +194,21 @@ function BankPage() {
           <table className="w-full text-sm">
             <thead className="bg-muted/50">
               <tr className="text-left">
-                <th className="px-3 py-2">Lead</th>
-                <th className="px-3 py-2">Cliente / Razão Social</th>
-                <th className="px-3 py-2">Contato</th>
-                <th className="px-3 py-2">UF</th>
-                <th className="px-3 py-2 text-right">Valor</th>
-                <th className="px-3 py-2">Cadastro</th>
-                <th className="px-3 py-2">Última interação</th>
-                <th className="px-3 py-2 text-center">Dias aberto</th>
-                <th className="px-3 py-2">Temp.</th>
-                <th className="px-3 py-2">Status</th>
+                <SortableTh label="Lead" sk="lead_code" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
+                <SortableTh label="Cliente / Razão Social" sk="client_name" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
+                <SortableTh label="Contato" sk="contact_name" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
+                <SortableTh label="UF" sk="state" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
+                <SortableTh label="Valor" sk="value" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="right" />
+                <SortableTh label="Cadastro" sk="cadastro" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
+                <SortableTh label="Última interação" sk="last_contact_at" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
+                <SortableTh label="Dias aberto" sk="days_open" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="center" />
+                <SortableTh label="Temp." sk="temperature" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
+                <SortableTh label="Status" sk="status" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
                 <th className="px-3 py-2 text-right">Ação</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map(r => {
+              {sorted.map(r => {
                 const lockedByMe = r.locked_by_sdr_id === user?.id
                 const lockedByOther = !!r.locked_by_sdr_id && !lockedByMe
                 const isFrozen = !!r.locked_by_sdr_name?.startsWith(MANAGER_FREEZE_PREFIX)
@@ -273,5 +319,30 @@ function BankPage() {
         </div>
       )}
     </div>
+  )
+}
+
+function SortableTh({ label, sk, sortKey, sortDir, onClick, align }: {
+  label: string
+  sk: SortKey
+  sortKey: SortKey | null
+  sortDir: SortDir
+  onClick: (k: SortKey) => void
+  align?: 'left' | 'right' | 'center'
+}) {
+  const active = sortKey === sk && sortDir
+  const Icon = active === 'asc' ? ArrowUp : active === 'desc' ? ArrowDown : ArrowUpDown
+  const alignClass = align === 'right' ? 'text-right justify-end' : align === 'center' ? 'text-center justify-center' : 'text-left justify-start'
+  return (
+    <th className={`px-3 py-2 ${align === 'right' ? 'text-right' : align === 'center' ? 'text-center' : ''}`}>
+      <button
+        type="button"
+        onClick={() => onClick(sk)}
+        className={`inline-flex items-center gap-1 hover:text-primary transition-colors ${alignClass} ${active ? 'text-primary font-semibold' : ''}`}
+      >
+        {label}
+        <Icon className={`w-3 h-3 ${active ? 'opacity-100' : 'opacity-40'}`} />
+      </button>
+    </th>
   )
 }
