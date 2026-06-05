@@ -62,9 +62,11 @@ export const TEMPERATURE_LABELS: Record<ProposalTemperature, string> = {
 
 export const ROLE_LABELS: Record<AppRole, string> = {
   vendedor: "Vendedor",
+  sdr: "SDR",
   gerente_comercial: "Gerente Comercial",
   engenharia: "Engenharia",
   orcamentista: "Orçamentista",
+  coldpro: "ColdPro",
   diretoria: "Diretoria",
   administrativo: "Administrativo",
   admin: "Administrador",
