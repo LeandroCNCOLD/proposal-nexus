@@ -170,7 +170,7 @@ function BankPage() {
                     </td>
                     <td className="px-3 py-2">{r.state || '—'}</td>
                     <td className="px-3 py-2 text-right font-semibold">{fmtBRL(r.value)}</td>
-                    <td className="px-3 py-2 text-xs whitespace-nowrap">{fmtDate(r.created_at)}</td>
+                    <td className="px-3 py-2 text-xs whitespace-nowrap">{fmtDate(r.proposal_date || r.created_at)}</td>
                     <td className="px-3 py-2 text-xs whitespace-nowrap">
                       <div>{fmtDate(r.last_contact_at)}</div>
                       {r.days_without_contact != null && (
@@ -179,7 +179,7 @@ function BankPage() {
                     </td>
                     <td className="px-3 py-2 text-center">
                       {(() => {
-                        const d = daysSince(r.created_at)
+                        const d = daysSince(r.proposal_date || r.created_at)
                         return (
                           <Badge className={ageBadgeClass(d)} variant="secondary">
                             {d == null ? '—' : `${d}d`}
