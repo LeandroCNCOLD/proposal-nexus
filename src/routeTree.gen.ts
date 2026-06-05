@@ -12,11 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as CrmIndexRouteImport } from './routes/crm/index'
 import { Route as AppIndexRouteImport } from './routes/app.index'
-import { Route as CrmWarRoomRouteImport } from './routes/crm/war-room'
-import { Route as CrmSdrPerformanceRouteImport } from './routes/crm/sdr-performance'
-import { Route as CrmHotDealsRouteImport } from './routes/crm/hot-deals'
 import { Route as AppTarefasRouteImport } from './routes/app.tarefas'
 import { Route as AppRelatoriosRouteImport } from './routes/app.relatorios'
 import { Route as AppEquipamentosRouteImport } from './routes/app.equipamentos'
@@ -28,6 +24,7 @@ import { Route as AppCompetitivaRouteImport } from './routes/app.competitiva'
 import { Route as AppClientesRouteImport } from './routes/app.clientes'
 import { Route as AppAprovacoesRouteImport } from './routes/app.aprovacoes'
 import { Route as AppPropostasIndexRouteImport } from './routes/app.propostas.index'
+import { Route as AppCrmSdrIndexRouteImport } from './routes/app.crm-sdr.index'
 import { Route as AppConfiguracoesIndexRouteImport } from './routes/app.configuracoes.index'
 import { Route as AppColdproIndexRouteImport } from './routes/app.coldpro.index'
 import { Route as AppPropostasTabelasPrecoRouteImport } from './routes/app.propostas.tabelas-preco'
@@ -35,6 +32,9 @@ import { Route as AppPropostasPedidosNfRouteImport } from './routes/app.proposta
 import { Route as AppPropostasNovaRouteImport } from './routes/app.propostas.nova'
 import { Route as AppPropostasIdRouteImport } from './routes/app.propostas.$id'
 import { Route as AppCrmIdRouteImport } from './routes/app.crm.$id'
+import { Route as AppCrmSdrWarRoomRouteImport } from './routes/app.crm-sdr.war-room'
+import { Route as AppCrmSdrSdrPerformanceRouteImport } from './routes/app.crm-sdr.sdr-performance'
+import { Route as AppCrmSdrHotDealsRouteImport } from './routes/app.crm-sdr.hot-deals'
 import { Route as AppConfiguracoesNomusRouteImport } from './routes/app.configuracoes.nomus'
 import { Route as AppConfiguracoesApiNomusRouteImport } from './routes/app.configuracoes.api-nomus'
 import { Route as AppColdproProdutosRouteImport } from './routes/app.coldpro.produtos'
@@ -67,30 +67,10 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const CrmIndexRoute = CrmIndexRouteImport.update({
-  id: '/crm/',
-  path: '/crm/',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AppRoute,
-} as any)
-const CrmWarRoomRoute = CrmWarRoomRouteImport.update({
-  id: '/crm/war-room',
-  path: '/crm/war-room',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CrmSdrPerformanceRoute = CrmSdrPerformanceRouteImport.update({
-  id: '/crm/sdr-performance',
-  path: '/crm/sdr-performance',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CrmHotDealsRoute = CrmHotDealsRouteImport.update({
-  id: '/crm/hot-deals',
-  path: '/crm/hot-deals',
-  getParentRoute: () => rootRouteImport,
 } as any)
 const AppTarefasRoute = AppTarefasRouteImport.update({
   id: '/tarefas',
@@ -147,6 +127,11 @@ const AppPropostasIndexRoute = AppPropostasIndexRouteImport.update({
   path: '/propostas/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppCrmSdrIndexRoute = AppCrmSdrIndexRouteImport.update({
+  id: '/crm-sdr/',
+  path: '/crm-sdr/',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppConfiguracoesIndexRoute = AppConfiguracoesIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -182,6 +167,21 @@ const AppCrmIdRoute = AppCrmIdRouteImport.update({
   id: '/$id',
   path: '/$id',
   getParentRoute: () => AppCrmRoute,
+} as any)
+const AppCrmSdrWarRoomRoute = AppCrmSdrWarRoomRouteImport.update({
+  id: '/crm-sdr/war-room',
+  path: '/crm-sdr/war-room',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCrmSdrSdrPerformanceRoute = AppCrmSdrSdrPerformanceRouteImport.update({
+  id: '/crm-sdr/sdr-performance',
+  path: '/crm-sdr/sdr-performance',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCrmSdrHotDealsRoute = AppCrmSdrHotDealsRouteImport.update({
+  id: '/crm-sdr/hot-deals',
+  path: '/crm-sdr/hot-deals',
+  getParentRoute: () => AppRoute,
 } as any)
 const AppConfiguracoesNomusRoute = AppConfiguracoesNomusRouteImport.update({
   id: '/nomus',
@@ -286,17 +286,16 @@ export interface FileRoutesByFullPath {
   '/app/equipamentos': typeof AppEquipamentosRoute
   '/app/relatorios': typeof AppRelatoriosRoute
   '/app/tarefas': typeof AppTarefasRoute
-  '/crm/hot-deals': typeof CrmHotDealsRoute
-  '/crm/sdr-performance': typeof CrmSdrPerformanceRoute
-  '/crm/war-room': typeof CrmWarRoomRoute
   '/app/': typeof AppIndexRoute
-  '/crm/': typeof CrmIndexRoute
   '/api/nomus/test': typeof ApiNomusTestRoute
   '/app/coldpro/$id': typeof AppColdproIdRoute
   '/app/coldpro/catalogo': typeof AppColdproCatalogoRoute
   '/app/coldpro/produtos': typeof AppColdproProdutosRoute
   '/app/configuracoes/api-nomus': typeof AppConfiguracoesApiNomusRoute
   '/app/configuracoes/nomus': typeof AppConfiguracoesNomusRouteWithChildren
+  '/app/crm-sdr/hot-deals': typeof AppCrmSdrHotDealsRoute
+  '/app/crm-sdr/sdr-performance': typeof AppCrmSdrSdrPerformanceRoute
+  '/app/crm-sdr/war-room': typeof AppCrmSdrWarRoomRoute
   '/app/crm/$id': typeof AppCrmIdRoute
   '/app/propostas/$id': typeof AppPropostasIdRouteWithChildren
   '/app/propostas/nova': typeof AppPropostasNovaRoute
@@ -304,6 +303,7 @@ export interface FileRoutesByFullPath {
   '/app/propostas/tabelas-preco': typeof AppPropostasTabelasPrecoRoute
   '/app/coldpro/': typeof AppColdproIndexRoute
   '/app/configuracoes/': typeof AppConfiguracoesIndexRoute
+  '/app/crm-sdr/': typeof AppCrmSdrIndexRoute
   '/app/propostas/': typeof AppPropostasIndexRoute
   '/api/public/hooks/nomus-cron': typeof ApiPublicHooksNomusCronRoute
   '/api/public/nomus/exhaustive-probe': typeof ApiPublicNomusExhaustiveProbeRoute
@@ -328,23 +328,23 @@ export interface FileRoutesByTo {
   '/app/equipamentos': typeof AppEquipamentosRoute
   '/app/relatorios': typeof AppRelatoriosRoute
   '/app/tarefas': typeof AppTarefasRoute
-  '/crm/hot-deals': typeof CrmHotDealsRoute
-  '/crm/sdr-performance': typeof CrmSdrPerformanceRoute
-  '/crm/war-room': typeof CrmWarRoomRoute
   '/app': typeof AppIndexRoute
-  '/crm': typeof CrmIndexRoute
   '/api/nomus/test': typeof ApiNomusTestRoute
   '/app/coldpro/$id': typeof AppColdproIdRoute
   '/app/coldpro/catalogo': typeof AppColdproCatalogoRoute
   '/app/coldpro/produtos': typeof AppColdproProdutosRoute
   '/app/configuracoes/api-nomus': typeof AppConfiguracoesApiNomusRoute
   '/app/configuracoes/nomus': typeof AppConfiguracoesNomusRouteWithChildren
+  '/app/crm-sdr/hot-deals': typeof AppCrmSdrHotDealsRoute
+  '/app/crm-sdr/sdr-performance': typeof AppCrmSdrSdrPerformanceRoute
+  '/app/crm-sdr/war-room': typeof AppCrmSdrWarRoomRoute
   '/app/crm/$id': typeof AppCrmIdRoute
   '/app/propostas/nova': typeof AppPropostasNovaRoute
   '/app/propostas/pedidos-nf': typeof AppPropostasPedidosNfRoute
   '/app/propostas/tabelas-preco': typeof AppPropostasTabelasPrecoRoute
   '/app/coldpro': typeof AppColdproIndexRoute
   '/app/configuracoes': typeof AppConfiguracoesIndexRoute
+  '/app/crm-sdr': typeof AppCrmSdrIndexRoute
   '/app/propostas': typeof AppPropostasIndexRoute
   '/api/public/hooks/nomus-cron': typeof ApiPublicHooksNomusCronRoute
   '/api/public/nomus/exhaustive-probe': typeof ApiPublicNomusExhaustiveProbeRoute
@@ -372,17 +372,16 @@ export interface FileRoutesById {
   '/app/equipamentos': typeof AppEquipamentosRoute
   '/app/relatorios': typeof AppRelatoriosRoute
   '/app/tarefas': typeof AppTarefasRoute
-  '/crm/hot-deals': typeof CrmHotDealsRoute
-  '/crm/sdr-performance': typeof CrmSdrPerformanceRoute
-  '/crm/war-room': typeof CrmWarRoomRoute
   '/app/': typeof AppIndexRoute
-  '/crm/': typeof CrmIndexRoute
   '/api/nomus/test': typeof ApiNomusTestRoute
   '/app/coldpro/$id': typeof AppColdproIdRoute
   '/app/coldpro/catalogo': typeof AppColdproCatalogoRoute
   '/app/coldpro/produtos': typeof AppColdproProdutosRoute
   '/app/configuracoes/api-nomus': typeof AppConfiguracoesApiNomusRoute
   '/app/configuracoes/nomus': typeof AppConfiguracoesNomusRouteWithChildren
+  '/app/crm-sdr/hot-deals': typeof AppCrmSdrHotDealsRoute
+  '/app/crm-sdr/sdr-performance': typeof AppCrmSdrSdrPerformanceRoute
+  '/app/crm-sdr/war-room': typeof AppCrmSdrWarRoomRoute
   '/app/crm/$id': typeof AppCrmIdRoute
   '/app/propostas/$id': typeof AppPropostasIdRouteWithChildren
   '/app/propostas/nova': typeof AppPropostasNovaRoute
@@ -390,6 +389,7 @@ export interface FileRoutesById {
   '/app/propostas/tabelas-preco': typeof AppPropostasTabelasPrecoRoute
   '/app/coldpro/': typeof AppColdproIndexRoute
   '/app/configuracoes/': typeof AppConfiguracoesIndexRoute
+  '/app/crm-sdr/': typeof AppCrmSdrIndexRoute
   '/app/propostas/': typeof AppPropostasIndexRoute
   '/api/public/hooks/nomus-cron': typeof ApiPublicHooksNomusCronRoute
   '/api/public/nomus/exhaustive-probe': typeof ApiPublicNomusExhaustiveProbeRoute
@@ -418,17 +418,16 @@ export interface FileRouteTypes {
     | '/app/equipamentos'
     | '/app/relatorios'
     | '/app/tarefas'
-    | '/crm/hot-deals'
-    | '/crm/sdr-performance'
-    | '/crm/war-room'
     | '/app/'
-    | '/crm/'
     | '/api/nomus/test'
     | '/app/coldpro/$id'
     | '/app/coldpro/catalogo'
     | '/app/coldpro/produtos'
     | '/app/configuracoes/api-nomus'
     | '/app/configuracoes/nomus'
+    | '/app/crm-sdr/hot-deals'
+    | '/app/crm-sdr/sdr-performance'
+    | '/app/crm-sdr/war-room'
     | '/app/crm/$id'
     | '/app/propostas/$id'
     | '/app/propostas/nova'
@@ -436,6 +435,7 @@ export interface FileRouteTypes {
     | '/app/propostas/tabelas-preco'
     | '/app/coldpro/'
     | '/app/configuracoes/'
+    | '/app/crm-sdr/'
     | '/app/propostas/'
     | '/api/public/hooks/nomus-cron'
     | '/api/public/nomus/exhaustive-probe'
@@ -460,23 +460,23 @@ export interface FileRouteTypes {
     | '/app/equipamentos'
     | '/app/relatorios'
     | '/app/tarefas'
-    | '/crm/hot-deals'
-    | '/crm/sdr-performance'
-    | '/crm/war-room'
     | '/app'
-    | '/crm'
     | '/api/nomus/test'
     | '/app/coldpro/$id'
     | '/app/coldpro/catalogo'
     | '/app/coldpro/produtos'
     | '/app/configuracoes/api-nomus'
     | '/app/configuracoes/nomus'
+    | '/app/crm-sdr/hot-deals'
+    | '/app/crm-sdr/sdr-performance'
+    | '/app/crm-sdr/war-room'
     | '/app/crm/$id'
     | '/app/propostas/nova'
     | '/app/propostas/pedidos-nf'
     | '/app/propostas/tabelas-preco'
     | '/app/coldpro'
     | '/app/configuracoes'
+    | '/app/crm-sdr'
     | '/app/propostas'
     | '/api/public/hooks/nomus-cron'
     | '/api/public/nomus/exhaustive-probe'
@@ -503,17 +503,16 @@ export interface FileRouteTypes {
     | '/app/equipamentos'
     | '/app/relatorios'
     | '/app/tarefas'
-    | '/crm/hot-deals'
-    | '/crm/sdr-performance'
-    | '/crm/war-room'
     | '/app/'
-    | '/crm/'
     | '/api/nomus/test'
     | '/app/coldpro/$id'
     | '/app/coldpro/catalogo'
     | '/app/coldpro/produtos'
     | '/app/configuracoes/api-nomus'
     | '/app/configuracoes/nomus'
+    | '/app/crm-sdr/hot-deals'
+    | '/app/crm-sdr/sdr-performance'
+    | '/app/crm-sdr/war-room'
     | '/app/crm/$id'
     | '/app/propostas/$id'
     | '/app/propostas/nova'
@@ -521,6 +520,7 @@ export interface FileRouteTypes {
     | '/app/propostas/tabelas-preco'
     | '/app/coldpro/'
     | '/app/configuracoes/'
+    | '/app/crm-sdr/'
     | '/app/propostas/'
     | '/api/public/hooks/nomus-cron'
     | '/api/public/nomus/exhaustive-probe'
@@ -538,10 +538,6 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
-  CrmHotDealsRoute: typeof CrmHotDealsRoute
-  CrmSdrPerformanceRoute: typeof CrmSdrPerformanceRoute
-  CrmWarRoomRoute: typeof CrmWarRoomRoute
-  CrmIndexRoute: typeof CrmIndexRoute
   ApiNomusTestRoute: typeof ApiNomusTestRoute
   ApiPublicHooksNomusCronRoute: typeof ApiPublicHooksNomusCronRoute
   ApiPublicNomusExhaustiveProbeRoute: typeof ApiPublicNomusExhaustiveProbeRoute
@@ -573,40 +569,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/crm/': {
-      id: '/crm/'
-      path: '/crm'
-      fullPath: '/crm/'
-      preLoaderRoute: typeof CrmIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/app/': {
       id: '/app/'
       path: '/'
       fullPath: '/app/'
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
-    }
-    '/crm/war-room': {
-      id: '/crm/war-room'
-      path: '/crm/war-room'
-      fullPath: '/crm/war-room'
-      preLoaderRoute: typeof CrmWarRoomRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/crm/sdr-performance': {
-      id: '/crm/sdr-performance'
-      path: '/crm/sdr-performance'
-      fullPath: '/crm/sdr-performance'
-      preLoaderRoute: typeof CrmSdrPerformanceRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/crm/hot-deals': {
-      id: '/crm/hot-deals'
-      path: '/crm/hot-deals'
-      fullPath: '/crm/hot-deals'
-      preLoaderRoute: typeof CrmHotDealsRouteImport
-      parentRoute: typeof rootRouteImport
     }
     '/app/tarefas': {
       id: '/app/tarefas'
@@ -685,6 +653,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPropostasIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/crm-sdr/': {
+      id: '/app/crm-sdr/'
+      path: '/crm-sdr'
+      fullPath: '/app/crm-sdr/'
+      preLoaderRoute: typeof AppCrmSdrIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/configuracoes/': {
       id: '/app/configuracoes/'
       path: '/'
@@ -733,6 +708,27 @@ declare module '@tanstack/react-router' {
       fullPath: '/app/crm/$id'
       preLoaderRoute: typeof AppCrmIdRouteImport
       parentRoute: typeof AppCrmRoute
+    }
+    '/app/crm-sdr/war-room': {
+      id: '/app/crm-sdr/war-room'
+      path: '/crm-sdr/war-room'
+      fullPath: '/app/crm-sdr/war-room'
+      preLoaderRoute: typeof AppCrmSdrWarRoomRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/crm-sdr/sdr-performance': {
+      id: '/app/crm-sdr/sdr-performance'
+      path: '/crm-sdr/sdr-performance'
+      fullPath: '/app/crm-sdr/sdr-performance'
+      preLoaderRoute: typeof AppCrmSdrSdrPerformanceRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/crm-sdr/hot-deals': {
+      id: '/app/crm-sdr/hot-deals'
+      path: '/crm-sdr/hot-deals'
+      fullPath: '/app/crm-sdr/hot-deals'
+      preLoaderRoute: typeof AppCrmSdrHotDealsRouteImport
+      parentRoute: typeof AppRoute
     }
     '/app/configuracoes/nomus': {
       id: '/app/configuracoes/nomus'
@@ -922,11 +918,15 @@ interface AppRouteChildren {
   AppColdproIdRoute: typeof AppColdproIdRoute
   AppColdproCatalogoRoute: typeof AppColdproCatalogoRoute
   AppColdproProdutosRoute: typeof AppColdproProdutosRoute
+  AppCrmSdrHotDealsRoute: typeof AppCrmSdrHotDealsRoute
+  AppCrmSdrSdrPerformanceRoute: typeof AppCrmSdrSdrPerformanceRoute
+  AppCrmSdrWarRoomRoute: typeof AppCrmSdrWarRoomRoute
   AppPropostasIdRoute: typeof AppPropostasIdRouteWithChildren
   AppPropostasNovaRoute: typeof AppPropostasNovaRoute
   AppPropostasPedidosNfRoute: typeof AppPropostasPedidosNfRoute
   AppPropostasTabelasPrecoRoute: typeof AppPropostasTabelasPrecoRoute
   AppColdproIndexRoute: typeof AppColdproIndexRoute
+  AppCrmSdrIndexRoute: typeof AppCrmSdrIndexRoute
   AppPropostasIndexRoute: typeof AppPropostasIndexRoute
 }
 
@@ -945,11 +945,15 @@ const AppRouteChildren: AppRouteChildren = {
   AppColdproIdRoute: AppColdproIdRoute,
   AppColdproCatalogoRoute: AppColdproCatalogoRoute,
   AppColdproProdutosRoute: AppColdproProdutosRoute,
+  AppCrmSdrHotDealsRoute: AppCrmSdrHotDealsRoute,
+  AppCrmSdrSdrPerformanceRoute: AppCrmSdrSdrPerformanceRoute,
+  AppCrmSdrWarRoomRoute: AppCrmSdrWarRoomRoute,
   AppPropostasIdRoute: AppPropostasIdRouteWithChildren,
   AppPropostasNovaRoute: AppPropostasNovaRoute,
   AppPropostasPedidosNfRoute: AppPropostasPedidosNfRoute,
   AppPropostasTabelasPrecoRoute: AppPropostasTabelasPrecoRoute,
   AppColdproIndexRoute: AppColdproIndexRoute,
+  AppCrmSdrIndexRoute: AppCrmSdrIndexRoute,
   AppPropostasIndexRoute: AppPropostasIndexRoute,
 }
 
@@ -959,10 +963,6 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
-  CrmHotDealsRoute: CrmHotDealsRoute,
-  CrmSdrPerformanceRoute: CrmSdrPerformanceRoute,
-  CrmWarRoomRoute: CrmWarRoomRoute,
-  CrmIndexRoute: CrmIndexRoute,
   ApiNomusTestRoute: ApiNomusTestRoute,
   ApiPublicHooksNomusCronRoute: ApiPublicHooksNomusCronRoute,
   ApiPublicNomusExhaustiveProbeRoute: ApiPublicNomusExhaustiveProbeRoute,
@@ -974,3 +974,12 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}
