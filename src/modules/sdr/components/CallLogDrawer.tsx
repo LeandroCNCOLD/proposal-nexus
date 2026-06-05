@@ -60,7 +60,7 @@ export function CallLogDrawer({ pipeline, open, onClose }: Props) {
             <Label className="text-xs font-semibold">SDR</Label>
             <Select value={form.sdr_name} onValueChange={v => set('sdr_name', v as any)}>
               <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>{SDR_NAMES.map(n => <SelectItem key={n} value={n}>{n}</SelectItem>)}</SelectContent>
+              <SelectContent>{sdrNames.map(n => <SelectItem key={n} value={n}>{n}</SelectItem>)}</SelectContent>
             </Select>
           </div>
           <div className="space-y-1.5">
