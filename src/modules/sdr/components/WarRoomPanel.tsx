@@ -247,7 +247,7 @@ export function WarRoomPanel() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Hot Leads — Ação Obrigatória Hoje */}
-        <Card className="lg:col-span-2 border-red-200">
+        <Card className="border-red-200">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-bold text-red-800 flex items-center gap-2">
               <Flame className="h-4 w-4" /> Hot Leads — Ação Obrigatória Hoje
