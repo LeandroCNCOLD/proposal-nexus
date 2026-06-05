@@ -36,6 +36,7 @@ import { Route as AppConfiguracoesApiNomusRouteImport } from './routes/app.confi
 import { Route as AppColdproProdutosRouteImport } from './routes/app.coldpro.produtos'
 import { Route as AppColdproCatalogoRouteImport } from './routes/app.coldpro.catalogo'
 import { Route as AppColdproIdRouteImport } from './routes/app.coldpro.$id'
+import { Route as ApiPublicRevealSecretsRouteImport } from './routes/api/public/reveal-secrets'
 import { Route as ApiNomusTestRouteImport } from './routes/api.nomus.test'
 import { Route as AppPropostasIdIndexRouteImport } from './routes/app.propostas.$id.index'
 import { Route as AppConfiguracoesTemplatesIndexRouteImport } from './routes/app.configuracoes.templates.index'
@@ -188,6 +189,11 @@ const AppColdproIdRoute = AppColdproIdRouteImport.update({
   path: '/coldpro/$id',
   getParentRoute: () => AppRoute,
 } as any)
+const ApiPublicRevealSecretsRoute = ApiPublicRevealSecretsRouteImport.update({
+  id: '/api/public/reveal-secrets',
+  path: '/api/public/reveal-secrets',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiNomusTestRoute = ApiNomusTestRouteImport.update({
   id: '/api/nomus/test',
   path: '/api/nomus/test',
@@ -285,6 +291,7 @@ export interface FileRoutesByFullPath {
   '/app/tarefas': typeof AppTarefasRoute
   '/app/': typeof AppIndexRoute
   '/api/nomus/test': typeof ApiNomusTestRoute
+  '/api/public/reveal-secrets': typeof ApiPublicRevealSecretsRoute
   '/app/coldpro/$id': typeof AppColdproIdRoute
   '/app/coldpro/catalogo': typeof AppColdproCatalogoRoute
   '/app/coldpro/produtos': typeof AppColdproProdutosRoute
@@ -326,6 +333,7 @@ export interface FileRoutesByTo {
   '/app/tarefas': typeof AppTarefasRoute
   '/app': typeof AppIndexRoute
   '/api/nomus/test': typeof ApiNomusTestRoute
+  '/api/public/reveal-secrets': typeof ApiPublicRevealSecretsRoute
   '/app/coldpro/$id': typeof AppColdproIdRoute
   '/app/coldpro/catalogo': typeof AppColdproCatalogoRoute
   '/app/coldpro/produtos': typeof AppColdproProdutosRoute
@@ -369,6 +377,7 @@ export interface FileRoutesById {
   '/app/tarefas': typeof AppTarefasRoute
   '/app/': typeof AppIndexRoute
   '/api/nomus/test': typeof ApiNomusTestRoute
+  '/api/public/reveal-secrets': typeof ApiPublicRevealSecretsRoute
   '/app/coldpro/$id': typeof AppColdproIdRoute
   '/app/coldpro/catalogo': typeof AppColdproCatalogoRoute
   '/app/coldpro/produtos': typeof AppColdproProdutosRoute
@@ -414,6 +423,7 @@ export interface FileRouteTypes {
     | '/app/tarefas'
     | '/app/'
     | '/api/nomus/test'
+    | '/api/public/reveal-secrets'
     | '/app/coldpro/$id'
     | '/app/coldpro/catalogo'
     | '/app/coldpro/produtos'
@@ -455,6 +465,7 @@ export interface FileRouteTypes {
     | '/app/tarefas'
     | '/app'
     | '/api/nomus/test'
+    | '/api/public/reveal-secrets'
     | '/app/coldpro/$id'
     | '/app/coldpro/catalogo'
     | '/app/coldpro/produtos'
@@ -497,6 +508,7 @@ export interface FileRouteTypes {
     | '/app/tarefas'
     | '/app/'
     | '/api/nomus/test'
+    | '/api/public/reveal-secrets'
     | '/app/coldpro/$id'
     | '/app/coldpro/catalogo'
     | '/app/coldpro/produtos'
@@ -530,6 +542,7 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
   ApiNomusTestRoute: typeof ApiNomusTestRoute
+  ApiPublicRevealSecretsRoute: typeof ApiPublicRevealSecretsRoute
   ApiPublicHooksNomusCronRoute: typeof ApiPublicHooksNomusCronRoute
   ApiPublicHooksSyncPriceTablesRoute: typeof ApiPublicHooksSyncPriceTablesRoute
   ApiPublicNomusExhaustiveProbeRoute: typeof ApiPublicNomusExhaustiveProbeRoute
@@ -729,6 +742,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/app/coldpro/$id'
       preLoaderRoute: typeof AppColdproIdRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/api/public/reveal-secrets': {
+      id: '/api/public/reveal-secrets'
+      path: '/api/public/reveal-secrets'
+      fullPath: '/api/public/reveal-secrets'
+      preLoaderRoute: typeof ApiPublicRevealSecretsRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/nomus/test': {
       id: '/api/nomus/test'
@@ -944,6 +964,7 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
   ApiNomusTestRoute: ApiNomusTestRoute,
+  ApiPublicRevealSecretsRoute: ApiPublicRevealSecretsRoute,
   ApiPublicHooksNomusCronRoute: ApiPublicHooksNomusCronRoute,
   ApiPublicHooksSyncPriceTablesRoute: ApiPublicHooksSyncPriceTablesRoute,
   ApiPublicNomusExhaustiveProbeRoute: ApiPublicNomusExhaustiveProbeRoute,
@@ -957,3 +978,12 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}
