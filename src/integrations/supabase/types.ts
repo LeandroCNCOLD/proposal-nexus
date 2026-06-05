@@ -3782,6 +3782,125 @@ export type Database = {
         }
         Relationships: []
       }
+      crm_agenda: {
+        Row: {
+          client_name: string
+          closer_confirmou: boolean
+          closer_confirmou_at: string | null
+          closer_nome: string
+          contato_cliente: string | null
+          created_at: string
+          data_fim: string
+          data_inicio: string
+          data_proxima_acao: string | null
+          duracao_min: number
+          email_cliente: string | null
+          id: string
+          lembrete_enviado: boolean
+          link_reuniao: string | null
+          local: string | null
+          observacoes: string | null
+          pipeline_id: string | null
+          proposal_number: string | null
+          proxima_acao: string | null
+          resultado: string | null
+          sdr_nome: string | null
+          status: string
+          telefone_cliente: string | null
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          client_name: string
+          closer_confirmou?: boolean
+          closer_confirmou_at?: string | null
+          closer_nome: string
+          contato_cliente?: string | null
+          created_at?: string
+          data_fim: string
+          data_inicio: string
+          data_proxima_acao?: string | null
+          duracao_min?: number
+          email_cliente?: string | null
+          id?: string
+          lembrete_enviado?: boolean
+          link_reuniao?: string | null
+          local?: string | null
+          observacoes?: string | null
+          pipeline_id?: string | null
+          proposal_number?: string | null
+          proxima_acao?: string | null
+          resultado?: string | null
+          sdr_nome?: string | null
+          status?: string
+          telefone_cliente?: string | null
+          tipo: string
+          updated_at?: string
+        }
+        Update: {
+          client_name?: string
+          closer_confirmou?: boolean
+          closer_confirmou_at?: string | null
+          closer_nome?: string
+          contato_cliente?: string | null
+          created_at?: string
+          data_fim?: string
+          data_inicio?: string
+          data_proxima_acao?: string | null
+          duracao_min?: number
+          email_cliente?: string | null
+          id?: string
+          lembrete_enviado?: boolean
+          link_reuniao?: string | null
+          local?: string | null
+          observacoes?: string | null
+          pipeline_id?: string | null
+          proposal_number?: string | null
+          proxima_acao?: string | null
+          resultado?: string | null
+          sdr_nome?: string | null
+          status?: string
+          telefone_cliente?: string | null
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      crm_agenda_lembretes: {
+        Row: {
+          agenda_id: string | null
+          canal: string
+          enviado: boolean
+          enviar_em: string
+          id: string
+          tipo: string
+        }
+        Insert: {
+          agenda_id?: string | null
+          canal?: string
+          enviado?: boolean
+          enviar_em: string
+          id?: string
+          tipo: string
+        }
+        Update: {
+          agenda_id?: string | null
+          canal?: string
+          enviado?: boolean
+          enviar_em?: string
+          id?: string
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_agenda_lembretes_agenda_id_fkey"
+            columns: ["agenda_id"]
+            isOneToOne: false
+            referencedRelation: "crm_agenda"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       crm_attachments: {
         Row: {
           id: string
