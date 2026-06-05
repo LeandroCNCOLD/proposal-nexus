@@ -16,7 +16,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/app/propostas/$id")({
-  component: ProposalRouteLayout,
+  component: ProposalDetail,
 });
 
 function ProposalDetail() {
