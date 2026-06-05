@@ -292,6 +292,22 @@ function BankPage() {
                         <div className="text-xs text-muted-foreground">{r.razao_social}</div>
                       )}
                       {r.cnpj && <div className="text-[10px] font-mono text-muted-foreground">{r.cnpj}</div>}
+                      {(() => {
+                        const m = nomusByLead.get(r.id)
+                        if (!m) return null
+                        return (
+                          <Link
+                            to="/app/propostas/$id"
+                            params={{ id: m.proposal_id }}
+                            className="inline-flex items-center gap-1 mt-1"
+                            title={m.match_type === 'cnpj' ? 'Match por CNPJ' : 'Match por título'}
+                          >
+                            <Badge className="bg-purple-100 text-purple-800 hover:bg-purple-200">
+                              <FileText className="w-3 h-3 mr-1" />Proposta Nomus
+                            </Badge>
+                          </Link>
+                        )
+                      })()}
                     </td>
                     <td className="px-3 py-2 text-xs">
                       <div>{r.contact_name || '—'}</div>
