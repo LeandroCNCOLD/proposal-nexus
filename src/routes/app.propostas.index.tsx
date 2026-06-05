@@ -105,6 +105,11 @@ function ProposalsList() {
     },
   });
 
+  const proposalIds = useMemo(() => proposals.map((p) => p.id), [proposals]);
+  const { byProposal: leadMatches } = useProposalLeadMatches({ proposalIds });
+
+
+
   // Formata CNPJ no padrão 00.000.000/0000-00
   const formatCNPJ = (raw: string | null | undefined) => {
     if (!raw) return "—";
