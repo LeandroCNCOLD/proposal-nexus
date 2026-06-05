@@ -44,9 +44,8 @@ export function PipelineMasterTable() {
   const [drawer, setDrawer] = useState<CrmPipeline | null>(null)
   const [sortKey, setSortKey] = useState<'value' | 'days_without_contact'>('value')
   const [sortAsc, setSortAsc] = useState(false)
-  const [onlyActive, setOnlyActive] = useState(true)
 
-  const filtered = onlyActive ? data.filter(r => !INACTIVE_STATUSES.includes(r.sdr_status)) : data
+  const filtered = data.filter(r => !INACTIVE_STATUSES.includes(r.sdr_status))
   const sorted = [...filtered].sort((a, b) => {
     const av = (a[sortKey] ?? 0) as number
     const bv = (b[sortKey] ?? 0) as number
