@@ -5,14 +5,14 @@ import { fetchMyWallet, unlockLead, renewLock, updatePipelineField, fetchCallLog
 import { supabase } from '@/integrations/supabase/client'
 import { useAuth } from '@/hooks/useAuth'
 import {
-  CALL_RESULT_OPTIONS, TEMPERATURE_OPTIONS, CLOSER_NAMES,
-  type CrmPipeline, type CrmCallLog, type CallResult, type Temperature, type SdrStatus,
+  CALL_RESULT_OPTIONS, TEMPERATURE_OPTIONS, CLOSER_NAMES, CALL_CHANNEL_OPTIONS,
+  type CrmPipeline, type CrmCallLog, type CallResult, type Temperature, type SdrStatus, type CallChannel,
 } from '@/modules/sdr/types'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { Unlock, Clock, MapPin, Phone, DollarSign, ChevronDown, ChevronUp, Mail, Building2, FileText, Calendar, AlertTriangle, History } from 'lucide-react'
+import { Unlock, Clock, MapPin, Phone, DollarSign, ChevronDown, ChevronUp, Mail, Building2, FileText, Calendar, AlertTriangle, History, Paperclip, MessageCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { CallScriptDialog } from '@/modules/sdr/components/CallScriptDialog'
 
@@ -113,6 +113,8 @@ function LeadCard({ lead, sdrName, onUnlock, onOpenScript }: {
   const [meetingBooked, setMeetingBooked] = useState(false)
   const [meetingDate, setMeetingDate] = useState('')
   const [closer, setCloser] = useState<string>('')
+  const [channel, setChannel] = useState<CallChannel>('Telefone')
+  const [proofFile, setProofFile] = useState<File | null>(null)
   const nowLocal = () => {
     const d = new Date()
     d.setMinutes(d.getMinutes() - d.getTimezoneOffset())
@@ -121,21 +123,39 @@ function LeadCard({ lead, sdrName, onUnlock, onOpenScript }: {
   const [attemptAt, setAttemptAt] = useState<string>(nowLocal())
 
   const remaining = daysUntil(lead.lock_expires_at)
+  const requiresProof = channel === 'WhatsApp' || channel === 'E-mail' || channel === 'Outro'
 
   const { data: callLogs = [] } = useQuery({
     queryKey: ['call-logs', lead.id],
     queryFn: () => fetchCallLogs({ pipelineId: lead.id }),
     refetchInterval: 60_000,
   })
-  const attemptCount = callLogs.length
+  // Só conta tentativas validadas: telefone sempre conta; canais alternativos só com print
+  const validAttempts = callLogs.filter(l => (l.channel ?? 'Telefone') === 'Telefone' || l.proof_validated)
+  const attemptCount = validAttempts.length
   const alertManagement = attemptCount >= 3
 
   const registerMut = useMutation({
     mutationFn: async () => {
       if (!result) throw new Error('Escolha o resultado da ligação')
+      if (requiresProof && !proofFile) {
+        throw new Error(`Para contato por ${channel} é obrigatório anexar o print da conversa.`)
+      }
       const when = attemptAt ? new Date(attemptAt) : new Date()
       const dateStr = when.toISOString().slice(0, 10)
       const timeStr = when.toTimeString().slice(0, 5)
+
+      let proofPath: string | null = null
+      if (proofFile) {
+        const safe = proofFile.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+        const path = `call-logs/${lead.id}/${Date.now()}_${safe}`
+        const { error: upErr } = await supabase.storage
+          .from('crm-attachments')
+          .upload(path, proofFile, { contentType: proofFile.type || 'application/octet-stream', upsert: false })
+        if (upErr) throw new Error(`Falha no upload do print: ${upErr.message}`)
+        proofPath = path
+      }
+
       await insertCallLog({
         pipeline_id: lead.id,
         sdr_id: lead.locked_by_sdr_id,
@@ -147,6 +167,9 @@ function LeadCard({ lead, sdrName, onUnlock, onOpenScript }: {
         temperature_after: tempAfter || null,
         meeting_booked: meetingBooked,
         observation: observation || null,
+        channel,
+        proof_path: proofPath,
+        proof_validated: channel === 'Telefone' ? true : !!proofPath,
       })
 
       // Alerta para gestão na 3ª tentativa (sem reunião agendada)
@@ -201,6 +224,7 @@ function LeadCard({ lead, sdrName, onUnlock, onOpenScript }: {
             : `Tentativa #${attemptCount + 1} registrada e lock renovado.`,
       )
       setResult(''); setObservation(''); setNextStep(''); setMeetingBooked(false); setMeetingDate(''); setCloser('')
+      setChannel('Telefone'); setProofFile(null)
       setAttemptAt(nowLocal())
       qc.invalidateQueries({ queryKey: ['my-wallet'] })
       qc.invalidateQueries({ queryKey: ['call-logs', lead.id] })
@@ -338,6 +362,11 @@ function LeadCard({ lead, sdrName, onUnlock, onOpenScript }: {
       {/* REGISTRO DE LIGAÇÃO */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 border-t pt-3">
         <div className="space-y-2">
+          <label className="text-xs font-semibold">Canal de contato *</label>
+          <select value={channel} onChange={e => setChannel(e.target.value as CallChannel)} className="w-full border rounded px-2 py-1.5 text-sm">
+            {CALL_CHANNEL_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+          </select>
+
           <label className="text-xs font-semibold">Resultado da ligação *</label>
           <select value={result} onChange={e => setResult(e.target.value as CallResult)} className="w-full border rounded px-2 py-1.5 text-sm">
             <option value="">Selecione...</option>
@@ -360,6 +389,30 @@ function LeadCard({ lead, sdrName, onUnlock, onOpenScript }: {
           <label className="text-xs font-semibold">Observação</label>
           <Textarea value={observation} onChange={e => setObservation(e.target.value)} rows={3} placeholder="O que aconteceu na ligação..." />
 
+          {requiresProof && (
+            <div className="rounded-md border border-amber-300 bg-amber-50 p-2 space-y-1">
+              <div className="flex items-center gap-1 text-xs font-semibold text-amber-900">
+                <Paperclip className="w-3 h-3" />
+                Print da conversa ({channel}) — obrigatório p/ validar tentativa
+              </div>
+              <Input
+                type="file"
+                accept="image/*,application/pdf"
+                onChange={e => setProofFile(e.target.files?.[0] ?? null)}
+              />
+              {proofFile && (
+                <div className="text-[11px] text-amber-900 flex items-center gap-1">
+                  <MessageCircle className="w-3 h-3" /> {proofFile.name} · {(proofFile.size / 1024).toFixed(0)} KB
+                </div>
+              )}
+              {!proofFile && (
+                <div className="text-[11px] text-amber-700 italic">
+                  Sem o anexo, a tentativa não será contabilizada nem comporá o alerta da gestão.
+                </div>
+              )}
+            </div>
+          )}
+
           <label className="flex items-center gap-2 text-sm font-semibold">
             <input type="checkbox" checked={meetingBooked} onChange={e => setMeetingBooked(e.target.checked)} />
             Reunião agendada?
@@ -378,7 +431,10 @@ function LeadCard({ lead, sdrName, onUnlock, onOpenScript }: {
       </div>
 
       <div className="flex justify-end gap-2 border-t pt-3">
-        <Button onClick={() => registerMut.mutate()} disabled={!result || registerMut.isPending}>
+        <Button
+          onClick={() => registerMut.mutate()}
+          disabled={!result || registerMut.isPending || (requiresProof && !proofFile)}
+        >
           {registerMut.isPending ? 'Salvando...' : `Registrar tentativa #${attemptCount + 1}`}
         </Button>
       </div>
@@ -407,16 +463,22 @@ function CallTimeline({ logs }: { logs: CrmCallLog[] }) {
           {sorted.map((log, idx) => {
             const attempt = sorted.length - idx
             const when = new Date(`${log.call_date}T${log.call_time ?? '00:00'}:00`)
-            const isAlert = attempt >= 3 && !log.meeting_booked
+            const ch = (log.channel ?? 'Telefone') as CallChannel
+            const counted = ch === 'Telefone' || log.proof_validated
+            const isAlert = attempt >= 3 && !log.meeting_booked && counted
             return (
               <li key={log.id} className="ml-4 relative">
-                <span className={`absolute -left-[1.4rem] top-1 w-3 h-3 rounded-full border-2 border-background ${isAlert ? 'bg-red-500' : log.meeting_booked ? 'bg-green-500' : 'bg-blue-500'}`} />
+                <span className={`absolute -left-[1.4rem] top-1 w-3 h-3 rounded-full border-2 border-background ${isAlert ? 'bg-red-500' : log.meeting_booked ? 'bg-green-500' : counted ? 'bg-blue-500' : 'bg-gray-400'}`} />
                 <div className="text-xs flex items-center gap-2 flex-wrap">
-                  <Badge variant={isAlert ? 'destructive' : 'outline'} className="text-[10px]">#{attempt}</Badge>
+                  <Badge variant={isAlert ? 'destructive' : counted ? 'outline' : 'secondary'} className="text-[10px]">
+                    {counted ? `#${attempt}` : 'não contabilizada'}
+                  </Badge>
+                  <Badge variant="outline" className="text-[10px]">{ch}</Badge>
                   <span className="font-semibold">{when.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</span>
                   <span className="text-muted-foreground">· {log.sdr_name}</span>
                   {log.temperature_after && <Badge variant="secondary" className="text-[10px]">{log.temperature_after}</Badge>}
                   {log.meeting_booked && <Badge className="text-[10px] bg-green-600">Reunião agendada</Badge>}
+                  {log.proof_path && <ProofLink path={log.proof_path} />}
                 </div>
                 <div className="text-xs mt-0.5">{log.result || '—'}</div>
                 {log.observation && (
@@ -430,6 +492,25 @@ function CallTimeline({ logs }: { logs: CrmCallLog[] }) {
     </div>
   )
 }
+
+function ProofLink({ path }: { path: string }) {
+  const open = async () => {
+    const { data, error } = await supabase.storage
+      .from('crm-attachments')
+      .createSignedUrl(path, 600)
+    if (error || !data?.signedUrl) {
+      toast.error('Não foi possível abrir o print.')
+      return
+    }
+    window.open(data.signedUrl, '_blank', 'noopener,noreferrer')
+  }
+  return (
+    <button type="button" onClick={open} className="text-[10px] inline-flex items-center gap-1 text-blue-600 hover:underline">
+      <Paperclip className="w-3 h-3" /> Ver print
+    </button>
+  )
+}
+
 
 function DetailSection({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
   return (
