@@ -486,6 +486,60 @@ export type Database = {
         }
         Relationships: []
       }
+      coldpro_calculation_snapshots: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          environment_id: string
+          id: string
+          input_hash: string
+          is_baseline: boolean
+          label: string
+          result_id: string | null
+          snapshot_data: Json
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          environment_id: string
+          id?: string
+          input_hash?: string
+          is_baseline?: boolean
+          label?: string
+          result_id?: string | null
+          snapshot_data?: Json
+          version?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          environment_id?: string
+          id?: string
+          input_hash?: string
+          is_baseline?: boolean
+          label?: string
+          result_id?: string | null
+          snapshot_data?: Json
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coldpro_calculation_snapshots_environment_id_fkey"
+            columns: ["environment_id"]
+            isOneToOne: false
+            referencedRelation: "coldpro_environments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coldpro_calculation_snapshots_result_id_fkey"
+            columns: ["result_id"]
+            isOneToOne: false
+            referencedRelation: "coldpro_results"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       coldpro_catalog_import_rows: {
         Row: {
           created_at: string
@@ -587,6 +641,66 @@ export type Database = {
           summary?: Json
           total_rows?: number
           valid_rows?: number
+        }
+        Relationships: []
+      }
+      coldpro_climate_cache: {
+        Row: {
+          city_name: string
+          created_at: string
+          data_period_end: string | null
+          data_period_start: string | null
+          data_source: string
+          humidity_avg_pct: number
+          humidity_monthly: Json
+          ibge_code: string
+          id: string
+          latitude: number
+          longitude: number
+          state_code: string
+          temp_avg_c: number
+          temp_max_c: number
+          temp_min_c: number
+          temperatures_monthly: Json
+          updated_at: string
+        }
+        Insert: {
+          city_name: string
+          created_at?: string
+          data_period_end?: string | null
+          data_period_start?: string | null
+          data_source?: string
+          humidity_avg_pct: number
+          humidity_monthly: Json
+          ibge_code: string
+          id?: string
+          latitude: number
+          longitude: number
+          state_code: string
+          temp_avg_c: number
+          temp_max_c: number
+          temp_min_c: number
+          temperatures_monthly: Json
+          updated_at?: string
+        }
+        Update: {
+          city_name?: string
+          created_at?: string
+          data_period_end?: string | null
+          data_period_start?: string | null
+          data_source?: string
+          humidity_avg_pct?: number
+          humidity_monthly?: Json
+          ibge_code?: string
+          id?: string
+          latitude?: number
+          longitude?: number
+          state_code?: string
+          temp_avg_c?: number
+          temp_max_c?: number
+          temp_min_c?: number
+          temperatures_monthly?: Json
+          updated_at?: string
         }
         Relationships: []
       }
@@ -2336,12 +2450,22 @@ export type Database = {
         Row: {
           application_type: string
           calculated_at: string | null
+          cover_client_name: string | null
+          cover_image_url: string | null
+          cover_location: string | null
+          cover_notes: string | null
+          cover_project_name: string | null
+          cover_responsible: string | null
           created_at: string
           customer_id: string | null
           id: string
           name: string
           notes: string | null
           proposal_id: string | null
+          report_status: string | null
+          report_template: string | null
+          report_watermark_enabled: boolean | null
+          report_watermark_text: string | null
           revision: number
           status: string
           updated_at: string
@@ -2349,12 +2473,22 @@ export type Database = {
         Insert: {
           application_type?: string
           calculated_at?: string | null
+          cover_client_name?: string | null
+          cover_image_url?: string | null
+          cover_location?: string | null
+          cover_notes?: string | null
+          cover_project_name?: string | null
+          cover_responsible?: string | null
           created_at?: string
           customer_id?: string | null
           id?: string
           name: string
           notes?: string | null
           proposal_id?: string | null
+          report_status?: string | null
+          report_template?: string | null
+          report_watermark_enabled?: boolean | null
+          report_watermark_text?: string | null
           revision?: number
           status?: string
           updated_at?: string
@@ -2362,12 +2496,22 @@ export type Database = {
         Update: {
           application_type?: string
           calculated_at?: string | null
+          cover_client_name?: string | null
+          cover_image_url?: string | null
+          cover_location?: string | null
+          cover_notes?: string | null
+          cover_project_name?: string | null
+          cover_responsible?: string | null
           created_at?: string
           customer_id?: string | null
           id?: string
           name?: string
           notes?: string | null
           proposal_id?: string | null
+          report_status?: string | null
+          report_template?: string | null
+          report_watermark_enabled?: boolean | null
+          report_watermark_text?: string | null
           revision?: number
           status?: string
           updated_at?: string
@@ -2481,6 +2625,63 @@ export type Database = {
           safety_class?: string | null
           typical_applications?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      coldpro_report_settings: {
+        Row: {
+          accent_color: string
+          company_name: string
+          cover_image_url: string | null
+          created_at: string
+          default_responsible: string | null
+          default_status: string
+          default_template: string
+          footer_text: string | null
+          id: string
+          logo_url: string | null
+          primary_color: string
+          scope: string
+          secondary_color: string
+          show_watermark: boolean
+          updated_at: string
+          watermark_text: string | null
+        }
+        Insert: {
+          accent_color?: string
+          company_name?: string
+          cover_image_url?: string | null
+          created_at?: string
+          default_responsible?: string | null
+          default_status?: string
+          default_template?: string
+          footer_text?: string | null
+          id?: string
+          logo_url?: string | null
+          primary_color?: string
+          scope?: string
+          secondary_color?: string
+          show_watermark?: boolean
+          updated_at?: string
+          watermark_text?: string | null
+        }
+        Update: {
+          accent_color?: string
+          company_name?: string
+          cover_image_url?: string | null
+          created_at?: string
+          default_responsible?: string | null
+          default_status?: string
+          default_template?: string
+          footer_text?: string | null
+          id?: string
+          logo_url?: string | null
+          primary_color?: string
+          scope?: string
+          secondary_color?: string
+          show_watermark?: boolean
+          updated_at?: string
+          watermark_text?: string | null
         }
         Relationships: []
       }
@@ -2624,6 +2825,111 @@ export type Database = {
             columns: ["environment_id"]
             isOneToOne: false
             referencedRelation: "coldpro_environments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      coldpro_simulations: {
+        Row: {
+          alerts: Json
+          avg_cop: number | null
+          avg_internal_temp_c: number | null
+          compressor_on_hours: number
+          compressor_on_percent: number
+          created_at: string
+          created_by: string | null
+          differential_c: number
+          environment_id: string
+          equipment_adequacy: string
+          hours_above_setpoint: number
+          hours_below_setpoint: number
+          id: string
+          is_latest: boolean
+          max_internal_temp_c: number | null
+          min_internal_temp_c: number | null
+          name: string
+          peak_load_kcal_h: number
+          result_id: string | null
+          setpoint_c: number
+          simulation_data: Json
+          simulation_period_days: number
+          time_step_minutes: number
+          total_energy_kwh: number
+          updated_at: string
+          version: number
+          weather_profile: string
+        }
+        Insert: {
+          alerts?: Json
+          avg_cop?: number | null
+          avg_internal_temp_c?: number | null
+          compressor_on_hours?: number
+          compressor_on_percent?: number
+          created_at?: string
+          created_by?: string | null
+          differential_c?: number
+          environment_id: string
+          equipment_adequacy?: string
+          hours_above_setpoint?: number
+          hours_below_setpoint?: number
+          id?: string
+          is_latest?: boolean
+          max_internal_temp_c?: number | null
+          min_internal_temp_c?: number | null
+          name?: string
+          peak_load_kcal_h?: number
+          result_id?: string | null
+          setpoint_c?: number
+          simulation_data?: Json
+          simulation_period_days?: number
+          time_step_minutes?: number
+          total_energy_kwh?: number
+          updated_at?: string
+          version?: number
+          weather_profile?: string
+        }
+        Update: {
+          alerts?: Json
+          avg_cop?: number | null
+          avg_internal_temp_c?: number | null
+          compressor_on_hours?: number
+          compressor_on_percent?: number
+          created_at?: string
+          created_by?: string | null
+          differential_c?: number
+          environment_id?: string
+          equipment_adequacy?: string
+          hours_above_setpoint?: number
+          hours_below_setpoint?: number
+          id?: string
+          is_latest?: boolean
+          max_internal_temp_c?: number | null
+          min_internal_temp_c?: number | null
+          name?: string
+          peak_load_kcal_h?: number
+          result_id?: string | null
+          setpoint_c?: number
+          simulation_data?: Json
+          simulation_period_days?: number
+          time_step_minutes?: number
+          total_energy_kwh?: number
+          updated_at?: string
+          version?: number
+          weather_profile?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coldpro_simulations_environment_id_fkey"
+            columns: ["environment_id"]
+            isOneToOne: false
+            referencedRelation: "coldpro_environments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coldpro_simulations_result_id_fkey"
+            columns: ["result_id"]
+            isOneToOne: false
+            referencedRelation: "coldpro_results"
             referencedColumns: ["id"]
           },
         ]
@@ -2791,8 +3097,22 @@ export type Database = {
           bed_area_m2: number | null
           bed_length_m: number | null
           bed_width_m: number | null
+          belt_area_m2: number | null
+          belt_calculated_flow_kg_h: number | null
+          belt_calculated_retention_min: number | null
+          belt_capacity_deviation_percent: number | null
+          belt_effective_length_m: number | null
+          belt_flow_by_retention_kg_h: number | null
+          belt_flow_by_speed_kg_h: number | null
+          belt_linear_load_kg_m: number | null
+          belt_mass_on_belt_kg: number | null
+          belt_motor_dissipation_factor: number | null
+          belt_motor_inside_environment: boolean | null
           belt_motor_kw: number
+          belt_nominal_capacity_kg_h: number | null
           belt_speed_m_min: number | null
+          belt_surface_density_kg_m2: number | null
+          belt_width_m: number | null
           block_exposure_factor: number | null
           blockage_factor: number | null
           box_height_m: number | null
@@ -2979,8 +3299,22 @@ export type Database = {
           bed_area_m2?: number | null
           bed_length_m?: number | null
           bed_width_m?: number | null
+          belt_area_m2?: number | null
+          belt_calculated_flow_kg_h?: number | null
+          belt_calculated_retention_min?: number | null
+          belt_capacity_deviation_percent?: number | null
+          belt_effective_length_m?: number | null
+          belt_flow_by_retention_kg_h?: number | null
+          belt_flow_by_speed_kg_h?: number | null
+          belt_linear_load_kg_m?: number | null
+          belt_mass_on_belt_kg?: number | null
+          belt_motor_dissipation_factor?: number | null
+          belt_motor_inside_environment?: boolean | null
           belt_motor_kw?: number
+          belt_nominal_capacity_kg_h?: number | null
           belt_speed_m_min?: number | null
+          belt_surface_density_kg_m2?: number | null
+          belt_width_m?: number | null
           block_exposure_factor?: number | null
           blockage_factor?: number | null
           box_height_m?: number | null
@@ -3167,8 +3501,22 @@ export type Database = {
           bed_area_m2?: number | null
           bed_length_m?: number | null
           bed_width_m?: number | null
+          belt_area_m2?: number | null
+          belt_calculated_flow_kg_h?: number | null
+          belt_calculated_retention_min?: number | null
+          belt_capacity_deviation_percent?: number | null
+          belt_effective_length_m?: number | null
+          belt_flow_by_retention_kg_h?: number | null
+          belt_flow_by_speed_kg_h?: number | null
+          belt_linear_load_kg_m?: number | null
+          belt_mass_on_belt_kg?: number | null
+          belt_motor_dissipation_factor?: number | null
+          belt_motor_inside_environment?: boolean | null
           belt_motor_kw?: number
+          belt_nominal_capacity_kg_h?: number | null
           belt_speed_m_min?: number | null
+          belt_surface_density_kg_m2?: number | null
+          belt_width_m?: number | null
           block_exposure_factor?: number | null
           blockage_factor?: number | null
           box_height_m?: number | null
@@ -4340,6 +4688,77 @@ export type Database = {
         }
         Relationships: []
       }
+      nomus_price_audit_ai_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          role: string
+          session_id: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          role: string
+          session_id: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          role?: string
+          session_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nomus_price_audit_ai_messages_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "nomus_price_audit_ai_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nomus_price_audit_ai_sessions: {
+        Row: {
+          audit_snapshot: Json
+          created_at: string
+          id: string
+          last_question: string | null
+          last_response: string | null
+          report_markdown: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          audit_snapshot?: Json
+          created_at?: string
+          id?: string
+          last_question?: string | null
+          last_response?: string | null
+          report_markdown?: string
+          title?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          audit_snapshot?: Json
+          created_at?: string
+          id?: string
+          last_question?: string | null
+          last_response?: string | null
+          report_markdown?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       nomus_price_table_items: {
         Row: {
           currency: string | null
@@ -4446,6 +4865,7 @@ export type Database = {
           nomus_id: string
           raw: Json | null
           synced_at: string
+          ufs: string[]
         }
         Insert: {
           code?: string | null
@@ -4456,6 +4876,7 @@ export type Database = {
           nomus_id: string
           raw?: Json | null
           synced_at?: string
+          ufs?: string[]
         }
         Update: {
           code?: string | null
@@ -4466,6 +4887,7 @@ export type Database = {
           nomus_id?: string
           raw?: Json | null
           synced_at?: string
+          ufs?: string[]
         }
         Relationships: []
       }
@@ -4689,6 +5111,10 @@ export type Database = {
           normalized_model_code: string | null
           position: number | null
           prazo_entrega_dias: number | null
+          price_table_id: string | null
+          price_table_match_method: string | null
+          price_table_name: string | null
+          price_table_nomus_id: string | null
           product_code: string | null
           quantity: number | null
           raw: Json | null
@@ -4721,6 +5147,10 @@ export type Database = {
           normalized_model_code?: string | null
           position?: number | null
           prazo_entrega_dias?: number | null
+          price_table_id?: string | null
+          price_table_match_method?: string | null
+          price_table_name?: string | null
+          price_table_nomus_id?: string | null
           product_code?: string | null
           quantity?: number | null
           raw?: Json | null
@@ -4753,6 +5183,10 @@ export type Database = {
           normalized_model_code?: string | null
           position?: number | null
           prazo_entrega_dias?: number | null
+          price_table_id?: string | null
+          price_table_match_method?: string | null
+          price_table_name?: string | null
+          price_table_nomus_id?: string | null
           product_code?: string | null
           quantity?: number | null
           raw?: Json | null
@@ -4779,6 +5213,13 @@ export type Database = {
             columns: ["nomus_proposal_id"]
             isOneToOne: false
             referencedRelation: "nomus_proposals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nomus_proposal_items_price_table_id_fkey"
+            columns: ["price_table_id"]
+            isOneToOne: false
+            referencedRelation: "nomus_price_tables"
             referencedColumns: ["id"]
           },
         ]
@@ -5418,33 +5859,119 @@ export type Database = {
           },
         ]
       }
+      payment_condition_preset_installments: {
+        Row: {
+          created_at: string
+          days: number
+          description: string
+          id: string
+          percentage: number
+          preset_id: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          days: number
+          description: string
+          id?: string
+          percentage: number
+          preset_id: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          days?: number
+          description?: string
+          id?: string
+          percentage?: number
+          preset_id?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_condition_preset_installments_preset_id_fkey"
+            columns: ["preset_id"]
+            isOneToOne: false
+            referencedRelation: "payment_condition_presets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_condition_presets: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
+          access_source: string
+          access_status: string
           avatar_url: string | null
+          blocked_reason: string | null
           created_at: string
+          email: string | null
           full_name: string
           id: string
           job_title: string | null
+          must_change_password: boolean
+          nomus_user_id: string | null
           nomus_vendedor_id: string | null
           phone: string | null
           updated_at: string
         }
         Insert: {
+          access_source?: string
+          access_status?: string
           avatar_url?: string | null
+          blocked_reason?: string | null
           created_at?: string
+          email?: string | null
           full_name: string
           id: string
           job_title?: string | null
+          must_change_password?: boolean
+          nomus_user_id?: string | null
           nomus_vendedor_id?: string | null
           phone?: string | null
           updated_at?: string
         }
         Update: {
+          access_source?: string
+          access_status?: string
           avatar_url?: string | null
+          blocked_reason?: string | null
           created_at?: string
+          email?: string | null
           full_name?: string
           id?: string
           job_title?: string | null
+          must_change_password?: boolean
+          nomus_user_id?: string | null
           nomus_vendedor_id?: string | null
           phone?: string | null
           updated_at?: string
@@ -5609,6 +6136,47 @@ export type Database = {
           },
         ]
       }
+      proposal_financial_history: {
+        Row: {
+          created_at: string
+          id: string
+          new_final_amount: number | null
+          new_financial_additional_cost: number | null
+          previous_final_amount: number | null
+          previous_financial_additional_cost: number | null
+          proposal_id: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          new_final_amount?: number | null
+          new_financial_additional_cost?: number | null
+          previous_final_amount?: number | null
+          previous_financial_additional_cost?: number | null
+          proposal_id: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          new_final_amount?: number | null
+          new_financial_additional_cost?: number | null
+          previous_final_amount?: number | null
+          previous_financial_additional_cost?: number | null
+          proposal_id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proposal_financial_history_proposal_id_fkey"
+            columns: ["proposal_id"]
+            isOneToOne: false
+            referencedRelation: "proposals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       proposal_items: {
         Row: {
           created_at: string
@@ -5627,6 +6195,24 @@ export type Database = {
           nomus_synced_at: string | null
           notes: string | null
           position: number | null
+          price_table_custo_cif: number | null
+          price_table_custo_materiais: number | null
+          price_table_custo_mod: number | null
+          price_table_custo_producao_total: number | null
+          price_table_custos_adm: number | null
+          price_table_custos_venda: number | null
+          price_table_id: string | null
+          price_table_lucro_bruto: number | null
+          price_table_lucro_liquido: number | null
+          price_table_margem_contribuicao: number | null
+          price_table_margem_desejada_pct: number | null
+          price_table_match_method: string | null
+          price_table_name: string | null
+          price_table_nomus_id: string | null
+          price_table_preco_calculado: number | null
+          price_table_preco_liquido: number | null
+          price_table_selected_at: string | null
+          price_table_unit_price: number | null
           proposal_id: string
           quantity: number
           sync_error_code: string | null
@@ -5653,6 +6239,24 @@ export type Database = {
           nomus_synced_at?: string | null
           notes?: string | null
           position?: number | null
+          price_table_custo_cif?: number | null
+          price_table_custo_materiais?: number | null
+          price_table_custo_mod?: number | null
+          price_table_custo_producao_total?: number | null
+          price_table_custos_adm?: number | null
+          price_table_custos_venda?: number | null
+          price_table_id?: string | null
+          price_table_lucro_bruto?: number | null
+          price_table_lucro_liquido?: number | null
+          price_table_margem_contribuicao?: number | null
+          price_table_margem_desejada_pct?: number | null
+          price_table_match_method?: string | null
+          price_table_name?: string | null
+          price_table_nomus_id?: string | null
+          price_table_preco_calculado?: number | null
+          price_table_preco_liquido?: number | null
+          price_table_selected_at?: string | null
+          price_table_unit_price?: number | null
           proposal_id: string
           quantity?: number
           sync_error_code?: string | null
@@ -5679,6 +6283,24 @@ export type Database = {
           nomus_synced_at?: string | null
           notes?: string | null
           position?: number | null
+          price_table_custo_cif?: number | null
+          price_table_custo_materiais?: number | null
+          price_table_custo_mod?: number | null
+          price_table_custo_producao_total?: number | null
+          price_table_custos_adm?: number | null
+          price_table_custos_venda?: number | null
+          price_table_id?: string | null
+          price_table_lucro_bruto?: number | null
+          price_table_lucro_liquido?: number | null
+          price_table_margem_contribuicao?: number | null
+          price_table_margem_desejada_pct?: number | null
+          price_table_match_method?: string | null
+          price_table_name?: string | null
+          price_table_nomus_id?: string | null
+          price_table_preco_calculado?: number | null
+          price_table_preco_liquido?: number | null
+          price_table_selected_at?: string | null
+          price_table_unit_price?: number | null
           proposal_id?: string
           quantity?: number
           sync_error_code?: string | null
@@ -5701,6 +6323,13 @@ export type Database = {
             columns: ["last_sync_run_id"]
             isOneToOne: false
             referencedRelation: "sync_runs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposal_items_price_table_id_fkey"
+            columns: ["price_table_id"]
+            isOneToOne: false
+            referencedRelation: "nomus_price_tables"
             referencedColumns: ["id"]
           },
           {
@@ -6233,6 +6862,12 @@ export type Database = {
           estimated_margin: number | null
           external_deleted_at: string | null
           external_updated_at: string | null
+          final_amount_with_financial_cost: number | null
+          financial_additional_cost: number | null
+          financial_avg_term_days: number | null
+          financial_factor_pct: number | null
+          financial_preset_id: string | null
+          financial_rate_type: string | null
           id: string
           is_active: boolean
           last_sync_run_id: string | null
@@ -6241,6 +6876,7 @@ export type Database = {
           loss_reason: string | null
           merged_at: string | null
           merged_into_id: string | null
+          monthly_financial_rate_pct: number | null
           next_followup_at: string | null
           nomus_id: string | null
           nomus_invoice_ids: string[] | null
@@ -6251,6 +6887,8 @@ export type Database = {
           nomus_seller_name: string | null
           nomus_synced_at: string | null
           number: string
+          original_proposal_amount: number | null
+          payment_condition_snapshot: Json | null
           payment_term_id: string | null
           payment_terms: string | null
           price_table_id: string | null
@@ -6290,6 +6928,12 @@ export type Database = {
           estimated_margin?: number | null
           external_deleted_at?: string | null
           external_updated_at?: string | null
+          final_amount_with_financial_cost?: number | null
+          financial_additional_cost?: number | null
+          financial_avg_term_days?: number | null
+          financial_factor_pct?: number | null
+          financial_preset_id?: string | null
+          financial_rate_type?: string | null
           id?: string
           is_active?: boolean
           last_sync_run_id?: string | null
@@ -6298,6 +6942,7 @@ export type Database = {
           loss_reason?: string | null
           merged_at?: string | null
           merged_into_id?: string | null
+          monthly_financial_rate_pct?: number | null
           next_followup_at?: string | null
           nomus_id?: string | null
           nomus_invoice_ids?: string[] | null
@@ -6308,6 +6953,8 @@ export type Database = {
           nomus_seller_name?: string | null
           nomus_synced_at?: string | null
           number?: string
+          original_proposal_amount?: number | null
+          payment_condition_snapshot?: Json | null
           payment_term_id?: string | null
           payment_terms?: string | null
           price_table_id?: string | null
@@ -6347,6 +6994,12 @@ export type Database = {
           estimated_margin?: number | null
           external_deleted_at?: string | null
           external_updated_at?: string | null
+          final_amount_with_financial_cost?: number | null
+          financial_additional_cost?: number | null
+          financial_avg_term_days?: number | null
+          financial_factor_pct?: number | null
+          financial_preset_id?: string | null
+          financial_rate_type?: string | null
           id?: string
           is_active?: boolean
           last_sync_run_id?: string | null
@@ -6355,6 +7008,7 @@ export type Database = {
           loss_reason?: string | null
           merged_at?: string | null
           merged_into_id?: string | null
+          monthly_financial_rate_pct?: number | null
           next_followup_at?: string | null
           nomus_id?: string | null
           nomus_invoice_ids?: string[] | null
@@ -6365,6 +7019,8 @@ export type Database = {
           nomus_seller_name?: string | null
           nomus_synced_at?: string | null
           number?: string
+          original_proposal_amount?: number | null
+          payment_condition_snapshot?: Json | null
           payment_term_id?: string | null
           payment_terms?: string | null
           price_table_id?: string | null
@@ -6406,6 +7062,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "proposals_financial_preset_id_fkey"
+            columns: ["financial_preset_id"]
+            isOneToOne: false
+            referencedRelation: "payment_condition_presets"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "proposals_last_sync_run_id_fkey"
             columns: ["last_sync_run_id"]
             isOneToOne: false
@@ -6427,6 +7090,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      role_module_access: {
+        Row: {
+          allowed: boolean
+          created_at: string
+          id: string
+          module_key: string
+          module_path: string
+          role: Database["public"]["Enums"]["app_role"]
+          updated_at: string
+        }
+        Insert: {
+          allowed?: boolean
+          created_at?: string
+          id?: string
+          module_key: string
+          module_path: string
+          role: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+        }
+        Update: {
+          allowed?: boolean
+          created_at?: string
+          id?: string
+          module_key?: string
+          module_path?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+        }
+        Relationships: []
       }
       sync_checkpoints: {
         Row: {
@@ -7080,6 +7773,51 @@ export type Database = {
           },
         ]
       }
+      user_access_queue: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          nomus_user_id: string | null
+          notes: string | null
+          source: string
+          status: string
+          suggested_role: Database["public"]["Enums"]["app_role"]
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          email: string
+          full_name: string
+          id?: string
+          nomus_user_id?: string | null
+          notes?: string | null
+          source?: string
+          status?: string
+          suggested_role?: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          email?: string
+          full_name?: string
+          id?: string
+          nomus_user_id?: string | null
+          notes?: string | null
+          source?: string
+          status?: string
+          suggested_role?: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -7107,6 +7845,8 @@ export type Database = {
     }
     Functions: {
       _parse_nomus_date: { Args: { s: string }; Returns: string }
+      can_access_proposal: { Args: { _proposal_id: string }; Returns: boolean }
+      can_manage_user_access: { Args: { _user_id: string }; Returns: boolean }
       coldpro_calculate_coil_volume_l: {
         Args: {
           p_correction_factor?: number
@@ -7169,6 +7909,7 @@ export type Database = {
         | "diretoria"
         | "administrativo"
         | "admin"
+        | "coldpro"
       proposal_source: "nomus" | "manual"
       proposal_status:
         | "rascunho"
@@ -7345,6 +8086,7 @@ export const Constants = {
         "diretoria",
         "administrativo",
         "admin",
+        "coldpro",
       ],
       proposal_source: ["nomus", "manual"],
       proposal_status: [
