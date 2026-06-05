@@ -119,15 +119,17 @@ export const listUserOverrides = createServerFn({ method: "POST" })
 
     const userRoles = (rolesRes.data ?? []).map((r) => r.role as AppRole);
 
-    const { data: templateRows, error: tErr } = await supabaseAdmin
-      .from("role_permission_templates")
-      .select("permission_key")
-      .in("role", userRoles.length > 0 ? userRoles : ["__none__"]);
-    if (tErr) throw new Error(tErr.message);
-
-    const inherited = Array.from(
-      new Set((templateRows ?? []).map((t) => t.permission_key)),
-    );
+    let inherited: string[] = [];
+    if (userRoles.length > 0) {
+      const { data: templateRows, error: tErr } = await supabaseAdmin
+        .from("role_permission_templates")
+        .select("permission_key")
+        .in("role", userRoles);
+      if (tErr) throw new Error(tErr.message);
+      inherited = Array.from(
+        new Set((templateRows ?? []).map((t) => t.permission_key)),
+      );
+    }
 
     return {
       roles: userRoles,
