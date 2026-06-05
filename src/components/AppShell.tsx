@@ -33,12 +33,12 @@ import { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 const NAV = [
-  { group: "CRM", items: [
-    { to: "/app/sdr/bank", label: "Banco de Propostas", icon: Database },
+  { group: "SDR — Pré-Venda", items: [
+    { to: "/app/sdr/bank", label: "Banco de Leads", icon: Database },
     { to: "/app/sdr/wallet", label: "Minha Carteira", icon: Briefcase },
     { to: "/app/sdr", label: "Pipeline Master", icon: LayoutList, exact: true },
     { to: "/app/sdr/war-room", label: "War Room", icon: Zap },
-    { to: "/app/sdr/hot-deals", label: "Hot Deals", icon: Flame },
+    { to: "/app/sdr/hot-deals", label: "Hot Leads", icon: Flame },
     { to: "/app/sdr/sdr-performance", label: "SDR Performance", icon: BarChart2 },
   ]},
   { group: "Operação", items: [
