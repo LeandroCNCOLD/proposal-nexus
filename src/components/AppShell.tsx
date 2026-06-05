@@ -65,6 +65,7 @@ const NAV = [
     { to: "/app", label: "Dashboard", icon: LayoutDashboard, exact: true },
     { to: "/app/crm", label: "Funil / CRM", icon: Kanban },
     { to: "/app/agenda", label: "Agenda", icon: Calendar },
+    { to: "/app/crm/closers-performance", label: "Desempenho dos Closers", icon: BarChart2 },
     { to: "/app/propostas", label: "Propostas", icon: FileText },
     { to: "/app/propostas/pedidos-nf", label: "Pedidos & NF", icon: FileCheck2 },
     { to: "/app/tarefas", label: "Tarefas & Follow-up", icon: CheckSquare },

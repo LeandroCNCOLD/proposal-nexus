@@ -38,6 +38,7 @@ import { Route as AppPropostasTabelasPrecoRouteImport } from './routes/app.propo
 import { Route as AppPropostasPedidosNfRouteImport } from './routes/app.propostas.pedidos-nf'
 import { Route as AppPropostasNovaRouteImport } from './routes/app.propostas.nova'
 import { Route as AppPropostasIdRouteImport } from './routes/app.propostas.$id'
+import { Route as AppCrmClosersPerformanceRouteImport } from './routes/app.crm.closers-performance'
 import { Route as AppCrmIdRouteImport } from './routes/app.crm.$id'
 import { Route as AppConfiguracoesPermissoesRouteImport } from './routes/app.configuracoes.permissoes'
 import { Route as AppConfiguracoesNomusRouteImport } from './routes/app.configuracoes.nomus'
@@ -204,6 +205,12 @@ const AppPropostasIdRoute = AppPropostasIdRouteImport.update({
   path: '/propostas/$id',
   getParentRoute: () => AppRoute,
 } as any)
+const AppCrmClosersPerformanceRoute =
+  AppCrmClosersPerformanceRouteImport.update({
+    id: '/closers-performance',
+    path: '/closers-performance',
+    getParentRoute: () => AppCrmRoute,
+  } as any)
 const AppCrmIdRoute = AppCrmIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -334,6 +341,7 @@ export interface FileRoutesByFullPath {
   '/app/configuracoes/nomus': typeof AppConfiguracoesNomusRouteWithChildren
   '/app/configuracoes/permissoes': typeof AppConfiguracoesPermissoesRoute
   '/app/crm/$id': typeof AppCrmIdRoute
+  '/app/crm/closers-performance': typeof AppCrmClosersPerformanceRoute
   '/app/propostas/$id': typeof AppPropostasIdRouteWithChildren
   '/app/propostas/nova': typeof AppPropostasNovaRoute
   '/app/propostas/pedidos-nf': typeof AppPropostasPedidosNfRoute
@@ -382,6 +390,7 @@ export interface FileRoutesByTo {
   '/app/configuracoes/nomus': typeof AppConfiguracoesNomusRouteWithChildren
   '/app/configuracoes/permissoes': typeof AppConfiguracoesPermissoesRoute
   '/app/crm/$id': typeof AppCrmIdRoute
+  '/app/crm/closers-performance': typeof AppCrmClosersPerformanceRoute
   '/app/propostas/nova': typeof AppPropostasNovaRoute
   '/app/propostas/pedidos-nf': typeof AppPropostasPedidosNfRoute
   '/app/propostas/tabelas-preco': typeof AppPropostasTabelasPrecoRoute
@@ -432,6 +441,7 @@ export interface FileRoutesById {
   '/app/configuracoes/nomus': typeof AppConfiguracoesNomusRouteWithChildren
   '/app/configuracoes/permissoes': typeof AppConfiguracoesPermissoesRoute
   '/app/crm/$id': typeof AppCrmIdRoute
+  '/app/crm/closers-performance': typeof AppCrmClosersPerformanceRoute
   '/app/propostas/$id': typeof AppPropostasIdRouteWithChildren
   '/app/propostas/nova': typeof AppPropostasNovaRoute
   '/app/propostas/pedidos-nf': typeof AppPropostasPedidosNfRoute
@@ -484,6 +494,7 @@ export interface FileRouteTypes {
     | '/app/configuracoes/nomus'
     | '/app/configuracoes/permissoes'
     | '/app/crm/$id'
+    | '/app/crm/closers-performance'
     | '/app/propostas/$id'
     | '/app/propostas/nova'
     | '/app/propostas/pedidos-nf'
@@ -532,6 +543,7 @@ export interface FileRouteTypes {
     | '/app/configuracoes/nomus'
     | '/app/configuracoes/permissoes'
     | '/app/crm/$id'
+    | '/app/crm/closers-performance'
     | '/app/propostas/nova'
     | '/app/propostas/pedidos-nf'
     | '/app/propostas/tabelas-preco'
@@ -581,6 +593,7 @@ export interface FileRouteTypes {
     | '/app/configuracoes/nomus'
     | '/app/configuracoes/permissoes'
     | '/app/crm/$id'
+    | '/app/crm/closers-performance'
     | '/app/propostas/$id'
     | '/app/propostas/nova'
     | '/app/propostas/pedidos-nf'
@@ -824,6 +837,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPropostasIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/crm/closers-performance': {
+      id: '/app/crm/closers-performance'
+      path: '/closers-performance'
+      fullPath: '/app/crm/closers-performance'
+      preLoaderRoute: typeof AppCrmClosersPerformanceRouteImport
+      parentRoute: typeof AppCrmRoute
+    }
     '/app/crm/$id': {
       id: '/app/crm/$id'
       path: '/$id'
@@ -1009,10 +1029,12 @@ const AppConfiguracoesRouteWithChildren =
 
 interface AppCrmRouteChildren {
   AppCrmIdRoute: typeof AppCrmIdRoute
+  AppCrmClosersPerformanceRoute: typeof AppCrmClosersPerformanceRoute
 }
 
 const AppCrmRouteChildren: AppCrmRouteChildren = {
   AppCrmIdRoute: AppCrmIdRoute,
+  AppCrmClosersPerformanceRoute: AppCrmClosersPerformanceRoute,
 }
 
 const AppCrmRouteWithChildren =
