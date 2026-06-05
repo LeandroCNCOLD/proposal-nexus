@@ -15,6 +15,8 @@ interface Props {
 }
 
 export function PipelineFiltersBar({ filters, onChange, onReset }: Props) {
+  const { names: sdrNames } = useSdrNames()
+  const { names: closerNames } = useCloserNames()
   return (
     <div className="flex flex-wrap gap-2 items-center mb-4">
       <Input
