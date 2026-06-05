@@ -463,16 +463,22 @@ function CallTimeline({ logs }: { logs: CrmCallLog[] }) {
           {sorted.map((log, idx) => {
             const attempt = sorted.length - idx
             const when = new Date(`${log.call_date}T${log.call_time ?? '00:00'}:00`)
-            const isAlert = attempt >= 3 && !log.meeting_booked
+            const ch = (log.channel ?? 'Telefone') as CallChannel
+            const counted = ch === 'Telefone' || log.proof_validated
+            const isAlert = attempt >= 3 && !log.meeting_booked && counted
             return (
               <li key={log.id} className="ml-4 relative">
-                <span className={`absolute -left-[1.4rem] top-1 w-3 h-3 rounded-full border-2 border-background ${isAlert ? 'bg-red-500' : log.meeting_booked ? 'bg-green-500' : 'bg-blue-500'}`} />
+                <span className={`absolute -left-[1.4rem] top-1 w-3 h-3 rounded-full border-2 border-background ${isAlert ? 'bg-red-500' : log.meeting_booked ? 'bg-green-500' : counted ? 'bg-blue-500' : 'bg-gray-400'}`} />
                 <div className="text-xs flex items-center gap-2 flex-wrap">
-                  <Badge variant={isAlert ? 'destructive' : 'outline'} className="text-[10px]">#{attempt}</Badge>
+                  <Badge variant={isAlert ? 'destructive' : counted ? 'outline' : 'secondary'} className="text-[10px]">
+                    {counted ? `#${attempt}` : 'não contabilizada'}
+                  </Badge>
+                  <Badge variant="outline" className="text-[10px]">{ch}</Badge>
                   <span className="font-semibold">{when.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</span>
                   <span className="text-muted-foreground">· {log.sdr_name}</span>
                   {log.temperature_after && <Badge variant="secondary" className="text-[10px]">{log.temperature_after}</Badge>}
                   {log.meeting_booked && <Badge className="text-[10px] bg-green-600">Reunião agendada</Badge>}
+                  {log.proof_path && <ProofLink path={log.proof_path} />}
                 </div>
                 <div className="text-xs mt-0.5">{log.result || '—'}</div>
                 {log.observation && (
