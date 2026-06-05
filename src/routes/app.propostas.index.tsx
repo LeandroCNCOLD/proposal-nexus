@@ -6,6 +6,8 @@ import { Plus, Search, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { nomusKickoffSyncProposals } from "@/integrations/nomus/server.functions";
+import { useProposalLeadMatches } from "@/hooks/use-proposal-lead-matches";
+import { Link2 } from "lucide-react";
 
 import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/StatusBadge";
