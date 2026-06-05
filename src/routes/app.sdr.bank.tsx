@@ -43,7 +43,7 @@ function ageBadgeClass(days: number | null) {
 }
 
 function BankPage() {
-  const { user } = useAuth()
+  const { user, hasAnyRole } = useAuth()
   const qc = useQueryClient()
   const [search, setSearch] = useState('')
   const [uf, setUf] = useState('')
@@ -52,6 +52,7 @@ function BankPage() {
 
   // Qualquer usuário autenticado pode pegar leads para sua carteira.
   const canPickLeads = !!user
+  const isManager = hasAnyRole(['gerente_comercial', 'diretoria', 'admin'])
 
   const sdrName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'SDR'
 
