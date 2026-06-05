@@ -1,0 +1,16 @@
+ALTER TABLE public.sdr_leads
+  ADD COLUMN IF NOT EXISTS proposal_title      text,
+  ADD COLUMN IF NOT EXISTS proposal_desc       text,
+  ADD COLUMN IF NOT EXISTS proposal_version    integer default 0,
+  ADD COLUMN IF NOT EXISTS razao_social        text,
+  ADD COLUMN IF NOT EXISTS cnpj                text,
+  ADD COLUMN IF NOT EXISTS contact_name        text,
+  ADD COLUMN IF NOT EXISTS contact_email       text,
+  ADD COLUMN IF NOT EXISTS contact_phone       text,
+  ADD COLUMN IF NOT EXISTS contact_mobile      text,
+  ADD COLUMN IF NOT EXISTS discount_pct        numeric(5,2),
+  ADD COLUMN IF NOT EXISTS delivery_term       text,
+  ADD COLUMN IF NOT EXISTS validity_days       integer,
+  ADD COLUMN IF NOT EXISTS proposal_date       date,
+  ADD COLUMN IF NOT EXISTS expected_delivery   date,
+  ADD COLUMN IF NOT EXISTS expected_closing    date;

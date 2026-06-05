@@ -7252,7 +7252,16 @@ export type Database = {
           closer_confirmed: string
           closer_id: string | null
           closer_name: string | null
+          cnpj: string | null
+          contact_email: string | null
+          contact_mobile: string | null
+          contact_name: string | null
+          contact_phone: string | null
           created_at: string
+          delivery_term: string | null
+          discount_pct: number | null
+          expected_closing: string | null
+          expected_delivery: string | null
           id: string
           internal_note: string | null
           last_contact_at: string | null
@@ -7267,12 +7276,18 @@ export type Database = {
           next_step: string | null
           priority: string
           probability_pct: number | null
+          proposal_date: string | null
+          proposal_desc: string | null
+          proposal_title: string | null
+          proposal_version: number | null
+          razao_social: string | null
           sdr_id: string | null
           sdr_name: string | null
           sdr_status: string
           state: string | null
           temperature: string
           updated_at: string
+          validity_days: number | null
           value: number
           value_range: string | null
         }
@@ -7284,7 +7299,16 @@ export type Database = {
           closer_confirmed?: string
           closer_id?: string | null
           closer_name?: string | null
+          cnpj?: string | null
+          contact_email?: string | null
+          contact_mobile?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
           created_at?: string
+          delivery_term?: string | null
+          discount_pct?: number | null
+          expected_closing?: string | null
+          expected_delivery?: string | null
           id?: string
           internal_note?: string | null
           last_contact_at?: string | null
@@ -7299,12 +7323,18 @@ export type Database = {
           next_step?: string | null
           priority?: string
           probability_pct?: number | null
+          proposal_date?: string | null
+          proposal_desc?: string | null
+          proposal_title?: string | null
+          proposal_version?: number | null
+          razao_social?: string | null
           sdr_id?: string | null
           sdr_name?: string | null
           sdr_status?: string
           state?: string | null
           temperature?: string
           updated_at?: string
+          validity_days?: number | null
           value?: number
           value_range?: string | null
         }
@@ -7316,7 +7346,16 @@ export type Database = {
           closer_confirmed?: string
           closer_id?: string | null
           closer_name?: string | null
+          cnpj?: string | null
+          contact_email?: string | null
+          contact_mobile?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
           created_at?: string
+          delivery_term?: string | null
+          discount_pct?: number | null
+          expected_closing?: string | null
+          expected_delivery?: string | null
           id?: string
           internal_note?: string | null
           last_contact_at?: string | null
@@ -7331,12 +7370,18 @@ export type Database = {
           next_step?: string | null
           priority?: string
           probability_pct?: number | null
+          proposal_date?: string | null
+          proposal_desc?: string | null
+          proposal_title?: string | null
+          proposal_version?: number | null
+          razao_social?: string | null
           sdr_id?: string | null
           sdr_name?: string | null
           sdr_status?: string
           state?: string | null
           temperature?: string
           updated_at?: string
+          validity_days?: number | null
           value?: number
           value_range?: string | null
         }
