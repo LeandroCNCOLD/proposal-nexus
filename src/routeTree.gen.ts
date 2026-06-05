@@ -33,6 +33,7 @@ import { Route as AppPropostasNovaRouteImport } from './routes/app.propostas.nov
 import { Route as AppPropostasIdRouteImport } from './routes/app.propostas.$id'
 import { Route as AppCrmIdRouteImport } from './routes/app.crm.$id'
 import { Route as AppCrmSdrWarRoomRouteImport } from './routes/app.crm-sdr.war-room'
+import { Route as AppCrmSdrWalletRouteImport } from './routes/app.crm-sdr.wallet'
 import { Route as AppCrmSdrSdrPerformanceRouteImport } from './routes/app.crm-sdr.sdr-performance'
 import { Route as AppCrmSdrHotDealsRouteImport } from './routes/app.crm-sdr.hot-deals'
 import { Route as AppCrmSdrBankRouteImport } from './routes/app.crm-sdr.bank'
@@ -174,6 +175,11 @@ const AppCrmSdrWarRoomRoute = AppCrmSdrWarRoomRouteImport.update({
   path: '/crm-sdr/war-room',
   getParentRoute: () => AppRoute,
 } as any)
+const AppCrmSdrWalletRoute = AppCrmSdrWalletRouteImport.update({
+  id: '/crm-sdr/wallet',
+  path: '/crm-sdr/wallet',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppCrmSdrSdrPerformanceRoute = AppCrmSdrSdrPerformanceRouteImport.update({
   id: '/crm-sdr/sdr-performance',
   path: '/crm-sdr/sdr-performance',
@@ -302,6 +308,7 @@ export interface FileRoutesByFullPath {
   '/app/crm-sdr/bank': typeof AppCrmSdrBankRoute
   '/app/crm-sdr/hot-deals': typeof AppCrmSdrHotDealsRoute
   '/app/crm-sdr/sdr-performance': typeof AppCrmSdrSdrPerformanceRoute
+  '/app/crm-sdr/wallet': typeof AppCrmSdrWalletRoute
   '/app/crm-sdr/war-room': typeof AppCrmSdrWarRoomRoute
   '/app/crm/$id': typeof AppCrmIdRoute
   '/app/propostas/$id': typeof AppPropostasIdRouteWithChildren
@@ -345,6 +352,7 @@ export interface FileRoutesByTo {
   '/app/crm-sdr/bank': typeof AppCrmSdrBankRoute
   '/app/crm-sdr/hot-deals': typeof AppCrmSdrHotDealsRoute
   '/app/crm-sdr/sdr-performance': typeof AppCrmSdrSdrPerformanceRoute
+  '/app/crm-sdr/wallet': typeof AppCrmSdrWalletRoute
   '/app/crm-sdr/war-room': typeof AppCrmSdrWarRoomRoute
   '/app/crm/$id': typeof AppCrmIdRoute
   '/app/propostas/nova': typeof AppPropostasNovaRoute
@@ -390,6 +398,7 @@ export interface FileRoutesById {
   '/app/crm-sdr/bank': typeof AppCrmSdrBankRoute
   '/app/crm-sdr/hot-deals': typeof AppCrmSdrHotDealsRoute
   '/app/crm-sdr/sdr-performance': typeof AppCrmSdrSdrPerformanceRoute
+  '/app/crm-sdr/wallet': typeof AppCrmSdrWalletRoute
   '/app/crm-sdr/war-room': typeof AppCrmSdrWarRoomRoute
   '/app/crm/$id': typeof AppCrmIdRoute
   '/app/propostas/$id': typeof AppPropostasIdRouteWithChildren
@@ -437,6 +446,7 @@ export interface FileRouteTypes {
     | '/app/crm-sdr/bank'
     | '/app/crm-sdr/hot-deals'
     | '/app/crm-sdr/sdr-performance'
+    | '/app/crm-sdr/wallet'
     | '/app/crm-sdr/war-room'
     | '/app/crm/$id'
     | '/app/propostas/$id'
@@ -480,6 +490,7 @@ export interface FileRouteTypes {
     | '/app/crm-sdr/bank'
     | '/app/crm-sdr/hot-deals'
     | '/app/crm-sdr/sdr-performance'
+    | '/app/crm-sdr/wallet'
     | '/app/crm-sdr/war-room'
     | '/app/crm/$id'
     | '/app/propostas/nova'
@@ -524,6 +535,7 @@ export interface FileRouteTypes {
     | '/app/crm-sdr/bank'
     | '/app/crm-sdr/hot-deals'
     | '/app/crm-sdr/sdr-performance'
+    | '/app/crm-sdr/wallet'
     | '/app/crm-sdr/war-room'
     | '/app/crm/$id'
     | '/app/propostas/$id'
@@ -726,6 +738,13 @@ declare module '@tanstack/react-router' {
       path: '/crm-sdr/war-room'
       fullPath: '/app/crm-sdr/war-room'
       preLoaderRoute: typeof AppCrmSdrWarRoomRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/crm-sdr/wallet': {
+      id: '/app/crm-sdr/wallet'
+      path: '/crm-sdr/wallet'
+      fullPath: '/app/crm-sdr/wallet'
+      preLoaderRoute: typeof AppCrmSdrWalletRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/crm-sdr/sdr-performance': {
@@ -940,6 +959,7 @@ interface AppRouteChildren {
   AppCrmSdrBankRoute: typeof AppCrmSdrBankRoute
   AppCrmSdrHotDealsRoute: typeof AppCrmSdrHotDealsRoute
   AppCrmSdrSdrPerformanceRoute: typeof AppCrmSdrSdrPerformanceRoute
+  AppCrmSdrWalletRoute: typeof AppCrmSdrWalletRoute
   AppCrmSdrWarRoomRoute: typeof AppCrmSdrWarRoomRoute
   AppPropostasIdRoute: typeof AppPropostasIdRouteWithChildren
   AppPropostasNovaRoute: typeof AppPropostasNovaRoute
@@ -968,6 +988,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppCrmSdrBankRoute: AppCrmSdrBankRoute,
   AppCrmSdrHotDealsRoute: AppCrmSdrHotDealsRoute,
   AppCrmSdrSdrPerformanceRoute: AppCrmSdrSdrPerformanceRoute,
+  AppCrmSdrWalletRoute: AppCrmSdrWalletRoute,
   AppCrmSdrWarRoomRoute: AppCrmSdrWarRoomRoute,
   AppPropostasIdRoute: AppPropostasIdRouteWithChildren,
   AppPropostasNovaRoute: AppPropostasNovaRoute,

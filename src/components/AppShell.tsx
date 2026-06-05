@@ -4,7 +4,7 @@ import {
   FileBarChart, FileCheck2, FolderUp, Settings, LogOut,
   Search, Bell, Snowflake, ChevronDown, CheckSquare, PlugZap, Database,
   LayoutTemplate, Kanban, Thermometer, PackageSearch,
-  LayoutList, Zap, Flame, BarChart2,
+  LayoutList, Zap, Flame, BarChart2, Briefcase,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { ROLE_LABELS } from "@/lib/proposal";
