@@ -283,6 +283,15 @@ function ProposalsList() {
             {ALL_STATUSES.map((s) => <SelectItem key={s} value={s}>{STATUS_LABELS[s]}</SelectItem>)}
           </SelectContent>
         </Select>
+        <label className="inline-flex items-center gap-2 text-sm text-muted-foreground select-none">
+          <input
+            type="checkbox"
+            checked={onlyWithLead}
+            onChange={(e) => setOnlyWithLead(e.target.checked)}
+            className="h-4 w-4"
+          />
+          Somente com lead SDR
+        </label>
       </div>
 
       <div className="rounded-xl border bg-card shadow-[var(--shadow-sm)] overflow-x-auto">
