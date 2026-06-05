@@ -113,6 +113,8 @@ function LeadCard({ lead, sdrName, onUnlock, onOpenScript }: {
   const [meetingBooked, setMeetingBooked] = useState(false)
   const [meetingDate, setMeetingDate] = useState('')
   const [closer, setCloser] = useState<string>('')
+  const [channel, setChannel] = useState<CallChannel>('Telefone')
+  const [proofFile, setProofFile] = useState<File | null>(null)
   const nowLocal = () => {
     const d = new Date()
     d.setMinutes(d.getMinutes() - d.getTimezoneOffset())
@@ -121,13 +123,16 @@ function LeadCard({ lead, sdrName, onUnlock, onOpenScript }: {
   const [attemptAt, setAttemptAt] = useState<string>(nowLocal())
 
   const remaining = daysUntil(lead.lock_expires_at)
+  const requiresProof = channel === 'WhatsApp' || channel === 'E-mail' || channel === 'Outro'
 
   const { data: callLogs = [] } = useQuery({
     queryKey: ['call-logs', lead.id],
     queryFn: () => fetchCallLogs({ pipelineId: lead.id }),
     refetchInterval: 60_000,
   })
-  const attemptCount = callLogs.length
+  // Só conta tentativas validadas: telefone sempre conta; canais alternativos só com print
+  const validAttempts = callLogs.filter(l => (l.channel ?? 'Telefone') === 'Telefone' || l.proof_validated)
+  const attemptCount = validAttempts.length
   const alertManagement = attemptCount >= 3
 
   const registerMut = useMutation({
