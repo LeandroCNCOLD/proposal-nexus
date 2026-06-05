@@ -157,8 +157,8 @@ export function WarRoomPanel() {
           icon={<Phone className="h-5 w-5 text-green-600" />}
           label="Concluídos hoje"
           value={isLoading ? '—' : totalCompleted}
-          sub={`Meta do time: ${SDR_DAILY_GOAL * SDR_NAMES.length}`}
-          highlight={totalCompleted >= SDR_DAILY_GOAL * SDR_NAMES.length ? 'green' : undefined}
+          sub={`Meta do time: ${SDR_DAILY_GOAL * Math.max(sdrNames.length, 1)}`}
+          highlight={totalCompleted >= SDR_DAILY_GOAL * Math.max(sdrNames.length, 1) ? 'green' : undefined}
         />
         <KpiCard
           icon={<PhoneCall className="h-5 w-5 text-blue-600" />}
