@@ -64,7 +64,7 @@ function SdrPerformancePage() {
       if (l.meeting_booked) a.meetingsMonth++
     }
     return Array.from(map.values())
-  }, [data])
+  }, [data, sdrNames])
 
   const ranking = useMemo(() => [...aggs].sort((a, b) => b.completedMonth - a.completedMonth), [aggs])
 
