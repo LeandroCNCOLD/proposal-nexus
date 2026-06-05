@@ -1,4 +1,22 @@
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+
+function LiveClock() {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const label = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  return (
+    <div className="hidden md:flex items-center gap-2">
+      <span className="font-mono text-sm font-bold tabular-nums text-[#0F2D5E]">{label}</span>
+      <span className="inline-flex items-center gap-1 rounded-full bg-green-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+        <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" /> Ao vivo
+      </span>
+    </div>
+  );
+}
 import {
   LayoutDashboard, FileText, Users, Building2, Wrench, Swords,
   FileBarChart, FileCheck2, FolderUp, Settings, LogOut,
