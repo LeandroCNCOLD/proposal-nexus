@@ -362,6 +362,11 @@ function LeadCard({ lead, sdrName, onUnlock, onOpenScript }: {
       {/* REGISTRO DE LIGAÇÃO */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 border-t pt-3">
         <div className="space-y-2">
+          <label className="text-xs font-semibold">Canal de contato *</label>
+          <select value={channel} onChange={e => setChannel(e.target.value as CallChannel)} className="w-full border rounded px-2 py-1.5 text-sm">
+            {CALL_CHANNEL_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+          </select>
+
           <label className="text-xs font-semibold">Resultado da ligação *</label>
           <select value={result} onChange={e => setResult(e.target.value as CallResult)} className="w-full border rounded px-2 py-1.5 text-sm">
             <option value="">Selecione...</option>
@@ -384,6 +389,30 @@ function LeadCard({ lead, sdrName, onUnlock, onOpenScript }: {
           <label className="text-xs font-semibold">Observação</label>
           <Textarea value={observation} onChange={e => setObservation(e.target.value)} rows={3} placeholder="O que aconteceu na ligação..." />
 
+          {requiresProof && (
+            <div className="rounded-md border border-amber-300 bg-amber-50 p-2 space-y-1">
+              <div className="flex items-center gap-1 text-xs font-semibold text-amber-900">
+                <Paperclip className="w-3 h-3" />
+                Print da conversa ({channel}) — obrigatório p/ validar tentativa
+              </div>
+              <Input
+                type="file"
+                accept="image/*,application/pdf"
+                onChange={e => setProofFile(e.target.files?.[0] ?? null)}
+              />
+              {proofFile && (
+                <div className="text-[11px] text-amber-900 flex items-center gap-1">
+                  <MessageCircle className="w-3 h-3" /> {proofFile.name} · {(proofFile.size / 1024).toFixed(0)} KB
+                </div>
+              )}
+              {!proofFile && (
+                <div className="text-[11px] text-amber-700 italic">
+                  Sem o anexo, a tentativa não será contabilizada nem comporá o alerta da gestão.
+                </div>
+              )}
+            </div>
+          )}
+
           <label className="flex items-center gap-2 text-sm font-semibold">
             <input type="checkbox" checked={meetingBooked} onChange={e => setMeetingBooked(e.target.checked)} />
             Reunião agendada?
@@ -402,7 +431,10 @@ function LeadCard({ lead, sdrName, onUnlock, onOpenScript }: {
       </div>
 
       <div className="flex justify-end gap-2 border-t pt-3">
-        <Button onClick={() => registerMut.mutate()} disabled={!result || registerMut.isPending}>
+        <Button
+          onClick={() => registerMut.mutate()}
+          disabled={!result || registerMut.isPending || (requiresProof && !proofFile)}
+        >
           {registerMut.isPending ? 'Salvando...' : `Registrar tentativa #${attemptCount + 1}`}
         </Button>
       </div>
