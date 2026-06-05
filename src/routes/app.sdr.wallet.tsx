@@ -1,18 +1,18 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import { useState } from 'react'
-import { fetchMyWallet, unlockLead, renewLock, updatePipelineField } from '@/modules/sdr/services'
-import { insertCallLog } from '@/modules/sdr/services'
+import { fetchMyWallet, unlockLead, renewLock, updatePipelineField, fetchCallLogs, insertCallLog } from '@/modules/sdr/services'
+import { supabase } from '@/integrations/supabase/client'
 import { useAuth } from '@/hooks/useAuth'
 import {
   CALL_RESULT_OPTIONS, TEMPERATURE_OPTIONS, CLOSER_NAMES,
-  type CrmPipeline, type CallResult, type Temperature, type SdrStatus,
+  type CrmPipeline, type CrmCallLog, type CallResult, type Temperature, type SdrStatus,
 } from '@/modules/sdr/types'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { Unlock, Clock, MapPin, Phone, DollarSign, ChevronDown, ChevronUp, Mail, Building2, FileText, Calendar } from 'lucide-react'
+import { Unlock, Clock, MapPin, Phone, DollarSign, ChevronDown, ChevronUp, Mail, Building2, FileText, Calendar, AlertTriangle, History } from 'lucide-react'
 import { toast } from 'sonner'
 import { CallScriptDialog } from '@/modules/sdr/components/CallScriptDialog'
 
