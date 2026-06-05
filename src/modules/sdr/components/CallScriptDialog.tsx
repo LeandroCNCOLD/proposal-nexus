@@ -2,11 +2,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Label } from '@/components/ui/label'
 import { Phone, MessageCircle, Mail, Copy, Check, Save } from 'lucide-react'
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { toast } from 'sonner'
 import type { CrmPipeline } from '../types'
 import { insertCallLog } from '../services'
+import { useScriptTemplates, renderTemplate } from '../hooks/use-script-templates'
 
 interface Props {
   lead: CrmPipeline | null
@@ -38,35 +41,49 @@ export function CallScriptDialog({ lead, open, onOpenChange, onSaved }: Props) {
   const [openingNote, setOpeningNote] = useState('')
   const [closingNote, setClosingNote] = useState('')
   const [saving, setSaving] = useState(false)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
 
-  const contactName = lead?.contact_name || 'Cliente'
-  const firstName = contactName.split(' ')[0]
-  const sdrName = lead?.sdr_name || 'SDR'
-  const company = lead?.razao_social || lead?.client_name || ''
-  const proposalRef = lead?.proposal_title || lead?.lead_code || ''
+  const { data: templates = [] } = useScriptTemplates()
+  const activeTemplates = useMemo(() => templates.filter(t => t.is_active), [templates])
 
-  const discoveryQuestions = useMemo(() => lead ? [
-    `Você conseguiu analisar a proposta da ${company}?`,
-    `O escopo (${lead.proposal_desc?.slice(0, 120) || 'projeto'}${lead.proposal_desc && lead.proposal_desc.length > 120 ? '...' : ''}) atende ao que vocês precisam?`,
-    `Qual a previsão de fechamento que vocês estão trabalhando?`,
-    `Quem mais participa da decisão além de você?`,
-    `Já receberam propostas de concorrentes? Como estamos no comparativo?`,
-  ] : [], [lead, company])
+  // Seleciona padrão automaticamente
+  useEffect(() => {
+    if (!selectedId && activeTemplates.length > 0) {
+      const def = activeTemplates.find(t => t.is_default) ?? activeTemplates[0]
+      setSelectedId(def.id)
+    }
+  }, [activeTemplates, selectedId])
+
+  const selected = activeTemplates.find(t => t.id === selectedId) ?? null
+
+  const ctx = useMemo(() => {
+    if (!lead) return {}
+    const contactName = lead.contact_name || 'Cliente'
+    return {
+      firstName: contactName.split(' ')[0],
+      contactName,
+      sdrName: lead.sdr_name || 'SDR',
+      company: lead.razao_social || lead.client_name || '',
+      value: fmtBRL(lead.value),
+      proposalRef: lead.proposal_title || lead.lead_code || '',
+      leadCode: lead.lead_code,
+      proposalDate: lead.proposal_date ? new Date(lead.proposal_date).toLocaleDateString('pt-BR') : '—',
+      expectedClosing: lead.expected_closing ? new Date(lead.expected_closing).toLocaleDateString('pt-BR') : 'próxima semana',
+      validityDays: String(lead.validity_days ?? 5),
+      proposalDesc: lead.proposal_desc?.slice(0, 120) || 'projeto',
+    }
+  }, [lead])
 
   if (!lead) return null
 
-  const openingScript = `Olá, ${firstName}! Aqui é o ${sdrName} da CN Cold. Tudo bem? Estou ligando referente à proposta ${proposalRef} (${lead.lead_code}) no valor de ${fmtBRL(lead.value)} que enviamos${lead.proposal_date ? ` em ${new Date(lead.proposal_date).toLocaleDateString('pt-BR')}` : ''}. Tem 2 minutinhos para conversarmos?`
+  const contactName = lead.contact_name || 'Cliente'
+  const company = lead.razao_social || lead.client_name
 
-  const objectionHandling = [
-    { obj: 'Preço alto', resp: `O valor de ${fmtBRL(lead.value)} reflete a engenharia CN Cold + 10 anos de garantia. Posso te mostrar o ROI vs. equipamento comercial?` },
-    { obj: 'Sem orçamento agora', resp: `Entendi. Temos condições especiais de pagamento (entrada + parcelas). Quando seria o melhor momento para retomar?` },
-    { obj: 'Vou pensar', resp: `Claro. Posso te ligar ${lead.expected_closing ? `na semana de ${new Date(lead.expected_closing).toLocaleDateString('pt-BR')}` : 'na próxima semana'} para falarmos?` },
-    { obj: 'Fechei com concorrente', resp: `Sem problemas. Só por curiosidade, qual foi o fator decisivo? Isso ajuda a melhorarmos.` },
-  ]
-
-  const closingScript = `Combinado, ${firstName}. Vou agendar nosso próximo contato${lead.expected_closing ? ` próximo a ${new Date(lead.expected_closing).toLocaleDateString('pt-BR')}` : ''}. Mando também por WhatsApp um resumo da proposta. Qualquer dúvida me chama. Obrigado!`
-
-  const whatsappFollowup = `Olá ${firstName}, aqui é o ${sdrName} da CN Cold. Conforme conversamos, segue o resumo da proposta ${proposalRef} no valor de ${fmtBRL(lead.value)}. Validade: ${lead.validity_days || 5} dias. Qualquer dúvida, estou à disposição!`
+  const openingScript = selected ? renderTemplate(selected.opening, ctx as any) : ''
+  const discoveryQuestions = selected ? selected.discovery_questions.map(q => renderTemplate(q, ctx as any)) : []
+  const objectionHandling = selected ? selected.objections.map(o => ({ obj: renderTemplate(o.obj, ctx as any), resp: renderTemplate(o.resp, ctx as any) })) : []
+  const closingScript = selected ? renderTemplate(selected.closing, ctx as any) : ''
+  const whatsappFollowup = selected ? renderTemplate(selected.whatsapp_followup, ctx as any) : ''
 
   const copy = (text: string, label: string) => {
     navigator.clipboard.writeText(text)
@@ -79,7 +96,7 @@ export function CallScriptDialog({ lead, open, onOpenChange, onSaved }: Props) {
 
   const buildObservation = () => {
     const parts: string[] = []
-    parts.push('📞 Script de ligação concluído')
+    parts.push(`📞 Script "${selected?.name ?? 'sem modelo'}" concluído`)
     if (openingNote.trim()) parts.push(`\n— Abertura: ${openingNote.trim()}`)
     const qa = discoveryQuestions
       .map((q, i) => ({ q, a: (answers[i] || '').trim() }))
@@ -143,6 +160,27 @@ export function CallScriptDialog({ lead, open, onOpenChange, onSaved }: Props) {
           </DialogDescription>
         </DialogHeader>
 
+        {/* Seletor de modelo */}
+        <div className="space-y-1">
+          <Label className="text-xs font-semibold">Modelo de Script</Label>
+          {activeTemplates.length === 0 ? (
+            <p className="text-xs text-muted-foreground border rounded p-2 bg-amber-50">
+              Nenhum modelo cadastrado. Peça ao gestor para criar em <strong>Scripts de Ligação</strong>.
+            </p>
+          ) : (
+            <Select value={selectedId ?? ''} onValueChange={setSelectedId}>
+              <SelectTrigger><SelectValue placeholder="Selecione um modelo..." /></SelectTrigger>
+              <SelectContent>
+                {activeTemplates.map(t => (
+                  <SelectItem key={t.id} value={t.id}>
+                    {t.name}{t.is_default ? ' (padrão)' : ''}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
+
         {/* Contato rápido */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-2 p-3 bg-muted/40 rounded-md">
           <div className="flex items-center justify-between gap-2">
@@ -192,83 +230,93 @@ export function CallScriptDialog({ lead, open, onOpenChange, onSaved }: Props) {
           {lead.proposal_desc && <div className="text-muted-foreground text-xs">{lead.proposal_desc}</div>}
         </div>
 
-        {/* 1 - Abertura */}
-        <ScriptBlock title="1️⃣ Abertura" text={openingScript} onCopy={() => copy(openingScript, 'open')} copied={copied === 'open'} />
-        <div className="px-1">
-          <label className="text-xs text-muted-foreground">Resposta/observação do cliente na abertura</label>
-          <Textarea
-            value={openingNote}
-            onChange={(e) => setOpeningNote(e.target.value)}
-            placeholder="Ex: cliente atendeu, demonstrou interesse..."
-            rows={2}
-          />
-        </div>
-
-        {/* 2 - Descoberta com campos de resposta */}
-        <div className="border rounded-md p-3 bg-blue-50/40 space-y-3">
-          <div className="text-sm font-semibold flex items-center gap-2">2️⃣ Descoberta — perguntas e respostas</div>
-          {discoveryQuestions.map((q, i) => (
-            <div key={i} className="space-y-1">
-              <div className="text-sm font-medium">{i + 1}. {q}</div>
+        {selected && (
+          <>
+            {/* 1 - Abertura */}
+            <ScriptBlock title="1️⃣ Abertura" text={openingScript} onCopy={() => copy(openingScript, 'open')} copied={copied === 'open'} />
+            <div className="px-1">
+              <label className="text-xs text-muted-foreground">Resposta/observação do cliente na abertura</label>
               <Textarea
-                value={answers[i] || ''}
-                onChange={(e) => setAnswers(prev => ({ ...prev, [i]: e.target.value }))}
-                placeholder="Resposta do cliente..."
+                value={openingNote}
+                onChange={(e) => setOpeningNote(e.target.value)}
+                placeholder="Ex: cliente atendeu, demonstrou interesse..."
                 rows={2}
               />
             </div>
-          ))}
-        </div>
 
-        {/* 3 - Objeções */}
-        <div className="border rounded-md p-3 bg-amber-50/40">
-          <div className="text-sm font-semibold mb-2">3️⃣ Quebra de objeções</div>
-          <div className="space-y-2">
-            {objectionHandling.map((o, i) => (
-              <div key={i} className="text-sm">
-                <div className="font-semibold text-amber-900">❌ {o.obj}</div>
-                <div className="text-muted-foreground pl-4">→ {o.resp}</div>
+            {/* 2 - Descoberta com campos de resposta */}
+            {discoveryQuestions.length > 0 && (
+              <div className="border rounded-md p-3 bg-blue-50/40 space-y-3">
+                <div className="text-sm font-semibold flex items-center gap-2">2️⃣ Descoberta — perguntas e respostas</div>
+                {discoveryQuestions.map((q, i) => (
+                  <div key={i} className="space-y-1">
+                    <div className="text-sm font-medium">{i + 1}. {q}</div>
+                    <Textarea
+                      value={answers[i] || ''}
+                      onChange={(e) => setAnswers(prev => ({ ...prev, [i]: e.target.value }))}
+                      placeholder="Resposta do cliente..."
+                      rows={2}
+                    />
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </div>
+            )}
 
-        {/* 4 - Fechamento */}
-        <ScriptBlock title="4️⃣ Fechamento da ligação" text={closingScript} onCopy={() => copy(closingScript, 'close')} copied={copied === 'close'} />
-        <div className="px-1">
-          <label className="text-xs text-muted-foreground">Resposta/combinado final com o cliente</label>
-          <Textarea
-            value={closingNote}
-            onChange={(e) => setClosingNote(e.target.value)}
-            placeholder="Ex: ficou de retornar dia X, pediu para enviar resumo..."
-            rows={2}
-          />
-        </div>
+            {/* 3 - Objeções */}
+            {objectionHandling.length > 0 && (
+              <div className="border rounded-md p-3 bg-amber-50/40">
+                <div className="text-sm font-semibold mb-2">3️⃣ Quebra de objeções</div>
+                <div className="space-y-2">
+                  {objectionHandling.map((o, i) => (
+                    <div key={i} className="text-sm">
+                      <div className="font-semibold text-amber-900">❌ {o.obj}</div>
+                      <div className="text-muted-foreground pl-4">→ {o.resp}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
-        {/* WhatsApp follow-up */}
-        <div className="border rounded-md p-3 bg-green-50/40 space-y-2">
-          <div className="text-sm font-semibold flex items-center gap-2">
-            <MessageCircle className="w-4 h-4 text-green-700" /> 5️⃣ Follow-up por WhatsApp
-          </div>
-          <p className="text-sm whitespace-pre-wrap">{whatsappFollowup}</p>
-          <div className="flex gap-2">
-            <Button size="sm" variant="outline" onClick={() => copy(whatsappFollowup, 'wa')}>
-              {copied === 'wa' ? <Check className="w-3 h-3 mr-1" /> : <Copy className="w-3 h-3 mr-1" />} Copiar mensagem
-            </Button>
-            <a href={whatsappUrl(phone, whatsappFollowup)} target="_blank" rel="noreferrer">
-              <Button size="sm" className="bg-green-600 hover:bg-green-700" disabled={!phone}>
-                <MessageCircle className="w-3 h-3 mr-1" /> Abrir WhatsApp
-              </Button>
-            </a>
-          </div>
-        </div>
+            {/* 4 - Fechamento */}
+            <ScriptBlock title="4️⃣ Fechamento da ligação" text={closingScript} onCopy={() => copy(closingScript, 'close')} copied={copied === 'close'} />
+            <div className="px-1">
+              <label className="text-xs text-muted-foreground">Resposta/combinado final com o cliente</label>
+              <Textarea
+                value={closingNote}
+                onChange={(e) => setClosingNote(e.target.value)}
+                placeholder="Ex: ficou de retornar dia X, pediu para enviar resumo..."
+                rows={2}
+              />
+            </div>
+
+            {/* WhatsApp follow-up */}
+            {whatsappFollowup && (
+              <div className="border rounded-md p-3 bg-green-50/40 space-y-2">
+                <div className="text-sm font-semibold flex items-center gap-2">
+                  <MessageCircle className="w-4 h-4 text-green-700" /> 5️⃣ Follow-up por WhatsApp
+                </div>
+                <p className="text-sm whitespace-pre-wrap">{whatsappFollowup}</p>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={() => copy(whatsappFollowup, 'wa')}>
+                    {copied === 'wa' ? <Check className="w-3 h-3 mr-1" /> : <Copy className="w-3 h-3 mr-1" />} Copiar mensagem
+                  </Button>
+                  <a href={whatsappUrl(phone, whatsappFollowup)} target="_blank" rel="noreferrer">
+                    <Button size="sm" className="bg-green-600 hover:bg-green-700" disabled={!phone}>
+                      <MessageCircle className="w-3 h-3 mr-1" /> Abrir WhatsApp
+                    </Button>
+                  </a>
+                </div>
+              </div>
+            )}
+          </>
+        )}
 
         {/* Salvar como atividade concluída */}
         <div className="sticky bottom-0 bg-background border-t pt-3 flex justify-end gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
             Cancelar
           </Button>
-          <Button onClick={handleSaveAsCompleted} disabled={saving} className="bg-green-600 hover:bg-green-700">
+          <Button onClick={handleSaveAsCompleted} disabled={saving || !selected} className="bg-green-600 hover:bg-green-700">
             <Save className="w-4 h-4 mr-1" />
             {saving ? 'Salvando...' : 'Salvar e concluir atividade'}
           </Button>

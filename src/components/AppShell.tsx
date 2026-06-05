@@ -59,6 +59,7 @@ const NAV = [
     { to: "/app/sdr/war-room", label: "War Room — Reunião Diária", icon: Zap },
     { to: "/app/sdr/hot-deals", label: "Hot Leads", icon: Flame },
     { to: "/app/sdr/sdr-performance", label: "Desempenho dos SDRs", icon: BarChart2 },
+    { to: "/app/sdr/scripts", label: "Scripts de Ligação", icon: FileText },
   ]},
   { group: "Operação", items: [
     { to: "/app", label: "Dashboard", icon: LayoutDashboard, exact: true },
