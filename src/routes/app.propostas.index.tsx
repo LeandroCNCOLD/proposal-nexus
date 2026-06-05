@@ -253,7 +253,7 @@ function ProposalsList() {
 
     // 3) Ordena pela data real do Nomus (mais recente primeiro)
     return latest.sort(compareNomusNewestFirst);
-  }, [proposals, search, statusFilter]);
+  }, [proposals, search, statusFilter, onlyWithLead, leadMatches]);
 
   return (
     <>
