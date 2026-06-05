@@ -52,6 +52,9 @@ function WalletPage() {
     enabled: !!user,
   })
 
+  const leadIds = useMemo(() => leads.map(l => l.id), [leads])
+  const { byLead: proposalMatches } = useProposalLeadMatches({ leadIds })
+
   const unlockMut = useMutation({
     mutationFn: (id: string) => unlockLead(id),
     onSuccess: () => {
