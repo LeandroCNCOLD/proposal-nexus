@@ -321,3 +321,28 @@ function BankPage() {
     </div>
   )
 }
+
+function SortableTh({ label, sk, sortKey, sortDir, onClick, align }: {
+  label: string
+  sk: SortKey
+  sortKey: SortKey | null
+  sortDir: SortDir
+  onClick: (k: SortKey) => void
+  align?: 'left' | 'right' | 'center'
+}) {
+  const active = sortKey === sk && sortDir
+  const Icon = active === 'asc' ? ArrowUp : active === 'desc' ? ArrowDown : ArrowUpDown
+  const alignClass = align === 'right' ? 'text-right justify-end' : align === 'center' ? 'text-center justify-center' : 'text-left justify-start'
+  return (
+    <th className={`px-3 py-2 ${align === 'right' ? 'text-right' : align === 'center' ? 'text-center' : ''}`}>
+      <button
+        type="button"
+        onClick={() => onClick(sk)}
+        className={`inline-flex items-center gap-1 hover:text-primary transition-colors ${alignClass} ${active ? 'text-primary font-semibold' : ''}`}
+      >
+        {label}
+        <Icon className={`w-3 h-3 ${active ? 'opacity-100' : 'opacity-40'}`} />
+      </button>
+    </th>
+  )
+}
