@@ -122,8 +122,21 @@ function AppNavigationSidebar() {
 export function AppShell({ children }: { children: ReactNode }) {
   const { user, roles, signOut } = useAuth();
   const navigate = useNavigate();
-  const initial = user?.email?.[0]?.toUpperCase() ?? "?";
   const primaryRole = roles[0];
+
+  const { data: profile } = useQuery({
+    queryKey: ["profile", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const { data } = await supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle();
+      return data;
+    },
+    enabled: !!user?.id,
+    staleTime: 5 * 60_000,
+  });
+
+  const displayName = profile?.full_name || user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Usuário";
+  const initial = displayName[0]?.toUpperCase() ?? "?";
 
   return (
     <SidebarProvider>
