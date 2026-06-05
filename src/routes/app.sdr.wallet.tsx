@@ -493,6 +493,25 @@ function CallTimeline({ logs }: { logs: CrmCallLog[] }) {
   )
 }
 
+function ProofLink({ path }: { path: string }) {
+  const open = async () => {
+    const { data, error } = await supabase.storage
+      .from('crm-attachments')
+      .createSignedUrl(path, 600)
+    if (error || !data?.signedUrl) {
+      toast.error('Não foi possível abrir o print.')
+      return
+    }
+    window.open(data.signedUrl, '_blank', 'noopener,noreferrer')
+  }
+  return (
+    <button type="button" onClick={open} className="text-[10px] inline-flex items-center gap-1 text-blue-600 hover:underline">
+      <Paperclip className="w-3 h-3" /> Ver print
+    </button>
+  )
+}
+
+
 function DetailSection({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1 bg-muted/30 rounded-md p-2.5">
