@@ -40,6 +40,7 @@ function WalletPage() {
   const { user } = useAuth()
   const qc = useQueryClient()
   const sdrName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'SDR'
+  const closerNames = useCloserNames()
 
   const [scriptLead, setScriptLead] = useState<CrmPipeline | null>(null)
 
