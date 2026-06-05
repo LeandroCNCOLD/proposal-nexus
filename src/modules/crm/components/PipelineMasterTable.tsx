@@ -3,13 +3,17 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
+import { Label } from '@/components/ui/label'
 import { Phone, ChevronUp, ChevronDown } from 'lucide-react'
 import { useCrmPipeline } from '../hooks/use-crm-pipeline'
 import { PipelineFiltersBar } from './PipelineFiltersBar'
 import { CallLogDrawer } from './CallLogDrawer'
 import { SDR_STATUS_OPTIONS, TEMPERATURE_OPTIONS, PRIORITY_OPTIONS } from '../types'
-import type { CrmPipeline, Temperature, Priority } from '../types'
+import type { CrmPipeline, Temperature, Priority, SdrStatus } from '../types'
 import { formatCurrency } from '@/lib/utils'
+
+const INACTIVE_STATUSES: SdrStatus[] = ['Perdido (com motivo)', 'Kill / Arquivar', 'Fechado']
 
 const TEMP_COLOR: Record<Temperature, string> = {
   Frio: 'bg-blue-100 text-blue-800',
