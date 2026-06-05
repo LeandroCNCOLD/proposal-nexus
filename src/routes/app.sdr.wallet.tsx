@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { fetchMyWallet, unlockLead, renewLock, updatePipelineField, fetchCallLogs, insertCallLog } from '@/modules/sdr/services'
 import { supabase } from '@/integrations/supabase/client'
 import { useAuth } from '@/hooks/useAuth'
@@ -480,12 +480,12 @@ function CallTimeline({ logs }: { logs: CrmCallLog[] }) {
                   <span className="text-muted-foreground">· {log.sdr_name}</span>
                   {log.temperature_after && <Badge variant="secondary" className="text-[10px]">{log.temperature_after}</Badge>}
                   {log.meeting_booked && <Badge className="text-[10px] bg-green-600">Reunião agendada</Badge>}
-                  {log.proof_path && <ProofLink path={log.proof_path} />}
                 </div>
                 <div className="text-xs mt-0.5">{log.result || '—'}</div>
                 {log.observation && (
                   <div className="text-xs text-muted-foreground italic mt-0.5">"{log.observation}"</div>
                 )}
+                {log.proof_path && <ProofImage path={log.proof_path} />}
               </li>
             )
           })}
@@ -495,21 +495,33 @@ function CallTimeline({ logs }: { logs: CrmCallLog[] }) {
   )
 }
 
-function ProofLink({ path }: { path: string }) {
-  const open = async () => {
-    const { data, error } = await supabase.storage
-      .from('crm-attachments')
-      .createSignedUrl(path, 600)
-    if (error || !data?.signedUrl) {
-      toast.error('Não foi possível abrir o print.')
-      return
-    }
-    window.open(data.signedUrl, '_blank', 'noopener,noreferrer')
+function ProofImage({ path }: { path: string }) {
+  const [url, setUrl] = useState<string | null>(null)
+  const [err, setErr] = useState(false)
+  useEffect(() => {
+    let cancelled = false
+    supabase.storage.from('crm-attachments').createSignedUrl(path, 600).then(({ data, error }) => {
+      if (cancelled) return
+      if (error || !data?.signedUrl) { setErr(true); return }
+      setUrl(data.signedUrl)
+    })
+    return () => { cancelled = true }
+  }, [path])
+  if (err) return <div className="text-[10px] text-red-600 mt-1">Não foi possível carregar o print.</div>
+  if (!url) return <div className="text-[10px] text-muted-foreground mt-1 italic">Carregando print…</div>
+  const isImage = /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(path)
+  if (!isImage) {
+    return (
+      <a href={url} target="_blank" rel="noopener noreferrer" className="text-[10px] inline-flex items-center gap-1 text-blue-600 hover:underline mt-1">
+        <Paperclip className="w-3 h-3" /> Abrir anexo
+      </a>
+    )
   }
   return (
-    <button type="button" onClick={open} className="text-[10px] inline-flex items-center gap-1 text-blue-600 hover:underline">
-      <Paperclip className="w-3 h-3" /> Ver print
-    </button>
+    <a href={url} target="_blank" rel="noopener noreferrer" className="block mt-2 max-w-xs">
+      <img src={url} alt="Print da conversa" className="rounded border border-muted max-h-48 object-contain bg-muted/30" />
+      <span className="text-[10px] text-muted-foreground hover:underline">Abrir em tamanho real</span>
+    </a>
   )
 }
 
