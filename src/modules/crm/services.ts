@@ -57,7 +57,15 @@ export async function fetchHotDeals(limit = 30) {
     .order('value', { ascending: false })
     .limit(limit)
   if (error) throw error
-  return (data ?? []) as CrmPipeline[]
+
+  const today = Date.now()
+  const withDays = (data ?? []).map(row => ({
+    ...row,
+    days_without_contact: row.last_contact_at
+      ? Math.floor((today - new Date(row.last_contact_at).getTime()) / 86_400_000)
+      : null,
+  }))
+  return withDays as CrmPipeline[]
 }
 
 export async function fetchCallLogs(opts?: { pipelineId?: string; date?: string }) {
