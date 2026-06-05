@@ -177,6 +177,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <div className="truncate text-[10px] uppercase tracking-widest text-muted-foreground">Sales Intelligence</div>
             </div>
           </div>
+          <LiveClock />
           <Button variant="ghost" size="icon" className="relative h-7 w-7">
             <Bell className="h-4 w-4" />
           </Button>
