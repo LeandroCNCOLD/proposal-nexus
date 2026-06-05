@@ -5,22 +5,29 @@ import { fetchMyWallet, unlockLead, renewLock, updatePipelineField } from '@/mod
 import { insertCallLog } from '@/modules/sdr/services'
 import { useAuth } from '@/hooks/useAuth'
 import {
-  CALL_RESULT_OPTIONS, TEMPERATURE_OPTIONS, SDR_STATUS_OPTIONS, CLOSER_NAMES,
+  CALL_RESULT_OPTIONS, TEMPERATURE_OPTIONS, CLOSER_NAMES,
   type CrmPipeline, type CallResult, type Temperature, type SdrStatus,
 } from '@/modules/sdr/types'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { Unlock, Clock, MapPin, Phone, DollarSign } from 'lucide-react'
+import { Unlock, Clock, MapPin, Phone, DollarSign, ChevronDown, ChevronUp, Mail, Building2, FileText, Calendar } from 'lucide-react'
 import { toast } from 'sonner'
+import { CallScriptDialog } from '@/modules/sdr/components/CallScriptDialog'
 
 export const Route = createFileRoute('/app/sdr/wallet')({
   component: WalletPage,
 })
 
-function fmtBRL(v: number) {
+function fmtBRL(v: number | null | undefined) {
+  if (v == null) return '—'
   return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })
+}
+
+function fmtDate(iso: string | null | undefined) {
+  if (!iso) return '—'
+  return new Date(iso).toLocaleDateString('pt-BR')
 }
 
 function daysUntil(iso: string | null) {
@@ -32,6 +39,8 @@ function WalletPage() {
   const { user } = useAuth()
   const qc = useQueryClient()
   const sdrName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'SDR'
+
+  const [scriptLead, setScriptLead] = useState<CrmPipeline | null>(null)
 
   const { data: leads = [], isLoading } = useQuery({
     queryKey: ['my-wallet', user?.id],
@@ -71,6 +80,7 @@ function WalletPage() {
               key={lead.id}
               lead={lead}
               sdrName={sdrName}
+              onOpenScript={() => setScriptLead(lead)}
               onUnlock={() => {
                 if (confirm(`Devolver "${lead.client_name}" ao banco?`)) unlockMut.mutate(lead.id)
               }}
@@ -78,12 +88,24 @@ function WalletPage() {
           ))}
         </div>
       )}
+
+      <CallScriptDialog
+        lead={scriptLead}
+        open={!!scriptLead}
+        onOpenChange={(o) => !o && setScriptLead(null)}
+      />
     </div>
   )
 }
 
-function LeadCard({ lead, sdrName, onUnlock }: { lead: CrmPipeline; sdrName: string; onUnlock: () => void }) {
+function LeadCard({ lead, sdrName, onUnlock, onOpenScript }: {
+  lead: CrmPipeline
+  sdrName: string
+  onUnlock: () => void
+  onOpenScript: () => void
+}) {
   const qc = useQueryClient()
+  const [expanded, setExpanded] = useState(false)
   const [result, setResult] = useState<CallResult | ''>('')
   const [tempAfter, setTempAfter] = useState<Temperature | ''>(lead.temperature)
   const [observation, setObservation] = useState('')
@@ -140,13 +162,20 @@ function LeadCard({ lead, sdrName, onUnlock }: { lead: CrmPipeline; sdrName: str
   return (
     <div className="border rounded-lg p-4 bg-card space-y-3">
       <div className="flex items-start justify-between gap-3 flex-wrap">
-        <div>
+        <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-mono text-xs text-muted-foreground">{lead.lead_code}</span>
             <h3 className="font-bold text-lg">{lead.client_name}</h3>
             <Badge variant="secondary">{lead.temperature}</Badge>
             <Badge variant="outline">{lead.sdr_status}</Badge>
+            {lead.priority && <Badge>{lead.priority}</Badge>}
           </div>
+          {lead.razao_social && lead.razao_social !== lead.client_name && (
+            <div className="text-sm text-muted-foreground mt-1">
+              <Building2 className="w-3 h-3 inline mr-1" />
+              {lead.razao_social} {lead.cnpj && <span className="font-mono text-xs">· {lead.cnpj}</span>}
+            </div>
+          )}
           <div className="flex gap-4 text-sm text-muted-foreground mt-1 flex-wrap">
             <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{lead.city || '—'}/{lead.state || '—'}</span>
             <span className="flex items-center gap-1"><DollarSign className="w-3 h-3" />{fmtBRL(lead.value)}</span>
@@ -154,13 +183,94 @@ function LeadCard({ lead, sdrName, onUnlock }: { lead: CrmPipeline; sdrName: str
               <Clock className="w-3 h-3" />
               Lock expira em {remaining ?? '—'} dia{remaining === 1 ? '' : 's'}
             </span>
+            {lead.contact_name && (
+              <span className="flex items-center gap-1">👤 {lead.contact_name}</span>
+            )}
           </div>
         </div>
-        <Button size="sm" variant="outline" onClick={onUnlock}>
-          <Unlock className="w-3 h-3 mr-1" /> Devolver ao banco
-        </Button>
+        <div className="flex gap-2 flex-wrap">
+          <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={onOpenScript}>
+            <Phone className="w-3 h-3 mr-1" /> Ligar / Script
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => setExpanded(e => !e)}>
+            {expanded ? <ChevronUp className="w-3 h-3 mr-1" /> : <ChevronDown className="w-3 h-3 mr-1" />}
+            Detalhes
+          </Button>
+          <Button size="sm" variant="outline" onClick={onUnlock}>
+            <Unlock className="w-3 h-3 mr-1" /> Devolver
+          </Button>
+        </div>
       </div>
 
+      {/* DETALHES expandidos */}
+      {expanded && (
+        <div className="border-t pt-3 space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+            <DetailSection icon={<FileText className="w-4 h-4" />} title="Proposta">
+              <Row label="Título" value={lead.proposal_title} />
+              <Row label="Versão" value={lead.proposal_version != null ? String(lead.proposal_version) : null} />
+              <Row label="Desconto" value={lead.discount_pct != null ? `${lead.discount_pct}%` : null} />
+              <Row label="Validade" value={lead.validity_days ? `${lead.validity_days} dias` : null} />
+              {lead.proposal_desc && (
+                <div className="text-xs text-muted-foreground mt-1 pt-1 border-t">{lead.proposal_desc}</div>
+              )}
+            </DetailSection>
+
+            <DetailSection icon={<Phone className="w-4 h-4" />} title="Contato">
+              <Row label="Nome" value={lead.contact_name} />
+              <Row label="Celular" value={lead.contact_mobile} mono />
+              <Row label="Fixo" value={lead.contact_phone} mono />
+              <Row
+                label="E-mail"
+                value={lead.contact_email}
+                renderValue={(v) => (
+                  <a href={`mailto:${v}`} className="text-blue-600 hover:underline inline-flex items-center gap-1">
+                    <Mail className="w-3 h-3" /> {v}
+                  </a>
+                )}
+              />
+            </DetailSection>
+
+            <DetailSection icon={<Calendar className="w-4 h-4" />} title="Datas e prazos">
+              <Row label="Data proposta" value={fmtDate(lead.proposal_date)} />
+              <Row label="Entrega prevista" value={fmtDate(lead.expected_delivery)} />
+              <Row label="Fechamento esperado" value={fmtDate(lead.expected_closing)} />
+              <Row label="Último contato" value={fmtDate(lead.last_contact_at)} />
+              <Row label="Próximo contato" value={fmtDate(lead.next_contact_at)} />
+              {lead.delivery_term && (
+                <div className="text-xs text-muted-foreground mt-1 pt-1 border-t">
+                  <strong>Prazo entrega:</strong> {lead.delivery_term}
+                </div>
+              )}
+            </DetailSection>
+          </div>
+
+          {(lead.call_observation || lead.internal_note || lead.next_step) && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm pt-2 border-t">
+              {lead.call_observation && (
+                <div>
+                  <div className="text-xs font-semibold text-muted-foreground">Última observação</div>
+                  <p className="text-xs mt-1">{lead.call_observation}</p>
+                </div>
+              )}
+              {lead.next_step && (
+                <div>
+                  <div className="text-xs font-semibold text-muted-foreground">Próximo passo</div>
+                  <p className="text-xs mt-1">{lead.next_step}</p>
+                </div>
+              )}
+              {lead.internal_note && (
+                <div>
+                  <div className="text-xs font-semibold text-muted-foreground">Nota interna</div>
+                  <p className="text-xs mt-1 italic">{lead.internal_note}</p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* REGISTRO DE LIGAÇÃO */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 border-t pt-3">
         <div className="space-y-2">
           <label className="text-xs font-semibold">Resultado da ligação *</label>
@@ -201,10 +311,36 @@ function LeadCard({ lead, sdrName, onUnlock }: { lead: CrmPipeline; sdrName: str
 
       <div className="flex justify-end gap-2 border-t pt-3">
         <Button onClick={() => registerMut.mutate()} disabled={!result || registerMut.isPending}>
-          <Phone className="w-3 h-3 mr-1" />
           {registerMut.isPending ? 'Salvando...' : 'Registrar ligação'}
         </Button>
       </div>
+    </div>
+  )
+}
+
+function DetailSection({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-1 bg-muted/30 rounded-md p-2.5">
+      <div className="text-xs font-bold uppercase tracking-wide text-muted-foreground flex items-center gap-1">
+        {icon} {title}
+      </div>
+      <div className="space-y-0.5">{children}</div>
+    </div>
+  )
+}
+
+function Row({ label, value, mono, renderValue }: {
+  label: string
+  value: string | null | undefined
+  mono?: boolean
+  renderValue?: (v: string) => React.ReactNode
+}) {
+  return (
+    <div className="flex justify-between gap-2 text-xs">
+      <span className="text-muted-foreground">{label}:</span>
+      <span className={`text-right ${mono ? 'font-mono' : ''} ${!value ? 'text-muted-foreground/60' : ''}`}>
+        {value ? (renderValue ? renderValue(value) : value) : '—'}
+      </span>
     </div>
   )
 }

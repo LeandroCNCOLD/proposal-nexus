@@ -116,14 +116,16 @@ function BankPage() {
       {isLoading ? (
         <div className="text-center py-12 text-muted-foreground">Carregando...</div>
       ) : (
-        <div className="border rounded-md overflow-hidden">
+        <div className="border rounded-md overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-muted/50">
               <tr className="text-left">
                 <th className="px-3 py-2">Lead</th>
-                <th className="px-3 py-2">Cliente</th>
+                <th className="px-3 py-2">Cliente / Razão Social</th>
+                <th className="px-3 py-2">Contato</th>
                 <th className="px-3 py-2">UF</th>
                 <th className="px-3 py-2 text-right">Valor</th>
+                <th className="px-3 py-2">Data</th>
                 <th className="px-3 py-2">Temp.</th>
                 <th className="px-3 py-2">Status</th>
                 <th className="px-3 py-2 text-right">Ação</th>
@@ -134,17 +136,28 @@ function BankPage() {
                 const lockedByMe = r.locked_by_sdr_id === user?.id
                 const lockedByOther = !!r.locked_by_sdr_id && !lockedByMe
                 return (
-                  <tr key={r.id} className="border-t hover:bg-muted/20">
+                  <tr key={r.id} className="border-t hover:bg-muted/20 align-top">
                     <td className="px-3 py-2 font-mono text-xs">{r.lead_code}</td>
-                    <td className="px-3 py-2 font-semibold">{r.client_name}</td>
+                    <td className="px-3 py-2">
+                      <div className="font-semibold">{r.client_name}</div>
+                      {r.razao_social && r.razao_social !== r.client_name && (
+                        <div className="text-xs text-muted-foreground">{r.razao_social}</div>
+                      )}
+                      {r.cnpj && <div className="text-[10px] font-mono text-muted-foreground">{r.cnpj}</div>}
+                    </td>
+                    <td className="px-3 py-2 text-xs">
+                      <div>{r.contact_name || '—'}</div>
+                      <div className="text-muted-foreground font-mono">{r.contact_mobile || r.contact_phone || '—'}</div>
+                    </td>
                     <td className="px-3 py-2">{r.state || '—'}</td>
-                    <td className="px-3 py-2 text-right">{fmtBRL(r.value)}</td>
+                    <td className="px-3 py-2 text-right font-semibold">{fmtBRL(r.value)}</td>
+                    <td className="px-3 py-2 text-xs">{r.proposal_date ? new Date(r.proposal_date).toLocaleDateString('pt-BR') : '—'}</td>
                     <td className="px-3 py-2">
                       <Badge className={TEMP_COLORS[r.temperature] || ''} variant="secondary">{r.temperature}</Badge>
                     </td>
-                    <td className="px-3 py-2">
+                    <td className="px-3 py-2 text-xs">
                       {lockedByMe && <Badge className="bg-blue-100 text-blue-800"><Briefcase className="w-3 h-3 mr-1" />Minha carteira</Badge>}
-                      {lockedByOther && <Badge className="bg-orange-100 text-orange-800"><Lock className="w-3 h-3 mr-1" />Em uso · {r.locked_by_sdr_name}</Badge>}
+                      {lockedByOther && <Badge className="bg-orange-100 text-orange-800"><Lock className="w-3 h-3 mr-1" />{r.locked_by_sdr_name}</Badge>}
                       {!r.locked_by_sdr_id && <Badge variant="outline" className="text-green-700 border-green-300">Livre</Badge>}
                     </td>
                     <td className="px-3 py-2 text-right">
@@ -156,7 +169,7 @@ function BankPage() {
                           onClick={() => lockMut.mutate(r.id)}
                           title={atLimit ? `Limite de ${SDR_LOCK_LIMIT} atingido` : 'Pegar lead'}
                         >
-                          <Lock className="w-3 h-3 mr-1" /> Pegar lead
+                          <Lock className="w-3 h-3 mr-1" /> Pegar
                         </Button>
                       )}
                       {lockedByMe && (
@@ -169,7 +182,7 @@ function BankPage() {
                 )
               })}
               {filtered.length === 0 && (
-                <tr><td colSpan={7} className="text-center py-8 text-muted-foreground">Nenhuma lead encontrada</td></tr>
+                <tr><td colSpan={9} className="text-center py-8 text-muted-foreground">Nenhuma lead encontrada</td></tr>
               )}
             </tbody>
           </table>

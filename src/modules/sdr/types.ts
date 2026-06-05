@@ -57,6 +57,22 @@ export interface CrmPipeline {
   locked_by_sdr_name: string | null
   locked_at: string | null
   lock_expires_at: string | null
+  // Dados de proposta e contato
+  proposal_title: string | null
+  proposal_desc: string | null
+  proposal_version: number | null
+  razao_social: string | null
+  cnpj: string | null
+  contact_name: string | null
+  contact_email: string | null
+  contact_phone: string | null
+  contact_mobile: string | null
+  discount_pct: number | null
+  delivery_term: string | null
+  validity_days: number | null
+  proposal_date: string | null
+  expected_delivery: string | null
+  expected_closing: string | null
 }
 
 export const SDR_LOCK_LIMIT = 30
