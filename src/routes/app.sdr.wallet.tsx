@@ -138,9 +138,24 @@ function LeadCard({ lead, sdrName, onUnlock, onOpenScript }: {
   const registerMut = useMutation({
     mutationFn: async () => {
       if (!result) throw new Error('Escolha o resultado da ligação')
+      if (requiresProof && !proofFile) {
+        throw new Error(`Para contato por ${channel} é obrigatório anexar o print da conversa.`)
+      }
       const when = attemptAt ? new Date(attemptAt) : new Date()
       const dateStr = when.toISOString().slice(0, 10)
       const timeStr = when.toTimeString().slice(0, 5)
+
+      let proofPath: string | null = null
+      if (proofFile) {
+        const safe = proofFile.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+        const path = `call-logs/${lead.id}/${Date.now()}_${safe}`
+        const { error: upErr } = await supabase.storage
+          .from('crm-attachments')
+          .upload(path, proofFile, { contentType: proofFile.type || 'application/octet-stream', upsert: false })
+        if (upErr) throw new Error(`Falha no upload do print: ${upErr.message}`)
+        proofPath = path
+      }
+
       await insertCallLog({
         pipeline_id: lead.id,
         sdr_id: lead.locked_by_sdr_id,
@@ -152,6 +167,9 @@ function LeadCard({ lead, sdrName, onUnlock, onOpenScript }: {
         temperature_after: tempAfter || null,
         meeting_booked: meetingBooked,
         observation: observation || null,
+        channel,
+        proof_path: proofPath,
+        proof_validated: channel === 'Telefone' ? true : !!proofPath,
       })
 
       // Alerta para gestão na 3ª tentativa (sem reunião agendada)
