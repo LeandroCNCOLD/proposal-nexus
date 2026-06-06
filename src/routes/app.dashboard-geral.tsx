@@ -27,6 +27,10 @@ type Proposal = {
 type Lead = {
   id: string; lead_code: string; client_name: string; sdr_status: string;
   temperature: string; priority: string; value: number; created_at: string;
+  state: string | null; sdr_name: string | null; closer_name: string | null;
+  last_contact_at: string | null; next_contact_at: string | null;
+  meeting_scheduled: boolean | null; meeting_date: string | null;
+  expected_closing: string | null; probability_pct: number | null;
 };
 
 const TEMP_COLORS: Record<string, string> = {
@@ -65,7 +69,7 @@ function DashboardGeral() {
         .select("id,title,status,temperature,total_value,closed_value,created_at,closed_at")
         .eq("is_active", true);
       let leadQ = supabase.from("sdr_leads")
-        .select("id,lead_code,client_name,sdr_status,temperature,priority,value,created_at");
+        .select("id,lead_code,client_name,sdr_status,temperature,priority,value,created_at,state,sdr_name,closer_name,last_contact_at,next_contact_at,meeting_scheduled,meeting_date,expected_closing,probability_pct");
       if (!allTime) {
         const startISO = `${start}T00:00:00`;
         const endISO = `${end}T23:59:59`;
@@ -130,6 +134,88 @@ function DashboardGeral() {
     }
     return Array.from(map.entries()).map(([status, v]) => ({ status, ...v }))
       .sort((a, b) => b.count - a.count);
+  }, [leads]);
+
+  const priorityData = useMemo(() => {
+    const map = new Map<string, { count: number; value: number }>();
+    for (const l of leads) {
+      const k = l.priority || "—";
+      const cur = map.get(k) ?? { count: 0, value: 0 };
+      cur.count++; cur.value += Number(l.value ?? 0);
+      map.set(k, cur);
+    }
+    return ["Alta", "Média", "Baixa", "—"]
+      .filter(k => map.has(k))
+      .map(k => ({ priority: k, ...(map.get(k)!) }));
+  }, [leads]);
+
+  const stateData = useMemo(() => {
+    const map = new Map<string, { count: number; value: number }>();
+    for (const l of leads) {
+      const k = (l.state || "—").trim() || "—";
+      const cur = map.get(k) ?? { count: 0, value: 0 };
+      cur.count++; cur.value += Number(l.value ?? 0);
+      map.set(k, cur);
+    }
+    return Array.from(map.entries())
+      .map(([state, v]) => ({ state, ...v }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+  }, [leads]);
+
+  const sdrRanking = useMemo(() => {
+    const map = new Map<string, { count: number; value: number; hot: number; meetings: number }>();
+    for (const l of leads) {
+      const k = l.sdr_name || "Sem SDR";
+      const cur = map.get(k) ?? { count: 0, value: 0, hot: 0, meetings: 0 };
+      cur.count++; cur.value += Number(l.value ?? 0);
+      if (l.temperature === "Quente" || l.temperature === "Muito Quente") cur.hot++;
+      if (l.meeting_scheduled) cur.meetings++;
+      map.set(k, cur);
+    }
+    return Array.from(map.entries())
+      .map(([sdr, v]) => ({ sdr, ...v }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+  }, [leads]);
+
+  const followupData = useMemo(() => {
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const buckets = { semContato: 0, atrasado: 0, hoje: 0, futuro: 0, agendado: 0 };
+    for (const l of leads) {
+      if (l.meeting_scheduled) buckets.agendado++;
+      if (!l.last_contact_at && !l.next_contact_at) { buckets.semContato++; continue; }
+      if (l.next_contact_at) {
+        const d = new Date(l.next_contact_at); d.setHours(0, 0, 0, 0);
+        const diff = (d.getTime() - today.getTime()) / 86400000;
+        if (diff < 0) buckets.atrasado++;
+        else if (diff === 0) buckets.hoje++;
+        else buckets.futuro++;
+      }
+    }
+    return [
+      { label: "Sem contato", value: buckets.semContato, color: "hsl(220 10% 60%)" },
+      { label: "Follow-up atrasado", value: buckets.atrasado, color: "hsl(0 80% 55%)" },
+      { label: "Follow-up hoje", value: buckets.hoje, color: "hsl(40 90% 55%)" },
+      { label: "Follow-up futuro", value: buckets.futuro, color: "hsl(140 60% 45%)" },
+      { label: "Reunião agendada", value: buckets.agendado, color: "hsl(210 80% 55%)" },
+    ];
+  }, [leads]);
+
+  const ageData = useMemo(() => {
+    const today = new Date();
+    const buckets = [
+      { label: "0-7 dias", min: 0, max: 7, count: 0, value: 0 },
+      { label: "8-30 dias", min: 8, max: 30, count: 0, value: 0 },
+      { label: "31-90 dias", min: 31, max: 90, count: 0, value: 0 },
+      { label: "90+ dias", min: 91, max: 99999, count: 0, value: 0 },
+    ];
+    for (const l of leads) {
+      const days = Math.floor((today.getTime() - new Date(l.created_at).getTime()) / 86400000);
+      const b = buckets.find(b => days >= b.min && days <= b.max);
+      if (b) { b.count++; b.value += Number(l.value ?? 0); }
+    }
+    return buckets;
   }, [leads]);
 
   const PIE_COLORS = ["Frio","Morno","Quente","Muito Quente"].map(k => TEMP_COLORS[k]);
@@ -288,6 +374,111 @@ function DashboardGeral() {
                   </div>
                 ))}
                 {!sdrStatusData.length && <div className="py-8 text-center text-sm text-muted-foreground">Sem leads no período.</div>}
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="grid gap-3 lg:grid-cols-2">
+            <Card>
+              <CardHeader><CardTitle className="text-sm">Follow-up (CNsync)</CardTitle></CardHeader>
+              <CardContent className="h-[260px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={followupData} layout="vertical" margin={{ left: 110 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis type="number" tick={{ fontSize: 11 }} />
+                    <YAxis type="category" dataKey="label" tick={{ fontSize: 11 }} width={140} />
+                    <Tooltip />
+                    <Bar dataKey="value">
+                      {followupData.map((d, i) => <Cell key={i} fill={d.color} />)}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader><CardTitle className="text-sm">Prioridade</CardTitle></CardHeader>
+              <CardContent>
+                <div className="space-y-1">
+                  {priorityData.map(p => (
+                    <div key={p.priority} className="flex items-center justify-between rounded border px-3 py-2 text-sm">
+                      <div className="flex items-center gap-2">
+                        <Badge variant={p.priority === "Alta" ? "destructive" : p.priority === "Média" ? "default" : "outline"}>{p.count}</Badge>
+                        <span>{p.priority}</span>
+                      </div>
+                      <span className="tabular-nums text-muted-foreground">{fmtBRL(p.value)}</span>
+                    </div>
+                  ))}
+                  {!priorityData.length && <div className="py-8 text-center text-sm text-muted-foreground">Sem dados.</div>}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader><CardTitle className="text-sm">Idade do Lead</CardTitle></CardHeader>
+              <CardContent className="h-[260px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={ageData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                    <YAxis tick={{ fontSize: 11 }} />
+                    <Tooltip formatter={(v: number, n: string) => n === "value" ? fmtBRL(Number(v)) : v} />
+                    <Legend wrapperStyle={{ fontSize: 11 }} />
+                    <Bar dataKey="count" fill="hsl(210 80% 55%)" name="Qtd." />
+                    <Bar dataKey="value" fill="hsl(265 75% 60%)" name="Valor" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader><CardTitle className="text-sm">Top 10 Estados</CardTitle></CardHeader>
+              <CardContent>
+                <div className="space-y-1">
+                  {stateData.map(s => (
+                    <div key={s.state} className="flex items-center justify-between rounded border px-3 py-2 text-sm">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline">{s.count}</Badge>
+                        <span className="font-medium">{s.state}</span>
+                      </div>
+                      <span className="tabular-nums text-muted-foreground">{fmtBRL(s.value)}</span>
+                    </div>
+                  ))}
+                  {!stateData.length && <div className="py-8 text-center text-sm text-muted-foreground">Sem dados.</div>}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card>
+            <CardHeader><CardTitle className="text-sm">Ranking de SDRs</CardTitle></CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="text-xs uppercase text-muted-foreground">
+                    <tr className="border-b">
+                      <th className="px-2 py-1.5 text-left">SDR</th>
+                      <th className="px-2 py-1.5 text-right">Leads</th>
+                      <th className="px-2 py-1.5 text-right">Quentes</th>
+                      <th className="px-2 py-1.5 text-right">Reuniões</th>
+                      <th className="px-2 py-1.5 text-right">Valor</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sdrRanking.map(s => (
+                      <tr key={s.sdr} className="border-b last:border-0">
+                        <td className="px-2 py-1.5">{s.sdr}</td>
+                        <td className="px-2 py-1.5 text-right tabular-nums">{s.count}</td>
+                        <td className="px-2 py-1.5 text-right tabular-nums">{s.hot}</td>
+                        <td className="px-2 py-1.5 text-right tabular-nums">{s.meetings}</td>
+                        <td className="px-2 py-1.5 text-right tabular-nums">{fmtBRL(s.value)}</td>
+                      </tr>
+                    ))}
+                    {!sdrRanking.length && (
+                      <tr><td colSpan={5} className="py-8 text-center text-muted-foreground">Sem dados.</td></tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
             </CardContent>
           </Card>
