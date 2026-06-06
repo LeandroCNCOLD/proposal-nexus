@@ -69,7 +69,7 @@ function DashboardGeral() {
         .select("id,title,status,temperature,total_value,closed_value,created_at,closed_at")
         .eq("is_active", true);
       let leadQ = supabase.from("sdr_leads")
-        .select("id,lead_code,client_name,sdr_status,temperature,priority,value,created_at");
+        .select("id,lead_code,client_name,sdr_status,temperature,priority,value,created_at,state,sdr_name,closer_name,last_contact_at,next_contact_at,meeting_scheduled,meeting_date,expected_closing,probability_pct");
       if (!allTime) {
         const startISO = `${start}T00:00:00`;
         const endISO = `${end}T23:59:59`;
