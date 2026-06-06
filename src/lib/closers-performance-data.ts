@@ -45,7 +45,7 @@ export async function fetchClosersPerfData(mes: string) {
 
   const [profilesRes, rolesRes, agendaRes, proposalsRes, metasRes, meRes] = await Promise.all([
     supabase.from("profiles").select("id,full_name"),
-    supabase.from("user_roles").select("user_id,role").in("role", ["vendedor"]),
+    supabase.from("user_roles").select("user_id,role").in("role", ["vendedor", "gerente"]),
     supabase
       .from("crm_agenda")
       .select("id,closer_nome,status,data_inicio")
