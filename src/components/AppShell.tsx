@@ -61,6 +61,9 @@ const NAV = [
     { to: "/app/sdr/sdr-performance", label: "Desempenho dos SDRs", icon: BarChart2 },
     { to: "/app/sdr/scripts", label: "Scripts de Ligação", icon: FileText },
   ]},
+  { group: "Vendas", items: [
+    { to: "/app/vendas/carteira", label: "Minha Carteira (Vendas)", icon: Briefcase },
+  ]},
   { group: "Operação", items: [
     { to: "/app", label: "Dashboard", icon: LayoutDashboard, exact: true },
     { to: "/app/dashboard-geral", label: "Dashboard Geral", icon: BarChart2 },

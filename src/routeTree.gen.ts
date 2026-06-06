@@ -29,6 +29,7 @@ import { Route as AppSdrIndexRouteImport } from './routes/app.sdr.index'
 import { Route as AppPropostasIndexRouteImport } from './routes/app.propostas.index'
 import { Route as AppConfiguracoesIndexRouteImport } from './routes/app.configuracoes.index'
 import { Route as AppColdproIndexRouteImport } from './routes/app.coldpro.index'
+import { Route as AppVendasCarteiraRouteImport } from './routes/app.vendas.carteira'
 import { Route as AppSdrWarRoomRouteImport } from './routes/app.sdr.war-room'
 import { Route as AppSdrWalletRouteImport } from './routes/app.sdr.wallet'
 import { Route as AppSdrSdrPerformanceRouteImport } from './routes/app.sdr.sdr-performance'
@@ -158,6 +159,11 @@ const AppConfiguracoesIndexRoute = AppConfiguracoesIndexRouteImport.update({
 const AppColdproIndexRoute = AppColdproIndexRouteImport.update({
   id: '/coldpro/',
   path: '/coldpro/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppVendasCarteiraRoute = AppVendasCarteiraRouteImport.update({
+  id: '/vendas/carteira',
+  path: '/vendas/carteira',
   getParentRoute: () => AppRoute,
 } as any)
 const AppSdrWarRoomRoute = AppSdrWarRoomRouteImport.update({
@@ -359,6 +365,7 @@ export interface FileRoutesByFullPath {
   '/app/sdr/sdr-performance': typeof AppSdrSdrPerformanceRoute
   '/app/sdr/wallet': typeof AppSdrWalletRoute
   '/app/sdr/war-room': typeof AppSdrWarRoomRoute
+  '/app/vendas/carteira': typeof AppVendasCarteiraRoute
   '/app/coldpro/': typeof AppColdproIndexRoute
   '/app/configuracoes/': typeof AppConfiguracoesIndexRoute
   '/app/propostas/': typeof AppPropostasIndexRoute
@@ -408,6 +415,7 @@ export interface FileRoutesByTo {
   '/app/sdr/sdr-performance': typeof AppSdrSdrPerformanceRoute
   '/app/sdr/wallet': typeof AppSdrWalletRoute
   '/app/sdr/war-room': typeof AppSdrWarRoomRoute
+  '/app/vendas/carteira': typeof AppVendasCarteiraRoute
   '/app/coldpro': typeof AppColdproIndexRoute
   '/app/configuracoes': typeof AppConfiguracoesIndexRoute
   '/app/propostas': typeof AppPropostasIndexRoute
@@ -461,6 +469,7 @@ export interface FileRoutesById {
   '/app/sdr/sdr-performance': typeof AppSdrSdrPerformanceRoute
   '/app/sdr/wallet': typeof AppSdrWalletRoute
   '/app/sdr/war-room': typeof AppSdrWarRoomRoute
+  '/app/vendas/carteira': typeof AppVendasCarteiraRoute
   '/app/coldpro/': typeof AppColdproIndexRoute
   '/app/configuracoes/': typeof AppConfiguracoesIndexRoute
   '/app/propostas/': typeof AppPropostasIndexRoute
@@ -515,6 +524,7 @@ export interface FileRouteTypes {
     | '/app/sdr/sdr-performance'
     | '/app/sdr/wallet'
     | '/app/sdr/war-room'
+    | '/app/vendas/carteira'
     | '/app/coldpro/'
     | '/app/configuracoes/'
     | '/app/propostas/'
@@ -564,6 +574,7 @@ export interface FileRouteTypes {
     | '/app/sdr/sdr-performance'
     | '/app/sdr/wallet'
     | '/app/sdr/war-room'
+    | '/app/vendas/carteira'
     | '/app/coldpro'
     | '/app/configuracoes'
     | '/app/propostas'
@@ -616,6 +627,7 @@ export interface FileRouteTypes {
     | '/app/sdr/sdr-performance'
     | '/app/sdr/wallet'
     | '/app/sdr/war-room'
+    | '/app/vendas/carteira'
     | '/app/coldpro/'
     | '/app/configuracoes/'
     | '/app/propostas/'
@@ -784,6 +796,13 @@ declare module '@tanstack/react-router' {
       path: '/coldpro'
       fullPath: '/app/coldpro/'
       preLoaderRoute: typeof AppColdproIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/vendas/carteira': {
+      id: '/app/vendas/carteira'
+      path: '/vendas/carteira'
+      fullPath: '/app/vendas/carteira'
+      preLoaderRoute: typeof AppVendasCarteiraRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/sdr/war-room': {
@@ -1100,6 +1119,7 @@ interface AppRouteChildren {
   AppSdrSdrPerformanceRoute: typeof AppSdrSdrPerformanceRoute
   AppSdrWalletRoute: typeof AppSdrWalletRoute
   AppSdrWarRoomRoute: typeof AppSdrWarRoomRoute
+  AppVendasCarteiraRoute: typeof AppVendasCarteiraRoute
   AppColdproIndexRoute: typeof AppColdproIndexRoute
   AppPropostasIndexRoute: typeof AppPropostasIndexRoute
   AppSdrIndexRoute: typeof AppSdrIndexRoute
@@ -1132,6 +1152,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppSdrSdrPerformanceRoute: AppSdrSdrPerformanceRoute,
   AppSdrWalletRoute: AppSdrWalletRoute,
   AppSdrWarRoomRoute: AppSdrWarRoomRoute,
+  AppVendasCarteiraRoute: AppVendasCarteiraRoute,
   AppColdproIndexRoute: AppColdproIndexRoute,
   AppPropostasIndexRoute: AppPropostasIndexRoute,
   AppSdrIndexRoute: AppSdrIndexRoute,
