@@ -1,58 +1,98 @@
 ## Objetivo
 
-Sinalizar visualmente, nas listas já existentes, quando uma proposta do Nomus tem um lead SDR correspondente — e vice-versa — usando como chave **CNPJ** (principal) e, como fallback, **título da proposta vs `lead_code` / `proposal_title` do lead**.
+Trazer para o detalhe da proposta (`/app/propostas/$id`) o mesmo conceito da **Minha Carteira** (Timeline rica + Tarefas + Agenda + Follow-up sincronizados), e criar uma **Minha Carteira (Vendas)** para vendedores/closers verem as propostas Nomus atribuídas a eles.
 
-## Regra de cruzamento (uma única fonte de verdade)
+---
 
-Criar uma função SQL `public.match_proposal_lead(proposal_id uuid)` e uma view de apoio:
+## 1. Detalhe da proposta — abas unificadas
 
-```text
-proposta ↔ lead casam quando:
-  1. CNPJ normalizado (só dígitos) da proposta == CNPJ normalizado do lead   (match forte)
-  OU
-  2. CNPJ ausente em um dos lados E (
-        upper(trim(proposta.title)) == upper(trim(lead.proposal_title))
-        OU upper(trim(proposta.title)) == upper(trim(lead.lead_code))
-        OU proposta.nomus_id::text == lead.lead_code
-     )                                                                        (match fraco)
-```
+Substituir o `<Tabs>` atual (Timeline / Versões / Tarefas-em breve) por **4 abas reais**, todas alimentando-se umas das outras:
 
-Entregar via **view** `public.v_proposal_lead_matches` com colunas:
-`proposal_id, lead_id, match_type ('cnpj' | 'titulo'), cnpj_digits, proposal_title, lead_code, client_name`.
+### 1.1 Timeline unificada
+Misturar em uma única lista ordenada por data:
+- `proposal_timeline_events` (eventos manuais, status, IA)
+- `proposal_send_events` (envios) → ícone Send
+- `proposal_send_versions` (PDFs gerados) → ícone FileText
+- `proposal_status_history` (mudanças de status) → ícone Badge
+- `crm_agenda` ligadas à proposta → ícone Calendar
+- `proposal_tasks` concluídas → ícone CheckCircle
 
-Acesso: `GRANT SELECT ... TO authenticated`. Sem dados sensíveis novos — só ids e títulos que o usuário já vê.
+Cada item: ícone + descrição curta + data/hora + autor (quando houver).
 
-## UI — badges nas listas existentes
+### 1.2 Aba Tarefas (funcional)
+- Lista `proposal_tasks` da proposta atual (ordem: pendentes por due_date, depois concluídas).
+- Form inline para criar (título, descrição opcional, due_date, priority, assignee — closers/vendedores via `get_team_members_by_role`).
+- Checkbox para marcar como concluída → grava `completed_at` e insere evento na timeline.
+- Editar/excluir respeitando policies já existentes.
 
-1. **Lista de Propostas** (`src/routes/app.propostas.index.tsx`)
-   - Nova coluna/badge "Lead SDR" exibida quando a proposta aparece em `v_proposal_lead_matches`.
-   - Badge `secondary` com tooltip "Casado por CNPJ" ou "Casado por título" conforme `match_type`.
-   - Clique no badge → navega para `/app/sdr/bank?leadId={lead_id}` (já é a rota usada para abrir o lead).
+### 1.3 Aba Agenda (nova)
+- Lista `crm_agenda` onde `proposal_number = p.number` (vinculação por número da proposta; já existe coluna).
+- Botão "Nova reunião" abre Dialog com: tipo, data/hora, duração, local/link, closer (auto-preenche com `nomus_seller_name`/closer atual), contato, observações.
+- Ao salvar → insere em `crm_agenda` (aparece automaticamente em `/app/agenda`) e cria evento na timeline.
+- Cada item mostra status (Agendado/Realizado/etc) e ações: Confirmar / Concluir / Cancelar.
 
-2. **Listas SDR** (`bank`, `wallet`, `hot-deals` — todas consomem `src/modules/sdr/services.ts`)
-   - Badge "Proposta Nomus" no card/linha do lead quando houver match.
-   - Tooltip mostra `nomus_id` da proposta; clique abre `/app/propostas/{proposal_id}`.
+### 1.4 Aba Follow-up
+- Campos editáveis (mesmo padrão de Minha Carteira): `next_followup_at`, próximo passo (`commercial_notes` ou novo campo), temperatura, probabilidade.
+- Botão "Registrar follow-up" insere evento na timeline e atualiza os campos.
 
-3. Carregamento eficiente: uma única query no carregamento da lista busca `select proposal_id, lead_id, match_type from v_proposal_lead_matches where proposal_id in (...)` (ou `lead_id in (...)`) e monta um `Map` para lookup O(1) na renderização. Sem N+1.
+Manter aba **Versões** acessível (mover para sub-seção dentro da Timeline ou em accordion separado abaixo).
 
-## Filtros (escopo mínimo, não-bloqueante)
+---
 
-- Propostas: toggle "Somente com lead SDR".
-- SDR (bank/wallet): toggle "Somente com proposta Nomus".
+## 2. Nova rota: Minha Carteira (Vendas)
 
-## Arquivos previstos
+**Arquivo**: `src/routes/app.vendas.carteira.tsx` (rota `/app/vendas/carteira`)
 
-- **Migration:** cria `v_proposal_lead_matches` + grants.
-- **Hook:** `src/hooks/use-proposal-lead-matches.ts` — recebe `proposalIds?` ou `leadIds?` e retorna o `Map`.
-- **Edita:** `src/routes/app.propostas.index.tsx` (badge + filtro).
-- **Edita:** `src/modules/sdr/components/*` (linha/cartão do lead — identificar o componente compartilhado das três rotas SDR e adicionar o badge ali).
+### Conteúdo
+- Header: "Minha Carteira (Vendas)" + nome do vendedor + contadores (propostas abertas, valor total em pipeline, fechadas no mês, win rate).
+- Lista de propostas onde o usuário logado é o vendedor responsável, agrupadas por status (Em elaboração / Enviada / Em negociação / Ganha / Perdida).
+- Cada card: número, cliente, valor, temperatura, próximo follow-up, última atividade, botão "Abrir proposta".
+- Filtros: período (presets + custom), status, temperatura, busca por cliente.
 
-## Fora de escopo
+### Identificação do vendedor (match híbrido)
+1. Se `profiles.nomus_seller_id` (nova coluna) preenchido → match por `nomus_proposals.vendedor_nomus_id`.
+2. Senão → match por nome normalizado: `proposals.nomus_seller_name` ou `nomus_proposals.vendedor_nome` ≈ `profiles.full_name` (UPPER + trim).
+3. Também incluir propostas onde `proposals.sales_owner_id = auth.uid()` (CN Cold internas).
 
-- Não cria nova página de relatório.
-- Não altera a regra de negócio de "ganhar/perder" proposta.
-- Não mexe em sync com Nomus.
+Query consolidada: união de `proposals` (com join opcional em `nomus_proposals` quando `nomus_proposal_id` existe).
 
-## Resultado esperado (sanidade)
+### Menu lateral
+Adicionar item "Minha Carteira (Vendas)" em `AppShell.tsx` sob seção VENDAS (criar a seção se não existir) — visível para usuários com role `vendedor`, `gerente_comercial` ou `diretoria`.
 
-Com base no banco atual: ~45 propostas Nomus passam a mostrar o badge "Lead SDR" e ~89 leads passam a mostrar "Proposta Nomus" (números podem subir com o fallback por título).
+---
+
+## 3. Detalhes técnicos
+
+### Migration (única)
+1. `ALTER TABLE profiles ADD COLUMN nomus_seller_id text` (nullable) — para o mapeamento explícito futuro.
+2. Garantir índices: `proposals(nomus_seller_name)`, `nomus_proposals(vendedor_nomus_id)`, `crm_agenda(proposal_number)` (esse último já existe? confirmar; criar se faltar).
+3. Função helper `public.proposals_for_seller(_user_id uuid)` (SECURITY DEFINER, STABLE) que retorna IDs de propostas do vendedor (sales_owner_id OR match nomus). Simplifica RLS/queries.
+
+### Componentes novos
+- `src/components/proposal/ProposalTimelineUnified.tsx` — merge das 5 fontes em uma `ol`.
+- `src/components/proposal/ProposalTasksTab.tsx` — CRUD de `proposal_tasks`.
+- `src/components/proposal/ProposalAgendaTab.tsx` — lista + dialog de `crm_agenda`.
+- `src/components/proposal/ProposalFollowupTab.tsx` — form de próximo passo.
+- `src/components/vendas/SellerProposalCard.tsx` — card reutilizável.
+
+### Hooks novos
+- `src/hooks/use-proposal-tasks.ts`
+- `src/hooks/use-proposal-agenda.ts` (lê `crm_agenda` filtrando por `proposal_number`)
+- `src/hooks/use-seller-proposals.ts` (carteira do vendedor; usa a função SQL ou query híbrida)
+
+### Sincronização entre telas
+- Toda mutação invalida `['proposal-timeline', id]`, `['proposal-agenda', id]`, `['proposal-tasks', id]`, `['agenda']`, `['seller-wallet']`.
+- Reunião criada na proposta → aparece em `/app/agenda` (mesma tabela `crm_agenda`).
+- Tarefa atribuída ao vendedor logado → aparece em `seller-wallet` como contador "tarefas pendentes".
+
+### Edits em arquivos existentes
+- `src/routes/app.propostas.$id.index.tsx` — substituir bloco `<Tabs>` (linhas 461–518) pelos 4 componentes acima; remover `versions` da tabs e renderizar abaixo como bloco recolhível.
+- `src/components/AppShell.tsx` — adicionar item de menu (verificar gating por role).
+- `src/routeTree.gen.ts` — auto-regenerado pelo plugin (não editar).
+
+---
+
+## 4. Fora de escopo (não fazer agora)
+- Tela de cadastro do mapeamento `nomus_seller_id` por usuário (a coluna fica, formulário fica para depois).
+- Notificações push de tarefa/reunião nova.
+- Mudanças nos módulos `coldpro`/`nomus` (erros pré-existentes não relacionados).
