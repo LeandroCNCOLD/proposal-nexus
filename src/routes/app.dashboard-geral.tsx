@@ -144,19 +144,21 @@ function DashboardGeral() {
         <div className="flex flex-wrap items-end gap-2">
           <div>
             <Label className="text-xs">De</Label>
-            <Input type="date" value={start} onChange={e => setStart(e.target.value)} className="h-8 w-[140px]" />
+            <Input type="date" value={start} disabled={allTime} onChange={e => { setAllTime(false); setStart(e.target.value); }} className="h-8 w-[140px]" />
           </div>
           <div>
             <Label className="text-xs">Até</Label>
-            <Input type="date" value={end} onChange={e => setEnd(e.target.value)} className="h-8 w-[140px]" />
+            <Input type="date" value={end} disabled={allTime} onChange={e => { setAllTime(false); setEnd(e.target.value); }} className="h-8 w-[140px]" />
           </div>
           <div className="flex gap-1">
+            <Button size="sm" variant={allTime ? "default" : "outline"} onClick={() => setAllTime(true)}>Tudo</Button>
             <Button size="sm" variant="outline" onClick={() => setPreset(7)}>7d</Button>
             <Button size="sm" variant="outline" onClick={() => setPreset(30)}>30d</Button>
             <Button size="sm" variant="outline" onClick={() => setPreset(90)}>90d</Button>
             <Button size="sm" variant="outline" onClick={() => setPreset(365)}>1a</Button>
           </div>
         </div>
+
       </div>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-7">
