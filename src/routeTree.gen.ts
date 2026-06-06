@@ -17,6 +17,7 @@ import { Route as AppTarefasRouteImport } from './routes/app.tarefas'
 import { Route as AppRelatoriosRouteImport } from './routes/app.relatorios'
 import { Route as AppEquipamentosRouteImport } from './routes/app.equipamentos'
 import { Route as AppDocumentosRouteImport } from './routes/app.documentos'
+import { Route as AppDashboardGeralRouteImport } from './routes/app.dashboard-geral'
 import { Route as AppCrmRouteImport } from './routes/app.crm'
 import { Route as AppConfiguracoesRouteImport } from './routes/app.configuracoes'
 import { Route as AppConcorrentesRouteImport } from './routes/app.concorrentes'
@@ -97,6 +98,11 @@ const AppEquipamentosRoute = AppEquipamentosRouteImport.update({
 const AppDocumentosRoute = AppDocumentosRouteImport.update({
   id: '/documentos',
   path: '/documentos',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDashboardGeralRoute = AppDashboardGeralRouteImport.update({
+  id: '/dashboard-geral',
+  path: '/dashboard-geral',
   getParentRoute: () => AppRoute,
 } as any)
 const AppCrmRoute = AppCrmRouteImport.update({
@@ -327,6 +333,7 @@ export interface FileRoutesByFullPath {
   '/app/concorrentes': typeof AppConcorrentesRoute
   '/app/configuracoes': typeof AppConfiguracoesRouteWithChildren
   '/app/crm': typeof AppCrmRouteWithChildren
+  '/app/dashboard-geral': typeof AppDashboardGeralRoute
   '/app/documentos': typeof AppDocumentosRoute
   '/app/equipamentos': typeof AppEquipamentosRoute
   '/app/relatorios': typeof AppRelatoriosRoute
@@ -376,6 +383,7 @@ export interface FileRoutesByTo {
   '/app/competitiva': typeof AppCompetitivaRoute
   '/app/concorrentes': typeof AppConcorrentesRoute
   '/app/crm': typeof AppCrmRouteWithChildren
+  '/app/dashboard-geral': typeof AppDashboardGeralRoute
   '/app/documentos': typeof AppDocumentosRoute
   '/app/equipamentos': typeof AppEquipamentosRoute
   '/app/relatorios': typeof AppRelatoriosRoute
@@ -427,6 +435,7 @@ export interface FileRoutesById {
   '/app/concorrentes': typeof AppConcorrentesRoute
   '/app/configuracoes': typeof AppConfiguracoesRouteWithChildren
   '/app/crm': typeof AppCrmRouteWithChildren
+  '/app/dashboard-geral': typeof AppDashboardGeralRoute
   '/app/documentos': typeof AppDocumentosRoute
   '/app/equipamentos': typeof AppEquipamentosRoute
   '/app/relatorios': typeof AppRelatoriosRoute
@@ -480,6 +489,7 @@ export interface FileRouteTypes {
     | '/app/concorrentes'
     | '/app/configuracoes'
     | '/app/crm'
+    | '/app/dashboard-geral'
     | '/app/documentos'
     | '/app/equipamentos'
     | '/app/relatorios'
@@ -529,6 +539,7 @@ export interface FileRouteTypes {
     | '/app/competitiva'
     | '/app/concorrentes'
     | '/app/crm'
+    | '/app/dashboard-geral'
     | '/app/documentos'
     | '/app/equipamentos'
     | '/app/relatorios'
@@ -579,6 +590,7 @@ export interface FileRouteTypes {
     | '/app/concorrentes'
     | '/app/configuracoes'
     | '/app/crm'
+    | '/app/dashboard-geral'
     | '/app/documentos'
     | '/app/equipamentos'
     | '/app/relatorios'
@@ -688,6 +700,13 @@ declare module '@tanstack/react-router' {
       path: '/documentos'
       fullPath: '/app/documentos'
       preLoaderRoute: typeof AppDocumentosRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/dashboard-geral': {
+      id: '/app/dashboard-geral'
+      path: '/dashboard-geral'
+      fullPath: '/app/dashboard-geral'
+      preLoaderRoute: typeof AppDashboardGeralRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/crm': {
@@ -1062,6 +1081,7 @@ interface AppRouteChildren {
   AppConcorrentesRoute: typeof AppConcorrentesRoute
   AppConfiguracoesRoute: typeof AppConfiguracoesRouteWithChildren
   AppCrmRoute: typeof AppCrmRouteWithChildren
+  AppDashboardGeralRoute: typeof AppDashboardGeralRoute
   AppDocumentosRoute: typeof AppDocumentosRoute
   AppEquipamentosRoute: typeof AppEquipamentosRoute
   AppRelatoriosRoute: typeof AppRelatoriosRoute
@@ -1093,6 +1113,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppConcorrentesRoute: AppConcorrentesRoute,
   AppConfiguracoesRoute: AppConfiguracoesRouteWithChildren,
   AppCrmRoute: AppCrmRouteWithChildren,
+  AppDashboardGeralRoute: AppDashboardGeralRoute,
   AppDocumentosRoute: AppDocumentosRoute,
   AppEquipamentosRoute: AppEquipamentosRoute,
   AppRelatoriosRoute: AppRelatoriosRoute,

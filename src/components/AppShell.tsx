@@ -63,6 +63,7 @@ const NAV = [
   ]},
   { group: "Operação", items: [
     { to: "/app", label: "Dashboard", icon: LayoutDashboard, exact: true },
+    { to: "/app/dashboard-geral", label: "Dashboard Geral", icon: BarChart2 },
     { to: "/app/crm", label: "Funil / CRM", icon: Kanban },
     { to: "/app/agenda", label: "Agenda", icon: Calendar },
     { to: "/app/crm/closers-performance", label: "Desempenho dos Closers", icon: BarChart2 },
