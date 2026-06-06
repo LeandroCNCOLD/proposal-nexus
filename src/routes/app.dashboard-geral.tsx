@@ -49,32 +49,39 @@ function daysAgoISO(d: number) {
 }
 
 function DashboardGeral() {
+  const [allTime, setAllTime] = useState(true);
   const [start, setStart] = useState(daysAgoISO(90));
   const [end, setEnd] = useState(todayISO());
 
   const setPreset = (days: number) => {
+    setAllTime(false);
     setStart(daysAgoISO(days)); setEnd(todayISO());
   };
 
   const { data, isLoading } = useQuery({
-    queryKey: ["dashboard-geral", start, end],
+    queryKey: ["dashboard-geral", allTime ? "all" : `${start}|${end}`],
     queryFn: async () => {
-      const startISO = `${start}T00:00:00`;
-      const endISO = `${end}T23:59:59`;
+      let propQ = supabase.from("proposals")
+        .select("id,title,status,temperature,total_value,closed_value,created_at,closed_at")
+        .eq("is_active", true);
+      let leadQ = supabase.from("sdr_leads")
+        .select("id,lead_code,client_name,sdr_status,temperature,priority,value,created_at");
+      if (!allTime) {
+        const startISO = `${start}T00:00:00`;
+        const endISO = `${end}T23:59:59`;
+        propQ = propQ.gte("created_at", startISO).lte("created_at", endISO);
+        leadQ = leadQ.gte("created_at", startISO).lte("created_at", endISO);
+      }
       const [props, leads] = await Promise.all([
-        supabase.from("proposals")
-          .select("id,title,status,temperature,total_value,closed_value,created_at,closed_at")
-          .eq("is_active", true)
-          .gte("created_at", startISO).lte("created_at", endISO),
-        supabase.from("sdr_leads")
-          .select("id,lead_code,client_name,sdr_status,temperature,priority,value,created_at")
-          .gte("created_at", startISO).lte("created_at", endISO),
+        propQ.limit(5000),
+        leadQ.limit(5000),
       ]);
       if (props.error) throw props.error;
       if (leads.error) throw leads.error;
       return { proposals: (props.data ?? []) as Proposal[], leads: (leads.data ?? []) as Lead[] };
     },
   });
+
 
   const proposals = data?.proposals ?? [];
   const leads = data?.leads ?? [];
