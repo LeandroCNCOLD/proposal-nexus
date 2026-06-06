@@ -136,6 +136,88 @@ function DashboardGeral() {
       .sort((a, b) => b.count - a.count);
   }, [leads]);
 
+  const priorityData = useMemo(() => {
+    const map = new Map<string, { count: number; value: number }>();
+    for (const l of leads) {
+      const k = l.priority || "—";
+      const cur = map.get(k) ?? { count: 0, value: 0 };
+      cur.count++; cur.value += Number(l.value ?? 0);
+      map.set(k, cur);
+    }
+    return ["Alta", "Média", "Baixa", "—"]
+      .filter(k => map.has(k))
+      .map(k => ({ priority: k, ...(map.get(k)!) }));
+  }, [leads]);
+
+  const stateData = useMemo(() => {
+    const map = new Map<string, { count: number; value: number }>();
+    for (const l of leads) {
+      const k = (l.state || "—").trim() || "—";
+      const cur = map.get(k) ?? { count: 0, value: 0 };
+      cur.count++; cur.value += Number(l.value ?? 0);
+      map.set(k, cur);
+    }
+    return Array.from(map.entries())
+      .map(([state, v]) => ({ state, ...v }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+  }, [leads]);
+
+  const sdrRanking = useMemo(() => {
+    const map = new Map<string, { count: number; value: number; hot: number; meetings: number }>();
+    for (const l of leads) {
+      const k = l.sdr_name || "Sem SDR";
+      const cur = map.get(k) ?? { count: 0, value: 0, hot: 0, meetings: 0 };
+      cur.count++; cur.value += Number(l.value ?? 0);
+      if (l.temperature === "Quente" || l.temperature === "Muito Quente") cur.hot++;
+      if (l.meeting_scheduled) cur.meetings++;
+      map.set(k, cur);
+    }
+    return Array.from(map.entries())
+      .map(([sdr, v]) => ({ sdr, ...v }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+  }, [leads]);
+
+  const followupData = useMemo(() => {
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const buckets = { semContato: 0, atrasado: 0, hoje: 0, futuro: 0, agendado: 0 };
+    for (const l of leads) {
+      if (l.meeting_scheduled) buckets.agendado++;
+      if (!l.last_contact_at && !l.next_contact_at) { buckets.semContato++; continue; }
+      if (l.next_contact_at) {
+        const d = new Date(l.next_contact_at); d.setHours(0, 0, 0, 0);
+        const diff = (d.getTime() - today.getTime()) / 86400000;
+        if (diff < 0) buckets.atrasado++;
+        else if (diff === 0) buckets.hoje++;
+        else buckets.futuro++;
+      }
+    }
+    return [
+      { label: "Sem contato", value: buckets.semContato, color: "hsl(220 10% 60%)" },
+      { label: "Follow-up atrasado", value: buckets.atrasado, color: "hsl(0 80% 55%)" },
+      { label: "Follow-up hoje", value: buckets.hoje, color: "hsl(40 90% 55%)" },
+      { label: "Follow-up futuro", value: buckets.futuro, color: "hsl(140 60% 45%)" },
+      { label: "Reunião agendada", value: buckets.agendado, color: "hsl(210 80% 55%)" },
+    ];
+  }, [leads]);
+
+  const ageData = useMemo(() => {
+    const today = new Date();
+    const buckets = [
+      { label: "0-7 dias", min: 0, max: 7, count: 0, value: 0 },
+      { label: "8-30 dias", min: 8, max: 30, count: 0, value: 0 },
+      { label: "31-90 dias", min: 31, max: 90, count: 0, value: 0 },
+      { label: "90+ dias", min: 91, max: 99999, count: 0, value: 0 },
+    ];
+    for (const l of leads) {
+      const days = Math.floor((today.getTime() - new Date(l.created_at).getTime()) / 86400000);
+      const b = buckets.find(b => days >= b.min && days <= b.max);
+      if (b) { b.count++; b.value += Number(l.value ?? 0); }
+    }
+    return buckets;
+  }, [leads]);
+
   const PIE_COLORS = ["Frio","Morno","Quente","Muito Quente"].map(k => TEMP_COLORS[k]);
 
   return (
