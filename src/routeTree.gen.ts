@@ -18,7 +18,6 @@ import { Route as AppRelatoriosRouteImport } from './routes/app.relatorios'
 import { Route as AppEquipamentosRouteImport } from './routes/app.equipamentos'
 import { Route as AppDocumentosRouteImport } from './routes/app.documentos'
 import { Route as AppDashboardGeralRouteImport } from './routes/app.dashboard-geral'
-import { Route as AppCrmRouteImport } from './routes/app.crm'
 import { Route as AppConfiguracoesRouteImport } from './routes/app.configuracoes'
 import { Route as AppConcorrentesRouteImport } from './routes/app.concorrentes'
 import { Route as AppCompetitivaRouteImport } from './routes/app.competitiva'
@@ -27,6 +26,7 @@ import { Route as AppAprovacoesRouteImport } from './routes/app.aprovacoes'
 import { Route as AppAgendaRouteImport } from './routes/app.agenda'
 import { Route as AppSdrIndexRouteImport } from './routes/app.sdr.index'
 import { Route as AppPropostasIndexRouteImport } from './routes/app.propostas.index'
+import { Route as AppCrmIndexRouteImport } from './routes/app.crm.index'
 import { Route as AppConfiguracoesIndexRouteImport } from './routes/app.configuracoes.index'
 import { Route as AppColdproIndexRouteImport } from './routes/app.coldpro.index'
 import { Route as AppVendasCarteiraRouteImport } from './routes/app.vendas.carteira'
@@ -106,11 +106,6 @@ const AppDashboardGeralRoute = AppDashboardGeralRouteImport.update({
   path: '/dashboard-geral',
   getParentRoute: () => AppRoute,
 } as any)
-const AppCrmRoute = AppCrmRouteImport.update({
-  id: '/crm',
-  path: '/crm',
-  getParentRoute: () => AppRoute,
-} as any)
 const AppConfiguracoesRoute = AppConfiguracoesRouteImport.update({
   id: '/configuracoes',
   path: '/configuracoes',
@@ -149,6 +144,11 @@ const AppSdrIndexRoute = AppSdrIndexRouteImport.update({
 const AppPropostasIndexRoute = AppPropostasIndexRouteImport.update({
   id: '/propostas/',
   path: '/propostas/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCrmIndexRoute = AppCrmIndexRouteImport.update({
+  id: '/crm/',
+  path: '/crm/',
   getParentRoute: () => AppRoute,
 } as any)
 const AppConfiguracoesIndexRoute = AppConfiguracoesIndexRouteImport.update({
@@ -219,14 +219,14 @@ const AppPropostasIdRoute = AppPropostasIdRouteImport.update({
 } as any)
 const AppCrmClosersPerformanceRoute =
   AppCrmClosersPerformanceRouteImport.update({
-    id: '/closers-performance',
-    path: '/closers-performance',
-    getParentRoute: () => AppCrmRoute,
+    id: '/crm/closers-performance',
+    path: '/crm/closers-performance',
+    getParentRoute: () => AppRoute,
   } as any)
 const AppCrmIdRoute = AppCrmIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => AppCrmRoute,
+  id: '/crm/$id',
+  path: '/crm/$id',
+  getParentRoute: () => AppRoute,
 } as any)
 const AppConfiguracoesPermissoesRoute =
   AppConfiguracoesPermissoesRouteImport.update({
@@ -338,7 +338,6 @@ export interface FileRoutesByFullPath {
   '/app/competitiva': typeof AppCompetitivaRoute
   '/app/concorrentes': typeof AppConcorrentesRoute
   '/app/configuracoes': typeof AppConfiguracoesRouteWithChildren
-  '/app/crm': typeof AppCrmRouteWithChildren
   '/app/dashboard-geral': typeof AppDashboardGeralRoute
   '/app/documentos': typeof AppDocumentosRoute
   '/app/equipamentos': typeof AppEquipamentosRoute
@@ -368,6 +367,7 @@ export interface FileRoutesByFullPath {
   '/app/vendas/carteira': typeof AppVendasCarteiraRoute
   '/app/coldpro/': typeof AppColdproIndexRoute
   '/app/configuracoes/': typeof AppConfiguracoesIndexRoute
+  '/app/crm/': typeof AppCrmIndexRoute
   '/app/propostas/': typeof AppPropostasIndexRoute
   '/app/sdr/': typeof AppSdrIndexRoute
   '/api/public/hooks/nomus-cron': typeof ApiPublicHooksNomusCronRoute
@@ -389,7 +389,6 @@ export interface FileRoutesByTo {
   '/app/clientes': typeof AppClientesRoute
   '/app/competitiva': typeof AppCompetitivaRoute
   '/app/concorrentes': typeof AppConcorrentesRoute
-  '/app/crm': typeof AppCrmRouteWithChildren
   '/app/dashboard-geral': typeof AppDashboardGeralRoute
   '/app/documentos': typeof AppDocumentosRoute
   '/app/equipamentos': typeof AppEquipamentosRoute
@@ -418,6 +417,7 @@ export interface FileRoutesByTo {
   '/app/vendas/carteira': typeof AppVendasCarteiraRoute
   '/app/coldpro': typeof AppColdproIndexRoute
   '/app/configuracoes': typeof AppConfiguracoesIndexRoute
+  '/app/crm': typeof AppCrmIndexRoute
   '/app/propostas': typeof AppPropostasIndexRoute
   '/app/sdr': typeof AppSdrIndexRoute
   '/api/public/hooks/nomus-cron': typeof ApiPublicHooksNomusCronRoute
@@ -442,7 +442,6 @@ export interface FileRoutesById {
   '/app/competitiva': typeof AppCompetitivaRoute
   '/app/concorrentes': typeof AppConcorrentesRoute
   '/app/configuracoes': typeof AppConfiguracoesRouteWithChildren
-  '/app/crm': typeof AppCrmRouteWithChildren
   '/app/dashboard-geral': typeof AppDashboardGeralRoute
   '/app/documentos': typeof AppDocumentosRoute
   '/app/equipamentos': typeof AppEquipamentosRoute
@@ -472,6 +471,7 @@ export interface FileRoutesById {
   '/app/vendas/carteira': typeof AppVendasCarteiraRoute
   '/app/coldpro/': typeof AppColdproIndexRoute
   '/app/configuracoes/': typeof AppConfiguracoesIndexRoute
+  '/app/crm/': typeof AppCrmIndexRoute
   '/app/propostas/': typeof AppPropostasIndexRoute
   '/app/sdr/': typeof AppSdrIndexRoute
   '/api/public/hooks/nomus-cron': typeof ApiPublicHooksNomusCronRoute
@@ -497,7 +497,6 @@ export interface FileRouteTypes {
     | '/app/competitiva'
     | '/app/concorrentes'
     | '/app/configuracoes'
-    | '/app/crm'
     | '/app/dashboard-geral'
     | '/app/documentos'
     | '/app/equipamentos'
@@ -527,6 +526,7 @@ export interface FileRouteTypes {
     | '/app/vendas/carteira'
     | '/app/coldpro/'
     | '/app/configuracoes/'
+    | '/app/crm/'
     | '/app/propostas/'
     | '/app/sdr/'
     | '/api/public/hooks/nomus-cron'
@@ -548,7 +548,6 @@ export interface FileRouteTypes {
     | '/app/clientes'
     | '/app/competitiva'
     | '/app/concorrentes'
-    | '/app/crm'
     | '/app/dashboard-geral'
     | '/app/documentos'
     | '/app/equipamentos'
@@ -577,6 +576,7 @@ export interface FileRouteTypes {
     | '/app/vendas/carteira'
     | '/app/coldpro'
     | '/app/configuracoes'
+    | '/app/crm'
     | '/app/propostas'
     | '/app/sdr'
     | '/api/public/hooks/nomus-cron'
@@ -600,7 +600,6 @@ export interface FileRouteTypes {
     | '/app/competitiva'
     | '/app/concorrentes'
     | '/app/configuracoes'
-    | '/app/crm'
     | '/app/dashboard-geral'
     | '/app/documentos'
     | '/app/equipamentos'
@@ -630,6 +629,7 @@ export interface FileRouteTypes {
     | '/app/vendas/carteira'
     | '/app/coldpro/'
     | '/app/configuracoes/'
+    | '/app/crm/'
     | '/app/propostas/'
     | '/app/sdr/'
     | '/api/public/hooks/nomus-cron'
@@ -721,13 +721,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppDashboardGeralRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/crm': {
-      id: '/app/crm'
-      path: '/crm'
-      fullPath: '/app/crm'
-      preLoaderRoute: typeof AppCrmRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/app/configuracoes': {
       id: '/app/configuracoes'
       path: '/configuracoes'
@@ -782,6 +775,13 @@ declare module '@tanstack/react-router' {
       path: '/propostas'
       fullPath: '/app/propostas/'
       preLoaderRoute: typeof AppPropostasIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/crm/': {
+      id: '/app/crm/'
+      path: '/crm'
+      fullPath: '/app/crm/'
+      preLoaderRoute: typeof AppCrmIndexRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/configuracoes/': {
@@ -877,17 +877,17 @@ declare module '@tanstack/react-router' {
     }
     '/app/crm/closers-performance': {
       id: '/app/crm/closers-performance'
-      path: '/closers-performance'
+      path: '/crm/closers-performance'
       fullPath: '/app/crm/closers-performance'
       preLoaderRoute: typeof AppCrmClosersPerformanceRouteImport
-      parentRoute: typeof AppCrmRoute
+      parentRoute: typeof AppRoute
     }
     '/app/crm/$id': {
       id: '/app/crm/$id'
-      path: '/$id'
+      path: '/crm/$id'
       fullPath: '/app/crm/$id'
       preLoaderRoute: typeof AppCrmIdRouteImport
-      parentRoute: typeof AppCrmRoute
+      parentRoute: typeof AppRoute
     }
     '/app/configuracoes/permissoes': {
       id: '/app/configuracoes/permissoes'
@@ -1065,19 +1065,6 @@ const AppConfiguracoesRouteChildren: AppConfiguracoesRouteChildren = {
 const AppConfiguracoesRouteWithChildren =
   AppConfiguracoesRoute._addFileChildren(AppConfiguracoesRouteChildren)
 
-interface AppCrmRouteChildren {
-  AppCrmIdRoute: typeof AppCrmIdRoute
-  AppCrmClosersPerformanceRoute: typeof AppCrmClosersPerformanceRoute
-}
-
-const AppCrmRouteChildren: AppCrmRouteChildren = {
-  AppCrmIdRoute: AppCrmIdRoute,
-  AppCrmClosersPerformanceRoute: AppCrmClosersPerformanceRoute,
-}
-
-const AppCrmRouteWithChildren =
-  AppCrmRoute._addFileChildren(AppCrmRouteChildren)
-
 interface AppPropostasIdRouteChildren {
   AppPropostasIdEditorRoute: typeof AppPropostasIdEditorRoute
   AppPropostasIdIndexRoute: typeof AppPropostasIdIndexRoute
@@ -1099,7 +1086,6 @@ interface AppRouteChildren {
   AppCompetitivaRoute: typeof AppCompetitivaRoute
   AppConcorrentesRoute: typeof AppConcorrentesRoute
   AppConfiguracoesRoute: typeof AppConfiguracoesRouteWithChildren
-  AppCrmRoute: typeof AppCrmRouteWithChildren
   AppDashboardGeralRoute: typeof AppDashboardGeralRoute
   AppDocumentosRoute: typeof AppDocumentosRoute
   AppEquipamentosRoute: typeof AppEquipamentosRoute
@@ -1109,6 +1095,8 @@ interface AppRouteChildren {
   AppColdproIdRoute: typeof AppColdproIdRoute
   AppColdproCatalogoRoute: typeof AppColdproCatalogoRoute
   AppColdproProdutosRoute: typeof AppColdproProdutosRoute
+  AppCrmIdRoute: typeof AppCrmIdRoute
+  AppCrmClosersPerformanceRoute: typeof AppCrmClosersPerformanceRoute
   AppPropostasIdRoute: typeof AppPropostasIdRouteWithChildren
   AppPropostasNovaRoute: typeof AppPropostasNovaRoute
   AppPropostasPedidosNfRoute: typeof AppPropostasPedidosNfRoute
@@ -1121,6 +1109,7 @@ interface AppRouteChildren {
   AppSdrWarRoomRoute: typeof AppSdrWarRoomRoute
   AppVendasCarteiraRoute: typeof AppVendasCarteiraRoute
   AppColdproIndexRoute: typeof AppColdproIndexRoute
+  AppCrmIndexRoute: typeof AppCrmIndexRoute
   AppPropostasIndexRoute: typeof AppPropostasIndexRoute
   AppSdrIndexRoute: typeof AppSdrIndexRoute
 }
@@ -1132,7 +1121,6 @@ const AppRouteChildren: AppRouteChildren = {
   AppCompetitivaRoute: AppCompetitivaRoute,
   AppConcorrentesRoute: AppConcorrentesRoute,
   AppConfiguracoesRoute: AppConfiguracoesRouteWithChildren,
-  AppCrmRoute: AppCrmRouteWithChildren,
   AppDashboardGeralRoute: AppDashboardGeralRoute,
   AppDocumentosRoute: AppDocumentosRoute,
   AppEquipamentosRoute: AppEquipamentosRoute,
@@ -1142,6 +1130,8 @@ const AppRouteChildren: AppRouteChildren = {
   AppColdproIdRoute: AppColdproIdRoute,
   AppColdproCatalogoRoute: AppColdproCatalogoRoute,
   AppColdproProdutosRoute: AppColdproProdutosRoute,
+  AppCrmIdRoute: AppCrmIdRoute,
+  AppCrmClosersPerformanceRoute: AppCrmClosersPerformanceRoute,
   AppPropostasIdRoute: AppPropostasIdRouteWithChildren,
   AppPropostasNovaRoute: AppPropostasNovaRoute,
   AppPropostasPedidosNfRoute: AppPropostasPedidosNfRoute,
@@ -1154,6 +1144,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppSdrWarRoomRoute: AppSdrWarRoomRoute,
   AppVendasCarteiraRoute: AppVendasCarteiraRoute,
   AppColdproIndexRoute: AppColdproIndexRoute,
+  AppCrmIndexRoute: AppCrmIndexRoute,
   AppPropostasIndexRoute: AppPropostasIndexRoute,
   AppSdrIndexRoute: AppSdrIndexRoute,
 }
@@ -1175,3 +1166,12 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}

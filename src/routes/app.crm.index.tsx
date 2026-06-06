@@ -30,7 +30,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { brl } from "@/lib/format";
 import { KanbanCardRich, type EnrichedCard } from "@/components/crm/KanbanCardRich";
 
-export const Route = createFileRoute("/app/crm")({ component: CrmPage });
+export const Route = createFileRoute("/app/crm/")({ component: CrmPage });
 
 const DEFAULT_FUNNEL = "Funil de Vendas";
 
