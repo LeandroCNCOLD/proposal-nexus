@@ -49,32 +49,39 @@ function daysAgoISO(d: number) {
 }
 
 function DashboardGeral() {
+  const [allTime, setAllTime] = useState(true);
   const [start, setStart] = useState(daysAgoISO(90));
   const [end, setEnd] = useState(todayISO());
 
   const setPreset = (days: number) => {
+    setAllTime(false);
     setStart(daysAgoISO(days)); setEnd(todayISO());
   };
 
   const { data, isLoading } = useQuery({
-    queryKey: ["dashboard-geral", start, end],
+    queryKey: ["dashboard-geral", allTime ? "all" : `${start}|${end}`],
     queryFn: async () => {
-      const startISO = `${start}T00:00:00`;
-      const endISO = `${end}T23:59:59`;
+      let propQ = supabase.from("proposals")
+        .select("id,title,status,temperature,total_value,closed_value,created_at,closed_at")
+        .eq("is_active", true);
+      let leadQ = supabase.from("sdr_leads")
+        .select("id,lead_code,client_name,sdr_status,temperature,priority,value,created_at");
+      if (!allTime) {
+        const startISO = `${start}T00:00:00`;
+        const endISO = `${end}T23:59:59`;
+        propQ = propQ.gte("created_at", startISO).lte("created_at", endISO);
+        leadQ = leadQ.gte("created_at", startISO).lte("created_at", endISO);
+      }
       const [props, leads] = await Promise.all([
-        supabase.from("proposals")
-          .select("id,title,status,temperature,total_value,closed_value,created_at,closed_at")
-          .eq("is_active", true)
-          .gte("created_at", startISO).lte("created_at", endISO),
-        supabase.from("sdr_leads")
-          .select("id,lead_code,client_name,sdr_status,temperature,priority,value,created_at")
-          .gte("created_at", startISO).lte("created_at", endISO),
+        propQ.limit(5000),
+        leadQ.limit(5000),
       ]);
       if (props.error) throw props.error;
       if (leads.error) throw leads.error;
       return { proposals: (props.data ?? []) as Proposal[], leads: (leads.data ?? []) as Lead[] };
     },
   });
+
 
   const proposals = data?.proposals ?? [];
   const leads = data?.leads ?? [];
@@ -137,19 +144,21 @@ function DashboardGeral() {
         <div className="flex flex-wrap items-end gap-2">
           <div>
             <Label className="text-xs">De</Label>
-            <Input type="date" value={start} onChange={e => setStart(e.target.value)} className="h-8 w-[140px]" />
+            <Input type="date" value={start} disabled={allTime} onChange={e => { setAllTime(false); setStart(e.target.value); }} className="h-8 w-[140px]" />
           </div>
           <div>
             <Label className="text-xs">Até</Label>
-            <Input type="date" value={end} onChange={e => setEnd(e.target.value)} className="h-8 w-[140px]" />
+            <Input type="date" value={end} disabled={allTime} onChange={e => { setAllTime(false); setEnd(e.target.value); }} className="h-8 w-[140px]" />
           </div>
           <div className="flex gap-1">
+            <Button size="sm" variant={allTime ? "default" : "outline"} onClick={() => setAllTime(true)}>Tudo</Button>
             <Button size="sm" variant="outline" onClick={() => setPreset(7)}>7d</Button>
             <Button size="sm" variant="outline" onClick={() => setPreset(30)}>30d</Button>
             <Button size="sm" variant="outline" onClick={() => setPreset(90)}>90d</Button>
             <Button size="sm" variant="outline" onClick={() => setPreset(365)}>1a</Button>
           </div>
         </div>
+
       </div>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-7">
