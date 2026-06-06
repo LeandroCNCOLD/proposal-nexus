@@ -20,6 +20,10 @@ import { useServerFn } from "@tanstack/react-start";
 import { nomusCreatePedido, sendProposalFile } from "@/integrations/nomus/server.functions";
 import { createProposalSendVersion } from "@/integrations/proposal-editor/server.functions";
 import { NomusProposalDetail } from "@/components/NomusProposalDetail";
+import { ProposalTimelineUnified } from "@/components/proposal/ProposalTimelineUnified";
+import { ProposalTasksTab } from "@/components/proposal/ProposalTasksTab";
+import { ProposalAgendaTab } from "@/components/proposal/ProposalAgendaTab";
+import { ProposalFollowupTab } from "@/components/proposal/ProposalFollowupTab";
 
 export const Route = createFileRoute("/app/propostas/$id/")({ component: ProposalDetail });
 
@@ -461,25 +465,38 @@ function ProposalDetail() {
         <Tabs defaultValue="timeline" className="rounded-xl border bg-card p-4 shadow-[var(--shadow-sm)]">
           <TabsList className="w-full">
             <TabsTrigger value="timeline" className="flex-1">Timeline</TabsTrigger>
-            <TabsTrigger value="versions" className="flex-1">Versões</TabsTrigger>
+            <TabsTrigger value="agenda" className="flex-1">Agenda</TabsTrigger>
             <TabsTrigger value="tasks" className="flex-1">Tarefas</TabsTrigger>
+            <TabsTrigger value="followup" className="flex-1">Follow-up</TabsTrigger>
+            <TabsTrigger value="versions" className="flex-1">Versões</TabsTrigger>
           </TabsList>
           <TabsContent value="timeline" className="mt-4">
-            {timeline.length === 0 ? (
-              <div className="py-8 text-center text-sm text-muted-foreground">Sem eventos registrados.</div>
-            ) : (
-              <ol className="relative space-y-4 border-l border-border pl-5">
-                {timeline.map((ev) => (
-                  <li key={ev.id} className="relative">
-                    <span className="absolute -left-[27px] top-1 h-3 w-3 rounded-full border-2 border-card bg-primary" />
-                    <div className="text-xs font-medium text-foreground">{ev.description ?? ev.event_type}</div>
-                    <div className="mt-0.5 flex items-center gap-2 text-[11px] text-muted-foreground">
-                      <Clock className="h-3 w-3" /> {dateTimeBR(ev.created_at)}
-                    </div>
-                  </li>
-                ))}
-              </ol>
-            )}
+            <ProposalTimelineUnified proposalId={id} proposalNumber={p.number} />
+          </TabsContent>
+          <TabsContent value="agenda" className="mt-4">
+            <ProposalAgendaTab
+              proposalId={id}
+              proposalNumber={p.number}
+              clientName={(p.clients as any)?.name ?? p.title}
+              defaultCloser={p.nomus_seller_name ?? user?.user_metadata?.full_name ?? user?.email ?? "—"}
+              defaultContact={(p.client_contacts as any)?.name ?? null}
+              defaultEmail={(p.client_contacts as any)?.email ?? null}
+              defaultPhone={(p.client_contacts as any)?.phone ?? null}
+            />
+          </TabsContent>
+          <TabsContent value="tasks" className="mt-4">
+            <ProposalTasksTab proposalId={id} />
+          </TabsContent>
+          <TabsContent value="followup" className="mt-4">
+            <ProposalFollowupTab
+              proposalId={id}
+              current={{
+                next_followup_at: p.next_followup_at,
+                temperature: p.temperature,
+                win_probability: p.win_probability,
+                commercial_notes: p.commercial_notes,
+              }}
+            />
           </TabsContent>
           <TabsContent value="versions" className="mt-4 space-y-3">
             {versions.length === 0 ? (
@@ -509,11 +526,6 @@ function ProposalDetail() {
                 ))}
               </div>
             )}
-          </TabsContent>
-          <TabsContent value="tasks" className="mt-4">
-            <div className="py-8 text-center text-sm text-muted-foreground">
-              Módulo de tarefas — em breve nesta proposta.
-            </div>
           </TabsContent>
         </Tabs>
       </div>
