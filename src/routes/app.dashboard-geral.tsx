@@ -27,6 +27,10 @@ type Proposal = {
 type Lead = {
   id: string; lead_code: string; client_name: string; sdr_status: string;
   temperature: string; priority: string; value: number; created_at: string;
+  state: string | null; sdr_name: string | null; closer_name: string | null;
+  last_contact_at: string | null; next_contact_at: string | null;
+  meeting_scheduled: boolean | null; meeting_date: string | null;
+  expected_closing: string | null; probability_pct: number | null;
 };
 
 const TEMP_COLORS: Record<string, string> = {
