@@ -247,6 +247,18 @@ function UsersAdminPage() {
                       <Button
                         size="icon"
                         variant="ghost"
+                        title="Definir nova senha (manual)"
+                        onClick={() => {
+                          setPasswordTarget({ id: u.id, label: u.fullName || u.email || u.id });
+                          setNewPassword("");
+                          setConfirmPassword("");
+                        }}
+                      >
+                        <Lock className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
                         title="Enviar email de redefinição de senha"
                         onClick={() => onResetPassword(u.email)}
                       >
