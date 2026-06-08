@@ -212,11 +212,34 @@ function ProposalsList() {
     return idDiff !== 0 ? idDiff : proposalSortTime(b) - proposalSortTime(a);
   };
 
+  // Opções de vendedores e representantes (a partir do Nomus)
+  const vendedorOptions = useMemo(() => {
+    const set = new Set<string>();
+    proposals.forEach((p) => {
+      const v = (p as any)._nomus?.vendedor_nome;
+      if (v && String(v).trim()) set.add(String(v).trim());
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [proposals]);
+
+  const representanteOptions = useMemo(() => {
+    const set = new Set<string>();
+    proposals.forEach((p) => {
+      const r = (p as any)._nomus?.representante_nome;
+      if (r && String(r).trim()) set.add(String(r).trim());
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [proposals]);
+
   const filtered = useMemo(() => {
     // 1) Aplica filtros de status e busca
     const list = proposals.filter((p) => {
       if (statusFilter !== "all" && p.status !== statusFilter) return false;
       if (onlyWithLead && !leadMatches.has(p.id)) return false;
+      const vend = (p as any)._nomus?.vendedor_nome ?? "";
+      const rep = (p as any)._nomus?.representante_nome ?? "";
+      if (vendedorFilter !== "all" && vend !== vendedorFilter) return false;
+      if (representanteFilter !== "all" && rep !== representanteFilter) return false;
       if (!search) return true;
       const q = search.toLowerCase();
       const parsed = parseTitle(p.title);
@@ -255,7 +278,30 @@ function ProposalsList() {
 
     // 3) Ordena pela data real do Nomus (mais recente primeiro)
     return latest.sort(compareNomusNewestFirst);
-  }, [proposals, search, statusFilter, onlyWithLead, leadMatches]);
+  }, [proposals, search, statusFilter, vendedorFilter, representanteFilter, onlyWithLead, leadMatches]);
+
+  // KPIs computados a partir das propostas únicas filtradas (última revisão)
+  const kpis = useMemo(() => {
+    const total = filtered.length;
+    let valorTotal = 0;
+    let ganhasN = 0, ganhasV = 0;
+    let perdidasN = 0, perdidasV = 0;
+    let abertasN = 0, abertasV = 0;
+    let negociacaoN = 0, negociacaoV = 0;
+    filtered.forEach((p: any) => {
+      const v = Number(p.total_value ?? 0) || 0;
+      valorTotal += v;
+      const s = p.status as string;
+      if (s === "ganha") { ganhasN++; ganhasV += v; }
+      else if (s === "perdida" || s === "vencida" || s === "cancelada") { perdidasN++; perdidasV += v; }
+      else { abertasN++; abertasV += v; }
+      if (s === "em_negociacao" || s === "aguardando_retorno" || s === "revisao_solicitada" || s === "prorrogada") {
+        negociacaoN++; negociacaoV += v;
+      }
+    });
+    return { total, valorTotal, ganhasN, ganhasV, perdidasN, perdidasV, abertasN, abertasV, negociacaoN, negociacaoV };
+  }, [filtered]);
+
 
   return (
     <>
