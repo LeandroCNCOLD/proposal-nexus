@@ -385,7 +385,8 @@ function BankPage() {
                 <SortableTh label="Última interação" sk="last_contact_at" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
                 <SortableTh label="Dias aberto" sk="days_open" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="center" />
                 <SortableTh label="Temp." sk="temperature" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
-                <SortableTh label="Status" sk="status" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
+                <SortableTh label="Atendimento" sk="status" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
+                <th className="px-3 py-2">Status Proposta</th>
                 <th className="px-3 py-2 text-right">Ação</th>
               </tr>
             </thead>
