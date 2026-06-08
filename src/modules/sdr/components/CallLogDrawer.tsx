@@ -35,6 +35,10 @@ export function CallLogDrawer({ pipeline, open, onClose }: Props) {
   const qc = useQueryClient()
   const [form, setForm] = useState({
     sdr_name: pipeline.sdr_name ?? '',
+    line_type: 'Celular' as 'Celular' | 'Fixo' | 'WhatsApp',
+    phone_number: (pipeline.contact_mobile ?? pipeline.contact_phone ?? '') as string,
+    manual_log: false,
+    manual_summary: '',
     result: '' as any,
     other_reason: '',
     temperature_after: pipeline.temperature as any,
@@ -48,18 +52,28 @@ export function CallLogDrawer({ pipeline, open, onClose }: Props) {
 
   const requiresFollowup = !form.meeting_booked
   const nextAttemptValid = !requiresFollowup || (!!form.next_attempt_at && new Date(form.next_attempt_at).getTime() > Date.now() - 60_000)
+  const manualSummaryValid = !form.manual_log || form.manual_summary.trim().length >= 5
 
   async function handleSubmit() {
     if (!form.result) return
     if (form.result === 'Outros' && !form.other_reason.trim()) return
+    if (form.manual_log && !manualSummaryValid) {
+      toast.error('Descreva brevemente o que foi conversado (mínimo 5 caracteres).')
+      return
+    }
     if (requiresFollowup && !nextAttemptValid) {
       toast.error('Defina a data/hora da próxima tentativa (no futuro).')
       return
     }
     const today = new Date()
-    const obs = form.result === 'Outros'
+    const phoneLine = form.phone_number ? `${form.line_type}: ${form.phone_number}` : form.line_type
+    const manualPrefix = form.manual_log
+      ? `[Registro manual — gravação não capturada] ${phoneLine}\nResumo: ${form.manual_summary.trim()}`
+      : `[${phoneLine}]`
+    const baseObs = form.result === 'Outros'
       ? `[Outros: ${form.other_reason.trim()}]${form.observation ? `\n${form.observation}` : ''}`
-      : form.observation || null
+      : form.observation || ''
+    const obs = [manualPrefix, baseObs].filter(Boolean).join('\n') || null
     await insert.mutateAsync({
       pipeline_id: pipeline.id,
       sdr_id: null,
@@ -71,6 +85,7 @@ export function CallLogDrawer({ pipeline, open, onClose }: Props) {
       temperature_after: form.temperature_after || null,
       meeting_booked: form.meeting_booked,
       observation: obs,
+      channel: form.line_type,
     })
 
     if (requiresFollowup) {
@@ -110,6 +125,45 @@ export function CallLogDrawer({ pipeline, open, onClose }: Props) {
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>{sdrNames.map(n => <SelectItem key={n} value={n}>{n}</SelectItem>)}</SelectContent>
             </Select>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Linha</Label>
+              <Select value={form.line_type} onValueChange={v => set('line_type', v as any)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Celular">Celular</SelectItem>
+                  <SelectItem value="Fixo">Fixo</SelectItem>
+                  <SelectItem value="WhatsApp">WhatsApp</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Número</Label>
+              <Input
+                placeholder="(00) 00000-0000"
+                value={form.phone_number}
+                onChange={e => set('phone_number', e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="rounded-md border bg-muted/40 p-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-semibold">📝 Registro manual (sem gravação)</Label>
+              <Switch checked={form.manual_log} onCheckedChange={v => set('manual_log', v)} />
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Use quando você falou com o cliente mas a gravação não foi capturada. Conta como atendimento.
+            </p>
+            {form.manual_log && (
+              <Textarea
+                rows={3}
+                placeholder="Resuma com poucas palavras o que foi conversado..."
+                value={form.manual_summary}
+                onChange={e => set('manual_summary', e.target.value)}
+                className="resize-none"
+              />
+            )}
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs font-semibold">Resultado *</Label>
@@ -178,7 +232,7 @@ export function CallLogDrawer({ pipeline, open, onClose }: Props) {
 
           <div className="flex gap-2 pt-2">
             <Button className="flex-1 bg-[#0F2D5E] hover:bg-[#1A56DB]"
-              onClick={handleSubmit} disabled={!form.result || insert.isPending || (requiresFollowup && !nextAttemptValid)}>
+              onClick={handleSubmit} disabled={!form.result || insert.isPending || (requiresFollowup && !nextAttemptValid) || !manualSummaryValid}>
               {insert.isPending ? 'Salvando...' : 'Salvar Ligação'}
             </Button>
             <Button variant="outline" onClick={onClose}>Cancelar</Button>
