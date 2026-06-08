@@ -14,14 +14,14 @@ function withDaysWithoutContact<T extends { last_contact_at: string | null }>(ro
   }))
 }
 
-/** Banco de Propostas: TODAS as propostas ativas (inclui leads travados por outros SDRs). */
+/** Banco de Propostas: TODAS as propostas (ganhas/perdidas/canceladas inclusas — filtre na UI). */
 export async function fetchProposalBank(filters: Partial<PipelineFilters> = {}) {
   let q = supabase
     .from('sdr_leads')
     .select('*')
-    .not('sdr_status', 'in', `("${INACTIVE_STATUSES.join('","')}")`)
     .order('priority', { ascending: true })
     .order('value', { ascending: false })
+    .limit(5000)
 
   if (filters.search)
     q = q.or(`client_name.ilike.%${filters.search}%,lead_code.ilike.%${filters.search}%`)
