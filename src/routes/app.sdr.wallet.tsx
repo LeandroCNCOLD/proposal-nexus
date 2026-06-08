@@ -161,16 +161,14 @@ function WalletPage() {
 }
 
 
-function LeadCard({ lead, sdrName, onUnlock, onOpenScript, proposalMatch }: {
+function LeadCard({ lead, sdrName, onUnlock, onOpenScript, proposalMatch, canManage, onTransfer }: {
   lead: CrmPipeline
   sdrName: string
   onUnlock: () => void
   onOpenScript: () => void
   proposalMatch?: ProposalLeadMatch | null
-  lead: CrmPipeline
-  sdrName: string
-  onUnlock: () => void
-  onOpenScript: () => void
+  canManage?: boolean
+  onTransfer?: () => void
 }) {
   const qc = useQueryClient()
   const [expanded, setExpanded] = useState(false)
