@@ -74,6 +74,8 @@ const NAV = [
     { to: "/app/propostas", label: "Propostas", icon: FileText },
     { to: "/app/propostas/pedidos-nf", label: "Pedidos & NF", icon: FileCheck2 },
     { to: "/app/tarefas", label: "Tarefas & Follow-up", icon: CheckSquare },
+    { to: "/app/atividades", label: "Minhas Atividades", icon: ListChecks },
+    { to: "/app/gestao/atividades", label: "Gestão de Atividades", icon: ListChecks },
   ]},
   { group: "Cadastros", items: [
     { to: "/app/clientes", label: "Clientes", icon: Users },
