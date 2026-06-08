@@ -7525,6 +7525,7 @@ export type Database = {
           probability_pct: number | null
           proposal_date: string | null
           proposal_desc: string | null
+          proposal_status: string | null
           proposal_title: string | null
           proposal_version: number | null
           razao_social: string | null
@@ -7572,6 +7573,7 @@ export type Database = {
           probability_pct?: number | null
           proposal_date?: string | null
           proposal_desc?: string | null
+          proposal_status?: string | null
           proposal_title?: string | null
           proposal_version?: number | null
           razao_social?: string | null
@@ -7619,6 +7621,7 @@ export type Database = {
           probability_pct?: number | null
           proposal_date?: string | null
           proposal_desc?: string | null
+          proposal_status?: string | null
           proposal_title?: string | null
           proposal_version?: number | null
           razao_social?: string | null
