@@ -101,29 +101,49 @@ function WalletPage() {
           </h1>
           <p className="text-sm text-muted-foreground">{leads.length} leads travados · cada lock dura 7 dias e renova ao registrar atividade</p>
         </div>
-        {isManager && (
-          <div className="flex items-center gap-2">
-            <label className="text-xs text-muted-foreground">Ver carteira de:</label>
-            <select
-              className="border rounded-md px-2 py-1 text-sm bg-background"
-              value={viewingUserId ?? user.id}
-              onChange={(e) => setViewingUserId(e.target.value === user.id ? null : e.target.value)}
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="inline-flex rounded-md border bg-background p-0.5">
+            <Button
+              size="sm"
+              variant={viewMode === 'kanban' ? 'default' : 'ghost'}
+              className="h-7 px-2"
+              onClick={() => setViewMode('kanban')}
             >
-              <option value={user.id}>Minha carteira</option>
-              {roster
-                .filter(r => r.user_id !== user.id)
-                .sort((a, b) => (a.full_name ?? '').localeCompare(b.full_name ?? ''))
-                .map(r => (
-                  <option key={r.user_id} value={r.user_id}>
-                    {r.full_name || r.email || r.user_id.slice(0, 8)}
-                  </option>
-                ))}
-            </select>
-            {isViewingOther && (
-              <Badge variant="secondary" className="gap-1">somente leitura sugerida</Badge>
-            )}
+              <LayoutGrid className="w-3.5 h-3.5 mr-1" /> Kanban
+            </Button>
+            <Button
+              size="sm"
+              variant={viewMode === 'list' ? 'default' : 'ghost'}
+              className="h-7 px-2"
+              onClick={() => setViewMode('list')}
+            >
+              <List className="w-3.5 h-3.5 mr-1" /> Lista
+            </Button>
           </div>
-        )}
+          {isManager && (
+            <>
+              <label className="text-xs text-muted-foreground">Ver carteira de:</label>
+              <select
+                className="border rounded-md px-2 py-1 text-sm bg-background"
+                value={viewingUserId ?? user.id}
+                onChange={(e) => setViewingUserId(e.target.value === user.id ? null : e.target.value)}
+              >
+                <option value={user.id}>Minha carteira</option>
+                {roster
+                  .filter(r => r.user_id !== user.id)
+                  .sort((a, b) => (a.full_name ?? '').localeCompare(b.full_name ?? ''))
+                  .map(r => (
+                    <option key={r.user_id} value={r.user_id}>
+                      {r.full_name || r.email || r.user_id.slice(0, 8)}
+                    </option>
+                  ))}
+              </select>
+              {isViewingOther && (
+                <Badge variant="secondary" className="gap-1">somente leitura sugerida</Badge>
+              )}
+            </>
+          )}
+        </div>
       </div>
 
 
@@ -133,6 +153,8 @@ function WalletPage() {
         <div className="text-center py-12 text-muted-foreground">
           Você ainda não pegou nenhum lead. Vá ao <strong>Banco de Leads</strong> para começar.
         </div>
+      ) : viewMode === 'kanban' ? (
+        <WalletKanban leads={leads} canTransferSdr={isManager} />
       ) : (
         <div className="space-y-3">
           {leads.map(lead => (
