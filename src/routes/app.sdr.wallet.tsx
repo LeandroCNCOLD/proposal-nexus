@@ -20,7 +20,8 @@ import { useProposalLeadMatches, type ProposalLeadMatch } from '@/hooks/use-prop
 import { useMemo } from 'react'
 import { useTeamRoster } from '@/hooks/use-team-roster'
 import { TransferLeadDialog } from '@/components/manager/TransferLeadDialog'
-import { ArrowRightLeft } from 'lucide-react'
+import { ArrowRightLeft, LayoutGrid, List } from 'lucide-react'
+import { WalletKanban } from '@/components/sdr/WalletKanban'
 
 export const Route = createFileRoute('/app/sdr/wallet')({
   component: WalletPage,
