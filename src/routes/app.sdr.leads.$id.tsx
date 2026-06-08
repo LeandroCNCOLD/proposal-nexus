@@ -5,9 +5,11 @@ import { supabase } from '@/integrations/supabase/client'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { ArrowLeft, Phone, FileText, Calendar, ExternalLink, Thermometer, DollarSign, User, MapPin, Mail, Briefcase, History, UserPlus, CheckCircle2 } from 'lucide-react'
+import { ArrowLeft, Phone, FileText, Calendar, ExternalLink, Thermometer, DollarSign, User, MapPin, Mail, Briefcase, History, UserPlus, CheckCircle2, Pencil } from 'lucide-react'
 import { dateBR, dateTimeBR } from '@/lib/format'
 import { TransferToSellerDialog } from '@/components/sdr/TransferToSellerDialog'
+import { LeadEditDialog } from '@/components/sdr/LeadEditDialog'
+import { LeadEditHistory } from '@/components/sdr/LeadEditHistory'
 import { useAuth } from '@/hooks/useAuth'
 
 export const Route = createFileRoute('/app/sdr/leads/$id')({
