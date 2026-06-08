@@ -76,6 +76,7 @@ const NAV = [
     { to: "/app/tarefas", label: "Tarefas & Follow-up", icon: CheckSquare },
     { to: "/app/atividades", label: "Minhas Atividades", icon: ListChecks },
     { to: "/app/gestao/atividades", label: "Gestão de Atividades", icon: ListChecks },
+    { to: "/app/cobertura", label: "Cobertura de Carteira", icon: PieChart },
   ]},
   { group: "Cadastros", items: [
     { to: "/app/clientes", label: "Clientes", icon: Users },
