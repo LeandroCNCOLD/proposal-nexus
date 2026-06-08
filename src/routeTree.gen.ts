@@ -15,6 +15,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppIndexRouteImport } from './routes/app.index'
 import { Route as AppTarefasRouteImport } from './routes/app.tarefas'
 import { Route as AppRelatoriosRouteImport } from './routes/app.relatorios'
+import { Route as AppPerfilRouteImport } from './routes/app.perfil'
 import { Route as AppGestaoRouteImport } from './routes/app.gestao'
 import { Route as AppEquipamentosRouteImport } from './routes/app.equipamentos'
 import { Route as AppDocumentosRouteImport } from './routes/app.documentos'
@@ -52,6 +53,7 @@ import { Route as AppColdproProdutosRouteImport } from './routes/app.coldpro.pro
 import { Route as AppColdproCatalogoRouteImport } from './routes/app.coldpro.catalogo'
 import { Route as AppColdproIdRouteImport } from './routes/app.coldpro.$id'
 import { Route as AppAgendaIdRouteImport } from './routes/app.agenda.$id'
+import { Route as AppAdminUsuariosRouteImport } from './routes/app.admin.usuarios'
 import { Route as ApiNomusTestRouteImport } from './routes/api.nomus.test'
 import { Route as AppPropostasIdIndexRouteImport } from './routes/app.propostas.$id.index'
 import { Route as AppGestaoCarteirasIndexRouteImport } from './routes/app.gestao.carteiras.index'
@@ -95,6 +97,11 @@ const AppTarefasRoute = AppTarefasRouteImport.update({
 const AppRelatoriosRoute = AppRelatoriosRouteImport.update({
   id: '/relatorios',
   path: '/relatorios',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPerfilRoute = AppPerfilRouteImport.update({
+  id: '/perfil',
+  path: '/perfil',
   getParentRoute: () => AppRoute,
 } as any)
 const AppGestaoRoute = AppGestaoRouteImport.update({
@@ -286,6 +293,11 @@ const AppAgendaIdRoute = AppAgendaIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => AppAgendaRoute,
 } as any)
+const AppAdminUsuariosRoute = AppAdminUsuariosRouteImport.update({
+  id: '/admin/usuarios',
+  path: '/admin/usuarios',
+  getParentRoute: () => AppRoute,
+} as any)
 const ApiNomusTestRoute = ApiNomusTestRouteImport.update({
   id: '/api/nomus/test',
   path: '/api/nomus/test',
@@ -379,10 +391,12 @@ export interface FileRoutesByFullPath {
   '/app/documentos': typeof AppDocumentosRoute
   '/app/equipamentos': typeof AppEquipamentosRoute
   '/app/gestao': typeof AppGestaoRouteWithChildren
+  '/app/perfil': typeof AppPerfilRoute
   '/app/relatorios': typeof AppRelatoriosRoute
   '/app/tarefas': typeof AppTarefasRoute
   '/app/': typeof AppIndexRoute
   '/api/nomus/test': typeof ApiNomusTestRoute
+  '/app/admin/usuarios': typeof AppAdminUsuariosRoute
   '/app/agenda/$id': typeof AppAgendaIdRoute
   '/app/coldpro/$id': typeof AppColdproIdRoute
   '/app/coldpro/catalogo': typeof AppColdproCatalogoRoute
@@ -436,10 +450,12 @@ export interface FileRoutesByTo {
   '/app/documentos': typeof AppDocumentosRoute
   '/app/equipamentos': typeof AppEquipamentosRoute
   '/app/gestao': typeof AppGestaoRouteWithChildren
+  '/app/perfil': typeof AppPerfilRoute
   '/app/relatorios': typeof AppRelatoriosRoute
   '/app/tarefas': typeof AppTarefasRoute
   '/app': typeof AppIndexRoute
   '/api/nomus/test': typeof ApiNomusTestRoute
+  '/app/admin/usuarios': typeof AppAdminUsuariosRoute
   '/app/agenda/$id': typeof AppAgendaIdRoute
   '/app/coldpro/$id': typeof AppColdproIdRoute
   '/app/coldpro/catalogo': typeof AppColdproCatalogoRoute
@@ -495,10 +511,12 @@ export interface FileRoutesById {
   '/app/documentos': typeof AppDocumentosRoute
   '/app/equipamentos': typeof AppEquipamentosRoute
   '/app/gestao': typeof AppGestaoRouteWithChildren
+  '/app/perfil': typeof AppPerfilRoute
   '/app/relatorios': typeof AppRelatoriosRoute
   '/app/tarefas': typeof AppTarefasRoute
   '/app/': typeof AppIndexRoute
   '/api/nomus/test': typeof ApiNomusTestRoute
+  '/app/admin/usuarios': typeof AppAdminUsuariosRoute
   '/app/agenda/$id': typeof AppAgendaIdRoute
   '/app/coldpro/$id': typeof AppColdproIdRoute
   '/app/coldpro/catalogo': typeof AppColdproCatalogoRoute
@@ -556,10 +574,12 @@ export interface FileRouteTypes {
     | '/app/documentos'
     | '/app/equipamentos'
     | '/app/gestao'
+    | '/app/perfil'
     | '/app/relatorios'
     | '/app/tarefas'
     | '/app/'
     | '/api/nomus/test'
+    | '/app/admin/usuarios'
     | '/app/agenda/$id'
     | '/app/coldpro/$id'
     | '/app/coldpro/catalogo'
@@ -613,10 +633,12 @@ export interface FileRouteTypes {
     | '/app/documentos'
     | '/app/equipamentos'
     | '/app/gestao'
+    | '/app/perfil'
     | '/app/relatorios'
     | '/app/tarefas'
     | '/app'
     | '/api/nomus/test'
+    | '/app/admin/usuarios'
     | '/app/agenda/$id'
     | '/app/coldpro/$id'
     | '/app/coldpro/catalogo'
@@ -671,10 +693,12 @@ export interface FileRouteTypes {
     | '/app/documentos'
     | '/app/equipamentos'
     | '/app/gestao'
+    | '/app/perfil'
     | '/app/relatorios'
     | '/app/tarefas'
     | '/app/'
     | '/api/nomus/test'
+    | '/app/admin/usuarios'
     | '/app/agenda/$id'
     | '/app/coldpro/$id'
     | '/app/coldpro/catalogo'
@@ -771,6 +795,13 @@ declare module '@tanstack/react-router' {
       path: '/relatorios'
       fullPath: '/app/relatorios'
       preLoaderRoute: typeof AppRelatoriosRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/perfil': {
+      id: '/app/perfil'
+      path: '/perfil'
+      fullPath: '/app/perfil'
+      preLoaderRoute: typeof AppPerfilRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/gestao': {
@@ -1032,6 +1063,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAgendaIdRouteImport
       parentRoute: typeof AppAgendaRoute
     }
+    '/app/admin/usuarios': {
+      id: '/app/admin/usuarios'
+      path: '/admin/usuarios'
+      fullPath: '/app/admin/usuarios'
+      preLoaderRoute: typeof AppAdminUsuariosRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/api/nomus/test': {
       id: '/api/nomus/test'
       path: '/api/nomus/test'
@@ -1223,9 +1261,11 @@ interface AppRouteChildren {
   AppDocumentosRoute: typeof AppDocumentosRoute
   AppEquipamentosRoute: typeof AppEquipamentosRoute
   AppGestaoRoute: typeof AppGestaoRouteWithChildren
+  AppPerfilRoute: typeof AppPerfilRoute
   AppRelatoriosRoute: typeof AppRelatoriosRoute
   AppTarefasRoute: typeof AppTarefasRoute
   AppIndexRoute: typeof AppIndexRoute
+  AppAdminUsuariosRoute: typeof AppAdminUsuariosRoute
   AppColdproIdRoute: typeof AppColdproIdRoute
   AppColdproCatalogoRoute: typeof AppColdproCatalogoRoute
   AppColdproProdutosRoute: typeof AppColdproProdutosRoute
@@ -1260,9 +1300,11 @@ const AppRouteChildren: AppRouteChildren = {
   AppDocumentosRoute: AppDocumentosRoute,
   AppEquipamentosRoute: AppEquipamentosRoute,
   AppGestaoRoute: AppGestaoRouteWithChildren,
+  AppPerfilRoute: AppPerfilRoute,
   AppRelatoriosRoute: AppRelatoriosRoute,
   AppTarefasRoute: AppTarefasRoute,
   AppIndexRoute: AppIndexRoute,
+  AppAdminUsuariosRoute: AppAdminUsuariosRoute,
   AppColdproIdRoute: AppColdproIdRoute,
   AppColdproCatalogoRoute: AppColdproCatalogoRoute,
   AppColdproProdutosRoute: AppColdproProdutosRoute,

@@ -122,6 +122,7 @@ function AppNavigationSidebar() {
         { to: "/app/gestao/carteiras", label: "Carteiras da equipe", icon: Users },
        { to: "/app/gestao/auditoria-sdr", label: "Auditoria SDR", icon: BarChart2 },
        { to: "/app/gestao/alertas-sdr", label: "Alertas de Tentativas", icon: Bell },
+       { to: "/app/admin/usuarios", label: "Usuários", icon: Users },
       ],
     }] : []),
   ];
@@ -217,6 +218,9 @@ export function AppShell({ children }: { children: ReactNode }) {
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuLabel>Minha conta</DropdownMenuLabel>
               <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => navigate({ to: "/app/perfil" })}>
+                <Users className="mr-2 h-4 w-4" /> Meu perfil
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => navigate({ to: "/app/configuracoes" })}>
                 <Settings className="mr-2 h-4 w-4" /> Configurações
               </DropdownMenuItem>

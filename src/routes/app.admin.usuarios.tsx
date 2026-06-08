@@ -131,10 +131,10 @@ function UsersAdminPage() {
       />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <StatCard label="Total de usuários" value={stats.total.toString()} icon={UsersIcon} />
-        <StatCard label="SDRs" value={stats.sdrs.toString()} icon={UserCog} />
-        <StatCard label="Closers / Vendedores" value={stats.closers.toString()} icon={UserCog} />
-        <StatCard label="Gestores / Diretoria" value={stats.managers.toString()} icon={ShieldCheck} />
+        <StatCard label="Total de usuários" value={stats.total.toString()} icon={<UsersIcon className="h-4 w-4" />} />
+        <StatCard label="SDRs" value={stats.sdrs.toString()} icon={<UserCog className="h-4 w-4" />} />
+        <StatCard label="Closers / Vendedores" value={stats.closers.toString()} icon={<UserCog className="h-4 w-4" />} />
+        <StatCard label="Gestores / Diretoria" value={stats.managers.toString()} icon={<ShieldCheck className="h-4 w-4" />} />
       </div>
 
       <div className="rounded-lg border bg-card">
