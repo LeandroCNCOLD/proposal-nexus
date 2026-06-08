@@ -291,6 +291,10 @@ function LeadDetailPage() {
         </CardContent>
       </Card>
 
+      <LeadEditHistory leadId={id} />
+
+
+
       <div className="flex items-center gap-3 pt-2 text-xs text-muted-foreground">
         <DollarSign className="h-3 w-3" />
         Valor total da proposta: <strong className="text-foreground">{fmtBRL(lead.value)}</strong>
