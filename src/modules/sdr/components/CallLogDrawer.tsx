@@ -35,6 +35,10 @@ export function CallLogDrawer({ pipeline, open, onClose }: Props) {
   const qc = useQueryClient()
   const [form, setForm] = useState({
     sdr_name: pipeline.sdr_name ?? '',
+    line_type: 'Celular' as 'Celular' | 'Fixo' | 'WhatsApp',
+    phone_number: (pipeline.contact_mobile ?? pipeline.contact_phone ?? '') as string,
+    manual_log: false,
+    manual_summary: '',
     result: '' as any,
     other_reason: '',
     temperature_after: pipeline.temperature as any,
@@ -48,6 +52,7 @@ export function CallLogDrawer({ pipeline, open, onClose }: Props) {
 
   const requiresFollowup = !form.meeting_booked
   const nextAttemptValid = !requiresFollowup || (!!form.next_attempt_at && new Date(form.next_attempt_at).getTime() > Date.now() - 60_000)
+  const manualSummaryValid = !form.manual_log || form.manual_summary.trim().length >= 5
 
   async function handleSubmit() {
     if (!form.result) return
