@@ -8457,6 +8457,7 @@ export type Database = {
         Returns: boolean
       }
       import_sdr_leads_batch: { Args: { payload: Json }; Returns: number }
+      is_team_manager: { Args: { _user_id: string }; Returns: boolean }
       next_funnel_stage_order: { Args: { _tipo: string }; Returns: number }
       proposal_table_default_settings: {
         Args: { p_table_type: string }
@@ -8474,6 +8475,14 @@ export type Database = {
       sync_normalize_cn_cold_model: { Args: { value: string }; Returns: string }
       sync_normalize_model: { Args: { value: string }; Returns: string }
       sync_normalize_text: { Args: { value: string }; Returns: string }
+      transfer_proposal_owner: {
+        Args: { _kind?: string; _new_user_id: string; _proposal_id: string }
+        Returns: undefined
+      }
+      transfer_sdr_lead: {
+        Args: { _lead_id: string; _new_sdr_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role:
