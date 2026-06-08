@@ -220,6 +220,33 @@ function UserWalletPage() {
                     <span className="font-semibold uppercase tracking-wide">{a.title}</span>
                     <span className="ml-auto">{dateTimeBR(a.ts)}</span>
                   </div>
+                  {a.refLabel && a.ref && (
+                    a.refKind === "proposal" ? (
+                      <Link
+                        to="/app/propostas/$id"
+                        params={{ id: a.ref }}
+                        className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                      >
+                        <FileText className="h-3 w-3" /> {a.refLabel}
+                        {"refStatus" in a && a.refStatus && (
+                          <Badge variant="outline" className="ml-1 text-[10px]">
+                            {STATUS_LABELS[a.refStatus as keyof typeof STATUS_LABELS] ?? a.refStatus}
+                          </Badge>
+                        )}
+                        {"refValue" in a && typeof a.refValue === "number" && a.refValue > 0 && (
+                          <span className="ml-1 font-mono tabular-nums text-muted-foreground">{brl(a.refValue)}</span>
+                        )}
+                      </Link>
+                    ) : (
+                      <Link
+                        to="/app/sdr/leads/$id"
+                        params={{ id: a.ref }}
+                        className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                      >
+                        <Users className="h-3 w-3" /> {a.refLabel}
+                      </Link>
+                    )
+                  )}
                   {a.detail && <div className="mt-1 whitespace-pre-wrap text-foreground/90">{a.detail}</div>}
                 </div>
               ))}
