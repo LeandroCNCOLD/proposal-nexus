@@ -119,3 +119,49 @@ export const CALL_RESULT_OPTIONS: CallResult[] = [
 ]
 export const SDR_NAMES = ['Katlin','Silmar','Tais','Vitor'] as const
 export const CLOSER_NAMES = ['Rafael','Elton','Rodrigo','Leandro'] as const
+
+export type AgendaStatus = 'Agendado' | 'Confirmado' | 'Realizado' | 'Cancelado' | 'Não Compareceu'
+
+export interface CrmAgenda {
+  id: string
+  created_at: string
+  pipeline_id: string | null
+  closer_id: string | null
+  closer_name: string | null
+  client_name: string
+  start_at: string
+  end_at: string
+  status: AgendaStatus
+  location: string | null
+  notes: string | null
+}
+
+export interface CrmScript {
+  id: string
+  created_at: string
+  updated_at: string
+  title: string
+  etapa: SdrStatus
+  description: string | null
+  active: boolean
+}
+
+export interface CrmScriptBlock {
+  id: string
+  script_id: string
+  order_index: number
+  title: string
+  content: string
+}
+
+export interface CrmScriptObjection {
+  id: string
+  script_id: string
+  objection: string
+  response: string
+}
+
+export interface CrmScriptFull extends CrmScript {
+  blocks: CrmScriptBlock[]
+  objections: CrmScriptObjection[]
+}

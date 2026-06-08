@@ -33,10 +33,6 @@ create table if not exists public.crm_pipeline (
   next_step text,
   probability_pct smallint check (probability_pct between 0 and 100),
   internal_note text,
-  days_without_contact integer generated always as (
-    case when last_contact_at is null then null
-    else (current_date - last_contact_at)::integer end
-  ) stored,
   value_range text generated always as (
     case
       when value >= 5000000 then 'Mega (>5M)'
