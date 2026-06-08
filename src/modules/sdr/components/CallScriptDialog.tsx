@@ -9,17 +9,13 @@ import { Phone, MessageCircle, Mail, Copy, Check, Save } from 'lucide-react'
 import { useState, useMemo, useEffect } from 'react'
 import { toast } from 'sonner'
 
-function openTel(phone: string) {
+function normalizePhone(phone: string) {
   const d = phone.replace(/\D/g, '')
-  if (!d) return
-  // tel: only works when the OS/browser has a registered handler (mobile, FaceTime, Skype, etc.).
-  // On desktops without a handler the click is silently ignored — that's what happens to users like Vitor.
-  // We try window.location first; if nothing happens the user can fall back to WhatsApp/copy from the menu.
-  try { window.location.href = `tel:${d}` } catch { /* ignored */ }
+  return d.startsWith('55') ? d : `55${d}`
 }
 
 function copyPhone(phone: string) {
-  const d = phone.replace(/\D/g, '')
+  const d = normalizePhone(phone)
   navigator.clipboard.writeText(d).then(
     () => toast.success('Número copiado'),
     () => toast.error('Não foi possível copiar')
@@ -27,10 +23,9 @@ function copyPhone(phone: string) {
 }
 
 function PhoneActions({ phone, variant = 'default', isMobile }: { phone: string; variant?: 'default' | 'outline'; isMobile: boolean }) {
+  const normalizedPhone = normalizePhone(phone)
   const waUrl = (() => {
-    const d = phone.replace(/\D/g, '')
-    const intl = d.startsWith('55') ? d : `55${d}`
-    return `https://wa.me/${intl}`
+    return `https://wa.me/${normalizedPhone}`
   })()
   return (
     <DropdownMenu>
@@ -40,12 +35,24 @@ function PhoneActions({ phone, variant = 'default', isMobile }: { phone: string;
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => openTel(phone)}>
-          <Phone className="w-4 h-4 mr-2" /> Abrir discador (tel:)
+        <DropdownMenuItem asChild>
+          <a href={`tel:${normalizedPhone}`}>
+            <Phone className="w-4 h-4 mr-2" /> Discador padrão do sistema
+          </a>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <a href={`callto:${normalizedPhone}`}>
+            <Phone className="w-4 h-4 mr-2" /> Vivo/softphone no computador
+          </a>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <a href={`sip:${normalizedPhone}`}>
+            <Phone className="w-4 h-4 mr-2" /> SIP/telefonia corporativa
+          </a>
         </DropdownMenuItem>
         {isMobile && (
           <DropdownMenuItem asChild>
-            <a href={`https://wa.me/${(phone.replace(/\D/g,'').startsWith('55') ? '' : '55') + phone.replace(/\D/g,'')}`} target="_blank" rel="noreferrer">
+            <a href={waUrl} target="_blank" rel="noreferrer">
               <MessageCircle className="w-4 h-4 mr-2" /> WhatsApp
             </a>
           </DropdownMenuItem>

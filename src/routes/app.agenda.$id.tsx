@@ -154,7 +154,10 @@ function AgendaDetailPage() {
           {item.contato_cliente && <Row icon={<User className="h-4 w-4" />} label="Contato">{item.contato_cliente}</Row>}
           {item.telefone_cliente && (
             <Row icon={<Phone className="h-4 w-4" />} label="Telefone">
-              <a href={`tel:${item.telefone_cliente}`} className="text-primary underline">{item.telefone_cliente}</a>
+              <span className="inline-flex flex-wrap items-center gap-2">
+                <a href={`tel:${item.telefone_cliente.replace(/\D/g, '')}`} className="text-primary underline">{item.telefone_cliente}</a>
+                <a href={`callto:${item.telefone_cliente.replace(/\D/g, '')}`} className="text-primary underline">Vivo/softphone</a>
+              </span>
             </Row>
           )}
           {item.email_cliente && (
