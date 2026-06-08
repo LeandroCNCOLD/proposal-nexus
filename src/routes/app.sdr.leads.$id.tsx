@@ -24,6 +24,7 @@ function LeadDetailPage() {
   const { id } = Route.useParams()
   const { user, hasAnyRole } = useAuth()
   const [transferOpen, setTransferOpen] = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
   const [period, setPeriod] = useState<'7' | '30' | '90' | 'all'>('30')
 
   const { data: lead, isLoading } = useQuery({
