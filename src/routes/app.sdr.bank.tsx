@@ -275,6 +275,35 @@ function BankPage() {
           <option value="Quente">Quente</option>
           <option value="Muito Quente">Muito Quente</option>
         </select>
+        <Select value={sdrFilter || '__all__'} onValueChange={v => setSdrFilter(v === '__all__' ? '' : v)}>
+          <SelectTrigger className="w-40"><SelectValue placeholder="SDR" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">Todos SDRs</SelectItem>
+            {sdrNames.map(n => <SelectItem key={n} value={n}>{n}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={closerFilter || '__all__'} onValueChange={v => setCloserFilter(v === '__all__' ? '' : v)}>
+          <SelectTrigger className="w-44"><SelectValue placeholder="Closer / Vendedor" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">Todos Closers</SelectItem>
+            {closerNames.map(n => <SelectItem key={n} value={n}>{n}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={statusFilter} onValueChange={v => setStatusFilter(v as any)}>
+          <SelectTrigger className="w-40"><SelectValue placeholder="Status" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos status</SelectItem>
+            <SelectItem value="available">Disponíveis</SelectItem>
+            <SelectItem value="mine">Minha carteira</SelectItem>
+            <SelectItem value="others">De outros SDRs</SelectItem>
+            <SelectItem value="frozen">Bloqueados</SelectItem>
+          </SelectContent>
+        </Select>
+        {(search || uf || minValue || temp || sdrFilter || closerFilter || statusFilter !== 'all') && (
+          <Button variant="ghost" size="sm" onClick={() => { setSearch(''); setUf(''); setMinValue(''); setTemp(''); setSdrFilter(''); setCloserFilter(''); setStatusFilter('all') }}>
+            Limpar filtros
+          </Button>
+        )}
       </div>
 
       {isLoading ? (
