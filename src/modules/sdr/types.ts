@@ -78,8 +78,8 @@ export interface CrmPipeline {
 export const SDR_LOCK_LIMIT = 30
 export const SDR_LOCK_DAYS = 7
 
-export type CallChannel = 'Telefone' | 'WhatsApp' | 'E-mail' | 'Outro'
-export const CALL_CHANNEL_OPTIONS: CallChannel[] = ['Telefone', 'WhatsApp', 'E-mail', 'Outro']
+export type CallChannel = 'Celular' | 'Fixo' | 'WhatsApp' | 'E-mail' | 'Telefone' | 'Outro'
+export const CALL_CHANNEL_OPTIONS: CallChannel[] = ['Celular', 'Fixo', 'WhatsApp', 'E-mail', 'Outro']
 
 export interface CrmCallLog {
   id: string
