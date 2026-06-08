@@ -244,7 +244,7 @@ function BankPage() {
         <div>
           <h1 className="text-2xl font-bold text-[#0F2D5E]">Banco de Leads</h1>
           <p className="text-sm text-muted-foreground">
-            {filtered.length} de {rows.length} leads ativos
+            {summary.uniqueCount} propostas únicas ({filtered.length} de {rows.length} linhas) · <strong>{fmtBRL(summary.totalValue)}</strong> disponível
             {canPickLeads && <> · Você tem <strong>{myLockCount}/{SDR_LOCK_LIMIT}</strong> leads na carteira</>}
             {' · '}
             <button
