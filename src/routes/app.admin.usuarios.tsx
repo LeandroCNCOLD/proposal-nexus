@@ -2,7 +2,7 @@ import { createFileRoute, Navigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { KeyRound, Trash2, Users as UsersIcon, ShieldCheck, UserCog } from "lucide-react";
+import { KeyRound, Trash2, Users as UsersIcon, ShieldCheck, UserCog, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/PageHeader";
 import { StatCard } from "@/components/StatCard";
@@ -21,11 +21,16 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader,
+  DialogTitle, DialogTrigger, DialogClose,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { NewUserWizard } from "@/components/admin/NewUserWizard";
 import { useAuth, type AppRole } from "@/hooks/useAuth";
 import { useIsManager } from "@/hooks/use-profile";
 import { ROLE_LABELS } from "@/lib/proposal";
-import { listAppUsers, setUserPrimaryRole, deleteAppUser } from "@/lib/user-admin.functions";
+import { listAppUsers, setUserPrimaryRole, deleteAppUser, setUserPassword } from "@/lib/user-admin.functions";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/app/admin/usuarios")({
@@ -62,8 +67,13 @@ function UsersAdminPage() {
   const fetchUsers = useServerFn(listAppUsers);
   const updateRole = useServerFn(setUserPrimaryRole);
   const removeUser = useServerFn(deleteAppUser);
+  const updatePassword = useServerFn(setUserPassword);
 
   const [search, setSearch] = useState("");
+  const [passwordTarget, setPasswordTarget] = useState<{ id: string; label: string } | null>(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [savingPassword, setSavingPassword] = useState(false);
 
   const { data: users = [], isLoading } = useQuery({
     queryKey: ["app-users"],
@@ -122,6 +132,30 @@ function UsersAdminPage() {
     else toast.success(`Email de redefinição enviado para ${email}.`);
   };
 
+  const onSavePassword = async () => {
+    if (!passwordTarget) return;
+    if (newPassword.length < 8) {
+      toast.error("A nova senha precisa ter pelo menos 8 caracteres.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error("As senhas não conferem.");
+      return;
+    }
+    setSavingPassword(true);
+    try {
+      await updatePassword({ data: { userId: passwordTarget.id, password: newPassword } });
+      toast.success(`Nova senha definida para ${passwordTarget.label}.`);
+      setPasswordTarget(null);
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao definir senha.");
+    } finally {
+      setSavingPassword(false);
+    }
+  };
+
   return (
     <div className="p-4 sm:p-6 space-y-4">
       <PageHeader
@@ -129,6 +163,7 @@ function UsersAdminPage() {
         subtitle="Cadastre e gerencie o time CN Cold"
         actions={<NewUserWizard />}
       />
+
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <StatCard label="Total de usuários" value={stats.total.toString()} icon={<UsersIcon className="h-4 w-4" />} />
@@ -212,6 +247,18 @@ function UsersAdminPage() {
                       <Button
                         size="icon"
                         variant="ghost"
+                        title="Definir nova senha (manual)"
+                        onClick={() => {
+                          setPasswordTarget({ id: u.id, label: u.fullName || u.email || u.id });
+                          setNewPassword("");
+                          setConfirmPassword("");
+                        }}
+                      >
+                        <Lock className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
                         title="Enviar email de redefinição de senha"
                         onClick={() => onResetPassword(u.email)}
                       >
@@ -244,6 +291,60 @@ function UsersAdminPage() {
           </TableBody>
         </Table>
       </div>
+
+      <Dialog
+        open={!!passwordTarget}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPasswordTarget(null);
+            setNewPassword("");
+            setConfirmPassword("");
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Definir nova senha</DialogTitle>
+            <DialogDescription>
+              Defina manualmente uma nova senha para{" "}
+              <strong>{passwordTarget?.label}</strong>. O usuário poderá entrar imediatamente
+              com a nova senha. Comunique-a por um canal seguro.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="new-password">Nova senha</Label>
+              <Input
+                id="new-password"
+                type="password"
+                autoComplete="new-password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Mínimo 8 caracteres"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="confirm-password">Confirmar nova senha</Label>
+              <Input
+                id="confirm-password"
+                type="password"
+                autoComplete="new-password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Repita a senha"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline" disabled={savingPassword}>Cancelar</Button>
+            </DialogClose>
+            <Button onClick={onSavePassword} disabled={savingPassword}>
+              {savingPassword ? "Salvando..." : "Salvar nova senha"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
