@@ -15,6 +15,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppIndexRouteImport } from './routes/app.index'
 import { Route as AppTarefasRouteImport } from './routes/app.tarefas'
 import { Route as AppRelatoriosRouteImport } from './routes/app.relatorios'
+import { Route as AppGestaoRouteImport } from './routes/app.gestao'
 import { Route as AppEquipamentosRouteImport } from './routes/app.equipamentos'
 import { Route as AppDocumentosRouteImport } from './routes/app.documentos'
 import { Route as AppDashboardGeralRouteImport } from './routes/app.dashboard-geral'
@@ -40,6 +41,7 @@ import { Route as AppPropostasTabelasPrecoRouteImport } from './routes/app.propo
 import { Route as AppPropostasPedidosNfRouteImport } from './routes/app.propostas.pedidos-nf'
 import { Route as AppPropostasNovaRouteImport } from './routes/app.propostas.nova'
 import { Route as AppPropostasIdRouteImport } from './routes/app.propostas.$id'
+import { Route as AppGestaoAuditoriaSdrRouteImport } from './routes/app.gestao.auditoria-sdr'
 import { Route as AppCrmClosersPerformanceRouteImport } from './routes/app.crm.closers-performance'
 import { Route as AppCrmIdRouteImport } from './routes/app.crm.$id'
 import { Route as AppConfiguracoesPermissoesRouteImport } from './routes/app.configuracoes.permissoes'
@@ -51,8 +53,10 @@ import { Route as AppColdproIdRouteImport } from './routes/app.coldpro.$id'
 import { Route as AppAgendaIdRouteImport } from './routes/app.agenda.$id'
 import { Route as ApiNomusTestRouteImport } from './routes/api.nomus.test'
 import { Route as AppPropostasIdIndexRouteImport } from './routes/app.propostas.$id.index'
+import { Route as AppGestaoCarteirasIndexRouteImport } from './routes/app.gestao.carteiras.index'
 import { Route as AppConfiguracoesTemplatesIndexRouteImport } from './routes/app.configuracoes.templates.index'
 import { Route as AppPropostasIdEditorRouteImport } from './routes/app.propostas.$id.editor'
+import { Route as AppGestaoCarteirasUserIdRouteImport } from './routes/app.gestao.carteiras.$userId'
 import { Route as AppConfiguracoesTemplatesIdRouteImport } from './routes/app.configuracoes.templates.$id'
 import { Route as AppConfiguracoesNomusImportarCustosRouteImport } from './routes/app.configuracoes.nomus.importar-custos'
 import { Route as ApiPublicNomusTabelaPrecoProbeRouteImport } from './routes/api.public.nomus.tabela-preco-probe'
@@ -89,6 +93,11 @@ const AppTarefasRoute = AppTarefasRouteImport.update({
 const AppRelatoriosRoute = AppRelatoriosRouteImport.update({
   id: '/relatorios',
   path: '/relatorios',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppGestaoRoute = AppGestaoRouteImport.update({
+  id: '/gestao',
+  path: '/gestao',
   getParentRoute: () => AppRoute,
 } as any)
 const AppEquipamentosRoute = AppEquipamentosRouteImport.update({
@@ -217,6 +226,11 @@ const AppPropostasIdRoute = AppPropostasIdRouteImport.update({
   path: '/propostas/$id',
   getParentRoute: () => AppRoute,
 } as any)
+const AppGestaoAuditoriaSdrRoute = AppGestaoAuditoriaSdrRouteImport.update({
+  id: '/auditoria-sdr',
+  path: '/auditoria-sdr',
+  getParentRoute: () => AppGestaoRoute,
+} as any)
 const AppCrmClosersPerformanceRoute =
   AppCrmClosersPerformanceRouteImport.update({
     id: '/crm/closers-performance',
@@ -275,6 +289,11 @@ const AppPropostasIdIndexRoute = AppPropostasIdIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppPropostasIdRoute,
 } as any)
+const AppGestaoCarteirasIndexRoute = AppGestaoCarteirasIndexRouteImport.update({
+  id: '/carteiras/',
+  path: '/carteiras/',
+  getParentRoute: () => AppGestaoRoute,
+} as any)
 const AppConfiguracoesTemplatesIndexRoute =
   AppConfiguracoesTemplatesIndexRouteImport.update({
     id: '/templates/',
@@ -286,6 +305,12 @@ const AppPropostasIdEditorRoute = AppPropostasIdEditorRouteImport.update({
   path: '/editor',
   getParentRoute: () => AppPropostasIdRoute,
 } as any)
+const AppGestaoCarteirasUserIdRoute =
+  AppGestaoCarteirasUserIdRouteImport.update({
+    id: '/carteiras/$userId',
+    path: '/carteiras/$userId',
+    getParentRoute: () => AppGestaoRoute,
+  } as any)
 const AppConfiguracoesTemplatesIdRoute =
   AppConfiguracoesTemplatesIdRouteImport.update({
     id: '/templates/$id',
@@ -341,6 +366,7 @@ export interface FileRoutesByFullPath {
   '/app/dashboard-geral': typeof AppDashboardGeralRoute
   '/app/documentos': typeof AppDocumentosRoute
   '/app/equipamentos': typeof AppEquipamentosRoute
+  '/app/gestao': typeof AppGestaoRouteWithChildren
   '/app/relatorios': typeof AppRelatoriosRoute
   '/app/tarefas': typeof AppTarefasRoute
   '/app/': typeof AppIndexRoute
@@ -354,6 +380,7 @@ export interface FileRoutesByFullPath {
   '/app/configuracoes/permissoes': typeof AppConfiguracoesPermissoesRoute
   '/app/crm/$id': typeof AppCrmIdRoute
   '/app/crm/closers-performance': typeof AppCrmClosersPerformanceRoute
+  '/app/gestao/auditoria-sdr': typeof AppGestaoAuditoriaSdrRoute
   '/app/propostas/$id': typeof AppPropostasIdRouteWithChildren
   '/app/propostas/nova': typeof AppPropostasNovaRoute
   '/app/propostas/pedidos-nf': typeof AppPropostasPedidosNfRoute
@@ -377,8 +404,10 @@ export interface FileRoutesByFullPath {
   '/api/public/nomus/tabela-preco-probe': typeof ApiPublicNomusTabelaPrecoProbeRoute
   '/app/configuracoes/nomus/importar-custos': typeof AppConfiguracoesNomusImportarCustosRoute
   '/app/configuracoes/templates/$id': typeof AppConfiguracoesTemplatesIdRoute
+  '/app/gestao/carteiras/$userId': typeof AppGestaoCarteirasUserIdRoute
   '/app/propostas/$id/editor': typeof AppPropostasIdEditorRoute
   '/app/configuracoes/templates/': typeof AppConfiguracoesTemplatesIndexRoute
+  '/app/gestao/carteiras/': typeof AppGestaoCarteirasIndexRoute
   '/app/propostas/$id/': typeof AppPropostasIdIndexRoute
 }
 export interface FileRoutesByTo {
@@ -392,6 +421,7 @@ export interface FileRoutesByTo {
   '/app/dashboard-geral': typeof AppDashboardGeralRoute
   '/app/documentos': typeof AppDocumentosRoute
   '/app/equipamentos': typeof AppEquipamentosRoute
+  '/app/gestao': typeof AppGestaoRouteWithChildren
   '/app/relatorios': typeof AppRelatoriosRoute
   '/app/tarefas': typeof AppTarefasRoute
   '/app': typeof AppIndexRoute
@@ -405,6 +435,7 @@ export interface FileRoutesByTo {
   '/app/configuracoes/permissoes': typeof AppConfiguracoesPermissoesRoute
   '/app/crm/$id': typeof AppCrmIdRoute
   '/app/crm/closers-performance': typeof AppCrmClosersPerformanceRoute
+  '/app/gestao/auditoria-sdr': typeof AppGestaoAuditoriaSdrRoute
   '/app/propostas/nova': typeof AppPropostasNovaRoute
   '/app/propostas/pedidos-nf': typeof AppPropostasPedidosNfRoute
   '/app/propostas/tabelas-preco': typeof AppPropostasTabelasPrecoRoute
@@ -427,8 +458,10 @@ export interface FileRoutesByTo {
   '/api/public/nomus/tabela-preco-probe': typeof ApiPublicNomusTabelaPrecoProbeRoute
   '/app/configuracoes/nomus/importar-custos': typeof AppConfiguracoesNomusImportarCustosRoute
   '/app/configuracoes/templates/$id': typeof AppConfiguracoesTemplatesIdRoute
+  '/app/gestao/carteiras/$userId': typeof AppGestaoCarteirasUserIdRoute
   '/app/propostas/$id/editor': typeof AppPropostasIdEditorRoute
   '/app/configuracoes/templates': typeof AppConfiguracoesTemplatesIndexRoute
+  '/app/gestao/carteiras': typeof AppGestaoCarteirasIndexRoute
   '/app/propostas/$id': typeof AppPropostasIdIndexRoute
 }
 export interface FileRoutesById {
@@ -445,6 +478,7 @@ export interface FileRoutesById {
   '/app/dashboard-geral': typeof AppDashboardGeralRoute
   '/app/documentos': typeof AppDocumentosRoute
   '/app/equipamentos': typeof AppEquipamentosRoute
+  '/app/gestao': typeof AppGestaoRouteWithChildren
   '/app/relatorios': typeof AppRelatoriosRoute
   '/app/tarefas': typeof AppTarefasRoute
   '/app/': typeof AppIndexRoute
@@ -458,6 +492,7 @@ export interface FileRoutesById {
   '/app/configuracoes/permissoes': typeof AppConfiguracoesPermissoesRoute
   '/app/crm/$id': typeof AppCrmIdRoute
   '/app/crm/closers-performance': typeof AppCrmClosersPerformanceRoute
+  '/app/gestao/auditoria-sdr': typeof AppGestaoAuditoriaSdrRoute
   '/app/propostas/$id': typeof AppPropostasIdRouteWithChildren
   '/app/propostas/nova': typeof AppPropostasNovaRoute
   '/app/propostas/pedidos-nf': typeof AppPropostasPedidosNfRoute
@@ -481,8 +516,10 @@ export interface FileRoutesById {
   '/api/public/nomus/tabela-preco-probe': typeof ApiPublicNomusTabelaPrecoProbeRoute
   '/app/configuracoes/nomus/importar-custos': typeof AppConfiguracoesNomusImportarCustosRoute
   '/app/configuracoes/templates/$id': typeof AppConfiguracoesTemplatesIdRoute
+  '/app/gestao/carteiras/$userId': typeof AppGestaoCarteirasUserIdRoute
   '/app/propostas/$id/editor': typeof AppPropostasIdEditorRoute
   '/app/configuracoes/templates/': typeof AppConfiguracoesTemplatesIndexRoute
+  '/app/gestao/carteiras/': typeof AppGestaoCarteirasIndexRoute
   '/app/propostas/$id/': typeof AppPropostasIdIndexRoute
 }
 export interface FileRouteTypes {
@@ -500,6 +537,7 @@ export interface FileRouteTypes {
     | '/app/dashboard-geral'
     | '/app/documentos'
     | '/app/equipamentos'
+    | '/app/gestao'
     | '/app/relatorios'
     | '/app/tarefas'
     | '/app/'
@@ -513,6 +551,7 @@ export interface FileRouteTypes {
     | '/app/configuracoes/permissoes'
     | '/app/crm/$id'
     | '/app/crm/closers-performance'
+    | '/app/gestao/auditoria-sdr'
     | '/app/propostas/$id'
     | '/app/propostas/nova'
     | '/app/propostas/pedidos-nf'
@@ -536,8 +575,10 @@ export interface FileRouteTypes {
     | '/api/public/nomus/tabela-preco-probe'
     | '/app/configuracoes/nomus/importar-custos'
     | '/app/configuracoes/templates/$id'
+    | '/app/gestao/carteiras/$userId'
     | '/app/propostas/$id/editor'
     | '/app/configuracoes/templates/'
+    | '/app/gestao/carteiras/'
     | '/app/propostas/$id/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -551,6 +592,7 @@ export interface FileRouteTypes {
     | '/app/dashboard-geral'
     | '/app/documentos'
     | '/app/equipamentos'
+    | '/app/gestao'
     | '/app/relatorios'
     | '/app/tarefas'
     | '/app'
@@ -564,6 +606,7 @@ export interface FileRouteTypes {
     | '/app/configuracoes/permissoes'
     | '/app/crm/$id'
     | '/app/crm/closers-performance'
+    | '/app/gestao/auditoria-sdr'
     | '/app/propostas/nova'
     | '/app/propostas/pedidos-nf'
     | '/app/propostas/tabelas-preco'
@@ -586,8 +629,10 @@ export interface FileRouteTypes {
     | '/api/public/nomus/tabela-preco-probe'
     | '/app/configuracoes/nomus/importar-custos'
     | '/app/configuracoes/templates/$id'
+    | '/app/gestao/carteiras/$userId'
     | '/app/propostas/$id/editor'
     | '/app/configuracoes/templates'
+    | '/app/gestao/carteiras'
     | '/app/propostas/$id'
   id:
     | '__root__'
@@ -603,6 +648,7 @@ export interface FileRouteTypes {
     | '/app/dashboard-geral'
     | '/app/documentos'
     | '/app/equipamentos'
+    | '/app/gestao'
     | '/app/relatorios'
     | '/app/tarefas'
     | '/app/'
@@ -616,6 +662,7 @@ export interface FileRouteTypes {
     | '/app/configuracoes/permissoes'
     | '/app/crm/$id'
     | '/app/crm/closers-performance'
+    | '/app/gestao/auditoria-sdr'
     | '/app/propostas/$id'
     | '/app/propostas/nova'
     | '/app/propostas/pedidos-nf'
@@ -639,8 +686,10 @@ export interface FileRouteTypes {
     | '/api/public/nomus/tabela-preco-probe'
     | '/app/configuracoes/nomus/importar-custos'
     | '/app/configuracoes/templates/$id'
+    | '/app/gestao/carteiras/$userId'
     | '/app/propostas/$id/editor'
     | '/app/configuracoes/templates/'
+    | '/app/gestao/carteiras/'
     | '/app/propostas/$id/'
   fileRoutesById: FileRoutesById
 }
@@ -698,6 +747,13 @@ declare module '@tanstack/react-router' {
       path: '/relatorios'
       fullPath: '/app/relatorios'
       preLoaderRoute: typeof AppRelatoriosRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/gestao': {
+      id: '/app/gestao'
+      path: '/gestao'
+      fullPath: '/app/gestao'
+      preLoaderRoute: typeof AppGestaoRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/equipamentos': {
@@ -875,6 +931,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPropostasIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/gestao/auditoria-sdr': {
+      id: '/app/gestao/auditoria-sdr'
+      path: '/auditoria-sdr'
+      fullPath: '/app/gestao/auditoria-sdr'
+      preLoaderRoute: typeof AppGestaoAuditoriaSdrRouteImport
+      parentRoute: typeof AppGestaoRoute
+    }
     '/app/crm/closers-performance': {
       id: '/app/crm/closers-performance'
       path: '/crm/closers-performance'
@@ -952,6 +1015,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPropostasIdIndexRouteImport
       parentRoute: typeof AppPropostasIdRoute
     }
+    '/app/gestao/carteiras/': {
+      id: '/app/gestao/carteiras/'
+      path: '/carteiras'
+      fullPath: '/app/gestao/carteiras/'
+      preLoaderRoute: typeof AppGestaoCarteirasIndexRouteImport
+      parentRoute: typeof AppGestaoRoute
+    }
     '/app/configuracoes/templates/': {
       id: '/app/configuracoes/templates/'
       path: '/templates'
@@ -965,6 +1035,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/app/propostas/$id/editor'
       preLoaderRoute: typeof AppPropostasIdEditorRouteImport
       parentRoute: typeof AppPropostasIdRoute
+    }
+    '/app/gestao/carteiras/$userId': {
+      id: '/app/gestao/carteiras/$userId'
+      path: '/carteiras/$userId'
+      fullPath: '/app/gestao/carteiras/$userId'
+      preLoaderRoute: typeof AppGestaoCarteirasUserIdRouteImport
+      parentRoute: typeof AppGestaoRoute
     }
     '/app/configuracoes/templates/$id': {
       id: '/app/configuracoes/templates/$id'
@@ -1065,6 +1142,22 @@ const AppConfiguracoesRouteChildren: AppConfiguracoesRouteChildren = {
 const AppConfiguracoesRouteWithChildren =
   AppConfiguracoesRoute._addFileChildren(AppConfiguracoesRouteChildren)
 
+interface AppGestaoRouteChildren {
+  AppGestaoAuditoriaSdrRoute: typeof AppGestaoAuditoriaSdrRoute
+  AppGestaoCarteirasUserIdRoute: typeof AppGestaoCarteirasUserIdRoute
+  AppGestaoCarteirasIndexRoute: typeof AppGestaoCarteirasIndexRoute
+}
+
+const AppGestaoRouteChildren: AppGestaoRouteChildren = {
+  AppGestaoAuditoriaSdrRoute: AppGestaoAuditoriaSdrRoute,
+  AppGestaoCarteirasUserIdRoute: AppGestaoCarteirasUserIdRoute,
+  AppGestaoCarteirasIndexRoute: AppGestaoCarteirasIndexRoute,
+}
+
+const AppGestaoRouteWithChildren = AppGestaoRoute._addFileChildren(
+  AppGestaoRouteChildren,
+)
+
 interface AppPropostasIdRouteChildren {
   AppPropostasIdEditorRoute: typeof AppPropostasIdEditorRoute
   AppPropostasIdIndexRoute: typeof AppPropostasIdIndexRoute
@@ -1089,6 +1182,7 @@ interface AppRouteChildren {
   AppDashboardGeralRoute: typeof AppDashboardGeralRoute
   AppDocumentosRoute: typeof AppDocumentosRoute
   AppEquipamentosRoute: typeof AppEquipamentosRoute
+  AppGestaoRoute: typeof AppGestaoRouteWithChildren
   AppRelatoriosRoute: typeof AppRelatoriosRoute
   AppTarefasRoute: typeof AppTarefasRoute
   AppIndexRoute: typeof AppIndexRoute
@@ -1124,6 +1218,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppDashboardGeralRoute: AppDashboardGeralRoute,
   AppDocumentosRoute: AppDocumentosRoute,
   AppEquipamentosRoute: AppEquipamentosRoute,
+  AppGestaoRoute: AppGestaoRouteWithChildren,
   AppRelatoriosRoute: AppRelatoriosRoute,
   AppTarefasRoute: AppTarefasRoute,
   AppIndexRoute: AppIndexRoute,

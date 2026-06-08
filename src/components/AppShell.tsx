@@ -112,6 +112,18 @@ function NavItem({ to, label, icon: Icon, exact }: { to: string; label: string; 
 }
 
 function AppNavigationSidebar() {
+  const { hasAnyRole } = useAuth();
+  const isManager = hasAnyRole(["admin", "diretoria", "gerente_comercial"]);
+  const groups = [
+    ...NAV,
+    ...(isManager ? [{
+      group: "Gestão",
+      items: [
+        { to: "/app/gestao/carteiras", label: "Carteiras da equipe", icon: Users },
+        { to: "/app/gestao/auditoria-sdr", label: "Auditoria SDR", icon: BarChart2 },
+      ],
+    }] : []),
+  ];
   return (
     <Sidebar collapsible="icon" className="app-sidebar border-sidebar-border bg-sidebar text-sidebar-foreground">
       <SidebarHeader className="border-b border-sidebar-border p-2">
@@ -126,7 +138,7 @@ function AppNavigationSidebar() {
         </div>
       </SidebarHeader>
       <SidebarContent className="p-1">
-        {NAV.map((g) => (
+        {groups.map((g) => (
           <SidebarGroup key={g.group}>
             <SidebarGroupLabel>{g.group}</SidebarGroupLabel>
             <SidebarGroupContent>
