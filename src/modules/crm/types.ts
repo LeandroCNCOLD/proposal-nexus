@@ -120,6 +120,13 @@ export const CALL_RESULT_OPTIONS: CallResult[] = [
 export const SDR_NAMES = ['Katlin','Silmar','Tais','Vitor'] as const
 export const CLOSER_NAMES = ['Rafael','Elton','Rodrigo','Leandro'] as const
 
+/** Mapeia o papel do time CRM (crm_team_members.role) para o app_role usado em user_roles/RLS. */
+export const TEAM_ROLE_TO_APP_ROLE: Record<TeamRole, 'sdr' | 'vendedor' | 'gerente_comercial'> = {
+  SDR: 'sdr',
+  Closer: 'vendedor',
+  Gestor: 'gerente_comercial',
+}
+
 export type AgendaStatus = 'Agendado' | 'Confirmado' | 'Realizado' | 'Cancelado' | 'Não Compareceu'
 
 export interface CrmAgenda {
