@@ -11,6 +11,8 @@ import { Lock, Unlock, Briefcase, ShieldAlert, ArrowUp, ArrowDown, ArrowUpDown, 
 import { toast } from 'sonner'
 import { Link } from '@tanstack/react-router'
 import { useProposalLeadMatches } from '@/hooks/use-proposal-lead-matches'
+import { useSdrNames, useCloserNames } from '@/modules/sdr/hooks/use-team-members'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 export const Route = createFileRoute('/app/sdr/bank')({
   component: BankPage,
@@ -54,6 +56,11 @@ function BankPage() {
   const [uf, setUf] = useState('')
   const [minValue, setMinValue] = useState('')
   const [temp, setTemp] = useState('')
+  const [sdrFilter, setSdrFilter] = useState('')
+  const [closerFilter, setCloserFilter] = useState('')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'available' | 'mine' | 'others' | 'frozen'>('all')
+  const { names: sdrNames } = useSdrNames()
+  const { names: closerNames } = useCloserNames()
   const [sortKey, setSortKey] = useState<SortKey | null>(null)
   const [sortDir, setSortDir] = useState<SortDir>(null)
 
@@ -125,9 +132,21 @@ function BankPage() {
       if (uf && r.state !== uf.toUpperCase()) return false
       if (minValue && r.value < Number(minValue)) return false
       if (temp && r.temperature !== temp) return false
+      if (sdrFilter) {
+        const lockName = r.locked_by_sdr_name?.replace(MANAGER_FREEZE_PREFIX, '').replace(/^\s*\(|\)\s*$/g, '') ?? ''
+        if (r.sdr_name !== sdrFilter && lockName !== sdrFilter) return false
+      }
+      if (closerFilter && r.closer_name !== closerFilter) return false
+      if (statusFilter !== 'all') {
+        const frozen = !!r.locked_by_sdr_name?.startsWith(MANAGER_FREEZE_PREFIX)
+        if (statusFilter === 'frozen' && !frozen) return false
+        if (statusFilter === 'available' && (r.locked_by_sdr_id || frozen)) return false
+        if (statusFilter === 'mine' && r.locked_by_sdr_id !== user?.id) return false
+        if (statusFilter === 'others' && (!r.locked_by_sdr_id || r.locked_by_sdr_id === user?.id || frozen)) return false
+      }
       return true
     })
-  }, [rows, search, uf, minValue, temp])
+  }, [rows, search, uf, minValue, temp, sdrFilter, closerFilter, statusFilter, user?.id])
 
   const sorted = useMemo(() => {
     if (!sortKey || !sortDir) return filtered
@@ -256,6 +275,35 @@ function BankPage() {
           <option value="Quente">Quente</option>
           <option value="Muito Quente">Muito Quente</option>
         </select>
+        <Select value={sdrFilter || '__all__'} onValueChange={v => setSdrFilter(v === '__all__' ? '' : v)}>
+          <SelectTrigger className="w-40"><SelectValue placeholder="SDR" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">Todos SDRs</SelectItem>
+            {sdrNames.map(n => <SelectItem key={n} value={n}>{n}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={closerFilter || '__all__'} onValueChange={v => setCloserFilter(v === '__all__' ? '' : v)}>
+          <SelectTrigger className="w-44"><SelectValue placeholder="Closer / Vendedor" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">Todos Closers</SelectItem>
+            {closerNames.map(n => <SelectItem key={n} value={n}>{n}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={statusFilter} onValueChange={v => setStatusFilter(v as any)}>
+          <SelectTrigger className="w-40"><SelectValue placeholder="Status" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos status</SelectItem>
+            <SelectItem value="available">Disponíveis</SelectItem>
+            <SelectItem value="mine">Minha carteira</SelectItem>
+            <SelectItem value="others">De outros SDRs</SelectItem>
+            <SelectItem value="frozen">Bloqueados</SelectItem>
+          </SelectContent>
+        </Select>
+        {(search || uf || minValue || temp || sdrFilter || closerFilter || statusFilter !== 'all') && (
+          <Button variant="ghost" size="sm" onClick={() => { setSearch(''); setUf(''); setMinValue(''); setTemp(''); setSdrFilter(''); setCloserFilter(''); setStatusFilter('all') }}>
+            Limpar filtros
+          </Button>
+        )}
       </div>
 
       {isLoading ? (
