@@ -484,6 +484,22 @@ function BankPage() {
                         <Badge variant="outline" className="text-green-700 border-green-300">Livre</Badge>
                       )}
                     </td>
+                    <td className="px-3 py-2 text-xs">
+                      {(() => {
+                        const ps = (r as any).proposal_status as string | null | undefined
+                        if (!ps) return <span className="text-muted-foreground">—</span>
+                        const map: Record<string, string> = {
+                          'Proposta Criada': 'bg-slate-100 text-slate-800',
+                          'Proposta Enviada': 'bg-blue-100 text-blue-800',
+                          'Negociando': 'bg-amber-100 text-amber-800',
+                          'Prorrogadas': 'bg-purple-100 text-purple-800',
+                          'Aprovadas': 'bg-green-100 text-green-800',
+                          'Perdidas': 'bg-red-100 text-red-800',
+                          'Canceladas': 'bg-zinc-200 text-zinc-800',
+                        }
+                        return <Badge className={map[ps] || 'bg-muted text-foreground'} variant="secondary">{ps}</Badge>
+                      })()}
+                    </td>
                     <td className="px-3 py-2 text-right space-x-1 whitespace-nowrap">
                       {canPickLeads && !r.locked_by_sdr_id && (
                         <Button
