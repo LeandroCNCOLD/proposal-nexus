@@ -49,6 +49,7 @@ function WalletPage() {
 
   const [scriptLead, setScriptLead] = useState<CrmPipeline | null>(null)
   const [viewingUserId, setViewingUserId] = useState<string | null>(null)
+  const [transferLead, setTransferLead] = useState<CrmPipeline | null>(null)
 
   const targetUserId = viewingUserId ?? user?.id ?? null
   const isViewingOther = !!viewingUserId && viewingUserId !== user?.id
