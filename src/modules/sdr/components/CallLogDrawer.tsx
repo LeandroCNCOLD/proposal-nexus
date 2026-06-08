@@ -57,14 +57,23 @@ export function CallLogDrawer({ pipeline, open, onClose }: Props) {
   async function handleSubmit() {
     if (!form.result) return
     if (form.result === 'Outros' && !form.other_reason.trim()) return
+    if (form.manual_log && !manualSummaryValid) {
+      toast.error('Descreva brevemente o que foi conversado (mínimo 5 caracteres).')
+      return
+    }
     if (requiresFollowup && !nextAttemptValid) {
       toast.error('Defina a data/hora da próxima tentativa (no futuro).')
       return
     }
     const today = new Date()
-    const obs = form.result === 'Outros'
+    const phoneLine = form.phone_number ? `${form.line_type}: ${form.phone_number}` : form.line_type
+    const manualPrefix = form.manual_log
+      ? `[Registro manual — gravação não capturada] ${phoneLine}\nResumo: ${form.manual_summary.trim()}`
+      : `[${phoneLine}]`
+    const baseObs = form.result === 'Outros'
       ? `[Outros: ${form.other_reason.trim()}]${form.observation ? `\n${form.observation}` : ''}`
-      : form.observation || null
+      : form.observation || ''
+    const obs = [manualPrefix, baseObs].filter(Boolean).join('\n') || null
     await insert.mutateAsync({
       pipeline_id: pipeline.id,
       sdr_id: null,
@@ -76,6 +85,7 @@ export function CallLogDrawer({ pipeline, open, onClose }: Props) {
       temperature_after: form.temperature_after || null,
       meeting_booked: form.meeting_booked,
       observation: obs,
+      channel: form.line_type,
     })
 
     if (requiresFollowup) {
