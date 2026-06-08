@@ -7490,6 +7490,56 @@ export type Database = {
         }
         Relationships: []
       }
+      sdr_followups: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          done_at: string | null
+          done_by: string | null
+          id: string
+          lead_id: string
+          note: string | null
+          scheduled_at: string
+          sdr_id: string | null
+          sdr_name: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          done_at?: string | null
+          done_by?: string | null
+          id?: string
+          lead_id: string
+          note?: string | null
+          scheduled_at: string
+          sdr_id?: string | null
+          sdr_name?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          done_at?: string | null
+          done_by?: string | null
+          id?: string
+          lead_id?: string
+          note?: string | null
+          scheduled_at?: string
+          sdr_id?: string | null
+          sdr_name?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sdr_followups_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "sdr_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sdr_leads: {
         Row: {
           call_observation: string | null
