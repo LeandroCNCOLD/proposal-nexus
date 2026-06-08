@@ -319,6 +319,35 @@ function ProposalsList() {
         }
       />
 
+      {/* KPI Cards */}
+      <div className="mb-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+        <div className="rounded-xl border bg-card p-4 shadow-[var(--shadow-sm)]">
+          <div className="text-xs text-muted-foreground">Total de propostas</div>
+          <div className="mt-1 text-2xl font-bold tabular-nums">{kpis.total}</div>
+          <div className="text-xs text-muted-foreground">{brl(kpis.valorTotal)}</div>
+        </div>
+        <div className="rounded-xl border bg-card p-4 shadow-[var(--shadow-sm)]">
+          <div className="text-xs text-muted-foreground">Em aberto</div>
+          <div className="mt-1 text-2xl font-bold tabular-nums text-blue-600">{kpis.abertasN}</div>
+          <div className="text-xs text-muted-foreground">{brl(kpis.abertasV)}</div>
+        </div>
+        <div className="rounded-xl border bg-card p-4 shadow-[var(--shadow-sm)]">
+          <div className="text-xs text-muted-foreground">Em negociação</div>
+          <div className="mt-1 text-2xl font-bold tabular-nums text-amber-600">{kpis.negociacaoN}</div>
+          <div className="text-xs text-muted-foreground">{brl(kpis.negociacaoV)}</div>
+        </div>
+        <div className="rounded-xl border bg-card p-4 shadow-[var(--shadow-sm)]">
+          <div className="text-xs text-muted-foreground">Ganhas</div>
+          <div className="mt-1 text-2xl font-bold tabular-nums text-emerald-600">{kpis.ganhasN}</div>
+          <div className="text-xs text-muted-foreground">{brl(kpis.ganhasV)}</div>
+        </div>
+        <div className="rounded-xl border bg-card p-4 shadow-[var(--shadow-sm)]">
+          <div className="text-xs text-muted-foreground">Perdidas / canceladas</div>
+          <div className="mt-1 text-2xl font-bold tabular-nums text-red-600">{kpis.perdidasN}</div>
+          <div className="text-xs text-muted-foreground">{brl(kpis.perdidasV)}</div>
+        </div>
+      </div>
+
       <div className="mb-4 flex flex-wrap gap-3">
         <div className="relative flex-1 min-w-[260px]">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -331,6 +360,20 @@ function ProposalsList() {
             {ALL_STATUSES.map((s) => <SelectItem key={s} value={s}>{STATUS_LABELS[s]}</SelectItem>)}
           </SelectContent>
         </Select>
+        <Select value={vendedorFilter} onValueChange={setVendedorFilter}>
+          <SelectTrigger className="w-56"><SelectValue placeholder="Vendedor" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos os vendedores</SelectItem>
+            {vendedorOptions.map((v) => <SelectItem key={v} value={v}>{v}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={representanteFilter} onValueChange={setRepresentanteFilter}>
+          <SelectTrigger className="w-56"><SelectValue placeholder="Representante" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos os representantes</SelectItem>
+            {representanteOptions.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+          </SelectContent>
+        </Select>
         <label className="inline-flex items-center gap-2 text-sm text-muted-foreground select-none">
           <input
             type="checkbox"
@@ -341,6 +384,7 @@ function ProposalsList() {
           Somente com lead SDR
         </label>
       </div>
+
 
       <div className="rounded-xl border bg-card shadow-[var(--shadow-sm)] overflow-x-auto">
         <Table>
