@@ -7169,6 +7169,8 @@ export type Database = {
         | "diretoria"
         | "administrativo"
         | "admin"
+        | "coldpro"
+        | "sdr"
       proposal_source: "nomus" | "manual"
       proposal_status:
         | "rascunho"
@@ -7345,6 +7347,8 @@ export const Constants = {
         "diretoria",
         "administrativo",
         "admin",
+        "coldpro",
+        "sdr",
       ],
       proposal_source: ["nomus", "manual"],
       proposal_status: [
