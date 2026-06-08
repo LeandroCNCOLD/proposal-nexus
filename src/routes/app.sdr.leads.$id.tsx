@@ -236,8 +236,8 @@ function LeadDetailPage() {
             <div className="text-sm text-muted-foreground py-6 text-center">Sem atividade registrada no período.</div>
           ) : (
             <div className="space-y-2">
-              {activity.map((a) => (
-                <div key={`${a.kind}-${a.id}`} className="rounded-md border bg-card p-3 text-sm">
+              {activity.map((a: any) => (
+                <div key={`${a.kind}-${a.id}`} className={`rounded-md border p-3 text-sm ${a.isScript ? 'bg-emerald-50/60 border-emerald-200' : 'bg-card'}`}>
                   <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
                     {a.kind === 'call' && <Phone className="h-3 w-3" />}
                     {a.kind === 'note' && <FileText className="h-3 w-3" />}
@@ -248,11 +248,27 @@ function LeadDetailPage() {
                     {a.extra && <span>· {a.extra}</span>}
                     <span className="ml-auto">{dateTimeBR(a.ts)}</span>
                   </div>
-                  {a.detail && <div className="mt-1 whitespace-pre-wrap text-foreground/90">{a.detail}</div>}
+                  {a.result && (
+                    <div className="mt-1.5">
+                      <Badge variant="secondary" className="text-[11px]">Resultado: {a.result}</Badge>
+                    </div>
+                  )}
+                  {a.detail && (
+                    <div className="mt-2">
+                      {a.isScript && (
+                        <div className="text-[11px] font-semibold uppercase tracking-wide text-emerald-800 mb-1">Respostas do script</div>
+                      )}
+                      {a.kind === 'note' && (
+                        <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Nota do SDR</div>
+                      )}
+                      <div className="whitespace-pre-wrap text-foreground/90 leading-relaxed">{a.detail}</div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
           )}
+
         </CardContent>
       </Card>
 
