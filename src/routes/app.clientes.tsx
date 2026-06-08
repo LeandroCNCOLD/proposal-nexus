@@ -74,8 +74,19 @@ function ClientsPage() {
   const [form, setForm] = useState(emptyClientForm);
 
   const { data = [] } = useQuery({
-    queryKey: ["clients"],
-    queryFn: async () => (await supabase.from("clients").select("*, client_contacts(*)").order("name")).data ?? [],
+    queryKey: ["clients", "list"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("clients")
+        .select(
+          "id,name,trade_name,document,segment,region,city,state,email,phone,nomus_id,nomus_seller_name,nomus_representative_name,is_active",
+        )
+        .order("name");
+      return data ?? [];
+    },
+    staleTime: 5 * 60_000,
+    gcTime: 30 * 60_000,
+    refetchOnWindowFocus: false,
   });
 
   const submit = async (e: React.FormEvent) => {
@@ -221,7 +232,7 @@ function ClientsPage() {
 
       <Dialog open={!!selectedClient} onOpenChange={(isOpen) => !isOpen && setSelectedClient(null)}>
         <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-5xl">
-          {selectedClient && <ClientDetails client={selectedClient} />}
+          {selectedClient && <ClientDetailsLoader clientId={selectedClient.id} />}
         </DialogContent>
       </Dialog>
     </>
