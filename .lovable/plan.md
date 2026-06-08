@@ -1,77 +1,95 @@
 
-# Plano: Handoff SDR → Closer mais inteligente
+## Objetivo
 
-Hoje o repasse é 100% manual via `TransferToSellerDialog` → RPC `handoff_lead_to_seller`. Vamos fechar os 4 gaps principais sem quebrar o fluxo manual existente.
+Hoje **Minha Carteira** (`/app/sdr/wallet`) mostra os leads como cards grandes empilhados (~250 px cada). Com 30 leads a página vira uma "folha gigante" e é difícil ter visão do funil. Vamos adicionar uma **visão Kanban** lado a lado, com cards enxutos, e botões de transferência integrados.
 
-## 1. Gatilho automático: "reunião marcada" sugere handoff
+## O que muda na tela
 
-Quando o SDR registra uma ligação em `crm_call_logs` com `meeting_booked = true` (ou muda a temperatura para "Quente"/"Muito Quente"), o sistema deve **propor o handoff** ao final do `CallLogDrawer`:
+### 1) Alternador "Lista / Kanban"
+No topo da página, ao lado do contador de leads, dois botões:
+- **Lista** — visão atual (mantida, sem regressão para quem prefere).
+- **Kanban** — nova visão padrão (preferência salva em `localStorage`).
 
-- Após salvar a call log, abre um modal: "Reunião marcada — transferir lead para um vendedor agora?"
-- Lista vendedores (já temos `useTeamRoster("vendedor")`).
-- Sugere o vendedor com **menos leads em aberto** (round-robin assistido — ver §4). SDR pode trocar.
-- Confirma → chama `handoff_lead_to_seller` existente.
-- "Pular" mantém o lead na carteira do SDR.
+### 2) Colunas do Kanban
+Uma coluna por etapa do funil do SDR, na ordem do processo:
 
-Não automatizamos sem confirmação — o SDR sempre vê e aprova.
+```text
+┌─────────────────┬───────────────────────┬──────────────────┬──────────────────────────┬─────────────┐
+│ Não Contatado   │ Contatado –           │ Reunião          │ Em Negociação            │ Encerrados  │
+│                 │ Aguardando Retorno    │ Agendada         │ com Closer (Vendedor)    │ (Fechado /  │
+│                 │                       │                  │                          │  Perdido /  │
+│                 │                       │                  │                          │  Kill)      │
+└─────────────────┴───────────────────────┴──────────────────┴──────────────────────────┴─────────────┘
+```
 
-## 2. Notificação para o Closer
+- A coluna **Reunião Agendada** agrupa leads com `meeting_scheduled = true` (mesmo que `sdr_status` esteja "Contatado").
+- A coluna **Em Negociação com Closer** mostra os leads com `handoff_status = 'transferred'` (já passaram para vendedor) — útil para o SDR ver o que ele entregou e acompanhar.
+- **Encerrados** vem colapsada por padrão (clica para expandir) — leads "frios" não poluem.
 
-Criar tabela `user_notifications` simples e disparar um registro no momento do handoff.
+Cada coluna mostra: **título**, **contador de leads** e **soma do valor** (R$).
 
-- Trigger `AFTER UPDATE` em `sdr_leads` quando `handoff_status` muda para `'transferred'`: insere notificação para `transferred_to_seller_id`.
-- Componente `NotificationBell` no `AppShell` (badge com contagem de não lidas, popover com a lista, clique → vai para `/app/sdr/leads/$id`).
-- Hook `useNotifications` com realtime (`supabase.channel`) para atualizar em tempo real.
+### 3) Card compacto (~90–110 px)
+Mostra só o essencial:
+```text
+┌───────────────────────────────────────────────┐
+│ • Temp ▪ #PROP-123                  R$ 45 mil │  ← linha 1: cor/temperatura + código + valor
+│ Cliente Exemplo Ltda                          │  ← linha 2: nome do cliente (truncado)
+│ 📞 (47) 9 9999-9999 · 👤 João                 │  ← linha 3: contato + responsável
+│ ⏱ 5 dias  · 📅 prox: 12/06                    │  ← linha 4: lock + próximo contato
+│ [Ligar] [⋯ menu]                              │  ← linha 5: ação principal + menu
+└───────────────────────────────────────────────┘
+```
+Cor da borda esquerda = temperatura (Quente/Morno/Frio). Click no card abre a página de detalhe do lead.
 
-## 3. Timeline unificada Lead ↔ Proposta
+Menu de ações (⋯) dentro do card:
+- **Editar lead** (usa o diálogo criado anteriormente)
+- **Transferir para outro SDR** — abre `TransferLeadDialog` (já existe)
+- **Transferir para Vendedor (Closer)** — abre `TransferToSellerDialog` (já existe). **Disponível para qualquer SDR dono do lead**, não só gestores (antes só gestores viam o botão "Transferir").
+- **Devolver ao banco**
 
-Quando o closer abrir o lead recebido (ou a proposta vinculada), ele precisa ver TUDO que o SDR fez antes.
+### 4) Drag & drop entre colunas
+Arrastar o card para outra coluna atualiza o `sdr_status`/`meeting_scheduled`/`handoff_status` correspondente:
 
-- Componente `LeadHistoryTimeline` que consolida e ordena por data:
-  - `crm_call_logs` do lead (todas as ligações + resultado + observação)
-  - `sdr_followups` do lead
-  - Mudanças de `sdr_status` / `temperature` (já temos `crm_stage_changes` para CRM; criar análogo `sdr_lead_events` se necessário, ou derivar do `updated_at`)
-  - Evento "Transferido para closer X em DD/MM"
-- Adicionar essa timeline em:
-  - `/app/sdr/leads/$id` (aba "Histórico")
-  - `/app/propostas/$id` (quando a proposta tem `lead_id` cruzado via `v_proposal_lead_matches`, mostrar o histórico SDR acima da timeline da proposta)
+| Coluna alvo | Efeito |
+|---|---|
+| Não Contatado | `sdr_status = 'Não Contatado'` |
+| Contatado – Aguardando Retorno | `sdr_status = 'Contatado - Aguardando Retorno'` |
+| Reunião Agendada | abre mini-modal "agendar reunião" (data + closer) e marca `meeting_scheduled=true`, `sdr_status='Reunião Agendada'` |
+| Em Negociação com Closer | abre `TransferToSellerDialog` (não muda nada sozinho — exige escolher vendedor) |
+| Encerrados | abre mini-modal pedindo motivo (Fechado / Perdido / Kill) |
 
-## 4. Distribuição round-robin assistida
+Toda mudança via drag também registra na auditoria de edição do lead (mesma RPC `update_sdr_lead_fields` quando for campo simples) — ou seja, **histórico de etapa** já fica gravado.
 
-Já que o handoff é manual, ajudamos o SDR a escolher de forma justa:
-
-- No `TransferToSellerDialog`, ao lado de cada vendedor mostrar: "X leads ativos" (count em `sdr_leads` onde `transferred_to_seller_id = vendedor` e status ≠ Fechado/Perdido).
-- Botão "Sugerir automaticamente" → seleciona o vendedor com menor carga ativa.
-- Gestor (`is_team_manager`) pode forçar manual sem ver a sugestão.
-
-## 5. Página do closer: "Leads recebidos hoje"
-
-- Em `/app/agenda` (landing do vendedor) adicionar bloco no topo: "Novos leads do SDR" usando `HandoffLeadsForSeller` já existente, mas com badge "novo" para leads transferidos < 24h e ainda não abertos pelo closer.
-- Adicionar coluna `first_opened_by_seller_at` em `sdr_leads` para marcar quando o closer viu pela primeira vez.
-
----
+### 5) Filtros rápidos no topo do Kanban
+- Busca por texto (cliente / código / CNPJ)
+- Temperatura (Quente · Morno · Frio · Todas)
+- Esses filtros aplicam em todas as colunas.
 
 ## Detalhes técnicos
 
-**Banco (uma migration):**
-- `ALTER TABLE sdr_leads ADD COLUMN first_opened_by_seller_at timestamptz`
-- `CREATE TABLE user_notifications (id, user_id, type, title, body, link_to, read_at, created_at)` + GRANTs + RLS (usuário só vê as suas)
-- `CREATE TRIGGER` em `sdr_leads` AFTER UPDATE OF handoff_status → INSERT em `user_notifications` quando vira `'transferred'`
-- `CREATE TABLE sdr_lead_events (id, lead_id, event_type, description, payload jsonb, created_by, created_at)` para timeline (opcional — pode-se derivar tudo de tabelas existentes)
-- Opcional: função RPC `suggest_seller_for_handoff()` que retorna o vendedor com menor carga.
+- **Biblioteca de drag & drop**: `@dnd-kit/core` + `@dnd-kit/sortable` (leve, acessível, padrão no ecossistema React/TanStack). Se ainda não estiver instalado, adicionar.
+- **Arquivos novos**:
+  - `src/components/sdr/WalletKanban.tsx` — container do Kanban (colunas + DnD context).
+  - `src/components/sdr/WalletKanbanCard.tsx` — card compacto + menu de ações.
+  - `src/components/sdr/MeetingScheduleQuickDialog.tsx` — mini-modal para "arrastei para Reunião Agendada".
+  - `src/components/sdr/CloseLeadDialog.tsx` — mini-modal para "arrastei para Encerrados" (motivo: Fechado, Perdido, Kill + nota).
+- **Arquivo alterado**:
+  - `src/routes/app.sdr.wallet.tsx` — adiciona toggle Lista/Kanban, persiste preferência, monta `<WalletKanban />`. Mantém `<LeadCard />` no modo Lista.
+- **Mutations**:
+  - Drag → reusa `updatePipelineField(leadId, 'sdr_status', ...)` e/ou `update_sdr_lead_fields` (RPC) para também gravar no histórico.
+  - Reaproveita `TransferLeadDialog` (SDR↔SDR) e `TransferToSellerDialog` (SDR→Vendedor) — nenhuma RPC nova.
+- **Permissões**:
+  - Qualquer SDR dono do lead pode transferir para vendedor (já permitido pela RPC `handoff_lead_to_seller`).
+  - Transferência SDR→SDR continua restrita a gestores.
+- **Performance**: usa as mesmas queries (`my-wallet`) — o Kanban é só uma renderização diferente do mesmo array, sem requisições extras.
+- **Responsivo**: em telas estreitas (< 1024 px), o Kanban vira scroll horizontal (`overflow-x-auto`) com colunas de largura mínima de 280 px.
 
-**Frontend:**
-- `src/hooks/use-notifications.ts` (com realtime)
-- `src/components/NotificationBell.tsx` no header do `AppShell`
-- `src/components/sdr/LeadHistoryTimeline.tsx`
-- Atualizar `CallLogDrawer.tsx` para abrir `TransferToSellerDialog` após `meeting_booked = true`
-- Atualizar `TransferToSellerDialog.tsx` para mostrar carga por vendedor + botão "sugerir"
-- Marcar `first_opened_by_seller_at` em loader/efeito da rota `/app/sdr/leads/$id` quando o usuário logado é o `transferred_to_seller_id`
-- Adicionar bloco "Novos leads recebidos" em `/app/agenda`
-- Adicionar aba "Histórico SDR" em `/app/sdr/leads/$id` e seção em `/app/propostas/$id` para leads vinculados
+## Fora deste escopo (pode entrar depois)
 
-**Sem mudanças em:** fluxo manual atual (`handoff_lead_to_seller`), banco de propostas, carteira do SDR — tudo continua funcionando como hoje, só ganha automação opcional e visibilidade.
+- WIP limits por coluna.
+- Visão Kanban para a página do gestor (`Carteiras`) — pode reaproveitar o mesmo componente depois.
+- Métricas de tempo médio por coluna (cycle time).
 
----
+## Resultado esperado
 
-Posso ajustar escopo (ex.: fazer só §1 + §2 primeiro, deixar timeline e round-robin para depois) — me diga se quer assim ou tudo de uma vez.
+Em vez de rolar uma página gigante, o SDR vê o funil inteiro em uma tela, arrasta para mover etapas, e transfere para vendedor com 2 cliques direto do card.
