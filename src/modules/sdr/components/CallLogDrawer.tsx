@@ -126,6 +126,45 @@ export function CallLogDrawer({ pipeline, open, onClose }: Props) {
               <SelectContent>{sdrNames.map(n => <SelectItem key={n} value={n}>{n}</SelectItem>)}</SelectContent>
             </Select>
           </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Linha</Label>
+              <Select value={form.line_type} onValueChange={v => set('line_type', v as any)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Celular">Celular</SelectItem>
+                  <SelectItem value="Fixo">Fixo</SelectItem>
+                  <SelectItem value="WhatsApp">WhatsApp</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Número</Label>
+              <Input
+                placeholder="(00) 00000-0000"
+                value={form.phone_number}
+                onChange={e => set('phone_number', e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="rounded-md border bg-muted/40 p-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-semibold">📝 Registro manual (sem gravação)</Label>
+              <Switch checked={form.manual_log} onCheckedChange={v => set('manual_log', v)} />
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Use quando você falou com o cliente mas a gravação não foi capturada. Conta como atendimento.
+            </p>
+            {form.manual_log && (
+              <Textarea
+                rows={3}
+                placeholder="Resuma com poucas palavras o que foi conversado..."
+                value={form.manual_summary}
+                onChange={e => set('manual_summary', e.target.value)}
+                className="resize-none"
+              />
+            )}
+          </div>
           <div className="space-y-1.5">
             <Label className="text-xs font-semibold">Resultado *</Label>
             <Select value={form.result} onValueChange={v => set('result', v as any)}>
