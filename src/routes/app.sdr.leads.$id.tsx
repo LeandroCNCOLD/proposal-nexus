@@ -56,27 +56,33 @@ function LeadDetailPage() {
       const [c, n, f, s] = await Promise.all([calls, notes, fups, stages])
 
       const items = [
-        ...((c.data ?? []).map((x: any) => ({
-          kind: 'call' as const, id: x.id,
-          ts: x.created_at || `${x.call_date}T${x.call_time ?? '00:00'}`,
-          title: `Ligação · ${x.channel ?? 'telefone'}`,
-          detail: [x.result, x.observation].filter(Boolean).join(' · '),
-          actor: x.sdr_name ?? null,
-          extra: x.temperature_after ? `Temp.: ${x.temperature_after}` : null,
-        }))),
+        ...((c.data ?? []).map((x: any) => {
+          const obs = (x.observation ?? '').trim()
+          const isScript = /Script\s+"/i.test(obs) || /—\s*(Abertura|Descoberta|Fechamento)/i.test(obs)
+          return {
+            kind: 'call' as const, id: x.id,
+            ts: x.created_at || `${x.call_date}T${x.call_time ?? '00:00'}`,
+            title: isScript ? `Script de ligação · ${x.channel ?? 'telefone'}` : `Ligação · ${x.channel ?? 'telefone'}`,
+            result: x.result ?? null,
+            detail: obs,
+            actor: x.sdr_name ?? null,
+            extra: x.temperature_after ? `Temp.: ${x.temperature_after}` : null,
+            isScript,
+          }
+        })),
         ...((n.data ?? []).map((x: any) => ({
           kind: 'note' as const, id: x.id, ts: x.created_at,
-          title: 'Anotação', detail: x.body ?? '', actor: null, extra: null,
+          title: 'Anotação do SDR', detail: x.body ?? '', actor: null, extra: null, result: null, isScript: false,
         }))),
         ...((f.data ?? []).map((x: any) => ({
           kind: 'followup' as const, id: x.id, ts: x.created_at,
           title: `Follow-up · ${x.kind ?? ''}`.trim(),
           detail: [x.note, x.due_at ? `Para: ${dateBR(x.due_at)}` : null, x.status].filter(Boolean).join(' · '),
-          actor: null, extra: null,
+          actor: null, extra: null, result: null, isScript: false,
         }))),
         ...((s.data ?? []).map((x: any) => ({
           kind: 'stage' as const, id: x.id, ts: x.created_at,
-          title: 'Mudança de etapa', detail: '', actor: null, extra: null,
+          title: 'Mudança de etapa', detail: '', actor: null, extra: null, result: null, isScript: false,
         }))),
       ]
       const filtered = since ? items.filter((it) => new Date(it.ts) >= new Date(since)) : items
@@ -230,8 +236,8 @@ function LeadDetailPage() {
             <div className="text-sm text-muted-foreground py-6 text-center">Sem atividade registrada no período.</div>
           ) : (
             <div className="space-y-2">
-              {activity.map((a) => (
-                <div key={`${a.kind}-${a.id}`} className="rounded-md border bg-card p-3 text-sm">
+              {activity.map((a: any) => (
+                <div key={`${a.kind}-${a.id}`} className={`rounded-md border p-3 text-sm ${a.isScript ? 'bg-emerald-50/60 border-emerald-200' : 'bg-card'}`}>
                   <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
                     {a.kind === 'call' && <Phone className="h-3 w-3" />}
                     {a.kind === 'note' && <FileText className="h-3 w-3" />}
@@ -242,11 +248,27 @@ function LeadDetailPage() {
                     {a.extra && <span>· {a.extra}</span>}
                     <span className="ml-auto">{dateTimeBR(a.ts)}</span>
                   </div>
-                  {a.detail && <div className="mt-1 whitespace-pre-wrap text-foreground/90">{a.detail}</div>}
+                  {a.result && (
+                    <div className="mt-1.5">
+                      <Badge variant="secondary" className="text-[11px]">Resultado: {a.result}</Badge>
+                    </div>
+                  )}
+                  {a.detail && (
+                    <div className="mt-2">
+                      {a.isScript && (
+                        <div className="text-[11px] font-semibold uppercase tracking-wide text-emerald-800 mb-1">Respostas do script</div>
+                      )}
+                      {a.kind === 'note' && (
+                        <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Nota do SDR</div>
+                      )}
+                      <div className="whitespace-pre-wrap text-foreground/90 leading-relaxed">{a.detail}</div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
           )}
+
         </CardContent>
       </Card>
 
