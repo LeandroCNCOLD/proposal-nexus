@@ -191,6 +191,10 @@ export function WarRoomPanel() {
         />
       </div>
 
+      <CoberturaCarteiraMini />
+
+
+
       {/* Meta diária por SDR */}
       <Card>
         <CardHeader className="pb-3">
