@@ -7727,6 +7727,59 @@ export type Database = {
           },
         ]
       }
+      sdr_lead_tratativas: {
+        Row: {
+          body: string
+          channel: string | null
+          created_at: string
+          created_by: string | null
+          created_by_name: string | null
+          file_mime: string | null
+          file_name: string | null
+          file_size: number | null
+          id: string
+          lead_id: string
+          storage_path: string | null
+          updated_at: string
+        }
+        Insert: {
+          body: string
+          channel?: string | null
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          file_mime?: string | null
+          file_name?: string | null
+          file_size?: number | null
+          id?: string
+          lead_id: string
+          storage_path?: string | null
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          channel?: string | null
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          file_mime?: string | null
+          file_name?: string | null
+          file_size?: number | null
+          id?: string
+          lead_id?: string
+          storage_path?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sdr_lead_tratativas_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "sdr_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sdr_leads: {
         Row: {
           call_observation: string | null
