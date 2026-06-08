@@ -30,6 +30,9 @@ function NewProposal() {
       const { data } = await supabase.from("clients").select("id, name").order("name");
       return data ?? [];
     },
+    staleTime: 5 * 60_000,
+    gcTime: 30 * 60_000,
+    refetchOnWindowFocus: false,
   });
 
   const submit = async (e: React.FormEvent) => {
