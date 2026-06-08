@@ -56,6 +56,11 @@ function BankPage() {
   const [uf, setUf] = useState('')
   const [minValue, setMinValue] = useState('')
   const [temp, setTemp] = useState('')
+  const [sdrFilter, setSdrFilter] = useState('')
+  const [closerFilter, setCloserFilter] = useState('')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'available' | 'mine' | 'others' | 'frozen'>('all')
+  const { names: sdrNames } = useSdrNames()
+  const { names: closerNames } = useCloserNames()
   const [sortKey, setSortKey] = useState<SortKey | null>(null)
   const [sortDir, setSortDir] = useState<SortDir>(null)
 
