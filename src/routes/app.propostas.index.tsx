@@ -23,6 +23,8 @@ export const Route = createFileRoute("/app/propostas/")({ component: ProposalsLi
 function ProposalsList() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [vendedorFilter, setVendedorFilter] = useState<string>("all");
+  const [representanteFilter, setRepresentanteFilter] = useState<string>("all");
   const [onlyWithLead, setOnlyWithLead] = useState(false);
   const queryClient = useQueryClient();
   const kickoffSync = useServerFn(nomusKickoffSyncProposals);
@@ -210,11 +212,34 @@ function ProposalsList() {
     return idDiff !== 0 ? idDiff : proposalSortTime(b) - proposalSortTime(a);
   };
 
+  // Opções de vendedores e representantes (a partir do Nomus)
+  const vendedorOptions = useMemo(() => {
+    const set = new Set<string>();
+    proposals.forEach((p) => {
+      const v = (p as any)._nomus?.vendedor_nome;
+      if (v && String(v).trim()) set.add(String(v).trim());
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [proposals]);
+
+  const representanteOptions = useMemo(() => {
+    const set = new Set<string>();
+    proposals.forEach((p) => {
+      const r = (p as any)._nomus?.representante_nome;
+      if (r && String(r).trim()) set.add(String(r).trim());
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [proposals]);
+
   const filtered = useMemo(() => {
     // 1) Aplica filtros de status e busca
     const list = proposals.filter((p) => {
       if (statusFilter !== "all" && p.status !== statusFilter) return false;
       if (onlyWithLead && !leadMatches.has(p.id)) return false;
+      const vend = (p as any)._nomus?.vendedor_nome ?? "";
+      const rep = (p as any)._nomus?.representante_nome ?? "";
+      if (vendedorFilter !== "all" && vend !== vendedorFilter) return false;
+      if (representanteFilter !== "all" && rep !== representanteFilter) return false;
       if (!search) return true;
       const q = search.toLowerCase();
       const parsed = parseTitle(p.title);
@@ -253,7 +278,30 @@ function ProposalsList() {
 
     // 3) Ordena pela data real do Nomus (mais recente primeiro)
     return latest.sort(compareNomusNewestFirst);
-  }, [proposals, search, statusFilter, onlyWithLead, leadMatches]);
+  }, [proposals, search, statusFilter, vendedorFilter, representanteFilter, onlyWithLead, leadMatches]);
+
+  // KPIs computados a partir das propostas únicas filtradas (última revisão)
+  const kpis = useMemo(() => {
+    const total = filtered.length;
+    let valorTotal = 0;
+    let ganhasN = 0, ganhasV = 0;
+    let perdidasN = 0, perdidasV = 0;
+    let abertasN = 0, abertasV = 0;
+    let negociacaoN = 0, negociacaoV = 0;
+    filtered.forEach((p: any) => {
+      const v = Number(p.total_value ?? 0) || 0;
+      valorTotal += v;
+      const s = p.status as string;
+      if (s === "ganha") { ganhasN++; ganhasV += v; }
+      else if (s === "perdida" || s === "vencida" || s === "cancelada") { perdidasN++; perdidasV += v; }
+      else { abertasN++; abertasV += v; }
+      if (s === "em_negociacao" || s === "aguardando_retorno" || s === "revisao_solicitada" || s === "prorrogada") {
+        negociacaoN++; negociacaoV += v;
+      }
+    });
+    return { total, valorTotal, ganhasN, ganhasV, perdidasN, perdidasV, abertasN, abertasV, negociacaoN, negociacaoV };
+  }, [filtered]);
+
 
   return (
     <>
@@ -271,6 +319,35 @@ function ProposalsList() {
         }
       />
 
+      {/* KPI Cards */}
+      <div className="mb-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+        <div className="rounded-xl border bg-card p-4 shadow-[var(--shadow-sm)]">
+          <div className="text-xs text-muted-foreground">Total de propostas</div>
+          <div className="mt-1 text-2xl font-bold tabular-nums">{kpis.total}</div>
+          <div className="text-xs text-muted-foreground">{brl(kpis.valorTotal)}</div>
+        </div>
+        <div className="rounded-xl border bg-card p-4 shadow-[var(--shadow-sm)]">
+          <div className="text-xs text-muted-foreground">Em aberto</div>
+          <div className="mt-1 text-2xl font-bold tabular-nums text-blue-600">{kpis.abertasN}</div>
+          <div className="text-xs text-muted-foreground">{brl(kpis.abertasV)}</div>
+        </div>
+        <div className="rounded-xl border bg-card p-4 shadow-[var(--shadow-sm)]">
+          <div className="text-xs text-muted-foreground">Em negociação</div>
+          <div className="mt-1 text-2xl font-bold tabular-nums text-amber-600">{kpis.negociacaoN}</div>
+          <div className="text-xs text-muted-foreground">{brl(kpis.negociacaoV)}</div>
+        </div>
+        <div className="rounded-xl border bg-card p-4 shadow-[var(--shadow-sm)]">
+          <div className="text-xs text-muted-foreground">Ganhas</div>
+          <div className="mt-1 text-2xl font-bold tabular-nums text-emerald-600">{kpis.ganhasN}</div>
+          <div className="text-xs text-muted-foreground">{brl(kpis.ganhasV)}</div>
+        </div>
+        <div className="rounded-xl border bg-card p-4 shadow-[var(--shadow-sm)]">
+          <div className="text-xs text-muted-foreground">Perdidas / canceladas</div>
+          <div className="mt-1 text-2xl font-bold tabular-nums text-red-600">{kpis.perdidasN}</div>
+          <div className="text-xs text-muted-foreground">{brl(kpis.perdidasV)}</div>
+        </div>
+      </div>
+
       <div className="mb-4 flex flex-wrap gap-3">
         <div className="relative flex-1 min-w-[260px]">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -283,6 +360,20 @@ function ProposalsList() {
             {ALL_STATUSES.map((s) => <SelectItem key={s} value={s}>{STATUS_LABELS[s]}</SelectItem>)}
           </SelectContent>
         </Select>
+        <Select value={vendedorFilter} onValueChange={setVendedorFilter}>
+          <SelectTrigger className="w-56"><SelectValue placeholder="Vendedor" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos os vendedores</SelectItem>
+            {vendedorOptions.map((v) => <SelectItem key={v} value={v}>{v}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={representanteFilter} onValueChange={setRepresentanteFilter}>
+          <SelectTrigger className="w-56"><SelectValue placeholder="Representante" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos os representantes</SelectItem>
+            {representanteOptions.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+          </SelectContent>
+        </Select>
         <label className="inline-flex items-center gap-2 text-sm text-muted-foreground select-none">
           <input
             type="checkbox"
@@ -293,6 +384,7 @@ function ProposalsList() {
           Somente com lead SDR
         </label>
       </div>
+
 
       <div className="rounded-xl border bg-card shadow-[var(--shadow-sm)] overflow-x-auto">
         <Table>
