@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { defaultRouteForRoles } from "@/hooks/use-profile";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/login")({ component: LoginPage });
@@ -24,11 +25,18 @@ function LoginPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) { setLoading(false); return toast.error(error.message); }
+    // Fetch roles to decide landing page
+    let target = "/app";
+    if (data.user) {
+      const { data: rs } = await supabase.from("user_roles").select("role").eq("user_id", data.user.id);
+      const roles = (rs ?? []).map((r) => r.role as any);
+      target = defaultRouteForRoles(roles);
+    }
     setLoading(false);
-    if (error) return toast.error(error.message);
     toast.success("Bem-vindo!");
-    navigate({ to: "/app" });
+    navigate({ to: target });
   };
 
   const handleSignup = async (e: React.FormEvent) => {
