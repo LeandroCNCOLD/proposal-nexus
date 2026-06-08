@@ -49,24 +49,76 @@ function UserWalletPage() {
     queryKey: ["user-activity", userId, period],
     queryFn: async () => {
       const [calls, notes, events] = await Promise.all([
-        supabase.from("crm_call_logs").select("id, call_date, call_time, result, observation, channel, temperature_after, pipeline_id")
+        supabase.from("crm_call_logs").select("id, call_date, call_time, result, observation, channel, temperature_after, pipeline_id, duration_min, meeting_booked")
           .eq("sdr_id", userId).gte("created_at", since).order("created_at", { ascending: false }).limit(200),
         supabase.from("crm_notes").select("id, body, created_at, pipeline_id").eq("created_by", userId)
           .gte("created_at", since).order("created_at", { ascending: false }).limit(200),
         supabase.from("proposal_timeline_events").select("id, event_type, description, created_at, proposal_id")
           .eq("user_id", userId).gte("created_at", since).order("created_at", { ascending: false }).limit(200),
       ]);
+
+      // Resolve lead and proposal references for context labels
+      const leadIds = Array.from(new Set([
+        ...(calls.data ?? []).map((c) => c.pipeline_id),
+        ...(notes.data ?? []).map((n) => n.pipeline_id),
+      ].filter(Boolean) as string[]));
+      const propIds = Array.from(new Set((events.data ?? []).map((e) => e.proposal_id).filter(Boolean) as string[]));
+
+      const [leadsRes, propsRes] = await Promise.all([
+        leadIds.length
+          ? supabase.from("sdr_leads").select("id, lead_code, client_name").in("id", leadIds)
+          : Promise.resolve({ data: [] as any[] }),
+        propIds.length
+          ? supabase.from("proposals").select("id, number, title, total_value, status, clients(name, trade_name)").in("id", propIds)
+          : Promise.resolve({ data: [] as any[] }),
+      ]);
+      const leadById = new Map((leadsRes.data ?? []).map((l: any) => [l.id, l]));
+      const propById = new Map((propsRes.data ?? []).map((p: any) => [p.id, p]));
+
       const merged = [
-        ...((calls.data ?? []).map((c) => ({
-          kind: "call" as const, id: c.id, ts: `${c.call_date}T${c.call_time ?? "00:00"}`,
-          title: `Ligação · ${c.channel}`, detail: `${c.result ?? "—"} · ${c.observation ?? ""}`, ref: c.pipeline_id,
-        }))),
-        ...((notes.data ?? []).map((n) => ({
-          kind: "note" as const, id: n.id, ts: n.created_at, title: "Nota", detail: n.body ?? "", ref: n.pipeline_id,
-        }))),
-        ...((events.data ?? []).map((e) => ({
-          kind: "timeline" as const, id: e.id, ts: e.created_at, title: e.event_type, detail: e.description ?? "", ref: e.proposal_id,
-        }))),
+        ...((calls.data ?? []).map((c) => {
+          const lead = c.pipeline_id ? leadById.get(c.pipeline_id) : null;
+          const parts = [
+            c.result ?? "Sem resultado",
+            c.duration_min ? `${c.duration_min} min` : null,
+            c.temperature_after ? `Temp.: ${c.temperature_after}` : null,
+            c.meeting_booked ? "Reunião agendada" : null,
+            c.observation ? `“${c.observation}”` : null,
+          ].filter(Boolean).join(" · ");
+          return {
+            kind: "call" as const, id: c.id, ts: `${c.call_date}T${c.call_time ?? "00:00"}`,
+            title: `Ligação · ${c.channel}`,
+            detail: parts,
+            ref: c.pipeline_id,
+            refKind: "lead" as const,
+            refLabel: lead ? `${lead.lead_code} — ${lead.client_name}` : null,
+          };
+        })),
+        ...((notes.data ?? []).map((n) => {
+          const lead = n.pipeline_id ? leadById.get(n.pipeline_id) : null;
+          return {
+            kind: "note" as const, id: n.id, ts: n.created_at, title: "Nota",
+            detail: n.body ?? "",
+            ref: n.pipeline_id,
+            refKind: "lead" as const,
+            refLabel: lead ? `${lead.lead_code} — ${lead.client_name}` : null,
+          };
+        })),
+        ...((events.data ?? []).map((e) => {
+          const p: any = e.proposal_id ? propById.get(e.proposal_id) : null;
+          const cliente = p?.clients?.trade_name || p?.clients?.name || null;
+          const label = p ? `${p.number} — ${p.title}${cliente ? ` (${cliente})` : ""}` : null;
+          return {
+            kind: "timeline" as const, id: e.id, ts: e.created_at,
+            title: e.event_type,
+            detail: e.description ?? "",
+            ref: e.proposal_id,
+            refKind: "proposal" as const,
+            refLabel: label,
+            refStatus: p?.status as string | undefined,
+            refValue: p?.total_value as number | undefined,
+          };
+        })),
       ];
       return merged.sort((a, b) => +new Date(b.ts) - +new Date(a.ts));
     },
