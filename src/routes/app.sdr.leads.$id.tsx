@@ -126,17 +126,23 @@ function LeadDetailPage() {
         <Link to="/app/sdr/bank" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
           <ArrowLeft className="h-4 w-4" /> Voltar ao Banco de Leads
         </Link>
-        {(lead as any).handoff_status === 'transferred' ? (
-          <Badge className="bg-emerald-100 text-emerald-800 gap-1"><CheckCircle2 className="h-3 w-3" />Transferido para {(lead as any).transferred_to_seller_name ?? 'vendedor'}</Badge>
-        ) : (
-          (lead.sdr_id === user?.id || hasAnyRole(['admin','diretoria','gerente_comercial'] as never)) && (
-            <Button size="sm" onClick={() => setTransferOpen(true)} className="gap-2">
-              <UserPlus className="h-4 w-4" /> Transferir para vendedor
-            </Button>
-          )
-        )}
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button size="sm" variant="outline" onClick={() => setEditOpen(true)} className="gap-2">
+            <Pencil className="h-4 w-4" /> Editar lead
+          </Button>
+          {(lead as any).handoff_status === 'transferred' ? (
+            <Badge className="bg-emerald-100 text-emerald-800 gap-1"><CheckCircle2 className="h-3 w-3" />Transferido para {(lead as any).transferred_to_seller_name ?? 'vendedor'}</Badge>
+          ) : (
+            (lead.sdr_id === user?.id || hasAnyRole(['admin','diretoria','gerente_comercial'] as never)) && (
+              <Button size="sm" onClick={() => setTransferOpen(true)} className="gap-2">
+                <UserPlus className="h-4 w-4" /> Transferir para vendedor
+              </Button>
+            )
+          )}
+        </div>
       </div>
       <TransferToSellerDialog open={transferOpen} onOpenChange={setTransferOpen} leadId={id} leadLabel={lead.client_name} />
+      <LeadEditDialog open={editOpen} onOpenChange={setEditOpen} leadId={id} lead={lead} />
 
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
