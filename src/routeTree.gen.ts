@@ -42,6 +42,7 @@ import { Route as AppPropostasPedidosNfRouteImport } from './routes/app.proposta
 import { Route as AppPropostasNovaRouteImport } from './routes/app.propostas.nova'
 import { Route as AppPropostasIdRouteImport } from './routes/app.propostas.$id'
 import { Route as AppGestaoAuditoriaSdrRouteImport } from './routes/app.gestao.auditoria-sdr'
+import { Route as AppGestaoAlertasSdrRouteImport } from './routes/app.gestao.alertas-sdr'
 import { Route as AppCrmClosersPerformanceRouteImport } from './routes/app.crm.closers-performance'
 import { Route as AppCrmIdRouteImport } from './routes/app.crm.$id'
 import { Route as AppConfiguracoesPermissoesRouteImport } from './routes/app.configuracoes.permissoes'
@@ -232,6 +233,11 @@ const AppGestaoAuditoriaSdrRoute = AppGestaoAuditoriaSdrRouteImport.update({
   path: '/auditoria-sdr',
   getParentRoute: () => AppGestaoRoute,
 } as any)
+const AppGestaoAlertasSdrRoute = AppGestaoAlertasSdrRouteImport.update({
+  id: '/alertas-sdr',
+  path: '/alertas-sdr',
+  getParentRoute: () => AppGestaoRoute,
+} as any)
 const AppCrmClosersPerformanceRoute =
   AppCrmClosersPerformanceRouteImport.update({
     id: '/crm/closers-performance',
@@ -386,6 +392,7 @@ export interface FileRoutesByFullPath {
   '/app/configuracoes/permissoes': typeof AppConfiguracoesPermissoesRoute
   '/app/crm/$id': typeof AppCrmIdRoute
   '/app/crm/closers-performance': typeof AppCrmClosersPerformanceRoute
+  '/app/gestao/alertas-sdr': typeof AppGestaoAlertasSdrRoute
   '/app/gestao/auditoria-sdr': typeof AppGestaoAuditoriaSdrRoute
   '/app/propostas/$id': typeof AppPropostasIdRouteWithChildren
   '/app/propostas/nova': typeof AppPropostasNovaRoute
@@ -442,6 +449,7 @@ export interface FileRoutesByTo {
   '/app/configuracoes/permissoes': typeof AppConfiguracoesPermissoesRoute
   '/app/crm/$id': typeof AppCrmIdRoute
   '/app/crm/closers-performance': typeof AppCrmClosersPerformanceRoute
+  '/app/gestao/alertas-sdr': typeof AppGestaoAlertasSdrRoute
   '/app/gestao/auditoria-sdr': typeof AppGestaoAuditoriaSdrRoute
   '/app/propostas/nova': typeof AppPropostasNovaRoute
   '/app/propostas/pedidos-nf': typeof AppPropostasPedidosNfRoute
@@ -500,6 +508,7 @@ export interface FileRoutesById {
   '/app/configuracoes/permissoes': typeof AppConfiguracoesPermissoesRoute
   '/app/crm/$id': typeof AppCrmIdRoute
   '/app/crm/closers-performance': typeof AppCrmClosersPerformanceRoute
+  '/app/gestao/alertas-sdr': typeof AppGestaoAlertasSdrRoute
   '/app/gestao/auditoria-sdr': typeof AppGestaoAuditoriaSdrRoute
   '/app/propostas/$id': typeof AppPropostasIdRouteWithChildren
   '/app/propostas/nova': typeof AppPropostasNovaRoute
@@ -560,6 +569,7 @@ export interface FileRouteTypes {
     | '/app/configuracoes/permissoes'
     | '/app/crm/$id'
     | '/app/crm/closers-performance'
+    | '/app/gestao/alertas-sdr'
     | '/app/gestao/auditoria-sdr'
     | '/app/propostas/$id'
     | '/app/propostas/nova'
@@ -616,6 +626,7 @@ export interface FileRouteTypes {
     | '/app/configuracoes/permissoes'
     | '/app/crm/$id'
     | '/app/crm/closers-performance'
+    | '/app/gestao/alertas-sdr'
     | '/app/gestao/auditoria-sdr'
     | '/app/propostas/nova'
     | '/app/propostas/pedidos-nf'
@@ -673,6 +684,7 @@ export interface FileRouteTypes {
     | '/app/configuracoes/permissoes'
     | '/app/crm/$id'
     | '/app/crm/closers-performance'
+    | '/app/gestao/alertas-sdr'
     | '/app/gestao/auditoria-sdr'
     | '/app/propostas/$id'
     | '/app/propostas/nova'
@@ -950,6 +962,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppGestaoAuditoriaSdrRouteImport
       parentRoute: typeof AppGestaoRoute
     }
+    '/app/gestao/alertas-sdr': {
+      id: '/app/gestao/alertas-sdr'
+      path: '/alertas-sdr'
+      fullPath: '/app/gestao/alertas-sdr'
+      preLoaderRoute: typeof AppGestaoAlertasSdrRouteImport
+      parentRoute: typeof AppGestaoRoute
+    }
     '/app/crm/closers-performance': {
       id: '/app/crm/closers-performance'
       path: '/crm/closers-performance'
@@ -1162,12 +1181,14 @@ const AppConfiguracoesRouteWithChildren =
   AppConfiguracoesRoute._addFileChildren(AppConfiguracoesRouteChildren)
 
 interface AppGestaoRouteChildren {
+  AppGestaoAlertasSdrRoute: typeof AppGestaoAlertasSdrRoute
   AppGestaoAuditoriaSdrRoute: typeof AppGestaoAuditoriaSdrRoute
   AppGestaoCarteirasUserIdRoute: typeof AppGestaoCarteirasUserIdRoute
   AppGestaoCarteirasIndexRoute: typeof AppGestaoCarteirasIndexRoute
 }
 
 const AppGestaoRouteChildren: AppGestaoRouteChildren = {
+  AppGestaoAlertasSdrRoute: AppGestaoAlertasSdrRoute,
   AppGestaoAuditoriaSdrRoute: AppGestaoAuditoriaSdrRoute,
   AppGestaoCarteirasUserIdRoute: AppGestaoCarteirasUserIdRoute,
   AppGestaoCarteirasIndexRoute: AppGestaoCarteirasIndexRoute,
