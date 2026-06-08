@@ -59,6 +59,7 @@ function BankPage() {
   const [sdrFilter, setSdrFilter] = useState('')
   const [closerFilter, setCloserFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'available' | 'mine' | 'others' | 'frozen'>('all')
+  const [proposalStatusFilter, setProposalStatusFilter] = useState('')
   const { names: sdrNames } = useSdrNames()
   const { names: closerNames } = useCloserNames()
   const [sortKey, setSortKey] = useState<SortKey | null>(null)
@@ -177,9 +178,10 @@ function BankPage() {
         if (statusFilter === 'mine' && r.locked_by_sdr_id !== user?.id) return false
         if (statusFilter === 'others' && (!r.locked_by_sdr_id || r.locked_by_sdr_id === user?.id || frozen)) return false
       }
+      if (proposalStatusFilter && (r as any).proposal_status !== proposalStatusFilter) return false
       return true
     })
-  }, [withRevisions, search, uf, minValue, temp, sdrFilter, closerFilter, statusFilter, user?.id])
+  }, [withRevisions, search, uf, minValue, temp, sdrFilter, closerFilter, statusFilter, proposalStatusFilter, user?.id])
 
   // Resumo: conta apenas a última revisão de cada base CN para não inflar totais.
   const summary = useMemo(() => {
