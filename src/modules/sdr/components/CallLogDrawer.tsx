@@ -232,7 +232,7 @@ export function CallLogDrawer({ pipeline, open, onClose }: Props) {
 
           <div className="flex gap-2 pt-2">
             <Button className="flex-1 bg-[#0F2D5E] hover:bg-[#1A56DB]"
-              onClick={handleSubmit} disabled={!form.result || insert.isPending || (requiresFollowup && !nextAttemptValid)}>
+              onClick={handleSubmit} disabled={!form.result || insert.isPending || (requiresFollowup && !nextAttemptValid) || !manualSummaryValid}>
               {insert.isPending ? 'Salvando...' : 'Salvar Ligação'}
             </Button>
             <Button variant="outline" onClick={onClose}>Cancelar</Button>
