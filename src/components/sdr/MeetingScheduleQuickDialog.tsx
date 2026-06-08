@@ -21,7 +21,7 @@ export function MeetingScheduleQuickDialog({
   lead, open, onOpenChange,
 }: { lead: CrmPipeline | null; open: boolean; onOpenChange: (v: boolean) => void }) {
   const qc = useQueryClient()
-  const closers = useCloserNames()
+  const { names: closers } = useCloserNames()
   const [date, setDate] = useState<string>(nowLocal())
   const [closer, setCloser] = useState<string>('')
   const [saving, setSaving] = useState(false)
