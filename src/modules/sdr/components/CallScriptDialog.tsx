@@ -4,9 +4,66 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu'
 import { Phone, MessageCircle, Mail, Copy, Check, Save } from 'lucide-react'
 import { useState, useMemo, useEffect } from 'react'
 import { toast } from 'sonner'
+
+function openTel(phone: string) {
+  const d = phone.replace(/\D/g, '')
+  if (!d) return
+  // tel: only works when the OS/browser has a registered handler (mobile, FaceTime, Skype, etc.).
+  // On desktops without a handler the click is silently ignored — that's what happens to users like Vitor.
+  // We try window.location first; if nothing happens the user can fall back to WhatsApp/copy from the menu.
+  try { window.location.href = `tel:${d}` } catch { /* ignored */ }
+}
+
+function copyPhone(phone: string) {
+  const d = phone.replace(/\D/g, '')
+  navigator.clipboard.writeText(d).then(
+    () => toast.success('Número copiado'),
+    () => toast.error('Não foi possível copiar')
+  )
+}
+
+function PhoneActions({ phone, variant = 'default', isMobile }: { phone: string; variant?: 'default' | 'outline'; isMobile: boolean }) {
+  const waUrl = (() => {
+    const d = phone.replace(/\D/g, '')
+    const intl = d.startsWith('55') ? d : `55${d}`
+    return `https://wa.me/${intl}`
+  })()
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button size="sm" variant={variant === 'outline' ? 'outline' : undefined} className={variant === 'default' ? 'bg-green-600 hover:bg-green-700' : undefined}>
+          <Phone className="w-3 h-3" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onClick={() => openTel(phone)}>
+          <Phone className="w-4 h-4 mr-2" /> Abrir discador (tel:)
+        </DropdownMenuItem>
+        {isMobile && (
+          <DropdownMenuItem asChild>
+            <a href={`https://wa.me/${(phone.replace(/\D/g,'').startsWith('55') ? '' : '55') + phone.replace(/\D/g,'')}`} target="_blank" rel="noreferrer">
+              <MessageCircle className="w-4 h-4 mr-2" /> WhatsApp
+            </a>
+          </DropdownMenuItem>
+        )}
+        {!isMobile && (
+          <DropdownMenuItem asChild>
+            <a href={waUrl} target="_blank" rel="noreferrer">
+              <MessageCircle className="w-4 h-4 mr-2" /> WhatsApp Web
+            </a>
+          </DropdownMenuItem>
+        )}
+        <DropdownMenuItem onClick={() => copyPhone(phone)}>
+          <Copy className="w-4 h-4 mr-2" /> Copiar número
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
 import type { CrmPipeline } from '../types'
 import { insertCallLog } from '../services'
 import { useScriptTemplates, renderTemplate } from '../hooks/use-script-templates'
@@ -189,9 +246,7 @@ export function CallScriptDialog({ lead, open, onOpenChange, onSaved }: Props) {
               <div className="font-mono">{lead.contact_mobile || '—'}</div>
             </div>
             {lead.contact_mobile && (
-              <a href={`tel:${digitsOnly(lead.contact_mobile)}`}>
-                <Button size="sm" className="bg-green-600 hover:bg-green-700"><Phone className="w-3 h-3" /></Button>
-              </a>
+              <PhoneActions phone={lead.contact_mobile} variant="default" isMobile={true} />
             )}
           </div>
           <div className="flex items-center justify-between gap-2">
@@ -200,9 +255,7 @@ export function CallScriptDialog({ lead, open, onOpenChange, onSaved }: Props) {
               <div className="font-mono">{lead.contact_phone || '—'}</div>
             </div>
             {lead.contact_phone && (
-              <a href={`tel:${digitsOnly(lead.contact_phone)}`}>
-                <Button size="sm" variant="outline"><Phone className="w-3 h-3" /></Button>
-              </a>
+              <PhoneActions phone={lead.contact_phone} variant="outline" isMobile={false} />
             )}
           </div>
           <div className="flex items-center justify-between gap-2">
