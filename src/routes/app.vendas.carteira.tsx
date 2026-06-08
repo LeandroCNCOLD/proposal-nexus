@@ -6,6 +6,7 @@ import { brl, dateBR } from "@/lib/format";
 import { STATUS_LABELS, TEMPERATURE_LABELS, type ProposalStatus } from "@/lib/proposal";
 import { Badge } from "@/components/ui/badge";
 import { FileText, ExternalLink, Calendar, DollarSign, Thermometer } from "lucide-react";
+import { HandoffLeadsForSeller } from "@/components/sdr/HandoffLeadsForSeller";
 
 export const Route = createFileRoute("/app/vendas/carteira")({
   component: SellerWalletPage,
@@ -55,6 +56,8 @@ function SellerWalletPage() {
         <Stat label="Ganhas" value={`${stats.won} · ${brl(stats.wonValue)}`} />
         <Stat label="Win rate" value={`${stats.winRate}%`} />
       </div>
+      {user?.id && <HandoffLeadsForSeller userId={user.id} />}
+
 
       {isLoading ? (
         <div className="text-center py-12 text-muted-foreground">Carregando...</div>

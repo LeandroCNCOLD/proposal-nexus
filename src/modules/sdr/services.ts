@@ -19,6 +19,7 @@ export async function fetchProposalBank(filters: Partial<PipelineFilters> = {}) 
   let q = supabase
     .from('sdr_leads')
     .select('*')
+    .or('handoff_status.is.null,handoff_status.neq.transferred')
     .order('priority', { ascending: true })
     .order('value', { ascending: false })
     .limit(5000)

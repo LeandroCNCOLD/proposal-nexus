@@ -7559,6 +7559,7 @@ export type Database = {
           discount_pct: number | null
           expected_closing: string | null
           expected_delivery: string | null
+          handoff_status: string
           id: string
           internal_note: string | null
           last_contact_at: string | null
@@ -7571,6 +7572,7 @@ export type Database = {
           meeting_scheduled: boolean
           next_contact_at: string | null
           next_step: string | null
+          nomus_updated_at: string | null
           priority: string
           probability_pct: number | null
           proposal_date: string | null
@@ -7584,6 +7586,10 @@ export type Database = {
           sdr_status: string
           state: string | null
           temperature: string
+          transferred_at: string | null
+          transferred_by: string | null
+          transferred_to_seller_id: string | null
+          transferred_to_seller_name: string | null
           updated_at: string
           validity_days: number | null
           value: number
@@ -7607,6 +7613,7 @@ export type Database = {
           discount_pct?: number | null
           expected_closing?: string | null
           expected_delivery?: string | null
+          handoff_status?: string
           id?: string
           internal_note?: string | null
           last_contact_at?: string | null
@@ -7619,6 +7626,7 @@ export type Database = {
           meeting_scheduled?: boolean
           next_contact_at?: string | null
           next_step?: string | null
+          nomus_updated_at?: string | null
           priority?: string
           probability_pct?: number | null
           proposal_date?: string | null
@@ -7632,6 +7640,10 @@ export type Database = {
           sdr_status?: string
           state?: string | null
           temperature?: string
+          transferred_at?: string | null
+          transferred_by?: string | null
+          transferred_to_seller_id?: string | null
+          transferred_to_seller_name?: string | null
           updated_at?: string
           validity_days?: number | null
           value?: number
@@ -7655,6 +7667,7 @@ export type Database = {
           discount_pct?: number | null
           expected_closing?: string | null
           expected_delivery?: string | null
+          handoff_status?: string
           id?: string
           internal_note?: string | null
           last_contact_at?: string | null
@@ -7667,6 +7680,7 @@ export type Database = {
           meeting_scheduled?: boolean
           next_contact_at?: string | null
           next_step?: string | null
+          nomus_updated_at?: string | null
           priority?: string
           probability_pct?: number | null
           proposal_date?: string | null
@@ -7680,6 +7694,10 @@ export type Database = {
           sdr_status?: string
           state?: string | null
           temperature?: string
+          transferred_at?: string | null
+          transferred_by?: string | null
+          transferred_to_seller_id?: string | null
+          transferred_to_seller_name?: string | null
           updated_at?: string
           validity_days?: number | null
           value?: number
@@ -8488,6 +8506,10 @@ export type Database = {
         }[]
       }
       get_user_permissions: { Args: { _user_id: string }; Returns: string[] }
+      handoff_lead_to_seller: {
+        Args: { _lead_id: string; _seller_id: string }
+        Returns: undefined
+      }
       has_any_role: {
         Args: {
           _roles: Database["public"]["Enums"]["app_role"][]
@@ -8508,6 +8530,10 @@ export type Database = {
       }
       import_sdr_leads_batch: { Args: { payload: Json }; Returns: number }
       is_team_manager: { Args: { _user_id: string }; Returns: boolean }
+      mark_lead_nomus_updated: {
+        Args: { _lead_id: string }
+        Returns: undefined
+      }
       next_funnel_stage_order: { Args: { _tipo: string }; Returns: number }
       proposal_table_default_settings: {
         Args: { p_table_type: string }

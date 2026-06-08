@@ -5,8 +5,10 @@ import { supabase } from '@/integrations/supabase/client'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { ArrowLeft, Phone, FileText, Calendar, ExternalLink, Thermometer, DollarSign, User, MapPin, Mail, Briefcase, History } from 'lucide-react'
+import { ArrowLeft, Phone, FileText, Calendar, ExternalLink, Thermometer, DollarSign, User, MapPin, Mail, Briefcase, History, UserPlus, CheckCircle2 } from 'lucide-react'
 import { dateBR, dateTimeBR } from '@/lib/format'
+import { TransferToSellerDialog } from '@/components/sdr/TransferToSellerDialog'
+import { useAuth } from '@/hooks/useAuth'
 
 export const Route = createFileRoute('/app/sdr/leads/$id')({
   component: LeadDetailPage,
@@ -18,6 +20,8 @@ function fmtBRL(v: number | null | undefined) {
 
 function LeadDetailPage() {
   const { id } = Route.useParams()
+  const { user, hasAnyRole } = useAuth()
+  const [transferOpen, setTransferOpen] = useState(false)
   const [period, setPeriod] = useState<'7' | '30' | '90' | 'all'>('30')
 
   const { data: lead, isLoading } = useQuery({
@@ -99,11 +103,21 @@ function LeadDetailPage() {
 
   return (
     <div className="p-6 space-y-4">
-      <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         <Link to="/app/sdr/bank" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
           <ArrowLeft className="h-4 w-4" /> Voltar ao Banco de Leads
         </Link>
+        {(lead as any).handoff_status === 'transferred' ? (
+          <Badge className="bg-emerald-100 text-emerald-800 gap-1"><CheckCircle2 className="h-3 w-3" />Transferido para {(lead as any).transferred_to_seller_name ?? 'vendedor'}</Badge>
+        ) : (
+          (lead.sdr_id === user?.id || hasAnyRole(['admin','diretoria','gerente_comercial'] as never)) && (
+            <Button size="sm" onClick={() => setTransferOpen(true)} className="gap-2">
+              <UserPlus className="h-4 w-4" /> Transferir para vendedor
+            </Button>
+          )
+        )}
       </div>
+      <TransferToSellerDialog open={transferOpen} onOpenChange={setTransferOpen} leadId={id} leadLabel={lead.client_name} />
 
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
