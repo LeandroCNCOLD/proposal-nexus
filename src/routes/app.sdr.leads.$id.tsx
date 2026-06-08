@@ -56,27 +56,33 @@ function LeadDetailPage() {
       const [c, n, f, s] = await Promise.all([calls, notes, fups, stages])
 
       const items = [
-        ...((c.data ?? []).map((x: any) => ({
-          kind: 'call' as const, id: x.id,
-          ts: x.created_at || `${x.call_date}T${x.call_time ?? '00:00'}`,
-          title: `Ligação · ${x.channel ?? 'telefone'}`,
-          detail: [x.result, x.observation].filter(Boolean).join(' · '),
-          actor: x.sdr_name ?? null,
-          extra: x.temperature_after ? `Temp.: ${x.temperature_after}` : null,
-        }))),
+        ...((c.data ?? []).map((x: any) => {
+          const obs = (x.observation ?? '').trim()
+          const isScript = /Script\s+"/i.test(obs) || /—\s*(Abertura|Descoberta|Fechamento)/i.test(obs)
+          return {
+            kind: 'call' as const, id: x.id,
+            ts: x.created_at || `${x.call_date}T${x.call_time ?? '00:00'}`,
+            title: isScript ? `Script de ligação · ${x.channel ?? 'telefone'}` : `Ligação · ${x.channel ?? 'telefone'}`,
+            result: x.result ?? null,
+            detail: obs,
+            actor: x.sdr_name ?? null,
+            extra: x.temperature_after ? `Temp.: ${x.temperature_after}` : null,
+            isScript,
+          }
+        })),
         ...((n.data ?? []).map((x: any) => ({
           kind: 'note' as const, id: x.id, ts: x.created_at,
-          title: 'Anotação', detail: x.body ?? '', actor: null, extra: null,
+          title: 'Anotação do SDR', detail: x.body ?? '', actor: null, extra: null, result: null, isScript: false,
         }))),
         ...((f.data ?? []).map((x: any) => ({
           kind: 'followup' as const, id: x.id, ts: x.created_at,
           title: `Follow-up · ${x.kind ?? ''}`.trim(),
           detail: [x.note, x.due_at ? `Para: ${dateBR(x.due_at)}` : null, x.status].filter(Boolean).join(' · '),
-          actor: null, extra: null,
+          actor: null, extra: null, result: null, isScript: false,
         }))),
         ...((s.data ?? []).map((x: any) => ({
           kind: 'stage' as const, id: x.id, ts: x.created_at,
-          title: 'Mudança de etapa', detail: '', actor: null, extra: null,
+          title: 'Mudança de etapa', detail: '', actor: null, extra: null, result: null, isScript: false,
         }))),
       ]
       const filtered = since ? items.filter((it) => new Date(it.ts) >= new Date(since)) : items
