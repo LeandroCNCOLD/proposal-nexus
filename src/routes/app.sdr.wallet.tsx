@@ -134,6 +134,8 @@ function WalletPage() {
               onUnlock={() => {
                 if (confirm(`Devolver "${lead.client_name}" ao banco?`)) unlockMut.mutate(lead.id)
               }}
+              canManage={isManager}
+              onTransfer={() => setTransferLead(lead)}
             />
           ))}
         </div>
@@ -144,9 +146,17 @@ function WalletPage() {
         open={!!scriptLead}
         onOpenChange={(o) => !o && setScriptLead(null)}
       />
+      {transferLead && (
+        <TransferLeadDialog
+          open={!!transferLead}
+          onOpenChange={(o) => { if (!o) setTransferLead(null) }}
+          leadId={transferLead.id}
+        />
+      )}
     </div>
   )
 }
+
 
 function LeadCard({ lead, sdrName, onUnlock, onOpenScript, proposalMatch }: {
   lead: CrmPipeline
