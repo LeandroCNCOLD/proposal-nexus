@@ -1,95 +1,78 @@
+# Cobertura de Carteira
 
-## Objetivo
+Sistema para medir cobertura ativa da carteira de leads (SDR), com visão geral, por SDR, leads descobertos e histórico diário.
 
-Hoje **Minha Carteira** (`/app/sdr/wallet`) mostra os leads como cards grandes empilhados (~250 px cada). Com 30 leads a página vira uma "folha gigante" e é difícil ter visão do funil. Vamos adicionar uma **visão Kanban** lado a lado, com cards enxutos, e botões de transferência integrados.
+## Ajustes em relação ao prompt original
 
-## O que muda na tela
+Antes de executar, três adaptações ao código real do projeto:
 
-### 1) Alternador "Lista / Kanban"
-No topo da página, ao lado do contador de leads, dois botões:
-- **Lista** — visão atual (mantida, sem regressão para quem prefere).
-- **Kanban** — nova visão padrão (preferência salva em `localStorage`).
+1. **Tabela base**: o projeto usa `public.sdr_leads` (não `crm_pipeline`). As views serão criadas em cima de `sdr_leads`. O índice antigo ainda se chama `crm_pipeline_*`, mas a tabela é `sdr_leads`.
+2. **Coluna `proposal_number`** não existe — usar `lead_code` no lugar (na aba "Leads descobertos").
+3. **Arquivo `src/modules/crm/services.ts`** não existe (só `services-agenda.ts`). Vou criar `src/modules/crm/services-cobertura.ts` dedicado, em vez de mexer num arquivo inexistente. Mantém o escopo isolado e respeita "não modificar arquivos existentes além de AppShell.tsx e WarRoomPanel.tsx".
 
-### 2) Colunas do Kanban
-Uma coluna por etapa do funil do SDR, na ordem do processo:
+Resto segue o prompt.
 
-```text
-┌─────────────────┬───────────────────────┬──────────────────┬──────────────────────────┬─────────────┐
-│ Não Contatado   │ Contatado –           │ Reunião          │ Em Negociação            │ Encerrados  │
-│                 │ Aguardando Retorno    │ Agendada         │ com Closer (Vendedor)    │ (Fechado /  │
-│                 │                       │                  │                          │  Perdido /  │
-│                 │                       │                  │                          │  Kill)      │
-└─────────────────┴───────────────────────┴──────────────────┴──────────────────────────┴─────────────┘
+## 1. Migration SQL (uma só, via supabase--migration)
+
+- View `public.crm_cobertura_carteira` (geral) — sobre `sdr_leads`
+- View `public.crm_cobertura_por_sdr` — sobre `sdr_leads`
+- Tabela `public.crm_cobertura_historico` + GRANTs (`authenticated`, `service_role`) + RLS + policy `FOR ALL TO authenticated USING (true)`
+- Função `public.salvar_snapshot_cobertura()` com `SET search_path = public` e `SECURITY DEFINER`
+- GRANT SELECT nas duas views para `authenticated`
+
+Filtro de exclusão mantido: `sdr_status NOT IN ('Kill / Arquivar','Fechado','Perdido (com motivo)')`.
+
+## 2. Serviços — `src/modules/crm/services-cobertura.ts` (novo)
+
+Funções: `fetchCoberturaGeral`, `fetchCoberturaPorSdr`, `fetchCoberturaHistorico(dias)`, `fetchLeadsDescobertos(limit)`, `salvarSnapshotCobertura`.
+
+`fetchLeadsDescobertos` consulta `sdr_leads` direto, projetando `lead_code` (renomeado como `proposal_number` no select para a UI), `client_name`, `state`, `value`, `temperature`, `priority`, `last_contact_at`, `locked_by_sdr_name`, `sdr_status`.
+
+## 3. Hook — `src/modules/crm/hooks/use-cobertura.ts` (novo)
+
+`useCoberturaGeral`, `useCoberturaPorSdr`, `useCoberturaHistorico`, `useLeadsDescobertos`, `useSalvarSnapshot` + helper `corCobertura(pct)`. Polling de 60s para geral/sdr, 5min para histórico.
+
+## 4. Página principal — `src/modules/crm/components/CoberturaCarteira.tsx` (novo)
+
+4 abas via `Tabs` shadcn:
+
+- **Resumo**: número gigante central com cor dinâmica, barra segmentada 4 cores, 4 cards (fria, sem SDR, nunca contatadas, alta prioridade descoberta), card "Valor em risco", card "Alertas automáticos" com regras descritas no prompt.
+- **Por SDR**: card por SDR com avatar (inicial), nome, total, valor, % grande, badge de meta, barra de progresso, linha de métricas.
+- **Leads descobertos**: lista dos top 50 por valor, com dias sem contato (vermelho >30d), "Nunca contatado", badge de prioridade.
+- **Histórico**: barras horizontais 14 dias, ou empty state.
+
+Botão "Salvar snapshot de hoje" visível só para gestores (via `useProfile` + `is_team_manager`/`has_any_role`). Auto-save no primeiro acesso do dia controlado por `localStorage` (chave `cobertura_snapshot_<YYYY-MM-DD>`).
+
+Tokens semânticos (`text-success`, `bg-warning/10` etc.) ao invés das cores hardcoded do prompt, para respeitar o design system.
+
+## 5. Mini card — `src/modules/crm/components/CoberturaCarteiraMini.tsx` (novo)
+
+Card compacto: título + % grande, barra segmentada h-2, grid 2x2 (sem SDR / nunca contatados / valor descoberto / alta prior. desc), alerta vermelho se pct_ativa < 50%.
+
+## 6. Rota — `src/routes/app.cobertura.tsx` (novo)
+
+```tsx
+import { createFileRoute } from '@tanstack/react-router'
+import { CoberturaCarteira } from '@/modules/crm/components/CoberturaCarteira'
+
+export const Route = createFileRoute('/app/cobertura')({
+  component: CoberturaCarteira,
+})
 ```
 
-- A coluna **Reunião Agendada** agrupa leads com `meeting_scheduled = true` (mesmo que `sdr_status` esteja "Contatado").
-- A coluna **Em Negociação com Closer** mostra os leads com `handoff_status = 'transferred'` (já passaram para vendedor) — útil para o SDR ver o que ele entregou e acompanhar.
-- **Encerrados** vem colapsada por padrão (clica para expandir) — leads "frios" não poluem.
+(O prompt original tinha JSX vazio dentro do componente — simplifico para renderizar direto.)
 
-Cada coluna mostra: **título**, **contador de leads** e **soma do valor** (R$).
+## 7. Sidebar e War Room
 
-### 3) Card compacto (~90–110 px)
-Mostra só o essencial:
-```text
-┌───────────────────────────────────────────────┐
-│ • Temp ▪ #PROP-123                  R$ 45 mil │  ← linha 1: cor/temperatura + código + valor
-│ Cliente Exemplo Ltda                          │  ← linha 2: nome do cliente (truncado)
-│ 📞 (47) 9 9999-9999 · 👤 João                 │  ← linha 3: contato + responsável
-│ ⏱ 5 dias  · 📅 prox: 12/06                    │  ← linha 4: lock + próximo contato
-│ [Ligar] [⋯ menu]                              │  ← linha 5: ação principal + menu
-└───────────────────────────────────────────────┘
-```
-Cor da borda esquerda = temperatura (Quente/Morno/Frio). Click no card abre a página de detalhe do lead.
+- **`src/components/AppShell.tsx`**: adicionar entrada `{ to: '/app/cobertura', label: 'Cobertura de Carteira', icon: PieChart }` no grupo OPERAÇÃO.
+- **`src/modules/sdr/components/WarRoomPanel.tsx`**: importar e renderizar `<CoberturaCarteiraMini />` após os KPIs existentes.
 
-Menu de ações (⋯) dentro do card:
-- **Editar lead** (usa o diálogo criado anteriormente)
-- **Transferir para outro SDR** — abre `TransferLeadDialog` (já existe)
-- **Transferir para Vendedor (Closer)** — abre `TransferToSellerDialog` (já existe). **Disponível para qualquer SDR dono do lead**, não só gestores (antes só gestores viam o botão "Transferir").
-- **Devolver ao banco**
+## Validação
 
-### 4) Drag & drop entre colunas
-Arrastar o card para outra coluna atualiza o `sdr_status`/`meeting_scheduled`/`handoff_status` correspondente:
+- Confirmar typecheck limpo nos arquivos novos/editados.
+- Verificar no preview: rota `/app/cobertura` carrega, abas trocam, mini aparece em `/app/sdr/war-room`.
 
-| Coluna alvo | Efeito |
-|---|---|
-| Não Contatado | `sdr_status = 'Não Contatado'` |
-| Contatado – Aguardando Retorno | `sdr_status = 'Contatado - Aguardando Retorno'` |
-| Reunião Agendada | abre mini-modal "agendar reunião" (data + closer) e marca `meeting_scheduled=true`, `sdr_status='Reunião Agendada'` |
-| Em Negociação com Closer | abre `TransferToSellerDialog` (não muda nada sozinho — exige escolher vendedor) |
-| Encerrados | abre mini-modal pedindo motivo (Fechado / Perdido / Kill) |
+## Fora de escopo
 
-Toda mudança via drag também registra na auditoria de edição do lead (mesma RPC `update_sdr_lead_fields` quando for campo simples) — ou seja, **histórico de etapa** já fica gravado.
-
-### 5) Filtros rápidos no topo do Kanban
-- Busca por texto (cliente / código / CNPJ)
-- Temperatura (Quente · Morno · Frio · Todas)
-- Esses filtros aplicam em todas as colunas.
-
-## Detalhes técnicos
-
-- **Biblioteca de drag & drop**: `@dnd-kit/core` + `@dnd-kit/sortable` (leve, acessível, padrão no ecossistema React/TanStack). Se ainda não estiver instalado, adicionar.
-- **Arquivos novos**:
-  - `src/components/sdr/WalletKanban.tsx` — container do Kanban (colunas + DnD context).
-  - `src/components/sdr/WalletKanbanCard.tsx` — card compacto + menu de ações.
-  - `src/components/sdr/MeetingScheduleQuickDialog.tsx` — mini-modal para "arrastei para Reunião Agendada".
-  - `src/components/sdr/CloseLeadDialog.tsx` — mini-modal para "arrastei para Encerrados" (motivo: Fechado, Perdido, Kill + nota).
-- **Arquivo alterado**:
-  - `src/routes/app.sdr.wallet.tsx` — adiciona toggle Lista/Kanban, persiste preferência, monta `<WalletKanban />`. Mantém `<LeadCard />` no modo Lista.
-- **Mutations**:
-  - Drag → reusa `updatePipelineField(leadId, 'sdr_status', ...)` e/ou `update_sdr_lead_fields` (RPC) para também gravar no histórico.
-  - Reaproveita `TransferLeadDialog` (SDR↔SDR) e `TransferToSellerDialog` (SDR→Vendedor) — nenhuma RPC nova.
-- **Permissões**:
-  - Qualquer SDR dono do lead pode transferir para vendedor (já permitido pela RPC `handoff_lead_to_seller`).
-  - Transferência SDR→SDR continua restrita a gestores.
-- **Performance**: usa as mesmas queries (`my-wallet`) — o Kanban é só uma renderização diferente do mesmo array, sem requisições extras.
-- **Responsivo**: em telas estreitas (< 1024 px), o Kanban vira scroll horizontal (`overflow-x-auto`) com colunas de largura mínima de 280 px.
-
-## Fora deste escopo (pode entrar depois)
-
-- WIP limits por coluna.
-- Visão Kanban para a página do gestor (`Carteiras`) — pode reaproveitar o mesmo componente depois.
-- Métricas de tempo médio por coluna (cycle time).
-
-## Resultado esperado
-
-Em vez de rolar uma página gigante, o SDR vê o funil inteiro em uma tela, arrasta para mover etapas, e transfere para vendedor com 2 cliques direto do card.
+- Não criar cron de snapshot automático (auto-save client-side cobre, conforme prompt).
+- Não tocar em `app.sdr.wallet.tsx` ou outros arquivos além dos listados.

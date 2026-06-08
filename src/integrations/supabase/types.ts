@@ -4190,6 +4190,48 @@ export type Database = {
           },
         ]
       }
+      crm_cobertura_historico: {
+        Row: {
+          ativas: number | null
+          criado_em: string | null
+          data: string
+          frias: number | null
+          id: string
+          nunca_contatadas: number | null
+          pct_ativa: number | null
+          sem_cobertura: number | null
+          total: number | null
+          valor_ativo: number | null
+          valor_total: number | null
+        }
+        Insert: {
+          ativas?: number | null
+          criado_em?: string | null
+          data?: string
+          frias?: number | null
+          id?: string
+          nunca_contatadas?: number | null
+          pct_ativa?: number | null
+          sem_cobertura?: number | null
+          total?: number | null
+          valor_ativo?: number | null
+          valor_total?: number | null
+        }
+        Update: {
+          ativas?: number | null
+          criado_em?: string | null
+          data?: string
+          frias?: number | null
+          id?: string
+          nunca_contatadas?: number | null
+          pct_ativa?: number | null
+          sem_cobertura?: number | null
+          total?: number | null
+          valor_ativo?: number | null
+          valor_total?: number | null
+        }
+        Relationships: []
+      }
       crm_followups: {
         Row: {
           created_at: string
@@ -8636,6 +8678,48 @@ export type Database = {
       }
     }
     Views: {
+      crm_cobertura_carteira: {
+        Row: {
+          alta_prioridade_descoberta: number | null
+          ativas: number | null
+          calculado_em: string | null
+          frias: number | null
+          max_dias_sem_contato: number | null
+          media_dias_sem_contato: number | null
+          nunca_contatadas: number | null
+          pct_ativa: number | null
+          pct_fria: number | null
+          pct_nunca_contatada: number | null
+          pct_sem_cobertura: number | null
+          quentes_descobertos: number | null
+          sem_cobertura: number | null
+          total: number | null
+          valor_alta_prioridade_descoberta: number | null
+          valor_ativo: number | null
+          valor_frio: number | null
+          valor_nunca_contatado: number | null
+          valor_sem_cobertura: number | null
+          valor_total: number | null
+        }
+        Relationships: []
+      }
+      crm_cobertura_por_sdr: {
+        Row: {
+          alta_prioridade_descoberta: number | null
+          ativos: number | null
+          frios: number | null
+          locked_by_sdr_id: string | null
+          pct_cobertura: number | null
+          quentes_descobertos: number | null
+          sdr_nome: string | null
+          sem_cobertura: number | null
+          status_meta: string | null
+          total_leads: number | null
+          valor_ativo: number | null
+          valor_carteira: number | null
+        }
+        Relationships: []
+      }
       v_proposal_lead_matches: {
         Row: {
           client_name: string | null
@@ -8735,6 +8819,7 @@ export type Database = {
       }
       release_expired_locks: { Args: never; Returns: undefined }
       revert_sdr_lead_edit: { Args: { _edit_id: string }; Returns: undefined }
+      salvar_snapshot_cobertura: { Args: never; Returns: undefined }
       suggest_seller_for_handoff: {
         Args: never
         Returns: {

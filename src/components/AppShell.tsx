@@ -22,7 +22,7 @@ import {
   FileBarChart, FileCheck2, FolderUp, Settings, LogOut,
   Search, Bell, Snowflake, ChevronDown, CheckSquare, PlugZap, Database,
   LayoutTemplate, Kanban, Thermometer, PackageSearch,
-  Zap, Flame, BarChart2, Briefcase, Calendar, ListChecks,
+  Zap, Flame, BarChart2, Briefcase, Calendar, ListChecks, PieChart,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { ROLE_LABELS } from "@/lib/proposal";
@@ -76,6 +76,7 @@ const NAV = [
     { to: "/app/tarefas", label: "Tarefas & Follow-up", icon: CheckSquare },
     { to: "/app/atividades", label: "Minhas Atividades", icon: ListChecks },
     { to: "/app/gestao/atividades", label: "Gestão de Atividades", icon: ListChecks },
+    { to: "/app/cobertura", label: "Cobertura de Carteira", icon: PieChart },
   ]},
   { group: "Cadastros", items: [
     { to: "/app/clientes", label: "Clientes", icon: Users },
