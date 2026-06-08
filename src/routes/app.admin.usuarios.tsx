@@ -21,11 +21,16 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader,
+  DialogTitle, DialogTrigger, DialogClose,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { NewUserWizard } from "@/components/admin/NewUserWizard";
 import { useAuth, type AppRole } from "@/hooks/useAuth";
 import { useIsManager } from "@/hooks/use-profile";
 import { ROLE_LABELS } from "@/lib/proposal";
-import { listAppUsers, setUserPrimaryRole, deleteAppUser } from "@/lib/user-admin.functions";
+import { listAppUsers, setUserPrimaryRole, deleteAppUser, setUserPassword } from "@/lib/user-admin.functions";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/app/admin/usuarios")({
