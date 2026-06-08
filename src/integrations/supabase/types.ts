@@ -3782,6 +3782,97 @@ export type Database = {
         }
         Relationships: []
       }
+      crm_activities: {
+        Row: {
+          assigned_to: string
+          assigned_to_name: string | null
+          client_name: string | null
+          completed_at: string | null
+          completed_by: string | null
+          created_at: string
+          created_by: string
+          created_by_name: string | null
+          description: string | null
+          duration_min: number | null
+          id: string
+          lead_id: string | null
+          outcome: string | null
+          proposal_id: string | null
+          reschedule_of: string | null
+          scheduled_at: string
+          status: string
+          title: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_to: string
+          assigned_to_name?: string | null
+          client_name?: string | null
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          created_by: string
+          created_by_name?: string | null
+          description?: string | null
+          duration_min?: number | null
+          id?: string
+          lead_id?: string | null
+          outcome?: string | null
+          proposal_id?: string | null
+          reschedule_of?: string | null
+          scheduled_at: string
+          status?: string
+          title: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string
+          assigned_to_name?: string | null
+          client_name?: string | null
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          created_by?: string
+          created_by_name?: string | null
+          description?: string | null
+          duration_min?: number | null
+          id?: string
+          lead_id?: string | null
+          outcome?: string | null
+          proposal_id?: string | null
+          reschedule_of?: string | null
+          scheduled_at?: string
+          status?: string
+          title?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_activities_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "sdr_leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_activities_proposal_id_fkey"
+            columns: ["proposal_id"]
+            isOneToOne: false
+            referencedRelation: "proposals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_activities_reschedule_of_fkey"
+            columns: ["reschedule_of"]
+            isOneToOne: false
+            referencedRelation: "crm_activities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       crm_agenda: {
         Row: {
           client_name: string

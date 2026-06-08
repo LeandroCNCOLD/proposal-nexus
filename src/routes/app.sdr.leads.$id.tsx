@@ -10,6 +10,7 @@ import { dateBR, dateTimeBR } from '@/lib/format'
 import { TransferToSellerDialog } from '@/components/sdr/TransferToSellerDialog'
 import { LeadEditDialog } from '@/components/sdr/LeadEditDialog'
 import { LeadEditHistory } from '@/components/sdr/LeadEditHistory'
+import { LeadActivitiesPanel } from '@/components/activities/LeadActivitiesPanel'
 import { useAuth } from '@/hooks/useAuth'
 
 export const Route = createFileRoute('/app/sdr/leads/$id')({
@@ -290,6 +291,8 @@ function LeadDetailPage() {
 
         </CardContent>
       </Card>
+
+      <LeadActivitiesPanel leadId={id} clientName={lead.client_name} />
 
       <LeadEditHistory leadId={id} />
 

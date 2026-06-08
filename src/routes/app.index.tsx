@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { FileText, DollarSign, Trophy, Clock, AlertTriangle, Target, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
+import { ActivitiesDashboardCard } from "@/components/activities/ActivitiesDashboardCard";
 import { StatCard } from "@/components/StatCard";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
@@ -67,6 +68,11 @@ function Dashboard() {
         <StatCard label="Sem follow-up" value={num(stale)} hint="Follow-up em atraso" icon={<Clock className="h-4 w-4" />} accent="warning" />
         <StatCard label="Perdidas" value={num(lost.length)} hint={`${brl(lost.reduce((s,p)=>s+Number(p.total_value??0),0))} em valor`} icon={<AlertTriangle className="h-4 w-4" />} accent="destructive" />
       </div>
+
+      <div className="mt-3">
+        <ActivitiesDashboardCard />
+      </div>
+
 
       <div className="mt-3 grid gap-3 lg:grid-cols-3">
         <div className="rounded-lg border bg-card p-3 shadow-[var(--shadow-sm)] lg:col-span-2">

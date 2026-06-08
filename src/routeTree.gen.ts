@@ -24,6 +24,7 @@ import { Route as AppConfiguracoesRouteImport } from './routes/app.configuracoes
 import { Route as AppConcorrentesRouteImport } from './routes/app.concorrentes'
 import { Route as AppCompetitivaRouteImport } from './routes/app.competitiva'
 import { Route as AppClientesRouteImport } from './routes/app.clientes'
+import { Route as AppAtividadesRouteImport } from './routes/app.atividades'
 import { Route as AppAprovacoesRouteImport } from './routes/app.aprovacoes'
 import { Route as AppAgendaRouteImport } from './routes/app.agenda'
 import { Route as AppSdrIndexRouteImport } from './routes/app.sdr.index'
@@ -43,6 +44,7 @@ import { Route as AppPropostasPedidosNfRouteImport } from './routes/app.proposta
 import { Route as AppPropostasNovaRouteImport } from './routes/app.propostas.nova'
 import { Route as AppPropostasIdRouteImport } from './routes/app.propostas.$id'
 import { Route as AppGestaoAuditoriaSdrRouteImport } from './routes/app.gestao.auditoria-sdr'
+import { Route as AppGestaoAtividadesRouteImport } from './routes/app.gestao.atividades'
 import { Route as AppGestaoAlertasSdrRouteImport } from './routes/app.gestao.alertas-sdr'
 import { Route as AppCrmClosersPerformanceRouteImport } from './routes/app.crm.closers-performance'
 import { Route as AppCrmIdRouteImport } from './routes/app.crm.$id'
@@ -144,6 +146,11 @@ const AppClientesRoute = AppClientesRouteImport.update({
   path: '/clientes',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAtividadesRoute = AppAtividadesRouteImport.update({
+  id: '/atividades',
+  path: '/atividades',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppAprovacoesRoute = AppAprovacoesRouteImport.update({
   id: '/aprovacoes',
   path: '/aprovacoes',
@@ -238,6 +245,11 @@ const AppPropostasIdRoute = AppPropostasIdRouteImport.update({
 const AppGestaoAuditoriaSdrRoute = AppGestaoAuditoriaSdrRouteImport.update({
   id: '/auditoria-sdr',
   path: '/auditoria-sdr',
+  getParentRoute: () => AppGestaoRoute,
+} as any)
+const AppGestaoAtividadesRoute = AppGestaoAtividadesRouteImport.update({
+  id: '/atividades',
+  path: '/atividades',
   getParentRoute: () => AppGestaoRoute,
 } as any)
 const AppGestaoAlertasSdrRoute = AppGestaoAlertasSdrRouteImport.update({
@@ -383,6 +395,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/app/agenda': typeof AppAgendaRouteWithChildren
   '/app/aprovacoes': typeof AppAprovacoesRoute
+  '/app/atividades': typeof AppAtividadesRoute
   '/app/clientes': typeof AppClientesRoute
   '/app/competitiva': typeof AppCompetitivaRoute
   '/app/concorrentes': typeof AppConcorrentesRoute
@@ -407,6 +420,7 @@ export interface FileRoutesByFullPath {
   '/app/crm/$id': typeof AppCrmIdRoute
   '/app/crm/closers-performance': typeof AppCrmClosersPerformanceRoute
   '/app/gestao/alertas-sdr': typeof AppGestaoAlertasSdrRoute
+  '/app/gestao/atividades': typeof AppGestaoAtividadesRoute
   '/app/gestao/auditoria-sdr': typeof AppGestaoAuditoriaSdrRoute
   '/app/propostas/$id': typeof AppPropostasIdRouteWithChildren
   '/app/propostas/nova': typeof AppPropostasNovaRoute
@@ -443,6 +457,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/app/agenda': typeof AppAgendaRouteWithChildren
   '/app/aprovacoes': typeof AppAprovacoesRoute
+  '/app/atividades': typeof AppAtividadesRoute
   '/app/clientes': typeof AppClientesRoute
   '/app/competitiva': typeof AppCompetitivaRoute
   '/app/concorrentes': typeof AppConcorrentesRoute
@@ -466,6 +481,7 @@ export interface FileRoutesByTo {
   '/app/crm/$id': typeof AppCrmIdRoute
   '/app/crm/closers-performance': typeof AppCrmClosersPerformanceRoute
   '/app/gestao/alertas-sdr': typeof AppGestaoAlertasSdrRoute
+  '/app/gestao/atividades': typeof AppGestaoAtividadesRoute
   '/app/gestao/auditoria-sdr': typeof AppGestaoAuditoriaSdrRoute
   '/app/propostas/nova': typeof AppPropostasNovaRoute
   '/app/propostas/pedidos-nf': typeof AppPropostasPedidosNfRoute
@@ -503,6 +519,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/app/agenda': typeof AppAgendaRouteWithChildren
   '/app/aprovacoes': typeof AppAprovacoesRoute
+  '/app/atividades': typeof AppAtividadesRoute
   '/app/clientes': typeof AppClientesRoute
   '/app/competitiva': typeof AppCompetitivaRoute
   '/app/concorrentes': typeof AppConcorrentesRoute
@@ -527,6 +544,7 @@ export interface FileRoutesById {
   '/app/crm/$id': typeof AppCrmIdRoute
   '/app/crm/closers-performance': typeof AppCrmClosersPerformanceRoute
   '/app/gestao/alertas-sdr': typeof AppGestaoAlertasSdrRoute
+  '/app/gestao/atividades': typeof AppGestaoAtividadesRoute
   '/app/gestao/auditoria-sdr': typeof AppGestaoAuditoriaSdrRoute
   '/app/propostas/$id': typeof AppPropostasIdRouteWithChildren
   '/app/propostas/nova': typeof AppPropostasNovaRoute
@@ -566,6 +584,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/app/agenda'
     | '/app/aprovacoes'
+    | '/app/atividades'
     | '/app/clientes'
     | '/app/competitiva'
     | '/app/concorrentes'
@@ -590,6 +609,7 @@ export interface FileRouteTypes {
     | '/app/crm/$id'
     | '/app/crm/closers-performance'
     | '/app/gestao/alertas-sdr'
+    | '/app/gestao/atividades'
     | '/app/gestao/auditoria-sdr'
     | '/app/propostas/$id'
     | '/app/propostas/nova'
@@ -626,6 +646,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/app/agenda'
     | '/app/aprovacoes'
+    | '/app/atividades'
     | '/app/clientes'
     | '/app/competitiva'
     | '/app/concorrentes'
@@ -649,6 +670,7 @@ export interface FileRouteTypes {
     | '/app/crm/$id'
     | '/app/crm/closers-performance'
     | '/app/gestao/alertas-sdr'
+    | '/app/gestao/atividades'
     | '/app/gestao/auditoria-sdr'
     | '/app/propostas/nova'
     | '/app/propostas/pedidos-nf'
@@ -685,6 +707,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/app/agenda'
     | '/app/aprovacoes'
+    | '/app/atividades'
     | '/app/clientes'
     | '/app/competitiva'
     | '/app/concorrentes'
@@ -709,6 +732,7 @@ export interface FileRouteTypes {
     | '/app/crm/$id'
     | '/app/crm/closers-performance'
     | '/app/gestao/alertas-sdr'
+    | '/app/gestao/atividades'
     | '/app/gestao/auditoria-sdr'
     | '/app/propostas/$id'
     | '/app/propostas/nova'
@@ -860,6 +884,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppClientesRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/atividades': {
+      id: '/app/atividades'
+      path: '/atividades'
+      fullPath: '/app/atividades'
+      preLoaderRoute: typeof AppAtividadesRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/aprovacoes': {
       id: '/app/aprovacoes'
       path: '/aprovacoes'
@@ -991,6 +1022,13 @@ declare module '@tanstack/react-router' {
       path: '/auditoria-sdr'
       fullPath: '/app/gestao/auditoria-sdr'
       preLoaderRoute: typeof AppGestaoAuditoriaSdrRouteImport
+      parentRoute: typeof AppGestaoRoute
+    }
+    '/app/gestao/atividades': {
+      id: '/app/gestao/atividades'
+      path: '/atividades'
+      fullPath: '/app/gestao/atividades'
+      preLoaderRoute: typeof AppGestaoAtividadesRouteImport
       parentRoute: typeof AppGestaoRoute
     }
     '/app/gestao/alertas-sdr': {
@@ -1220,6 +1258,7 @@ const AppConfiguracoesRouteWithChildren =
 
 interface AppGestaoRouteChildren {
   AppGestaoAlertasSdrRoute: typeof AppGestaoAlertasSdrRoute
+  AppGestaoAtividadesRoute: typeof AppGestaoAtividadesRoute
   AppGestaoAuditoriaSdrRoute: typeof AppGestaoAuditoriaSdrRoute
   AppGestaoCarteirasUserIdRoute: typeof AppGestaoCarteirasUserIdRoute
   AppGestaoCarteirasIndexRoute: typeof AppGestaoCarteirasIndexRoute
@@ -1227,6 +1266,7 @@ interface AppGestaoRouteChildren {
 
 const AppGestaoRouteChildren: AppGestaoRouteChildren = {
   AppGestaoAlertasSdrRoute: AppGestaoAlertasSdrRoute,
+  AppGestaoAtividadesRoute: AppGestaoAtividadesRoute,
   AppGestaoAuditoriaSdrRoute: AppGestaoAuditoriaSdrRoute,
   AppGestaoCarteirasUserIdRoute: AppGestaoCarteirasUserIdRoute,
   AppGestaoCarteirasIndexRoute: AppGestaoCarteirasIndexRoute,
@@ -1253,6 +1293,7 @@ const AppPropostasIdRouteWithChildren = AppPropostasIdRoute._addFileChildren(
 interface AppRouteChildren {
   AppAgendaRoute: typeof AppAgendaRouteWithChildren
   AppAprovacoesRoute: typeof AppAprovacoesRoute
+  AppAtividadesRoute: typeof AppAtividadesRoute
   AppClientesRoute: typeof AppClientesRoute
   AppCompetitivaRoute: typeof AppCompetitivaRoute
   AppConcorrentesRoute: typeof AppConcorrentesRoute
@@ -1292,6 +1333,7 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppAgendaRoute: AppAgendaRouteWithChildren,
   AppAprovacoesRoute: AppAprovacoesRoute,
+  AppAtividadesRoute: AppAtividadesRoute,
   AppClientesRoute: AppClientesRoute,
   AppCompetitivaRoute: AppCompetitivaRoute,
   AppConcorrentesRoute: AppConcorrentesRoute,
