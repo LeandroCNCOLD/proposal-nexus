@@ -322,3 +322,16 @@
     line-height: inherit !important;
   }
 }
+
+@layer utilities {
+  /* Mobile touch targets — enforce 44px min height on inputs/buttons in small viewports */
+  @media (max-width: 640px) {
+    button, [role="button"], a.btn, .compact-button,
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+    select, textarea {
+      min-height: 44px;
+    }
+    html { font-size: 15px; }
+    body { font-size: 14px; }
+  }
+}
