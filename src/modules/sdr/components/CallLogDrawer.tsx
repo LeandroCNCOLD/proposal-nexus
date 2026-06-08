@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
+import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
@@ -10,12 +11,28 @@ import { CALL_RESULT_OPTIONS, TEMPERATURE_OPTIONS } from '../types'
 import { useSdrNames } from '../hooks/use-team-members'
 import type { CrmPipeline } from '../types'
 import { formatCurrency } from '@/lib/utils'
+import { insertFollowup } from '../followups'
+import { useAuth } from '@/hooks/useAuth'
+import { useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 
 interface Props { pipeline: CrmPipeline; open: boolean; onClose: () => void }
+
+function defaultNextAttempt() {
+  // amanhã 09:00 local
+  const d = new Date()
+  d.setDate(d.getDate() + 1)
+  d.setHours(9, 0, 0, 0)
+  // YYYY-MM-DDTHH:mm
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
 
 export function CallLogDrawer({ pipeline, open, onClose }: Props) {
   const { insert } = useCallLog({ pipelineId: pipeline.id })
   const { names: sdrNames } = useSdrNames()
+  const { user } = useAuth()
+  const qc = useQueryClient()
   const [form, setForm] = useState({
     sdr_name: pipeline.sdr_name ?? '',
     result: '' as any,
@@ -23,13 +40,22 @@ export function CallLogDrawer({ pipeline, open, onClose }: Props) {
     temperature_after: pipeline.temperature as any,
     meeting_booked: false,
     observation: '',
+    next_attempt_at: defaultNextAttempt(),
+    next_attempt_note: '',
   })
   const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) =>
     setForm(f => ({ ...f, [k]: v }))
 
+  const requiresFollowup = !form.meeting_booked
+  const nextAttemptValid = !requiresFollowup || (!!form.next_attempt_at && new Date(form.next_attempt_at).getTime() > Date.now() - 60_000)
+
   async function handleSubmit() {
     if (!form.result) return
     if (form.result === 'Outros' && !form.other_reason.trim()) return
+    if (requiresFollowup && !nextAttemptValid) {
+      toast.error('Defina a data/hora da próxima tentativa (no futuro).')
+      return
+    }
     const today = new Date()
     const obs = form.result === 'Outros'
       ? `[Outros: ${form.other_reason.trim()}]${form.observation ? `\n${form.observation}` : ''}`
@@ -46,12 +72,29 @@ export function CallLogDrawer({ pipeline, open, onClose }: Props) {
       meeting_booked: form.meeting_booked,
       observation: obs,
     })
+
+    if (requiresFollowup) {
+      try {
+        const iso = new Date(form.next_attempt_at).toISOString()
+        await insertFollowup({
+          lead_id: pipeline.id,
+          sdr_id: user?.id ?? null,
+          sdr_name: form.sdr_name || null,
+          scheduled_at: iso,
+          note: form.next_attempt_note.trim() || null,
+        })
+        qc.invalidateQueries({ queryKey: ['sdr-followups'] })
+        toast.success(`Próxima tentativa agendada para ${new Date(iso).toLocaleString('pt-BR')}`)
+      } catch (e: any) {
+        toast.error('Falha ao agendar próxima tentativa: ' + (e?.message ?? 'erro'))
+      }
+    }
     onClose()
   }
 
   return (
     <Sheet open={open} onOpenChange={v => !v && onClose()}>
-      <SheetContent className="w-[420px]">
+      <SheetContent className="w-[460px] overflow-y-auto">
         <SheetHeader>
           <SheetTitle className="text-base">Registrar Ligação</SheetTitle>
           <p className="text-sm text-muted-foreground">
@@ -100,12 +143,42 @@ export function CallLogDrawer({ pipeline, open, onClose }: Props) {
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs font-semibold">Observação</Label>
-            <Textarea rows={4} placeholder="O que foi conversado? Próximo passo?" value={form.observation}
+            <Textarea rows={3} placeholder="O que foi conversado?" value={form.observation}
               onChange={e => set('observation', e.target.value)} className="resize-none" />
           </div>
+
+          {requiresFollowup && (
+            <div className="rounded-md border border-amber-300 bg-amber-50 p-3 space-y-2">
+              <div className="text-xs font-semibold text-amber-900">
+                ⏰ Agendar próxima tentativa *
+              </div>
+              <p className="text-[11px] text-amber-800">
+                Toda tentativa exige uma nova data/hora de contato. O sistema vai te lembrar e, se você não cumprir, o gestor é alertado.
+              </p>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Data e hora</Label>
+                <Input
+                  type="datetime-local"
+                  value={form.next_attempt_at}
+                  onChange={e => set('next_attempt_at', e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Plano / o que falar (opcional)</Label>
+                <Textarea
+                  rows={2}
+                  placeholder="Ex.: retornar pedindo decisor; mandar proposta revisada antes; etc."
+                  value={form.next_attempt_note}
+                  onChange={e => set('next_attempt_note', e.target.value)}
+                  className="resize-none"
+                />
+              </div>
+            </div>
+          )}
+
           <div className="flex gap-2 pt-2">
             <Button className="flex-1 bg-[#0F2D5E] hover:bg-[#1A56DB]"
-              onClick={handleSubmit} disabled={!form.result || insert.isPending}>
+              onClick={handleSubmit} disabled={!form.result || insert.isPending || (requiresFollowup && !nextAttemptValid)}>
               {insert.isPending ? 'Salvando...' : 'Salvar Ligação'}
             </Button>
             <Button variant="outline" onClick={onClose}>Cancelar</Button>

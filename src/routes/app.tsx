@@ -3,6 +3,7 @@ import { Loader2 } from "lucide-react";
 import * as React from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { AppShell } from "@/components/AppShell";
+import { FollowupReminder } from "@/modules/sdr/components/FollowupReminder";
 
 export const Route = createFileRoute("/app")({
   component: AppLayout,
@@ -29,5 +30,5 @@ function AppLayout() {
     );
   }
   if (!user) return <Navigate to="/login" />;
-  return <AppShell><Outlet /></AppShell>;
+  return <AppShell><Outlet /><FollowupReminder /></AppShell>;
 }
