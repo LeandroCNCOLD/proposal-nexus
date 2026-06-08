@@ -20,13 +20,12 @@ import {
   TIPOS_REUNIAO, STATUS_REUNIAO, CORES_TIPO,
   type AgendaItem,
 } from '@/modules/crm/services-agenda';
+import { useSdrNames, useCloserNames } from '@/modules/sdr/hooks/use-team-members';
 
 export const Route = createFileRoute('/app/agenda')({
   component: AgendaPage,
 });
 
-const CLOSERS = ['Rafael', 'Elton', 'Rodrigo', 'Leandro'];
-const SDRS = ['Katlin', 'Silmar', 'Tais', 'Vitor'];
 const HOURS = Array.from({ length: 14 }, (_, i) => i + 7); // 7..20
 
 type View = 'dia' | 'semana' | 'mes';
