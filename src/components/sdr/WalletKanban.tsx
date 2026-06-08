@@ -273,6 +273,7 @@ export function WalletKanban({
       )}
       <LeadEditDialog
         lead={editLead}
+        leadId={editLead?.id ?? ''}
         open={!!editLead}
         onOpenChange={(o) => !o && setEditLead(null)}
       />
