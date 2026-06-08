@@ -6,7 +6,7 @@ import { useSellerProposalsFor } from "@/hooks/use-seller-proposals-for";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, ArrowRightLeft, Phone, FileText, Calendar, ExternalLink, Thermometer, DollarSign } from "lucide-react";
+import { ArrowLeft, ArrowRightLeft, Phone, FileText, Calendar, ExternalLink, Thermometer, DollarSign, Users } from "lucide-react";
 import { brl, dateBR, dateTimeBR } from "@/lib/format";
 import { STATUS_LABELS, TEMPERATURE_LABELS } from "@/lib/proposal";
 import { TransferProposalDialog } from "@/components/manager/TransferProposalDialog";
