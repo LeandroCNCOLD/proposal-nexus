@@ -120,7 +120,8 @@ function AppNavigationSidebar() {
       group: "Gestão",
       items: [
         { to: "/app/gestao/carteiras", label: "Carteiras da equipe", icon: Users },
-        { to: "/app/gestao/auditoria-sdr", label: "Auditoria SDR", icon: BarChart2 },
+       { to: "/app/gestao/auditoria-sdr", label: "Auditoria SDR", icon: BarChart2 },
+       { to: "/app/gestao/alertas-sdr", label: "Alertas de Tentativas", icon: Bell },
       ],
     }] : []),
   ];
