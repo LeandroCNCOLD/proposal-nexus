@@ -132,6 +132,30 @@ function UsersAdminPage() {
     else toast.success(`Email de redefinição enviado para ${email}.`);
   };
 
+  const onSavePassword = async () => {
+    if (!passwordTarget) return;
+    if (newPassword.length < 8) {
+      toast.error("A nova senha precisa ter pelo menos 8 caracteres.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error("As senhas não conferem.");
+      return;
+    }
+    setSavingPassword(true);
+    try {
+      await updatePassword({ data: { userId: passwordTarget.id, password: newPassword } });
+      toast.success(`Nova senha definida para ${passwordTarget.label}.`);
+      setPasswordTarget(null);
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao definir senha.");
+    } finally {
+      setSavingPassword(false);
+    }
+  };
+
   return (
     <div className="p-4 sm:p-6 space-y-4">
       <PageHeader
@@ -139,6 +163,7 @@ function UsersAdminPage() {
         subtitle="Cadastre e gerencie o time CN Cold"
         actions={<NewUserWizard />}
       />
+
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <StatCard label="Total de usuários" value={stats.total.toString()} icon={<UsersIcon className="h-4 w-4" />} />
