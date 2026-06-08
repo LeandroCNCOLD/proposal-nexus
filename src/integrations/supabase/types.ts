@@ -7540,6 +7540,60 @@ export type Database = {
           },
         ]
       }
+      sdr_lead_edits: {
+        Row: {
+          created_at: string
+          edited_by: string | null
+          edited_by_name: string | null
+          field: string
+          id: string
+          lead_id: string
+          new_value: string | null
+          old_value: string | null
+          reason: string | null
+          reverted_from_edit_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          edited_by?: string | null
+          edited_by_name?: string | null
+          field: string
+          id?: string
+          lead_id: string
+          new_value?: string | null
+          old_value?: string | null
+          reason?: string | null
+          reverted_from_edit_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          edited_by?: string | null
+          edited_by_name?: string | null
+          field?: string
+          id?: string
+          lead_id?: string
+          new_value?: string | null
+          old_value?: string | null
+          reason?: string | null
+          reverted_from_edit_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sdr_lead_edits_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "sdr_leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sdr_lead_edits_reverted_from_edit_id_fkey"
+            columns: ["reverted_from_edit_id"]
+            isOneToOne: false
+            referencedRelation: "sdr_lead_edits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sdr_leads: {
         Row: {
           call_observation: string | null
@@ -8589,6 +8643,7 @@ export type Database = {
         }[]
       }
       release_expired_locks: { Args: never; Returns: undefined }
+      revert_sdr_lead_edit: { Args: { _edit_id: string }; Returns: undefined }
       suggest_seller_for_handoff: {
         Args: never
         Returns: {
@@ -8609,6 +8664,10 @@ export type Database = {
       }
       transfer_sdr_lead: {
         Args: { _lead_id: string; _new_sdr_id: string }
+        Returns: undefined
+      }
+      update_sdr_lead_fields: {
+        Args: { _changes: Json; _lead_id: string; _reason?: string }
         Returns: undefined
       }
     }
