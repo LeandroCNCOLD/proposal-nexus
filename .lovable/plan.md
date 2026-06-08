@@ -1,78 +1,79 @@
-# Cobertura de Carteira
+## Objetivo
 
-Sistema para medir cobertura ativa da carteira de leads (SDR), com visão geral, por SDR, leads descobertos e histórico diário.
+Reorganizar a navegação do sistema em 5 grupos claros (SDR | Vendas | Relatórios | Operação | Sistema), com Cobertura de Carteira aparecendo em SDR e em Relatórios, e criar uma página consolidada `/app/sdr/relatorios` reunindo as métricas de pré-venda.
 
-## Ajustes em relação ao prompt original
+## 1. Sidebar — nova estrutura (`src/components/AppShell.tsx`)
 
-Antes de executar, três adaptações ao código real do projeto:
+Reordenar e reagrupar os itens já existentes. Nada é removido, só remanejado:
 
-1. **Tabela base**: o projeto usa `public.sdr_leads` (não `crm_pipeline`). As views serão criadas em cima de `sdr_leads`. O índice antigo ainda se chama `crm_pipeline_*`, mas a tabela é `sdr_leads`.
-2. **Coluna `proposal_number`** não existe — usar `lead_code` no lugar (na aba "Leads descobertos").
-3. **Arquivo `src/modules/crm/services.ts`** não existe (só `services-agenda.ts`). Vou criar `src/modules/crm/services-cobertura.ts` dedicado, em vez de mexer num arquivo inexistente. Mantém o escopo isolado e respeita "não modificar arquivos existentes além de AppShell.tsx e WarRoomPanel.tsx".
+**SDR — Pré-Venda**
+- Banco de Leads
+- Minha Carteira
+- War Room — Reunião Diária
+- Hot Leads
+- Scripts de Ligação
+- Cobertura de Carteira *(atalho)*
+- Relatórios SDR *(nova rota)*
+- Desempenho dos SDRs
 
-Resto segue o prompt.
+**Vendas**
+- Minha Carteira (Vendas)
+- Funil / CRM
+- Propostas
+- Pedidos & NF
+- Agenda
+- Tarefas & Follow-up
+- Minhas Atividades
+- Desempenho dos Closers
 
-## 1. Migration SQL (uma só, via supabase--migration)
+**Relatórios** *(novo grupo)*
+- Dashboard Geral
+- Relatórios (geral)
+- Cobertura de Carteira *(entrada principal)*
+- Desempenho dos SDRs
+- Desempenho dos Closers
+- Relatórios SDR
 
-- View `public.crm_cobertura_carteira` (geral) — sobre `sdr_leads`
-- View `public.crm_cobertura_por_sdr` — sobre `sdr_leads`
-- Tabela `public.crm_cobertura_historico` + GRANTs (`authenticated`, `service_role`) + RLS + policy `FOR ALL TO authenticated USING (true)`
-- Função `public.salvar_snapshot_cobertura()` com `SET search_path = public` e `SECURITY DEFINER`
-- GRANT SELECT nas duas views para `authenticated`
+**Operação**
+- Dashboard (home `/app`)
+- Gestão de Atividades
+- Clientes, Concorrentes, Equipamentos
+- ColdPro, Produtos Ashrae, Catálogo ColdPro
 
-Filtro de exclusão mantido: `sdr_status NOT IN ('Kill / Arquivar','Fechado','Perdido (com motivo)')`.
+**Sistema**
+- Aprovações
+- Templates de Proposta
+- Integração Nomus
+- Catálogo API Nomus
+- Configurações
 
-## 2. Serviços — `src/modules/crm/services-cobertura.ts` (novo)
+**Gestão** (mantida, só para admin/diretoria/gerente_comercial): Carteiras da equipe, Auditoria SDR, Alertas de Tentativas, Usuários.
 
-Funções: `fetchCoberturaGeral`, `fetchCoberturaPorSdr`, `fetchCoberturaHistorico(dias)`, `fetchLeadsDescobertos(limit)`, `salvarSnapshotCobertura`.
+Observação: itens duplicados entre grupos (Cobertura, Desempenho SDR/Closers) usam o mesmo `to`, então o highlight de rota ativa continua funcionando.
 
-`fetchLeadsDescobertos` consulta `sdr_leads` direto, projetando `lead_code` (renomeado como `proposal_number` no select para a UI), `client_name`, `state`, `value`, `temperature`, `priority`, `last_contact_at`, `locked_by_sdr_name`, `sdr_status`.
+## 2. Nova rota `/app/sdr/relatorios` consolidada
 
-## 3. Hook — `src/modules/crm/hooks/use-cobertura.ts` (novo)
+Arquivo: `src/routes/app.sdr.relatorios.tsx`
 
-`useCoberturaGeral`, `useCoberturaPorSdr`, `useCoberturaHistorico`, `useLeadsDescobertos`, `useSalvarSnapshot` + helper `corCobertura(pct)`. Polling de 60s para geral/sdr, 5min para histórico.
+Página com abas reunindo o que já existe + um resumo:
 
-## 4. Página principal — `src/modules/crm/components/CoberturaCarteira.tsx` (novo)
+- **Visão Geral** — KPIs do SDR (leads ativos, contatados na semana, taxa de cobertura, hot leads abertos) puxando dos services já existentes (`services-cobertura`, hot deals, sdr performance).
+- **Cobertura** — embute `<CoberturaCarteira />`.
+- **Desempenho SDRs** — embute o conteúdo da página atual `app.sdr.sdr-performance.tsx`.
+- **Hot Leads** — embute lista de `app.sdr.hot-deals.tsx`.
+- **Funil de Pré-Venda** — distribuição de leads por `sdr_status` (gráfico simples a partir de `sdr_leads`).
 
-4 abas via `Tabs` shadcn:
+Implementação: extrair o conteúdo das páginas existentes para componentes reutilizáveis caso ainda estejam inline, ou simplesmente importar o componente já exportado. Sem alteração nas páginas originais — elas continuam acessíveis.
 
-- **Resumo**: número gigante central com cor dinâmica, barra segmentada 4 cores, 4 cards (fria, sem SDR, nunca contatadas, alta prioridade descoberta), card "Valor em risco", card "Alertas automáticos" com regras descritas no prompt.
-- **Por SDR**: card por SDR com avatar (inicial), nome, total, valor, % grande, badge de meta, barra de progresso, linha de métricas.
-- **Leads descobertos**: lista dos top 50 por valor, com dias sem contato (vermelho >30d), "Nunca contatado", badge de prioridade.
-- **Histórico**: barras horizontais 14 dias, ou empty state.
+## 3. Detalhes técnicos
 
-Botão "Salvar snapshot de hoje" visível só para gestores (via `useProfile` + `is_team_manager`/`has_any_role`). Auto-save no primeiro acesso do dia controlado por `localStorage` (chave `cobertura_snapshot_<YYYY-MM-DD>`).
+- Apenas `AppShell.tsx` é editado para a sidebar.
+- Nova rota: `src/routes/app.sdr.relatorios.tsx` usando `createFileRoute("/app/sdr/relatorios")`, layout com `Tabs` do shadcn.
+- Reaproveita componentes existentes: `CoberturaCarteira` (`src/modules/crm/components/CoberturaCarteira.tsx`), e o que já estiver exportado de `app.sdr.sdr-performance.tsx` / `app.sdr.hot-deals.tsx`. Se o conteúdo dessas rotas só existir como `component` interno, crio um componente irmão `*.view.tsx` exportado e a rota passa a renderizá-lo (sem mudar a URL ou comportamento).
+- `routeTree.gen.ts` é regenerado automaticamente.
 
-Tokens semânticos (`text-success`, `bg-warning/10` etc.) ao invés das cores hardcoded do prompt, para respeitar o design system.
+## 4. Fora de escopo
 
-## 5. Mini card — `src/modules/crm/components/CoberturaCarteiraMini.tsx` (novo)
-
-Card compacto: título + % grande, barra segmentada h-2, grid 2x2 (sem SDR / nunca contatados / valor descoberto / alta prior. desc), alerta vermelho se pct_ativa < 50%.
-
-## 6. Rota — `src/routes/app.cobertura.tsx` (novo)
-
-```tsx
-import { createFileRoute } from '@tanstack/react-router'
-import { CoberturaCarteira } from '@/modules/crm/components/CoberturaCarteira'
-
-export const Route = createFileRoute('/app/cobertura')({
-  component: CoberturaCarteira,
-})
-```
-
-(O prompt original tinha JSX vazio dentro do componente — simplifico para renderizar direto.)
-
-## 7. Sidebar e War Room
-
-- **`src/components/AppShell.tsx`**: adicionar entrada `{ to: '/app/cobertura', label: 'Cobertura de Carteira', icon: PieChart }` no grupo OPERAÇÃO.
-- **`src/modules/sdr/components/WarRoomPanel.tsx`**: importar e renderizar `<CoberturaCarteiraMini />` após os KPIs existentes.
-
-## Validação
-
-- Confirmar typecheck limpo nos arquivos novos/editados.
-- Verificar no preview: rota `/app/cobertura` carrega, abas trocam, mini aparece em `/app/sdr/war-room`.
-
-## Fora de escopo
-
-- Não criar cron de snapshot automático (auto-save client-side cobre, conforme prompt).
-- Não tocar em `app.sdr.wallet.tsx` ou outros arquivos além dos listados.
+- Não mexer em lógica de negócio, RLS, ou banco.
+- Não renomear rotas existentes (URLs continuam iguais).
+- Não criar novos relatórios além da consolidação acima.
