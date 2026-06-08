@@ -351,6 +351,11 @@ function LeadCard({ lead, sdrName, onUnlock, onOpenScript, proposalMatch, canMan
           <Button size="sm" variant="outline" onClick={onUnlock}>
             <Unlock className="w-3 h-3 mr-1" /> Devolver
           </Button>
+          {canManage && onTransfer && (
+            <Button size="sm" variant="outline" className="border-amber-300 text-amber-700 hover:bg-amber-50" onClick={onTransfer}>
+              <ArrowRightLeft className="w-3 h-3 mr-1" /> Transferir
+            </Button>
+          )}
         </div>
       </div>
 
