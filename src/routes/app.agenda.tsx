@@ -20,13 +20,12 @@ import {
   TIPOS_REUNIAO, STATUS_REUNIAO, CORES_TIPO,
   type AgendaItem,
 } from '@/modules/crm/services-agenda';
+import { useSdrNames, useCloserNames } from '@/modules/sdr/hooks/use-team-members';
 
 export const Route = createFileRoute('/app/agenda')({
   component: AgendaPage,
 });
 
-const CLOSERS = ['Rafael', 'Elton', 'Rodrigo', 'Leandro'];
-const SDRS = ['Katlin', 'Silmar', 'Tais', 'Vitor'];
 const HOURS = Array.from({ length: 14 }, (_, i) => i + 7); // 7..20
 
 type View = 'dia' | 'semana' | 'mes';
@@ -50,6 +49,7 @@ function AgendaPage() {
   const [newOpen, setNewOpen] = useState(false);
   const [prefill, setPrefill] = useState<Partial<AgendaItem> | null>(null);
   const navigate = useNavigate();
+  const { names: closerNames } = useCloserNames();
 
   const range = useMemo(() => {
     if (view === 'dia') return { ini: startOfDay(cursor), fim: endOfDay(cursor) };
@@ -112,7 +112,7 @@ function AgendaPage() {
             <SelectTrigger className="w-36"><SelectValue placeholder="Closer" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos closers</SelectItem>
-              {CLOSERS.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+              {closerNames.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
             </SelectContent>
           </Select>
           <Select value={filterStatus} onValueChange={setFilterStatus}>
@@ -373,6 +373,8 @@ function NovaReuniaoSheet({
   onOpenChange: (b: boolean) => void;
   prefill: Partial<AgendaItem> | null;
 }) {
+  const { names: closerNames } = useCloserNames();
+  const { names: sdrNames } = useSdrNames();
   const qc = useQueryClient();
   const initialDate = prefill?.data_inicio
     ? new Date(prefill.data_inicio)
@@ -486,7 +488,7 @@ function NovaReuniaoSheet({
               <Select value={form.closer_nome} onValueChange={(v) => setForm({ ...form, closer_nome: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {CLOSERS.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  {closerNames.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -498,7 +500,7 @@ function NovaReuniaoSheet({
               <Select value={form.sdr_nome} onValueChange={(v) => setForm({ ...form, sdr_nome: v })}>
                 <SelectTrigger><SelectValue placeholder="Selecionar" /></SelectTrigger>
                 <SelectContent>
-                  {SDRS.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                  {sdrNames.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
