@@ -18,6 +18,7 @@ import { toast } from 'sonner'
 import { CallScriptDialog } from '@/modules/sdr/components/CallScriptDialog'
 import { useProposalLeadMatches, type ProposalLeadMatch } from '@/hooks/use-proposal-lead-matches'
 import { useMemo } from 'react'
+import { useTeamRoster } from '@/hooks/use-team-roster'
 
 export const Route = createFileRoute('/app/sdr/wallet')({
   component: WalletPage,
