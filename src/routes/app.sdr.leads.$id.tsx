@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/integrations/supabase/client'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -32,6 +32,16 @@ function LeadDetailPage() {
       return data
     },
   })
+
+  // Quando o closer abre o lead recebido pela 1ª vez, marca o timestamp
+  useEffect(() => {
+    if (!lead || !user?.id) return
+    const isTransferredToMe = (lead as any).transferred_to_seller_id === user.id
+    const notOpenedYet = !(lead as any).first_opened_by_seller_at
+    if (isTransferredToMe && notOpenedYet) {
+      supabase.rpc('mark_lead_opened_by_seller' as never, { _lead_id: id } as never).then(() => {})
+    }
+  }, [lead, user?.id, id])
 
   const since = useMemo(() => {
     if (period === 'all') return null

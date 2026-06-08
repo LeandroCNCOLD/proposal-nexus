@@ -15,6 +15,7 @@ import { insertFollowup } from '../followups'
 import { useAuth } from '@/hooks/useAuth'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import { TransferToSellerDialog } from '@/components/sdr/TransferToSellerDialog'
 
 interface Props { pipeline: CrmPipeline; open: boolean; onClose: () => void }
 
@@ -33,6 +34,7 @@ export function CallLogDrawer({ pipeline, open, onClose }: Props) {
   const { names: sdrNames } = useSdrNames()
   const { user } = useAuth()
   const qc = useQueryClient()
+  const [transferOpen, setTransferOpen] = useState(false)
   const [form, setForm] = useState({
     sdr_name: pipeline.sdr_name ?? '',
     line_type: 'Celular' as 'Celular' | 'Fixo' | 'WhatsApp',
@@ -103,6 +105,13 @@ export function CallLogDrawer({ pipeline, open, onClose }: Props) {
       } catch (e: any) {
         toast.error('Falha ao agendar próxima tentativa: ' + (e?.message ?? 'erro'))
       }
+    }
+
+    // Se a reunião foi marcada e o lead ainda não foi transferido, abre o diálogo de handoff
+    const alreadyTransferred = (pipeline as any).handoff_status === 'transferred'
+    if (form.meeting_booked && !alreadyTransferred) {
+      setTransferOpen(true)
+      return
     }
     onClose()
   }
@@ -239,6 +248,12 @@ export function CallLogDrawer({ pipeline, open, onClose }: Props) {
           </div>
         </div>
       </SheetContent>
+      <TransferToSellerDialog
+        open={transferOpen}
+        onOpenChange={(v) => { setTransferOpen(v); if (!v) onClose() }}
+        leadId={pipeline.id}
+        leadLabel={pipeline.client_name}
+      />
     </Sheet>
   )
 }

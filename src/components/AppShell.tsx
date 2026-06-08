@@ -51,6 +51,7 @@ import { ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { NotificationBell } from "@/components/NotificationBell";
 
 const NAV = [
   { group: "SDR — Pré-Venda", items: [
@@ -199,9 +200,8 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
           </div>
           <LiveClock />
-          <Button variant="ghost" size="icon" className="relative h-7 w-7">
-            <Bell className="h-4 w-4" />
-          </Button>
+          <NotificationBell />
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="flex items-center gap-1.5 rounded-full py-0.5 pl-0.5 pr-1.5 hover:bg-secondary">
