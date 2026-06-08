@@ -14,16 +14,6 @@ function normalizePhone(phone: string) {
   return d.startsWith('55') ? d : `55${d}`
 }
 
-function openDialer(phone: string, protocol: 'tel' | 'callto' | 'sip' = 'tel') {
-  const d = normalizePhone(phone)
-  if (!d) return
-  try {
-    window.open(`${protocol}:${d}`, '_self')
-  } catch {
-    window.location.href = `${protocol}:${d}`
-  }
-}
-
 function copyPhone(phone: string) {
   const d = normalizePhone(phone)
   navigator.clipboard.writeText(d).then(
@@ -33,8 +23,9 @@ function copyPhone(phone: string) {
 }
 
 function PhoneActions({ phone, variant = 'default', isMobile }: { phone: string; variant?: 'default' | 'outline'; isMobile: boolean }) {
+  const normalizedPhone = normalizePhone(phone)
   const waUrl = (() => {
-    return `https://wa.me/${normalizePhone(phone)}`
+    return `https://wa.me/${normalizedPhone}`
   })()
   return (
     <DropdownMenu>
@@ -44,14 +35,20 @@ function PhoneActions({ phone, variant = 'default', isMobile }: { phone: string;
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => openDialer(phone, 'tel')}>
-          <Phone className="w-4 h-4 mr-2" /> Discador padrão do sistema
+        <DropdownMenuItem asChild>
+          <a href={`tel:${normalizedPhone}`}>
+            <Phone className="w-4 h-4 mr-2" /> Discador padrão do sistema
+          </a>
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => openDialer(phone, 'callto')}>
-          <Phone className="w-4 h-4 mr-2" /> Vivo/softphone no computador
+        <DropdownMenuItem asChild>
+          <a href={`callto:${normalizedPhone}`}>
+            <Phone className="w-4 h-4 mr-2" /> Vivo/softphone no computador
+          </a>
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => openDialer(phone, 'sip')}>
-          <Phone className="w-4 h-4 mr-2" /> SIP/telefonia corporativa
+        <DropdownMenuItem asChild>
+          <a href={`sip:${normalizedPhone}`}>
+            <Phone className="w-4 h-4 mr-2" /> SIP/telefonia corporativa
+          </a>
         </DropdownMenuItem>
         {isMobile && (
           <DropdownMenuItem asChild>
