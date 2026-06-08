@@ -9,6 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Plus, Phone, CalendarCheck, Flame, CheckCircle2 } from 'lucide-react'
 import { SDR_DAILY_GOAL, type CrmCallLog } from '@/modules/sdr/types'
 import { useSdrNames } from '@/modules/sdr/hooks/use-team-members'
+import { useAuth } from '@/hooks/useAuth'
 
 export const Route = createFileRoute('/app/sdr/sdr-performance')({
   component: SdrPerformancePage,
