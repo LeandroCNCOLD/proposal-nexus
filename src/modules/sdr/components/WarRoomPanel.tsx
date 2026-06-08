@@ -12,6 +12,7 @@ import { fetchHotDeals, fetchDashboardKpis } from '../services'
 import { fetchAgendaHoje, CORES_TIPO } from '@/modules/crm/services-agenda'
 import { SDR_DAILY_GOAL, type CrmCallLog, type CrmPipeline } from '../types'
 import { useSdrNames } from '../hooks/use-team-members'
+import { CoberturaCarteiraMini } from '@/modules/crm/components/CoberturaCarteiraMini'
 
 type DailyRow = {
   name: string
