@@ -123,8 +123,41 @@ function BankPage() {
     onError: () => toast.error('Não foi possível bloquear o lead.'),
   })
 
+  // Extrai base CN##### e revisão a partir do lead_code/proposal_title/proposal_version
+  const parseRev = (r: any): { base: string; rev: number } => {
+    const raw = String(r.lead_code ?? '').trim()
+    const titleRaw = String(r.proposal_title ?? '').trim()
+    const mRev = raw.match(/Rev\.?\s*(\d+)/i) ?? titleRaw.match(/Rev\.?\s*(\d+)/i)
+    const rev = mRev ? parseInt(mRev[1], 10) : (Number(r.proposal_version) || 0)
+    const base = raw.replace(/\s*Rev\.?\s*\d+\s*$/i, '').trim() || raw
+    return { base, rev }
+  }
+
+  // Agrupa por base CN e marca a revisão mais recente de cada grupo.
+  // Mostra todas as revisões (com badge), mas relatórios somam apenas a última.
+  const withRevisions = useMemo(() => {
+    const latest = new Map<string, number>()
+    const counts = new Map<string, number>()
+    rows.forEach(r => {
+      const { base, rev } = parseRev(r)
+      counts.set(base, (counts.get(base) ?? 0) + 1)
+      const cur = latest.get(base)
+      if (cur == null || rev > cur) latest.set(base, rev)
+    })
+    return rows.map(r => {
+      const { base, rev } = parseRev(r)
+      return {
+        ...r,
+        _revBase: base,
+        _rev: rev,
+        _revTotal: counts.get(base) ?? 1,
+        _isLatestRev: rev === (latest.get(base) ?? rev),
+      } as any
+    })
+  }, [rows])
+
   const filtered = useMemo(() => {
-    return rows.filter(r => {
+    return withRevisions.filter(r => {
       if (search) {
         const s = search.toLowerCase()
         if (!r.client_name?.toLowerCase().includes(s) && !r.lead_code?.toLowerCase().includes(s)) return false
@@ -146,7 +179,22 @@ function BankPage() {
       }
       return true
     })
-  }, [rows, search, uf, minValue, temp, sdrFilter, closerFilter, statusFilter, user?.id])
+  }, [withRevisions, search, uf, minValue, temp, sdrFilter, closerFilter, statusFilter, user?.id])
+
+  // Resumo: conta apenas a última revisão de cada base CN para não inflar totais.
+  const summary = useMemo(() => {
+    const seen = new Set<string>()
+    let totalValue = 0
+    let uniqueCount = 0
+    for (const r of filtered as any[]) {
+      if (!r._isLatestRev) continue
+      if (seen.has(r._revBase)) continue
+      seen.add(r._revBase)
+      uniqueCount++
+      totalValue += Number(r.value ?? 0)
+    }
+    return { uniqueCount, totalValue }
+  }, [filtered])
 
   const sorted = useMemo(() => {
     if (!sortKey || !sortDir) return filtered
@@ -196,7 +244,7 @@ function BankPage() {
         <div>
           <h1 className="text-2xl font-bold text-[#0F2D5E]">Banco de Leads</h1>
           <p className="text-sm text-muted-foreground">
-            {filtered.length} de {rows.length} leads ativos
+            {summary.uniqueCount} propostas únicas ({filtered.length} de {rows.length} linhas) · <strong>{fmtBRL(summary.totalValue)}</strong> disponível
             {canPickLeads && <> · Você tem <strong>{myLockCount}/{SDR_LOCK_LIMIT}</strong> leads na carteira</>}
             {' · '}
             <button
@@ -333,7 +381,22 @@ function BankPage() {
                 const isFrozen = !!r.locked_by_sdr_name?.startsWith(MANAGER_FREEZE_PREFIX)
                 return (
                   <tr key={r.id} className="border-t hover:bg-muted/20 align-top">
-                    <td className="px-3 py-2 font-mono text-xs">{r.lead_code}</td>
+                    <td className="px-3 py-2 font-mono text-xs">
+                      <div className="flex items-center gap-1.5">
+                        <span>{r.lead_code}</span>
+                        {r._revTotal > 1 && (
+                          <Badge
+                            variant="secondary"
+                            className={r._isLatestRev ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}
+                            title={r._isLatestRev
+                              ? `Última revisão (${r._revTotal} no total). Valor contado no relatório.`
+                              : `Revisão anterior — não somada no relatório. Última: Rev. ${String((r._revTotal)).padStart(2,'0')}`}
+                          >
+                            Rev. {String(r._rev).padStart(2, '0')} · {r._revTotal}
+                          </Badge>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-3 py-2">
                       <div className="font-semibold">{r.client_name}</div>
                       {r.razao_social && r.razao_social !== r.client_name && (
