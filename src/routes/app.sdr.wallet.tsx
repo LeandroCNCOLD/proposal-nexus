@@ -39,17 +39,30 @@ function daysUntil(iso: string | null) {
 }
 
 function WalletPage() {
-  const { user } = useAuth()
+  const { user, hasAnyRole } = useAuth()
   const qc = useQueryClient()
-  const sdrName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'SDR'
+  const isManager = hasAnyRole(['admin', 'diretoria', 'gerente_comercial'] as never)
   const closerNames = useCloserNames()
 
   const [scriptLead, setScriptLead] = useState<CrmPipeline | null>(null)
+  const [viewingUserId, setViewingUserId] = useState<string | null>(null)
+
+  const targetUserId = viewingUserId ?? user?.id ?? null
+  const isViewingOther = !!viewingUserId && viewingUserId !== user?.id
+
+  // Roster de SDRs (somente para gestores)
+  const { data: roster = [] } = useTeamRoster('sdr' as never)
+  // Inclui também o próprio gestor caso ele tenha leads
+  const targetUser = roster.find(r => r.user_id === targetUserId)
+  const targetName = isViewingOther
+    ? (targetUser?.full_name || targetUser?.email || 'SDR')
+    : (user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'SDR')
+  const sdrName = targetName
 
   const { data: leads = [], isLoading } = useQuery({
-    queryKey: ['my-wallet', user?.id],
-    queryFn: () => (user ? fetchMyWallet(user.id) : Promise.resolve([])),
-    enabled: !!user,
+    queryKey: ['my-wallet', targetUserId],
+    queryFn: () => (targetUserId ? fetchMyWallet(targetUserId) : Promise.resolve([])),
+    enabled: !!targetUserId,
   })
 
   const leadIds = useMemo(() => leads.map(l => l.id), [leads])
@@ -69,10 +82,38 @@ function WalletPage() {
 
   return (
     <div className="p-6 space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold text-[#0F2D5E]">Minha Carteira</h1>
-        <p className="text-sm text-muted-foreground">{leads.length} leads travados · cada lock dura 7 dias e renova ao registrar atividade</p>
+      <div className="flex items-end justify-between gap-3 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold text-[#0F2D5E]">
+            {isViewingOther ? `Carteira de ${targetName}` : 'Minha Carteira'}
+          </h1>
+          <p className="text-sm text-muted-foreground">{leads.length} leads travados · cada lock dura 7 dias e renova ao registrar atividade</p>
+        </div>
+        {isManager && (
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-muted-foreground">Ver carteira de:</label>
+            <select
+              className="border rounded-md px-2 py-1 text-sm bg-background"
+              value={viewingUserId ?? user.id}
+              onChange={(e) => setViewingUserId(e.target.value === user.id ? null : e.target.value)}
+            >
+              <option value={user.id}>Minha carteira</option>
+              {roster
+                .filter(r => r.user_id !== user.id)
+                .sort((a, b) => (a.full_name ?? '').localeCompare(b.full_name ?? ''))
+                .map(r => (
+                  <option key={r.user_id} value={r.user_id}>
+                    {r.full_name || r.email || r.user_id.slice(0, 8)}
+                  </option>
+                ))}
+            </select>
+            {isViewingOther && (
+              <Badge variant="secondary" className="gap-1">somente leitura sugerida</Badge>
+            )}
+          </div>
+        )}
       </div>
+
 
       {isLoading ? (
         <div className="text-center py-12 text-muted-foreground">Carregando...</div>
