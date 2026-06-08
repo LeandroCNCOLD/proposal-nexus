@@ -132,9 +132,21 @@ function BankPage() {
       if (uf && r.state !== uf.toUpperCase()) return false
       if (minValue && r.value < Number(minValue)) return false
       if (temp && r.temperature !== temp) return false
+      if (sdrFilter) {
+        const lockName = r.locked_by_sdr_name?.replace(MANAGER_FREEZE_PREFIX, '').replace(/^\s*\(|\)\s*$/g, '') ?? ''
+        if (r.sdr_name !== sdrFilter && lockName !== sdrFilter) return false
+      }
+      if (closerFilter && r.closer_name !== closerFilter) return false
+      if (statusFilter !== 'all') {
+        const frozen = !!r.locked_by_sdr_name?.startsWith(MANAGER_FREEZE_PREFIX)
+        if (statusFilter === 'frozen' && !frozen) return false
+        if (statusFilter === 'available' && (r.locked_by_sdr_id || frozen)) return false
+        if (statusFilter === 'mine' && r.locked_by_sdr_id !== user?.id) return false
+        if (statusFilter === 'others' && (!r.locked_by_sdr_id || r.locked_by_sdr_id === user?.id || frozen)) return false
+      }
       return true
     })
-  }, [rows, search, uf, minValue, temp])
+  }, [rows, search, uf, minValue, temp, sdrFilter, closerFilter, statusFilter, user?.id])
 
   const sorted = useMemo(() => {
     if (!sortKey || !sortDir) return filtered
