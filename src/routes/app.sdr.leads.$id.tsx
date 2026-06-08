@@ -11,6 +11,7 @@ import { TransferToSellerDialog } from '@/components/sdr/TransferToSellerDialog'
 import { LeadEditDialog } from '@/components/sdr/LeadEditDialog'
 import { LeadEditHistory } from '@/components/sdr/LeadEditHistory'
 import { LeadActivitiesPanel } from '@/components/activities/LeadActivitiesPanel'
+import { LeadTratativasPanel } from '@/components/sdr/LeadTratativasPanel'
 import { useAuth } from '@/hooks/useAuth'
 
 export const Route = createFileRoute('/app/sdr/leads/$id')({
