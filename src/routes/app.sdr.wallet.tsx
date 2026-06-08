@@ -51,6 +51,13 @@ function WalletPage() {
   const [scriptLead, setScriptLead] = useState<CrmPipeline | null>(null)
   const [viewingUserId, setViewingUserId] = useState<string | null>(null)
   const [transferLead, setTransferLead] = useState<CrmPipeline | null>(null)
+  const [viewMode, setViewMode] = useState<'list' | 'kanban'>(() => {
+    if (typeof window === 'undefined') return 'kanban'
+    return (localStorage.getItem('sdr-wallet-view') as 'list' | 'kanban') || 'kanban'
+  })
+  useEffect(() => {
+    if (typeof window !== 'undefined') localStorage.setItem('sdr-wallet-view', viewMode)
+  }, [viewMode])
 
   const targetUserId = viewingUserId ?? user?.id ?? null
   const isViewingOther = !!viewingUserId && viewingUserId !== user?.id
