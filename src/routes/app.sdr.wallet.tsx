@@ -19,6 +19,8 @@ import { CallScriptDialog } from '@/modules/sdr/components/CallScriptDialog'
 import { useProposalLeadMatches, type ProposalLeadMatch } from '@/hooks/use-proposal-lead-matches'
 import { useMemo } from 'react'
 import { useTeamRoster } from '@/hooks/use-team-roster'
+import { TransferLeadDialog } from '@/components/manager/TransferLeadDialog'
+import { ArrowRightLeft } from 'lucide-react'
 
 export const Route = createFileRoute('/app/sdr/wallet')({
   component: WalletPage,
