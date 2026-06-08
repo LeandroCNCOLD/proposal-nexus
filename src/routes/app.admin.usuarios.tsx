@@ -291,6 +291,60 @@ function UsersAdminPage() {
           </TableBody>
         </Table>
       </div>
+
+      <Dialog
+        open={!!passwordTarget}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPasswordTarget(null);
+            setNewPassword("");
+            setConfirmPassword("");
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Definir nova senha</DialogTitle>
+            <DialogDescription>
+              Defina manualmente uma nova senha para{" "}
+              <strong>{passwordTarget?.label}</strong>. O usuário poderá entrar imediatamente
+              com a nova senha. Comunique-a por um canal seguro.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="new-password">Nova senha</Label>
+              <Input
+                id="new-password"
+                type="password"
+                autoComplete="new-password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Mínimo 8 caracteres"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="confirm-password">Confirmar nova senha</Label>
+              <Input
+                id="confirm-password"
+                type="password"
+                autoComplete="new-password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Repita a senha"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline" disabled={savingPassword}>Cancelar</Button>
+            </DialogClose>
+            <Button onClick={onSavePassword} disabled={savingPassword}>
+              {savingPassword ? "Salvando..." : "Salvar nova senha"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
