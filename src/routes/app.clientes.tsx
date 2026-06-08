@@ -239,6 +239,25 @@ function ClientsPage() {
   );
 }
 
+function ClientDetailsLoader({ clientId }: { clientId: string }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ["clients", "detail", clientId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("clients")
+        .select("*, client_contacts(*)")
+        .eq("id", clientId)
+        .maybeSingle();
+      return data;
+    },
+    staleTime: 5 * 60_000,
+  });
+  if (isLoading || !data) {
+    return <div className="py-10 text-center text-sm text-muted-foreground">Carregando…</div>;
+  }
+  return <ClientDetails client={data} />;
+}
+
 function ClientDetails({ client }: { client: any }) {
   const raw = client.nomus_raw && typeof client.nomus_raw === "object" ? client.nomus_raw : null;
   const rawEntries = raw ? Object.entries(raw).filter(([, value]) => value !== null && value !== undefined && value !== "") : [];
