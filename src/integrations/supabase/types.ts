@@ -7559,6 +7559,7 @@ export type Database = {
           discount_pct: number | null
           expected_closing: string | null
           expected_delivery: string | null
+          first_opened_by_seller_at: string | null
           handoff_status: string
           id: string
           internal_note: string | null
@@ -7613,6 +7614,7 @@ export type Database = {
           discount_pct?: number | null
           expected_closing?: string | null
           expected_delivery?: string | null
+          first_opened_by_seller_at?: string | null
           handoff_status?: string
           id?: string
           internal_note?: string | null
@@ -7667,6 +7669,7 @@ export type Database = {
           discount_pct?: number | null
           expected_closing?: string | null
           expected_delivery?: string | null
+          first_opened_by_seller_at?: string | null
           handoff_status?: string
           id?: string
           internal_note?: string | null
@@ -8402,6 +8405,42 @@ export type Database = {
         }
         Relationships: []
       }
+      user_notifications: {
+        Row: {
+          body: string | null
+          created_at: string
+          id: string
+          link_to: string | null
+          metadata: Json
+          read_at: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          link_to?: string | null
+          metadata?: Json
+          read_at?: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          link_to?: string | null
+          metadata?: Json
+          read_at?: string | null
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_permission_overrides: {
         Row: {
           created_at: string
@@ -8534,6 +8573,10 @@ export type Database = {
         Args: { _lead_id: string }
         Returns: undefined
       }
+      mark_lead_opened_by_seller: {
+        Args: { _lead_id: string }
+        Returns: undefined
+      }
       next_funnel_stage_order: { Args: { _tipo: string }; Returns: number }
       proposal_table_default_settings: {
         Args: { p_table_type: string }
@@ -8546,6 +8589,15 @@ export type Database = {
         }[]
       }
       release_expired_locks: { Args: never; Returns: undefined }
+      suggest_seller_for_handoff: {
+        Args: never
+        Returns: {
+          active_count: number
+          email: string
+          full_name: string
+          user_id: string
+        }[]
+      }
       sync_digits_only: { Args: { value: string }; Returns: string }
       sync_jsonb_hash: { Args: { payload: Json }; Returns: string }
       sync_normalize_cn_cold_model: { Args: { value: string }; Returns: string }
