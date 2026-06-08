@@ -23,6 +23,7 @@ import { Route as AppDashboardGeralRouteImport } from './routes/app.dashboard-ge
 import { Route as AppConfiguracoesRouteImport } from './routes/app.configuracoes'
 import { Route as AppConcorrentesRouteImport } from './routes/app.concorrentes'
 import { Route as AppCompetitivaRouteImport } from './routes/app.competitiva'
+import { Route as AppCoberturaRouteImport } from './routes/app.cobertura'
 import { Route as AppClientesRouteImport } from './routes/app.clientes'
 import { Route as AppAtividadesRouteImport } from './routes/app.atividades'
 import { Route as AppAprovacoesRouteImport } from './routes/app.aprovacoes'
@@ -139,6 +140,11 @@ const AppConcorrentesRoute = AppConcorrentesRouteImport.update({
 const AppCompetitivaRoute = AppCompetitivaRouteImport.update({
   id: '/competitiva',
   path: '/competitiva',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCoberturaRoute = AppCoberturaRouteImport.update({
+  id: '/cobertura',
+  path: '/cobertura',
   getParentRoute: () => AppRoute,
 } as any)
 const AppClientesRoute = AppClientesRouteImport.update({
@@ -397,6 +403,7 @@ export interface FileRoutesByFullPath {
   '/app/aprovacoes': typeof AppAprovacoesRoute
   '/app/atividades': typeof AppAtividadesRoute
   '/app/clientes': typeof AppClientesRoute
+  '/app/cobertura': typeof AppCoberturaRoute
   '/app/competitiva': typeof AppCompetitivaRoute
   '/app/concorrentes': typeof AppConcorrentesRoute
   '/app/configuracoes': typeof AppConfiguracoesRouteWithChildren
@@ -459,6 +466,7 @@ export interface FileRoutesByTo {
   '/app/aprovacoes': typeof AppAprovacoesRoute
   '/app/atividades': typeof AppAtividadesRoute
   '/app/clientes': typeof AppClientesRoute
+  '/app/cobertura': typeof AppCoberturaRoute
   '/app/competitiva': typeof AppCompetitivaRoute
   '/app/concorrentes': typeof AppConcorrentesRoute
   '/app/dashboard-geral': typeof AppDashboardGeralRoute
@@ -521,6 +529,7 @@ export interface FileRoutesById {
   '/app/aprovacoes': typeof AppAprovacoesRoute
   '/app/atividades': typeof AppAtividadesRoute
   '/app/clientes': typeof AppClientesRoute
+  '/app/cobertura': typeof AppCoberturaRoute
   '/app/competitiva': typeof AppCompetitivaRoute
   '/app/concorrentes': typeof AppConcorrentesRoute
   '/app/configuracoes': typeof AppConfiguracoesRouteWithChildren
@@ -586,6 +595,7 @@ export interface FileRouteTypes {
     | '/app/aprovacoes'
     | '/app/atividades'
     | '/app/clientes'
+    | '/app/cobertura'
     | '/app/competitiva'
     | '/app/concorrentes'
     | '/app/configuracoes'
@@ -648,6 +658,7 @@ export interface FileRouteTypes {
     | '/app/aprovacoes'
     | '/app/atividades'
     | '/app/clientes'
+    | '/app/cobertura'
     | '/app/competitiva'
     | '/app/concorrentes'
     | '/app/dashboard-geral'
@@ -709,6 +720,7 @@ export interface FileRouteTypes {
     | '/app/aprovacoes'
     | '/app/atividades'
     | '/app/clientes'
+    | '/app/cobertura'
     | '/app/competitiva'
     | '/app/concorrentes'
     | '/app/configuracoes'
@@ -875,6 +887,13 @@ declare module '@tanstack/react-router' {
       path: '/competitiva'
       fullPath: '/app/competitiva'
       preLoaderRoute: typeof AppCompetitivaRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/cobertura': {
+      id: '/app/cobertura'
+      path: '/cobertura'
+      fullPath: '/app/cobertura'
+      preLoaderRoute: typeof AppCoberturaRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/clientes': {
@@ -1295,6 +1314,7 @@ interface AppRouteChildren {
   AppAprovacoesRoute: typeof AppAprovacoesRoute
   AppAtividadesRoute: typeof AppAtividadesRoute
   AppClientesRoute: typeof AppClientesRoute
+  AppCoberturaRoute: typeof AppCoberturaRoute
   AppCompetitivaRoute: typeof AppCompetitivaRoute
   AppConcorrentesRoute: typeof AppConcorrentesRoute
   AppConfiguracoesRoute: typeof AppConfiguracoesRouteWithChildren
@@ -1335,6 +1355,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAprovacoesRoute: AppAprovacoesRoute,
   AppAtividadesRoute: AppAtividadesRoute,
   AppClientesRoute: AppClientesRoute,
+  AppCoberturaRoute: AppCoberturaRoute,
   AppCompetitivaRoute: AppCompetitivaRoute,
   AppConcorrentesRoute: AppConcorrentesRoute,
   AppConfiguracoesRoute: AppConfiguracoesRouteWithChildren,
