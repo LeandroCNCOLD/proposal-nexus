@@ -123,8 +123,41 @@ function BankPage() {
     onError: () => toast.error('Não foi possível bloquear o lead.'),
   })
 
+  // Extrai base CN##### e revisão a partir do lead_code/proposal_title/proposal_version
+  const parseRev = (r: any): { base: string; rev: number } => {
+    const raw = String(r.lead_code ?? '').trim()
+    const titleRaw = String(r.proposal_title ?? '').trim()
+    const mRev = raw.match(/Rev\.?\s*(\d+)/i) ?? titleRaw.match(/Rev\.?\s*(\d+)/i)
+    const rev = mRev ? parseInt(mRev[1], 10) : (Number(r.proposal_version) || 0)
+    const base = raw.replace(/\s*Rev\.?\s*\d+\s*$/i, '').trim() || raw
+    return { base, rev }
+  }
+
+  // Agrupa por base CN e marca a revisão mais recente de cada grupo.
+  // Mostra todas as revisões (com badge), mas relatórios somam apenas a última.
+  const withRevisions = useMemo(() => {
+    const latest = new Map<string, number>()
+    const counts = new Map<string, number>()
+    rows.forEach(r => {
+      const { base, rev } = parseRev(r)
+      counts.set(base, (counts.get(base) ?? 0) + 1)
+      const cur = latest.get(base)
+      if (cur == null || rev > cur) latest.set(base, rev)
+    })
+    return rows.map(r => {
+      const { base, rev } = parseRev(r)
+      return {
+        ...r,
+        _revBase: base,
+        _rev: rev,
+        _revTotal: counts.get(base) ?? 1,
+        _isLatestRev: rev === (latest.get(base) ?? rev),
+      } as any
+    })
+  }, [rows])
+
   const filtered = useMemo(() => {
-    return rows.filter(r => {
+    return withRevisions.filter(r => {
       if (search) {
         const s = search.toLowerCase()
         if (!r.client_name?.toLowerCase().includes(s) && !r.lead_code?.toLowerCase().includes(s)) return false
@@ -146,7 +179,22 @@ function BankPage() {
       }
       return true
     })
-  }, [rows, search, uf, minValue, temp, sdrFilter, closerFilter, statusFilter, user?.id])
+  }, [withRevisions, search, uf, minValue, temp, sdrFilter, closerFilter, statusFilter, user?.id])
+
+  // Resumo: conta apenas a última revisão de cada base CN para não inflar totais.
+  const summary = useMemo(() => {
+    const seen = new Set<string>()
+    let totalValue = 0
+    let uniqueCount = 0
+    for (const r of filtered as any[]) {
+      if (!r._isLatestRev) continue
+      if (seen.has(r._revBase)) continue
+      seen.add(r._revBase)
+      uniqueCount++
+      totalValue += Number(r.value ?? 0)
+    }
+    return { uniqueCount, totalValue }
+  }, [filtered])
 
   const sorted = useMemo(() => {
     if (!sortKey || !sortDir) return filtered
