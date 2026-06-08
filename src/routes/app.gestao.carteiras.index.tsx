@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ChevronRight, Search, Users, Briefcase } from "lucide-react";
 import { brl } from "@/lib/format";
+import { useAuth } from "@/hooks/useAuth";
 
 export const Route = createFileRoute("/app/gestao/carteiras/")({
   component: CarteirasPage,
@@ -21,14 +22,29 @@ type RosterRow = {
   leads_active: number;
 };
 
+// Hierarchy: which roles a viewer can see
+function visibleRolesFor(viewerRoles: string[]): string[] {
+  if (viewerRoles.includes("admin") || viewerRoles.includes("diretoria")) {
+    return ["vendedor", "sdr", "gerente_comercial", "diretoria", "admin"];
+  }
+  if (viewerRoles.includes("gerente_comercial")) {
+    // sees subordinates + peer managers
+    return ["vendedor", "sdr", "gerente_comercial"];
+  }
+  return [];
+}
+
 function CarteirasPage() {
   const [q, setQ] = useState("");
+  const { roles: viewerRoles } = useAuth();
+  const allowedRoles = useMemo(() => visibleRolesFor(viewerRoles), [viewerRoles]);
 
   const { data: roster = [], isLoading } = useQuery({
-    queryKey: ["manager-roster"],
+    queryKey: ["manager-roster", allowedRoles.join(",")],
+    enabled: allowedRoles.length > 0,
     queryFn: async () => {
       const { data: rolesRows } = await supabase.from("user_roles").select("user_id, role")
-        .in("role", ["vendedor", "sdr"] as never[]);
+        .in("role", allowedRoles as never[]);
       const userIds = Array.from(new Set((rolesRows ?? []).map((r) => r.user_id)));
       if (userIds.length === 0) return [] as RosterRow[];
       const [{ data: profs }, { data: props }, { data: leads }] = await Promise.all([
