@@ -381,7 +381,22 @@ function BankPage() {
                 const isFrozen = !!r.locked_by_sdr_name?.startsWith(MANAGER_FREEZE_PREFIX)
                 return (
                   <tr key={r.id} className="border-t hover:bg-muted/20 align-top">
-                    <td className="px-3 py-2 font-mono text-xs">{r.lead_code}</td>
+                    <td className="px-3 py-2 font-mono text-xs">
+                      <div className="flex items-center gap-1.5">
+                        <span>{r.lead_code}</span>
+                        {r._revTotal > 1 && (
+                          <Badge
+                            variant="secondary"
+                            className={r._isLatestRev ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}
+                            title={r._isLatestRev
+                              ? `Última revisão (${r._revTotal} no total). Valor contado no relatório.`
+                              : `Revisão anterior — não somada no relatório. Última: Rev. ${String((r._revTotal)).padStart(2,'0')}`}
+                          >
+                            Rev. {String(r._rev).padStart(2, '0')} · {r._revTotal}
+                          </Badge>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-3 py-2">
                       <div className="font-semibold">{r.client_name}</div>
                       {r.razao_social && r.razao_social !== r.client_name && (
