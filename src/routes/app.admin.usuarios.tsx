@@ -67,8 +67,13 @@ function UsersAdminPage() {
   const fetchUsers = useServerFn(listAppUsers);
   const updateRole = useServerFn(setUserPrimaryRole);
   const removeUser = useServerFn(deleteAppUser);
+  const updatePassword = useServerFn(setUserPassword);
 
   const [search, setSearch] = useState("");
+  const [passwordTarget, setPasswordTarget] = useState<{ id: string; label: string } | null>(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [savingPassword, setSavingPassword] = useState(false);
 
   const { data: users = [], isLoading } = useQuery({
     queryKey: ["app-users"],
