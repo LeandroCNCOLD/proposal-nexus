@@ -19,6 +19,8 @@ import { CallScriptDialog } from '@/modules/sdr/components/CallScriptDialog'
 import { useProposalLeadMatches, type ProposalLeadMatch } from '@/hooks/use-proposal-lead-matches'
 import { useMemo } from 'react'
 import { useTeamRoster } from '@/hooks/use-team-roster'
+import { TransferLeadDialog } from '@/components/manager/TransferLeadDialog'
+import { ArrowRightLeft } from 'lucide-react'
 
 export const Route = createFileRoute('/app/sdr/wallet')({
   component: WalletPage,
@@ -47,6 +49,7 @@ function WalletPage() {
 
   const [scriptLead, setScriptLead] = useState<CrmPipeline | null>(null)
   const [viewingUserId, setViewingUserId] = useState<string | null>(null)
+  const [transferLead, setTransferLead] = useState<CrmPipeline | null>(null)
 
   const targetUserId = viewingUserId ?? user?.id ?? null
   const isViewingOther = !!viewingUserId && viewingUserId !== user?.id
@@ -134,6 +137,8 @@ function WalletPage() {
               onUnlock={() => {
                 if (confirm(`Devolver "${lead.client_name}" ao banco?`)) unlockMut.mutate(lead.id)
               }}
+              canManage={isManager}
+              onTransfer={() => setTransferLead(lead)}
             />
           ))}
         </div>
@@ -144,20 +149,26 @@ function WalletPage() {
         open={!!scriptLead}
         onOpenChange={(o) => !o && setScriptLead(null)}
       />
+      {transferLead && (
+        <TransferLeadDialog
+          open={!!transferLead}
+          onOpenChange={(o) => { if (!o) setTransferLead(null) }}
+          leadId={transferLead.id}
+        />
+      )}
     </div>
   )
 }
 
-function LeadCard({ lead, sdrName, onUnlock, onOpenScript, proposalMatch }: {
+
+function LeadCard({ lead, sdrName, onUnlock, onOpenScript, proposalMatch, canManage, onTransfer }: {
   lead: CrmPipeline
   sdrName: string
   onUnlock: () => void
   onOpenScript: () => void
   proposalMatch?: ProposalLeadMatch | null
-  lead: CrmPipeline
-  sdrName: string
-  onUnlock: () => void
-  onOpenScript: () => void
+  canManage?: boolean
+  onTransfer?: () => void
 }) {
   const qc = useQueryClient()
   const [expanded, setExpanded] = useState(false)
@@ -340,6 +351,11 @@ function LeadCard({ lead, sdrName, onUnlock, onOpenScript, proposalMatch }: {
           <Button size="sm" variant="outline" onClick={onUnlock}>
             <Unlock className="w-3 h-3 mr-1" /> Devolver
           </Button>
+          {canManage && onTransfer && (
+            <Button size="sm" variant="outline" className="border-amber-300 text-amber-700 hover:bg-amber-50" onClick={onTransfer}>
+              <ArrowRightLeft className="w-3 h-3 mr-1" /> Transferir
+            </Button>
+          )}
         </div>
       </div>
 
