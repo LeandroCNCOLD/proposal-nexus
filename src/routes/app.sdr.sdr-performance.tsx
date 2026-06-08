@@ -36,7 +36,17 @@ async function fetchPerf() {
 }
 
 function SdrPerformancePage() {
-  const { names: sdrNames } = useSdrNames()
+  const { names: sdrNames, members: sdrMembers } = useSdrNames()
+  const { hasAnyRole } = useAuth()
+  const isManager = hasAnyRole(['admin', 'diretoria', 'gerente_comercial'])
+  const idByName = useMemo(() => {
+    const m = new Map<string, string>()
+    for (const x of sdrMembers) {
+      const n = (x.full_name?.trim() || x.email?.split('@')[0] || '').trim()
+      if (n) m.set(n, x.user_id)
+    }
+    return m
+  }, [sdrMembers])
   const { data, isLoading, error } = useQuery({
     queryKey: ['sdr-performance'],
     queryFn: fetchPerf,
