@@ -55,6 +55,7 @@ import { Route as ApiNomusTestRouteImport } from './routes/api.nomus.test'
 import { Route as AppPropostasIdIndexRouteImport } from './routes/app.propostas.$id.index'
 import { Route as AppGestaoCarteirasIndexRouteImport } from './routes/app.gestao.carteiras.index'
 import { Route as AppConfiguracoesTemplatesIndexRouteImport } from './routes/app.configuracoes.templates.index'
+import { Route as AppSdrLeadsIdRouteImport } from './routes/app.sdr.leads.$id'
 import { Route as AppPropostasIdEditorRouteImport } from './routes/app.propostas.$id.editor'
 import { Route as AppGestaoCarteirasUserIdRouteImport } from './routes/app.gestao.carteiras.$userId'
 import { Route as AppConfiguracoesTemplatesIdRouteImport } from './routes/app.configuracoes.templates.$id'
@@ -300,6 +301,11 @@ const AppConfiguracoesTemplatesIndexRoute =
     path: '/templates/',
     getParentRoute: () => AppConfiguracoesRoute,
   } as any)
+const AppSdrLeadsIdRoute = AppSdrLeadsIdRouteImport.update({
+  id: '/sdr/leads/$id',
+  path: '/sdr/leads/$id',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppPropostasIdEditorRoute = AppPropostasIdEditorRouteImport.update({
   id: '/editor',
   path: '/editor',
@@ -406,6 +412,7 @@ export interface FileRoutesByFullPath {
   '/app/configuracoes/templates/$id': typeof AppConfiguracoesTemplatesIdRoute
   '/app/gestao/carteiras/$userId': typeof AppGestaoCarteirasUserIdRoute
   '/app/propostas/$id/editor': typeof AppPropostasIdEditorRoute
+  '/app/sdr/leads/$id': typeof AppSdrLeadsIdRoute
   '/app/configuracoes/templates/': typeof AppConfiguracoesTemplatesIndexRoute
   '/app/gestao/carteiras/': typeof AppGestaoCarteirasIndexRoute
   '/app/propostas/$id/': typeof AppPropostasIdIndexRoute
@@ -460,6 +467,7 @@ export interface FileRoutesByTo {
   '/app/configuracoes/templates/$id': typeof AppConfiguracoesTemplatesIdRoute
   '/app/gestao/carteiras/$userId': typeof AppGestaoCarteirasUserIdRoute
   '/app/propostas/$id/editor': typeof AppPropostasIdEditorRoute
+  '/app/sdr/leads/$id': typeof AppSdrLeadsIdRoute
   '/app/configuracoes/templates': typeof AppConfiguracoesTemplatesIndexRoute
   '/app/gestao/carteiras': typeof AppGestaoCarteirasIndexRoute
   '/app/propostas/$id': typeof AppPropostasIdIndexRoute
@@ -518,6 +526,7 @@ export interface FileRoutesById {
   '/app/configuracoes/templates/$id': typeof AppConfiguracoesTemplatesIdRoute
   '/app/gestao/carteiras/$userId': typeof AppGestaoCarteirasUserIdRoute
   '/app/propostas/$id/editor': typeof AppPropostasIdEditorRoute
+  '/app/sdr/leads/$id': typeof AppSdrLeadsIdRoute
   '/app/configuracoes/templates/': typeof AppConfiguracoesTemplatesIndexRoute
   '/app/gestao/carteiras/': typeof AppGestaoCarteirasIndexRoute
   '/app/propostas/$id/': typeof AppPropostasIdIndexRoute
@@ -577,6 +586,7 @@ export interface FileRouteTypes {
     | '/app/configuracoes/templates/$id'
     | '/app/gestao/carteiras/$userId'
     | '/app/propostas/$id/editor'
+    | '/app/sdr/leads/$id'
     | '/app/configuracoes/templates/'
     | '/app/gestao/carteiras/'
     | '/app/propostas/$id/'
@@ -631,6 +641,7 @@ export interface FileRouteTypes {
     | '/app/configuracoes/templates/$id'
     | '/app/gestao/carteiras/$userId'
     | '/app/propostas/$id/editor'
+    | '/app/sdr/leads/$id'
     | '/app/configuracoes/templates'
     | '/app/gestao/carteiras'
     | '/app/propostas/$id'
@@ -688,6 +699,7 @@ export interface FileRouteTypes {
     | '/app/configuracoes/templates/$id'
     | '/app/gestao/carteiras/$userId'
     | '/app/propostas/$id/editor'
+    | '/app/sdr/leads/$id'
     | '/app/configuracoes/templates/'
     | '/app/gestao/carteiras/'
     | '/app/propostas/$id/'
@@ -1029,6 +1041,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppConfiguracoesTemplatesIndexRouteImport
       parentRoute: typeof AppConfiguracoesRoute
     }
+    '/app/sdr/leads/$id': {
+      id: '/app/sdr/leads/$id'
+      path: '/sdr/leads/$id'
+      fullPath: '/app/sdr/leads/$id'
+      preLoaderRoute: typeof AppSdrLeadsIdRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/propostas/$id/editor': {
       id: '/app/propostas/$id/editor'
       path: '/editor'
@@ -1206,6 +1225,7 @@ interface AppRouteChildren {
   AppCrmIndexRoute: typeof AppCrmIndexRoute
   AppPropostasIndexRoute: typeof AppPropostasIndexRoute
   AppSdrIndexRoute: typeof AppSdrIndexRoute
+  AppSdrLeadsIdRoute: typeof AppSdrLeadsIdRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -1242,6 +1262,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppCrmIndexRoute: AppCrmIndexRoute,
   AppPropostasIndexRoute: AppPropostasIndexRoute,
   AppSdrIndexRoute: AppSdrIndexRoute,
+  AppSdrLeadsIdRoute: AppSdrLeadsIdRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

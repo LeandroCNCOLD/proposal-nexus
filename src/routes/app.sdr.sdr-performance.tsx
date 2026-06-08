@@ -9,6 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Plus, Phone, CalendarCheck, Flame, CheckCircle2 } from 'lucide-react'
 import { SDR_DAILY_GOAL, type CrmCallLog } from '@/modules/sdr/types'
 import { useSdrNames } from '@/modules/sdr/hooks/use-team-members'
+import { useAuth } from '@/hooks/useAuth'
 
 export const Route = createFileRoute('/app/sdr/sdr-performance')({
   component: SdrPerformancePage,
@@ -35,7 +36,17 @@ async function fetchPerf() {
 }
 
 function SdrPerformancePage() {
-  const { names: sdrNames } = useSdrNames()
+  const { names: sdrNames, members: sdrMembers } = useSdrNames()
+  const { hasAnyRole } = useAuth()
+  const isManager = hasAnyRole(['admin', 'diretoria', 'gerente_comercial'])
+  const idByName = useMemo(() => {
+    const m = new Map<string, string>()
+    for (const x of sdrMembers) {
+      const n = (x.full_name?.trim() || x.email?.split('@')[0] || '').trim()
+      if (n) m.set(n, x.user_id)
+    }
+    return m
+  }, [sdrMembers])
   const { data, isLoading, error } = useQuery({
     queryKey: ['sdr-performance'],
     queryFn: fetchPerf,
@@ -99,8 +110,9 @@ function SdrPerformancePage() {
           : aggs.map((sdr) => {
               const goalPct = Math.round((sdr.completedDay / SDR_DAILY_GOAL) * 100)
               const totalCalls = sdr.completedDay + sdr.attemptsDay
-              return (
-                <Card key={sdr.name}>
+              const userId = idByName.get(sdr.name)
+              const card = (
+                <Card key={sdr.name} className={isManager && userId ? 'hover:ring-2 hover:ring-blue-300 transition cursor-pointer h-full' : 'h-full'}>
                   <CardHeader className="pb-3">
                     <CardTitle className="text-sm flex items-center gap-2">
                       <span className="h-8 w-8 rounded-full bg-blue-100 text-blue-700 grid place-items-center font-bold text-sm">
@@ -129,6 +141,11 @@ function SdrPerformancePage() {
                     <div className="text-[11px] text-muted-foreground">
                       Meta mensal: <strong>{sdr.completedMonth} / {MONTHLY_GOAL}</strong>
                     </div>
+                    {isManager && userId && (
+                      <div className="text-[11px] text-blue-700 font-medium border-t pt-2">
+                        Clique para ver a carteira e o histórico →
+                      </div>
+                    )}
                     {totalCalls === 0 && (
                       <p className="text-[11px] text-muted-foreground italic border-t pt-2">
                         Nenhuma ligação registrada hoje
@@ -137,6 +154,11 @@ function SdrPerformancePage() {
                   </CardContent>
                 </Card>
               )
+              return isManager && userId ? (
+                <Link key={sdr.name} to="/app/gestao/carteiras/$userId" params={{ userId }} className="block">
+                  {card}
+                </Link>
+              ) : card
             })}
       </div>
 

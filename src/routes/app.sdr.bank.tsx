@@ -399,7 +399,14 @@ function BankPage() {
                   <tr key={r.id} className="border-t hover:bg-muted/20 align-top">
                     <td className="px-3 py-2 font-mono text-xs">
                       <div className="flex items-center gap-1.5">
-                        <span>{r.lead_code}</span>
+                        <Link
+                          to="/app/sdr/leads/$id"
+                          params={{ id: r.id }}
+                          className="text-primary hover:underline"
+                          title="Abrir detalhes e histórico do SDR"
+                        >
+                          {r.lead_code}
+                        </Link>
                         {r._revTotal > 1 && (
                           <Badge
                             variant="secondary"
