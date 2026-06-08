@@ -293,6 +293,8 @@ function LeadDetailPage() {
         </CardContent>
       </Card>
 
+      <LeadTratativasPanel leadId={id} />
+
       <LeadActivitiesPanel leadId={id} clientName={lead.client_name} />
 
       <LeadEditHistory leadId={id} />
