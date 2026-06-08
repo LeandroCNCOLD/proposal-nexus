@@ -246,9 +246,7 @@ export function CallScriptDialog({ lead, open, onOpenChange, onSaved }: Props) {
               <div className="font-mono">{lead.contact_mobile || '—'}</div>
             </div>
             {lead.contact_mobile && (
-              <a href={`tel:${digitsOnly(lead.contact_mobile)}`}>
-                <Button size="sm" className="bg-green-600 hover:bg-green-700"><Phone className="w-3 h-3" /></Button>
-              </a>
+              <PhoneActions phone={lead.contact_mobile} variant="default" isMobile={true} />
             )}
           </div>
           <div className="flex items-center justify-between gap-2">
@@ -257,9 +255,7 @@ export function CallScriptDialog({ lead, open, onOpenChange, onSaved }: Props) {
               <div className="font-mono">{lead.contact_phone || '—'}</div>
             </div>
             {lead.contact_phone && (
-              <a href={`tel:${digitsOnly(lead.contact_phone)}`}>
-                <Button size="sm" variant="outline"><Phone className="w-3 h-3" /></Button>
-              </a>
+              <PhoneActions phone={lead.contact_phone} variant="outline" isMobile={false} />
             )}
           </div>
           <div className="flex items-center justify-between gap-2">
