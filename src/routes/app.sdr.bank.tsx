@@ -7,12 +7,16 @@ import { SDR_LOCK_LIMIT } from '@/modules/sdr/types'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Lock, Unlock, Briefcase, ShieldAlert, ArrowUp, ArrowDown, ArrowUpDown, FileText } from 'lucide-react'
+import { Lock, Unlock, Briefcase, ShieldAlert, ArrowUp, ArrowDown, ArrowUpDown, FileText, Mail } from 'lucide-react'
 import { toast } from 'sonner'
 import { Link } from '@tanstack/react-router'
 import { useProposalLeadMatches } from '@/hooks/use-proposal-lead-matches'
 import { useSdrNames, useCloserNames } from '@/modules/sdr/hooks/use-team-members'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { useServerFn } from '@tanstack/react-start'
+import { enqueueRemarketing } from '@/lib/remarketing.functions'
+
+const ARCHIVED_SDR_STATUSES = ['Perdido (com motivo)', 'Kill / Arquivar']
 
 export const Route = createFileRoute('/app/sdr/bank')({
   component: BankPage,
@@ -60,10 +64,17 @@ function BankPage() {
   const [closerFilter, setCloserFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'available' | 'mine' | 'others' | 'frozen'>('all')
   const [proposalStatusFilter, setProposalStatusFilter] = useState('')
+  const [tab, setTab] = useState<'banco' | 'arquivados'>('banco')
   const { names: sdrNames } = useSdrNames()
   const { names: closerNames } = useCloserNames()
   const [sortKey, setSortKey] = useState<SortKey | null>(null)
   const [sortDir, setSortDir] = useState<SortDir>(null)
+  const enqueueRemarketingFn = useServerFn(enqueueRemarketing)
+  const remarketingMut = useMutation({
+    mutationFn: (id: string) => enqueueRemarketingFn({ data: { source: 'sdr', lead_id: id } }),
+    onSuccess: () => { toast.success('Enviado para fila de remarketing'); qc.invalidateQueries({ queryKey: ['remarketing'] }) },
+    onError: (e) => toast.error(e instanceof Error ? e.message : 'Erro'),
+  })
 
   const toggleSort = (key: SortKey) => {
     if (sortKey !== key) { setSortKey(key); setSortDir('asc'); return }
