@@ -279,8 +279,17 @@ export function WalletKanban({
             <SelectItem value="Muito Quente">Muito Quente</SelectItem>
           </SelectContent>
         </Select>
-        {(search || tempFilter !== 'all') && (
-          <Button variant="ghost" size="sm" onClick={() => { setSearch(''); setTempFilter('all') }}>
+        <Select value={actionFilter} onValueChange={(v) => setActionFilter(v as typeof actionFilter)}>
+          <SelectTrigger className="h-8 w-48"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas as ações</SelectItem>
+            <SelectItem value="me">Esperando minha ação</SelectItem>
+            <SelectItem value="other">Esperando outro lado</SelectItem>
+            <SelectItem value="stale">Parados (SLA estourado)</SelectItem>
+          </SelectContent>
+        </Select>
+        {(search || tempFilter !== 'all' || actionFilter !== 'all') && (
+          <Button variant="ghost" size="sm" onClick={() => { setSearch(''); setTempFilter('all'); setActionFilter('all') }}>
             Limpar
           </Button>
         )}
@@ -288,6 +297,33 @@ export function WalletKanban({
           Arraste o card para mudar de etapa
         </span>
       </div>
+
+      {/* Foco de hoje */}
+      {focusLeads.length > 0 && (
+        <div className="rounded-lg border bg-amber-50/60 border-amber-200 p-2.5">
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-900 mb-1.5">
+            <Flame className="w-3.5 h-3.5" /> Foco de hoje · {focusLeads.length} card{focusLeads.length === 1 ? '' : 's'} pedindo ação
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            {focusLeads.map(l => {
+              const sig = signalsByLead.get(l.id)
+              return (
+                <button
+                  key={l.id}
+                  onClick={() => setScriptLead(l)}
+                  className="inline-flex items-center gap-1.5 rounded-md border bg-card px-2 py-1 text-[11px] hover:border-amber-400 hover:bg-amber-50"
+                >
+                  <span className="font-semibold truncate max-w-[180px]">{l.client_name}</span>
+                  <span className="text-muted-foreground">·</span>
+                  <span className={sig?.isStale ? 'text-red-600' : 'text-amber-700'}>
+                    {sig?.nextActionLabel ?? 'agir'}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Kanban */}
       <DndContext sensors={sensors} onDragEnd={onDragEnd}>
@@ -297,6 +333,7 @@ export function WalletKanban({
               key={col.key}
               col={col}
               leads={byColumn.get(col.key) ?? []}
+              signalsByLead={signalsByLead}
               collapsed={collapsed[col.key]}
               toggleCollapsed={() => setCollapsed(s => ({ ...s, [col.key]: !s[col.key] }))}
               renderCard={(lead) => (
@@ -305,12 +342,14 @@ export function WalletKanban({
                   lead={lead}
                   actions={actions}
                   hasProposal={!!proposalMatches.get(lead.id)}
+                  signals={signalsByLead.get(lead.id)}
                 />
               )}
             />
           ))}
         </div>
       </DndContext>
+
 
       {/* Diálogos */}
       {scriptLead && (
