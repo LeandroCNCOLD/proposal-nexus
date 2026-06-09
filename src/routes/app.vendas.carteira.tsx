@@ -1,12 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useSellerProposals, type SellerProposal } from "@/hooks/use-seller-proposals";
 import { useAuth } from "@/hooks/useAuth";
 import { brl, dateBR } from "@/lib/format";
 import { STATUS_LABELS, TEMPERATURE_LABELS, type ProposalStatus } from "@/lib/proposal";
 import { Badge } from "@/components/ui/badge";
-import { FileText, ExternalLink, Calendar, DollarSign, Thermometer } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { FileText, ExternalLink, Calendar, DollarSign, Thermometer, XCircle } from "lucide-react";
 import { HandoffLeadsForSeller } from "@/components/sdr/HandoffLeadsForSeller";
+import { CloseProposalDialog } from "@/components/proposal/CloseProposalDialog";
 
 export const Route = createFileRoute("/app/vendas/carteira")({
   component: SellerWalletPage,
@@ -94,10 +96,12 @@ function Stat({ label, value, highlight }: { label: string; value: string; highl
 
 function ProposalRow({ p }: { p: SellerProposal }) {
   const clientName = p.clients?.trade_name || p.clients?.name || "—";
+  const [closeOpen, setCloseOpen] = useState(false);
+  const isClosed = ["ganha", "perdida", "cancelada"].includes(p.status);
   return (
-    <Link to="/app/propostas/$id" params={{ id: p.id }} className="block rounded-md border bg-card p-3 hover:border-primary transition">
+    <div className="rounded-md border bg-card p-3 hover:border-primary transition">
       <div className="flex items-start justify-between gap-3 flex-wrap">
-        <div className="min-w-0 flex-1">
+        <Link to="/app/propostas/$id" params={{ id: p.id }} className="min-w-0 flex-1 block">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-mono text-xs text-muted-foreground">{p.number ?? "—"}</span>
             <span className="font-semibold text-sm truncate">{p.title}</span>
@@ -120,9 +124,18 @@ function ProposalRow({ p }: { p: SellerProposal }) {
             )}
             {p.win_probability != null && <span>{p.win_probability}% prob.</span>}
           </div>
+        </Link>
+        <div className="flex items-center gap-2 shrink-0">
+          {!isClosed && (
+            <Button size="sm" variant="outline" className="text-destructive border-destructive/40 hover:bg-destructive/10"
+              onClick={() => setCloseOpen(true)}>
+              <XCircle className="h-3.5 w-3.5 mr-1" /> Perdida/Cancelada
+            </Button>
+          )}
+          <ExternalLink className="h-4 w-4 text-muted-foreground" />
         </div>
-        <ExternalLink className="h-4 w-4 text-muted-foreground shrink-0" />
       </div>
-    </Link>
+      <CloseProposalDialog open={closeOpen} onOpenChange={setCloseOpen} proposalId={p.id} proposalLabel={p.title} />
+    </div>
   );
 }
