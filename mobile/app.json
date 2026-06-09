@@ -20,7 +20,11 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0F2D5E"
       },
-      "package": "br.com.cncold.mobile"
+      "package": "br.com.cncold.mobile",
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ]
     },
     "plugins": [
       "expo-router",
@@ -32,9 +36,16 @@
         }
       ]
     ],
+    "owner": "355669",
     "scheme": "cncold",
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "a89ecbaf-d05a-4805-a67a-51052fbba1ad"
+      }
     }
   }
 }
