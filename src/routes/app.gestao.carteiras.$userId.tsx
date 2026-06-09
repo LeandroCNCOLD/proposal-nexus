@@ -1,16 +1,19 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSellerProposalsFor } from "@/hooks/use-seller-proposals-for";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, ArrowRightLeft, Phone, FileText, Calendar, ExternalLink, Thermometer, DollarSign, Users } from "lucide-react";
+import { ArrowLeft, ArrowRightLeft, Phone, FileText, Calendar, ExternalLink, Thermometer, DollarSign, Users, Unlock } from "lucide-react";
 import { brl, dateBR, dateTimeBR } from "@/lib/format";
 import { STATUS_LABELS, TEMPERATURE_LABELS } from "@/lib/proposal";
 import { TransferProposalDialog } from "@/components/manager/TransferProposalDialog";
 import { TransferLeadDialog } from "@/components/manager/TransferLeadDialog";
+import { useServerFn } from "@tanstack/react-start";
+import { releaseMarketingLead } from "@/lib/marketing-leads.functions";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/app/gestao/carteiras/$userId")({
   component: UserWalletPage,
@@ -39,6 +42,22 @@ function UserWalletPage() {
       return data ?? [];
     },
   });
+
+  const qc = useQueryClient();
+  const release = useServerFn(releaseMarketingLead);
+  const { data: mktLeads = [] } = useQuery({
+    queryKey: ["mkt-leads-for", userId],
+    queryFn: async () => {
+      const nowIso = new Date().toISOString();
+      const { data } = await supabase.from("marketing_leads" as never)
+        .select("id, lead_code, client_name, contact_name, contact_phone, contact_email, segmento, mensagem, status, locked_at, lock_expires_at, received_at, origem_detalhe")
+        .eq("locked_by_sdr_id" as never, userId as never)
+        .gt("lock_expires_at" as never, nowIso as never)
+        .order("locked_at" as never, { ascending: false });
+      return (data ?? []) as Array<{ id: string; lead_code: string; client_name: string | null; contact_name: string | null; contact_phone: string | null; contact_email: string | null; segmento: string | null; mensagem: string | null; status: string; locked_at: string | null; lock_expires_at: string | null; received_at: string; origem_detalhe: Record<string, unknown> | null }>;
+    },
+  });
+
 
   const [period, setPeriod] = useState<"7" | "30" | "90">("30");
   const since = useMemo(() => {
@@ -145,8 +164,60 @@ function UserWalletPage() {
         <TabsList>
           <TabsTrigger value="proposals">Propostas ({proposals.length})</TabsTrigger>
           <TabsTrigger value="leads">Leads SDR ({leads.length})</TabsTrigger>
+          <TabsTrigger value="marketing">Marketing ({mktLeads.length})</TabsTrigger>
           <TabsTrigger value="activity">Atividade</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="marketing" className="mt-4 space-y-2">
+          {mktLeads.length === 0 ? (
+            <div className="text-sm text-muted-foreground py-6 text-center">Sem leads de marketing na carteira.</div>
+          ) : (
+            mktLeads.map((m) => {
+              const tipo = (m.origem_detalhe as Record<string, unknown> | null)?.["tipo_contato"] as string | undefined;
+              const direc = (m.origem_detalhe as Record<string, unknown> | null)?.["direcionado_para"] as string | undefined;
+              return (
+                <div key={m.id} className="flex items-start justify-between gap-3 rounded-md border bg-card p-3">
+                  <Link to="/app/marketing/leads/$id" params={{ id: m.id }} className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-mono text-xs text-muted-foreground">{m.lead_code}</span>
+                      <span className="font-semibold text-sm truncate">{m.client_name ?? m.contact_name ?? "Sem nome"}</span>
+                      <Badge variant="outline" className="text-[10px]">{m.status}</Badge>
+                      {tipo && <Badge variant="secondary" className="text-[10px]">{tipo}</Badge>}
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-0.5 truncate">
+                      {[m.contact_name, m.contact_phone, m.contact_email].filter(Boolean).join(" · ") || "—"}
+                    </div>
+                    {m.segmento && <div className="text-[11px] text-muted-foreground mt-0.5">Segmento: {m.segmento}</div>}
+                    {m.mensagem && <div className="text-xs text-muted-foreground mt-1 line-clamp-2">{m.mensagem}</div>}
+                    <div className="flex gap-3 mt-1 text-[11px] text-muted-foreground">
+                      {m.locked_at && <span>Pegou em {dateBR(m.locked_at)}</span>}
+                      {m.lock_expires_at && <span>Lock até {dateBR(m.lock_expires_at)}</span>}
+                      {direc && <span>Direcionado: {direc}</span>}
+                    </div>
+                  </Link>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={async () => {
+                      try {
+                        await release({ data: { lead_id: m.id } });
+                        toast.success("Lead devolvido ao banco");
+                        qc.invalidateQueries({ queryKey: ["mkt-leads-for", userId] });
+                        qc.invalidateQueries({ queryKey: ["manager-roster"] });
+                      } catch (e) {
+                        toast.error(e instanceof Error ? e.message : "Erro");
+                      }
+                    }}
+                  >
+                    <Unlock className="h-3 w-3 mr-1" /> Devolver ao banco
+                  </Button>
+                </div>
+              );
+            })
+          )}
+        </TabsContent>
+
+
 
         <TabsContent value="proposals" className="mt-4 space-y-2">
           {lp ? <div className="text-sm text-muted-foreground py-6 text-center">Carregando…</div> :

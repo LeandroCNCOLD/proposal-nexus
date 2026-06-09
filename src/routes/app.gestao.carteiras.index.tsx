@@ -20,16 +20,16 @@ type RosterRow = {
   proposals_open: number;
   pipeline_value: number;
   leads_active: number;
+  marketing_active: number;
 };
 
 // Hierarchy: which roles a viewer can see
 function visibleRolesFor(viewerRoles: string[]): string[] {
   if (viewerRoles.includes("admin") || viewerRoles.includes("diretoria")) {
-    return ["vendedor", "sdr", "gerente_comercial", "diretoria", "admin"];
+    return ["vendedor", "sdr", "gerente_comercial", "diretoria", "admin", "marketing"];
   }
   if (viewerRoles.includes("gerente_comercial")) {
-    // sees subordinates + peer managers
-    return ["vendedor", "sdr", "gerente_comercial"];
+    return ["vendedor", "sdr", "gerente_comercial", "marketing"];
   }
   return [];
 }
@@ -47,10 +47,15 @@ function CarteirasPage() {
         .in("role", allowedRoles as never[]);
       const userIds = Array.from(new Set((rolesRows ?? []).map((r) => r.user_id)));
       if (userIds.length === 0) return [] as RosterRow[];
-      const [{ data: profs }, { data: props }, { data: leads }] = await Promise.all([
+      const nowIso = new Date().toISOString();
+      const [{ data: profs }, { data: props }, { data: leads }, { data: mkt }] = await Promise.all([
         supabase.from("profiles").select("id, full_name, email").in("id", userIds),
         supabase.from("proposals").select("sales_owner_id, status, total_value").in("sales_owner_id", userIds),
         supabase.from("sdr_leads").select("sdr_id").in("sdr_id", userIds),
+        supabase.from("marketing_leads" as never)
+          .select("locked_by_sdr_id, lock_expires_at")
+          .in("locked_by_sdr_id" as never, userIds as never)
+          .gt("lock_expires_at" as never, nowIso as never),
       ]);
       const profById = new Map((profs ?? []).map((p) => [p.id, p]));
       const rolesByUser = new Map<string, string[]>();
@@ -72,6 +77,11 @@ function CarteirasPage() {
         if (!l.sdr_id) return;
         leadCount.set(l.sdr_id, (leadCount.get(l.sdr_id) ?? 0) + 1);
       });
+      const mktCount = new Map<string, number>();
+      ((mkt ?? []) as Array<{ locked_by_sdr_id: string | null }>).forEach((m) => {
+        if (!m.locked_by_sdr_id) return;
+        mktCount.set(m.locked_by_sdr_id, (mktCount.get(m.locked_by_sdr_id) ?? 0) + 1);
+      });
       return userIds.map((id) => {
         const p = profById.get(id);
         const s = stats.get(id) ?? { open: 0, value: 0 };
@@ -83,6 +93,7 @@ function CarteirasPage() {
           proposals_open: s.open,
           pipeline_value: s.value,
           leads_active: leadCount.get(id) ?? 0,
+          marketing_active: mktCount.get(id) ?? 0,
         } as RosterRow;
       }).sort((a, b) => (a.full_name ?? "").localeCompare(b.full_name ?? ""));
     },
@@ -138,7 +149,8 @@ function CarteirasPage() {
               <div className="flex items-center gap-4 text-xs">
                 <span className="inline-flex items-center gap-1"><Briefcase className="h-3 w-3" />{r.proposals_open} prop.</span>
                 <span className="font-mono tabular-nums">{brl(r.pipeline_value)}</span>
-                <span className="inline-flex items-center gap-1"><Users className="h-3 w-3" />{r.leads_active} leads</span>
+                <span className="inline-flex items-center gap-1"><Users className="h-3 w-3" />{r.leads_active} SDR</span>
+                <span className="inline-flex items-center gap-1 text-purple-700"><Users className="h-3 w-3" />{r.marketing_active} MKT</span>
                 <ChevronRight className="h-4 w-4 text-muted-foreground" />
               </div>
             </Link>
