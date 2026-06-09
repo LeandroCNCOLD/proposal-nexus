@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/_authenticated/app/marketing/novo")({
+export const Route = createFileRoute("/app/marketing/novo")({
   component: NewMarketingLeadPage,
 });
 

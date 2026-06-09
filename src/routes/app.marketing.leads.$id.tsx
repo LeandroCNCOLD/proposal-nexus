@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { ArrowRightCircle, UserPlus, Trash2, PhoneCall } from "lucide-react";
 
-export const Route = createFileRoute("/_authenticated/app/marketing/leads/$id")({
+export const Route = createFileRoute("/app/marketing/leads/$id")({
   component: MarketingLeadDetailPage,
 });
 

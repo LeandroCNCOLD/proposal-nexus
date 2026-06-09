@@ -43,7 +43,7 @@ export type MarketingLeadRow = {
   aplicacao: string | null;
   mensagem: string | null;
   origem: string;
-  origem_detalhe: Record<string, unknown> | null;
+  origem_detalhe: Record<string, any> | null;
   assigned_to: string | null;
   assigned_at: string | null;
   first_response_at: string | null;
@@ -91,7 +91,7 @@ export const getMarketingLead = createServerFn({ method: "POST" })
     ]);
     if (e1) throw new Error(e1.message);
     if (e2) throw new Error(e2.message);
-    return { lead: lead as unknown as MarketingLeadRow | null, events: (events ?? []) as unknown as Array<{ id: string; event_type: string; actor_name: string | null; payload: Record<string, unknown> | null; created_at: string }> };
+    return { lead: lead as unknown as MarketingLeadRow | null, events: (events ?? []) as unknown as Array<{ id: string; event_type: string; actor_name: string | null; payload: Record<string, any> | null; created_at: string }> };
   });
 
 export const updateMarketingLeadStatus = createServerFn({ method: "POST" })

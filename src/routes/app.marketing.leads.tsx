@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 
-export const Route = createFileRoute("/_authenticated/app/marketing/leads")({
+export const Route = createFileRoute("/app/marketing/leads")({
   component: MarketingLeadsListPage,
 });
 
