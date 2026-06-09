@@ -49,6 +49,7 @@ import { Route as AppPropostasTabelasPrecoRouteImport } from './routes/app.propo
 import { Route as AppPropostasPedidosNfRouteImport } from './routes/app.propostas.pedidos-nf'
 import { Route as AppPropostasNovaRouteImport } from './routes/app.propostas.nova'
 import { Route as AppPropostasIdRouteImport } from './routes/app.propostas.$id'
+import { Route as AppMarketingWalletRouteImport } from './routes/app.marketing.wallet'
 import { Route as AppMarketingNovoRouteImport } from './routes/app.marketing.novo'
 import { Route as AppMarketingLeadsRouteImport } from './routes/app.marketing.leads'
 import { Route as AppMarketingKanbanRouteImport } from './routes/app.marketing.kanban'
@@ -284,6 +285,11 @@ const AppPropostasIdRoute = AppPropostasIdRouteImport.update({
   path: '/propostas/$id',
   getParentRoute: () => AppRoute,
 } as any)
+const AppMarketingWalletRoute = AppMarketingWalletRouteImport.update({
+  id: '/wallet',
+  path: '/wallet',
+  getParentRoute: () => AppMarketingRoute,
+} as any)
 const AppMarketingNovoRoute = AppMarketingNovoRouteImport.update({
   id: '/novo',
   path: '/novo',
@@ -507,6 +513,7 @@ export interface FileRoutesByFullPath {
   '/app/marketing/kanban': typeof AppMarketingKanbanRoute
   '/app/marketing/leads': typeof AppMarketingLeadsRouteWithChildren
   '/app/marketing/novo': typeof AppMarketingNovoRoute
+  '/app/marketing/wallet': typeof AppMarketingWalletRoute
   '/app/propostas/$id': typeof AppPropostasIdRouteWithChildren
   '/app/propostas/nova': typeof AppPropostasNovaRoute
   '/app/propostas/pedidos-nf': typeof AppPropostasPedidosNfRoute
@@ -579,6 +586,7 @@ export interface FileRoutesByTo {
   '/app/marketing/kanban': typeof AppMarketingKanbanRoute
   '/app/marketing/leads': typeof AppMarketingLeadsRouteWithChildren
   '/app/marketing/novo': typeof AppMarketingNovoRoute
+  '/app/marketing/wallet': typeof AppMarketingWalletRoute
   '/app/propostas/nova': typeof AppPropostasNovaRoute
   '/app/propostas/pedidos-nf': typeof AppPropostasPedidosNfRoute
   '/app/propostas/tabelas-preco': typeof AppPropostasTabelasPrecoRoute
@@ -655,6 +663,7 @@ export interface FileRoutesById {
   '/app/marketing/kanban': typeof AppMarketingKanbanRoute
   '/app/marketing/leads': typeof AppMarketingLeadsRouteWithChildren
   '/app/marketing/novo': typeof AppMarketingNovoRoute
+  '/app/marketing/wallet': typeof AppMarketingWalletRoute
   '/app/propostas/$id': typeof AppPropostasIdRouteWithChildren
   '/app/propostas/nova': typeof AppPropostasNovaRoute
   '/app/propostas/pedidos-nf': typeof AppPropostasPedidosNfRoute
@@ -732,6 +741,7 @@ export interface FileRouteTypes {
     | '/app/marketing/kanban'
     | '/app/marketing/leads'
     | '/app/marketing/novo'
+    | '/app/marketing/wallet'
     | '/app/propostas/$id'
     | '/app/propostas/nova'
     | '/app/propostas/pedidos-nf'
@@ -804,6 +814,7 @@ export interface FileRouteTypes {
     | '/app/marketing/kanban'
     | '/app/marketing/leads'
     | '/app/marketing/novo'
+    | '/app/marketing/wallet'
     | '/app/propostas/nova'
     | '/app/propostas/pedidos-nf'
     | '/app/propostas/tabelas-preco'
@@ -879,6 +890,7 @@ export interface FileRouteTypes {
     | '/app/marketing/kanban'
     | '/app/marketing/leads'
     | '/app/marketing/novo'
+    | '/app/marketing/wallet'
     | '/app/propostas/$id'
     | '/app/propostas/nova'
     | '/app/propostas/pedidos-nf'
@@ -1210,6 +1222,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/app/propostas/$id'
       preLoaderRoute: typeof AppPropostasIdRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/app/marketing/wallet': {
+      id: '/app/marketing/wallet'
+      path: '/wallet'
+      fullPath: '/app/marketing/wallet'
+      preLoaderRoute: typeof AppMarketingWalletRouteImport
+      parentRoute: typeof AppMarketingRoute
     }
     '/app/marketing/novo': {
       id: '/app/marketing/novo'
@@ -1546,6 +1565,7 @@ interface AppMarketingRouteChildren {
   AppMarketingKanbanRoute: typeof AppMarketingKanbanRoute
   AppMarketingLeadsRoute: typeof AppMarketingLeadsRouteWithChildren
   AppMarketingNovoRoute: typeof AppMarketingNovoRoute
+  AppMarketingWalletRoute: typeof AppMarketingWalletRoute
   AppMarketingIndexRoute: typeof AppMarketingIndexRoute
 }
 
@@ -1554,6 +1574,7 @@ const AppMarketingRouteChildren: AppMarketingRouteChildren = {
   AppMarketingKanbanRoute: AppMarketingKanbanRoute,
   AppMarketingLeadsRoute: AppMarketingLeadsRouteWithChildren,
   AppMarketingNovoRoute: AppMarketingNovoRoute,
+  AppMarketingWalletRoute: AppMarketingWalletRoute,
   AppMarketingIndexRoute: AppMarketingIndexRoute,
 }
 
