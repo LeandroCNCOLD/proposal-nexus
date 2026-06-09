@@ -1,11 +1,15 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
-import { listMarketingLeads } from "@/lib/marketing-leads.functions";
+import { listMarketingLeads, claimMarketingLead } from "@/lib/marketing-leads.functions";
+import { useAuth } from "@/hooks/useAuth";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
+import { Hand } from "lucide-react";
 
 export const Route = createFileRoute("/app/marketing/leads")({
   component: MarketingLeadsListPage,
@@ -22,6 +26,10 @@ const STATUS_COLORS: Record<string, string> = {
 
 function MarketingLeadsListPage() {
   const fn = useServerFn(listMarketingLeads);
+  const claim = useServerFn(claimMarketingLead);
+  const qc = useQueryClient();
+  const { user, hasAnyRole } = useAuth();
+  const isManager = hasAnyRole(["admin", "diretoria", "gerente_comercial", "marketing"]);
   const [status, setStatus] = useState<string>("all");
   const [search, setSearch] = useState("");
   const { data, isLoading } = useQuery({
@@ -29,6 +37,19 @@ function MarketingLeadsListPage() {
     queryFn: () => fn({ data: { status: status === "all" ? undefined : (status as never), search: search || undefined } }),
     staleTime: 30_000,
   });
+
+  const now = Date.now();
+  const visible = (data ?? []).filter((r) => {
+    if (isManager) return true;
+    const exp = r.lock_expires_at ? new Date(r.lock_expires_at).getTime() : 0;
+    const lockedByOther = r.locked_by_sdr_id && r.locked_by_sdr_id !== user?.id && exp > now;
+    return !lockedByOther;
+  });
+
+  async function onClaim(id: string) {
+    try { await claim({ data: { lead_id: id } }); toast.success("Lead na sua carteira"); qc.invalidateQueries({ queryKey: ["marketing"] }); }
+    catch (e) { toast.error(e instanceof Error ? e.message : "Erro"); }
+  }
   return (
     <div className="p-6 space-y-3">
       <div className="flex flex-wrap gap-2 items-end">
