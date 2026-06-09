@@ -149,7 +149,8 @@ function CarteirasPage() {
               <div className="flex items-center gap-4 text-xs">
                 <span className="inline-flex items-center gap-1"><Briefcase className="h-3 w-3" />{r.proposals_open} prop.</span>
                 <span className="font-mono tabular-nums">{brl(r.pipeline_value)}</span>
-                <span className="inline-flex items-center gap-1"><Users className="h-3 w-3" />{r.leads_active} leads</span>
+                <span className="inline-flex items-center gap-1"><Users className="h-3 w-3" />{r.leads_active} SDR</span>
+                <span className="inline-flex items-center gap-1 text-purple-700"><Users className="h-3 w-3" />{r.marketing_active} MKT</span>
                 <ChevronRight className="h-4 w-4 text-muted-foreground" />
               </div>
             </Link>
