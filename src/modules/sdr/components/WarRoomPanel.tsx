@@ -267,7 +267,12 @@ export function WarRoomPanel() {
               const days = deal.days_without_contact ?? 0
               const u = urgencyBadge(days)
               return (
-                <div key={deal.id} className="flex items-center gap-3 py-2 border-b last:border-0">
+                <Link
+                  key={deal.id}
+                  to="/app/sdr/leads/$id"
+                  params={{ id: deal.id }}
+                  className="flex items-center gap-3 py-2 border-b last:border-0 hover:bg-muted/40 rounded px-1 -mx-1"
+                >
                   <Badge className={`text-[10px] shrink-0 ${u.cls}`}>{u.label}</Badge>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold truncate">{deal.client_name}</p>
@@ -276,7 +281,7 @@ export function WarRoomPanel() {
                     </p>
                   </div>
                   <span className="text-sm font-bold shrink-0 text-[#0F2D5E]">{formatCurrency(deal.value)}</span>
-                </div>
+                </Link>
               )
             })}
           </CardContent>
