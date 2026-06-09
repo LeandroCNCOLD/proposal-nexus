@@ -43,6 +43,22 @@ function UserWalletPage() {
     },
   });
 
+  const qc = useQueryClient();
+  const release = useServerFn(releaseMarketingLead);
+  const { data: mktLeads = [] } = useQuery({
+    queryKey: ["mkt-leads-for", userId],
+    queryFn: async () => {
+      const nowIso = new Date().toISOString();
+      const { data } = await supabase.from("marketing_leads" as never)
+        .select("id, lead_code, client_name, contact_name, contact_phone, contact_email, segmento, mensagem, status, locked_at, lock_expires_at, received_at, origem_detalhe")
+        .eq("locked_by_sdr_id" as never, userId as never)
+        .gt("lock_expires_at" as never, nowIso as never)
+        .order("locked_at" as never, { ascending: false });
+      return (data ?? []) as Array<{ id: string; lead_code: string; client_name: string | null; contact_name: string | null; contact_phone: string | null; contact_email: string | null; segmento: string | null; mensagem: string | null; status: string; locked_at: string | null; lock_expires_at: string | null; received_at: string; origem_detalhe: Record<string, unknown> | null }>;
+    },
+  });
+
+
   const [period, setPeriod] = useState<"7" | "30" | "90">("30");
   const since = useMemo(() => {
     const d = new Date(); d.setDate(d.getDate() - Number(period)); return d.toISOString();
