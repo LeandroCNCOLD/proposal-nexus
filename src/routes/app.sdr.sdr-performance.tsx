@@ -61,8 +61,9 @@ function SdrPerformancePage() {
     }
     for (const l of data?.day ?? []) {
       const a = map.get(l.sdr_name) ?? { name: l.sdr_name, completedDay: 0, attemptsDay: 0, meetingsDay: 0, hotDay: 0, completedMonth: 0, attemptsMonth: 0, meetingsMonth: 0 }
-      if (l.result?.startsWith('Atendeu')) a.completedDay++
-      else if (l.result) a.attemptsDay++
+      // Toda ligação registrada (atendida ou não) conta para a meta de produtividade do SDR
+      if (l.result) a.completedDay++
+      if (l.result && !l.result.startsWith('Atendeu')) a.attemptsDay++
       if (l.meeting_booked) a.meetingsDay++
       if (l.temperature_after === 'Quente' || l.temperature_after === 'Muito Quente') a.hotDay++
       map.set(l.sdr_name, a)
@@ -70,8 +71,8 @@ function SdrPerformancePage() {
     for (const l of data?.month ?? []) {
       const a = map.get(l.sdr_name)
       if (!a) continue
-      if (l.result?.startsWith('Atendeu')) a.completedMonth++
-      else if (l.result) a.attemptsMonth++
+      if (l.result) a.completedMonth++
+      if (l.result && !l.result.startsWith('Atendeu')) a.attemptsMonth++
       if (l.meeting_booked) a.meetingsMonth++
     }
     return Array.from(map.values())
