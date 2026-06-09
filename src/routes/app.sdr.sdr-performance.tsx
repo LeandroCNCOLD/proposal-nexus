@@ -128,19 +128,19 @@ function SdrPerformancePage() {
                   <CardContent className="space-y-3">
                     <div className="grid grid-cols-2 gap-2">
                       <Metric icon={<Phone className="h-3 w-3" />} label="Ligações" value={totalCalls} />
-                      <Metric icon={<CheckCircle2 className="h-3 w-3" />} label="Concluídos" value={sdr.completedDay} />
+                      <Metric icon={<CheckCircle2 className="h-3 w-3" />} label="Atendidas" value={sdr.completedDay - sdr.attemptsDay} />
                       <Metric icon={<CalendarCheck className="h-3 w-3" />} label="Reuniões" value={sdr.meetingsDay} />
                       <Metric icon={<Flame className="h-3 w-3" />} label="Quentes" value={sdr.hotDay} />
                     </div>
                     <div>
                       <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                        <span>Meta diária ({sdr.completedDay}/{SDR_DAILY_GOAL})</span>
+                        <span>Meta diária ({sdr.completedDay}/{SDR_DAILY_GOAL} ligações)</span>
                         <span className="font-semibold">{goalPct}%</span>
                       </div>
                       <Progress value={Math.min(goalPct, 100)} className="h-1.5" />
                     </div>
                     <div className="text-[11px] text-muted-foreground">
-                      Meta mensal: <strong>{sdr.completedMonth} / {MONTHLY_GOAL}</strong>
+                      Meta mensal: <strong>{sdr.completedMonth} / {MONTHLY_GOAL}</strong> ligações
                     </div>
                     {isManager && userId && (
                       <div className="text-[11px] text-blue-700 font-medium border-t pt-2">
