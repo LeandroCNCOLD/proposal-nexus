@@ -1,16 +1,19 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSellerProposalsFor } from "@/hooks/use-seller-proposals-for";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, ArrowRightLeft, Phone, FileText, Calendar, ExternalLink, Thermometer, DollarSign, Users } from "lucide-react";
+import { ArrowLeft, ArrowRightLeft, Phone, FileText, Calendar, ExternalLink, Thermometer, DollarSign, Users, Unlock } from "lucide-react";
 import { brl, dateBR, dateTimeBR } from "@/lib/format";
 import { STATUS_LABELS, TEMPERATURE_LABELS } from "@/lib/proposal";
 import { TransferProposalDialog } from "@/components/manager/TransferProposalDialog";
 import { TransferLeadDialog } from "@/components/manager/TransferLeadDialog";
+import { useServerFn } from "@tanstack/react-start";
+import { releaseMarketingLead } from "@/lib/marketing-leads.functions";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/app/gestao/carteiras/$userId")({
   component: UserWalletPage,
