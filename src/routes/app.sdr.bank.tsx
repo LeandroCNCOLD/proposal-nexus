@@ -170,6 +170,9 @@ function BankPage() {
 
   const filtered = useMemo(() => {
     return withRevisions.filter(r => {
+      const isArchived = ARCHIVED_SDR_STATUSES.includes((r as any).sdr_status)
+      if (tab === 'banco' && isArchived) return false
+      if (tab === 'arquivados' && !isArchived) return false
       if (search) {
         const s = search.toLowerCase()
         if (!r.client_name?.toLowerCase().includes(s) && !r.lead_code?.toLowerCase().includes(s)) return false
@@ -192,7 +195,7 @@ function BankPage() {
       if (proposalStatusFilter && (r as any).proposal_status !== proposalStatusFilter) return false
       return true
     })
-  }, [withRevisions, search, uf, minValue, temp, sdrFilter, closerFilter, statusFilter, proposalStatusFilter, user?.id])
+  }, [withRevisions, tab, search, uf, minValue, temp, sdrFilter, closerFilter, statusFilter, proposalStatusFilter, user?.id])
 
   // Resumo: conta apenas a última revisão de cada base CN para não inflar totais.
   const summary = useMemo(() => {
