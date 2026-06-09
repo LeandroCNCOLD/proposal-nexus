@@ -4940,6 +4940,10 @@ export type Database = {
           id: string
           internal_note: string | null
           lead_code: string
+          lock_expires_at: string | null
+          locked_at: string | null
+          locked_by_sdr_id: string | null
+          locked_by_sdr_name: string | null
           mensagem: string | null
           origem: string
           origem_detalhe: Json | null
@@ -4967,6 +4971,10 @@ export type Database = {
           id?: string
           internal_note?: string | null
           lead_code: string
+          lock_expires_at?: string | null
+          locked_at?: string | null
+          locked_by_sdr_id?: string | null
+          locked_by_sdr_name?: string | null
           mensagem?: string | null
           origem?: string
           origem_detalhe?: Json | null
@@ -4994,6 +5002,10 @@ export type Database = {
           id?: string
           internal_note?: string | null
           lead_code?: string
+          lock_expires_at?: string | null
+          locked_at?: string | null
+          locked_by_sdr_id?: string | null
+          locked_by_sdr_name?: string | null
           mensagem?: string | null
           origem?: string
           origem_detalhe?: Json | null
@@ -9016,6 +9028,7 @@ export type Database = {
       }
       can_access_proposal: { Args: { _proposal_id: string }; Returns: boolean }
       can_manage_user_access: { Args: { _user_id: string }; Returns: boolean }
+      claim_marketing_lead: { Args: { _lead_id: string }; Returns: undefined }
       coldpro_calculate_coil_volume_l: {
         Args: {
           p_correction_factor?: number
@@ -9109,6 +9122,11 @@ export type Database = {
         }[]
       }
       release_expired_locks: { Args: never; Returns: undefined }
+      release_marketing_lead: { Args: { _lead_id: string }; Returns: undefined }
+      renew_marketing_lead_lock: {
+        Args: { _lead_id: string }
+        Returns: undefined
+      }
       revert_sdr_lead_edit: { Args: { _edit_id: string }; Returns: undefined }
       salvar_snapshot_cobertura: { Args: never; Returns: undefined }
       suggest_sdr_for_assignment: {
