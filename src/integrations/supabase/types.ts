@@ -3804,6 +3804,7 @@ export type Database = {
           title: string
           type: string
           updated_at: string
+          visibility: Database["public"]["Enums"]["productivity_visibility"]
         }
         Insert: {
           assigned_to: string
@@ -3826,6 +3827,7 @@ export type Database = {
           title: string
           type: string
           updated_at?: string
+          visibility?: Database["public"]["Enums"]["productivity_visibility"]
         }
         Update: {
           assigned_to?: string
@@ -3848,6 +3850,7 @@ export type Database = {
           title?: string
           type?: string
           updated_at?: string
+          visibility?: Database["public"]["Enums"]["productivity_visibility"]
         }
         Relationships: [
           {
@@ -3900,6 +3903,7 @@ export type Database = {
           telefone_cliente: string | null
           tipo: string
           updated_at: string
+          visibility: Database["public"]["Enums"]["productivity_visibility"]
         }
         Insert: {
           client_name: string
@@ -3927,6 +3931,7 @@ export type Database = {
           telefone_cliente?: string | null
           tipo: string
           updated_at?: string
+          visibility?: Database["public"]["Enums"]["productivity_visibility"]
         }
         Update: {
           client_name?: string
@@ -3954,6 +3959,7 @@ export type Database = {
           telefone_cliente?: string | null
           tipo?: string
           updated_at?: string
+          visibility?: Database["public"]["Enums"]["productivity_visibility"]
         }
         Relationships: []
       }
@@ -7046,6 +7052,7 @@ export type Database = {
           status: Database["public"]["Enums"]["task_status"]
           title: string
           updated_at: string
+          visibility: Database["public"]["Enums"]["productivity_visibility"]
         }
         Insert: {
           assignee_id?: string | null
@@ -7060,6 +7067,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["task_status"]
           title: string
           updated_at?: string
+          visibility?: Database["public"]["Enums"]["productivity_visibility"]
         }
         Update: {
           assignee_id?: string | null
@@ -7074,6 +7082,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["task_status"]
           title?: string
           updated_at?: string
+          visibility?: Database["public"]["Enums"]["productivity_visibility"]
         }
         Relationships: [
           {
@@ -8911,6 +8920,7 @@ export type Database = {
         | "admin"
         | "coldpro"
         | "sdr"
+      productivity_visibility: "private" | "shared"
       proposal_source: "nomus" | "manual"
       proposal_status:
         | "rascunho"
@@ -9091,6 +9101,7 @@ export const Constants = {
         "coldpro",
         "sdr",
       ],
+      productivity_visibility: ["private", "shared"],
       proposal_source: ["nomus", "manual"],
       proposal_status: [
         "rascunho",
