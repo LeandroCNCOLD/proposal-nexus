@@ -6,7 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Plus, Phone, CalendarCheck, Flame, CheckCircle2 } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { Plus, Phone, CalendarCheck, Flame, CheckCircle2, AlertTriangle, Trophy, Medal, Award } from 'lucide-react'
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from 'recharts'
 import { SDR_DAILY_GOAL, type CrmCallLog } from '@/modules/sdr/types'
 import { useSdrNames } from '@/modules/sdr/hooks/use-team-members'
@@ -17,23 +18,50 @@ export const Route = createFileRoute('/app/sdr/sdr-performance')({
 })
 
 const MONTHLY_GOAL = SDR_DAILY_GOAL * 22 // 15/dia × 22 dias úteis
+// Volume mínimo para a taxa de contato ser considerada estatisticamente confiável.
+// Abaixo disso, uma "conversão" de 100% é exibida com alerta de amostra pequena.
+const MIN_SAMPLE_FOR_CONVERSION = 10
 
 function todayISO() { return new Date().toISOString().slice(0, 10) }
+function yesterdayISO() {
+  const d = new Date()
+  d.setDate(d.getDate() - 1)
+  return d.toISOString().slice(0, 10)
+}
 function monthStartISO() {
   const d = new Date()
   return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10)
 }
 
-type Agg = { name: string; completedDay: number; attemptsDay: number; meetingsDay: number; hotDay: number; completedMonth: number; attemptsMonth: number; meetingsMonth: number }
+type DayBucket = { completed: number; attempts: number; meetings: number; hot: number }
+type Agg = {
+  name: string
+  today: DayBucket
+  yesterday: DayBucket
+  month: DayBucket
+  // dias úteis com atividade (para média) e variação
+  activeDaysMonth: number
+}
+
+function emptyBucket(): DayBucket { return { completed: 0, attempts: 0, meetings: 0, hot: 0 } }
+
+function classifyInto(bucket: DayBucket, l: CrmCallLog) {
+  if (l.result?.startsWith('Atendeu')) bucket.completed++
+  else if (l.result) bucket.attempts++
+  if (l.meeting_booked) bucket.meetings++
+  if (l.temperature_after === 'Quente' || l.temperature_after === 'Muito Quente') bucket.hot++
+}
 
 async function fetchPerf() {
-  const [day, month] = await Promise.all([
-    supabase.from('crm_call_logs').select('*').eq('call_date', todayISO()),
-    supabase.from('crm_call_logs').select('*').gte('call_date', monthStartISO()).lte('call_date', todayISO()),
-  ])
-  if (day.error) throw day.error
-  if (month.error) throw month.error
-  return { day: (day.data ?? []) as CrmCallLog[], month: (month.data ?? []) as CrmCallLog[] }
+  const start = monthStartISO()
+  const today = todayISO()
+  const { data, error } = await supabase
+    .from('crm_call_logs')
+    .select('*')
+    .gte('call_date', start)
+    .lte('call_date', today)
+  if (error) throw error
+  return { logs: (data ?? []) as CrmCallLog[] }
 }
 
 function SdrPerformancePage() {
@@ -56,34 +84,45 @@ function SdrPerformancePage() {
   })
 
   const aggs: Agg[] = useMemo(() => {
+    const today = todayISO()
+    const yesterday = yesterdayISO()
     const map = new Map<string, Agg>()
     for (const n of sdrNames) {
-      map.set(n, { name: n, completedDay: 0, attemptsDay: 0, meetingsDay: 0, hotDay: 0, completedMonth: 0, attemptsMonth: 0, meetingsMonth: 0 })
+      map.set(n, {
+        name: n,
+        today: emptyBucket(),
+        yesterday: emptyBucket(),
+        month: emptyBucket(),
+        activeDaysMonth: 0,
+      })
     }
-    for (const l of data?.day ?? []) {
-      const a = map.get(l.sdr_name) ?? { name: l.sdr_name, completedDay: 0, attemptsDay: 0, meetingsDay: 0, hotDay: 0, completedMonth: 0, attemptsMonth: 0, meetingsMonth: 0 }
-      if (l.result?.startsWith('Atendeu')) a.completedDay++
-      else if (l.result) a.attemptsDay++
-      if (l.meeting_booked) a.meetingsDay++
-      if (l.temperature_after === 'Quente' || l.temperature_after === 'Muito Quente') a.hotDay++
-      map.set(l.sdr_name, a)
-    }
-    for (const l of data?.month ?? []) {
+    const activeDays = new Map<string, Set<string>>()
+    for (const l of data?.logs ?? []) {
       const a = map.get(l.sdr_name)
       if (!a) continue
-      if (l.result?.startsWith('Atendeu')) a.completedMonth++
-      else if (l.result) a.attemptsMonth++
-      if (l.meeting_booked) a.meetingsMonth++
+      classifyInto(a.month, l)
+      if (l.call_date === today) classifyInto(a.today, l)
+      if (l.call_date === yesterday) classifyInto(a.yesterday, l)
+      if (l.result) {
+        let s = activeDays.get(l.sdr_name)
+        if (!s) { s = new Set(); activeDays.set(l.sdr_name, s) }
+        s.add(l.call_date)
+      }
+    }
+    for (const a of map.values()) {
+      a.activeDaysMonth = activeDays.get(a.name)?.size ?? 0
     }
     return Array.from(map.values())
   }, [data, sdrNames])
 
-  const ranking = useMemo(() => [...aggs].sort((a, b) => b.completedMonth - a.completedMonth), [aggs])
+  const ranking = useMemo(
+    () => [...aggs].sort((a, b) => b.month.completed - a.month.completed || b.month.meetings - a.month.meetings),
+    [aggs],
+  )
 
   // Série diária por SDR (mês corrente) para o gráfico de curva de rendimento
   const dailySeriesByName = useMemo(() => {
     const out = new Map<string, Array<{ date: string; label: string; ligacoes: number; atendidas: number; reunioes: number; quentes: number }>>()
-    // gera todos os dias do início do mês até hoje
     const start = new Date(monthStartISO())
     const today = new Date(todayISO())
     const days: string[] = []
@@ -97,7 +136,7 @@ function SdrPerformancePage() {
         ligacoes: 0, atendidas: 0, reunioes: 0, quentes: 0,
       })))
     }
-    for (const l of data?.month ?? []) {
+    for (const l of data?.logs ?? []) {
       const series = out.get(l.sdr_name)
       if (!series) continue
       const row = series.find(r => r.date === l.call_date)
@@ -117,6 +156,9 @@ function SdrPerformancePage() {
           <h1 className="text-2xl font-bold text-[#0F2D5E]">Desempenho dos SDRs</h1>
           <p className="text-sm text-muted-foreground">
             Meta diária: <strong>{SDR_DAILY_GOAL} contatos concluídos</strong> · Meta mensal: <strong>{MONTHLY_GOAL}</strong> (15/dia × 22 dias úteis)
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Considera ligações registradas pelo SDR em qualquer canal — incluindo contatos pegos do banco de marketing.
           </p>
         </div>
         <Button asChild className="bg-blue-600 hover:bg-blue-700 text-white">
@@ -139,9 +181,15 @@ function SdrPerformancePage() {
         {isLoading
           ? Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-64 w-full rounded-xl" />)
           : aggs.map((sdr) => {
-              const goalPct = Math.round((sdr.completedDay / SDR_DAILY_GOAL) * 100)
-              const totalCalls = sdr.completedDay + sdr.attemptsDay
+              const todayCalls = sdr.today.completed + sdr.today.attempts
+              const yCalls = sdr.yesterday.completed + sdr.yesterday.attempts
+              const goalPct = Math.round((sdr.today.completed / SDR_DAILY_GOAL) * 100)
+              const todayContactRate = todayCalls ? Math.round((sdr.today.completed / todayCalls) * 100) : 0
+              const monthCalls = sdr.month.completed + sdr.month.attempts
+              const monthContactRate = monthCalls ? Math.round((sdr.month.completed / monthCalls) * 100) : 0
+              const suspicious = monthCalls > 0 && monthCalls < MIN_SAMPLE_FOR_CONVERSION && monthContactRate >= 90
               const userId = idByName.get(sdr.name)
+              const delta = todayCalls - yCalls
               const card = (
                 <Card key={sdr.name} className={isManager && userId ? 'hover:ring-2 hover:ring-blue-300 transition cursor-pointer h-full' : 'h-full'}>
                   <CardHeader className="pb-3">
@@ -150,38 +198,75 @@ function SdrPerformancePage() {
                         {sdr.name[0]}
                       </span>
                       {sdr.name}
-                      {sdr.completedDay >= SDR_DAILY_GOAL && (
+                      {sdr.today.completed >= SDR_DAILY_GOAL && (
                         <CheckCircle2 className="h-4 w-4 text-green-600 ml-auto" />
                       )}
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    <div className="grid grid-cols-2 gap-2">
-                      <Metric icon={<Phone className="h-3 w-3" />} label="Ligações" value={totalCalls} />
-                      <Metric icon={<CheckCircle2 className="h-3 w-3" />} label="Atendidas" value={sdr.completedDay} />
-                      <Metric icon={<CalendarCheck className="h-3 w-3" />} label="Reuniões" value={sdr.meetingsDay} />
-                      <Metric icon={<Flame className="h-3 w-3" />} label="Quentes" value={sdr.hotDay} />
+                    {/* Hoje */}
+                    <div>
+                      <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-1">
+                        <span className="font-semibold uppercase tracking-wide">Hoje</span>
+                        <span className={delta > 0 ? 'text-emerald-600' : delta < 0 ? 'text-red-600' : ''}>
+                          vs ontem: {delta > 0 ? '+' : ''}{delta}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <Metric icon={<Phone className="h-3 w-3" />} label="Ligações" value={todayCalls} />
+                        <Metric icon={<CheckCircle2 className="h-3 w-3" />} label="Atendidas" value={sdr.today.completed} />
+                        <Metric icon={<CalendarCheck className="h-3 w-3" />} label="Reuniões" value={sdr.today.meetings} />
+                        <Metric icon={<Flame className="h-3 w-3" />} label="Quentes" value={sdr.today.hot} />
+                      </div>
                     </div>
+
+                    {/* Ontem (resumo) */}
+                    <div className="bg-muted/30 rounded p-2 text-[11px] text-muted-foreground flex flex-wrap gap-x-3 gap-y-0.5">
+                      <span className="font-semibold uppercase tracking-wide text-[10px]">Ontem</span>
+                      <span>{yCalls} ligações</span>
+                      <span>·</span>
+                      <span>{sdr.yesterday.completed} atendidas</span>
+                      <span>·</span>
+                      <span>{sdr.yesterday.meetings} reuniões</span>
+                    </div>
+
                     <div>
                       <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                        <span>Meta diária ({sdr.completedDay}/{SDR_DAILY_GOAL} atendidas)</span>
+                        <span>Meta diária ({sdr.today.completed}/{SDR_DAILY_GOAL} atendidas)</span>
                         <span className="font-semibold">{goalPct}%</span>
                       </div>
                       <Progress value={Math.min(goalPct, 100)} className="h-1.5" />
                       <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-muted-foreground mt-1">
-                        <span>{sdr.attemptsDay} tentativas sem contato</span>
+                        <span>{sdr.today.attempts} tentativas sem contato</span>
                         <span>·</span>
-                        <span>
-                          Taxa de contato: <strong>{totalCalls ? Math.round((sdr.completedDay / totalCalls) * 100) : 0}%</strong>
-                        </span>
-                        <span>·</span>
-                        <span>
-                          {sdr.completedDay ? (totalCalls / sdr.completedDay).toFixed(1) : '—'} ligações por contato
-                        </span>
+                        <span>Taxa de contato hoje: <strong>{todayContactRate}%</strong></span>
                       </div>
                     </div>
-                    <div className="text-[11px] text-muted-foreground">
-                      Meta mensal: <strong>{sdr.completedMonth} / {MONTHLY_GOAL}</strong> atendidas · {sdr.attemptsMonth} tentativas no mês
+
+                    {/* Acumulado mês */}
+                    <div className="text-[11px] text-muted-foreground border-t pt-2 space-y-0.5">
+                      <div>
+                        Mês: <strong>{sdr.month.completed}</strong> atendidas de {monthCalls} ligações ({monthContactRate}%)
+                        {' · '}
+                        <strong>{sdr.month.meetings}</strong> reuniões
+                      </div>
+                      <div>
+                        Meta mensal: <strong>{sdr.month.completed} / {MONTHLY_GOAL}</strong>
+                        {' · '}
+                        Média/dia ativo:{' '}
+                        <strong>
+                          {sdr.activeDaysMonth ? (monthCalls / sdr.activeDaysMonth).toFixed(1) : '—'}
+                        </strong>
+                      </div>
+                      {suspicious && (
+                        <div className="flex items-start gap-1 text-amber-700 bg-amber-50 border border-amber-200 rounded p-1.5 mt-1">
+                          <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
+                          <span>
+                            Amostra pequena ({monthCalls} ligações). Taxa de {monthContactRate}% pode não refletir a realidade —
+                            aumentar volume para validar a performance.
+                          </span>
+                        </div>
+                      )}
                     </div>
 
                     {/* Curva diária de rendimento do mês */}
@@ -209,7 +294,7 @@ function SdrPerformancePage() {
                         Clique para ver a carteira e o histórico →
                       </div>
                     )}
-                    {totalCalls === 0 && (
+                    {todayCalls === 0 && (
                       <p className="text-[11px] text-muted-foreground italic border-t pt-2">
                         Nenhuma ligação registrada hoje
                       </p>
@@ -228,7 +313,10 @@ function SdrPerformancePage() {
       {/* Ranking mensal */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-bold">Ranking mensal</CardTitle>
+          <CardTitle className="text-sm font-bold flex items-center gap-2">
+            <Trophy className="h-4 w-4 text-amber-500" />
+            Ranking mensal
+          </CardTitle>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -240,36 +328,66 @@ function SdrPerformancePage() {
                   <tr className="text-left border-b">
                     <th className="py-2 pr-2 w-8">#</th>
                     <th className="py-2 px-2">SDR</th>
-                    <th className="py-2 px-2 text-center">Concluídos (mês)</th>
-                    <th className="py-2 px-2 text-center">Tentativas</th>
+                    <th className="py-2 px-2 text-center">Ligações (mês)</th>
+                    <th className="py-2 px-2 text-center">Atendidas</th>
+                    <th className="py-2 px-2 text-center">Taxa contato</th>
                     <th className="py-2 px-2 text-center">Reuniões</th>
-                    <th className="py-2 px-2 text-center">Conv.</th>
-                    <th className="py-2 pl-2 text-right">% Meta mensal</th>
+                    <th className="py-2 px-2 text-center">Conv. reunião</th>
+                    <th className="py-2 px-2 text-center">Hoje</th>
+                    <th className="py-2 px-2 text-center">Ontem</th>
+                    <th className="py-2 pl-2 text-right">% Meta</th>
                   </tr>
                 </thead>
                 <tbody>
                   {ranking.map((r, i) => {
-                    const conv = r.completedMonth ? Math.round((r.meetingsMonth / r.completedMonth) * 100) : 0
-                    const pct = Math.round((r.completedMonth / MONTHLY_GOAL) * 100)
+                    const monthCalls = r.month.completed + r.month.attempts
+                    const contactRate = monthCalls ? Math.round((r.month.completed / monthCalls) * 100) : 0
+                    const conv = r.month.completed ? Math.round((r.month.meetings / r.month.completed) * 100) : 0
+                    const pct = Math.round((r.month.completed / MONTHLY_GOAL) * 100)
+                    const suspicious = monthCalls > 0 && monthCalls < MIN_SAMPLE_FOR_CONVERSION && contactRate >= 90
+                    const medal = i === 0 ? <Trophy className="h-3.5 w-3.5 text-amber-500" /> : i === 1 ? <Medal className="h-3.5 w-3.5 text-slate-400" /> : i === 2 ? <Award className="h-3.5 w-3.5 text-amber-700" /> : null
                     return (
                       <tr key={r.name} className="border-b last:border-0">
-                        <td className="py-2 pr-2 text-muted-foreground">{i + 1}</td>
+                        <td className="py-2 pr-2 text-muted-foreground">
+                          <span className="flex items-center gap-1">{i + 1}{medal}</span>
+                        </td>
                         <td className="py-2 px-2 font-semibold">{r.name}</td>
-                        <td className="py-2 px-2 text-center font-bold">{r.completedMonth}</td>
-                        <td className="py-2 px-2 text-center text-muted-foreground">{r.attemptsMonth}</td>
-                        <td className="py-2 px-2 text-center">{r.meetingsMonth}</td>
+                        <td className="py-2 px-2 text-center text-muted-foreground">{monthCalls}</td>
+                        <td className="py-2 px-2 text-center font-bold">{r.month.completed}</td>
+                        <td className="py-2 px-2 text-center">
+                          <span className="inline-flex items-center gap-1">
+                            {contactRate}%
+                            {suspicious && (
+                              <Badge variant="outline" className="border-amber-300 text-amber-700 bg-amber-50 text-[9px] px-1 py-0">
+                                amostra baixa
+                              </Badge>
+                            )}
+                          </span>
+                        </td>
+                        <td className="py-2 px-2 text-center">{r.month.meetings}</td>
                         <td className="py-2 px-2 text-center">{conv}%</td>
+                        <td className="py-2 px-2 text-center text-muted-foreground">
+                          {r.today.completed + r.today.attempts}
+                          <span className="text-[10px] block">({r.today.completed} atend.)</span>
+                        </td>
+                        <td className="py-2 px-2 text-center text-muted-foreground">
+                          {r.yesterday.completed + r.yesterday.attempts}
+                          <span className="text-[10px] block">({r.yesterday.completed} atend.)</span>
+                        </td>
                         <td className="py-2 pl-2 text-right font-semibold">{pct}%</td>
                       </tr>
                     )
                   })}
                 </tbody>
               </table>
-              {ranking.every(r => r.completedMonth === 0 && r.attemptsMonth === 0) && (
+              {ranking.every(r => r.month.completed === 0 && r.month.attempts === 0) && (
                 <p className="text-xs text-muted-foreground text-center py-4 italic">
                   Os dados aparecem aqui assim que as primeiras ligações forem registradas.
                 </p>
               )}
+              <p className="text-[10px] text-muted-foreground mt-3 italic">
+                * &quot;Amostra baixa&quot; sinaliza taxa de contato acima de 90% com menos de {MIN_SAMPLE_FOR_CONVERSION} ligações no mês — o número é matematicamente válido, mas pouco representativo. Aumentar volume é o caminho para confirmar a performance.
+              </p>
             </div>
           )}
         </CardContent>
