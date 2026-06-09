@@ -256,6 +256,13 @@ function BankPage() {
 
   return (
     <div className="p-6 space-y-4">
+      <div className="flex items-center gap-2 border-b">
+        <button type="button" onClick={() => setTab('banco')}
+          className={`px-3 py-2 text-sm font-medium border-b-2 ${tab === 'banco' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground'}`}>Banco</button>
+        <button type="button" onClick={() => setTab('arquivados')}
+          className={`px-3 py-2 text-sm font-medium border-b-2 ${tab === 'arquivados' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground'}`}>Arquivados (perdidos/kill)</button>
+        <Link to="/app/marketing/remarketing" className="ml-auto text-xs text-primary hover:underline">Fila de remarketing →</Link>
+      </div>
       <div className="flex items-end justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold text-[#0F2D5E]">Banco de Leads</h1>
@@ -522,41 +529,50 @@ function BankPage() {
                       })()}
                     </td>
                     <td className="px-3 py-2 text-right space-x-1 whitespace-nowrap">
-                      {canPickLeads && !r.locked_by_sdr_id && (
-                        <Button
-                          size="sm"
-                          className="bg-green-600 hover:bg-green-700"
-                          disabled={atLimit || lockMut.isPending}
-                          onClick={() => lockMut.mutate(r.id)}
-                          title={atLimit ? `Limite de ${SDR_LOCK_LIMIT} atingido` : 'Pegar lead'}
-                        >
-                          <Lock className="w-3 h-3 mr-1" /> Pegar
+                      {tab === 'arquivados' ? (
+                        <Button size="sm" variant="outline" disabled={remarketingMut.isPending}
+                          onClick={() => remarketingMut.mutate(r.id)}>
+                          <Mail className="w-3 h-3 mr-1" /> Remarketing
                         </Button>
-                      )}
-                      {lockedByMe && !isFrozen && (
-                        <Button size="sm" variant="outline" onClick={() => unlockMut.mutate(r.id)}>
-                          <Unlock className="w-3 h-3 mr-1" /> Devolver
-                        </Button>
-                      )}
-                      {isManager && !isFrozen && (
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          disabled={freezeMut.isPending}
-                          onClick={() => {
-                            if (confirm('Bloquear este lead? Ninguém poderá entrar em contato até você desbloquear.')) {
-                              freezeMut.mutate(r.id)
-                            }
-                          }}
-                          title="Bloquear lead (gestor)"
-                        >
-                          <ShieldAlert className="w-3 h-3 mr-1" /> Bloquear
-                        </Button>
-                      )}
-                      {isManager && isFrozen && (
-                        <Button size="sm" variant="outline" onClick={() => unlockMut.mutate(r.id)}>
-                          <Unlock className="w-3 h-3 mr-1" /> Desbloquear
-                        </Button>
+                      ) : (
+                        <>
+                          {canPickLeads && !r.locked_by_sdr_id && (
+                            <Button
+                              size="sm"
+                              className="bg-green-600 hover:bg-green-700"
+                              disabled={atLimit || lockMut.isPending}
+                              onClick={() => lockMut.mutate(r.id)}
+                              title={atLimit ? `Limite de ${SDR_LOCK_LIMIT} atingido` : 'Pegar lead'}
+                            >
+                              <Lock className="w-3 h-3 mr-1" /> Pegar
+                            </Button>
+                          )}
+                          {lockedByMe && !isFrozen && (
+                            <Button size="sm" variant="outline" onClick={() => unlockMut.mutate(r.id)}>
+                              <Unlock className="w-3 h-3 mr-1" /> Devolver
+                            </Button>
+                          )}
+                          {isManager && !isFrozen && (
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              disabled={freezeMut.isPending}
+                              onClick={() => {
+                                if (confirm('Bloquear este lead? Ninguém poderá entrar em contato até você desbloquear.')) {
+                                  freezeMut.mutate(r.id)
+                                }
+                              }}
+                              title="Bloquear lead (gestor)"
+                            >
+                              <ShieldAlert className="w-3 h-3 mr-1" /> Bloquear
+                            </Button>
+                          )}
+                          {isManager && isFrozen && (
+                            <Button size="sm" variant="outline" onClick={() => unlockMut.mutate(r.id)}>
+                              <Unlock className="w-3 h-3 mr-1" /> Desbloquear
+                            </Button>
+                          )}
+                        </>
                       )}
                     </td>
                   </tr>
