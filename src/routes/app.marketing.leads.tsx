@@ -157,7 +157,11 @@ function MarketingLeadsListPage() {
                     </td>
                     <td className="px-3 py-2 text-[11px] text-muted-foreground whitespace-nowrap">{new Date(r.received_at).toLocaleDateString("pt-BR")}</td>
                     <td className="px-3 py-2 text-right whitespace-nowrap">
-                      {lockedByMe ? (
+                      {tab === "arquivados" ? (
+                        <Button size="sm" variant="outline" onClick={() => onRemarketing(r.id, r.discard_reason ?? null)}>
+                          <Mail className="w-3.5 h-3.5 mr-1" /> Remarketing
+                        </Button>
+                      ) : lockedByMe ? (
                         <Badge className="bg-emerald-100 text-emerald-800">na minha carteira</Badge>
                       ) : lockedByOther ? (
                         <Badge variant="secondary">com {r.locked_by_sdr_name ?? "outro SDR"}</Badge>
