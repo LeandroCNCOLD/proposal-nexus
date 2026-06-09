@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/app'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppIndexRouteImport } from './routes/app.index'
 import { Route as AppTarefasRouteImport } from './routes/app.tarefas'
@@ -84,6 +85,10 @@ const LoginRoute = LoginRouteImport.update({
 const AppRoute = AppRouteImport.update({
   id: '/app',
   path: '/app',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -415,9 +420,9 @@ const ApiPublicHooksNomusCronRoute = ApiPublicHooksNomusCronRouteImport.update({
 } as any)
 const AuthenticatedAppSdrNovoLeadRoute =
   AuthenticatedAppSdrNovoLeadRouteImport.update({
-    id: '/_authenticated/app/sdr/novo-lead',
+    id: '/app/sdr/novo-lead',
     path: '/app/sdr/novo-lead',
-    getParentRoute: () => rootRouteImport,
+    getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -556,6 +561,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
   '/app/agenda': typeof AppAgendaRouteWithChildren
@@ -759,6 +765,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/_authenticated'
     | '/app'
     | '/login'
     | '/app/agenda'
@@ -828,10 +835,10 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
   ApiNomusTestRoute: typeof ApiNomusTestRoute
-  AuthenticatedAppSdrNovoLeadRoute: typeof AuthenticatedAppSdrNovoLeadRoute
   ApiPublicHooksNomusCronRoute: typeof ApiPublicHooksNomusCronRoute
   ApiPublicLeadsSiteRoute: typeof ApiPublicLeadsSiteRoute
   ApiPublicNomusExhaustiveProbeRoute: typeof ApiPublicNomusExhaustiveProbeRoute
@@ -854,6 +861,13 @@ declare module '@tanstack/react-router' {
       path: '/app'
       fullPath: '/app'
       preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -1302,10 +1316,21 @@ declare module '@tanstack/react-router' {
       path: '/app/sdr/novo-lead'
       fullPath: '/app/sdr/novo-lead'
       preLoaderRoute: typeof AuthenticatedAppSdrNovoLeadRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
   }
 }
+
+interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAppSdrNovoLeadRoute: typeof AuthenticatedAppSdrNovoLeadRoute
+}
+
+const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAppSdrNovoLeadRoute: AuthenticatedAppSdrNovoLeadRoute,
+}
+
+const AuthenticatedRouteRouteWithChildren =
+  AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
 
 interface AppAgendaRouteChildren {
   AppAgendaIdRoute: typeof AppAgendaIdRoute
@@ -1478,10 +1503,10 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
   ApiNomusTestRoute: ApiNomusTestRoute,
-  AuthenticatedAppSdrNovoLeadRoute: AuthenticatedAppSdrNovoLeadRoute,
   ApiPublicHooksNomusCronRoute: ApiPublicHooksNomusCronRoute,
   ApiPublicLeadsSiteRoute: ApiPublicLeadsSiteRoute,
   ApiPublicNomusExhaustiveProbeRoute: ApiPublicNomusExhaustiveProbeRoute,
@@ -1493,3 +1518,12 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}
