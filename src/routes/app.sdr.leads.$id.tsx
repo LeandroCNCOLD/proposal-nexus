@@ -134,6 +134,10 @@ function LeadDetailPage() {
           <Button size="sm" variant="outline" onClick={() => setEditOpen(true)} className="gap-2">
             <Pencil className="h-4 w-4" /> Editar lead
           </Button>
+          <Button size="sm" variant="outline" onClick={() => setCloseOpen(true)}
+            className="gap-2 text-destructive border-destructive/40 hover:bg-destructive/10">
+            <XCircle className="h-4 w-4" /> Marcar Perdida/Cancelada
+          </Button>
           {(lead as any).handoff_status === 'transferred' ? (
             <Badge className="bg-emerald-100 text-emerald-800 gap-1"><CheckCircle2 className="h-3 w-3" />Transferido para {(lead as any).transferred_to_seller_name ?? 'vendedor'}</Badge>
           ) : (
@@ -147,6 +151,8 @@ function LeadDetailPage() {
       </div>
       <TransferToSellerDialog open={transferOpen} onOpenChange={setTransferOpen} leadId={id} leadLabel={lead.client_name} />
       <LeadEditDialog open={editOpen} onOpenChange={setEditOpen} leadId={id} lead={lead} />
+      <CloseSdrLeadProposalDialog open={closeOpen} onOpenChange={setCloseOpen} leadId={id} leadLabel={lead.client_name} />
+
 
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
