@@ -8945,6 +8945,7 @@ export type Database = {
         | "admin"
         | "coldpro"
         | "sdr"
+        | "marketing"
       productivity_visibility: "private" | "shared"
       proposal_source: "nomus" | "manual"
       proposal_status:
@@ -9125,6 +9126,7 @@ export const Constants = {
         "admin",
         "coldpro",
         "sdr",
+        "marketing",
       ],
       productivity_visibility: ["private", "shared"],
       proposal_source: ["nomus", "manual"],
