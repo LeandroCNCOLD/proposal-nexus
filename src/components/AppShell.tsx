@@ -54,6 +54,12 @@ import { cn } from "@/lib/utils";
 import { NotificationBell } from "@/components/NotificationBell";
 
 const NAV = [
+  { group: "Produtividade", items: [
+    { to: "/app/produtividade", label: "Painel de Produtividade", icon: LayoutDashboard, exact: true },
+    { to: "/app/agenda", label: "Agenda", icon: Calendar },
+    { to: "/app/tarefas", label: "Tarefas & Follow-up", icon: CheckSquare },
+    { to: "/app/atividades", label: "Minhas Atividades", icon: ListChecks },
+  ]},
   { group: "SDR — Pré-Venda", items: [
     { to: "/app/sdr/bank", label: "Banco de Leads", icon: Database },
     { to: "/app/sdr/wallet", label: "Minha Carteira", icon: Briefcase },
@@ -69,9 +75,6 @@ const NAV = [
     { to: "/app/crm", label: "Funil / CRM", icon: Kanban },
     { to: "/app/propostas", label: "Propostas", icon: FileText },
     { to: "/app/propostas/pedidos-nf", label: "Pedidos & NF", icon: FileCheck2 },
-    { to: "/app/agenda", label: "Agenda", icon: Calendar },
-    { to: "/app/tarefas", label: "Tarefas & Follow-up", icon: CheckSquare },
-    { to: "/app/atividades", label: "Minhas Atividades", icon: ListChecks },
     { to: "/app/relatorios", label: "Relatórios de Vendas", icon: FileBarChart },
     { to: "/app/dashboard-geral", label: "Dashboard Geral", icon: BarChart2 },
     { to: "/app/crm/closers-performance", label: "Desempenho dos Closers", icon: BarChart2 },
@@ -96,6 +99,7 @@ const NAV = [
     { to: "/app/configuracoes", label: "Configurações", icon: Settings, exact: true },
   ]},
 ];
+
 
 function NavItem({ to, label, icon: Icon, exact }: { to: string; label: string; icon: any; exact?: boolean }) {
   const { pathname } = useLocation();
