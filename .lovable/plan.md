@@ -1,79 +1,92 @@
 ## Objetivo
 
-Reorganizar a navegação do sistema em 5 grupos claros (SDR | Vendas | Relatórios | Operação | Sistema), com Cobertura de Carteira aparecendo em SDR e em Relatórios, e criar uma página consolidada `/app/sdr/relatorios` reunindo as métricas de pré-venda.
+Tornar o Kanban um instrumento de **comunicação**, não só de movimentação. Hoje as 5 colunas dizem onde o lead está, mas não respondem rápido a: "o que devo fazer agora?", "o vendedor já assumiu?", "este lead está parado?", "como combinamos a próxima conversa?".
 
-## 1. Sidebar — nova estrutura (`src/components/AppShell.tsx`)
+## 1. Refinar as colunas
 
-Reordenar e reagrupar os itens já existentes. Nada é removido, só remanejado:
+Atuais: Não Contatado · Contatado–Aguardando Retorno · Reunião Agendada · Em Negociação (Vendedor) · Encerrados.
 
-**SDR — Pré-Venda**
-- Banco de Leads
-- Minha Carteira
-- War Room — Reunião Diária
-- Hot Leads
-- Scripts de Ligação
-- Cobertura de Carteira *(atalho)*
-- Relatórios SDR *(nova rota)*
-- Desempenho dos SDRs
+Proposta:
 
-**Vendas**
-- Minha Carteira (Vendas)
-- Funil / CRM
-- Propostas
-- Pedidos & NF
-- Agenda
-- Tarefas & Follow-up
-- Minhas Atividades
-- Desempenho dos Closers
+```text
+Não Contatado → Tentativas (1ª, 2ª, 3ª) → Aguardando Retorno → Reunião Agendada
+   → Reunião Realizada → Transferido p/ Vendedor → Em Negociação → Ganho / Perdido
+```
 
-**Relatórios** *(novo grupo)*
-- Dashboard Geral
-- Relatórios (geral)
-- Cobertura de Carteira *(entrada principal)*
-- Desempenho dos SDRs
-- Desempenho dos Closers
-- Relatórios SDR
+- **Tentativas**: separa "nunca liguei" de "liguei e não atendeu N vezes". Muda a cor da call-to-action e dispara alerta de "esfriando" no 3º não-atende.
+- **Reunião Realizada**: estado intermediário antes da transferência — força o SDR a registrar o resultado.
+- **Transferido p/ Vendedor**: handoff explícito. SDR vê em "somente leitura"; vendedor recebe o card no funil dele.
+- **Ganho / Perdido** substitui "Encerrados" para alimentar métricas e motivos de perda.
 
-**Operação**
-- Dashboard (home `/app`)
-- Gestão de Atividades
-- Clientes, Concorrentes, Equipamentos
-- ColdPro, Produtos Ashrae, Catálogo ColdPro
+## 2. Card mais comunicativo
 
-**Sistema**
-- Aprovações
-- Templates de Proposta
-- Integração Nomus
-- Catálogo API Nomus
-- Configurações
+Adicionar no card, além do que já existe:
 
-**Gestão** (mantida, só para admin/diretoria/gerente_comercial): Carteiras da equipe, Auditoria SDR, Alertas de Tentativas, Usuários.
+- **Selo de temperatura visual** com borda colorida (Frio cinza, Morno âmbar, Quente vermelho) — leitura periférica.
+- **"Próxima ação"** em destaque: ex. *"Ligar até 14h — 2ª tentativa"*, *"Reunião 16/12 09h"*.
+- **Tempo na coluna** ("3d parado") com cor crescendo conforme SLA estourado.
+- **Último contato** (data + canal: ☎️📧💬) — saber quando foi a última troca real.
+- **Dono atual** (avatar SDR / vendedor) — quem está com a bola.
+- **Indicador de mensagem não lida** quando o vendedor ou SDR comentou e o outro lado não viu.
 
-Observação: itens duplicados entre grupos (Cobertura, Desempenho SDR/Closers) usam o mesmo `to`, então o highlight de rota ativa continua funcionando.
+## 3. Ações rápidas no card (sem abrir o lead)
 
-## 2. Nova rota `/app/sdr/relatorios` consolidada
+Botões em hover/menu:
 
-Arquivo: `src/routes/app.sdr.relatorios.tsx`
+- **Ligar agora** (já existe) + **registrar resultado em 1 clique**: atendeu / não atendeu / caixa postal / agendar callback.
+- **Agendar reunião** (mini-form: data, hora, vendedor convidado).
+- **Transferir para vendedor** (dropdown com os vendedores; gera handoff oficial + notifica).
+- **Comentar** (mini-chat ancorado no lead, visível para SDR e vendedor).
+- **Snooze**: tirar do topo até X data (não some, só re-prioriza).
 
-Página com abas reunindo o que já existe + um resumo:
+## 4. Handoff SDR → Vendedor
 
-- **Visão Geral** — KPIs do SDR (leads ativos, contatados na semana, taxa de cobertura, hot leads abertos) puxando dos services já existentes (`services-cobertura`, hot deals, sdr performance).
-- **Cobertura** — embute `<CoberturaCarteira />`.
-- **Desempenho SDRs** — embute o conteúdo da página atual `app.sdr.sdr-performance.tsx`.
-- **Hot Leads** — embute lista de `app.sdr.hot-deals.tsx`.
-- **Funil de Pré-Venda** — distribuição de leads por `sdr_status` (gráfico simples a partir de `sdr_leads`).
+Hoje a transição "vira do vendedor" não é explícita. Plano:
 
-Implementação: extrair o conteúdo das páginas existentes para componentes reutilizáveis caso ainda estejam inline, ou simplesmente importar o componente já exportado. Sem alteração nas páginas originais — elas continuam acessíveis.
+- Ao mover para *Reunião Agendada* ou *Em Negociação*, abrir um diálogo de **handoff**: vendedor responsável, resumo do lead, anexos relevantes, próxima ação.
+- O lead aparece no Kanban do vendedor em uma coluna **"Recebidos do SDR"** com badge "novo".
+- O SDR continua vendo, mas o card fica em **modo monitoramento** (somente leitura + comentários). Hoje já existe a flag "somente leitura sugerida" — virar definitiva nesta etapa.
+- Linha do tempo do lead registra quem transferiu, quando e por quê.
 
-## 3. Detalhes técnicos
+## 5. Comunicação contínua no lead
 
-- Apenas `AppShell.tsx` é editado para a sidebar.
-- Nova rota: `src/routes/app.sdr.relatorios.tsx` usando `createFileRoute("/app/sdr/relatorios")`, layout com `Tabs` do shadcn.
-- Reaproveita componentes existentes: `CoberturaCarteira` (`src/modules/crm/components/CoberturaCarteira.tsx`), e o que já estiver exportado de `app.sdr.sdr-performance.tsx` / `app.sdr.hot-deals.tsx`. Se o conteúdo dessas rotas só existir como `component` interno, crio um componente irmão `*.view.tsx` exportado e a rota passa a renderizá-lo (sem mudar a URL ou comportamento).
-- `routeTree.gen.ts` é regenerado automaticamente.
+- **Thread de comentários** por lead, com @menção (SDR pode chamar o vendedor e vice-versa).
+- **Atualizações automáticas** do sistema entram na mesma thread ("Reunião reagendada para 18/12", "Proposta enviada", "Nota fiscal emitida") — uma única linha do tempo.
+- **Notificações** no sino quando: SDR é mencionado, vendedor comenta no lead transferido, reunião confirmada/recusada, SLA estourando.
 
-## 4. Fora de escopo
+## 6. Sinais de saúde
 
-- Não mexer em lógica de negócio, RLS, ou banco.
-- Não renomear rotas existentes (URLs continuam iguais).
-- Não criar novos relatórios além da consolidação acima.
+Cabeçalho de cada coluna ganha um chip de saúde:
+
+- *X parados há +SLA dias* (vermelho)
+- *Y reuniões a confirmar hoje*
+- *Z aguardando retorno do vendedor*
+
+E uma faixa no topo do Kanban com "**foco de hoje**": cards que precisam de ação nas próximas 4h (ordenados por urgência × valor).
+
+## 7. Filtros e visões
+
+- Filtro por **dono** (SDR / vendedor / qualquer).
+- Filtro **"esperando minha ação"** vs **"esperando ação do outro"** — resolve "estou esperando o vendedor responder".
+- Filtro por **canal** do último contato (ligação não atende vs WhatsApp respondido).
+- Visão **timeline** alternativa (gantt simples) para ver compromissos da semana.
+
+## Detalhes técnicos
+
+Para o agente implementar (não precisa entrar no plano que o usuário lê, mas fica registrado):
+
+- Estágios novos no enum `sdr_lead_stage` em `src/modules/sdr/types.ts` + migração: adicionar `Reunião Realizada`, `Transferido p/ Vendedor`, `Ganho`, `Perdido` (manter compat com `Encerrados`).
+- Tabela `sdr_lead_handoffs` (lead_id, sdr_id, vendedor_id, motivo, resumo, criado_em).
+- Tabela `sdr_lead_comments` (lead_id, autor_id, body, mentions[], lido_por[]) para a thread.
+- Card: novo componente `LeadCardActions` com hover-menu; computar `tempoNaColuna`, `nextActionLabel`, `lastContactChannel` no serviço.
+- Sino: novo tipo de notificação `lead_comment_mention` e `handoff_received`.
+- Coluna de saúde calculada via aggregate por SDR/coluna no `services.ts`.
+
+## Faseamento sugerido
+
+1. Card mais rico (temperatura visual, tempo na coluna, próxima ação, dono).
+2. Handoff explícito + coluna "Transferido p/ Vendedor" + visão de monitoramento.
+3. Comentários + notificações + filtros "esperando minha ação".
+4. Sinais de saúde nas colunas e faixa de "foco de hoje".
+
+Posso começar pela fase 1, ou você prefere priorizar o handoff (fase 2) primeiro?

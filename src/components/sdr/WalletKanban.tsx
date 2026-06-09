@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { DndContext, PointerSensor, useSensor, useSensors, useDroppable, type DragEndEvent } from '@dnd-kit/core'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { ChevronDown, ChevronUp } from 'lucide-react'
+import { ChevronDown, ChevronUp, AlertCircle, Flame, Inbox } from 'lucide-react'
 import { toast } from 'sonner'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -9,12 +9,13 @@ import { Button } from '@/components/ui/button'
 import { updatePipelineField, unlockLead } from '@/modules/sdr/services'
 import type { CrmPipeline, SdrStatus, Temperature } from '@/modules/sdr/types'
 import { useProposalLeadMatches } from '@/hooks/use-proposal-lead-matches'
-import { WalletKanbanCard, type KanbanCardActions } from './WalletKanbanCard'
+import { WalletKanbanCard, computeSignals, type KanbanCardActions, type LeadCommSignals } from './WalletKanbanCard'
 import { MeetingScheduleQuickDialog } from './MeetingScheduleQuickDialog'
 import { CloseLeadDialog } from './CloseLeadDialog'
 import { TransferToSellerDialog } from './TransferToSellerDialog'
 import { LeadEditDialog } from './LeadEditDialog'
 import { TransferLeadDialog } from '@/components/manager/TransferLeadDialog'
+
 
 type ColumnKey = 'nao_contatado' | 'contatado' | 'reuniao' | 'vendedor' | 'encerrados'
 
@@ -49,18 +50,23 @@ function fmtBRL(v: number) {
 function Column({
   col,
   leads,
+  signalsByLead,
   collapsed,
   toggleCollapsed,
   renderCard,
 }: {
   col: Column
   leads: LeadWithExtras[]
+  signalsByLead: Map<string, LeadCommSignals>
   collapsed: boolean
   toggleCollapsed: () => void
   renderCard: (lead: LeadWithExtras) => React.ReactNode
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: col.key })
   const total = leads.reduce((s, l) => s + (l.value || 0), 0)
+  const staleCount = leads.filter(l => signalsByLead.get(l.id)?.isStale).length
+  const urgentCount = leads.filter(l => signalsByLead.get(l.id)?.isUrgent).length
+  const myTurnCount = leads.filter(l => signalsByLead.get(l.id)?.waitingOn === 'me').length
 
   return (
     <div className="flex flex-col min-w-[280px] w-[280px] bg-muted/40 rounded-lg border">
@@ -78,6 +84,25 @@ function Column({
         <div className="text-[11px] text-muted-foreground mt-0.5">
           {fmtBRL(total)}{col.hint ? ` · ${col.hint}` : ''}
         </div>
+        {(staleCount > 0 || urgentCount > 0 || myTurnCount > 0) && (
+          <div className="mt-1.5 flex items-center gap-1 flex-wrap">
+            {staleCount > 0 && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-red-50 text-red-700 px-1.5 py-0.5 text-[10px] font-medium">
+                <AlertCircle className="w-3 h-3" /> {staleCount} parados
+              </span>
+            )}
+            {urgentCount > 0 && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 text-amber-800 px-1.5 py-0.5 text-[10px] font-medium">
+                <Flame className="w-3 h-3" /> {urgentCount} urgentes
+              </span>
+            )}
+            {myTurnCount > 0 && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 text-blue-700 px-1.5 py-0.5 text-[10px] font-medium">
+                <Inbox className="w-3 h-3" /> {myTurnCount} sua vez
+              </span>
+            )}
+          </div>
+        )}
       </div>
       {!collapsed && (
         <div
@@ -98,6 +123,7 @@ function Column({
     </div>
   )
 }
+
 
 export function WalletKanban({
   leads,
@@ -120,6 +146,7 @@ export function WalletKanban({
 
   const [search, setSearch] = useState('')
   const [tempFilter, setTempFilter] = useState<'all' | Temperature>('all')
+  const [actionFilter, setActionFilter] = useState<'all' | 'me' | 'other' | 'stale'>('all')
   const [collapsed, setCollapsed] = useState<Record<ColumnKey, boolean>>(() => {
     const init = {} as Record<ColumnKey, boolean>
     COLUMNS.forEach(c => { init[c.key] = !!c.collapsedByDefault })
@@ -129,10 +156,20 @@ export function WalletKanban({
   const leadIds = useMemo(() => leads.map(l => l.id), [leads])
   const { byLead: proposalMatches } = useProposalLeadMatches({ leadIds })
 
+  const signalsByLead = useMemo(() => {
+    const m = new Map<string, LeadCommSignals>()
+    ;(leads as LeadWithExtras[]).forEach(l => m.set(l.id, computeSignals(l)))
+    return m
+  }, [leads])
+
   const filtered = useMemo(() => {
     const s = search.trim().toLowerCase()
     return (leads as LeadWithExtras[]).filter(l => {
       if (tempFilter !== 'all' && l.temperature !== tempFilter) return false
+      const sig = signalsByLead.get(l.id)
+      if (actionFilter === 'me' && sig?.waitingOn !== 'me') return false
+      if (actionFilter === 'other' && sig?.waitingOn !== 'other') return false
+      if (actionFilter === 'stale' && !sig?.isStale) return false
       if (!s) return true
       return (
         l.client_name?.toLowerCase().includes(s) ||
@@ -141,7 +178,15 @@ export function WalletKanban({
         l.razao_social?.toLowerCase().includes(s)
       )
     })
-  }, [leads, search, tempFilter])
+  }, [leads, search, tempFilter, actionFilter, signalsByLead])
+
+  const focusLeads = useMemo(() => {
+    return (leads as LeadWithExtras[])
+      .filter(l => signalsByLead.get(l.id)?.isUrgent || signalsByLead.get(l.id)?.isStale)
+      .sort((a, b) => (b.value || 0) - (a.value || 0))
+      .slice(0, 5)
+  }, [leads, signalsByLead])
+
 
   const byColumn = useMemo(() => {
     const map = new Map<ColumnKey, LeadWithExtras[]>()
@@ -234,8 +279,17 @@ export function WalletKanban({
             <SelectItem value="Muito Quente">Muito Quente</SelectItem>
           </SelectContent>
         </Select>
-        {(search || tempFilter !== 'all') && (
-          <Button variant="ghost" size="sm" onClick={() => { setSearch(''); setTempFilter('all') }}>
+        <Select value={actionFilter} onValueChange={(v) => setActionFilter(v as typeof actionFilter)}>
+          <SelectTrigger className="h-8 w-48"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas as ações</SelectItem>
+            <SelectItem value="me">Esperando minha ação</SelectItem>
+            <SelectItem value="other">Esperando outro lado</SelectItem>
+            <SelectItem value="stale">Parados (SLA estourado)</SelectItem>
+          </SelectContent>
+        </Select>
+        {(search || tempFilter !== 'all' || actionFilter !== 'all') && (
+          <Button variant="ghost" size="sm" onClick={() => { setSearch(''); setTempFilter('all'); setActionFilter('all') }}>
             Limpar
           </Button>
         )}
@@ -243,6 +297,33 @@ export function WalletKanban({
           Arraste o card para mudar de etapa
         </span>
       </div>
+
+      {/* Foco de hoje */}
+      {focusLeads.length > 0 && (
+        <div className="rounded-lg border bg-amber-50/60 border-amber-200 p-2.5">
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-900 mb-1.5">
+            <Flame className="w-3.5 h-3.5" /> Foco de hoje · {focusLeads.length} card{focusLeads.length === 1 ? '' : 's'} pedindo ação
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            {focusLeads.map(l => {
+              const sig = signalsByLead.get(l.id)
+              return (
+                <button
+                  key={l.id}
+                  onClick={() => setScriptLead(l)}
+                  className="inline-flex items-center gap-1.5 rounded-md border bg-card px-2 py-1 text-[11px] hover:border-amber-400 hover:bg-amber-50"
+                >
+                  <span className="font-semibold truncate max-w-[180px]">{l.client_name}</span>
+                  <span className="text-muted-foreground">·</span>
+                  <span className={sig?.isStale ? 'text-red-600' : 'text-amber-700'}>
+                    {sig?.nextActionLabel ?? 'agir'}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Kanban */}
       <DndContext sensors={sensors} onDragEnd={onDragEnd}>
@@ -252,6 +333,7 @@ export function WalletKanban({
               key={col.key}
               col={col}
               leads={byColumn.get(col.key) ?? []}
+              signalsByLead={signalsByLead}
               collapsed={collapsed[col.key]}
               toggleCollapsed={() => setCollapsed(s => ({ ...s, [col.key]: !s[col.key] }))}
               renderCard={(lead) => (
@@ -260,12 +342,14 @@ export function WalletKanban({
                   lead={lead}
                   actions={actions}
                   hasProposal={!!proposalMatches.get(lead.id)}
+                  signals={signalsByLead.get(lead.id)}
                 />
               )}
             />
           ))}
         </div>
       </DndContext>
+
 
       {/* Diálogos */}
       {scriptLead && (
