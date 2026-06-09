@@ -137,12 +137,20 @@ function SdrPerformancePage() {
                         <span className="font-semibold">{goalPct}%</span>
                       </div>
                       <Progress value={Math.min(goalPct, 100)} className="h-1.5" />
-                      <p className="text-[10px] text-muted-foreground mt-1">
-                        {sdr.attemptsDay} tentativas sem contato (não contam para a meta)
-                      </p>
+                      <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-muted-foreground mt-1">
+                        <span>{sdr.attemptsDay} tentativas sem contato</span>
+                        <span>·</span>
+                        <span>
+                          Taxa de contato: <strong>{totalCalls ? Math.round((sdr.completedDay / totalCalls) * 100) : 0}%</strong>
+                        </span>
+                        <span>·</span>
+                        <span>
+                          {sdr.completedDay ? (totalCalls / sdr.completedDay).toFixed(1) : '—'} ligações por contato
+                        </span>
+                      </div>
                     </div>
                     <div className="text-[11px] text-muted-foreground">
-                      Meta mensal: <strong>{sdr.completedMonth} / {MONTHLY_GOAL}</strong> atendidas
+                      Meta mensal: <strong>{sdr.completedMonth} / {MONTHLY_GOAL}</strong> atendidas · {sdr.attemptsMonth} tentativas no mês
                     </div>
                     {isManager && userId && (
                       <div className="text-[11px] text-blue-700 font-medium border-t pt-2">
