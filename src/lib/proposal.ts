@@ -70,6 +70,7 @@ export const ROLE_LABELS: Record<AppRole, string> = {
   diretoria: "Diretoria",
   administrativo: "Administrativo",
   admin: "Administrador",
+  marketing: "Marketing",
 };
 
 export const ALL_STATUSES = Object.keys(STATUS_LABELS) as ProposalStatus[];

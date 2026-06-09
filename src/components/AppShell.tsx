@@ -22,7 +22,7 @@ import {
   FileBarChart, FileCheck2, FolderUp, Settings, LogOut,
   Search, Bell, Snowflake, ChevronDown, CheckSquare, PlugZap, Database,
   LayoutTemplate, Kanban, Thermometer, PackageSearch,
-  Zap, Flame, BarChart2, Briefcase, Calendar, ListChecks, PieChart,
+  Zap, Flame, BarChart2, Briefcase, Calendar, ListChecks, PieChart, Megaphone, Plus,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { ROLE_LABELS } from "@/lib/proposal";
@@ -59,6 +59,12 @@ const NAV = [
     { to: "/app/agenda", label: "Agenda", icon: Calendar },
     { to: "/app/tarefas", label: "Tarefas & Follow-up", icon: CheckSquare },
     { to: "/app/atividades", label: "Minhas Atividades", icon: ListChecks },
+  ]},
+  { group: "Marketing", items: [
+    { to: "/app/marketing", label: "Dashboard Marketing", icon: LayoutDashboard, exact: true },
+    { to: "/app/marketing/kanban", label: "Kanban de Leads", icon: Kanban },
+    { to: "/app/marketing/leads", label: "Lista de Leads", icon: Megaphone },
+    { to: "/app/marketing/novo", label: "Cadastrar Lead", icon: Plus },
   ]},
   { group: "SDR — Pré-Venda", items: [
    { to: "/app/sdr/novo-lead", label: "Novo lead (site / telefone)", icon: Flame },
