@@ -64,26 +64,42 @@ function MarketingLeadsListPage() {
   }
   return (
     <div className="p-6 space-y-3">
+      <div className="flex items-center gap-2 border-b">
+        <button
+          type="button"
+          onClick={() => setTab("ativos")}
+          className={`px-3 py-2 text-sm font-medium border-b-2 ${tab === "ativos" ? "border-primary text-primary" : "border-transparent text-muted-foreground"}`}
+        >Ativos</button>
+        <button
+          type="button"
+          onClick={() => setTab("arquivados")}
+          className={`px-3 py-2 text-sm font-medium border-b-2 ${tab === "arquivados" ? "border-primary text-primary" : "border-transparent text-muted-foreground"}`}
+        >Arquivados (descartados)</button>
+        <Link to="/app/marketing/remarketing" className="ml-auto text-xs text-primary hover:underline">
+          Fila de remarketing →
+        </Link>
+      </div>
       <div className="flex flex-wrap gap-2 items-end">
         <div className="w-64">
           <label className="text-xs text-muted-foreground">Buscar</label>
           <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cliente, contato, e-mail, código…" />
         </div>
-        <div className="w-48">
-          <label className="text-xs text-muted-foreground">Status</label>
-          <Select value={status} onValueChange={setStatus}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
-              <SelectItem value="novo">Novo</SelectItem>
-              <SelectItem value="em_analise">Em análise</SelectItem>
-              <SelectItem value="tentando_contato">Tentando contato</SelectItem>
-              <SelectItem value="qualificado">Qualificado</SelectItem>
-              <SelectItem value="convertido">Convertido</SelectItem>
-              <SelectItem value="descartado">Descartado</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+        {tab === "ativos" && (
+          <div className="w-48">
+            <label className="text-xs text-muted-foreground">Status</label>
+            <Select value={status} onValueChange={setStatus}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos (exceto descartado)</SelectItem>
+                <SelectItem value="novo">Novo</SelectItem>
+                <SelectItem value="em_analise">Em análise</SelectItem>
+                <SelectItem value="tentando_contato">Tentando contato</SelectItem>
+                <SelectItem value="qualificado">Qualificado</SelectItem>
+                <SelectItem value="convertido">Convertido</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
       </div>
 
       {isLoading ? (
