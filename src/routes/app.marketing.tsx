@@ -1,6 +1,6 @@
 import { createFileRoute, Link, Outlet, useLocation } from "@tanstack/react-router";
 import { useAuth } from "@/hooks/useAuth";
-import { Megaphone, LayoutDashboard, Kanban, Plus, Settings } from "lucide-react";
+import { Megaphone, LayoutDashboard, Kanban, Plus, Settings, Briefcase } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/app/marketing")({
@@ -24,8 +24,9 @@ function MarketingLayout() {
   const tabs = [
     { to: "/app/marketing", label: "Dashboard", icon: LayoutDashboard, exact: true },
     { to: "/app/marketing/kanban", label: "Kanban", icon: Kanban },
-    { to: "/app/marketing/leads", label: "Lista de leads", icon: Megaphone },
-    { to: "/app/marketing/novo", label: "Novo lead", icon: Plus },
+    { to: "/app/marketing/leads", label: "Banco de Leads de Marketing", icon: Megaphone },
+    { to: "/app/marketing/wallet", label: "Minha Carteira de Marketing", icon: Briefcase },
+    { to: "/app/marketing/novo", label: "Registrar Lead Recebido", icon: Plus },
     ...(isManager ? [{ to: "/app/marketing/config", label: "Configurar pontuação", icon: Settings }] : []),
   ];
   return (
