@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Plus, Phone, CalendarCheck, Flame, CheckCircle2 } from 'lucide-react'
+import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from 'recharts'
 import { SDR_DAILY_GOAL, type CrmCallLog } from '@/modules/sdr/types'
 import { useSdrNames } from '@/modules/sdr/hooks/use-team-members'
 import { useAuth } from '@/hooks/useAuth'
@@ -78,6 +79,36 @@ function SdrPerformancePage() {
   }, [data, sdrNames])
 
   const ranking = useMemo(() => [...aggs].sort((a, b) => b.completedMonth - a.completedMonth), [aggs])
+
+  // Série diária por SDR (mês corrente) para o gráfico de curva de rendimento
+  const dailySeriesByName = useMemo(() => {
+    const out = new Map<string, Array<{ date: string; label: string; ligacoes: number; atendidas: number; reunioes: number; quentes: number }>>()
+    // gera todos os dias do início do mês até hoje
+    const start = new Date(monthStartISO())
+    const today = new Date(todayISO())
+    const days: string[] = []
+    for (let d = new Date(start); d <= today; d.setDate(d.getDate() + 1)) {
+      days.push(d.toISOString().slice(0, 10))
+    }
+    for (const n of sdrNames) {
+      out.set(n, days.map(date => ({
+        date,
+        label: date.slice(8, 10) + '/' + date.slice(5, 7),
+        ligacoes: 0, atendidas: 0, reunioes: 0, quentes: 0,
+      })))
+    }
+    for (const l of data?.month ?? []) {
+      const series = out.get(l.sdr_name)
+      if (!series) continue
+      const row = series.find(r => r.date === l.call_date)
+      if (!row) continue
+      if (l.result) row.ligacoes++
+      if (l.result?.startsWith('Atendeu')) row.atendidas++
+      if (l.meeting_booked) row.reunioes++
+      if (l.temperature_after === 'Quente' || l.temperature_after === 'Muito Quente') row.quentes++
+    }
+    return out
+  }, [data, sdrNames])
 
   return (
     <div className="p-6 space-y-6">
@@ -152,6 +183,27 @@ function SdrPerformancePage() {
                     <div className="text-[11px] text-muted-foreground">
                       Meta mensal: <strong>{sdr.completedMonth} / {MONTHLY_GOAL}</strong> atendidas · {sdr.attemptsMonth} tentativas no mês
                     </div>
+
+                    {/* Curva diária de rendimento do mês */}
+                    <div className="border-t pt-3">
+                      <p className="text-[11px] font-semibold text-muted-foreground mb-1">Curva diária (mês)</p>
+                      <div className="h-32">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <LineChart data={dailySeriesByName.get(sdr.name) ?? []} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                            <XAxis dataKey="label" tick={{ fontSize: 9 }} interval="preserveStartEnd" />
+                            <YAxis tick={{ fontSize: 9 }} allowDecimals={false} width={28} />
+                            <Tooltip contentStyle={{ fontSize: 11, padding: '4px 8px' }} />
+                            <Legend wrapperStyle={{ fontSize: 9 }} iconSize={8} />
+                            <Line type="monotone" dataKey="ligacoes" name="Ligações" stroke="#94a3b8" strokeWidth={1.5} dot={false} />
+                            <Line type="monotone" dataKey="atendidas" name="Atendidas" stroke="#2563eb" strokeWidth={2} dot={false} />
+                            <Line type="monotone" dataKey="reunioes" name="Reuniões" stroke="#16a34a" strokeWidth={2} dot={false} />
+                            <Line type="monotone" dataKey="quentes" name="Quentes" stroke="#ea580c" strokeWidth={1.5} dot={false} />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+
                     {isManager && userId && (
                       <div className="text-[11px] text-blue-700 font-medium border-t pt-2">
                         Clique para ver a carteira e o histórico →
