@@ -204,6 +204,16 @@ function SdrPerformancePage() {
                       </div>
                     </div>
 
+                    {isManager && userId && (
+                      <div className="text-[11px] text-blue-700 font-medium border-t pt-2">
+                        Clique para ver a carteira e o histórico →
+                      </div>
+                    )}
+                    {totalCalls === 0 && (
+                      <p className="text-[11px] text-muted-foreground italic border-t pt-2">
+                        Nenhuma ligação registrada hoje
+                      </p>
+                    )}
                   </CardContent>
                 </Card>
               )
