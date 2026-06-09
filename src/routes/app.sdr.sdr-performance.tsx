@@ -80,6 +80,36 @@ function SdrPerformancePage() {
 
   const ranking = useMemo(() => [...aggs].sort((a, b) => b.completedMonth - a.completedMonth), [aggs])
 
+  // Série diária por SDR (mês corrente) para o gráfico de curva de rendimento
+  const dailySeriesByName = useMemo(() => {
+    const out = new Map<string, Array<{ date: string; label: string; ligacoes: number; atendidas: number; reunioes: number; quentes: number }>>()
+    // gera todos os dias do início do mês até hoje
+    const start = new Date(monthStartISO())
+    const today = new Date(todayISO())
+    const days: string[] = []
+    for (let d = new Date(start); d <= today; d.setDate(d.getDate() + 1)) {
+      days.push(d.toISOString().slice(0, 10))
+    }
+    for (const n of sdrNames) {
+      out.set(n, days.map(date => ({
+        date,
+        label: date.slice(8, 10) + '/' + date.slice(5, 7),
+        ligacoes: 0, atendidas: 0, reunioes: 0, quentes: 0,
+      })))
+    }
+    for (const l of data?.month ?? []) {
+      const series = out.get(l.sdr_name)
+      if (!series) continue
+      const row = series.find(r => r.date === l.call_date)
+      if (!row) continue
+      if (l.result) row.ligacoes++
+      if (l.result?.startsWith('Atendeu')) row.atendidas++
+      if (l.meeting_booked) row.reunioes++
+      if (l.temperature_after === 'Quente' || l.temperature_after === 'Muito Quente') row.quentes++
+    }
+    return out
+  }, [data, sdrNames])
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-start justify-between gap-4 flex-wrap">
