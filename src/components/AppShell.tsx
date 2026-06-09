@@ -63,13 +63,13 @@ const NAV = [
   { group: "Marketing", items: [
     { to: "/app/marketing", label: "Dashboard Marketing", icon: LayoutDashboard, exact: true },
     { to: "/app/marketing/kanban", label: "Kanban de Leads", icon: Kanban },
-    { to: "/app/marketing/leads", label: "Lista de Leads", icon: Megaphone },
-    { to: "/app/marketing/novo", label: "Cadastrar Lead", icon: Plus },
+    { to: "/app/marketing/leads", label: "Banco de Leads de Marketing", icon: Megaphone },
+    { to: "/app/marketing/wallet", label: "Minha Carteira de Marketing", icon: Briefcase },
+    { to: "/app/marketing/novo", label: "Registrar Lead Recebido", icon: Plus },
   ]},
   { group: "SDR — Pré-Venda", items: [
-   { to: "/app/sdr/novo-lead", label: "Novo lead (site / telefone)", icon: Flame },
-   { to: "/app/sdr/bank", label: "Banco de Leads", icon: Database },
-   { to: "/app/sdr/wallet", label: "Minha Carteira", icon: Briefcase },
+   { to: "/app/sdr/bank", label: "Banco de Leads Qualificados", icon: Database },
+   { to: "/app/sdr/wallet", label: "Minha Carteira de Leads Qualificados", icon: Briefcase },
    { to: "/app/sdr/war-room", label: "War Room — Reunião Diária", icon: Zap },
    { to: "/app/sdr/hot-deals", label: "Hot Leads", icon: Flame },
    { to: "/app/sdr/scripts", label: "Scripts de Ligação", icon: FileText },

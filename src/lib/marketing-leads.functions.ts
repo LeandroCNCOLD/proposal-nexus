@@ -54,7 +54,52 @@ export type MarketingLeadRow = {
   received_at: string;
   created_at: string;
   updated_at: string;
+  locked_by_sdr_id?: string | null;
+  locked_by_sdr_name?: string | null;
+  locked_at?: string | null;
+  lock_expires_at?: string | null;
 };
+
+export const claimMarketingLead = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ lead_id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase.rpc("claim_marketing_lead" as never, { _lead_id: data.lead_id } as never);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const releaseMarketingLead = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ lead_id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase.rpc("release_marketing_lead" as never, { _lead_id: data.lead_id } as never);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const renewMarketingLeadLock = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ lead_id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase.rpc("renew_marketing_lead_lock" as never, { _lead_id: data.lead_id } as never);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const listMyMarketingWallet = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<MarketingLeadRow[]> => {
+    const { data, error } = await context.supabase
+      .from("marketing_leads" as never)
+      .select("*")
+      .eq("locked_by_sdr_id" as never, context.userId as never)
+      .gt("lock_expires_at" as never, new Date().toISOString() as never)
+      .order("locked_at" as never, { ascending: false })
+      .limit(500);
+    if (error) throw new Error(error.message);
+    return (data ?? []) as unknown as MarketingLeadRow[];
+  });
 
 export const listMarketingLeads = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
