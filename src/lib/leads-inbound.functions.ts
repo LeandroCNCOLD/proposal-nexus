@@ -26,9 +26,15 @@ export const createInboundLead = createServerFn({ method: "POST" })
     });
   });
 
+export type InboundUnassignedLead = {
+  id: string; lead_code: string; client_name: string; contact_name: string | null;
+  contact_phone: string | null; contact_email: string | null; city: string | null; state: string | null;
+  origem: string; origem_detalhe_json: string | null; received_at: string; internal_note: string | null;
+};
+
 export const listInboundUnassignedLeads = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .handler(async ({ context }): Promise<InboundUnassignedLead[]> => {
     const { data, error } = await context.supabase
       .from("sdr_leads")
       .select("id, lead_code, client_name, contact_name, contact_phone, contact_email, city, state, origem, origem_detalhe, received_at, internal_note")
@@ -37,11 +43,20 @@ export const listInboundUnassignedLeads = createServerFn({ method: "GET" })
       .order("received_at" as never, { ascending: true })
       .limit(50);
     if (error) throw new Error(error.message);
-    return (data ?? []) as Array<{
-      id: string; lead_code: string; client_name: string; contact_name: string | null;
-      contact_phone: string | null; contact_email: string | null; city: string | null; state: string | null;
-      origem: string; origem_detalhe: Record<string, unknown> | null; received_at: string; internal_note: string | null;
-    }>;
+    return ((data ?? []) as Array<Record<string, unknown>>).map((r) => ({
+      id: String(r.id),
+      lead_code: String(r.lead_code),
+      client_name: String(r.client_name ?? ""),
+      contact_name: (r.contact_name as string | null) ?? null,
+      contact_phone: (r.contact_phone as string | null) ?? null,
+      contact_email: (r.contact_email as string | null) ?? null,
+      city: (r.city as string | null) ?? null,
+      state: (r.state as string | null) ?? null,
+      origem: String(r.origem ?? "site"),
+      origem_detalhe_json: r.origem_detalhe ? JSON.stringify(r.origem_detalhe) : null,
+      received_at: String(r.received_at),
+      internal_note: (r.internal_note as string | null) ?? null,
+    }));
   });
 
 export const listSdrsForAssignment = createServerFn({ method: "GET" })

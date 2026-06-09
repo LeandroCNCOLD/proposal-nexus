@@ -72,6 +72,7 @@ import { Route as ApiPublicNomusTabelaPrecoProbeRouteImport } from './routes/api
 import { Route as ApiPublicNomusTabelaPrecoDeepProbeRouteImport } from './routes/api.public.nomus.tabela-preco-deep-probe'
 import { Route as ApiPublicNomusProdutoProbeRouteImport } from './routes/api.public.nomus.produto-probe'
 import { Route as ApiPublicNomusExhaustiveProbeRouteImport } from './routes/api.public.nomus.exhaustive-probe'
+import { Route as ApiPublicLeadsSiteRouteImport } from './routes/api.public.leads.site'
 import { Route as ApiPublicHooksNomusCronRouteImport } from './routes/api.public.hooks.nomus-cron'
 
 const LoginRoute = LoginRouteImport.update({
@@ -401,6 +402,11 @@ const ApiPublicNomusExhaustiveProbeRoute =
     path: '/api/public/nomus/exhaustive-probe',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicLeadsSiteRoute = ApiPublicLeadsSiteRouteImport.update({
+  id: '/api/public/leads/site',
+  path: '/api/public/leads/site',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicHooksNomusCronRoute = ApiPublicHooksNomusCronRouteImport.update({
   id: '/api/public/hooks/nomus-cron',
   path: '/api/public/hooks/nomus-cron',
@@ -460,6 +466,7 @@ export interface FileRoutesByFullPath {
   '/app/propostas/': typeof AppPropostasIndexRoute
   '/app/sdr/': typeof AppSdrIndexRoute
   '/api/public/hooks/nomus-cron': typeof ApiPublicHooksNomusCronRoute
+  '/api/public/leads/site': typeof ApiPublicLeadsSiteRoute
   '/api/public/nomus/exhaustive-probe': typeof ApiPublicNomusExhaustiveProbeRoute
   '/api/public/nomus/produto-probe': typeof ApiPublicNomusProdutoProbeRoute
   '/api/public/nomus/tabela-preco-deep-probe': typeof ApiPublicNomusTabelaPrecoDeepProbeRoute
@@ -523,6 +530,7 @@ export interface FileRoutesByTo {
   '/app/propostas': typeof AppPropostasIndexRoute
   '/app/sdr': typeof AppSdrIndexRoute
   '/api/public/hooks/nomus-cron': typeof ApiPublicHooksNomusCronRoute
+  '/api/public/leads/site': typeof ApiPublicLeadsSiteRoute
   '/api/public/nomus/exhaustive-probe': typeof ApiPublicNomusExhaustiveProbeRoute
   '/api/public/nomus/produto-probe': typeof ApiPublicNomusProdutoProbeRoute
   '/api/public/nomus/tabela-preco-deep-probe': typeof ApiPublicNomusTabelaPrecoDeepProbeRoute
@@ -590,6 +598,7 @@ export interface FileRoutesById {
   '/app/propostas/': typeof AppPropostasIndexRoute
   '/app/sdr/': typeof AppSdrIndexRoute
   '/api/public/hooks/nomus-cron': typeof ApiPublicHooksNomusCronRoute
+  '/api/public/leads/site': typeof ApiPublicLeadsSiteRoute
   '/api/public/nomus/exhaustive-probe': typeof ApiPublicNomusExhaustiveProbeRoute
   '/api/public/nomus/produto-probe': typeof ApiPublicNomusProdutoProbeRoute
   '/api/public/nomus/tabela-preco-deep-probe': typeof ApiPublicNomusTabelaPrecoDeepProbeRoute
@@ -658,6 +667,7 @@ export interface FileRouteTypes {
     | '/app/propostas/'
     | '/app/sdr/'
     | '/api/public/hooks/nomus-cron'
+    | '/api/public/leads/site'
     | '/api/public/nomus/exhaustive-probe'
     | '/api/public/nomus/produto-probe'
     | '/api/public/nomus/tabela-preco-deep-probe'
@@ -721,6 +731,7 @@ export interface FileRouteTypes {
     | '/app/propostas'
     | '/app/sdr'
     | '/api/public/hooks/nomus-cron'
+    | '/api/public/leads/site'
     | '/api/public/nomus/exhaustive-probe'
     | '/api/public/nomus/produto-probe'
     | '/api/public/nomus/tabela-preco-deep-probe'
@@ -787,6 +798,7 @@ export interface FileRouteTypes {
     | '/app/propostas/'
     | '/app/sdr/'
     | '/api/public/hooks/nomus-cron'
+    | '/api/public/leads/site'
     | '/api/public/nomus/exhaustive-probe'
     | '/api/public/nomus/produto-probe'
     | '/api/public/nomus/tabela-preco-deep-probe'
@@ -807,6 +819,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   ApiNomusTestRoute: typeof ApiNomusTestRoute
   ApiPublicHooksNomusCronRoute: typeof ApiPublicHooksNomusCronRoute
+  ApiPublicLeadsSiteRoute: typeof ApiPublicLeadsSiteRoute
   ApiPublicNomusExhaustiveProbeRoute: typeof ApiPublicNomusExhaustiveProbeRoute
   ApiPublicNomusProdutoProbeRoute: typeof ApiPublicNomusProdutoProbeRoute
   ApiPublicNomusTabelaPrecoDeepProbeRoute: typeof ApiPublicNomusTabelaPrecoDeepProbeRoute
@@ -1256,6 +1269,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicNomusExhaustiveProbeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/leads/site': {
+      id: '/api/public/leads/site'
+      path: '/api/public/leads/site'
+      fullPath: '/api/public/leads/site'
+      preLoaderRoute: typeof ApiPublicLeadsSiteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/nomus-cron': {
       id: '/api/public/hooks/nomus-cron'
       path: '/api/public/hooks/nomus-cron'
@@ -1441,6 +1461,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   ApiNomusTestRoute: ApiNomusTestRoute,
   ApiPublicHooksNomusCronRoute: ApiPublicHooksNomusCronRoute,
+  ApiPublicLeadsSiteRoute: ApiPublicLeadsSiteRoute,
   ApiPublicNomusExhaustiveProbeRoute: ApiPublicNomusExhaustiveProbeRoute,
   ApiPublicNomusProdutoProbeRoute: ApiPublicNomusProdutoProbeRoute,
   ApiPublicNomusTabelaPrecoDeepProbeRoute:
