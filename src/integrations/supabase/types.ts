@@ -4877,6 +4877,150 @@ export type Database = {
           },
         ]
       }
+      marketing_lead_events: {
+        Row: {
+          actor_id: string | null
+          actor_name: string | null
+          created_at: string
+          event_type: string
+          id: string
+          lead_id: string
+          payload: Json | null
+        }
+        Insert: {
+          actor_id?: string | null
+          actor_name?: string | null
+          created_at?: string
+          event_type: string
+          id?: string
+          lead_id: string
+          payload?: Json | null
+        }
+        Update: {
+          actor_id?: string | null
+          actor_name?: string | null
+          created_at?: string
+          event_type?: string
+          id?: string
+          lead_id?: string
+          payload?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketing_lead_events_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marketing_lead_events_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "marketing_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      marketing_leads: {
+        Row: {
+          aplicacao: string | null
+          assigned_at: string | null
+          assigned_to: string | null
+          city: string | null
+          client_name: string | null
+          contact_email: string | null
+          contact_name: string | null
+          contact_phone: string | null
+          converted_at: string | null
+          converted_to_sdr_lead_id: string | null
+          created_at: string
+          discard_reason: string | null
+          first_response_at: string | null
+          id: string
+          internal_note: string | null
+          lead_code: string
+          mensagem: string | null
+          origem: string
+          origem_detalhe: Json | null
+          qualified_at: string | null
+          received_at: string
+          segmento: string | null
+          state: string | null
+          status: Database["public"]["Enums"]["marketing_lead_status"]
+          updated_at: string
+        }
+        Insert: {
+          aplicacao?: string | null
+          assigned_at?: string | null
+          assigned_to?: string | null
+          city?: string | null
+          client_name?: string | null
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          converted_at?: string | null
+          converted_to_sdr_lead_id?: string | null
+          created_at?: string
+          discard_reason?: string | null
+          first_response_at?: string | null
+          id?: string
+          internal_note?: string | null
+          lead_code: string
+          mensagem?: string | null
+          origem?: string
+          origem_detalhe?: Json | null
+          qualified_at?: string | null
+          received_at?: string
+          segmento?: string | null
+          state?: string | null
+          status?: Database["public"]["Enums"]["marketing_lead_status"]
+          updated_at?: string
+        }
+        Update: {
+          aplicacao?: string | null
+          assigned_at?: string | null
+          assigned_to?: string | null
+          city?: string | null
+          client_name?: string | null
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          converted_at?: string | null
+          converted_to_sdr_lead_id?: string | null
+          created_at?: string
+          discard_reason?: string | null
+          first_response_at?: string | null
+          id?: string
+          internal_note?: string | null
+          lead_code?: string
+          mensagem?: string | null
+          origem?: string
+          origem_detalhe?: Json | null
+          qualified_at?: string | null
+          received_at?: string
+          segmento?: string | null
+          state?: string | null
+          status?: Database["public"]["Enums"]["marketing_lead_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketing_leads_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marketing_leads_converted_to_sdr_lead_id_fkey"
+            columns: ["converted_to_sdr_lead_id"]
+            isOneToOne: false
+            referencedRelation: "sdr_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       nomus_api_catalog: {
         Row: {
           category: string | null
@@ -7969,6 +8113,59 @@ export type Database = {
         }
         Relationships: []
       }
+      sdr_score_weights: {
+        Row: {
+          id: number
+          mkt_descarte_sem_motivo: number
+          mkt_qualificado: number
+          mkt_sla_bonus: number
+          mkt_triado: number
+          ranking_visivel_sdr: boolean
+          sdr_handoff_aceito: number
+          sdr_reuniao_agendada: number
+          sdr_tratativa: number
+          sla_mkt_minutos: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          id?: number
+          mkt_descarte_sem_motivo?: number
+          mkt_qualificado?: number
+          mkt_sla_bonus?: number
+          mkt_triado?: number
+          ranking_visivel_sdr?: boolean
+          sdr_handoff_aceito?: number
+          sdr_reuniao_agendada?: number
+          sdr_tratativa?: number
+          sla_mkt_minutos?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          id?: number
+          mkt_descarte_sem_motivo?: number
+          mkt_qualificado?: number
+          mkt_sla_bonus?: number
+          mkt_triado?: number
+          ranking_visivel_sdr?: boolean
+          sdr_handoff_aceito?: number
+          sdr_reuniao_agendada?: number
+          sdr_tratativa?: number
+          sla_mkt_minutos?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sdr_score_weights_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sync_checkpoints: {
         Row: {
           created_at: string
@@ -8813,6 +9010,10 @@ export type Database = {
         Args: { _lead_id: string; _sdr_id: string }
         Returns: undefined
       }
+      assign_marketing_lead: {
+        Args: { _lead_id: string; _user_id: string }
+        Returns: undefined
+      }
       can_access_proposal: { Args: { _proposal_id: string }; Returns: boolean }
       can_manage_user_access: { Args: { _user_id: string }; Returns: boolean }
       coldpro_calculate_coil_volume_l: {
@@ -8842,6 +9043,14 @@ export type Database = {
           liquid_density_kg_l: number
           reference_temperature_c: number
         }[]
+      }
+      convert_marketing_lead_to_sdr: {
+        Args: { _lead_id: string; _sdr_id?: string }
+        Returns: string
+      }
+      discard_marketing_lead: {
+        Args: { _lead_id: string; _reason: string }
+        Returns: undefined
       }
       get_team_members_by_role: {
         Args: { _role: Database["public"]["Enums"]["app_role"] }
@@ -8881,6 +9090,10 @@ export type Database = {
         Returns: undefined
       }
       mark_lead_opened_by_seller: {
+        Args: { _lead_id: string }
+        Returns: undefined
+      }
+      mark_marketing_lead_first_response: {
         Args: { _lead_id: string }
         Returns: undefined
       }
@@ -8946,6 +9159,13 @@ export type Database = {
         | "coldpro"
         | "sdr"
         | "marketing"
+      marketing_lead_status:
+        | "novo"
+        | "em_analise"
+        | "tentando_contato"
+        | "qualificado"
+        | "convertido"
+        | "descartado"
       productivity_visibility: "private" | "shared"
       proposal_source: "nomus" | "manual"
       proposal_status:
@@ -9127,6 +9347,14 @@ export const Constants = {
         "coldpro",
         "sdr",
         "marketing",
+      ],
+      marketing_lead_status: [
+        "novo",
+        "em_analise",
+        "tentando_contato",
+        "qualificado",
+        "convertido",
+        "descartado",
       ],
       productivity_visibility: ["private", "shared"],
       proposal_source: ["nomus", "manual"],
