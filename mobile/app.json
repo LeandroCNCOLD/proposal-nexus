@@ -1,0 +1,40 @@
+{
+  "expo": {
+    "name": "CN Cold Sales",
+    "slug": "cncold-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0F2D5E"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "br.com.cncold.mobile"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0F2D5E"
+      },
+      "package": "br.com.cncold.mobile"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-notifications",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "CN Cold precisa da sua localização para registrar visitas."
+        }
+      ]
+    ],
+    "scheme": "cncold",
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
