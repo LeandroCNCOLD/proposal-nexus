@@ -155,6 +155,20 @@ export const updateMarketingLeadStatus = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const updateMarketingLeadNote = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({ id: z.string().uuid(), internal_note: z.string().trim().max(4000).nullable() }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase
+      .from("marketing_leads" as never)
+      .update({ internal_note: data.internal_note } as never)
+      .eq("id" as never, data.id as never);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
 export const assignMarketingLead = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ lead_id: z.string().uuid(), user_id: z.string().uuid() }).parse(d))
