@@ -83,9 +83,10 @@ function MarketingLeadsListPage() {
               <tr>
                 <th className="text-left px-3 py-2">Código</th>
                 <th className="text-left px-3 py-2">Status</th>
-                <th className="text-left px-3 py-2">Empresa</th>
-                <th className="text-left px-3 py-2">Contato</th>
+                <th className="text-left px-3 py-2">Empresa / Contato</th>
                 <th className="text-left px-3 py-2">Cidade</th>
+                <th className="text-left px-3 py-2">Segmento</th>
+                <th className="text-left px-3 py-2">Pedido do cliente</th>
                 <th className="text-left px-3 py-2">Origem</th>
                 <th className="text-left px-3 py-2">Recebido</th>
                 <th className="text-right px-3 py-2">Ações</th>
@@ -96,30 +97,45 @@ function MarketingLeadsListPage() {
                 const exp = r.lock_expires_at ? new Date(r.lock_expires_at).getTime() : 0;
                 const lockedByMe = r.locked_by_sdr_id === user?.id && exp > now;
                 const lockedByOther = !!r.locked_by_sdr_id && r.locked_by_sdr_id !== user?.id && exp > now;
+                const tipo = (r.origem_detalhe as Record<string, unknown> | null)?.["tipo_contato"] as string | undefined;
+                const msg = r.mensagem ?? "";
                 return (
-                  <tr key={r.id} className="border-t hover:bg-muted/20">
-                    <td className="px-3 py-2 font-mono text-[11px]">
+                  <tr key={r.id} className="border-t hover:bg-muted/20 align-top">
+                    <td className="px-3 py-2 font-mono text-[11px] whitespace-nowrap">
                       <Link to="/app/marketing/leads/$id" params={{ id: r.id }} className="text-primary hover:underline">{r.lead_code}</Link>
                     </td>
+                    <td className="px-3 py-2"><Badge className={STATUS_COLORS[r.status] ?? ""}>{r.status}</Badge></td>
                     <td className="px-3 py-2">
-                      <Badge className={STATUS_COLORS[r.status] ?? ""}>{r.status}</Badge>
+                      <div className="font-medium">{r.client_name ?? r.contact_name ?? "—"}</div>
+                      {r.client_name && r.contact_name && (
+                        <div className="text-[11px] text-muted-foreground">{r.contact_name}</div>
+                      )}
+                      <div className="text-[11px] text-muted-foreground">
+                        {r.contact_email ? <span>{r.contact_email}</span> : null}
+                        {r.contact_email && r.contact_phone ? " · " : ""}
+                        {r.contact_phone ? <span>{r.contact_phone}</span> : null}
+                      </div>
                     </td>
-                    <td className="px-3 py-2">{r.client_name ?? "—"}</td>
-                    <td className="px-3 py-2">
-                      <div>{r.contact_name ?? "—"}</div>
-                      <div className="text-[11px] text-muted-foreground">{r.contact_email ?? ""} {r.contact_phone ?? ""}</div>
+                    <td className="px-3 py-2 whitespace-nowrap">{[r.city, r.state].filter(Boolean).join("/") || "—"}</td>
+                    <td className="px-3 py-2 text-xs">{r.segmento ?? "—"}</td>
+                    <td className="px-3 py-2 text-xs max-w-xs">
+                      {msg ? (
+                        <span className="line-clamp-2 text-muted-foreground" title={msg}>{msg}</span>
+                      ) : <span className="text-muted-foreground/60">—</span>}
                     </td>
-                    <td className="px-3 py-2">{[r.city, r.state].filter(Boolean).join("/") || "—"}</td>
-                    <td className="px-3 py-2 capitalize">{r.origem}</td>
-                    <td className="px-3 py-2 text-[11px] text-muted-foreground">{new Date(r.received_at).toLocaleString("pt-BR")}</td>
-                    <td className="px-3 py-2 text-right">
+                    <td className="px-3 py-2 text-xs">
+                      <div className="capitalize">{r.origem}</div>
+                      {tipo && <div className="text-[10px] text-muted-foreground">{tipo}</div>}
+                    </td>
+                    <td className="px-3 py-2 text-[11px] text-muted-foreground whitespace-nowrap">{new Date(r.received_at).toLocaleDateString("pt-BR")}</td>
+                    <td className="px-3 py-2 text-right whitespace-nowrap">
                       {lockedByMe ? (
                         <Badge className="bg-emerald-100 text-emerald-800">na minha carteira</Badge>
                       ) : lockedByOther ? (
                         <Badge variant="secondary">com {r.locked_by_sdr_name ?? "outro SDR"}</Badge>
                       ) : (
                         <Button size="sm" variant="outline" onClick={() => onClaim(r.id)}>
-                          <Hand className="w-3.5 h-3.5 mr-1" /> Pegar pra mim
+                          <Hand className="w-3.5 h-3.5 mr-1" /> Pegar
                         </Button>
                       )}
                     </td>
@@ -127,11 +143,12 @@ function MarketingLeadsListPage() {
                 );
               })}
               {!visible.length && (
-                <tr><td colSpan={8} className="px-3 py-6 text-center text-muted-foreground">Nenhum lead.</td></tr>
+                <tr><td colSpan={9} className="px-3 py-6 text-center text-muted-foreground">Nenhum lead.</td></tr>
               )}
             </tbody>
           </table>
         </div>
+
       )}
     </div>
   );
