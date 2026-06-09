@@ -11,7 +11,6 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/app'
-import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppIndexRouteImport } from './routes/app.index'
 import { Route as AppTarefasRouteImport } from './routes/app.tarefas'
@@ -83,7 +82,6 @@ import { Route as ApiPublicNomusProdutoProbeRouteImport } from './routes/api.pub
 import { Route as ApiPublicNomusExhaustiveProbeRouteImport } from './routes/api.public.nomus.exhaustive-probe'
 import { Route as ApiPublicLeadsSiteRouteImport } from './routes/api.public.leads.site'
 import { Route as ApiPublicHooksNomusCronRouteImport } from './routes/api.public.hooks.nomus-cron'
-import { Route as AuthenticatedAppSdrNovoLeadRouteImport } from './routes/_authenticated.app.sdr.novo-lead'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -93,10 +91,6 @@ const LoginRoute = LoginRouteImport.update({
 const AppRoute = AppRouteImport.update({
   id: '/app',
   path: '/app',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
-  id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -466,12 +460,6 @@ const ApiPublicHooksNomusCronRoute = ApiPublicHooksNomusCronRouteImport.update({
   path: '/api/public/hooks/nomus-cron',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedAppSdrNovoLeadRoute =
-  AuthenticatedAppSdrNovoLeadRouteImport.update({
-    id: '/app/sdr/novo-lead',
-    path: '/app/sdr/novo-lead',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -532,7 +520,6 @@ export interface FileRoutesByFullPath {
   '/app/marketing/': typeof AppMarketingIndexRoute
   '/app/propostas/': typeof AppPropostasIndexRoute
   '/app/sdr/': typeof AppSdrIndexRoute
-  '/app/sdr/novo-lead': typeof AuthenticatedAppSdrNovoLeadRoute
   '/api/public/hooks/nomus-cron': typeof ApiPublicHooksNomusCronRoute
   '/api/public/leads/site': typeof ApiPublicLeadsSiteRoute
   '/api/public/nomus/exhaustive-probe': typeof ApiPublicNomusExhaustiveProbeRoute
@@ -604,7 +591,6 @@ export interface FileRoutesByTo {
   '/app/marketing': typeof AppMarketingIndexRoute
   '/app/propostas': typeof AppPropostasIndexRoute
   '/app/sdr': typeof AppSdrIndexRoute
-  '/app/sdr/novo-lead': typeof AuthenticatedAppSdrNovoLeadRoute
   '/api/public/hooks/nomus-cron': typeof ApiPublicHooksNomusCronRoute
   '/api/public/leads/site': typeof ApiPublicLeadsSiteRoute
   '/api/public/nomus/exhaustive-probe': typeof ApiPublicNomusExhaustiveProbeRoute
@@ -624,7 +610,6 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
   '/app/agenda': typeof AppAgendaRouteWithChildren
@@ -682,7 +667,6 @@ export interface FileRoutesById {
   '/app/marketing/': typeof AppMarketingIndexRoute
   '/app/propostas/': typeof AppPropostasIndexRoute
   '/app/sdr/': typeof AppSdrIndexRoute
-  '/_authenticated/app/sdr/novo-lead': typeof AuthenticatedAppSdrNovoLeadRoute
   '/api/public/hooks/nomus-cron': typeof ApiPublicHooksNomusCronRoute
   '/api/public/leads/site': typeof ApiPublicLeadsSiteRoute
   '/api/public/nomus/exhaustive-probe': typeof ApiPublicNomusExhaustiveProbeRoute
@@ -760,7 +744,6 @@ export interface FileRouteTypes {
     | '/app/marketing/'
     | '/app/propostas/'
     | '/app/sdr/'
-    | '/app/sdr/novo-lead'
     | '/api/public/hooks/nomus-cron'
     | '/api/public/leads/site'
     | '/api/public/nomus/exhaustive-probe'
@@ -832,7 +815,6 @@ export interface FileRouteTypes {
     | '/app/marketing'
     | '/app/propostas'
     | '/app/sdr'
-    | '/app/sdr/novo-lead'
     | '/api/public/hooks/nomus-cron'
     | '/api/public/leads/site'
     | '/api/public/nomus/exhaustive-probe'
@@ -851,7 +833,6 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
-    | '/_authenticated'
     | '/app'
     | '/login'
     | '/app/agenda'
@@ -909,7 +890,6 @@ export interface FileRouteTypes {
     | '/app/marketing/'
     | '/app/propostas/'
     | '/app/sdr/'
-    | '/_authenticated/app/sdr/novo-lead'
     | '/api/public/hooks/nomus-cron'
     | '/api/public/leads/site'
     | '/api/public/nomus/exhaustive-probe'
@@ -929,7 +909,6 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
   ApiNomusTestRoute: typeof ApiNomusTestRoute
@@ -955,13 +934,6 @@ declare module '@tanstack/react-router' {
       path: '/app'
       fullPath: '/app'
       preLoaderRoute: typeof AppRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/_authenticated': {
-      id: '/_authenticated'
-      path: ''
-      fullPath: '/'
-      preLoaderRoute: typeof AuthenticatedRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -1461,26 +1433,8 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksNomusCronRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/app/sdr/novo-lead': {
-      id: '/_authenticated/app/sdr/novo-lead'
-      path: '/app/sdr/novo-lead'
-      fullPath: '/app/sdr/novo-lead'
-      preLoaderRoute: typeof AuthenticatedAppSdrNovoLeadRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
   }
 }
-
-interface AuthenticatedRouteRouteChildren {
-  AuthenticatedAppSdrNovoLeadRoute: typeof AuthenticatedAppSdrNovoLeadRoute
-}
-
-const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
-  AuthenticatedAppSdrNovoLeadRoute: AuthenticatedAppSdrNovoLeadRoute,
-}
-
-const AuthenticatedRouteRouteWithChildren =
-  AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
 
 interface AppAgendaRouteChildren {
   AppAgendaIdRoute: typeof AppAgendaIdRoute
@@ -1688,7 +1642,6 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
   ApiNomusTestRoute: ApiNomusTestRoute,
