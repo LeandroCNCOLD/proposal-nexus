@@ -61,9 +61,11 @@ import { Route as AppColdproIdRouteImport } from './routes/app.coldpro.$id'
 import { Route as AppAgendaIdRouteImport } from './routes/app.agenda.$id'
 import { Route as AppAdminUsuariosRouteImport } from './routes/app.admin.usuarios'
 import { Route as ApiNomusTestRouteImport } from './routes/api.nomus.test'
+import { Route as AuthenticatedAppMarketingRouteImport } from './routes/_authenticated.app.marketing'
 import { Route as AppPropostasIdIndexRouteImport } from './routes/app.propostas.$id.index'
 import { Route as AppGestaoCarteirasIndexRouteImport } from './routes/app.gestao.carteiras.index'
 import { Route as AppConfiguracoesTemplatesIndexRouteImport } from './routes/app.configuracoes.templates.index'
+import { Route as AuthenticatedAppMarketingIndexRouteImport } from './routes/_authenticated.app.marketing.index'
 import { Route as AppSdrLeadsIdRouteImport } from './routes/app.sdr.leads.$id'
 import { Route as AppPropostasIdEditorRouteImport } from './routes/app.propostas.$id.editor'
 import { Route as AppGestaoCarteirasUserIdRouteImport } from './routes/app.gestao.carteiras.$userId'
@@ -76,6 +78,11 @@ import { Route as ApiPublicNomusExhaustiveProbeRouteImport } from './routes/api.
 import { Route as ApiPublicLeadsSiteRouteImport } from './routes/api.public.leads.site'
 import { Route as ApiPublicHooksNomusCronRouteImport } from './routes/api.public.hooks.nomus-cron'
 import { Route as AuthenticatedAppSdrNovoLeadRouteImport } from './routes/_authenticated.app.sdr.novo-lead'
+import { Route as AuthenticatedAppMarketingNovoRouteImport } from './routes/_authenticated.app.marketing.novo'
+import { Route as AuthenticatedAppMarketingLeadsRouteImport } from './routes/_authenticated.app.marketing.leads'
+import { Route as AuthenticatedAppMarketingKanbanRouteImport } from './routes/_authenticated.app.marketing.kanban'
+import { Route as AuthenticatedAppMarketingConfigRouteImport } from './routes/_authenticated.app.marketing.config'
+import { Route as AuthenticatedAppMarketingLeadsIdRouteImport } from './routes/_authenticated.app.marketing.leads.$id'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -340,6 +347,12 @@ const ApiNomusTestRoute = ApiNomusTestRouteImport.update({
   path: '/api/nomus/test',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedAppMarketingRoute =
+  AuthenticatedAppMarketingRouteImport.update({
+    id: '/app/marketing',
+    path: '/app/marketing',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AppPropostasIdIndexRoute = AppPropostasIdIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -355,6 +368,12 @@ const AppConfiguracoesTemplatesIndexRoute =
     id: '/templates/',
     path: '/templates/',
     getParentRoute: () => AppConfiguracoesRoute,
+  } as any)
+const AuthenticatedAppMarketingIndexRoute =
+  AuthenticatedAppMarketingIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedAppMarketingRoute,
   } as any)
 const AppSdrLeadsIdRoute = AppSdrLeadsIdRouteImport.update({
   id: '/sdr/leads/$id',
@@ -424,6 +443,36 @@ const AuthenticatedAppSdrNovoLeadRoute =
     path: '/app/sdr/novo-lead',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedAppMarketingNovoRoute =
+  AuthenticatedAppMarketingNovoRouteImport.update({
+    id: '/novo',
+    path: '/novo',
+    getParentRoute: () => AuthenticatedAppMarketingRoute,
+  } as any)
+const AuthenticatedAppMarketingLeadsRoute =
+  AuthenticatedAppMarketingLeadsRouteImport.update({
+    id: '/leads',
+    path: '/leads',
+    getParentRoute: () => AuthenticatedAppMarketingRoute,
+  } as any)
+const AuthenticatedAppMarketingKanbanRoute =
+  AuthenticatedAppMarketingKanbanRouteImport.update({
+    id: '/kanban',
+    path: '/kanban',
+    getParentRoute: () => AuthenticatedAppMarketingRoute,
+  } as any)
+const AuthenticatedAppMarketingConfigRoute =
+  AuthenticatedAppMarketingConfigRouteImport.update({
+    id: '/config',
+    path: '/config',
+    getParentRoute: () => AuthenticatedAppMarketingRoute,
+  } as any)
+const AuthenticatedAppMarketingLeadsIdRoute =
+  AuthenticatedAppMarketingLeadsIdRouteImport.update({
+    id: '/$id',
+    path: '/$id',
+    getParentRoute: () => AuthenticatedAppMarketingLeadsRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -446,6 +495,7 @@ export interface FileRoutesByFullPath {
   '/app/relatorios': typeof AppRelatoriosRoute
   '/app/tarefas': typeof AppTarefasRoute
   '/app/': typeof AppIndexRoute
+  '/app/marketing': typeof AuthenticatedAppMarketingRouteWithChildren
   '/api/nomus/test': typeof ApiNomusTestRoute
   '/app/admin/usuarios': typeof AppAdminUsuariosRoute
   '/app/agenda/$id': typeof AppAgendaIdRoute
@@ -477,6 +527,10 @@ export interface FileRoutesByFullPath {
   '/app/crm/': typeof AppCrmIndexRoute
   '/app/propostas/': typeof AppPropostasIndexRoute
   '/app/sdr/': typeof AppSdrIndexRoute
+  '/app/marketing/config': typeof AuthenticatedAppMarketingConfigRoute
+  '/app/marketing/kanban': typeof AuthenticatedAppMarketingKanbanRoute
+  '/app/marketing/leads': typeof AuthenticatedAppMarketingLeadsRouteWithChildren
+  '/app/marketing/novo': typeof AuthenticatedAppMarketingNovoRoute
   '/app/sdr/novo-lead': typeof AuthenticatedAppSdrNovoLeadRoute
   '/api/public/hooks/nomus-cron': typeof ApiPublicHooksNomusCronRoute
   '/api/public/leads/site': typeof ApiPublicLeadsSiteRoute
@@ -489,9 +543,11 @@ export interface FileRoutesByFullPath {
   '/app/gestao/carteiras/$userId': typeof AppGestaoCarteirasUserIdRoute
   '/app/propostas/$id/editor': typeof AppPropostasIdEditorRoute
   '/app/sdr/leads/$id': typeof AppSdrLeadsIdRoute
+  '/app/marketing/': typeof AuthenticatedAppMarketingIndexRoute
   '/app/configuracoes/templates/': typeof AppConfiguracoesTemplatesIndexRoute
   '/app/gestao/carteiras/': typeof AppGestaoCarteirasIndexRoute
   '/app/propostas/$id/': typeof AppPropostasIdIndexRoute
+  '/app/marketing/leads/$id': typeof AuthenticatedAppMarketingLeadsIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -542,6 +598,10 @@ export interface FileRoutesByTo {
   '/app/crm': typeof AppCrmIndexRoute
   '/app/propostas': typeof AppPropostasIndexRoute
   '/app/sdr': typeof AppSdrIndexRoute
+  '/app/marketing/config': typeof AuthenticatedAppMarketingConfigRoute
+  '/app/marketing/kanban': typeof AuthenticatedAppMarketingKanbanRoute
+  '/app/marketing/leads': typeof AuthenticatedAppMarketingLeadsRouteWithChildren
+  '/app/marketing/novo': typeof AuthenticatedAppMarketingNovoRoute
   '/app/sdr/novo-lead': typeof AuthenticatedAppSdrNovoLeadRoute
   '/api/public/hooks/nomus-cron': typeof ApiPublicHooksNomusCronRoute
   '/api/public/leads/site': typeof ApiPublicLeadsSiteRoute
@@ -554,9 +614,11 @@ export interface FileRoutesByTo {
   '/app/gestao/carteiras/$userId': typeof AppGestaoCarteirasUserIdRoute
   '/app/propostas/$id/editor': typeof AppPropostasIdEditorRoute
   '/app/sdr/leads/$id': typeof AppSdrLeadsIdRoute
+  '/app/marketing': typeof AuthenticatedAppMarketingIndexRoute
   '/app/configuracoes/templates': typeof AppConfiguracoesTemplatesIndexRoute
   '/app/gestao/carteiras': typeof AppGestaoCarteirasIndexRoute
   '/app/propostas/$id': typeof AppPropostasIdIndexRoute
+  '/app/marketing/leads/$id': typeof AuthenticatedAppMarketingLeadsIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -581,6 +643,7 @@ export interface FileRoutesById {
   '/app/relatorios': typeof AppRelatoriosRoute
   '/app/tarefas': typeof AppTarefasRoute
   '/app/': typeof AppIndexRoute
+  '/_authenticated/app/marketing': typeof AuthenticatedAppMarketingRouteWithChildren
   '/api/nomus/test': typeof ApiNomusTestRoute
   '/app/admin/usuarios': typeof AppAdminUsuariosRoute
   '/app/agenda/$id': typeof AppAgendaIdRoute
@@ -612,6 +675,10 @@ export interface FileRoutesById {
   '/app/crm/': typeof AppCrmIndexRoute
   '/app/propostas/': typeof AppPropostasIndexRoute
   '/app/sdr/': typeof AppSdrIndexRoute
+  '/_authenticated/app/marketing/config': typeof AuthenticatedAppMarketingConfigRoute
+  '/_authenticated/app/marketing/kanban': typeof AuthenticatedAppMarketingKanbanRoute
+  '/_authenticated/app/marketing/leads': typeof AuthenticatedAppMarketingLeadsRouteWithChildren
+  '/_authenticated/app/marketing/novo': typeof AuthenticatedAppMarketingNovoRoute
   '/_authenticated/app/sdr/novo-lead': typeof AuthenticatedAppSdrNovoLeadRoute
   '/api/public/hooks/nomus-cron': typeof ApiPublicHooksNomusCronRoute
   '/api/public/leads/site': typeof ApiPublicLeadsSiteRoute
@@ -624,9 +691,11 @@ export interface FileRoutesById {
   '/app/gestao/carteiras/$userId': typeof AppGestaoCarteirasUserIdRoute
   '/app/propostas/$id/editor': typeof AppPropostasIdEditorRoute
   '/app/sdr/leads/$id': typeof AppSdrLeadsIdRoute
+  '/_authenticated/app/marketing/': typeof AuthenticatedAppMarketingIndexRoute
   '/app/configuracoes/templates/': typeof AppConfiguracoesTemplatesIndexRoute
   '/app/gestao/carteiras/': typeof AppGestaoCarteirasIndexRoute
   '/app/propostas/$id/': typeof AppPropostasIdIndexRoute
+  '/_authenticated/app/marketing/leads/$id': typeof AuthenticatedAppMarketingLeadsIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -651,6 +720,7 @@ export interface FileRouteTypes {
     | '/app/relatorios'
     | '/app/tarefas'
     | '/app/'
+    | '/app/marketing'
     | '/api/nomus/test'
     | '/app/admin/usuarios'
     | '/app/agenda/$id'
@@ -682,6 +752,10 @@ export interface FileRouteTypes {
     | '/app/crm/'
     | '/app/propostas/'
     | '/app/sdr/'
+    | '/app/marketing/config'
+    | '/app/marketing/kanban'
+    | '/app/marketing/leads'
+    | '/app/marketing/novo'
     | '/app/sdr/novo-lead'
     | '/api/public/hooks/nomus-cron'
     | '/api/public/leads/site'
@@ -694,9 +768,11 @@ export interface FileRouteTypes {
     | '/app/gestao/carteiras/$userId'
     | '/app/propostas/$id/editor'
     | '/app/sdr/leads/$id'
+    | '/app/marketing/'
     | '/app/configuracoes/templates/'
     | '/app/gestao/carteiras/'
     | '/app/propostas/$id/'
+    | '/app/marketing/leads/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -747,6 +823,10 @@ export interface FileRouteTypes {
     | '/app/crm'
     | '/app/propostas'
     | '/app/sdr'
+    | '/app/marketing/config'
+    | '/app/marketing/kanban'
+    | '/app/marketing/leads'
+    | '/app/marketing/novo'
     | '/app/sdr/novo-lead'
     | '/api/public/hooks/nomus-cron'
     | '/api/public/leads/site'
@@ -759,9 +839,11 @@ export interface FileRouteTypes {
     | '/app/gestao/carteiras/$userId'
     | '/app/propostas/$id/editor'
     | '/app/sdr/leads/$id'
+    | '/app/marketing'
     | '/app/configuracoes/templates'
     | '/app/gestao/carteiras'
     | '/app/propostas/$id'
+    | '/app/marketing/leads/$id'
   id:
     | '__root__'
     | '/'
@@ -785,6 +867,7 @@ export interface FileRouteTypes {
     | '/app/relatorios'
     | '/app/tarefas'
     | '/app/'
+    | '/_authenticated/app/marketing'
     | '/api/nomus/test'
     | '/app/admin/usuarios'
     | '/app/agenda/$id'
@@ -816,6 +899,10 @@ export interface FileRouteTypes {
     | '/app/crm/'
     | '/app/propostas/'
     | '/app/sdr/'
+    | '/_authenticated/app/marketing/config'
+    | '/_authenticated/app/marketing/kanban'
+    | '/_authenticated/app/marketing/leads'
+    | '/_authenticated/app/marketing/novo'
     | '/_authenticated/app/sdr/novo-lead'
     | '/api/public/hooks/nomus-cron'
     | '/api/public/leads/site'
@@ -828,9 +915,11 @@ export interface FileRouteTypes {
     | '/app/gestao/carteiras/$userId'
     | '/app/propostas/$id/editor'
     | '/app/sdr/leads/$id'
+    | '/_authenticated/app/marketing/'
     | '/app/configuracoes/templates/'
     | '/app/gestao/carteiras/'
     | '/app/propostas/$id/'
+    | '/_authenticated/app/marketing/leads/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -1213,6 +1302,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiNomusTestRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/app/marketing': {
+      id: '/_authenticated/app/marketing'
+      path: '/app/marketing'
+      fullPath: '/app/marketing'
+      preLoaderRoute: typeof AuthenticatedAppMarketingRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/app/propostas/$id/': {
       id: '/app/propostas/$id/'
       path: '/'
@@ -1233,6 +1329,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/app/configuracoes/templates/'
       preLoaderRoute: typeof AppConfiguracoesTemplatesIndexRouteImport
       parentRoute: typeof AppConfiguracoesRoute
+    }
+    '/_authenticated/app/marketing/': {
+      id: '/_authenticated/app/marketing/'
+      path: '/'
+      fullPath: '/app/marketing/'
+      preLoaderRoute: typeof AuthenticatedAppMarketingIndexRouteImport
+      parentRoute: typeof AuthenticatedAppMarketingRoute
     }
     '/app/sdr/leads/$id': {
       id: '/app/sdr/leads/$id'
@@ -1318,14 +1421,89 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppSdrNovoLeadRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/app/marketing/novo': {
+      id: '/_authenticated/app/marketing/novo'
+      path: '/novo'
+      fullPath: '/app/marketing/novo'
+      preLoaderRoute: typeof AuthenticatedAppMarketingNovoRouteImport
+      parentRoute: typeof AuthenticatedAppMarketingRoute
+    }
+    '/_authenticated/app/marketing/leads': {
+      id: '/_authenticated/app/marketing/leads'
+      path: '/leads'
+      fullPath: '/app/marketing/leads'
+      preLoaderRoute: typeof AuthenticatedAppMarketingLeadsRouteImport
+      parentRoute: typeof AuthenticatedAppMarketingRoute
+    }
+    '/_authenticated/app/marketing/kanban': {
+      id: '/_authenticated/app/marketing/kanban'
+      path: '/kanban'
+      fullPath: '/app/marketing/kanban'
+      preLoaderRoute: typeof AuthenticatedAppMarketingKanbanRouteImport
+      parentRoute: typeof AuthenticatedAppMarketingRoute
+    }
+    '/_authenticated/app/marketing/config': {
+      id: '/_authenticated/app/marketing/config'
+      path: '/config'
+      fullPath: '/app/marketing/config'
+      preLoaderRoute: typeof AuthenticatedAppMarketingConfigRouteImport
+      parentRoute: typeof AuthenticatedAppMarketingRoute
+    }
+    '/_authenticated/app/marketing/leads/$id': {
+      id: '/_authenticated/app/marketing/leads/$id'
+      path: '/$id'
+      fullPath: '/app/marketing/leads/$id'
+      preLoaderRoute: typeof AuthenticatedAppMarketingLeadsIdRouteImport
+      parentRoute: typeof AuthenticatedAppMarketingLeadsRoute
+    }
   }
 }
 
+interface AuthenticatedAppMarketingLeadsRouteChildren {
+  AuthenticatedAppMarketingLeadsIdRoute: typeof AuthenticatedAppMarketingLeadsIdRoute
+}
+
+const AuthenticatedAppMarketingLeadsRouteChildren: AuthenticatedAppMarketingLeadsRouteChildren =
+  {
+    AuthenticatedAppMarketingLeadsIdRoute:
+      AuthenticatedAppMarketingLeadsIdRoute,
+  }
+
+const AuthenticatedAppMarketingLeadsRouteWithChildren =
+  AuthenticatedAppMarketingLeadsRoute._addFileChildren(
+    AuthenticatedAppMarketingLeadsRouteChildren,
+  )
+
+interface AuthenticatedAppMarketingRouteChildren {
+  AuthenticatedAppMarketingConfigRoute: typeof AuthenticatedAppMarketingConfigRoute
+  AuthenticatedAppMarketingKanbanRoute: typeof AuthenticatedAppMarketingKanbanRoute
+  AuthenticatedAppMarketingLeadsRoute: typeof AuthenticatedAppMarketingLeadsRouteWithChildren
+  AuthenticatedAppMarketingNovoRoute: typeof AuthenticatedAppMarketingNovoRoute
+  AuthenticatedAppMarketingIndexRoute: typeof AuthenticatedAppMarketingIndexRoute
+}
+
+const AuthenticatedAppMarketingRouteChildren: AuthenticatedAppMarketingRouteChildren =
+  {
+    AuthenticatedAppMarketingConfigRoute: AuthenticatedAppMarketingConfigRoute,
+    AuthenticatedAppMarketingKanbanRoute: AuthenticatedAppMarketingKanbanRoute,
+    AuthenticatedAppMarketingLeadsRoute:
+      AuthenticatedAppMarketingLeadsRouteWithChildren,
+    AuthenticatedAppMarketingNovoRoute: AuthenticatedAppMarketingNovoRoute,
+    AuthenticatedAppMarketingIndexRoute: AuthenticatedAppMarketingIndexRoute,
+  }
+
+const AuthenticatedAppMarketingRouteWithChildren =
+  AuthenticatedAppMarketingRoute._addFileChildren(
+    AuthenticatedAppMarketingRouteChildren,
+  )
+
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAppMarketingRoute: typeof AuthenticatedAppMarketingRouteWithChildren
   AuthenticatedAppSdrNovoLeadRoute: typeof AuthenticatedAppSdrNovoLeadRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAppMarketingRoute: AuthenticatedAppMarketingRouteWithChildren,
   AuthenticatedAppSdrNovoLeadRoute: AuthenticatedAppSdrNovoLeadRoute,
 }
 

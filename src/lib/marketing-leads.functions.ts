@@ -43,7 +43,7 @@ export type MarketingLeadRow = {
   aplicacao: string | null;
   mensagem: string | null;
   origem: string;
-  origem_detalhe: unknown;
+  origem_detalhe: Record<string, unknown> | null;
   assigned_to: string | null;
   assigned_at: string | null;
   first_response_at: string | null;
@@ -91,7 +91,7 @@ export const getMarketingLead = createServerFn({ method: "POST" })
     ]);
     if (e1) throw new Error(e1.message);
     if (e2) throw new Error(e2.message);
-    return { lead: lead as unknown as MarketingLeadRow | null, events: (events ?? []) as unknown as Array<{ id: string; event_type: string; actor_name: string | null; payload: unknown; created_at: string }> };
+    return { lead: lead as unknown as MarketingLeadRow | null, events: (events ?? []) as unknown as Array<{ id: string; event_type: string; actor_name: string | null; payload: Record<string, unknown> | null; created_at: string }> };
   });
 
 export const updateMarketingLeadStatus = createServerFn({ method: "POST" })
@@ -205,14 +205,27 @@ export const getMarketingDashboard = createServerFn({ method: "POST" })
 export const listMarketingAssignees = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data, error } = await context.supabase
+    const { data: ur, error } = await context.supabase
       .from("user_roles")
-      .select("user_id, role, profiles!inner(id, full_name, email)")
+      .select("user_id, role")
       .in("role", ["marketing", "sdr", "gerente_comercial"]);
     if (error) throw new Error(error.message);
+    const rows = (ur ?? []) as Array<{ user_id: string; role: string }>;
+    const ids = Array.from(new Set(rows.map((r) => r.user_id)));
+    if (ids.length === 0) return [] as Array<{ user_id: string; full_name: string | null; email: string | null; roles: string[] }>;
+    const { data: profs, error: pe } = await context.supabase
+      .from("profiles")
+      .select("id, full_name, email")
+      .in("id", ids);
+    if (pe) throw new Error(pe.message);
+    const pmap = new Map<string, { full_name: string | null; email: string | null }>();
+    for (const p of (profs ?? []) as Array<{ id: string; full_name: string | null; email: string | null }>) {
+      pmap.set(p.id, { full_name: p.full_name, email: p.email });
+    }
     const map = new Map<string, { user_id: string; full_name: string | null; email: string | null; roles: string[] }>();
-    for (const r of (data ?? []) as Array<{ user_id: string; role: string; profiles: { full_name: string | null; email: string | null } }>) {
-      const cur = map.get(r.user_id) ?? { user_id: r.user_id, full_name: r.profiles.full_name, email: r.profiles.email, roles: [] };
+    for (const r of rows) {
+      const prof = pmap.get(r.user_id) ?? { full_name: null, email: null };
+      const cur = map.get(r.user_id) ?? { user_id: r.user_id, full_name: prof.full_name, email: prof.email, roles: [] };
       cur.roles.push(r.role);
       map.set(r.user_id, cur);
     }
