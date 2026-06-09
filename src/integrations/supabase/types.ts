@@ -5033,6 +5033,81 @@ export type Database = {
           },
         ]
       }
+      marketing_remarketing_queue: {
+        Row: {
+          added_by: string | null
+          added_by_name: string | null
+          campaign_name: string | null
+          city: string | null
+          client_name: string | null
+          contact_email: string | null
+          contact_name: string | null
+          contact_phone: string | null
+          created_at: string
+          id: string
+          lead_code: string | null
+          mensagem: string | null
+          processed_at: string | null
+          processed_by: string | null
+          reason: string | null
+          scheduled_for: string | null
+          segmento: string | null
+          source: string
+          source_lead_id: string
+          state: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          added_by?: string | null
+          added_by_name?: string | null
+          campaign_name?: string | null
+          city?: string | null
+          client_name?: string | null
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          id?: string
+          lead_code?: string | null
+          mensagem?: string | null
+          processed_at?: string | null
+          processed_by?: string | null
+          reason?: string | null
+          scheduled_for?: string | null
+          segmento?: string | null
+          source: string
+          source_lead_id: string
+          state?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          added_by?: string | null
+          added_by_name?: string | null
+          campaign_name?: string | null
+          city?: string | null
+          client_name?: string | null
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          id?: string
+          lead_code?: string | null
+          mensagem?: string | null
+          processed_at?: string | null
+          processed_by?: string | null
+          reason?: string | null
+          scheduled_for?: string | null
+          segmento?: string | null
+          source?: string
+          source_lead_id?: string
+          state?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       nomus_api_catalog: {
         Row: {
           category: string | null
@@ -9064,6 +9139,16 @@ export type Database = {
       discard_marketing_lead: {
         Args: { _lead_id: string; _reason: string }
         Returns: undefined
+      }
+      enqueue_remarketing: {
+        Args: {
+          _campaign?: string
+          _lead_id: string
+          _reason?: string
+          _scheduled_for?: string
+          _source: string
+        }
+        Returns: string
       }
       get_team_members_by_role: {
         Args: { _role: Database["public"]["Enums"]["app_role"] }
