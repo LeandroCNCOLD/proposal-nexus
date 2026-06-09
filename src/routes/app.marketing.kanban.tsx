@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
-export const Route = createFileRoute("/_authenticated/app/marketing/kanban")({
+export const Route = createFileRoute("/app/marketing/kanban")({
   component: MarketingKanbanPage,
 });
 

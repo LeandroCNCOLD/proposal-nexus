@@ -3,7 +3,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Megaphone, LayoutDashboard, Kanban, Plus, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export const Route = createFileRoute("/_authenticated/app/marketing")({
+export const Route = createFileRoute("/app/marketing")({
   component: MarketingLayout,
 });
 

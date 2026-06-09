@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/_authenticated/app/marketing/config")({
+export const Route = createFileRoute("/app/marketing/config")({
   component: ConfigScorePage,
 });
 
