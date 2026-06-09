@@ -146,6 +146,7 @@ export function WalletKanban({
 
   const [search, setSearch] = useState('')
   const [tempFilter, setTempFilter] = useState<'all' | Temperature>('all')
+  const [actionFilter, setActionFilter] = useState<'all' | 'me' | 'other' | 'stale'>('all')
   const [collapsed, setCollapsed] = useState<Record<ColumnKey, boolean>>(() => {
     const init = {} as Record<ColumnKey, boolean>
     COLUMNS.forEach(c => { init[c.key] = !!c.collapsedByDefault })
@@ -155,10 +156,20 @@ export function WalletKanban({
   const leadIds = useMemo(() => leads.map(l => l.id), [leads])
   const { byLead: proposalMatches } = useProposalLeadMatches({ leadIds })
 
+  const signalsByLead = useMemo(() => {
+    const m = new Map<string, LeadCommSignals>()
+    ;(leads as LeadWithExtras[]).forEach(l => m.set(l.id, computeSignals(l)))
+    return m
+  }, [leads])
+
   const filtered = useMemo(() => {
     const s = search.trim().toLowerCase()
     return (leads as LeadWithExtras[]).filter(l => {
       if (tempFilter !== 'all' && l.temperature !== tempFilter) return false
+      const sig = signalsByLead.get(l.id)
+      if (actionFilter === 'me' && sig?.waitingOn !== 'me') return false
+      if (actionFilter === 'other' && sig?.waitingOn !== 'other') return false
+      if (actionFilter === 'stale' && !sig?.isStale) return false
       if (!s) return true
       return (
         l.client_name?.toLowerCase().includes(s) ||
@@ -167,7 +178,15 @@ export function WalletKanban({
         l.razao_social?.toLowerCase().includes(s)
       )
     })
-  }, [leads, search, tempFilter])
+  }, [leads, search, tempFilter, actionFilter, signalsByLead])
+
+  const focusLeads = useMemo(() => {
+    return (leads as LeadWithExtras[])
+      .filter(l => signalsByLead.get(l.id)?.isUrgent || signalsByLead.get(l.id)?.isStale)
+      .sort((a, b) => (b.value || 0) - (a.value || 0))
+      .slice(0, 5)
+  }, [leads, signalsByLead])
+
 
   const byColumn = useMemo(() => {
     const map = new Map<ColumnKey, LeadWithExtras[]>()
