@@ -24,6 +24,7 @@ import { ProposalTimelineUnified } from "@/components/proposal/ProposalTimelineU
 import { ProposalTasksTab } from "@/components/proposal/ProposalTasksTab";
 import { ProposalAgendaTab } from "@/components/proposal/ProposalAgendaTab";
 import { ProposalFollowupTab } from "@/components/proposal/ProposalFollowupTab";
+import { CloseProposalDialog } from "@/components/proposal/CloseProposalDialog";
 
 export const Route = createFileRoute("/app/propostas/$id/")({ component: ProposalDetail });
 
@@ -33,6 +34,7 @@ function ProposalDetail() {
   const qc = useQueryClient();
   const { user } = useAuth();
   const [aiLoadingTask, setAiLoadingTask] = useState<"resumo" | "proximo_passo" | null>(null);
+  const [closeOpen, setCloseOpen] = useState(false);
 
   const { data: p, isLoading } = useQuery({
     queryKey: ["proposal", id],
@@ -329,9 +331,13 @@ function ProposalDetail() {
                 {ALL_STATUSES.map((s) => <SelectItem key={s} value={s}>{STATUS_LABELS[s]}</SelectItem>)}
               </SelectContent>
             </Select>
+            <Button size="sm" variant="destructive" onClick={() => setCloseOpen(true)}>
+              Marcar Perdida/Cancelada
+            </Button>
           </>
         }
       />
+      <CloseProposalDialog open={closeOpen} onOpenChange={setCloseOpen} proposalId={id} proposalLabel={p.title} />
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">

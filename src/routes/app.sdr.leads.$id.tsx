@@ -5,7 +5,8 @@ import { supabase } from '@/integrations/supabase/client'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { ArrowLeft, Phone, FileText, Calendar, ExternalLink, Thermometer, DollarSign, User, MapPin, Mail, Briefcase, History, UserPlus, CheckCircle2, Pencil } from 'lucide-react'
+import { ArrowLeft, Phone, FileText, Calendar, ExternalLink, Thermometer, DollarSign, User, MapPin, Mail, Briefcase, History, UserPlus, CheckCircle2, Pencil, XCircle } from 'lucide-react'
+import { CloseSdrLeadProposalDialog } from '@/components/sdr/CloseSdrLeadProposalDialog'
 import { dateBR, dateTimeBR } from '@/lib/format'
 import { TransferToSellerDialog } from '@/components/sdr/TransferToSellerDialog'
 import { LeadEditDialog } from '@/components/sdr/LeadEditDialog'
@@ -27,6 +28,7 @@ function LeadDetailPage() {
   const { user, hasAnyRole } = useAuth()
   const [transferOpen, setTransferOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
+  const [closeOpen, setCloseOpen] = useState(false)
   const [period, setPeriod] = useState<'7' | '30' | '90' | 'all'>('30')
 
   const { data: lead, isLoading } = useQuery({
@@ -132,6 +134,10 @@ function LeadDetailPage() {
           <Button size="sm" variant="outline" onClick={() => setEditOpen(true)} className="gap-2">
             <Pencil className="h-4 w-4" /> Editar lead
           </Button>
+          <Button size="sm" variant="outline" onClick={() => setCloseOpen(true)}
+            className="gap-2 text-destructive border-destructive/40 hover:bg-destructive/10">
+            <XCircle className="h-4 w-4" /> Marcar Perdida/Cancelada
+          </Button>
           {(lead as any).handoff_status === 'transferred' ? (
             <Badge className="bg-emerald-100 text-emerald-800 gap-1"><CheckCircle2 className="h-3 w-3" />Transferido para {(lead as any).transferred_to_seller_name ?? 'vendedor'}</Badge>
           ) : (
@@ -145,6 +151,8 @@ function LeadDetailPage() {
       </div>
       <TransferToSellerDialog open={transferOpen} onOpenChange={setTransferOpen} leadId={id} leadLabel={lead.client_name} />
       <LeadEditDialog open={editOpen} onOpenChange={setEditOpen} leadId={id} lead={lead} />
+      <CloseSdrLeadProposalDialog open={closeOpen} onOpenChange={setCloseOpen} leadId={id} leadLabel={lead.client_name} />
+
 
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
