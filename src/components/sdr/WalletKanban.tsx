@@ -50,18 +50,23 @@ function fmtBRL(v: number) {
 function Column({
   col,
   leads,
+  signalsByLead,
   collapsed,
   toggleCollapsed,
   renderCard,
 }: {
   col: Column
   leads: LeadWithExtras[]
+  signalsByLead: Map<string, LeadCommSignals>
   collapsed: boolean
   toggleCollapsed: () => void
   renderCard: (lead: LeadWithExtras) => React.ReactNode
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: col.key })
   const total = leads.reduce((s, l) => s + (l.value || 0), 0)
+  const staleCount = leads.filter(l => signalsByLead.get(l.id)?.isStale).length
+  const urgentCount = leads.filter(l => signalsByLead.get(l.id)?.isUrgent).length
+  const myTurnCount = leads.filter(l => signalsByLead.get(l.id)?.waitingOn === 'me').length
 
   return (
     <div className="flex flex-col min-w-[280px] w-[280px] bg-muted/40 rounded-lg border">
@@ -79,6 +84,25 @@ function Column({
         <div className="text-[11px] text-muted-foreground mt-0.5">
           {fmtBRL(total)}{col.hint ? ` · ${col.hint}` : ''}
         </div>
+        {(staleCount > 0 || urgentCount > 0 || myTurnCount > 0) && (
+          <div className="mt-1.5 flex items-center gap-1 flex-wrap">
+            {staleCount > 0 && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-red-50 text-red-700 px-1.5 py-0.5 text-[10px] font-medium">
+                <AlertCircle className="w-3 h-3" /> {staleCount} parados
+              </span>
+            )}
+            {urgentCount > 0 && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 text-amber-800 px-1.5 py-0.5 text-[10px] font-medium">
+                <Flame className="w-3 h-3" /> {urgentCount} urgentes
+              </span>
+            )}
+            {myTurnCount > 0 && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 text-blue-700 px-1.5 py-0.5 text-[10px] font-medium">
+                <Inbox className="w-3 h-3" /> {myTurnCount} sua vez
+              </span>
+            )}
+          </div>
+        )}
       </div>
       {!collapsed && (
         <div
@@ -99,6 +123,7 @@ function Column({
     </div>
   )
 }
+
 
 export function WalletKanban({
   leads,
