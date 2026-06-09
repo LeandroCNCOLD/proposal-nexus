@@ -15,6 +15,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppIndexRouteImport } from './routes/app.index'
 import { Route as AppTarefasRouteImport } from './routes/app.tarefas'
 import { Route as AppRelatoriosRouteImport } from './routes/app.relatorios'
+import { Route as AppProdutividadeRouteImport } from './routes/app.produtividade'
 import { Route as AppPerfilRouteImport } from './routes/app.perfil'
 import { Route as AppGestaoRouteImport } from './routes/app.gestao'
 import { Route as AppEquipamentosRouteImport } from './routes/app.equipamentos'
@@ -101,6 +102,11 @@ const AppTarefasRoute = AppTarefasRouteImport.update({
 const AppRelatoriosRoute = AppRelatoriosRouteImport.update({
   id: '/relatorios',
   path: '/relatorios',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppProdutividadeRoute = AppProdutividadeRouteImport.update({
+  id: '/produtividade',
+  path: '/produtividade',
   getParentRoute: () => AppRoute,
 } as any)
 const AppPerfilRoute = AppPerfilRouteImport.update({
@@ -418,6 +424,7 @@ export interface FileRoutesByFullPath {
   '/app/equipamentos': typeof AppEquipamentosRoute
   '/app/gestao': typeof AppGestaoRouteWithChildren
   '/app/perfil': typeof AppPerfilRoute
+  '/app/produtividade': typeof AppProdutividadeRoute
   '/app/relatorios': typeof AppRelatoriosRoute
   '/app/tarefas': typeof AppTarefasRoute
   '/app/': typeof AppIndexRoute
@@ -481,6 +488,7 @@ export interface FileRoutesByTo {
   '/app/equipamentos': typeof AppEquipamentosRoute
   '/app/gestao': typeof AppGestaoRouteWithChildren
   '/app/perfil': typeof AppPerfilRoute
+  '/app/produtividade': typeof AppProdutividadeRoute
   '/app/relatorios': typeof AppRelatoriosRoute
   '/app/tarefas': typeof AppTarefasRoute
   '/app': typeof AppIndexRoute
@@ -546,6 +554,7 @@ export interface FileRoutesById {
   '/app/equipamentos': typeof AppEquipamentosRoute
   '/app/gestao': typeof AppGestaoRouteWithChildren
   '/app/perfil': typeof AppPerfilRoute
+  '/app/produtividade': typeof AppProdutividadeRoute
   '/app/relatorios': typeof AppRelatoriosRoute
   '/app/tarefas': typeof AppTarefasRoute
   '/app/': typeof AppIndexRoute
@@ -613,6 +622,7 @@ export interface FileRouteTypes {
     | '/app/equipamentos'
     | '/app/gestao'
     | '/app/perfil'
+    | '/app/produtividade'
     | '/app/relatorios'
     | '/app/tarefas'
     | '/app/'
@@ -676,6 +686,7 @@ export interface FileRouteTypes {
     | '/app/equipamentos'
     | '/app/gestao'
     | '/app/perfil'
+    | '/app/produtividade'
     | '/app/relatorios'
     | '/app/tarefas'
     | '/app'
@@ -740,6 +751,7 @@ export interface FileRouteTypes {
     | '/app/equipamentos'
     | '/app/gestao'
     | '/app/perfil'
+    | '/app/produtividade'
     | '/app/relatorios'
     | '/app/tarefas'
     | '/app/'
@@ -843,6 +855,13 @@ declare module '@tanstack/react-router' {
       path: '/relatorios'
       fullPath: '/app/relatorios'
       preLoaderRoute: typeof AppRelatoriosRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/produtividade': {
+      id: '/app/produtividade'
+      path: '/produtividade'
+      fullPath: '/app/produtividade'
+      preLoaderRoute: typeof AppProdutividadeRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/perfil': {
@@ -1342,6 +1361,7 @@ interface AppRouteChildren {
   AppEquipamentosRoute: typeof AppEquipamentosRoute
   AppGestaoRoute: typeof AppGestaoRouteWithChildren
   AppPerfilRoute: typeof AppPerfilRoute
+  AppProdutividadeRoute: typeof AppProdutividadeRoute
   AppRelatoriosRoute: typeof AppRelatoriosRoute
   AppTarefasRoute: typeof AppTarefasRoute
   AppIndexRoute: typeof AppIndexRoute
@@ -1384,6 +1404,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppEquipamentosRoute: AppEquipamentosRoute,
   AppGestaoRoute: AppGestaoRouteWithChildren,
   AppPerfilRoute: AppPerfilRoute,
+  AppProdutividadeRoute: AppProdutividadeRoute,
   AppRelatoriosRoute: AppRelatoriosRoute,
   AppTarefasRoute: AppTarefasRoute,
   AppIndexRoute: AppIndexRoute,
