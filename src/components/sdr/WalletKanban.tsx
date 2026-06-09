@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { DndContext, PointerSensor, useSensor, useSensors, useDroppable, type DragEndEvent } from '@dnd-kit/core'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { ChevronDown, ChevronUp } from 'lucide-react'
+import { ChevronDown, ChevronUp, AlertCircle, Flame, Inbox } from 'lucide-react'
 import { toast } from 'sonner'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -9,12 +9,13 @@ import { Button } from '@/components/ui/button'
 import { updatePipelineField, unlockLead } from '@/modules/sdr/services'
 import type { CrmPipeline, SdrStatus, Temperature } from '@/modules/sdr/types'
 import { useProposalLeadMatches } from '@/hooks/use-proposal-lead-matches'
-import { WalletKanbanCard, type KanbanCardActions } from './WalletKanbanCard'
+import { WalletKanbanCard, computeSignals, type KanbanCardActions, type LeadCommSignals } from './WalletKanbanCard'
 import { MeetingScheduleQuickDialog } from './MeetingScheduleQuickDialog'
 import { CloseLeadDialog } from './CloseLeadDialog'
 import { TransferToSellerDialog } from './TransferToSellerDialog'
 import { LeadEditDialog } from './LeadEditDialog'
 import { TransferLeadDialog } from '@/components/manager/TransferLeadDialog'
+
 
 type ColumnKey = 'nao_contatado' | 'contatado' | 'reuniao' | 'vendedor' | 'encerrados'
 
