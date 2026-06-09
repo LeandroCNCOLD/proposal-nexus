@@ -21,8 +21,6 @@ const schema = z.object({
   origem_detalhe: z.record(z.string(), z.unknown()).optional().nullable(),
 });
 
-// Best-effort in-memory rate limit (per worker instance). Não é defesa robusta;
-// só evita floods acidentais quando o formulário não tem captcha.
 const recent: Map<string, number[]> = new Map();
 const WINDOW_MS = 60_000;
 const MAX_PER_WINDOW = 8;
@@ -69,8 +67,8 @@ export const Route = createFileRoute("/api/public/leads/site")({
         }
 
         try {
-          const { createInboundLeadAdmin } = await import("@/lib/leads-inbound.server");
-          const result = await createInboundLeadAdmin({
+          const { createMarketingLeadAdmin } = await import("@/lib/marketing-leads.server");
+          const result = await createMarketingLeadAdmin({
             ...parsed.data,
             origem: "site",
             origem_detalhe: {
