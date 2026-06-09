@@ -72,7 +72,9 @@ import { Route as ApiPublicNomusTabelaPrecoProbeRouteImport } from './routes/api
 import { Route as ApiPublicNomusTabelaPrecoDeepProbeRouteImport } from './routes/api.public.nomus.tabela-preco-deep-probe'
 import { Route as ApiPublicNomusProdutoProbeRouteImport } from './routes/api.public.nomus.produto-probe'
 import { Route as ApiPublicNomusExhaustiveProbeRouteImport } from './routes/api.public.nomus.exhaustive-probe'
+import { Route as ApiPublicLeadsSiteRouteImport } from './routes/api.public.leads.site'
 import { Route as ApiPublicHooksNomusCronRouteImport } from './routes/api.public.hooks.nomus-cron'
+import { Route as AuthenticatedAppSdrNovoLeadRouteImport } from './routes/_authenticated.app.sdr.novo-lead'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -401,11 +403,22 @@ const ApiPublicNomusExhaustiveProbeRoute =
     path: '/api/public/nomus/exhaustive-probe',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicLeadsSiteRoute = ApiPublicLeadsSiteRouteImport.update({
+  id: '/api/public/leads/site',
+  path: '/api/public/leads/site',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicHooksNomusCronRoute = ApiPublicHooksNomusCronRouteImport.update({
   id: '/api/public/hooks/nomus-cron',
   path: '/api/public/hooks/nomus-cron',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedAppSdrNovoLeadRoute =
+  AuthenticatedAppSdrNovoLeadRouteImport.update({
+    id: '/_authenticated/app/sdr/novo-lead',
+    path: '/app/sdr/novo-lead',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -459,7 +472,9 @@ export interface FileRoutesByFullPath {
   '/app/crm/': typeof AppCrmIndexRoute
   '/app/propostas/': typeof AppPropostasIndexRoute
   '/app/sdr/': typeof AppSdrIndexRoute
+  '/app/sdr/novo-lead': typeof AuthenticatedAppSdrNovoLeadRoute
   '/api/public/hooks/nomus-cron': typeof ApiPublicHooksNomusCronRoute
+  '/api/public/leads/site': typeof ApiPublicLeadsSiteRoute
   '/api/public/nomus/exhaustive-probe': typeof ApiPublicNomusExhaustiveProbeRoute
   '/api/public/nomus/produto-probe': typeof ApiPublicNomusProdutoProbeRoute
   '/api/public/nomus/tabela-preco-deep-probe': typeof ApiPublicNomusTabelaPrecoDeepProbeRoute
@@ -522,7 +537,9 @@ export interface FileRoutesByTo {
   '/app/crm': typeof AppCrmIndexRoute
   '/app/propostas': typeof AppPropostasIndexRoute
   '/app/sdr': typeof AppSdrIndexRoute
+  '/app/sdr/novo-lead': typeof AuthenticatedAppSdrNovoLeadRoute
   '/api/public/hooks/nomus-cron': typeof ApiPublicHooksNomusCronRoute
+  '/api/public/leads/site': typeof ApiPublicLeadsSiteRoute
   '/api/public/nomus/exhaustive-probe': typeof ApiPublicNomusExhaustiveProbeRoute
   '/api/public/nomus/produto-probe': typeof ApiPublicNomusProdutoProbeRoute
   '/api/public/nomus/tabela-preco-deep-probe': typeof ApiPublicNomusTabelaPrecoDeepProbeRoute
@@ -589,7 +606,9 @@ export interface FileRoutesById {
   '/app/crm/': typeof AppCrmIndexRoute
   '/app/propostas/': typeof AppPropostasIndexRoute
   '/app/sdr/': typeof AppSdrIndexRoute
+  '/_authenticated/app/sdr/novo-lead': typeof AuthenticatedAppSdrNovoLeadRoute
   '/api/public/hooks/nomus-cron': typeof ApiPublicHooksNomusCronRoute
+  '/api/public/leads/site': typeof ApiPublicLeadsSiteRoute
   '/api/public/nomus/exhaustive-probe': typeof ApiPublicNomusExhaustiveProbeRoute
   '/api/public/nomus/produto-probe': typeof ApiPublicNomusProdutoProbeRoute
   '/api/public/nomus/tabela-preco-deep-probe': typeof ApiPublicNomusTabelaPrecoDeepProbeRoute
@@ -657,7 +676,9 @@ export interface FileRouteTypes {
     | '/app/crm/'
     | '/app/propostas/'
     | '/app/sdr/'
+    | '/app/sdr/novo-lead'
     | '/api/public/hooks/nomus-cron'
+    | '/api/public/leads/site'
     | '/api/public/nomus/exhaustive-probe'
     | '/api/public/nomus/produto-probe'
     | '/api/public/nomus/tabela-preco-deep-probe'
@@ -720,7 +741,9 @@ export interface FileRouteTypes {
     | '/app/crm'
     | '/app/propostas'
     | '/app/sdr'
+    | '/app/sdr/novo-lead'
     | '/api/public/hooks/nomus-cron'
+    | '/api/public/leads/site'
     | '/api/public/nomus/exhaustive-probe'
     | '/api/public/nomus/produto-probe'
     | '/api/public/nomus/tabela-preco-deep-probe'
@@ -786,7 +809,9 @@ export interface FileRouteTypes {
     | '/app/crm/'
     | '/app/propostas/'
     | '/app/sdr/'
+    | '/_authenticated/app/sdr/novo-lead'
     | '/api/public/hooks/nomus-cron'
+    | '/api/public/leads/site'
     | '/api/public/nomus/exhaustive-probe'
     | '/api/public/nomus/produto-probe'
     | '/api/public/nomus/tabela-preco-deep-probe'
@@ -806,7 +831,9 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
   ApiNomusTestRoute: typeof ApiNomusTestRoute
+  AuthenticatedAppSdrNovoLeadRoute: typeof AuthenticatedAppSdrNovoLeadRoute
   ApiPublicHooksNomusCronRoute: typeof ApiPublicHooksNomusCronRoute
+  ApiPublicLeadsSiteRoute: typeof ApiPublicLeadsSiteRoute
   ApiPublicNomusExhaustiveProbeRoute: typeof ApiPublicNomusExhaustiveProbeRoute
   ApiPublicNomusProdutoProbeRoute: typeof ApiPublicNomusProdutoProbeRoute
   ApiPublicNomusTabelaPrecoDeepProbeRoute: typeof ApiPublicNomusTabelaPrecoDeepProbeRoute
@@ -1256,11 +1283,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicNomusExhaustiveProbeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/leads/site': {
+      id: '/api/public/leads/site'
+      path: '/api/public/leads/site'
+      fullPath: '/api/public/leads/site'
+      preLoaderRoute: typeof ApiPublicLeadsSiteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/nomus-cron': {
       id: '/api/public/hooks/nomus-cron'
       path: '/api/public/hooks/nomus-cron'
       fullPath: '/api/public/hooks/nomus-cron'
       preLoaderRoute: typeof ApiPublicHooksNomusCronRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/app/sdr/novo-lead': {
+      id: '/_authenticated/app/sdr/novo-lead'
+      path: '/app/sdr/novo-lead'
+      fullPath: '/app/sdr/novo-lead'
+      preLoaderRoute: typeof AuthenticatedAppSdrNovoLeadRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -1440,7 +1481,9 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
   ApiNomusTestRoute: ApiNomusTestRoute,
+  AuthenticatedAppSdrNovoLeadRoute: AuthenticatedAppSdrNovoLeadRoute,
   ApiPublicHooksNomusCronRoute: ApiPublicHooksNomusCronRoute,
+  ApiPublicLeadsSiteRoute: ApiPublicLeadsSiteRoute,
   ApiPublicNomusExhaustiveProbeRoute: ApiPublicNomusExhaustiveProbeRoute,
   ApiPublicNomusProdutoProbeRoute: ApiPublicNomusProdutoProbeRoute,
   ApiPublicNomusTabelaPrecoDeepProbeRoute:

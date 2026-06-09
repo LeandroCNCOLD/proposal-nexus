@@ -7823,7 +7823,10 @@ export type Database = {
           next_contact_at: string | null
           next_step: string | null
           nomus_updated_at: string | null
+          origem: string
+          origem_detalhe: Json | null
           priority: string
+          priority_level: number
           probability_pct: number | null
           proposal_date: string | null
           proposal_desc: string | null
@@ -7831,6 +7834,7 @@ export type Database = {
           proposal_title: string | null
           proposal_version: number | null
           razao_social: string | null
+          received_at: string
           sdr_id: string | null
           sdr_name: string | null
           sdr_status: string
@@ -7878,7 +7882,10 @@ export type Database = {
           next_contact_at?: string | null
           next_step?: string | null
           nomus_updated_at?: string | null
+          origem?: string
+          origem_detalhe?: Json | null
           priority?: string
+          priority_level?: number
           probability_pct?: number | null
           proposal_date?: string | null
           proposal_desc?: string | null
@@ -7886,6 +7893,7 @@ export type Database = {
           proposal_title?: string | null
           proposal_version?: number | null
           razao_social?: string | null
+          received_at?: string
           sdr_id?: string | null
           sdr_name?: string | null
           sdr_status?: string
@@ -7933,7 +7941,10 @@ export type Database = {
           next_contact_at?: string | null
           next_step?: string | null
           nomus_updated_at?: string | null
+          origem?: string
+          origem_detalhe?: Json | null
           priority?: string
+          priority_level?: number
           probability_pct?: number | null
           proposal_date?: string | null
           proposal_desc?: string | null
@@ -7941,6 +7952,7 @@ export type Database = {
           proposal_title?: string | null
           proposal_version?: number | null
           razao_social?: string | null
+          received_at?: string
           sdr_id?: string | null
           sdr_name?: string | null
           sdr_status?: string
@@ -8797,6 +8809,10 @@ export type Database = {
     }
     Functions: {
       _parse_nomus_date: { Args: { s: string }; Returns: string }
+      assign_lead_to_sdr: {
+        Args: { _lead_id: string; _sdr_id: string }
+        Returns: undefined
+      }
       can_access_proposal: { Args: { _proposal_id: string }; Returns: boolean }
       can_manage_user_access: { Args: { _user_id: string }; Returns: boolean }
       coldpro_calculate_coil_volume_l: {
@@ -8882,6 +8898,15 @@ export type Database = {
       release_expired_locks: { Args: never; Returns: undefined }
       revert_sdr_lead_edit: { Args: { _edit_id: string }; Returns: undefined }
       salvar_snapshot_cobertura: { Args: never; Returns: undefined }
+      suggest_sdr_for_assignment: {
+        Args: never
+        Returns: {
+          active_count: number
+          email: string
+          full_name: string
+          user_id: string
+        }[]
+      }
       suggest_seller_for_handoff: {
         Args: never
         Returns: {
