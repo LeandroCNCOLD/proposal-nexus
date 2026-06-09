@@ -7826,6 +7826,7 @@ export type Database = {
           origem: string
           origem_detalhe: Json | null
           priority: string
+          priority_level: number
           probability_pct: number | null
           proposal_date: string | null
           proposal_desc: string | null
@@ -7884,6 +7885,7 @@ export type Database = {
           origem?: string
           origem_detalhe?: Json | null
           priority?: string
+          priority_level?: number
           probability_pct?: number | null
           proposal_date?: string | null
           proposal_desc?: string | null
@@ -7942,6 +7944,7 @@ export type Database = {
           origem?: string
           origem_detalhe?: Json | null
           priority?: string
+          priority_level?: number
           probability_pct?: number | null
           proposal_date?: string | null
           proposal_desc?: string | null
