@@ -7,12 +7,16 @@ import { SDR_LOCK_LIMIT } from '@/modules/sdr/types'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Lock, Unlock, Briefcase, ShieldAlert, ArrowUp, ArrowDown, ArrowUpDown, FileText } from 'lucide-react'
+import { Lock, Unlock, Briefcase, ShieldAlert, ArrowUp, ArrowDown, ArrowUpDown, FileText, Mail } from 'lucide-react'
 import { toast } from 'sonner'
 import { Link } from '@tanstack/react-router'
 import { useProposalLeadMatches } from '@/hooks/use-proposal-lead-matches'
 import { useSdrNames, useCloserNames } from '@/modules/sdr/hooks/use-team-members'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { useServerFn } from '@tanstack/react-start'
+import { enqueueRemarketing } from '@/lib/remarketing.functions'
+
+const ARCHIVED_SDR_STATUSES = ['Perdido (com motivo)', 'Kill / Arquivar']
 
 export const Route = createFileRoute('/app/sdr/bank')({
   component: BankPage,
@@ -60,10 +64,17 @@ function BankPage() {
   const [closerFilter, setCloserFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'available' | 'mine' | 'others' | 'frozen'>('all')
   const [proposalStatusFilter, setProposalStatusFilter] = useState('')
+  const [tab, setTab] = useState<'banco' | 'arquivados'>('banco')
   const { names: sdrNames } = useSdrNames()
   const { names: closerNames } = useCloserNames()
   const [sortKey, setSortKey] = useState<SortKey | null>(null)
   const [sortDir, setSortDir] = useState<SortDir>(null)
+  const enqueueRemarketingFn = useServerFn(enqueueRemarketing)
+  const remarketingMut = useMutation({
+    mutationFn: (id: string) => enqueueRemarketingFn({ data: { source: 'sdr', lead_id: id } }),
+    onSuccess: () => { toast.success('Enviado para fila de remarketing'); qc.invalidateQueries({ queryKey: ['remarketing'] }) },
+    onError: (e) => toast.error(e instanceof Error ? e.message : 'Erro'),
+  })
 
   const toggleSort = (key: SortKey) => {
     if (sortKey !== key) { setSortKey(key); setSortDir('asc'); return }
@@ -159,6 +170,9 @@ function BankPage() {
 
   const filtered = useMemo(() => {
     return withRevisions.filter(r => {
+      const isArchived = ARCHIVED_SDR_STATUSES.includes((r as any).sdr_status)
+      if (tab === 'banco' && isArchived) return false
+      if (tab === 'arquivados' && !isArchived) return false
       if (search) {
         const s = search.toLowerCase()
         if (!r.client_name?.toLowerCase().includes(s) && !r.lead_code?.toLowerCase().includes(s)) return false
@@ -181,7 +195,7 @@ function BankPage() {
       if (proposalStatusFilter && (r as any).proposal_status !== proposalStatusFilter) return false
       return true
     })
-  }, [withRevisions, search, uf, minValue, temp, sdrFilter, closerFilter, statusFilter, proposalStatusFilter, user?.id])
+  }, [withRevisions, tab, search, uf, minValue, temp, sdrFilter, closerFilter, statusFilter, proposalStatusFilter, user?.id])
 
   // Resumo: conta apenas a última revisão de cada base CN para não inflar totais.
   const summary = useMemo(() => {
@@ -242,6 +256,13 @@ function BankPage() {
 
   return (
     <div className="p-6 space-y-4">
+      <div className="flex items-center gap-2 border-b">
+        <button type="button" onClick={() => setTab('banco')}
+          className={`px-3 py-2 text-sm font-medium border-b-2 ${tab === 'banco' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground'}`}>Banco</button>
+        <button type="button" onClick={() => setTab('arquivados')}
+          className={`px-3 py-2 text-sm font-medium border-b-2 ${tab === 'arquivados' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground'}`}>Arquivados (perdidos/kill)</button>
+        <Link to="/app/marketing/remarketing" className="ml-auto text-xs text-primary hover:underline">Fila de remarketing →</Link>
+      </div>
       <div className="flex items-end justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold text-[#0F2D5E]">Banco de Leads</h1>
@@ -508,41 +529,50 @@ function BankPage() {
                       })()}
                     </td>
                     <td className="px-3 py-2 text-right space-x-1 whitespace-nowrap">
-                      {canPickLeads && !r.locked_by_sdr_id && (
-                        <Button
-                          size="sm"
-                          className="bg-green-600 hover:bg-green-700"
-                          disabled={atLimit || lockMut.isPending}
-                          onClick={() => lockMut.mutate(r.id)}
-                          title={atLimit ? `Limite de ${SDR_LOCK_LIMIT} atingido` : 'Pegar lead'}
-                        >
-                          <Lock className="w-3 h-3 mr-1" /> Pegar
+                      {tab === 'arquivados' ? (
+                        <Button size="sm" variant="outline" disabled={remarketingMut.isPending}
+                          onClick={() => remarketingMut.mutate(r.id)}>
+                          <Mail className="w-3 h-3 mr-1" /> Remarketing
                         </Button>
-                      )}
-                      {lockedByMe && !isFrozen && (
-                        <Button size="sm" variant="outline" onClick={() => unlockMut.mutate(r.id)}>
-                          <Unlock className="w-3 h-3 mr-1" /> Devolver
-                        </Button>
-                      )}
-                      {isManager && !isFrozen && (
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          disabled={freezeMut.isPending}
-                          onClick={() => {
-                            if (confirm('Bloquear este lead? Ninguém poderá entrar em contato até você desbloquear.')) {
-                              freezeMut.mutate(r.id)
-                            }
-                          }}
-                          title="Bloquear lead (gestor)"
-                        >
-                          <ShieldAlert className="w-3 h-3 mr-1" /> Bloquear
-                        </Button>
-                      )}
-                      {isManager && isFrozen && (
-                        <Button size="sm" variant="outline" onClick={() => unlockMut.mutate(r.id)}>
-                          <Unlock className="w-3 h-3 mr-1" /> Desbloquear
-                        </Button>
+                      ) : (
+                        <>
+                          {canPickLeads && !r.locked_by_sdr_id && (
+                            <Button
+                              size="sm"
+                              className="bg-green-600 hover:bg-green-700"
+                              disabled={atLimit || lockMut.isPending}
+                              onClick={() => lockMut.mutate(r.id)}
+                              title={atLimit ? `Limite de ${SDR_LOCK_LIMIT} atingido` : 'Pegar lead'}
+                            >
+                              <Lock className="w-3 h-3 mr-1" /> Pegar
+                            </Button>
+                          )}
+                          {lockedByMe && !isFrozen && (
+                            <Button size="sm" variant="outline" onClick={() => unlockMut.mutate(r.id)}>
+                              <Unlock className="w-3 h-3 mr-1" /> Devolver
+                            </Button>
+                          )}
+                          {isManager && !isFrozen && (
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              disabled={freezeMut.isPending}
+                              onClick={() => {
+                                if (confirm('Bloquear este lead? Ninguém poderá entrar em contato até você desbloquear.')) {
+                                  freezeMut.mutate(r.id)
+                                }
+                              }}
+                              title="Bloquear lead (gestor)"
+                            >
+                              <ShieldAlert className="w-3 h-3 mr-1" /> Bloquear
+                            </Button>
+                          )}
+                          {isManager && isFrozen && (
+                            <Button size="sm" variant="outline" onClick={() => unlockMut.mutate(r.id)}>
+                              <Unlock className="w-3 h-3 mr-1" /> Desbloquear
+                            </Button>
+                          )}
+                        </>
                       )}
                     </td>
                   </tr>

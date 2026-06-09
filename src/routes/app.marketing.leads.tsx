@@ -3,13 +3,14 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { listMarketingLeads, claimMarketingLead } from "@/lib/marketing-leads.functions";
+import { enqueueRemarketing } from "@/lib/remarketing.functions";
 import { useAuth } from "@/hooks/useAuth";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Hand } from "lucide-react";
+import { Hand, Mail } from "lucide-react";
 
 export const Route = createFileRoute("/app/marketing/leads")({
   component: MarketingLeadsListPage,
@@ -27,19 +28,23 @@ const STATUS_COLORS: Record<string, string> = {
 function MarketingLeadsListPage() {
   const fn = useServerFn(listMarketingLeads);
   const claim = useServerFn(claimMarketingLead);
+  const enqueue = useServerFn(enqueueRemarketing);
   const qc = useQueryClient();
   const { user, hasAnyRole } = useAuth();
   const isManager = hasAnyRole(["admin", "diretoria", "gerente_comercial", "marketing"]);
+  const [tab, setTab] = useState<"ativos" | "arquivados">("ativos");
   const [status, setStatus] = useState<string>("all");
   const [search, setSearch] = useState("");
+  const effectiveStatus = tab === "arquivados" ? "descartado" : (status === "all" ? undefined : status);
   const { data, isLoading } = useQuery({
-    queryKey: ["marketing", "leads", status, search],
-    queryFn: () => fn({ data: { status: status === "all" ? undefined : (status as never), search: search || undefined } }),
+    queryKey: ["marketing", "leads", tab, status, search],
+    queryFn: () => fn({ data: { status: effectiveStatus as never, search: search || undefined } }),
     staleTime: 30_000,
   });
 
   const now = Date.now();
   const visible = (data ?? []).filter((r) => {
+    if (tab === "ativos" && r.status === "descartado") return false;
     if (isManager) return true;
     const exp = r.lock_expires_at ? new Date(r.lock_expires_at).getTime() : 0;
     const lockedByOther = r.locked_by_sdr_id && r.locked_by_sdr_id !== user?.id && exp > now;
@@ -50,28 +55,51 @@ function MarketingLeadsListPage() {
     try { await claim({ data: { lead_id: id } }); toast.success("Lead na sua carteira"); qc.invalidateQueries({ queryKey: ["marketing"] }); }
     catch (e) { toast.error(e instanceof Error ? e.message : "Erro"); }
   }
+  async function onRemarketing(id: string, reason: string | null) {
+    try {
+      await enqueue({ data: { source: "marketing", lead_id: id, reason } });
+      toast.success("Enviado para fila de remarketing");
+      qc.invalidateQueries({ queryKey: ["remarketing"] });
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Erro"); }
+  }
   return (
     <div className="p-6 space-y-3">
+      <div className="flex items-center gap-2 border-b">
+        <button
+          type="button"
+          onClick={() => setTab("ativos")}
+          className={`px-3 py-2 text-sm font-medium border-b-2 ${tab === "ativos" ? "border-primary text-primary" : "border-transparent text-muted-foreground"}`}
+        >Ativos</button>
+        <button
+          type="button"
+          onClick={() => setTab("arquivados")}
+          className={`px-3 py-2 text-sm font-medium border-b-2 ${tab === "arquivados" ? "border-primary text-primary" : "border-transparent text-muted-foreground"}`}
+        >Arquivados (descartados)</button>
+        <Link to="/app/marketing/remarketing" className="ml-auto text-xs text-primary hover:underline">
+          Fila de remarketing →
+        </Link>
+      </div>
       <div className="flex flex-wrap gap-2 items-end">
         <div className="w-64">
           <label className="text-xs text-muted-foreground">Buscar</label>
           <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cliente, contato, e-mail, código…" />
         </div>
-        <div className="w-48">
-          <label className="text-xs text-muted-foreground">Status</label>
-          <Select value={status} onValueChange={setStatus}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
-              <SelectItem value="novo">Novo</SelectItem>
-              <SelectItem value="em_analise">Em análise</SelectItem>
-              <SelectItem value="tentando_contato">Tentando contato</SelectItem>
-              <SelectItem value="qualificado">Qualificado</SelectItem>
-              <SelectItem value="convertido">Convertido</SelectItem>
-              <SelectItem value="descartado">Descartado</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+        {tab === "ativos" && (
+          <div className="w-48">
+            <label className="text-xs text-muted-foreground">Status</label>
+            <Select value={status} onValueChange={setStatus}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos (exceto descartado)</SelectItem>
+                <SelectItem value="novo">Novo</SelectItem>
+                <SelectItem value="em_analise">Em análise</SelectItem>
+                <SelectItem value="tentando_contato">Tentando contato</SelectItem>
+                <SelectItem value="qualificado">Qualificado</SelectItem>
+                <SelectItem value="convertido">Convertido</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
       </div>
 
       {isLoading ? (
@@ -129,7 +157,11 @@ function MarketingLeadsListPage() {
                     </td>
                     <td className="px-3 py-2 text-[11px] text-muted-foreground whitespace-nowrap">{new Date(r.received_at).toLocaleDateString("pt-BR")}</td>
                     <td className="px-3 py-2 text-right whitespace-nowrap">
-                      {lockedByMe ? (
+                      {tab === "arquivados" ? (
+                        <Button size="sm" variant="outline" onClick={() => onRemarketing(r.id, r.discard_reason ?? null)}>
+                          <Mail className="w-3.5 h-3.5 mr-1" /> Remarketing
+                        </Button>
+                      ) : lockedByMe ? (
                         <Badge className="bg-emerald-100 text-emerald-800">na minha carteira</Badge>
                       ) : lockedByOther ? (
                         <Badge variant="secondary">com {r.locked_by_sdr_name ?? "outro SDR"}</Badge>
