@@ -310,7 +310,7 @@ function WalletPage() {
 }
 
 
-function LeadCard({ lead, sdrName, onUnlock, onOpenScript, proposalMatch, canManage, onTransfer }: {
+function LeadCard({ lead, sdrName, onUnlock, onOpenScript, proposalMatch, canManage, onTransfer, onTransferSeller, onClose, onEdit, onMeeting, signals }: {
   lead: CrmPipeline
   sdrName: string
   onUnlock: () => void
@@ -318,6 +318,11 @@ function LeadCard({ lead, sdrName, onUnlock, onOpenScript, proposalMatch, canMan
   proposalMatch?: ProposalLeadMatch | null
   canManage?: boolean
   onTransfer?: () => void
+  onTransferSeller?: () => void
+  onClose?: () => void
+  onEdit?: () => void
+  onMeeting?: () => void
+  signals?: LeadCommSignals
 }) {
   const qc = useQueryClient()
   const [expanded, setExpanded] = useState(false)
