@@ -476,39 +476,59 @@ export async function testNomusConnection(triggeredBy: string | null = null): Pr
       success: false,
       message: error,
       status: 0,
-      durationMs: Date.now() - started,
-      endpoint,
+      durationMs: Date.now() - overallStarted,
+      endpoint: primaryEndpoint,
       error,
+      probes: [],
     };
   }
 
-  const res = await nomusFetch(endpoint, {
-    method: "GET",
-    query: { pagina: 1 },
-    entity: "test",
-    operation: "health_check",
-    direction: "test",
-    triggeredBy,
-  });
+  const probes: NomusProbe[] = [];
 
-  if (!res.ok) {
+  for (const probeEntity of NOMUS_PROBE_ENTITIES) {
+    const probeEndpoint = NOMUS_ENDPOINTS[probeEntity];
+    const probeStarted = Date.now();
+    const probeRes = await nomusFetch(probeEndpoint, {
+      method: "GET",
+      query: { pagina: 1 },
+      entity: probeEntity,
+      operation: "health_check",
+      direction: "test",
+      triggeredBy,
+    } as NomusFetchOptions);
+
+    probes.push({
+      entity: probeEntity,
+      endpoint: probeEndpoint,
+      ok: probeRes.ok,
+      status: probeRes.status,
+      durationMs: Date.now() - probeStarted,
+      error: probeRes.ok ? undefined : probeRes.error,
+    });
+  }
+
+  const primaryProbe = probes.find((p) => p.entity === NOMUS_HEALTHCHECK_ENTITY) ?? probes[0];
+
+  if (!primaryProbe || !primaryProbe.ok) {
     return {
       success: false,
-      message: `Falha ao conectar ao Nomus via ${endpoint}: ${res.error}`,
-      status: res.status,
-      durationMs: Date.now() - started,
-      endpoint,
+      message: `Falha ao conectar ao Nomus via ${primaryEndpoint}: ${primaryProbe?.error ?? "sem resposta"}`,
+      status: primaryProbe?.status ?? 0,
+      durationMs: Date.now() - overallStarted,
+      endpoint: primaryEndpoint,
       baseUrl,
-      error: res.error,
+      error: primaryProbe?.error,
+      probes,
     };
   }
 
   return {
     success: true,
-    message: `Conexão com o Nomus validada com sucesso via ${endpoint}.`,
-    status: res.status,
-    durationMs: Date.now() - started,
-    endpoint,
+    message: `Conexão com o Nomus validada com sucesso via ${primaryEndpoint}.`,
+    status: primaryProbe.status,
+    durationMs: Date.now() - overallStarted,
+    endpoint: primaryEndpoint,
     baseUrl,
+    probes,
   };
 }
