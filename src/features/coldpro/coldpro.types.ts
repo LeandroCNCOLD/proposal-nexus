@@ -183,6 +183,7 @@ export type ColdProEnvironmentProduct = {
   characteristic_thickness_m?: number | null;
   default_convective_coefficient_w_m2_k?: number | null;
   allow_phase_change?: boolean | null;
+  latentMode?: "effective" | "full" | null;
   respiration_rate_0c_w_kg?: number | null;
   respiration_rate_5c_w_kg?: number | null;
   respiration_rate_10c_w_kg?: number | null;
