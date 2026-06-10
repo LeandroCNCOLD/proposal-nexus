@@ -778,6 +778,7 @@ function ColdProProjectPage() {
                       productCatalog={data?.productCatalog ?? []}
                       saving={upsertProduct.isPending || calculate.isPending}
                       onSave={handleSaveProduct}
+                      onDraftChange={setProductDraft}
                     />
                   )}
 
