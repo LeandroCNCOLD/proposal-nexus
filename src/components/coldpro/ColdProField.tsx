@@ -15,17 +15,25 @@ type FieldProps = {
   className?: string;
   help?: ColdProFieldHelp | null;
   helpKey?: ColdProFieldHelpKey | string | null;
+  description?: string | null;
 };
 
-export function ColdProField({ label, unit, htmlFor, children, className, help, helpKey }: FieldProps) {
+export function ColdProField({ label, unit, htmlFor, children, className, help, helpKey, description }: FieldProps) {
   return (
-    <div className={cn("grid min-w-0 gap-1 py-1 lg:grid-cols-[minmax(9rem,13rem)_minmax(0,1fr)] lg:items-center lg:gap-2", className)}>
+    <div className={cn("grid min-w-0 gap-1 py-1 lg:grid-cols-[minmax(9rem,13rem)_minmax(0,1fr)] lg:items-start lg:gap-2", className)}>
       <label
         htmlFor={htmlFor}
-        className="flex min-w-0 items-center gap-1.5 whitespace-normal break-words text-xs font-medium text-muted-foreground lg:justify-end lg:text-right"
+        className="flex min-w-0 flex-col items-start gap-0.5 lg:items-end lg:text-right"
       >
-        <span className="min-w-0 whitespace-normal break-words">{label} :</span>
-        {(help || helpKey) ? <FieldHelpTooltip help={help} helpKey={helpKey} /> : null}
+        <span className="flex min-w-0 items-center gap-1.5 whitespace-normal break-words text-xs font-medium text-muted-foreground">
+          <span className="min-w-0 whitespace-normal break-words">{label} :</span>
+          {(help || helpKey) ? <FieldHelpTooltip help={help} helpKey={helpKey} /> : null}
+        </span>
+        {description ? (
+          <span className="min-w-0 whitespace-normal break-words text-[11px] font-normal text-muted-foreground/70">
+            {description}
+          </span>
+        ) : null}
       </label>
       <div className="flex w-full min-w-0 flex-1 items-center gap-2">
         <div className="min-w-0 flex-1">{children}</div>

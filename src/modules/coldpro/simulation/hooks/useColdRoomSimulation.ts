@@ -260,7 +260,7 @@ export function useColdRoomSimulation(
     setIsLoadingHistory(true);
     try {
       const sims = await listSimulations({ data: { environmentId: environment.id } });
-      setSavedSimulations(sims as SavedSimulationMeta[]);
+      setSavedSimulations(sims as unknown as SavedSimulationMeta[]);
     } catch (e: any) {
       console.warn("Erro ao carregar histórico de simulações:", e?.message);
     } finally {
