@@ -341,7 +341,7 @@ function ResultsPanel({ result, setpoint }: { result: ColdRoomSimulationResult; 
             <YAxis tick={{ fontSize: 10 }} unit="°C" />
             <Tooltip
               contentStyle={{ fontSize: 11 }}
-              formatter={(v: number) => [`${fmt(v)}°C`]}
+              formatter={(v: any) => [`${fmt(v)}°C`]}
             />
             <Legend wrapperStyle={{ fontSize: 11 }} />
             <ReferenceLine y={setpoint} stroke="#22c55e" strokeDasharray="4 4" label={{ value: "Setpoint", fontSize: 10, fill: "#22c55e" }} />
@@ -372,7 +372,7 @@ function ResultsPanel({ result, setpoint }: { result: ColdRoomSimulationResult; 
             <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
             <XAxis dataKey="time" tick={{ fontSize: 10 }} interval="preserveStartEnd" />
             <YAxis tick={{ fontSize: 10 }} unit=" kcal/h" width={80} />
-            <Tooltip contentStyle={{ fontSize: 11 }} formatter={(v: number) => [fmtInt(v) + " kcal/h"]} />
+            <Tooltip contentStyle={{ fontSize: 11 }} formatter={(v: any) => [fmtInt(v) + " kcal/h"]} />
             <Legend wrapperStyle={{ fontSize: 11 }} />
             <Area
               type="monotone"
@@ -402,7 +402,7 @@ function ResultsPanel({ result, setpoint }: { result: ColdRoomSimulationResult; 
             <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
             <XAxis dataKey="time" tick={{ fontSize: 10 }} interval="preserveStartEnd" />
             <YAxis tick={{ fontSize: 10 }} unit=" kW" />
-            <Tooltip contentStyle={{ fontSize: 11 }} formatter={(v: number) => [fmt(v) + " kW"]} />
+            <Tooltip contentStyle={{ fontSize: 11 }} formatter={(v: any) => [fmt(v) + " kW"]} />
             <Area
               type="monotone"
               dataKey="Potência (kW)"
