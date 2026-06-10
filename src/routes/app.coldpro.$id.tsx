@@ -35,6 +35,7 @@ import { ColdProSectionLoadSummary } from "@/components/coldpro/ColdProSectionLo
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { saveCatalogEquipmentSelection } from "@/features/coldpro/catalog-selection.functions";
 import { calculateExtraLoadPreview } from "@/features/coldpro/extra-loads-preview";
+import { calculateProductLoadBreakdown, calculatePackagingLoad, calculateProductRespirationLoad } from "@/features/coldpro/coldpro-calculation.engine";
 import { databaseToTunnelInput } from "@/modules/coldpro/adapters/databaseToTunnelInput";
 import { calculateTunnelEngine } from "@/modules/coldpro/engines/tunnelEngine";
 import { auditColdProTechnicalConsistency } from "@/modules/coldpro/core/technicalAudit";
@@ -323,8 +324,18 @@ function ColdProProjectPage() {
   const tunnelPreview = tunnel && selectedEnv ? calculateTunnelEngine(databaseToTunnelInput(tunnel, selectedEnv)) : null;
   const technicalAudit = React.useMemo(() => auditColdProTechnicalConsistency({ environment: selectedEnv, result, tunnel: tunnelPreview ?? tunnel, products, advancedProcesses: [], selection }), [selectedEnv, result, tunnelPreview, tunnel, products, selection]);
   const environmentLoad = Number(result?.transmission_kcal_h ?? 0);
+  const productLivePreview = React.useMemo(() => {
+    const storageTempC = Number(selectedEnv?.internal_temp_c ?? 0);
+    let product = 0, packaging = 0, respiration = 0;
+    for (const p of products) {
+      try { product += Number(calculateProductLoadBreakdown(p)?.total_kcal_h ?? 0); } catch {}
+      try { packaging += Number(calculatePackagingLoad(p) ?? 0); } catch {}
+      try { respiration += Number(calculateProductRespirationLoad(p, storageTempC) ?? 0); } catch {}
+    }
+    return { product, packaging, respiration, total: product + packaging + respiration };
+  }, [products, selectedEnv?.internal_temp_c]);
   const savedProductLoad = Number(result?.product_kcal_h ?? 0) + Number(result?.packaging_kcal_h ?? 0) + Number(result?.calculation_breakdown?.respiration_kcal_h ?? 0) + Number(result?.tunnel_internal_load_kcal_h ?? 0);
-  const productLoad = savedProductLoad > 0 ? savedProductLoad : Number(tunnelPreview?.totalKcalH ?? 0);
+  const productLoad = savedProductLoad > 0 ? savedProductLoad : (tunnelPreview ? Number(tunnelPreview.totalKcalH ?? 0) : productLivePreview.total);
   const extraPreview = calculateExtraLoadPreview(selectedEnv ?? {});
   const extraLoad = result ? Number(result.infiltration_kcal_h ?? 0) + Number(result.people_kcal_h ?? 0) + Number(result.lighting_kcal_h ?? 0) + Number(result.motors_kcal_h ?? 0) + Number(result.fans_kcal_h ?? 0) + Number(result.defrost_kcal_h ?? 0) + Number(result.other_kcal_h ?? 0) : extraPreview.subtotal_kcal_h;
   const catalogFanLoadKcalH = Number(selection?.curve_metadata?.fan_power_kw ?? 0) * Number(selection?.quantity ?? 1) * 859.845;
@@ -765,9 +776,9 @@ function ColdProProjectPage() {
                   <ColdProSectionLoadSummary
                     title="Prévia da carga de produto"
                     rows={[
-                      { label: "Produto", value: Number(result?.product_kcal_h ?? 0) || (tunnelPreview ? tunnelPreview.productLoadKW * 859.845 : 0) },
-                      { label: "Embalagem", value: Number(result?.packaging_kcal_h ?? 0) || (tunnelPreview ? tunnelPreview.packagingLoadKW * 859.845 : 0) },
-                      { label: "Respiração", value: result?.calculation_breakdown?.respiration_kcal_h },
+                      { label: "Produto", value: Number(result?.product_kcal_h ?? 0) || (tunnelPreview ? tunnelPreview.productLoadKW * 859.845 : productLivePreview.product) },
+                      { label: "Embalagem", value: Number(result?.packaging_kcal_h ?? 0) || (tunnelPreview ? tunnelPreview.packagingLoadKW * 859.845 : productLivePreview.packaging) },
+                      { label: "Respiração", value: Number(result?.calculation_breakdown?.respiration_kcal_h ?? 0) || productLivePreview.respiration },
                       { label: "Túnel / processo", value: Number(result?.tunnel_internal_load_kcal_h ?? 0) || (tunnelPreview ? tunnelPreview.internalLoadKW * 859.845 : 0) },
                     ]}
                     totalLabel="Total calculado da aba Produtos"
