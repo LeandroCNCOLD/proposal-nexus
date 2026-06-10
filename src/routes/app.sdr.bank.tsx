@@ -92,6 +92,8 @@ function BankPage() {
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ['proposal-bank'],
     queryFn: () => fetchProposalBank(),
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
   })
 
   const { byLead: nomusByLead } = useProposalLeadMatches({
@@ -112,7 +114,13 @@ function BankPage() {
       qc.invalidateQueries({ queryKey: ['my-lock-count'] })
       qc.invalidateQueries({ queryKey: ['my-wallet'] })
     },
-    onError: () => toast.error('Não foi possível travar — talvez outro SDR pegou antes.'),
+    onError: (e) => {
+      // Mostra a mensagem real do RPC (ex.: "Lead já está na carteira de outro SDR" / "Lead bloqueado pelo gestor")
+      const msg = e instanceof Error ? e.message : 'Não foi possível travar este lead.'
+      toast.error(msg)
+      // Atualiza a lista para refletir o lock real e remover o botão "Pegar"
+      qc.invalidateQueries({ queryKey: ['proposal-bank'] })
+    },
   })
 
   const unlockMut = useMutation({
@@ -121,6 +129,12 @@ function BankPage() {
       toast.success('Lead devolvido ao banco.')
       qc.invalidateQueries({ queryKey: ['proposal-bank'] })
       qc.invalidateQueries({ queryKey: ['my-lock-count'] })
+      qc.invalidateQueries({ queryKey: ['my-wallet'] })
+    },
+    onError: (e) => {
+      const msg = e instanceof Error ? e.message : 'Não foi possível devolver o lead.'
+      toast.error(msg)
+      qc.invalidateQueries({ queryKey: ['proposal-bank'] })
       qc.invalidateQueries({ queryKey: ['my-wallet'] })
     },
   })
