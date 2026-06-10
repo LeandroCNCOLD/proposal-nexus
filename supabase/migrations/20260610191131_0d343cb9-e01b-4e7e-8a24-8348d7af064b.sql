@@ -1,0 +1,1 @@
+ALTER TABLE public.coldpro_environment_products ADD COLUMN IF NOT EXISTS ashrae_density_kg_m3 NUMERIC;

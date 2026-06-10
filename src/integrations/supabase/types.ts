@@ -708,6 +708,7 @@ export type Database = {
         Row: {
           allow_phase_change: boolean
           ash_content_percent: number | null
+          ashrae_density_kg_m3: number | null
           carbohydrate_content_percent: number | null
           characteristic_thickness_m: number | null
           created_at: string
@@ -766,6 +767,7 @@ export type Database = {
         Insert: {
           allow_phase_change?: boolean
           ash_content_percent?: number | null
+          ashrae_density_kg_m3?: number | null
           carbohydrate_content_percent?: number | null
           characteristic_thickness_m?: number | null
           created_at?: string
@@ -824,6 +826,7 @@ export type Database = {
         Update: {
           allow_phase_change?: boolean
           ash_content_percent?: number | null
+          ashrae_density_kg_m3?: number | null
           carbohydrate_content_percent?: number | null
           characteristic_thickness_m?: number | null
           created_at?: string
