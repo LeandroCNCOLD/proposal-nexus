@@ -4046,8 +4046,10 @@ export type Database = {
           channel: string
           created_at: string
           duration_min: number | null
+          encerrado_em: string | null
           id: string
           meeting_booked: boolean
+          numero_discado: string | null
           observation: string | null
           pipeline_id: string | null
           proof_path: string | null
@@ -4063,8 +4065,10 @@ export type Database = {
           channel?: string
           created_at?: string
           duration_min?: number | null
+          encerrado_em?: string | null
           id?: string
           meeting_booked?: boolean
+          numero_discado?: string | null
           observation?: string | null
           pipeline_id?: string | null
           proof_path?: string | null
@@ -4080,8 +4084,10 @@ export type Database = {
           channel?: string
           created_at?: string
           duration_min?: number | null
+          encerrado_em?: string | null
           id?: string
           meeting_booked?: boolean
+          numero_discado?: string | null
           observation?: string | null
           pipeline_id?: string | null
           proof_path?: string | null
@@ -4497,6 +4503,7 @@ export type Database = {
           created_at: string
           id: string
           name: string
+          push_token: string | null
           role: string
           user_id: string | null
         }
@@ -4506,6 +4513,7 @@ export type Database = {
           created_at?: string
           id?: string
           name: string
+          push_token?: string | null
           role: string
           user_id?: string | null
         }
@@ -4515,6 +4523,7 @@ export type Database = {
           created_at?: string
           id?: string
           name?: string
+          push_token?: string | null
           role?: string
           user_id?: string | null
         }
