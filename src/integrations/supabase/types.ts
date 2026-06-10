@@ -9104,6 +9104,7 @@ export type Database = {
       can_access_proposal: { Args: { _proposal_id: string }; Returns: boolean }
       can_manage_user_access: { Args: { _user_id: string }; Returns: boolean }
       claim_marketing_lead: { Args: { _lead_id: string }; Returns: undefined }
+      claim_sdr_lead: { Args: { _lead_id: string }; Returns: undefined }
       coldpro_calculate_coil_volume_l: {
         Args: {
           p_correction_factor?: number
@@ -9208,6 +9209,7 @@ export type Database = {
       }
       release_expired_locks: { Args: never; Returns: undefined }
       release_marketing_lead: { Args: { _lead_id: string }; Returns: undefined }
+      release_sdr_lead: { Args: { _lead_id: string }; Returns: undefined }
       renew_marketing_lead_lock: {
         Args: { _lead_id: string }
         Returns: undefined
