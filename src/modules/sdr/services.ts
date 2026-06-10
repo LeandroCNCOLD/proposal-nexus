@@ -68,12 +68,12 @@ export async function unlockLead(pipelineId: string) {
 }
 
 
-/** Minha Carteira: leads travados pelo SDR. */
+/** Minha Carteira: leads do SDR (inclui transferidos e encerrados para histórico). */
 export async function fetchMyWallet(sdrId: string) {
   const { data, error } = await supabase
     .from('sdr_leads')
     .select('*')
-    .eq('locked_by_sdr_id', sdrId)
+    .or(`sdr_id.eq.${sdrId},locked_by_sdr_id.eq.${sdrId}`)
     .not('locked_by_sdr_name', 'ilike', `${MANAGER_FREEZE_PREFIX}%`)
     .order('locked_at', { ascending: false })
   if (error) throw error
@@ -92,15 +92,27 @@ export async function renewLock(pipelineId: string) {
   if (error) throw error
 }
 
-/** Conta quantos leads o SDR tem travados (para checar limite). */
+/** Conta quantos leads o SDR tem ativos na carteira (exclui transferidos e encerrados). */
 export async function countMyLocks(sdrId: string) {
   const { count, error } = await supabase
     .from('sdr_leads')
     .select('id', { count: 'exact', head: true })
     .eq('locked_by_sdr_id', sdrId)
     .not('locked_by_sdr_name', 'ilike', `${MANAGER_FREEZE_PREFIX}%`)
+    .neq('handoff_status' as never, 'transferred' as never)
+    .not('sdr_status', 'in', '("Fechado","Perdido (com motivo)","Kill / Arquivar")')
   if (error) throw error
   return count ?? 0
+}
+
+/** Encerra um lead (Fechado/Perdido/Kill) e libera o slot da carteira. */
+export async function closeSdrLead(leadId: string, reason: string, note?: string | null) {
+  const { error } = await supabase.rpc('close_sdr_lead' as never, {
+    _lead_id: leadId,
+    _reason: reason,
+    _note: note ?? null,
+  } as never)
+  if (error) throw error
 }
 
 

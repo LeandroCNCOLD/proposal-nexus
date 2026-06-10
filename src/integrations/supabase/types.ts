@@ -9105,6 +9105,10 @@ export type Database = {
       can_manage_user_access: { Args: { _user_id: string }; Returns: boolean }
       claim_marketing_lead: { Args: { _lead_id: string }; Returns: undefined }
       claim_sdr_lead: { Args: { _lead_id: string }; Returns: undefined }
+      close_sdr_lead: {
+        Args: { _lead_id: string; _note?: string; _reason: string }
+        Returns: undefined
+      }
       coldpro_calculate_coil_volume_l: {
         Args: {
           p_correction_factor?: number
