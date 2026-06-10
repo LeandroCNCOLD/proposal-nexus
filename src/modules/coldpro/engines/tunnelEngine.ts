@@ -454,8 +454,8 @@ function calculateTunnelCore(input: TunnelEngineInput) {
   
   // NOVO: Usar método correto de infiltração (por ciclo vs por dia)
   const infiltrationAirflowResult = calculateInfiltrationAirflow({
-    environmentType: input?.environmentType || input?.environment_type || 'blast_freezer',
-    processMode: input?.processMode || input?.process_mode || 'batch',
+    environmentType: String(input?.environmentType || input?.environment_type || 'blast_freezer'),
+    processMode: String(input?.processMode || input?.process_mode || 'batch'),
     doorWidthM: positiveNumber(input?.doorWidthM ?? input?.door_width_m),
     doorHeightM: positiveNumber(input?.doorHeightM ?? input?.door_height_m),
     doorAirVelocityMS: positiveNumber(input?.doorAirVelocityMS ?? input?.door_air_velocity_m_s) || 0.5,
@@ -483,7 +483,7 @@ function calculateTunnelCore(input: TunnelEngineInput) {
   const totalKcalH = kwToKcalH(totalKW);
   const totalTR = kwToTr(totalKW);
   const airFlowM3H = calculateRequiredAirflowM3H({ loadKW: totalKW, airDeltaTK, airDensityKgM3, cpAirKJkgK });
-  const airFlowByMinVelocityM3H = geometry.freeAreaM2 * (positiveNumber(input?.minAirVelocityMS ?? input?.min_air_velocity_m_s) || 2.5) * 3600;
+  const airFlowByMinVelocityM3H = airflow.freeAreaM2 * (positiveNumber(input?.minAirVelocityMS ?? input?.min_air_velocity_m_s) || 2.5) * 3600;
   const airFlowThermalBalanceM3H = airFlowM3H;
 
   const estimatedTimeMin = canEstimateFreezingTime(input, distanceToCoreM, h.hEffectiveWM2K, kEffectiveWMK)

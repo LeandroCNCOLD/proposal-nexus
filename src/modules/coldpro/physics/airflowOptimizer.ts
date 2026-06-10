@@ -195,20 +195,21 @@ export function resolveRecommendedAirflow(params: {
   warnings: string[];
 } {
   const warnings: string[] = [];
+  const freezingParams = params.freezingParams;
 
   // Se tempo é suficiente, usar vazão por carga (mais econômica)
   if (params.estimatedTimeMin <= params.availableTimeMin) {
     return {
       recommendedAirflowM3H: params.airflowByThermalLoadM3H,
-      recommendedVelocityMS: params.airflowByThermalLoadM3H / (params.freezingParams?.areaLibreM2 || 1) / 3600,
+      recommendedVelocityMS: params.airflowByThermalLoadM3H / (freezingParams?.areaLibreM2 || 1) / 3600,
       rationale: "Tempo suficiente com vazão por carga térmica (mais econômica)",
       warnings,
     };
   }
 
   // Se tempo é insuficiente, calcular vazão necessária
-  if (params.freezingParams) {
-    const optimization = calculateRequiredAirflowForFreezingTime(params.freezingParams);
+  if (freezingParams) {
+    const optimization = calculateRequiredAirflowForFreezingTime(freezingParams);
     warnings.push(...optimization.warnings);
 
     if (optimization.feasible) {
@@ -223,7 +224,7 @@ export function resolveRecommendedAirflow(params: {
       warnings.push("Não é possível congelar no tempo disponível. Recomendando vazão máxima.");
       return {
         recommendedAirflowM3H: params.airflowByMinVelocityM3H,
-        recommendedVelocityMS: params.airflowByMinVelocityM3H / (params.freezingParams.areaLibreM2 * 3600),
+        recommendedVelocityMS: params.airflowByMinVelocityM3H / (freezingParams.areaLibreM2 * 3600),
         rationale: "Vazão máxima (não é possível acertar tempo disponível)",
         warnings,
       };
@@ -233,7 +234,7 @@ export function resolveRecommendedAirflow(params: {
   // Fallback: usar maior entre carga e velocidade mínima
   return {
     recommendedAirflowM3H: Math.max(params.airflowByThermalLoadM3H, params.airflowByMinVelocityM3H),
-    recommendedVelocityMS: Math.max(params.airflowByThermalLoadM3H, params.airflowByMinVelocityM3H) / (params.freezingParams?.areaLibreM2 || 1) / 3600,
+    recommendedVelocityMS: Math.max(params.airflowByThermalLoadM3H, params.airflowByMinVelocityM3H) / (freezingParams?.areaLibreM2 || 1) / 3600,
     rationale: "Vazão padrão (maior entre carga térmica e velocidade mínima)",
     warnings: [...warnings, "Parâmetros de congelamento não fornecidos"],
   };
