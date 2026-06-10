@@ -6,7 +6,7 @@ import { ColdProCalculatedInfo, ColdProFormSection, ColdProValidationMessage, fm
 import { filterAndRankColdProProducts } from "@/modules/coldpro/core/productSearch";
 import { normalizeProductForKcalEngine } from "@/modules/coldpro/core/unitNormalizer";
 
-type Props = { environmentId: string; product?: any | null; productCatalog?: any[]; saving?: boolean; onSave: (data: any) => void };
+type Props = { environmentId: string; product?: any | null; productCatalog?: any[]; saving?: boolean; onSave: (data: any) => void; onDraftChange?: (draft: any) => void };
 
 const initialForm = (environmentId: string) => ({
   id: undefined as string | undefined,
@@ -64,11 +64,12 @@ const initialForm = (environmentId: string) => ({
   notes: null as string | null,
 });
 
-export function ColdProProductForm({ environmentId, product, productCatalog = [], saving = false, onSave }: Props) {
+export function ColdProProductForm({ environmentId, product, productCatalog = [], saving = false, onSave, onDraftChange }: Props) {
   const [selectedGroup, setSelectedGroup] = React.useState("");
   const [productSearch, setProductSearch] = React.useState("");
   const [showProductSuggestions, setShowProductSuggestions] = React.useState(false);
   const [form, setForm] = React.useState(initialForm(environmentId));
+  React.useEffect(() => { onDraftChange?.(form); }, [form, onDraftChange]);
 
   React.useEffect(() => {
     setForm((prev) => ({ ...initialForm(environmentId), ...product, environment_id: environmentId, id: product?.id ?? prev.id }));

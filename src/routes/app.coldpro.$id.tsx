@@ -324,16 +324,24 @@ function ColdProProjectPage() {
   const tunnelPreview = tunnel && selectedEnv ? calculateTunnelEngine(databaseToTunnelInput(tunnel, selectedEnv)) : null;
   const technicalAudit = React.useMemo(() => auditColdProTechnicalConsistency({ environment: selectedEnv, result, tunnel: tunnelPreview ?? tunnel, products, advancedProcesses: [], selection }), [selectedEnv, result, tunnelPreview, tunnel, products, selection]);
   const environmentLoad = Number(result?.transmission_kcal_h ?? 0);
+  const [productDraft, setProductDraft] = React.useState<any | null>(null);
   const productLivePreview = React.useMemo(() => {
     const storageTempC = Number(selectedEnv?.internal_temp_c ?? 0);
     let product = 0, packaging = 0, respiration = 0;
-    for (const p of products) {
+    const editingId = editingProductId ?? products[0]?.id;
+    const list: any[] = [...products];
+    if (productDraft) {
+      const idx = list.findIndex((p) => p.id === editingId);
+      if (idx >= 0) list[idx] = { ...list[idx], ...productDraft };
+      else list.push(productDraft);
+    }
+    for (const p of list) {
       try { product += Number(calculateProductLoadBreakdown(p)?.total_kcal_h ?? 0); } catch {}
       try { packaging += Number(calculatePackagingLoad(p) ?? 0); } catch {}
       try { respiration += Number(calculateProductRespirationLoad(p, storageTempC) ?? 0); } catch {}
     }
     return { product, packaging, respiration, total: product + packaging + respiration };
-  }, [products, selectedEnv?.internal_temp_c]);
+  }, [products, productDraft, editingProductId, selectedEnv?.internal_temp_c]);
   const savedProductLoad = Number(result?.product_kcal_h ?? 0) + Number(result?.packaging_kcal_h ?? 0) + Number(result?.calculation_breakdown?.respiration_kcal_h ?? 0) + Number(result?.tunnel_internal_load_kcal_h ?? 0);
   const productLoad = savedProductLoad > 0 ? savedProductLoad : (tunnelPreview ? Number(tunnelPreview.totalKcalH ?? 0) : productLivePreview.total);
   const extraPreview = calculateExtraLoadPreview(selectedEnv ?? {});
@@ -770,6 +778,7 @@ function ColdProProjectPage() {
                       productCatalog={data?.productCatalog ?? []}
                       saving={upsertProduct.isPending || calculate.isPending}
                       onSave={handleSaveProduct}
+                      onDraftChange={setProductDraft}
                     />
                   )}
 
