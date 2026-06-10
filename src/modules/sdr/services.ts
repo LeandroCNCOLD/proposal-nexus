@@ -35,28 +35,11 @@ export async function fetchProposalBank(filters: Partial<PipelineFilters> = {}) 
   return withDaysWithoutContact(data ?? []) as CrmPipeline[]
 }
 
-/** Trava o lead para o SDR. Falha silenciosa se já estiver travado por outro. */
-export async function lockLead(pipelineId: string, sdrId: string, sdrName: string) {
-  const expires = new Date()
-  expires.setDate(expires.getDate() + SDR_LOCK_DAYS)
-
-  const { data, error } = await supabase
-    .from('sdr_leads')
-    .update({
-      locked_by_sdr_id: sdrId,
-      locked_by_sdr_name: sdrName,
-      locked_at: new Date().toISOString(),
-      lock_expires_at: expires.toISOString(),
-      sdr_name: sdrName,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', pipelineId)
-    .is('locked_by_sdr_id', null)
-    .select()
-    .single()
-
+/** Trava o lead para o SDR via RPC SECURITY DEFINER (respeita limite e bloqueio do gestor). */
+export async function lockLead(pipelineId: string, _sdrId: string, _sdrName: string) {
+  const { error } = await supabase.rpc('claim_sdr_lead' as never, { _lead_id: pipelineId } as never)
   if (error) throw error
-  return data as CrmPipeline
+  return { id: pipelineId } as unknown as CrmPipeline
 }
 
 export const MANAGER_FREEZE_PREFIX = '🔒 Bloqueado pelo gestor'
@@ -78,20 +61,12 @@ export async function freezeLead(pipelineId: string, managerId: string, managerN
   if (error) throw error
 }
 
-/** Devolve o lead ao banco. */
+/** Devolve o lead ao banco via RPC SECURITY DEFINER. */
 export async function unlockLead(pipelineId: string) {
-  const { error } = await supabase
-    .from('sdr_leads')
-    .update({
-      locked_by_sdr_id: null,
-      locked_by_sdr_name: null,
-      locked_at: null,
-      lock_expires_at: null,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', pipelineId)
+  const { error } = await supabase.rpc('release_sdr_lead' as never, { _lead_id: pipelineId } as never)
   if (error) throw error
 }
+
 
 /** Minha Carteira: leads travados pelo SDR. */
 export async function fetchMyWallet(sdrId: string) {
