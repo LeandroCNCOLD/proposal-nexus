@@ -6,7 +6,7 @@ import { ColdProCalculatedInfo, ColdProFormSection, ColdProValidationMessage, fm
 import { filterAndRankColdProProducts } from "@/modules/coldpro/core/productSearch";
 import { normalizeProductForKcalEngine } from "@/modules/coldpro/core/unitNormalizer";
 
-type Props = { environmentId: string; product?: any | null; productCatalog?: any[]; saving?: boolean; onSave: (data: any) => void };
+type Props = { environmentId: string; product?: any | null; productCatalog?: any[]; saving?: boolean; onSave: (data: any) => void; onDraftChange?: (draft: any) => void };
 
 const initialForm = (environmentId: string) => ({
   id: undefined as string | undefined,
