@@ -62,6 +62,8 @@ export function ColdProInput(
         if (isNumeric) {
           setIsEditing(true);
           setDraftValue(String(event.currentTarget.value ?? ""));
+          const target = event.currentTarget;
+          requestAnimationFrame(() => { try { target.select(); } catch {} });
         }
         onFocus?.(event);
       }}
