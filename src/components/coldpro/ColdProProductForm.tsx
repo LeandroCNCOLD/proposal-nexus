@@ -72,7 +72,19 @@ export function ColdProProductForm({ environmentId, product, productCatalog = []
 
   React.useEffect(() => {
     setForm((prev) => ({ ...initialForm(environmentId), ...product, environment_id: environmentId, id: product?.id ?? prev.id }));
-  }, [environmentId, product]);
+    if (product?.product_id) {
+      const catalogMatch = productCatalog.find((item) => item.id === product.product_id);
+      if (catalogMatch) {
+        setSelectedGroup(catalogMatch.category ?? "");
+        setProductSearch(catalogMatch.name ?? product.product_name ?? "");
+      } else if (product?.product_name) {
+        setProductSearch(product.product_name);
+      }
+    } else if (product?.product_name && product.product_name !== "Produto genérico") {
+      setProductSearch(product.product_name);
+    }
+  }, [environmentId, product, productCatalog]);
+
 
   const set = (key: string, value: unknown) => setForm((prev) => ({ ...prev, [key]: value }));
   const num = (key: keyof ReturnType<typeof initialForm>) => ({ type: "number" as const, step: "0.0001", value: typeof form[key] === "boolean" ? "" : (form[key] ?? ""), onChange: (e: React.ChangeEvent<HTMLInputElement>) => set(key, numberOrNull(e.target.value)) });
