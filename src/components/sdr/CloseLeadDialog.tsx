@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { updatePipelineField } from '@/modules/sdr/services'
+import { closeSdrLead } from '@/modules/sdr/services'
 import type { CrmPipeline, SdrStatus } from '@/modules/sdr/types'
 import { toast } from 'sonner'
 import { useQueryClient } from '@tanstack/react-query'
@@ -23,12 +23,11 @@ export function CloseLeadDialog({
     if (!lead) return
     setSaving(true)
     try {
-      await updatePipelineField(lead.id, 'sdr_status', reason as SdrStatus)
-      if (note.trim()) {
-        await updatePipelineField(lead.id, 'call_observation', note.trim())
-      }
-      toast.success(`Lead movido para "${reason}".`)
+      await closeSdrLead(lead.id, reason, note.trim() || null)
+      toast.success(`Lead movido para "${reason}" — vaga liberada na carteira.`)
       qc.invalidateQueries({ queryKey: ['my-wallet'] })
+      qc.invalidateQueries({ queryKey: ['my-lock-count'] })
+      qc.invalidateQueries({ queryKey: ['proposal-bank'] })
       onOpenChange(false)
       setNote('')
     } catch (e) {
