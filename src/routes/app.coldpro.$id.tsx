@@ -35,6 +35,7 @@ import { ColdProSectionLoadSummary } from "@/components/coldpro/ColdProSectionLo
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { saveCatalogEquipmentSelection } from "@/features/coldpro/catalog-selection.functions";
 import { calculateExtraLoadPreview } from "@/features/coldpro/extra-loads-preview";
+import { calculateProductLoadBreakdown, calculatePackagingLoad, calculateProductRespirationLoad } from "@/features/coldpro/coldpro-calculation.engine";
 import { databaseToTunnelInput } from "@/modules/coldpro/adapters/databaseToTunnelInput";
 import { calculateTunnelEngine } from "@/modules/coldpro/engines/tunnelEngine";
 import { auditColdProTechnicalConsistency } from "@/modules/coldpro/core/technicalAudit";
