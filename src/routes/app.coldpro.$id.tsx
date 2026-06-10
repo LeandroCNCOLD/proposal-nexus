@@ -1091,7 +1091,7 @@ function ColdProProjectPage() {
                   environment={selectedEnv}
                   calculationResult={selectedEnv?.result ?? null}
                   simulationResult={null}
-                  projectName={project?.name}
+                  projectName={data?.project?.name}
                 />
               )}
 
