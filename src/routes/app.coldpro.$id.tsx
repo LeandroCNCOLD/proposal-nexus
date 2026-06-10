@@ -1081,7 +1081,7 @@ function ColdProProjectPage() {
               {stepIndex === 4 && (
                 <ColdRoomSimulationTab
                   environment={selectedEnv}
-                  calculationResult={selectedEnv?.result ?? null}
+                  calculationResult={result ?? null}
                 />
               )}
 
@@ -1089,9 +1089,9 @@ function ColdProProjectPage() {
               {stepIndex === 5 && (
                 <ColdRoomFinalReportTab
                   environment={selectedEnv}
-                  calculationResult={selectedEnv?.result ?? null}
+                  calculationResult={result ?? null}
                   simulationResult={null}
-                  projectName={project?.name}
+                  projectName={data?.project?.name}
                 />
               )}
 
