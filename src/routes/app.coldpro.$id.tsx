@@ -324,8 +324,18 @@ function ColdProProjectPage() {
   const tunnelPreview = tunnel && selectedEnv ? calculateTunnelEngine(databaseToTunnelInput(tunnel, selectedEnv)) : null;
   const technicalAudit = React.useMemo(() => auditColdProTechnicalConsistency({ environment: selectedEnv, result, tunnel: tunnelPreview ?? tunnel, products, advancedProcesses: [], selection }), [selectedEnv, result, tunnelPreview, tunnel, products, selection]);
   const environmentLoad = Number(result?.transmission_kcal_h ?? 0);
+  const productLivePreview = React.useMemo(() => {
+    const storageTempC = Number(selectedEnv?.internal_temp_c ?? 0);
+    let product = 0, packaging = 0, respiration = 0;
+    for (const p of products) {
+      try { product += Number(calculateProductLoadBreakdown(p)?.total_kcal_h ?? 0); } catch {}
+      try { packaging += Number(calculatePackagingLoad(p) ?? 0); } catch {}
+      try { respiration += Number(calculateProductRespirationLoad(p, storageTempC) ?? 0); } catch {}
+    }
+    return { product, packaging, respiration, total: product + packaging + respiration };
+  }, [products, selectedEnv?.internal_temp_c]);
   const savedProductLoad = Number(result?.product_kcal_h ?? 0) + Number(result?.packaging_kcal_h ?? 0) + Number(result?.calculation_breakdown?.respiration_kcal_h ?? 0) + Number(result?.tunnel_internal_load_kcal_h ?? 0);
-  const productLoad = savedProductLoad > 0 ? savedProductLoad : Number(tunnelPreview?.totalKcalH ?? 0);
+  const productLoad = savedProductLoad > 0 ? savedProductLoad : (tunnelPreview ? Number(tunnelPreview.totalKcalH ?? 0) : productLivePreview.total);
   const extraPreview = calculateExtraLoadPreview(selectedEnv ?? {});
   const extraLoad = result ? Number(result.infiltration_kcal_h ?? 0) + Number(result.people_kcal_h ?? 0) + Number(result.lighting_kcal_h ?? 0) + Number(result.motors_kcal_h ?? 0) + Number(result.fans_kcal_h ?? 0) + Number(result.defrost_kcal_h ?? 0) + Number(result.other_kcal_h ?? 0) : extraPreview.subtotal_kcal_h;
   const catalogFanLoadKcalH = Number(selection?.curve_metadata?.fan_power_kw ?? 0) * Number(selection?.quantity ?? 1) * 859.845;
