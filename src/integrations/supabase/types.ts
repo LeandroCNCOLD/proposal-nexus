@@ -722,6 +722,7 @@ export type Database = {
           freezable_water_content_percent: number | null
           freezing_batch_mass_kg: number
           freezing_batch_time_h: number
+          freezing_temp_c: number | null
           frozen_water_fraction: number | null
           hourly_movement_kg: number
           id: string
@@ -781,6 +782,7 @@ export type Database = {
           freezable_water_content_percent?: number | null
           freezing_batch_mass_kg?: number
           freezing_batch_time_h?: number
+          freezing_temp_c?: number | null
           frozen_water_fraction?: number | null
           hourly_movement_kg?: number
           id?: string
@@ -840,6 +842,7 @@ export type Database = {
           freezable_water_content_percent?: number | null
           freezing_batch_mass_kg?: number
           freezing_batch_time_h?: number
+          freezing_temp_c?: number | null
           frozen_water_fraction?: number | null
           hourly_movement_kg?: number
           id?: string
