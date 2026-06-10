@@ -56,6 +56,13 @@ function WalletPage() {
   const [scriptLead, setScriptLead] = useState<CrmPipeline | null>(null)
   const [viewingUserId, setViewingUserId] = useState<string | null>(null)
   const [transferLead, setTransferLead] = useState<CrmPipeline | null>(null)
+  const [transferSellerLead, setTransferSellerLead] = useState<CrmPipeline | null>(null)
+  const [closeLead, setCloseLead] = useState<CrmPipeline | null>(null)
+  const [editLead, setEditLead] = useState<CrmPipeline | null>(null)
+  const [meetingLead, setMeetingLead] = useState<CrmPipeline | null>(null)
+  const [search, setSearch] = useState('')
+  const [tempFilter, setTempFilter] = useState<'all' | Temperature>('all')
+  const [actionFilter, setActionFilter] = useState<'all' | 'me' | 'other' | 'stale'>('all')
   const [viewMode, setViewMode] = useState<'list' | 'kanban'>(() => {
     if (typeof window === 'undefined') return 'kanban'
     return (localStorage.getItem('sdr-wallet-view') as 'list' | 'kanban') || 'kanban'
@@ -69,7 +76,6 @@ function WalletPage() {
 
   // Roster de SDRs (somente para gestores)
   const { data: roster = [] } = useTeamRoster('sdr' as never)
-  // Inclui também o próprio gestor caso ele tenha leads
   const targetUser = roster.find(r => r.user_id === targetUserId)
   const targetName = isViewingOther
     ? (targetUser?.full_name || targetUser?.email || 'SDR')
@@ -85,6 +91,39 @@ function WalletPage() {
   const leadIds = useMemo(() => leads.map(l => l.id), [leads])
   const { byLead: proposalMatches } = useProposalLeadMatches({ leadIds })
 
+  const signalsByLead = useMemo(() => {
+    const m = new Map<string, LeadCommSignals>()
+    leads.forEach(l => m.set(l.id, computeSignals(l as never)))
+    return m
+  }, [leads])
+
+  // contadores para o header (capacidade ativa)
+  const activeCount = useMemo(
+    () => leads.filter(l => {
+      const handoff = (l as { handoff_status?: string | null }).handoff_status
+      return handoff !== 'transferred' && !['Fechado', 'Perdido (com motivo)', 'Kill / Arquivar'].includes(l.sdr_status as string)
+    }).length,
+    [leads]
+  )
+
+  const filteredListLeads = useMemo(() => {
+    const s = search.trim().toLowerCase()
+    return leads.filter(l => {
+      if (tempFilter !== 'all' && l.temperature !== tempFilter) return false
+      const sig = signalsByLead.get(l.id)
+      if (actionFilter === 'me' && sig?.waitingOn !== 'me') return false
+      if (actionFilter === 'other' && sig?.waitingOn !== 'other') return false
+      if (actionFilter === 'stale' && !sig?.isStale) return false
+      if (!s) return true
+      return (
+        l.client_name?.toLowerCase().includes(s) ||
+        l.lead_code?.toLowerCase().includes(s) ||
+        l.cnpj?.toLowerCase().includes(s) ||
+        l.razao_social?.toLowerCase().includes(s)
+      )
+    })
+  }, [leads, search, tempFilter, actionFilter, signalsByLead])
+
   const unlockMut = useMutation({
     mutationFn: (id: string) => unlockLead(id),
     onSuccess: () => {
@@ -97,6 +136,8 @@ function WalletPage() {
 
   if (!user) return <div className="p-6">Faça login para ver sua carteira.</div>
 
+  const filtersActive = !!search || tempFilter !== 'all' || actionFilter !== 'all'
+
   return (
     <div className="p-6 space-y-4">
       <div className="flex items-end justify-between gap-3 flex-wrap">
@@ -104,7 +145,9 @@ function WalletPage() {
           <h1 className="text-2xl font-bold text-[#0F2D5E]">
             {isViewingOther ? `Carteira de ${targetName}` : 'Minha Carteira'}
           </h1>
-          <p className="text-sm text-muted-foreground">{leads.length} leads travados · cada lock dura 7 dias e renova ao registrar atividade</p>
+          <p className="text-sm text-muted-foreground">
+            <strong>{activeCount}/45</strong> leads ativos · {leads.length - activeCount} encerrados/transferidos no histórico · lock de 7 dias renova a cada atividade
+          </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <div className="inline-flex rounded-md border bg-background p-0.5">
@@ -162,20 +205,67 @@ function WalletPage() {
         <WalletKanban leads={leads} canTransferSdr={isManager} />
       ) : (
         <div className="space-y-3">
-          {leads.map(lead => (
+          {/* Filtros (mesmo conjunto do Kanban) */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar por cliente, código ou CNPJ…"
+              className="max-w-xs h-8"
+            />
+            <Select value={tempFilter} onValueChange={(v) => setTempFilter(v as 'all' | Temperature)}>
+              <SelectTrigger className="h-8 w-40"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas temperaturas</SelectItem>
+                <SelectItem value="Frio">Frio</SelectItem>
+                <SelectItem value="Morno">Morno</SelectItem>
+                <SelectItem value="Quente">Quente</SelectItem>
+                <SelectItem value="Muito Quente">Muito Quente</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={actionFilter} onValueChange={(v) => setActionFilter(v as typeof actionFilter)}>
+              <SelectTrigger className="h-8 w-48"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas as ações</SelectItem>
+                <SelectItem value="me">Esperando minha ação</SelectItem>
+                <SelectItem value="other">Esperando outro lado</SelectItem>
+                <SelectItem value="stale">Parados (SLA estourado)</SelectItem>
+              </SelectContent>
+            </Select>
+            {filtersActive && (
+              <Button variant="ghost" size="sm" onClick={() => { setSearch(''); setTempFilter('all'); setActionFilter('all') }}>
+                Limpar
+              </Button>
+            )}
+            <span className="text-xs text-muted-foreground ml-auto">
+              {filteredListLeads.length} de {leads.length} leads
+            </span>
+          </div>
+
+          {filteredListLeads.map(lead => (
             <LeadCard
               key={lead.id}
               lead={lead}
               sdrName={sdrName}
               proposalMatch={proposalMatches.get(lead.id) ?? null}
+              signals={signalsByLead.get(lead.id)}
               onOpenScript={() => setScriptLead(lead)}
               onUnlock={() => {
                 if (confirm(`Devolver "${lead.client_name}" ao banco?`)) unlockMut.mutate(lead.id)
               }}
               canManage={isManager}
               onTransfer={() => setTransferLead(lead)}
+              onTransferSeller={() => setTransferSellerLead(lead)}
+              onClose={() => setCloseLead(lead)}
+              onEdit={() => setEditLead(lead)}
+              onMeeting={() => setMeetingLead(lead)}
             />
           ))}
+          {filteredListLeads.length === 0 && (
+            <div className="text-center py-8 text-muted-foreground text-sm italic">
+              Nenhum lead corresponde aos filtros atuais.
+            </div>
+          )}
         </div>
       )}
 
@@ -191,6 +281,30 @@ function WalletPage() {
           leadId={transferLead.id}
         />
       )}
+      {transferSellerLead && (
+        <TransferToSellerDialog
+          open={!!transferSellerLead}
+          onOpenChange={(o) => !o && setTransferSellerLead(null)}
+          leadId={transferSellerLead.id}
+          leadLabel={transferSellerLead.client_name}
+        />
+      )}
+      <CloseLeadDialog
+        lead={closeLead}
+        open={!!closeLead}
+        onOpenChange={(o) => !o && setCloseLead(null)}
+      />
+      <LeadEditDialog
+        lead={editLead}
+        leadId={editLead?.id ?? ''}
+        open={!!editLead}
+        onOpenChange={(o) => !o && setEditLead(null)}
+      />
+      <MeetingScheduleQuickDialog
+        lead={meetingLead}
+        open={!!meetingLead}
+        onOpenChange={(o) => !o && setMeetingLead(null)}
+      />
     </div>
   )
 }
