@@ -9,7 +9,7 @@
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "test": "bun src/modules/coldpro/engines/tunnelEngine.test.ts",
+    "test": "bun src/modules/coldpro/engines/tunnelEngine.test.ts && bun src/modules/coldpro/physics/infiltrationCalculator.test.ts",
     "lint": "eslint .",
     "format": "prettier --write ."
   },
