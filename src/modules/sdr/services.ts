@@ -68,12 +68,16 @@ export async function unlockLead(pipelineId: string) {
 }
 
 
-/** Minha Carteira: leads do SDR (inclui transferidos e encerrados para histórico). */
+/**
+ * Minha Carteira: somente leads atualmente TRAVADOS no nome do SDR
+ * (lock ativo). Leads devolvidos ao banco saem imediatamente da carteira
+ * e voltam a ficar disponíveis para outros usuários.
+ */
 export async function fetchMyWallet(sdrId: string) {
   const { data, error } = await supabase
     .from('sdr_leads')
     .select('*')
-    .or(`sdr_id.eq.${sdrId},locked_by_sdr_id.eq.${sdrId}`)
+    .eq('locked_by_sdr_id', sdrId)
     .not('locked_by_sdr_name', 'ilike', `${MANAGER_FREEZE_PREFIX}%`)
     .order('locked_at', { ascending: false })
   if (error) throw error
