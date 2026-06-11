@@ -177,6 +177,9 @@ function calculatePlankFreezingTimeMin(params: {
   ) {
     return null;
   }
+  const _p = params as typeof params & { latentMode?: "effective" | "full" | null };
+
+
 
   // LOGICA DE LATENT_MODE:
   // - "effective": latente ja esta corrigido na base -> usar direto

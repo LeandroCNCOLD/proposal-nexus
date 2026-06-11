@@ -194,6 +194,7 @@ export type ColdProEnvironmentProduct = {
   respiration_rate_15c_mw_kg?: number | null;
   respiration_rate_20c_mw_kg?: number | null;
   notes?: string | null;
+  latentMode?: "effective" | "full" | null;
 };
 
 export type ColdProTunnel = {
