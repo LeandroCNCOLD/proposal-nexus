@@ -73,6 +73,7 @@ function PhoneActions({ phone, variant = 'default', isMobile }: { phone: string;
 }
 import type { CrmPipeline } from '../types'
 import { insertCallLog } from '../services'
+import { supabase } from '@/integrations/supabase/client'
 import { useScriptTemplates, renderTemplate } from '../hooks/use-script-templates'
 
 interface Props {
@@ -183,10 +184,13 @@ export function CallScriptDialog({ lead, open, onOpenChange, onSaved }: Props) {
     setSaving(true)
     try {
       const now = new Date()
+      const { data: auth } = await supabase.auth.getUser()
+      const currentUserId = auth.user?.id
+      if (!currentUserId) throw new Error('Usuário não autenticado')
       await insertCallLog({
         pipeline_id: lead.id,
-        sdr_id: lead.sdr_id,
-        sdr_name: lead.sdr_name || 'SDR',
+        sdr_id: currentUserId,
+        sdr_name: lead.sdr_name || auth.user?.email || 'SDR',
         call_date: now.toISOString().slice(0, 10),
         call_time: now.toTimeString().slice(0, 8),
         duration_min: null,
