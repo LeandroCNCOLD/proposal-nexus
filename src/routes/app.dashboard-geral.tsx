@@ -422,7 +422,7 @@ function DashboardGeral() {
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                     <XAxis dataKey="label" tick={{ fontSize: 11 }} />
                     <YAxis tick={{ fontSize: 11 }} />
-                    <Tooltip formatter={(v: number, n: string) => n === "value" ? fmtBRL(Number(v)) : v} />
+                    <Tooltip formatter={((v: number, n: string) => n === "value" ? fmtBRL(Number(v)) : v) as any} />
                     <Legend wrapperStyle={{ fontSize: 11 }} />
                     <Bar dataKey="count" fill="hsl(210 80% 55%)" name="Qtd." />
                     <Bar dataKey="value" fill="hsl(265 75% 60%)" name="Valor" />
