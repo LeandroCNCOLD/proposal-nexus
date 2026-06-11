@@ -5,7 +5,7 @@
  * Converte unidades, valida valores e estrutura dados para UI
  */
 
-import { ThermalLoadBreakdown } from "./tunnelEngine";
+import { ThermalLoadBreakdown } from "../engines/tunnelEngine";
 
 export interface NormalizedEnvironmentResult {
   // Identificação

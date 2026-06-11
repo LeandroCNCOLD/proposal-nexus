@@ -15,7 +15,7 @@ import {
   ProductThermalProperties,
   calculateProductThermalLoad,
   validateProductProperties,
-} from "./productThermal";
+} from "../physics/productThermal";
 
 export interface EnvironmentConfiguration {
   // Identificação
@@ -140,15 +140,6 @@ export function calculateThermalLoad(
     throw new Error(`Propriedades inválidas: ${erros.join(", ")}`);
   }
 
-  // CORREÇÃO 2: Validar propriedades termofísicas
-  const cpValidation = validateCpValue(config.product.cpAT || 0, "kJ/kg·K");
-  if (!cpValidation.valid) warnings.push(cpValidation.message);
-  
-  const latentValidation = validateLatentHeat(config.product.calorLatente || 0, "kJ/kg");
-  if (!latentValidation.valid) warnings.push(latentValidation.message);
-  
-  const densityValidation = validateDensity(config.product.densidade || 0);
-  if (!densityValidation.valid) warnings.push(densityValidation.message);
   // 1. Carga do produto
   const resultadoProduto = calculateProductThermalLoad(
     config.product,
@@ -166,7 +157,6 @@ export function calculateThermalLoad(
     config.tempCamara,
     config.tempExterna,
     config.trocasAr,
-    config.product.tempFinal // CORREÇÃO 4: Passar temperatura final do produto
   );
 
   // 3. Carga das paredes

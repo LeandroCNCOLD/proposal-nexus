@@ -169,7 +169,7 @@ function buildSimulationInput(
   };
 
   const internalLoads: InternalLoadProfile = {
-    lighting_kw: Number(env.lighting_kw ?? (calcResult.lighting_kcal_h ?? 0) / 860 ?? 0.5),
+    lighting_kw: Number(env.lighting_kw ?? (((calcResult.lighting_kcal_h ?? 0) / 860) || 0.5)),
     people_count: Number(env.people_count ?? 2),
     people_heat_kcal_h_person: Number(env.people_heat_kcal_h ?? 270),
     motors_hp: Number(env.motors_hp ?? 0),
@@ -321,7 +321,7 @@ export function useColdRoomSimulation(
           environmentId: environment.id,
           name: name ?? `Simulação ${new Date().toLocaleDateString("pt-BR")}`,
           config: {
-            weatherProfile: config.weather_profile_type,
+            weatherProfile: config.weather_profile_type as any,
             simulationPeriodDays: config.simulation_days,
             timeStepMinutes: config.simulation_step_minutes as any,
             setpointC: config.setpoint_c,
