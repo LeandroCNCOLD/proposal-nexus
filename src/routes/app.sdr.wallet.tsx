@@ -661,7 +661,7 @@ function LeadCard({ lead, sdrName, onUnlock, onOpenScript, proposalMatch, canMan
               <Input type="datetime-local" value={meetingDate} onChange={e => setMeetingDate(e.target.value)} />
               <select value={closer} onChange={e => setCloser(e.target.value)} className="w-full border rounded px-2 py-1.5 text-sm">
                 <option value="">Selecionar Closer...</option>
-                {closerNames.names.map(c => <option key={c} value={c}>{c}</option>)}
+                {((useCloserNames as any)?.names ?? []).map((c: string) => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
           )}

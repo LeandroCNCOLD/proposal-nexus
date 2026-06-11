@@ -46,16 +46,17 @@ export interface InfiltrationResult {
 function detectMethod(input: InfiltrationInput): 'per_cycle' | 'per_day' {
   const envType = String(input.environmentType || '').toLowerCase();
   const processMode = String(input.processMode || '').toLowerCase();
-  
-  // Túnel em batelada = método por ciclo
+  const batchTimeH = input.batchTimeH ?? 0;
+  const openingsPerDay = input.openingsPerDay ?? 0;
+  const openingsPerCycle = input.openingsPerCycle ?? 0;
+
   if (
     (envType.includes('blast') || envType.includes('tunnel')) &&
-    (processMode === 'batch' || input.batchTimeH > 0)
+    (processMode === 'batch' || batchTimeH > 0)
   ) {
     return 'per_cycle';
   }
-  
-  // Câmara = método por dia
+
   if (
     envType.includes('cold_room') ||
     envType.includes('freezer_room') ||
@@ -64,18 +65,9 @@ function detectMethod(input: InfiltrationInput): 'per_cycle' | 'per_day' {
   ) {
     return 'per_day';
   }
-  
-  // Fallback: se tem openings_per_day, usar método diário
-  if (input.openingsPerDay > 0) {
-    return 'per_day';
-  }
-  
-  // Fallback: se tem openings_per_cycle e batch_time, usar método por ciclo
-  if (input.openingsPerCycle > 0 && input.batchTimeH > 0) {
-    return 'per_cycle';
-  }
-  
-  // Padrão: diário
+
+  if (openingsPerDay > 0) return 'per_day';
+  if (openingsPerCycle > 0 && batchTimeH > 0) return 'per_cycle';
   return 'per_day';
 }
 
@@ -113,17 +105,17 @@ function calculatePerCycle(input: InfiltrationInput): InfiltrationResult {
   }
   
   // Cálculos
-  const doorAreaM2 = input.doorWidthM * input.doorHeightM;
+  const doorAreaM2 = (input.doorWidthM ?? 0) * (input.doorHeightM ?? 0);
   const velocityMS = input.doorAirVelocityMS || 0.5;
   const protectionFactor = input.doorProtectionFactor || 1.0;
   const timeOpenSecondsPerOpening = input.doorOpenTimeSecondsPerOpening || 300;
-  const totalOpenTimeSeconds = input.openingsPerCycle * timeOpenSecondsPerOpening;
-  
+  const totalOpenTimeSeconds = (input.openingsPerCycle ?? 0) * timeOpenSecondsPerOpening;
+
   // Volume por ciclo
   const volumeM3PerCycle = doorAreaM2 * velocityMS * totalOpenTimeSeconds * protectionFactor;
-  
+
   // Vazão equivalente em m³/h
-  const airflowM3H = volumeM3PerCycle / input.batchTimeH;
+  const airflowM3H = volumeM3PerCycle / (input.batchTimeH ?? 1);
   
   // Validações adicionais
   if (totalOpenTimeSeconds > 600) {
@@ -170,11 +162,11 @@ function calculatePerDay(input: InfiltrationInput): InfiltrationResult {
   }
   
   // Cálculos
-  const doorAreaM2 = input.doorWidthM * input.doorHeightM;
+  const doorAreaM2 = (input.doorWidthM ?? 0) * (input.doorHeightM ?? 0);
   const velocityMS = input.doorAirVelocityMS || 0.5;
   const protectionFactor = input.doorProtectionFactor || 1.0;
   const timeOpenSecondsPerOpening = input.doorOpenTimeSecondsPerOpening || 300;
-  const totalOpenTimeSeconds = input.openingsPerDay * timeOpenSecondsPerOpening;
+  const totalOpenTimeSeconds = (input.openingsPerDay ?? 0) * timeOpenSecondsPerOpening;
   
   // Volume por dia
   const volumeM3PerDay = doorAreaM2 * velocityMS * totalOpenTimeSeconds * protectionFactor;

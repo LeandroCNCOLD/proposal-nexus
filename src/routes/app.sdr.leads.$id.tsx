@@ -58,16 +58,16 @@ function LeadDetailPage() {
   const { data: activity = [] } = useQuery({
     queryKey: ['sdr-lead-activity', id, period],
     queryFn: async () => {
-      const calls = supabase.from('crm_call_logs')
+      const calls = (supabase.from('crm_call_logs') as any)
         .select('id, call_date, call_time, result, observation, channel, temperature_after, sdr_name, sdr_id, created_at')
         .eq('pipeline_id', id).order('created_at', { ascending: false }).limit(200)
-      const notes = supabase.from('crm_notes')
+      const notes = (supabase.from('crm_notes') as any)
         .select('id, body, created_at, created_by').eq('pipeline_id', id)
         .order('created_at', { ascending: false }).limit(200)
-      const fups = supabase.from('crm_followups')
+      const fups = (supabase.from('crm_followups') as any)
         .select('id, due_at, kind, note, status, created_at, created_by').eq('pipeline_id', id)
         .order('created_at', { ascending: false }).limit(100)
-      const stages = supabase.from('crm_stage_changes')
+      const stages = (supabase.from('crm_stage_changes') as any)
         .select('id, from_stage_id, to_stage_id, created_at, created_by').eq('pipeline_id', id)
         .order('created_at', { ascending: false }).limit(100)
       const [c, n, f, s] = await Promise.all([calls, notes, fups, stages])

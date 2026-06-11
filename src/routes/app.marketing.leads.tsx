@@ -31,7 +31,7 @@ function MarketingLeadsListPage() {
   const enqueue = useServerFn(enqueueRemarketing);
   const qc = useQueryClient();
   const { user, hasAnyRole } = useAuth();
-  const isManager = hasAnyRole(["admin", "diretoria", "gerente_comercial", "marketing"]);
+  const isManager = hasAnyRole(["admin", "diretoria", "gerente_comercial", "marketing"] as any);
   const [tab, setTab] = useState<"ativos" | "arquivados">("ativos");
   const [status, setStatus] = useState<string>("all");
   const [search, setSearch] = useState("");
