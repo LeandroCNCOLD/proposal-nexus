@@ -155,17 +155,17 @@ export async function upsertPipelineRow(row: Partial<CrmPipeline> & { id?: strin
   delete dbRow.days_without_contact
   const { data, error } = await supabase
     .from('sdr_leads')
-    .upsert(dbRow as Partial<CrmPipeline>, { onConflict: 'id' })
+    .upsert(dbRow as any, { onConflict: 'id' })
     .select()
     .single()
   if (error) throw error
-  return data as CrmPipeline
+  return data as unknown as CrmPipeline
 }
 
 export async function updatePipelineField(id: string, field: keyof CrmPipeline, value: unknown) {
   const { error } = await supabase
     .from('sdr_leads')
-    .update({ [field]: value, updated_at: new Date().toISOString() })
+    .update({ [field]: value, updated_at: new Date().toISOString() } as any)
     .eq('id', id)
   if (error) throw error
 }

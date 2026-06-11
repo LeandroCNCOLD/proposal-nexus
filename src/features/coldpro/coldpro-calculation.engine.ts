@@ -89,6 +89,7 @@ export function estimateFreezingTimePlankMin(params: {
   airTempC?: number | null;
   airVelocityMS?: number | null;
   convectiveCoefficientWM2K?: number | null;
+  latentMode?: "effective" | "full" | null;
 }): number | null {
   const thickness = n(params.thicknessM);
   const distanceToCore = n(params.distanceToCoreM) > 0 ? n(params.distanceToCoreM) : thickness / 2;
@@ -456,6 +457,7 @@ function calculateTunnelThermalProcess(params: {
   packagingMassKgH: number;
   packagingCpKjKgK: number;
   deltaTAirK: number;
+  latentMode?: "effective" | "full" | null;
 }) {
   const crossesFreezing = params.tin > params.tfreeze && params.tout < params.tfreeze;
   const qSpecificAboveKjKg = crossesFreezing ? params.cpAboveKjKgK * positive(params.tin - params.tfreeze) : (params.tout < params.tfreeze ? params.cpBelowKjKgK : params.cpAboveKjKgK) * Math.abs(params.tin - params.tout);

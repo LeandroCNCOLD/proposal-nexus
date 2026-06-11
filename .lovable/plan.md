@@ -1,53 +1,59 @@
-## Minha análise
+# Plano: Skills por Módulo
 
-Auditei o fluxo da carteira SDR e confirmei três problemas reais por trás do que você descreveu:
+Vou criar **8 skills profundas** em `.agents/skills/`, uma por módulo. Cada uma é ativada automaticamente quando você (ou eu numa sessão futura) trabalhar naquele módulo — assim o agente já entra sabendo as regras, schema, fluxos e bugs comuns sem precisar redescobrir.
 
-1. **Lista x Kanban desigual.** Hoje o Kanban (`WalletKanban`) tem busca, filtros (temperatura, "esperando minha ação", parados), painel "Foco de hoje", sinais de SLA, badges de proposta Nomus, drag-and-drop entre etapas, e ações de Editar / Transferir SDR / Transferir Vendedor / Agendar Reunião / Encerrar (perdido/kill). A Lista (`LeadCard`) só mostra dados básicos + Ligar/Agenda/Devolver/Detalhes/Transferir SDR. Não reflete coluna (etapa), nem handoff, nem sinais — então quem prefere lista perde informação.
+## Skills propostas
 
-2. **Slot da carteira nunca é liberado.** A função `claim_sdr_lead` calcula a ocupação assim:
-   ```
-   COUNT(*) WHERE locked_by_sdr_id = eu AND lock_expires_at > now()
-   ```
-   Quer dizer: lead **transferido para vendedor** (`handoff_status='transferred'`) continua com o `locked_by_sdr_id` do SDR e ainda ocupa vaga. O mesmo vale para `sdr_status` Fechado / Perdido (com motivo) / Kill / Arquivar — o lock só vence em 7 dias. Resultado: a SDR converte ou encerra e mesmo assim não consegue pegar leads novos. Exatamente o sintoma que você relatou.
+| # | Skill | Cobre |
+|---|---|---|
+| 1 | `coldpro-calculation` | Engine térmica, ambientes, produtos, túneis, cargas extras, processos avançados, simulação, memorial PDF, catálogo de equipamentos, seleção, push para proposta |
+| 2 | `crm-propostas` | Pipeline CRM, leads, propostas, editor de proposta, tabelas de preço, follow-ups, agenda, fechamento, timeline unificada |
+| 3 | `sdr-leads` | Wallet/Bank, hot deals, scripts, tratativas, handoff para vendedor, war room, métricas SDR, edição de leads (incl. fix recente do `update_sdr_lead_fields`) |
+| 4 | `nomus-integration` | Endpoints, sync (jobs/locks/checkpoints), enrichment, parser CSV, importação de custos, probes públicos, cron, conciliação |
+| 5 | `marketing-inbound` | Leads inbound, kanban, wallet marketing, remarketing queue, eventos, config |
+| 6 | `auth-admin-permissions` | `has_role` + `user_roles`, RLS pattern, GRANTs, middleware (`requireSupabaseAuth`/`attachSupabaseAuth`), wizard de usuários, overrides, role_module_access |
+| 7 | `atividades-agenda` | `crm_activities`, `crm_agenda`, follow-ups, painel do gestor, lembretes, regras de "atrasada/hoje/próxima" |
+| 8 | `project-conventions` | Skill-raiz: stack (TanStack Start + Cloud), padrão `*.functions.ts` vs `*.server.ts`, `ColdProField` UX (select-on-focus, vírgula BR), design tokens, naming, onde NÃO mexer (`integrations/supabase/*` auto-gen) |
 
-3. **Limite hoje é 30.** Subir para 45 é trivial (uma constante no SQL), mas só faz sentido depois do item 2; senão o 45 também enche de leads "mortos".
+## Estrutura de cada skill
 
-Recomendação: implementar 1+2+3 juntos. O 45 sozinho mascara o bug; o 2 sozinho já dá fôlego mesmo se mantivéssemos 30. Os dois juntos é a correção certa.
+```text
+.agents/skills/<nome>/
+├── SKILL.md                  # frontmatter + visão geral + regras críticas
+├── references/
+│   ├── architecture.md       # mapa de arquivos, fluxo de dados
+│   ├── schema.md             # tabelas, colunas-chave, RLS, GRANTs
+│   ├── business-rules.md     # fórmulas, validações, edge cases
+│   ├── examples.md           # snippets reais de uso correto
+│   └── troubleshooting.md    # bugs conhecidos + correções aplicadas
+└── (scripts/ se útil)
+```
 
----
+A `description:` do frontmatter é calibrada para o retrieval disparar a skill na hora certa (ex.: "Use ao mexer em cálculo térmico ColdPro: ambientes, produtos, túneis, cargas, simulação, memorial PDF").
 
-## Plano
+## Fonte do conteúdo
 
-### 1) Liberar slot ao transferir para vendedor e ao encerrar
-- Migration alterando `public.claim_sdr_lead`: o `v_my_locks` passa a **excluir** leads onde `handoff_status = 'transferred'` OU `sdr_status IN ('Fechado','Perdido (com motivo)','Kill / Arquivar')`. Esses leads continuam aparecendo no Kanban (coluna "Em Negociação (Vendedor)" / "Encerrados") para histórico, mas não consomem vaga.
-- Mesma migration ajusta `public.handoff_lead_to_seller` para, ao transferir, **limpar `lock_expires_at`** (e zerar `locked_by_sdr_name`/`locked_at`) — assim o lead sai oficialmente do "ativo" da SDR, mas mantém `sdr_id` para crédito de conversão.
-- Idem em `public.handoff_lead_to_seller`: nada a mudar no crédito; o relatório de performance já lê `handoff_status='transferred'` como conversão SDR.
-- Em `CloseLeadDialog` (Perdido/Kill): além de gravar `sdr_status`, chamar `release_sdr_lead` (já existe) ou estender a RPC `close_sdr_lead` para liberar o lock no mesmo movimento. Para "Fechado" o lead provavelmente já foi via handoff, mas garantimos a liberação também.
+- Código em `src/features/<modulo>/`, `src/modules/<modulo>/`, `src/components/<modulo>/`, rotas relacionadas.
+- Schema via `supabase--read_query` nas tabelas listadas no contexto (ex.: 58 colunas de `coldpro_environment_products`).
+- Docs do repo: `DEPLOYMENT_COLDPRO.md`, `docs/nomus-endpoints.md`, `.lovable/plan*.md`, `src/lib/coldpro/README.md`.
+- Histórico recente do chat para capturar bugs já corrigidos (preview ao vivo de cargas, `freezing_temp_c`/`ashrae_density_kg_m3`, `update_sdr_lead_fields`, select-on-focus do `ColdProField`).
 
-### 2) Subir o limite de 30 → 45
-- Mesma migration: `v_limit int := 45;` em `claim_sdr_lead`.
-- Atualizar os textos visíveis: badge "X / 45 leads" no header da carteira, mensagens de erro e `app.sdr.bank.tsx`. Procurar `30` no front (`use-sdr-metrics`, contadores) e trocar onde refletir a capacidade.
+## Processo de execução
 
-### 3) Paridade Lista ↔ Kanban
-Refazer a Lista para mostrar tudo que o Kanban mostra, mantendo o formato em linhas:
-- Coluna/etapa visível (mesma derivação do Kanban: Não Contatado / Aguardando Retorno / Reunião / Vendedor / Encerrados) com badge.
-- Sinais (`computeSignals`): "parado", "urgente", "sua vez", "esperando outro lado", `nextActionLabel`.
-- Badge "Proposta Nomus" (já existe — preservar).
-- Indicador de handoff (transferido para vendedor X em DD/MM).
-- Filtros do Kanban (busca, temperatura, ação) **acima da lista**, compartilhando o mesmo estado de filtros entre as duas visões.
-- Painel "Foco de hoje" também na lista.
-- Ações no card: Ligar/Script, Agendar Reunião (abre `MeetingScheduleQuickDialog`), Editar (`LeadEditDialog`), Transferir SDR (gestor), **Transferir Vendedor** (`TransferToSellerDialog`), **Encerrar** (`CloseLeadDialog`), Devolver, Detalhes (mantém expansor atual).
-- Manter o sub-card de registro de tentativa de ligação que hoje só está na Lista — esse é o ganho real da visão linha e quero preservar.
+1. **Mapeamento (paralelo)** — 1 sub-agente `explore` por módulo lê arquivos + rotas + tabelas e devolve um sumário estruturado. Isso evita estourar contexto.
+2. **Dúvidas pontuais** — antes de fechar cada skill, te pergunto só o que for ambíguo (ex.: "qual módulo é fonte da verdade para `clients`?"). Sem perguntas óbvias.
+3. **Escrita em lote** — escrevo as 8 skills em paralelo (`code--write` múltiplos arquivos).
+4. **Ativação** — chamo `skills--apply_draft` para cada uma, deixando todas ativas.
+5. **Índice de memória** — atualizo `mem://index.md` listando as skills e quando cada uma dispara, para você ter visão geral.
 
-### 4) Conversão e métricas
-- Confirmar que `sdr-performance` lê handoff como "convertido". Se hoje só lê `meeting_booked`, complementar com `handoff_status='transferred'` (reunião agendada **ou** transferência direta para negociação contam como conversão).
-- Perdido/Kill já entra como "encerrado/perdido" no card de performance — verificar se está computando ou se ainda fica preso por causa do lock.
+## Pontos que vou checar com você durante a execução
 
-### Detalhes técnicos
-- Arquivos tocados: `supabase/migrations/<novo>.sql`, `src/routes/app.sdr.wallet.tsx` (Lista renovada, filtros compartilhados, header com 45), `src/components/sdr/WalletKanban.tsx` (extrair filtros + foco para um componente reaproveitável), novo `src/components/sdr/WalletList.tsx` baseado no `LeadCard` atual + ações do Kanban, `src/routes/app.sdr.bank.tsx` (mensagens/contadores 45), `src/modules/sdr/hooks/use-sdr-metrics.ts` se precisar incluir handoff como conversão.
-- Sem mudança em RLS, só em funções `SECURITY DEFINER` já existentes.
-- Migration roda antes da troca de código pra que a UI nova já encontre o backend correto.
+- **Sobreposição CRM ↔ SDR ↔ Marketing**: as três mexem com leads. Vou propor uma fronteira clara (ex.: SDR = pré-venda/wallet, CRM = pós-handoff/propostas, Marketing = inbound/remarketing) e te confirmar.
+- **ColdPro**: se quer uma skill única grande ou quebrar em `coldpro-core` + `coldpro-simulation` + `coldpro-catalog`. Default: única, com `references/` separados.
+- **Nomus**: confirmar se a sync é considerada "intocável" (campos protegidos) — afeta o tom da skill.
 
-### Riscos / pontos a confirmar
-- Ao limpar o lock no handoff, o lead some do `my-wallet` se o filtro for por `locked_by_sdr_id`. Solução: trocar o filtro de "minha carteira" para `sdr_id = me` (assim leads transferidos continuam visíveis na coluna "Vendedor") — preciso ajustar `fetchPipeline`/`useMyWallet`.
-- "Fechado" vindo do vendedor pode não passar mais pela SDR. Mantemos como histórico só, sem ocupar slot.
+## Entrega
+
+Tudo de uma vez, conforme você pediu. Estimativa: 8 skills × ~5 arquivos = ~40 arquivos. Após `apply_draft` todas ficam ativas e disparam por contexto automaticamente — você também pode invocar manualmente digitando `/` no compositor.
+
+Aprova esse plano?

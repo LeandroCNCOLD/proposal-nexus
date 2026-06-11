@@ -464,8 +464,8 @@ export async function testNomusConnection(triggeredBy: string | null = null): Pr
   error?: string;
   probes: NomusProbe[];
 }> {
-  const overallStarted = Date.now();
-  const primaryEndpoint = NOMUS_ENDPOINTS[NOMUS_HEALTHCHECK_ENTITY];
+  const started = Date.now();
+  const endpoint = NOMUS_ENDPOINTS[NOMUS_HEALTHCHECK_ENTITY];
 
   let baseUrl: string | undefined;
   try {
@@ -479,6 +479,7 @@ export async function testNomusConnection(triggeredBy: string | null = null): Pr
       durationMs: Date.now() - started,
       endpoint,
       error,
+      probes: [],
     };
   }
 
@@ -500,6 +501,7 @@ export async function testNomusConnection(triggeredBy: string | null = null): Pr
       endpoint,
       baseUrl,
       error: res.error,
+      probes: [],
     };
   }
 
@@ -510,5 +512,6 @@ export async function testNomusConnection(triggeredBy: string | null = null): Pr
     durationMs: Date.now() - started,
     endpoint,
     baseUrl,
+    probes: [],
   };
 }

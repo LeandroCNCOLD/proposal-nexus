@@ -68,9 +68,9 @@ function UserWalletPage() {
     queryKey: ["user-activity", userId, period],
     queryFn: async () => {
       const [calls, notes, events] = await Promise.all([
-        supabase.from("crm_call_logs").select("id, call_date, call_time, result, observation, channel, temperature_after, pipeline_id, duration_min, meeting_booked")
+        (supabase.from("crm_call_logs") as any).select("id, call_date, call_time, result, observation, channel, temperature_after, pipeline_id, duration_min, meeting_booked")
           .eq("sdr_id", userId).gte("created_at", since).order("created_at", { ascending: false }).limit(200),
-        supabase.from("crm_notes").select("id, body, created_at, pipeline_id").eq("created_by", userId)
+        (supabase.from("crm_notes") as any).select("id, body, created_at, pipeline_id").eq("created_by", userId)
           .gte("created_at", since).order("created_at", { ascending: false }).limit(200),
         supabase.from("proposal_timeline_events").select("id, event_type, description, created_at, proposal_id")
           .eq("user_id", userId).gte("created_at", since).order("created_at", { ascending: false }).limit(200),
@@ -78,8 +78,8 @@ function UserWalletPage() {
 
       // Resolve lead and proposal references for context labels
       const leadIds = Array.from(new Set([
-        ...(calls.data ?? []).map((c) => c.pipeline_id),
-        ...(notes.data ?? []).map((n) => n.pipeline_id),
+        ...((calls.data as any[]) ?? []).map((c: any) => c.pipeline_id),
+        ...((notes.data as any[]) ?? []).map((n: any) => n.pipeline_id),
       ].filter(Boolean) as string[]));
       const propIds = Array.from(new Set((events.data ?? []).map((e) => e.proposal_id).filter(Boolean) as string[]));
 
@@ -95,7 +95,7 @@ function UserWalletPage() {
       const propById = new Map((propsRes.data ?? []).map((p: any) => [p.id, p]));
 
       const merged = [
-        ...((calls.data ?? []).map((c) => {
+        ...(((calls.data as any[]) ?? []).map((c: any) => {
           const lead = c.pipeline_id ? leadById.get(c.pipeline_id) : null;
           const parts = [
             c.result ?? "Sem resultado",
@@ -113,7 +113,7 @@ function UserWalletPage() {
             refLabel: lead ? `${lead.lead_code} — ${lead.client_name}` : null,
           };
         })),
-        ...((notes.data ?? []).map((n) => {
+        ...(((notes.data as any[]) ?? []).map((n: any) => {
           const lead = n.pipeline_id ? leadById.get(n.pipeline_id) : null;
           return {
             kind: "note" as const, id: n.id, ts: n.created_at, title: "Nota",

@@ -290,7 +290,7 @@ function DashboardGeral() {
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                     <XAxis dataKey="temperature" tick={{ fontSize: 11 }} />
                     <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${(v/1000).toFixed(0)}k`} />
-                    <Tooltip formatter={(v: number) => fmtBRL(Number(v))} />
+                    <Tooltip formatter={((v: any) => fmtBRL(Number(v))) as any} />
                     <Legend wrapperStyle={{ fontSize: 11 }} />
                     <Bar dataKey="valorLeads" fill="hsl(210 80% 55%)" name="Leads SDR" />
                     <Bar dataKey="valorPropostas" fill="hsl(265 75% 60%)" name="Propostas" />

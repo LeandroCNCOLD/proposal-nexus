@@ -15,13 +15,16 @@ type FieldProps = {
   className?: string;
   help?: ColdProFieldHelp | null;
   helpKey?: ColdProFieldHelpKey | string | null;
+  /** Texto curto descritivo (mostrado como tooltip do label). */
+  description?: string;
 };
 
-export function ColdProField({ label, unit, htmlFor, children, className, help, helpKey }: FieldProps) {
+export function ColdProField({ label, unit, htmlFor, children, className, help, helpKey, description }: FieldProps) {
   return (
     <div className={cn("grid min-w-0 gap-1 py-1 lg:grid-cols-[minmax(9rem,13rem)_minmax(0,1fr)] lg:items-center lg:gap-2", className)}>
       <label
         htmlFor={htmlFor}
+        title={description || undefined}
         className="flex min-w-0 items-center gap-1.5 whitespace-normal break-words text-xs font-medium text-muted-foreground lg:justify-end lg:text-right"
       >
         <span className="min-w-0 whitespace-normal break-words">{label} :</span>

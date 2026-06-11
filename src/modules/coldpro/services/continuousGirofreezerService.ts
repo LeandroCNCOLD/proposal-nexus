@@ -52,6 +52,7 @@ export interface ProductThermalInput {
   frozenWaterFraction: number;
   packagingMassKgH?: number;
   packagingCpKjKgK?: number;
+  latentMode?: "effective" | "full" | null;
 }
 
 export interface AirProcessInput {
@@ -164,6 +165,7 @@ function calculatePlankFreezingTimeMin(params: {
   distanceToCoreM: number;
   hEffectiveWm2K: number;
   kEffectiveWmK: number;
+  latentMode?: "effective" | "full" | null;
 }): number | null {
   const deltaT = params.freezingPointC - params.airTemperatureC;
   if (
@@ -177,6 +179,12 @@ function calculatePlankFreezingTimeMin(params: {
   ) {
     return null;
   }
+
+
+
+
+
+
 
   // LOGICA DE LATENT_MODE:
   // - "effective": latente ja esta corrigido na base -> usar direto
@@ -203,6 +211,7 @@ function suggestAirVelocityMs(params: {
   airExposureFactor: number;
   minAirVelocityMs?: number;
   maxAirVelocityMs?: number;
+  latentMode?: "effective" | "full" | null;
 }): number | null {
   const deltaT = params.freezingPointC - params.airTemperatureC;
   const retentionSeconds = params.retentionTimeMin * 60;

@@ -13,6 +13,7 @@ import {
   calculateProductThermalLoad,
   calculateThermalLoad,
   normalizeEnvironmentResult,
+  formatNormalizedResult,
   consolidateProjectResults,
   formatConsolidatedResult,
   exportForIntegration,

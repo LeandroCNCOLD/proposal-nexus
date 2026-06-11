@@ -233,7 +233,7 @@ export function resolveRecommendedAirflow(params: {
   // Fallback: usar maior entre carga e velocidade mínima
   return {
     recommendedAirflowM3H: Math.max(params.airflowByThermalLoadM3H, params.airflowByMinVelocityM3H),
-    recommendedVelocityMS: Math.max(params.airflowByThermalLoadM3H, params.airflowByMinVelocityM3H) / (params.freezingParams?.areaLibreM2 || 1) / 3600,
+    recommendedVelocityMS: Math.max(params.airflowByThermalLoadM3H, params.airflowByMinVelocityM3H) / (((params.freezingParams as AirflowOptimizationParams | undefined)?.areaLibreM2) || 1) / 3600,
     rationale: "Vazão padrão (maior entre carga térmica e velocidade mínima)",
     warnings: [...warnings, "Parâmetros de congelamento não fornecidos"],
   };
