@@ -223,7 +223,7 @@ function ClosersPerformancePage() {
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="nome" />
                       <YAxis />
-                      <Tooltip formatter={(v: number) => brl(v)} />
+                      <Tooltip formatter={((v: any) => brl(Number(v))) as any} />
                       <Bar dataKey="receita" fill="#2563eb" radius={[6, 6, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
