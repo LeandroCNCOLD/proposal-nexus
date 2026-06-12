@@ -297,20 +297,48 @@ function UserOverridesPanel() {
   return (
     <div className="space-y-4 rounded-xl border bg-card p-6 shadow-[var(--shadow-sm)]">
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <div className="space-y-1.5">
-          <Label>Usuário</Label>
-          <Select value={userId} onValueChange={setUserId}>
-            <SelectTrigger className="w-80">
-              <SelectValue placeholder="Selecione um usuário" />
-            </SelectTrigger>
-            <SelectContent>
-              {(users ?? []).map((u) => (
-                <SelectItem key={u.id} value={u.id}>
-                  {u.fullName ?? u.email ?? u.id}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="space-y-1.5">
+            <Label>Filtrar por perfil</Label>
+            <Select
+              value={roleFilter}
+              onValueChange={(v) => {
+                setRoleFilter(v as AppRole | "all");
+                setUserId("");
+              }}
+            >
+              <SelectTrigger className="w-56">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os perfis</SelectItem>
+                {EDITABLE_ROLES.map((r) => (
+                  <SelectItem key={r} value={r}>
+                    {ROLE_LABELS[r]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Usuário</Label>
+            <Select value={userId} onValueChange={setUserId}>
+              <SelectTrigger className="w-80">
+                <SelectValue placeholder={
+                  filteredUsers.length === 0
+                    ? "Nenhum usuário com esse perfil"
+                    : "Selecione um usuário"
+                } />
+              </SelectTrigger>
+              <SelectContent>
+                {filteredUsers.map((u) => (
+                  <SelectItem key={u.id} value={u.id}>
+                    {u.fullName ?? u.email ?? u.id}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
         <Button onClick={handleSave} disabled={!userId || saving || isLoading} className="gap-2">
           <Save className="h-4 w-4" />
