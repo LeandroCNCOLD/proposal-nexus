@@ -381,6 +381,47 @@ function UsersAdminPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog
+        open={!!emailTarget}
+        onOpenChange={(open) => {
+          if (!open) {
+            setEmailTarget(null);
+            setNewEmail("");
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Alterar email de login</DialogTitle>
+            <DialogDescription>
+              Define um novo email de login para <strong>{emailTarget?.label}</strong>.
+              {emailTarget?.current && <> Atual: <code>{emailTarget.current}</code>.</>} O usuário passará a entrar com o novo email imediatamente.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="new-email">Novo email</Label>
+              <Input
+                id="new-email"
+                type="email"
+                autoComplete="email"
+                value={newEmail}
+                onChange={(e) => setNewEmail(e.target.value)}
+                placeholder="usuario@cncold.com.br"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline" disabled={savingEmail}>Cancelar</Button>
+            </DialogClose>
+            <Button onClick={onSaveEmail} disabled={savingEmail}>
+              {savingEmail ? "Salvando..." : "Salvar novo email"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
