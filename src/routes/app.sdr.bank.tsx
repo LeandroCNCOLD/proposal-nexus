@@ -238,6 +238,32 @@ function BankPage() {
     },
   })
 
+  const bulkFreezeMut = useMutation({
+    mutationFn: async (ids: string[]) => {
+      let ok = 0
+      let failed = 0
+      for (const id of ids) {
+        try {
+          await freezeLead(id, user!.id, sdrName)
+          ok++
+        } catch {
+          failed++
+        }
+      }
+      return { ok, failed, total: ids.length }
+    },
+    onSuccess: (r) => {
+      if (r.failed === 0) {
+        toast.success(`${r.ok} proposta${r.ok === 1 ? '' : 's'} bloqueada${r.ok === 1 ? '' : 's'} pelo gestor`)
+      } else {
+        toast.warning(`Bloqueadas ${r.ok} de ${r.total} (${r.failed} erros)`)
+      }
+      qc.invalidateQueries({ queryKey: ['proposal-bank'] })
+      qc.invalidateQueries({ queryKey: ['my-wallet'] })
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : 'Falha ao bloquear leads em massa'),
+  })
+
   // Extrai base CN##### e revisão a partir do lead_code/proposal_title/proposal_version
   const parseRev = (r: any): { base: string; rev: number } => {
     const raw = String(r.lead_code ?? '').trim()
@@ -388,6 +414,12 @@ function BankPage() {
       const activeLeads = leads.filter((l: any) => !ACTIVE_EXCLUDE.includes(l.sdr_status))
       const activeCount = activeLeads.length
       const hasMine = leads.some((l: any) => l.locked_by_sdr_id === user?.id)
+      const frozenIds = activeLeads
+        .filter((l: any) => !!l.locked_by_sdr_name?.startsWith(MANAGER_FREEZE_PREFIX))
+        .map((l: any) => l.id as string)
+      const freezeableIds = activeLeads
+        .filter((l: any) => !l.locked_by_sdr_name?.startsWith(MANAGER_FREEZE_PREFIX))
+        .map((l: any) => l.id as string)
       const pickableIds = activeLeads
         .filter((l: any) => !l.locked_by_sdr_id)
         .map((l: any) => l.id as string)
@@ -422,6 +454,8 @@ function BankPage() {
         lockedCount: lockedLeads.length,
         firstLockName,
         hasMine,
+        frozenIds,
+        freezeableIds,
         pickableIds,
         returnableIds,
         topProposals,
@@ -562,14 +596,14 @@ function BankPage() {
             return <Badge className={map[ps] || 'bg-muted text-foreground'} variant="secondary">{ps}</Badge>
           })()}
         </td>
-        <td className="px-3 py-2 text-right space-x-1 whitespace-nowrap">
+        <td className="sticky right-0 z-10 min-w-[300px] bg-background px-3 py-2 text-right shadow-[-8px_0_8px_-8px_rgba(15,23,42,0.25)]">
           {tab === 'arquivados' ? (
             <Button size="sm" variant="outline" disabled={remarketingMut.isPending}
               onClick={() => remarketingMut.mutate(r.id)}>
               <Mail className="w-3 h-3 mr-1" /> Remarketing
             </Button>
           ) : (
-            <>
+            <div className="flex flex-wrap items-center justify-end gap-1">
               {canPickLeads && !r.locked_by_sdr_id && (
                 <Button
                   size="sm"
@@ -606,7 +640,7 @@ function BankPage() {
                   <Unlock className="w-3 h-3 mr-1" /> Desbloquear
                 </Button>
               )}
-            </>
+            </div>
           )}
         </td>
       </tr>
