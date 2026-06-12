@@ -63,25 +63,41 @@ Baixa — não bloqueia funcionalidade, é checagem de tipo estática.
 
 ---
 
-## Débito técnico — Build: conflito @tiptap peer-deps
+## RESOLVIDO — Build: conflito @tiptap peer-deps
 
-### Problema
-npm run build falha com:
+### Problema (original)
+npm run build falhava com:
 'getStyleProperty' is not exported by '@tiptap/core',
 imported by '@tiptap/extension-text-style'
 
 ### Causa
-@tiptap/core v2 instalado mas
-@tiptap/extension-text-style v3 exige core v3.x
-Conflito de peer-deps pré-existente antes
-desta reconciliação.
+@tiptap/core estava em ^2, mas @tiptap/extension-color,
+@tiptap/extension-font-family e @tiptap/extension-text-style
+estavam em ^3.22.4 (conflito de versões major dentro do
+próprio ecossistema @tiptap), pré-existente antes desta
+reconciliação.
 
-### Solução
-Alinhar @tiptap/core para ^3.x em package.json:
-npm install @tiptap/core@^3 --save
+### Solução aplicada
+A correção sugerida originalmente (subir @tiptap/core para ^3)
+não era viável: as demais extensões @tiptap (extension-image,
+extension-link, extension-mention, starter-kit, etc.) exigem
+@tiptap/core ^2.x. Em vez disso, as 3 extensões divergentes
+foram rebaixadas para a v2, alinhando com o restante do
+ecossistema:
 
-### Prioridade
-Alta — bloqueia build de produção.
+npm install @tiptap/extension-color@^2.27.2 \
+  @tiptap/extension-font-family@^2.27.2 \
+  @tiptap/extension-text-style@^2.27.2 \
+  --save --legacy-peer-deps
+
+Build de produção verificado com sucesso após a alteração.
+
+### Bug adicional encontrado e corrigido
+Após resolver o conflito do tiptap, o build revelou um segundo
+erro bloqueante não relacionado: src/features/coldpro/simulation.functions.ts
+importava `runColdRoomSimulation`, mas a função exportada por
+coldRoomDynamicSimulationService.ts é `runColdRoomDynamicSimulation`.
+Import e chamada corrigidos.
 Resolver antes do próximo deploy.
 
 ### Estimativa
