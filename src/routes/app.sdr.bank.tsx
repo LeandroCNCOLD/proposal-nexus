@@ -1033,12 +1033,13 @@ function SortableTh({ label, sk, sortKey, sortDir, onClick, align }: {
   sortDir: SortDir
   onClick: (k: SortKey) => void
   align?: 'left' | 'right' | 'center'
+  className?: string
 }) {
   const active = sortKey === sk && sortDir
   const Icon = active === 'asc' ? ArrowUp : active === 'desc' ? ArrowDown : ArrowUpDown
   const alignClass = align === 'right' ? 'text-right justify-end' : align === 'center' ? 'text-center justify-center' : 'text-left justify-start'
   return (
-    <th className={`px-3 py-2 ${align === 'right' ? 'text-right' : align === 'center' ? 'text-center' : ''}`}>
+    <th className={`px-3 py-2 ${align === 'right' ? 'text-right' : align === 'center' ? 'text-center' : ''} ${className || ''}`}>
       <button
         type="button"
         onClick={() => onClick(sk)}
