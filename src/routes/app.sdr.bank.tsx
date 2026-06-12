@@ -7,7 +7,7 @@ import { SDR_LOCK_LIMIT } from '@/modules/sdr/types'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Lock, Unlock, Briefcase, ShieldAlert, ArrowUp, ArrowDown, ArrowUpDown, FileText, Mail, ChevronRight, ChevronDown, AlertTriangle, Layers, Building2 } from 'lucide-react'
+import { Lock, Unlock, Briefcase, ShieldAlert, ArrowUp, ArrowDown, ArrowUpDown, FileText, Mail, ChevronRight, ChevronDown, AlertTriangle, Building2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Link } from '@tanstack/react-router'
 import { useProposalLeadMatches } from '@/hooks/use-proposal-lead-matches'
@@ -15,6 +15,16 @@ import { useSdrNames, useCloserNames } from '@/modules/sdr/hooks/use-team-member
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useServerFn } from '@tanstack/react-start'
 import { enqueueRemarketing } from '@/lib/remarketing.functions'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 
 const ARCHIVED_SDR_STATUSES = ['Perdido (com motivo)', 'Kill / Arquivar']
 const ACTIVE_EXCLUDE = [...ARCHIVED_SDR_STATUSES, 'Fechado']
@@ -73,18 +83,8 @@ function BankPage() {
   const { names: closerNames } = useCloserNames()
   const [sortKey, setSortKey] = useState<SortKey | null>(null)
   const [sortDir, setSortDir] = useState<SortDir>(null)
-  const [groupByCnpj, setGroupByCnpj] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false
-    return window.localStorage.getItem('bank_group_cnpj') === 'true'
-  })
   const [expandedCnpjs, setExpandedCnpjs] = useState<Set<string>>(new Set())
-  const toggleGroupByCnpj = () => {
-    setGroupByCnpj((v) => {
-      const next = !v
-      try { window.localStorage.setItem('bank_group_cnpj', String(next)) } catch { /* ignore */ }
-      return next
-    })
-  }
+  const [returnConfirmCnpj, setReturnConfirmCnpj] = useState<string | null>(null)
   const toggleExpand = (cnpj: string) => {
     setExpandedCnpjs((prev) => {
       const next = new Set(prev)
@@ -207,6 +207,37 @@ function BankPage() {
     onError: (e) => toast.error(e instanceof Error ? e.message : 'Falha ao pegar leads em massa'),
   })
 
+  const bulkReturnMut = useMutation({
+    mutationFn: async (ids: string[]) => {
+      let ok = 0
+      let failed = 0
+      for (const id of ids) {
+        try {
+          await unlockLead(id)
+          ok++
+        } catch {
+          failed++
+        }
+      }
+      return { ok, failed, total: ids.length }
+    },
+    onSuccess: (r) => {
+      if (r.failed === 0) {
+        toast.success(`${r.ok} proposta${r.ok === 1 ? '' : 's'} devolvida${r.ok === 1 ? '' : 's'} ao banco`)
+      } else {
+        toast.warning(`Devolvidas ${r.ok} de ${r.total} (${r.failed} erros)`)
+      }
+      setReturnConfirmCnpj(null)
+      qc.invalidateQueries({ queryKey: ['proposal-bank'] })
+      qc.invalidateQueries({ queryKey: ['my-lock-count'] })
+      qc.invalidateQueries({ queryKey: ['my-wallet'] })
+    },
+    onError: (e) => {
+      toast.error(e instanceof Error ? e.message : 'Falha ao devolver leads em massa')
+      setReturnConfirmCnpj(null)
+    },
+  })
+
   // Extrai base CN##### e revisão a partir do lead_code/proposal_title/proposal_version
   const parseRev = (r: any): { base: string; rev: number } => {
     const raw = String(r.lead_code ?? '').trim()
@@ -318,9 +349,8 @@ function BankPage() {
     return copy
   }, [filtered, sortKey, sortDir, user?.id])
 
-  // Agrupamento por CNPJ — depende apenas de filtered + groupByCnpj
+  // Agrupamento por CNPJ — sempre ativo
   const grouped = useMemo(() => {
-    if (!groupByCnpj) return { groups: [] as any[], ungrouped: [] as any[] }
     const map = new Map<string, any[]>()
     const ungrouped: any[] = []
     for (const r of filtered as any[]) {
@@ -361,6 +391,10 @@ function BankPage() {
       const pickableIds = activeLeads
         .filter((l: any) => !l.locked_by_sdr_id)
         .map((l: any) => l.id as string)
+      // Propostas minhas ativas — passíveis de devolução em massa
+      const returnableIds = leads
+        .filter((l: any) => l.locked_by_sdr_id === user?.id && !ACTIVE_EXCLUDE.includes(l.sdr_status))
+        .map((l: any) => l.id as string)
       return {
         cnpj: cnpjKey,
         cnpjDisplay: first.cnpj || cnpjKey,
@@ -379,11 +413,17 @@ function BankPage() {
         firstLockName,
         hasMine,
         pickableIds,
+        returnableIds,
       }
     })
     groups.sort((a, b) => b.count - a.count || b.totalValue - a.totalValue)
     return { groups, ungrouped }
-  }, [filtered, groupByCnpj, user?.id])
+  }, [filtered, user?.id])
+
+  const returnConfirmGroup = useMemo(
+    () => returnConfirmCnpj ? grouped.groups.find(g => g.cnpj === returnConfirmCnpj) ?? null : null,
+    [returnConfirmCnpj, grouped.groups],
+  )
 
   const atLimit = canPickLeads && myLockCount >= SDR_LOCK_LIMIT
 
@@ -573,10 +613,8 @@ function BankPage() {
         <div>
           <h1 className="text-2xl font-bold text-[#0F2D5E]">Banco de Leads</h1>
           <p className="text-sm text-muted-foreground">
-            {groupByCnpj
-              ? <><strong>{grouped.groups.length}</strong> empresas · {filtered.length} propostas · <strong>{fmtBRL(grouped.groups.reduce((s, g) => s + g.totalValue, 0))}</strong></>
-              : <>{summary.uniqueCount} propostas únicas ({filtered.length} de {rows.length} linhas) · <strong>{fmtBRL(summary.totalValue)}</strong> disponível</>
-            }
+            <><strong>{grouped.groups.length}</strong> empresas · {filtered.length} propostas · <strong>{fmtBRL(grouped.groups.reduce((s, g) => s + g.totalValue, 0))}</strong></>
+
             {canPickLeads && <> · Você tem <strong>{myLockCount}/{SDR_LOCK_LIMIT}</strong> leads na carteira</>}
             {' · '}
             <button
@@ -697,17 +735,8 @@ function BankPage() {
             Limpar filtros
           </Button>
         )}
-        <Button
-          variant={groupByCnpj ? 'default' : 'outline'}
-          size="sm"
-          onClick={toggleGroupByCnpj}
-          className="ml-auto"
-          title="Agrupar propostas pelo CNPJ do cliente"
-        >
-          <Layers className="w-3 h-3 mr-1" />
-          {groupByCnpj ? 'Agrupado por CNPJ' : 'Agrupar por CNPJ'}
-        </Button>
       </div>
+
 
       {isLoading ? (
         <div className="text-center py-12 text-muted-foreground">Carregando...</div>
@@ -731,17 +760,15 @@ function BankPage() {
               </tr>
             </thead>
             <tbody>
-              {!groupByCnpj && sorted.map((r) => renderLeadRow(r))}
-              {!groupByCnpj && filtered.length === 0 && (
-                <tr><td colSpan={12} className="text-center py-8 text-muted-foreground">Nenhuma lead encontrada</td></tr>
-              )}
-
-              {groupByCnpj && grouped.groups.map((g) => {
+              {grouped.groups.map((g) => {
                 const isOpen = expandedCnpjs.has(g.cnpj)
                 const dupRisk = g.activeCount >= 3
-                const canBulk = canPickLeads && !g.hasMine && g.pickableIds.length > 0 && !atLimit && tab !== 'arquivados'
+                const canBulkPick = canPickLeads && g.pickableIds.length > 0 && !atLimit && tab !== 'arquivados'
+                const canBulkReturn = canPickLeads && g.returnableIds.length > 0 && tab !== 'arquivados'
                 const remaining = SDR_LOCK_LIMIT - myLockCount
                 const willPick = Math.min(g.pickableIds.length, Math.max(0, remaining))
+                const pickLabel = g.hasMine ? 'Pegar restantes' : 'Pegar todas'
+                const returnLabel = g.hasMine && g.pickableIds.length > 0 ? 'Devolver minhas' : 'Devolver todas'
                 return (
                   <Fragment key={g.cnpj}>
                     <tr
@@ -804,8 +831,8 @@ function BankPage() {
                         )}
                       </td>
                       <td className="px-3 py-2 text-xs text-muted-foreground">—</td>
-                      <td className="px-3 py-2 text-right">
-                        {canBulk && (
+                      <td className="px-3 py-2 text-right whitespace-nowrap space-x-1">
+                        {canBulkPick && (
                           <Button
                             size="sm"
                             variant="outline"
@@ -814,12 +841,26 @@ function BankPage() {
                               e.stopPropagation()
                               const msg = willPick < g.pickableIds.length
                                 ? `Pegar ${willPick} de ${g.pickableIds.length} propostas ativas? (limite de ${SDR_LOCK_LIMIT})`
-                                : `Pegar todas as ${g.pickableIds.length} propostas ativas deste CNPJ?`
+                                : `${pickLabel} as ${g.pickableIds.length} propostas ativas deste CNPJ?`
                               if (confirm(msg)) bulkPickMut.mutate(g.pickableIds)
                             }}
-                            title={`Travar todas as ${g.pickableIds.length} propostas ativas deste cliente`}
+                            title={`Travar ${g.pickableIds.length} proposta(s) ativa(s) deste cliente`}
                           >
-                            <Lock className="w-3 h-3 mr-1" /> Pegar todas ({g.pickableIds.length})
+                            <Lock className="w-3 h-3 mr-1" /> {pickLabel} ({g.pickableIds.length})
+                          </Button>
+                        )}
+                        {canBulkReturn && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={bulkReturnMut.isPending}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setReturnConfirmCnpj(g.cnpj)
+                            }}
+                            title={`Devolver ${g.returnableIds.length} proposta(s) deste cliente ao banco`}
+                          >
+                            <Unlock className="w-3 h-3 mr-1" /> {returnLabel} ({g.returnableIds.length})
                           </Button>
                         )}
                       </td>
@@ -829,7 +870,7 @@ function BankPage() {
                 )
               })}
 
-              {groupByCnpj && grouped.ungrouped.length > 0 && (
+              {grouped.ungrouped.length > 0 && (
                 <>
                   <tr className="border-t bg-amber-50">
                     <td colSpan={12} className="px-3 py-2 text-xs font-semibold text-amber-900">
@@ -840,14 +881,40 @@ function BankPage() {
                 </>
               )}
 
-              {groupByCnpj && grouped.groups.length === 0 && grouped.ungrouped.length === 0 && (
+              {grouped.groups.length === 0 && grouped.ungrouped.length === 0 && (
                 <tr><td colSpan={12} className="text-center py-8 text-muted-foreground">Nenhuma lead encontrada</td></tr>
               )}
+
             </tbody>
           </table>
         </div>
       )}
+
+      <AlertDialog open={!!returnConfirmCnpj} onOpenChange={(open) => !open && setReturnConfirmCnpj(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Devolver propostas ao banco?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {returnConfirmGroup
+                ? `${returnConfirmGroup.returnableIds.length} proposta${returnConfirmGroup.returnableIds.length === 1 ? '' : 's'} de ${returnConfirmGroup.razao_social || returnConfirmGroup.client_name} ${returnConfirmGroup.returnableIds.length === 1 ? 'será devolvida' : 'serão devolvidas'} ao banco e ${returnConfirmGroup.returnableIds.length === 1 ? 'ficará disponível' : 'ficarão disponíveis'} para outros SDRs.`
+                : ''}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkReturnMut.isPending}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={bulkReturnMut.isPending}
+              onClick={() => {
+                if (returnConfirmGroup) bulkReturnMut.mutate(returnConfirmGroup.returnableIds)
+              }}
+            >
+              Devolver
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
+
   )
 }
 
