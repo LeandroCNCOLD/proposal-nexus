@@ -395,6 +395,16 @@ function BankPage() {
       const returnableIds = leads
         .filter((l: any) => l.locked_by_sdr_id === user?.id && !ACTIVE_EXCLUDE.includes(l.sdr_status))
         .map((l: any) => l.id as string)
+      // Top 2 propostas por valor para preview na linha-mãe
+      const topProposals = [...leads]
+        .sort((a: any, b: any) => Number(b.value ?? 0) - Number(a.value ?? 0))
+        .slice(0, 2)
+        .map((l: any) => ({
+          id: l.id as string,
+          lead_code: l.lead_code as string,
+          value: Number(l.value ?? 0),
+          temperature: l.temperature as string,
+        }))
       return {
         cnpj: cnpjKey,
         cnpjDisplay: first.cnpj || cnpjKey,
@@ -414,9 +424,12 @@ function BankPage() {
         hasMine,
         pickableIds,
         returnableIds,
+        topProposals,
       }
     })
-    groups.sort((a, b) => b.count - a.count || b.totalValue - a.totalValue)
+    // Ordenar por valor total DESC (empresa com mais dinheiro em jogo primeiro)
+    groups.sort((a, b) => b.totalValue - a.totalValue)
+
     return { groups, ungrouped }
   }, [filtered, user?.id])
 
