@@ -41,7 +41,7 @@ import {
   deleteAppUser,
   setUserPassword,
 } from "@/lib/user-admin.functions";
-import { supabase } from "@/integrations/supabase/client";
+
 
 export const Route = createFileRoute("/app/admin/usuarios")({
   component: UsersAdminPage,
