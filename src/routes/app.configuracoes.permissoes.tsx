@@ -36,6 +36,7 @@ const MANAGE_ROLES: AppRole[] = ["admin", "diretoria", "gerente_comercial"];
 const EDITABLE_ROLES: AppRole[] = [
   "vendedor",
   "sdr",
+  "marketing",
   "gerente_comercial",
   "engenharia",
   "orcamentista",
