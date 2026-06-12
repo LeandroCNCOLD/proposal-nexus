@@ -8,6 +8,7 @@ import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuIte
 import { Phone, MessageCircle, Mail, Copy, Check, Save } from 'lucide-react'
 import { useState, useMemo, useEffect } from 'react'
 import { toast } from 'sonner'
+import { useAuth } from '@/hooks/useAuth'
 
 function normalizePhone(phone: string) {
   const d = phone.replace(/\D/g, '')
@@ -100,6 +101,7 @@ function whatsappUrl(phone: string | null, message: string) {
 }
 
 export function CallScriptDialog({ lead, open, onOpenChange, onSaved }: Props) {
+  const { user } = useAuth()
   const [copied, setCopied] = useState<string | null>(null)
   const [answers, setAnswers] = useState<Record<number, string>>({})
   const [openingNote, setOpeningNote] = useState('')
@@ -186,7 +188,7 @@ export function CallScriptDialog({ lead, open, onOpenChange, onSaved }: Props) {
       await insertCallLog({
         pipeline_id: lead.id,
         sdr_id: lead.sdr_id,
-        sdr_name: lead.sdr_name || 'SDR',
+        sdr_name: user?.user_metadata?.full_name || user?.email || lead.sdr_name || 'SDR',
         call_date: now.toISOString().slice(0, 10),
         call_time: now.toTimeString().slice(0, 8),
         duration_min: null,

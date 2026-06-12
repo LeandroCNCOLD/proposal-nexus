@@ -201,6 +201,7 @@ function LeadCard({ lead, sdrName, onUnlock, onOpenScript, proposalMatch, canMan
   onTransfer?: () => void
 }) {
   const qc = useQueryClient()
+  const { user } = useAuth()
   const closerNames = useCloserNames()
   const [expanded, setExpanded] = useState(false)
   const [result, setResult] = useState<CallResult | ''>('')
@@ -255,7 +256,7 @@ function LeadCard({ lead, sdrName, onUnlock, onOpenScript, proposalMatch, canMan
 
       await insertCallLog({
         pipeline_id: lead.id,
-        sdr_id: lead.locked_by_sdr_id,
+        sdr_id: user?.id ?? lead.locked_by_sdr_id,
         sdr_name: sdrName,
         call_date: dateStr,
         call_time: timeStr,
