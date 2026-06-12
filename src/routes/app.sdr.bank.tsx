@@ -318,9 +318,8 @@ function BankPage() {
     return copy
   }, [filtered, sortKey, sortDir, user?.id])
 
-  // Agrupamento por CNPJ — depende apenas de filtered + groupByCnpj
+  // Agrupamento por CNPJ — sempre ativo
   const grouped = useMemo(() => {
-    if (!groupByCnpj) return { groups: [] as any[], ungrouped: [] as any[] }
     const map = new Map<string, any[]>()
     const ungrouped: any[] = []
     for (const r of filtered as any[]) {
@@ -361,6 +360,10 @@ function BankPage() {
       const pickableIds = activeLeads
         .filter((l: any) => !l.locked_by_sdr_id)
         .map((l: any) => l.id as string)
+      // Propostas minhas ativas — passíveis de devolução em massa
+      const returnableIds = leads
+        .filter((l: any) => l.locked_by_sdr_id === user?.id && !ACTIVE_EXCLUDE.includes(l.sdr_status))
+        .map((l: any) => l.id as string)
       return {
         cnpj: cnpjKey,
         cnpjDisplay: first.cnpj || cnpjKey,
@@ -379,11 +382,17 @@ function BankPage() {
         firstLockName,
         hasMine,
         pickableIds,
+        returnableIds,
       }
     })
     groups.sort((a, b) => b.count - a.count || b.totalValue - a.totalValue)
     return { groups, ungrouped }
-  }, [filtered, groupByCnpj, user?.id])
+  }, [filtered, user?.id])
+
+  const returnConfirmGroup = useMemo(
+    () => returnConfirmCnpj ? grouped.groups.find(g => g.cnpj === returnConfirmCnpj) ?? null : null,
+    [returnConfirmCnpj, grouped.groups],
+  )
 
   const atLimit = canPickLeads && myLockCount >= SDR_LOCK_LIMIT
 
