@@ -210,7 +210,7 @@ export const PERMISSION_MODULES: ModuleDef[] = [
       { key: "marketing.reports.export", label: "Exportar relatórios de marketing" },
     ],
   },
-
+  {
     key: "settings",
     label: "Configurações",
     description: "Configurações gerais, usuários e permissões",
