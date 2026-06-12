@@ -23,15 +23,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { type AppRole } from "@/hooks/useAuth";
+import { useAuth, type AppRole } from "@/hooks/useAuth";
 import { ROLE_LABELS } from "@/lib/proposal";
 import { PERMISSION_MODULES, DEFAULT_ROLE_PACKAGES } from "@/lib/permissions";
 import { inviteNewUser } from "@/lib/user-admin.functions";
 import { listRoleTemplates } from "@/lib/permissions.functions";
 
-const ASSIGNABLE_ROLES: AppRole[] = [
+const ALL_ASSIGNABLE_ROLES: AppRole[] = [
   "sdr",
   "vendedor",
+  "marketing",
   "gerente_comercial",
   "engenharia",
   "orcamentista",
@@ -39,6 +40,8 @@ const ASSIGNABLE_ROLES: AppRole[] = [
   "diretoria",
   "admin",
 ];
+
+const GERENTE_ASSIGNABLE_ROLES: AppRole[] = ["sdr", "vendedor", "marketing"];
 
 type Step = 1 | 2 | 3 | 4;
 
