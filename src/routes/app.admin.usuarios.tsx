@@ -160,6 +160,27 @@ function UsersAdminPage() {
     }
   };
 
+  const onSaveEmail = async () => {
+    if (!emailTarget) return;
+    const email = newEmail.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      toast.error("Email inválido.");
+      return;
+    }
+    setSavingEmail(true);
+    try {
+      await updateEmail({ data: { userId: emailTarget.id, email } });
+      toast.success(`Email atualizado para ${email}.`);
+      setEmailTarget(null);
+      setNewEmail("");
+      qc.invalidateQueries({ queryKey: ["app-users"] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao atualizar email.");
+    } finally {
+      setSavingEmail(false);
+    }
+  };
+
   return (
     <div className="p-4 sm:p-6 space-y-4">
       <PageHeader
