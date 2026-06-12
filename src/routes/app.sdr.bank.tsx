@@ -604,33 +604,34 @@ function BankPage() {
           ) : (
             <div className="flex flex-wrap items-center justify-end gap-1">
               {canPickLeads && !lockedByOther && !isFrozen && (
-                <>
-                  <Button
-                    size="sm"
-                    className="h-7 px-2 text-[11px] bg-green-600 hover:bg-green-700"
-                    disabled={lockedByMe || atLimit || lockMut.isPending}
-                    onClick={() => lockMut.mutate(r.id)}
-                    title={lockedByMe ? 'Você já pegou este lead' : atLimit ? `Limite de ${SDR_LOCK_LIMIT} atingido` : 'Pegar lead'}
-                  >
-                    <Lock className="w-3 h-3 mr-1" /> Pegar
-                  </Button>
+                lockedByMe ? (
                   <Button
                     size="sm"
                     variant="outline"
-                    className="h-7 px-2 text-[11px]"
-                    disabled={!lockedByMe || unlockMut.isPending}
+                    className="h-6 px-2 text-[11px] border-red-300 text-red-700 hover:bg-red-50"
+                    disabled={unlockMut.isPending}
                     onClick={() => unlockMut.mutate(r.id)}
-                    title={lockedByMe ? 'Devolver lead ao banco' : 'Pegue o lead antes de devolver'}
+                    title="Devolver lead ao banco"
                   >
                     <Unlock className="w-3 h-3 mr-1" /> Devolver
                   </Button>
-                </>
+                ) : (
+                  <Button
+                    size="sm"
+                    className="h-6 px-2 text-[11px] bg-green-600 hover:bg-green-700"
+                    disabled={atLimit || lockMut.isPending}
+                    onClick={() => lockMut.mutate(r.id)}
+                    title={atLimit ? `Limite de ${SDR_LOCK_LIMIT} atingido` : 'Pegar lead'}
+                  >
+                    <Lock className="w-3 h-3 mr-1" /> Pegar
+                  </Button>
+                )
               )}
               {isManager && !isFrozen && (
                 <Button
                   size="sm"
                   variant="destructive"
-                  className="h-7 px-2 text-[11px]"
+                  className="h-6 px-2 text-[11px]"
                   disabled={freezeMut.isPending}
                   onClick={() => {
                     if (confirm('Bloquear este lead? Ninguém poderá entrar em contato até você desbloquear.')) {
@@ -643,7 +644,7 @@ function BankPage() {
                 </Button>
               )}
               {isManager && isFrozen && (
-                <Button size="sm" variant="outline" className="h-7 px-2 text-[11px]" onClick={() => unlockMut.mutate(r.id)}>
+                <Button size="sm" variant="outline" className="h-6 px-2 text-[11px]" onClick={() => unlockMut.mutate(r.id)}>
                   <Unlock className="w-3 h-3 mr-1" /> Desbloquear
                 </Button>
               )}
