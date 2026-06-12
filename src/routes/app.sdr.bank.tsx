@@ -318,6 +318,73 @@ function BankPage() {
     return copy
   }, [filtered, sortKey, sortDir, user?.id])
 
+  // Agrupamento por CNPJ — depende apenas de filtered + groupByCnpj
+  const grouped = useMemo(() => {
+    if (!groupByCnpj) return { groups: [] as any[], ungrouped: [] as any[] }
+    const map = new Map<string, any[]>()
+    const ungrouped: any[] = []
+    for (const r of filtered as any[]) {
+      const k = normalizeCnpj(r.cnpj)
+      if (!k) { ungrouped.push(r); continue }
+      const arr = map.get(k) ?? []
+      arr.push(r)
+      map.set(k, arr)
+    }
+    const groups = Array.from(map.entries()).map(([cnpjKey, leads]) => {
+      const first = leads[0] as any
+      const totalValue = leads.reduce((s, l) => s + Number(l.value ?? 0), 0)
+      const latestValue = leads
+        .filter((l: any) => l._isLatestRev)
+        .reduce((s: number, l: any) => s + Number(l.value ?? 0), 0)
+      const tempIdx = leads.reduce((mx: number, l: any) => {
+        const i = TEMP_PRIORITY.indexOf(l.temperature)
+        return i > mx ? i : mx
+      }, -1)
+      const hottestTemp = tempIdx >= 0 ? TEMP_PRIORITY[tempIdx] : null
+      const latestProposal = leads.reduce((acc: string | null, l: any) => {
+        const d = l.proposal_date || l.created_at
+        if (!d) return acc
+        if (!acc || new Date(d) > new Date(acc)) return d
+        return acc
+      }, null as string | null)
+      const lastInteraction = leads.reduce((acc: string | null, l: any) => {
+        const d = l.last_contact_at
+        if (!d) return acc
+        if (!acc || new Date(d) > new Date(acc)) return d
+        return acc
+      }, null as string | null)
+      const lockedLeads = leads.filter((l: any) => l.locked_by_sdr_id && !l.locked_by_sdr_name?.startsWith(MANAGER_FREEZE_PREFIX))
+      const firstLockName = lockedLeads[0]?.locked_by_sdr_name ?? null
+      const activeLeads = leads.filter((l: any) => !ACTIVE_EXCLUDE.includes(l.sdr_status))
+      const activeCount = activeLeads.length
+      const hasMine = leads.some((l: any) => l.locked_by_sdr_id === user?.id)
+      const pickableIds = activeLeads
+        .filter((l: any) => !l.locked_by_sdr_id)
+        .map((l: any) => l.id as string)
+      return {
+        cnpj: cnpjKey,
+        cnpjDisplay: first.cnpj || cnpjKey,
+        razao_social: first.razao_social || first.client_name,
+        client_name: first.client_name,
+        state: first.state,
+        leads,
+        count: leads.length,
+        activeCount,
+        totalValue,
+        latestValue,
+        hottestTemp,
+        latestProposal,
+        lastInteraction,
+        lockedCount: lockedLeads.length,
+        firstLockName,
+        hasMine,
+        pickableIds,
+      }
+    })
+    groups.sort((a, b) => b.count - a.count || b.totalValue - a.totalValue)
+    return { groups, ungrouped }
+  }, [filtered, groupByCnpj, user?.id])
+
   const atLimit = canPickLeads && myLockCount >= SDR_LOCK_LIMIT
 
   const frozenLeads = useMemo(
@@ -325,6 +392,173 @@ function BankPage() {
     [rows],
   )
   const [showFrozen, setShowFrozen] = useState(false)
+
+  const renderLeadRow = (r: any) => {
+    const lockedByMe = r.locked_by_sdr_id === user?.id
+    const lockedByOther = !!r.locked_by_sdr_id && !lockedByMe
+    const isFrozen = !!r.locked_by_sdr_name?.startsWith(MANAGER_FREEZE_PREFIX)
+    return (
+      <tr key={r.id} className="border-t hover:bg-muted/20 align-top">
+        <td className="px-3 py-2 font-mono text-xs">
+          <div className="flex items-center gap-1.5">
+            <Link
+              to="/app/sdr/leads/$id"
+              params={{ id: r.id }}
+              className="text-primary hover:underline"
+              title="Abrir detalhes e histórico do SDR"
+            >
+              {r.lead_code}
+            </Link>
+            {r._revTotal > 1 && (
+              <Badge
+                variant="secondary"
+                className={r._isLatestRev ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}
+                title={r._isLatestRev
+                  ? `Última revisão (${r._revTotal} no total). Valor contado no relatório.`
+                  : `Revisão anterior — não somada no relatório. Última: Rev. ${String((r._revTotal)).padStart(2,'0')}`}
+              >
+                Rev. {String(r._rev).padStart(2, '0')} · {r._revTotal}
+              </Badge>
+            )}
+          </div>
+        </td>
+        <td className="px-3 py-2">
+          <div className="font-semibold">{r.client_name}</div>
+          {r.razao_social && r.razao_social !== r.client_name && (
+            <div className="text-xs text-muted-foreground">{r.razao_social}</div>
+          )}
+          {r.cnpj && <div className="text-[10px] font-mono text-muted-foreground">{r.cnpj}</div>}
+          {(() => {
+            const m = nomusByLead.get(r.id)
+            if (!m) return null
+            return (
+              <Link
+                to="/app/propostas/$id"
+                params={{ id: m.proposal_id }}
+                className="inline-flex items-center gap-1 mt-1"
+                title={m.match_type === 'cnpj' ? 'Match por CNPJ' : 'Match por título'}
+              >
+                <Badge className="bg-purple-100 text-purple-800 hover:bg-purple-200">
+                  <FileText className="w-3 h-3 mr-1" />Proposta Nomus
+                </Badge>
+              </Link>
+            )
+          })()}
+        </td>
+        <td className="px-3 py-2 text-xs">
+          <div>{r.contact_name || '—'}</div>
+          <div className="text-muted-foreground font-mono">{r.contact_mobile || r.contact_phone || '—'}</div>
+        </td>
+        <td className="px-3 py-2">{r.state || '—'}</td>
+        <td className="px-3 py-2 text-right font-semibold">{fmtBRL(r.value)}</td>
+        <td className="px-3 py-2 text-xs whitespace-nowrap">{fmtDate(r.proposal_date || r.created_at)}</td>
+        <td className="px-3 py-2 text-xs whitespace-nowrap">
+          <div>{fmtDate(r.last_contact_at)}</div>
+          {r.days_without_contact != null && (
+            <div className="text-[10px] text-muted-foreground">há {r.days_without_contact}d</div>
+          )}
+        </td>
+        <td className="px-3 py-2 text-center">
+          {(() => {
+            const d = daysSince(r.proposal_date || r.created_at)
+            return (
+              <Badge className={ageBadgeClass(d)} variant="secondary">
+                {d == null ? '—' : `${d}d`}
+              </Badge>
+            )
+          })()}
+        </td>
+        <td className="px-3 py-2">
+          <Badge className={TEMP_COLORS[r.temperature] || ''} variant="secondary">{r.temperature}</Badge>
+        </td>
+        <td className="px-3 py-2 text-xs">
+          {isFrozen ? (
+            <Badge className="bg-red-100 text-red-800">
+              <ShieldAlert className="w-3 h-3 mr-1" />Bloqueado pelo gestor
+            </Badge>
+          ) : lockedByMe ? (
+            <Badge className="bg-blue-100 text-blue-800">
+              <Briefcase className="w-3 h-3 mr-1" />Minha carteira
+            </Badge>
+          ) : lockedByOther ? (
+            <div className="space-y-1">
+              <Badge className="bg-orange-100 text-orange-800">
+                <Lock className="w-3 h-3 mr-1" />Em atendimento
+              </Badge>
+              <div className="text-[11px] font-medium text-orange-900">
+                {r.locked_by_sdr_name || 'Outro usuário'}
+              </div>
+            </div>
+          ) : (
+            <Badge variant="outline" className="text-green-700 border-green-300">Livre</Badge>
+          )}
+        </td>
+        <td className="px-3 py-2 text-xs">
+          {(() => {
+            const ps = (r as any).proposal_status as string | null | undefined
+            if (!ps) return <span className="text-muted-foreground">—</span>
+            const map: Record<string, string> = {
+              'Proposta Criada': 'bg-slate-100 text-slate-800',
+              'Proposta Enviada': 'bg-blue-100 text-blue-800',
+              'Negociando': 'bg-amber-100 text-amber-800',
+              'Prorrogadas': 'bg-purple-100 text-purple-800',
+              'Aprovadas': 'bg-green-100 text-green-800',
+              'Perdidas': 'bg-red-100 text-red-800',
+              'Canceladas': 'bg-zinc-200 text-zinc-800',
+            }
+            return <Badge className={map[ps] || 'bg-muted text-foreground'} variant="secondary">{ps}</Badge>
+          })()}
+        </td>
+        <td className="px-3 py-2 text-right space-x-1 whitespace-nowrap">
+          {tab === 'arquivados' ? (
+            <Button size="sm" variant="outline" disabled={remarketingMut.isPending}
+              onClick={() => remarketingMut.mutate(r.id)}>
+              <Mail className="w-3 h-3 mr-1" /> Remarketing
+            </Button>
+          ) : (
+            <>
+              {canPickLeads && !r.locked_by_sdr_id && (
+                <Button
+                  size="sm"
+                  className="bg-green-600 hover:bg-green-700"
+                  disabled={atLimit || lockMut.isPending}
+                  onClick={() => lockMut.mutate(r.id)}
+                  title={atLimit ? `Limite de ${SDR_LOCK_LIMIT} atingido` : 'Pegar lead'}
+                >
+                  <Lock className="w-3 h-3 mr-1" /> Pegar
+                </Button>
+              )}
+              {lockedByMe && !isFrozen && (
+                <Button size="sm" variant="outline" onClick={() => unlockMut.mutate(r.id)}>
+                  <Unlock className="w-3 h-3 mr-1" /> Devolver
+                </Button>
+              )}
+              {isManager && !isFrozen && (
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  disabled={freezeMut.isPending}
+                  onClick={() => {
+                    if (confirm('Bloquear este lead? Ninguém poderá entrar em contato até você desbloquear.')) {
+                      freezeMut.mutate(r.id)
+                    }
+                  }}
+                  title="Bloquear lead (gestor)"
+                >
+                  <ShieldAlert className="w-3 h-3 mr-1" /> Bloquear
+                </Button>
+              )}
+              {isManager && isFrozen && (
+                <Button size="sm" variant="outline" onClick={() => unlockMut.mutate(r.id)}>
+                  <Unlock className="w-3 h-3 mr-1" /> Desbloquear
+                </Button>
+              )}
+            </>
+          )}
+        </td>
+      </tr>
+    )
+  }
 
   return (
     <div className="p-6 space-y-4">
