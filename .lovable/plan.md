@@ -1,58 +1,42 @@
-# Banco de Leads — Agrupamento por CNPJ como padrão
+## Objetivo
 
-Alterações apenas em `src/routes/app.sdr.bank.tsx`. Sem migration, sem mudar outros arquivos.
+No Banco de Leads (`src/routes/app.sdr.bank.tsx`), os botões **Pegar** e **Devolver** hoje se alternam (um aparece, o outro some). O usuário quer ver **os dois sempre juntos**, sendo que:
 
-## 1. Remover o toggle "Agrupar por CNPJ"
+- **Devolver** começa **desabilitado** (cinza)
+- Ao clicar em **Pegar**, **Devolver** fica habilitado automaticamente (porque `lockedByMe` vira `true`)
+- E o tamanho dos botões precisa ser **reduzido** para caber na coluna sem quebrar layout
 
-- Apagar o estado `groupByCnpj`, a leitura/escrita em `localStorage` (`bank_group_cnpj`) e o botão na barra de filtros.
-- O `useMemo` do agrupamento passa a depender apenas de `[filteredLeads]`.
-- A view única do banco agora é **sempre** agrupada por CNPJ.
-- Leads sem CNPJ válido continuam aparecendo na seção "Sem CNPJ" no fim da lista.
+## Mudanças
 
-## 2. Linha-mãe (grupo) sempre visível
+### 1. Linhas individuais (propostas) — `renderLeadRow` (linhas 605-642)
 
-Para cada CNPJ:
-- Razão social + CNPJ formatado
-- Contador de propostas (`N propostas`)
-- Soma de valores
-- Temperatura mais alta do grupo (`TEMP_PRIORITY` já existente)
-- Badge laranja `⚠ X propostas ativas` quando ≥3 ativas (`ACTIVE_EXCLUDE` já existente)
-- Botão de expandir/recolher (`expandedCnpjs` continua igual)
+Substituir a lógica atual (Pegar XOR Devolver) por **par fixo lado a lado**:
 
-## 3. Ações em grupo (novo)
+- `Pegar` — habilitado quando `!lockedByMe && !lockedByOther && !atLimit`; desabilitado se já pegou (lockedByMe) ou se atingiu o limite
+- `Devolver` — habilitado **somente quando `lockedByMe && !isFrozen`**; desabilitado nos outros casos (visual cinza, sem ação)
+- Se `lockedByOther` (outro SDR pegou) → mostrar apenas badge "Em atendimento por X", esconder os dois botões (regra atual mantida)
+- Botões compactos: `size="sm"` + classe extra `h-7 px-2 text-[11px]`, ícone `w-3 h-3` sem texto extra. Ex.: `<Lock/> Pegar` / `<Unlock/> Devolver`
 
-Na linha-mãe, lado direito, conforme o estado do grupo em relação ao SDR logado:
+Bloquear (gestor) e Desbloquear (gestor) continuam como hoje, no mesmo container flex.
 
-**a) "Pegar todas as ativas"** — quando o SDR não tem nenhuma das propostas ativas. Usa `bulkPickMut` já existente, respeita `SDR_LOCK_LIMIT` (30), feedback via `sonner`. Desabilitado se SDR no limite.
+### 2. Linha-mãe do grupo (CNPJ) — bloco linhas 896-966
 
-**b) "Devolver todas"** — quando o SDR tem ≥1 proposta daquele CNPJ travada para si (`locked_by_sdr_id === user.id`) e não encerrada (fora de `ARCHIVED_SDR_STATUSES` + `Fechado`). Chama `unlockLead(id)` em sequência. Toast: `"X devolvidas"` ou `"Devolvidas X de Y (Z erros)"`.
+Mesma ideia: sempre renderizar **par Pegar grupo / Devolver grupo** quando `canPickLeads && !isArchivedTab`:
 
-**c) Estado misto** — mostrar ambos: "Pegar restantes" + "Devolver minhas", reaproveitando as mutations com listas de IDs diferentes.
+- `Pegar grupo (N)` — habilitado quando `g.pickableIds.length > 0 && !atLimit`; label vira `Pegar restantes (N)` quando há mix
+- `Devolver grupo (N)` — habilitado quando `g.returnableIds.length > 0`; label vira `Devolver minhas (N)` quando há mix; desabilitado (cinza) quando o SDR ainda não pegou nada do grupo
+- Mesma redução de tamanho (`h-7 px-2 text-[11px]`)
+- AlertDialog de confirmação do "Devolver" permanece
 
-### Confirmação de "Devolver todas"
+### 3. Eliminar estados A/B/C/D condicionais
 
-`src/components/ui/alert-dialog.tsx` **existe** — usar `AlertDialog` para a confirmação (não `confirm()` nativo).
+Como os dois botões agora aparecem sempre, removo as flags `stateA/stateB/stateC` e uso diretamente `g.pickableIds.length` e `g.returnableIds.length` para habilitar/desabilitar e definir o label.
 
-- Estado local `returnConfirmCnpj: string | null` controla qual grupo está em confirmação.
-- `<AlertDialog open={!!returnConfirmCnpj}>` com `AlertDialogContent`, título `"Devolver propostas ao banco?"`, descrição mostrando quantas propostas serão devolvidas e o nome do cliente, `AlertDialogCancel` e `AlertDialogAction` que dispara `bulkReturnMut.mutate(...)`.
-- Importar de `@/components/ui/alert-dialog`.
-- "Pegar todas" continua sem dialog (ação aditiva, baixo risco).
+## Arquivos
 
-## 4. Linhas filhas (propostas individuais)
+- `src/routes/app.sdr.bank.tsx` — apenas alterações de UI nas duas regiões acima (sem mudanças em mutations, serviços ou tipos).
 
-- Permanecem iguais, renderizadas via `renderLeadRow` quando o grupo está expandido.
-- Botões individuais "Pegar"/"Devolver" continuam funcionando proposta-a-proposta.
+## Validação
 
-## Notas técnicas
-
-- Sem mudança de schema, sem nova migration, sem novo hook.
-- Reuso: `lockLead`, `unlockLead`, `SDR_LOCK_LIMIT`, `ARCHIVED_SDR_STATUSES`, `TEMP_PRIORITY`, `normalizeCnpj`, `bulkPickMut`.
-- Nova mutation `bulkReturnMut` espelhando `bulkPickMut`: `for...of` + `await unlockLead(id)` + contador local.
-- `onSettled`: invalidar `['my-wallet']`, `['my-lock-count']`, e a query do banco.
-- Estado inicial: nenhum CNPJ expandido. Sem persistência em `localStorage`.
-
-## Fora de escopo
-
-- Mudanças em outras telas.
-- Filtro/ordenação por número de propostas no grupo.
-- Auditoria automática por IA do grupo.
+- Build TypeScript limpo
+- Visual: confirmar par lado a lado em ambas as linhas (mãe e filha), e que `Devolver` fica visualmente desabilitado até clicar em `Pegar`
