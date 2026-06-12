@@ -229,3 +229,171 @@ function UsersTable({ currentUserId }: { currentUserId: string }) {
     </div>
   );
 }
+
+type AppUser = {
+  id: string;
+  fullName: string | null;
+  email: string | null;
+  roles: AppRole[];
+  accessStatus: "active" | "inactive";
+};
+
+function EditUserButton({ user }: { user: AppUser }) {
+  const [open, setOpen] = useState(false);
+  const [fullName, setFullName] = useState(user.fullName ?? "");
+  const [email, setEmail] = useState(user.email ?? "");
+  const [role, setRole] = useState<AppRole>((user.roles[0] ?? "vendedor") as AppRole);
+  const [active, setActive] = useState(user.accessStatus !== "inactive");
+  const [saving, setSaving] = useState(false);
+  const update = useServerFn(updateUserFull);
+  const qc = useQueryClient();
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await update({
+        data: {
+          userId: user.id,
+          fullName: fullName.trim(),
+          email: email.trim().toLowerCase(),
+          role,
+          accessStatus: active ? "active" : "inactive",
+        },
+      });
+      toast.success("Usuário atualizado.");
+      qc.invalidateQueries({ queryKey: ["app-users"] });
+      setOpen(false);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao atualizar usuário.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => {
+      setOpen(v);
+      if (v) {
+        setFullName(user.fullName ?? "");
+        setEmail(user.email ?? "");
+        setRole((user.roles[0] ?? "vendedor") as AppRole);
+        setActive(user.accessStatus !== "inactive");
+      }
+    }}>
+      <Button size="sm" variant="ghost" onClick={() => setOpen(true)}>
+        <Pencil className="h-4 w-4" />
+      </Button>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Editar usuário</DialogTitle>
+          <DialogDescription>Atualize nome, e-mail, perfil e status de acesso.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="edit-name">Nome completo</Label>
+            <Input id="edit-name" value={fullName} onChange={(e) => setFullName(e.target.value)} maxLength={120} />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="edit-email">E-mail</Label>
+            <Input id="edit-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} maxLength={255} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Perfil</Label>
+            <Select value={role} onValueChange={(v) => setRole(v as AppRole)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {ASSIGNABLE_ROLES.map((r) => (
+                  <SelectItem key={r} value={r}>{ROLE_LABELS[r]}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-center gap-2">
+            <Checkbox id="edit-active" checked={active} onCheckedChange={(v) => setActive(!!v)} />
+            <Label htmlFor="edit-active" className="cursor-pointer">Acesso ativo</Label>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => setOpen(false)} disabled={saving}>Cancelar</Button>
+          <Button onClick={handleSave} disabled={saving || !fullName.trim() || !email.trim()}>
+            {saving ? "Salvando..." : "Salvar"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ResetPasswordButton({ userId, userName }: { userId: string; userName: string }) {
+  const [open, setOpen] = useState(false);
+  const [password, setPassword] = useState("");
+  const [forceChange, setForceChange] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const setPwd = useServerFn(setUserPassword);
+
+  const genRandom = () => {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+    let out = "";
+    for (let i = 0; i < 12; i++) out += chars[Math.floor(Math.random() * chars.length)];
+    setPassword(out);
+  };
+
+  const handleSave = async () => {
+    if (password.length < 8) {
+      toast.error("Senha precisa ter ao menos 8 caracteres.");
+      return;
+    }
+    setSaving(true);
+    try {
+      await setPwd({ data: { userId, password, forceChange } });
+      try {
+        await navigator.clipboard.writeText(password);
+        toast.success("Senha definida e copiada para a área de transferência.");
+      } catch {
+        toast.success("Senha definida.");
+      }
+      setOpen(false);
+      setPassword("");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao definir senha.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) setPassword(""); }}>
+      <Button size="sm" variant="ghost" onClick={() => setOpen(true)} title="Redefinir senha">
+        <KeyRound className="h-4 w-4" />
+      </Button>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Redefinir senha — {userName}</DialogTitle>
+          <DialogDescription>
+            Defina uma senha manualmente e envie ao usuário por WhatsApp ou pessoalmente.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="reset-pwd">Nova senha</Label>
+            <div className="flex gap-2">
+              <Input id="reset-pwd" value={password} onChange={(e) => setPassword(e.target.value)} minLength={8} maxLength={72} />
+              <Button type="button" variant="outline" onClick={genRandom}>Gerar</Button>
+            </div>
+            <p className="text-xs text-muted-foreground">Mínimo 8 caracteres. Será copiada para a área de transferência ao salvar.</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Checkbox id="reset-force" checked={forceChange} onCheckedChange={(v) => setForceChange(!!v)} />
+            <Label htmlFor="reset-force" className="cursor-pointer">Forçar troca no próximo acesso</Label>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => setOpen(false)} disabled={saving}>Cancelar</Button>
+          <Button onClick={handleSave} disabled={saving}>{saving ? "Salvando..." : "Salvar senha"}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
