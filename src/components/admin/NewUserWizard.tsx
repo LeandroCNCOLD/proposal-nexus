@@ -46,6 +46,10 @@ const GERENTE_ASSIGNABLE_ROLES: AppRole[] = ["sdr", "vendedor", "marketing"];
 type Step = 1 | 2 | 3 | 4;
 
 export function NewUserWizard() {
+  const { roles: callerRoles } = useAuth();
+  const isAdminLike = callerRoles.some((r) => r === "admin" || r === "diretoria");
+  const ASSIGNABLE_ROLES: AppRole[] = isAdminLike ? ALL_ASSIGNABLE_ROLES : GERENTE_ASSIGNABLE_ROLES;
+
   const invite = useServerFn(inviteNewUser);
   const fetchTpls = useServerFn(listRoleTemplates);
   const qc = useQueryClient();
