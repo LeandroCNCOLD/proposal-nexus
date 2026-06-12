@@ -172,6 +172,41 @@ function BankPage() {
     onError: () => toast.error('Não foi possível bloquear o lead.'),
   })
 
+  const bulkPickMut = useMutation({
+    mutationFn: async (ids: string[]) => {
+      let ok = 0
+      let failed = 0
+      let stoppedByLimit = false
+      let current = myLockCount
+      for (const id of ids) {
+        if (current >= SDR_LOCK_LIMIT) { stoppedByLimit = true; break }
+        try {
+          await lockLead(id, user!.id, sdrName)
+          ok++
+          current++
+        } catch {
+          failed++
+        }
+      }
+      return { ok, failed, stoppedByLimit, total: ids.length }
+    },
+    onSuccess: (r) => {
+      if (r.ok === r.total) {
+        toast.success(`${r.ok} propostas adicionadas à sua carteira`)
+      } else if (r.stoppedByLimit) {
+        toast.warning(`Adicionei ${r.ok} de ${r.total} — limite de ${SDR_LOCK_LIMIT} leads atingido`)
+      } else if (r.failed > 0) {
+        toast.warning(`Adicionei ${r.ok} de ${r.total} — ${r.failed} não puderam ser travadas`)
+      } else {
+        toast.success(`${r.ok} propostas adicionadas à sua carteira`)
+      }
+      qc.invalidateQueries({ queryKey: ['proposal-bank'] })
+      qc.invalidateQueries({ queryKey: ['my-lock-count'] })
+      qc.invalidateQueries({ queryKey: ['my-wallet'] })
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : 'Falha ao pegar leads em massa'),
+  })
+
   // Extrai base CN##### e revisão a partir do lead_code/proposal_title/proposal_version
   const parseRev = (r: any): { base: string; rev: number } => {
     const raw = String(r.lead_code ?? '').trim()
