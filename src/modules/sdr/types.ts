@@ -29,7 +29,7 @@ export interface CrmPipeline {
   id: string
   created_at: string
   updated_at: string
-  proposal_number: string
+  lead_code: string
   client_name: string
   city: string | null
   state: string | null
@@ -53,7 +53,33 @@ export interface CrmPipeline {
   internal_note: string | null
   days_without_contact: number | null
   value_range: string | null
+  locked_by_sdr_id: string | null
+  locked_by_sdr_name: string | null
+  locked_at: string | null
+  lock_expires_at: string | null
+  // Dados de proposta e contato
+  proposal_title: string | null
+  proposal_desc: string | null
+  proposal_version: number | null
+  razao_social: string | null
+  cnpj: string | null
+  contact_name: string | null
+  contact_email: string | null
+  contact_phone: string | null
+  contact_mobile: string | null
+  discount_pct: number | null
+  delivery_term: string | null
+  validity_days: number | null
+  proposal_date: string | null
+  expected_delivery: string | null
+  expected_closing: string | null
 }
+
+export const SDR_LOCK_LIMIT = 30
+export const SDR_LOCK_DAYS = 7
+
+export type CallChannel = 'Celular' | 'Fixo' | 'WhatsApp' | 'E-mail' | 'Telefone' | 'Outro'
+export const CALL_CHANNEL_OPTIONS: CallChannel[] = ['Celular', 'Fixo', 'WhatsApp', 'E-mail', 'Outro']
 
 export interface CrmCallLog {
   id: string
@@ -68,6 +94,9 @@ export interface CrmCallLog {
   temperature_after: Temperature | null
   meeting_booked: boolean
   observation: string | null
+  channel?: CallChannel
+  proof_path?: string | null
+  proof_validated?: boolean
 }
 
 export interface CrmWeeklyReview {
@@ -82,9 +111,13 @@ export interface CrmWeeklyReview {
   next_week_plan: string | null
 }
 
+export const SDR_DAILY_GOAL = 15
+
 export interface SdrMetrics {
   name: string
   totalCalls: number
+  completedContacts: number
+  attempts: number
   realAnswers: number
   answerRate: number
   meetingsBooked: number
@@ -92,6 +125,8 @@ export interface SdrMetrics {
   conversionRate: number
   hotDeals: number
   closedDeals: number
+  goalPct: number
+  goalReached: boolean
 }
 
 export interface PipelineFilters {
@@ -117,5 +152,5 @@ export const CALL_RESULT_OPTIONS: CallResult[] = [
   'Não atendeu - WhatsApp','Não atendeu - Caixa postal',
   'Número inválido','Concorrente ganhou','Outros',
 ]
-export const SDR_NAMES = ['Katlin','Silmar','Tais','Vitor'] as const
-export const CLOSER_NAMES = ['Rafael','Elton','Rodrigo','Leandro'] as const
+// SDRs e Closers agora vêm do banco (profiles + user_roles).
+// Use useSdrNames() e useCloserNames() em '@/modules/sdr/hooks/use-team-members'.
