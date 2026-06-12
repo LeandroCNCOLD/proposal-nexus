@@ -207,6 +207,37 @@ function BankPage() {
     onError: (e) => toast.error(e instanceof Error ? e.message : 'Falha ao pegar leads em massa'),
   })
 
+  const bulkReturnMut = useMutation({
+    mutationFn: async (ids: string[]) => {
+      let ok = 0
+      let failed = 0
+      for (const id of ids) {
+        try {
+          await unlockLead(id)
+          ok++
+        } catch {
+          failed++
+        }
+      }
+      return { ok, failed, total: ids.length }
+    },
+    onSuccess: (r) => {
+      if (r.failed === 0) {
+        toast.success(`${r.ok} proposta${r.ok === 1 ? '' : 's'} devolvida${r.ok === 1 ? '' : 's'} ao banco`)
+      } else {
+        toast.warning(`Devolvidas ${r.ok} de ${r.total} (${r.failed} erros)`)
+      }
+      setReturnConfirmCnpj(null)
+      qc.invalidateQueries({ queryKey: ['proposal-bank'] })
+      qc.invalidateQueries({ queryKey: ['my-lock-count'] })
+      qc.invalidateQueries({ queryKey: ['my-wallet'] })
+    },
+    onError: (e) => {
+      toast.error(e instanceof Error ? e.message : 'Falha ao devolver leads em massa')
+      setReturnConfirmCnpj(null)
+    },
+  })
+
   // Extrai base CN##### e revisão a partir do lead_code/proposal_title/proposal_version
   const parseRev = (r: any): { base: string; rev: number } => {
     const raw = String(r.lead_code ?? '').trim()
