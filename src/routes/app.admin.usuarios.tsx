@@ -367,14 +367,6 @@ function UsersAdminPage() {
                       >
                         <Lock className="h-4 w-4" />
                       </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        title="Enviar email de redefinição de senha"
-                        onClick={() => onResetPasswordEmail(u.email)}
-                      >
-                        <KeyRound className="h-4 w-4" />
-                      </Button>
                       {isAdminLike && (
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
