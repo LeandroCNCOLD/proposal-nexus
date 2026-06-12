@@ -1026,7 +1026,7 @@ function BankPage() {
   )
 }
 
-function SortableTh({ label, sk, sortKey, sortDir, onClick, align }: {
+function SortableTh({ label, sk, sortKey, sortDir, onClick, align, className }: {
   label: string
   sk: SortKey
   sortKey: SortKey | null
