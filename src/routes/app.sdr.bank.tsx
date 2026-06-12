@@ -560,7 +560,8 @@ function BankPage() {
         <td className="px-3 py-2">
           <Badge className={TEMP_COLORS[r.temperature] || ''} variant="secondary">{r.temperature}</Badge>
         </td>
-        <td className="px-3 py-2 text-xs">
+        <td className="px-3 py-2 text-xs hidden md:table-cell">
+
           {isFrozen ? (
             <Badge className="bg-red-100 text-red-800">
               <ShieldAlert className="w-3 h-3 mr-1" />Bloqueado pelo gestor
