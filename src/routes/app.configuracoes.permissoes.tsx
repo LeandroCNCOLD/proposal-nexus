@@ -36,6 +36,7 @@ const MANAGE_ROLES: AppRole[] = ["admin", "diretoria", "gerente_comercial"];
 const EDITABLE_ROLES: AppRole[] = [
   "vendedor",
   "sdr",
+  "marketing",
   "gerente_comercial",
   "engenharia",
   "orcamentista",
@@ -218,6 +219,7 @@ function UserOverridesPanel() {
   const save = useServerFn(setUserOverrides);
   const qc = useQueryClient();
   const [userId, setUserId] = useState<string>("");
+  const [roleFilter, setRoleFilter] = useState<AppRole | "all">("all");
   const [state, setState] = useState<Map<string, Effect>>(new Map());
   const [saving, setSaving] = useState(false);
 
@@ -225,6 +227,12 @@ function UserOverridesPanel() {
     queryKey: ["app-users"],
     queryFn: () => fetchUsers(),
   });
+
+  const filteredUsers = useMemo(() => {
+    const list = users ?? [];
+    if (roleFilter === "all") return list;
+    return list.filter((u) => (u.roles ?? []).includes(roleFilter));
+  }, [users, roleFilter]);
 
   const { data: detail, isLoading } = useQuery({
     queryKey: ["user-overrides", userId],
@@ -289,20 +297,48 @@ function UserOverridesPanel() {
   return (
     <div className="space-y-4 rounded-xl border bg-card p-6 shadow-[var(--shadow-sm)]">
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <div className="space-y-1.5">
-          <Label>Usuário</Label>
-          <Select value={userId} onValueChange={setUserId}>
-            <SelectTrigger className="w-80">
-              <SelectValue placeholder="Selecione um usuário" />
-            </SelectTrigger>
-            <SelectContent>
-              {(users ?? []).map((u) => (
-                <SelectItem key={u.id} value={u.id}>
-                  {u.fullName ?? u.email ?? u.id}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="space-y-1.5">
+            <Label>Filtrar por perfil</Label>
+            <Select
+              value={roleFilter}
+              onValueChange={(v) => {
+                setRoleFilter(v as AppRole | "all");
+                setUserId("");
+              }}
+            >
+              <SelectTrigger className="w-56">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os perfis</SelectItem>
+                {EDITABLE_ROLES.map((r) => (
+                  <SelectItem key={r} value={r}>
+                    {ROLE_LABELS[r]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Usuário</Label>
+            <Select value={userId} onValueChange={setUserId}>
+              <SelectTrigger className="w-80">
+                <SelectValue placeholder={
+                  filteredUsers.length === 0
+                    ? "Nenhum usuário com esse perfil"
+                    : "Selecione um usuário"
+                } />
+              </SelectTrigger>
+              <SelectContent>
+                {filteredUsers.map((u) => (
+                  <SelectItem key={u.id} value={u.id}>
+                    {u.fullName ?? u.email ?? u.id}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
         <Button onClick={handleSave} disabled={!userId || saving || isLoading} className="gap-2">
           <Save className="h-4 w-4" />
