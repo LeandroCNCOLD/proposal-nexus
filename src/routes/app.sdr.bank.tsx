@@ -820,14 +820,12 @@ function BankPage() {
                 const isArchivedTab = tab === 'arquivados'
                 const remaining = SDR_LOCK_LIMIT - myLockCount
                 const willPick = Math.min(g.pickableIds.length, Math.max(0, remaining))
-                // Estados:
-                // A) sem nenhuma minha + tem pickable  → "Pegar grupo"
-                // B) tem todas as ativas minhas (zero pickable + tem returnable) → "Devolver grupo"
-                // C) misto (tem pickable + tem returnable) → "Pegar restantes" + "Devolver minhas"
-                // D) atLimit → "Pegar grupo" desabilitado
-                const stateA = !isArchivedTab && canPickLeads && g.returnableIds.length === 0 && g.pickableIds.length > 0
-                const stateB = !isArchivedTab && canPickLeads && g.pickableIds.length === 0 && g.returnableIds.length > 0
-                const stateC = !isArchivedTab && canPickLeads && g.pickableIds.length > 0 && g.returnableIds.length > 0
+                const showGroupActions = !isArchivedTab && canPickLeads
+                const hasPickable = g.pickableIds.length > 0
+                const hasReturnable = g.returnableIds.length > 0
+                const isMix = hasPickable && hasReturnable
+                const pickLabel = isMix ? 'Pegar restantes' : 'Pegar grupo'
+                const returnLabel = isMix ? 'Devolver minhas' : 'Devolver grupo'
 
                 return (
                   <Fragment key={g.cnpj}>
