@@ -1,13 +1,13 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
-import { useMemo, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 import { fetchProposalBank, lockLead, unlockLead, countMyLocks, freezeLead, MANAGER_FREEZE_PREFIX } from '@/modules/sdr/services'
 import { useAuth } from '@/hooks/useAuth'
 import { SDR_LOCK_LIMIT } from '@/modules/sdr/types'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Lock, Unlock, Briefcase, ShieldAlert, ArrowUp, ArrowDown, ArrowUpDown, FileText, Mail } from 'lucide-react'
+import { Lock, Unlock, Briefcase, ShieldAlert, ArrowUp, ArrowDown, ArrowUpDown, FileText, Mail, ChevronRight, ChevronDown, AlertTriangle, Layers, Building2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Link } from '@tanstack/react-router'
 import { useProposalLeadMatches } from '@/hooks/use-proposal-lead-matches'
@@ -17,6 +17,10 @@ import { useServerFn } from '@tanstack/react-start'
 import { enqueueRemarketing } from '@/lib/remarketing.functions'
 
 const ARCHIVED_SDR_STATUSES = ['Perdido (com motivo)', 'Kill / Arquivar']
+const ACTIVE_EXCLUDE = [...ARCHIVED_SDR_STATUSES, 'Fechado']
+const TEMP_PRIORITY = ['Frio', 'Morno', 'Quente', 'Muito Quente']
+
+const normalizeCnpj = (cnpj?: string | null) => (cnpj ?? '').replace(/\D/g, '')
 
 export const Route = createFileRoute('/app/sdr/bank')({
   component: BankPage,
