@@ -14,6 +14,7 @@ const ALL_ROLES: AppRole[] = [
   "diretoria",
   "administrativo",
   "admin",
+  "marketing",
 ];
 
 const InviteSchema = z.object({
@@ -28,6 +29,7 @@ const InviteSchema = z.object({
     "diretoria",
     "administrativo",
     "admin",
+    "marketing",
   ]),
   password: z.string().min(8).max(72).optional().nullable(),
   // Overrides iniciais (opcional). 'grant' adiciona algo não previsto no perfil
@@ -164,6 +166,7 @@ const UpdateRoleSchema = z.object({
     "diretoria",
     "administrativo",
     "admin",
+    "marketing",
   ]),
 });
 

@@ -39,7 +39,7 @@ export const Route = createFileRoute("/app/admin/usuarios")({
 
 const ASSIGNABLE: AppRole[] = [
   "sdr", "vendedor", "gerente_comercial", "engenharia",
-  "orcamentista", "administrativo", "diretoria", "admin",
+  "orcamentista", "administrativo", "marketing", "diretoria", "admin",
 ];
 
 const ROLE_COLORS: Record<string, string> = {
@@ -51,6 +51,7 @@ const ROLE_COLORS: Record<string, string> = {
   engenharia: "bg-cyan-500",
   orcamentista: "bg-indigo-500",
   administrativo: "bg-slate-500",
+  marketing: "bg-pink-500",
 };
 
 function initials(name?: string | null, email?: string | null) {

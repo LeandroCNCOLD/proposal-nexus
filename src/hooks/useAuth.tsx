@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 export type AppRole =
   | "vendedor" | "sdr" | "gerente_comercial" | "engenharia"
-  | "orcamentista" | "diretoria" | "administrativo" | "admin" | "coldpro";
+  | "orcamentista" | "diretoria" | "administrativo" | "admin" | "coldpro" | "marketing";
 
 interface AuthState {
   session: Session | null;
