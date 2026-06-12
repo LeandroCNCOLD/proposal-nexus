@@ -1,13 +1,13 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
-import { useMemo, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 import { fetchProposalBank, lockLead, unlockLead, countMyLocks, freezeLead, MANAGER_FREEZE_PREFIX } from '@/modules/sdr/services'
 import { useAuth } from '@/hooks/useAuth'
 import { SDR_LOCK_LIMIT } from '@/modules/sdr/types'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Lock, Unlock, Briefcase, ShieldAlert, ArrowUp, ArrowDown, ArrowUpDown, FileText, Mail } from 'lucide-react'
+import { Lock, Unlock, Briefcase, ShieldAlert, ArrowUp, ArrowDown, ArrowUpDown, FileText, Mail, ChevronRight, ChevronDown, AlertTriangle, Layers, Building2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Link } from '@tanstack/react-router'
 import { useProposalLeadMatches } from '@/hooks/use-proposal-lead-matches'
@@ -17,6 +17,10 @@ import { useServerFn } from '@tanstack/react-start'
 import { enqueueRemarketing } from '@/lib/remarketing.functions'
 
 const ARCHIVED_SDR_STATUSES = ['Perdido (com motivo)', 'Kill / Arquivar']
+const ACTIVE_EXCLUDE = [...ARCHIVED_SDR_STATUSES, 'Fechado']
+const TEMP_PRIORITY = ['Frio', 'Morno', 'Quente', 'Muito Quente']
+
+const normalizeCnpj = (cnpj?: string | null) => (cnpj ?? '').replace(/\D/g, '')
 
 export const Route = createFileRoute('/app/sdr/bank')({
   component: BankPage,
@@ -69,6 +73,25 @@ function BankPage() {
   const { names: closerNames } = useCloserNames()
   const [sortKey, setSortKey] = useState<SortKey | null>(null)
   const [sortDir, setSortDir] = useState<SortDir>(null)
+  const [groupByCnpj, setGroupByCnpj] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false
+    return window.localStorage.getItem('bank_group_cnpj') === 'true'
+  })
+  const [expandedCnpjs, setExpandedCnpjs] = useState<Set<string>>(new Set())
+  const toggleGroupByCnpj = () => {
+    setGroupByCnpj((v) => {
+      const next = !v
+      try { window.localStorage.setItem('bank_group_cnpj', String(next)) } catch { /* ignore */ }
+      return next
+    })
+  }
+  const toggleExpand = (cnpj: string) => {
+    setExpandedCnpjs((prev) => {
+      const next = new Set(prev)
+      if (next.has(cnpj)) next.delete(cnpj); else next.add(cnpj)
+      return next
+    })
+  }
   const enqueueRemarketingFn = useServerFn(enqueueRemarketing)
   const remarketingMut = useMutation({
     mutationFn: (id: string) => enqueueRemarketingFn({ data: { source: 'sdr', lead_id: id } }),
@@ -147,6 +170,41 @@ function BankPage() {
       qc.invalidateQueries({ queryKey: ['my-wallet'] })
     },
     onError: () => toast.error('Não foi possível bloquear o lead.'),
+  })
+
+  const bulkPickMut = useMutation({
+    mutationFn: async (ids: string[]) => {
+      let ok = 0
+      let failed = 0
+      let stoppedByLimit = false
+      let current = myLockCount
+      for (const id of ids) {
+        if (current >= SDR_LOCK_LIMIT) { stoppedByLimit = true; break }
+        try {
+          await lockLead(id, user!.id, sdrName)
+          ok++
+          current++
+        } catch {
+          failed++
+        }
+      }
+      return { ok, failed, stoppedByLimit, total: ids.length }
+    },
+    onSuccess: (r) => {
+      if (r.ok === r.total) {
+        toast.success(`${r.ok} propostas adicionadas à sua carteira`)
+      } else if (r.stoppedByLimit) {
+        toast.warning(`Adicionei ${r.ok} de ${r.total} — limite de ${SDR_LOCK_LIMIT} leads atingido`)
+      } else if (r.failed > 0) {
+        toast.warning(`Adicionei ${r.ok} de ${r.total} — ${r.failed} não puderam ser travadas`)
+      } else {
+        toast.success(`${r.ok} propostas adicionadas à sua carteira`)
+      }
+      qc.invalidateQueries({ queryKey: ['proposal-bank'] })
+      qc.invalidateQueries({ queryKey: ['my-lock-count'] })
+      qc.invalidateQueries({ queryKey: ['my-wallet'] })
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : 'Falha ao pegar leads em massa'),
   })
 
   // Extrai base CN##### e revisão a partir do lead_code/proposal_title/proposal_version
@@ -260,6 +318,73 @@ function BankPage() {
     return copy
   }, [filtered, sortKey, sortDir, user?.id])
 
+  // Agrupamento por CNPJ — depende apenas de filtered + groupByCnpj
+  const grouped = useMemo(() => {
+    if (!groupByCnpj) return { groups: [] as any[], ungrouped: [] as any[] }
+    const map = new Map<string, any[]>()
+    const ungrouped: any[] = []
+    for (const r of filtered as any[]) {
+      const k = normalizeCnpj(r.cnpj)
+      if (!k) { ungrouped.push(r); continue }
+      const arr = map.get(k) ?? []
+      arr.push(r)
+      map.set(k, arr)
+    }
+    const groups = Array.from(map.entries()).map(([cnpjKey, leads]) => {
+      const first = leads[0] as any
+      const totalValue = leads.reduce((s, l) => s + Number(l.value ?? 0), 0)
+      const latestValue = leads
+        .filter((l: any) => l._isLatestRev)
+        .reduce((s: number, l: any) => s + Number(l.value ?? 0), 0)
+      const tempIdx = leads.reduce((mx: number, l: any) => {
+        const i = TEMP_PRIORITY.indexOf(l.temperature)
+        return i > mx ? i : mx
+      }, -1)
+      const hottestTemp = tempIdx >= 0 ? TEMP_PRIORITY[tempIdx] : null
+      const latestProposal = leads.reduce((acc: string | null, l: any) => {
+        const d = l.proposal_date || l.created_at
+        if (!d) return acc
+        if (!acc || new Date(d) > new Date(acc)) return d
+        return acc
+      }, null as string | null)
+      const lastInteraction = leads.reduce((acc: string | null, l: any) => {
+        const d = l.last_contact_at
+        if (!d) return acc
+        if (!acc || new Date(d) > new Date(acc)) return d
+        return acc
+      }, null as string | null)
+      const lockedLeads = leads.filter((l: any) => l.locked_by_sdr_id && !l.locked_by_sdr_name?.startsWith(MANAGER_FREEZE_PREFIX))
+      const firstLockName = lockedLeads[0]?.locked_by_sdr_name ?? null
+      const activeLeads = leads.filter((l: any) => !ACTIVE_EXCLUDE.includes(l.sdr_status))
+      const activeCount = activeLeads.length
+      const hasMine = leads.some((l: any) => l.locked_by_sdr_id === user?.id)
+      const pickableIds = activeLeads
+        .filter((l: any) => !l.locked_by_sdr_id)
+        .map((l: any) => l.id as string)
+      return {
+        cnpj: cnpjKey,
+        cnpjDisplay: first.cnpj || cnpjKey,
+        razao_social: first.razao_social || first.client_name,
+        client_name: first.client_name,
+        state: first.state,
+        leads,
+        count: leads.length,
+        activeCount,
+        totalValue,
+        latestValue,
+        hottestTemp,
+        latestProposal,
+        lastInteraction,
+        lockedCount: lockedLeads.length,
+        firstLockName,
+        hasMine,
+        pickableIds,
+      }
+    })
+    groups.sort((a, b) => b.count - a.count || b.totalValue - a.totalValue)
+    return { groups, ungrouped }
+  }, [filtered, groupByCnpj, user?.id])
+
   const atLimit = canPickLeads && myLockCount >= SDR_LOCK_LIMIT
 
   const frozenLeads = useMemo(
@@ -267,6 +392,173 @@ function BankPage() {
     [rows],
   )
   const [showFrozen, setShowFrozen] = useState(false)
+
+  const renderLeadRow = (r: any) => {
+    const lockedByMe = r.locked_by_sdr_id === user?.id
+    const lockedByOther = !!r.locked_by_sdr_id && !lockedByMe
+    const isFrozen = !!r.locked_by_sdr_name?.startsWith(MANAGER_FREEZE_PREFIX)
+    return (
+      <tr key={r.id} className="border-t hover:bg-muted/20 align-top">
+        <td className="px-3 py-2 font-mono text-xs">
+          <div className="flex items-center gap-1.5">
+            <Link
+              to="/app/sdr/leads/$id"
+              params={{ id: r.id }}
+              className="text-primary hover:underline"
+              title="Abrir detalhes e histórico do SDR"
+            >
+              {r.lead_code}
+            </Link>
+            {r._revTotal > 1 && (
+              <Badge
+                variant="secondary"
+                className={r._isLatestRev ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}
+                title={r._isLatestRev
+                  ? `Última revisão (${r._revTotal} no total). Valor contado no relatório.`
+                  : `Revisão anterior — não somada no relatório. Última: Rev. ${String((r._revTotal)).padStart(2,'0')}`}
+              >
+                Rev. {String(r._rev).padStart(2, '0')} · {r._revTotal}
+              </Badge>
+            )}
+          </div>
+        </td>
+        <td className="px-3 py-2">
+          <div className="font-semibold">{r.client_name}</div>
+          {r.razao_social && r.razao_social !== r.client_name && (
+            <div className="text-xs text-muted-foreground">{r.razao_social}</div>
+          )}
+          {r.cnpj && <div className="text-[10px] font-mono text-muted-foreground">{r.cnpj}</div>}
+          {(() => {
+            const m = nomusByLead.get(r.id)
+            if (!m) return null
+            return (
+              <Link
+                to="/app/propostas/$id"
+                params={{ id: m.proposal_id }}
+                className="inline-flex items-center gap-1 mt-1"
+                title={m.match_type === 'cnpj' ? 'Match por CNPJ' : 'Match por título'}
+              >
+                <Badge className="bg-purple-100 text-purple-800 hover:bg-purple-200">
+                  <FileText className="w-3 h-3 mr-1" />Proposta Nomus
+                </Badge>
+              </Link>
+            )
+          })()}
+        </td>
+        <td className="px-3 py-2 text-xs">
+          <div>{r.contact_name || '—'}</div>
+          <div className="text-muted-foreground font-mono">{r.contact_mobile || r.contact_phone || '—'}</div>
+        </td>
+        <td className="px-3 py-2">{r.state || '—'}</td>
+        <td className="px-3 py-2 text-right font-semibold">{fmtBRL(r.value)}</td>
+        <td className="px-3 py-2 text-xs whitespace-nowrap">{fmtDate(r.proposal_date || r.created_at)}</td>
+        <td className="px-3 py-2 text-xs whitespace-nowrap">
+          <div>{fmtDate(r.last_contact_at)}</div>
+          {r.days_without_contact != null && (
+            <div className="text-[10px] text-muted-foreground">há {r.days_without_contact}d</div>
+          )}
+        </td>
+        <td className="px-3 py-2 text-center">
+          {(() => {
+            const d = daysSince(r.proposal_date || r.created_at)
+            return (
+              <Badge className={ageBadgeClass(d)} variant="secondary">
+                {d == null ? '—' : `${d}d`}
+              </Badge>
+            )
+          })()}
+        </td>
+        <td className="px-3 py-2">
+          <Badge className={TEMP_COLORS[r.temperature] || ''} variant="secondary">{r.temperature}</Badge>
+        </td>
+        <td className="px-3 py-2 text-xs">
+          {isFrozen ? (
+            <Badge className="bg-red-100 text-red-800">
+              <ShieldAlert className="w-3 h-3 mr-1" />Bloqueado pelo gestor
+            </Badge>
+          ) : lockedByMe ? (
+            <Badge className="bg-blue-100 text-blue-800">
+              <Briefcase className="w-3 h-3 mr-1" />Minha carteira
+            </Badge>
+          ) : lockedByOther ? (
+            <div className="space-y-1">
+              <Badge className="bg-orange-100 text-orange-800">
+                <Lock className="w-3 h-3 mr-1" />Em atendimento
+              </Badge>
+              <div className="text-[11px] font-medium text-orange-900">
+                {r.locked_by_sdr_name || 'Outro usuário'}
+              </div>
+            </div>
+          ) : (
+            <Badge variant="outline" className="text-green-700 border-green-300">Livre</Badge>
+          )}
+        </td>
+        <td className="px-3 py-2 text-xs">
+          {(() => {
+            const ps = (r as any).proposal_status as string | null | undefined
+            if (!ps) return <span className="text-muted-foreground">—</span>
+            const map: Record<string, string> = {
+              'Proposta Criada': 'bg-slate-100 text-slate-800',
+              'Proposta Enviada': 'bg-blue-100 text-blue-800',
+              'Negociando': 'bg-amber-100 text-amber-800',
+              'Prorrogadas': 'bg-purple-100 text-purple-800',
+              'Aprovadas': 'bg-green-100 text-green-800',
+              'Perdidas': 'bg-red-100 text-red-800',
+              'Canceladas': 'bg-zinc-200 text-zinc-800',
+            }
+            return <Badge className={map[ps] || 'bg-muted text-foreground'} variant="secondary">{ps}</Badge>
+          })()}
+        </td>
+        <td className="px-3 py-2 text-right space-x-1 whitespace-nowrap">
+          {tab === 'arquivados' ? (
+            <Button size="sm" variant="outline" disabled={remarketingMut.isPending}
+              onClick={() => remarketingMut.mutate(r.id)}>
+              <Mail className="w-3 h-3 mr-1" /> Remarketing
+            </Button>
+          ) : (
+            <>
+              {canPickLeads && !r.locked_by_sdr_id && (
+                <Button
+                  size="sm"
+                  className="bg-green-600 hover:bg-green-700"
+                  disabled={atLimit || lockMut.isPending}
+                  onClick={() => lockMut.mutate(r.id)}
+                  title={atLimit ? `Limite de ${SDR_LOCK_LIMIT} atingido` : 'Pegar lead'}
+                >
+                  <Lock className="w-3 h-3 mr-1" /> Pegar
+                </Button>
+              )}
+              {lockedByMe && !isFrozen && (
+                <Button size="sm" variant="outline" onClick={() => unlockMut.mutate(r.id)}>
+                  <Unlock className="w-3 h-3 mr-1" /> Devolver
+                </Button>
+              )}
+              {isManager && !isFrozen && (
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  disabled={freezeMut.isPending}
+                  onClick={() => {
+                    if (confirm('Bloquear este lead? Ninguém poderá entrar em contato até você desbloquear.')) {
+                      freezeMut.mutate(r.id)
+                    }
+                  }}
+                  title="Bloquear lead (gestor)"
+                >
+                  <ShieldAlert className="w-3 h-3 mr-1" /> Bloquear
+                </Button>
+              )}
+              {isManager && isFrozen && (
+                <Button size="sm" variant="outline" onClick={() => unlockMut.mutate(r.id)}>
+                  <Unlock className="w-3 h-3 mr-1" /> Desbloquear
+                </Button>
+              )}
+            </>
+          )}
+        </td>
+      </tr>
+    )
+  }
 
   return (
     <div className="p-6 space-y-4">
@@ -281,7 +573,10 @@ function BankPage() {
         <div>
           <h1 className="text-2xl font-bold text-[#0F2D5E]">Banco de Leads</h1>
           <p className="text-sm text-muted-foreground">
-            {summary.uniqueCount} propostas únicas ({filtered.length} de {rows.length} linhas) · <strong>{fmtBRL(summary.totalValue)}</strong> disponível
+            {groupByCnpj
+              ? <><strong>{grouped.groups.length}</strong> empresas · {filtered.length} propostas · <strong>{fmtBRL(grouped.groups.reduce((s, g) => s + g.totalValue, 0))}</strong></>
+              : <>{summary.uniqueCount} propostas únicas ({filtered.length} de {rows.length} linhas) · <strong>{fmtBRL(summary.totalValue)}</strong> disponível</>
+            }
             {canPickLeads && <> · Você tem <strong>{myLockCount}/{SDR_LOCK_LIMIT}</strong> leads na carteira</>}
             {' · '}
             <button
@@ -402,6 +697,16 @@ function BankPage() {
             Limpar filtros
           </Button>
         )}
+        <Button
+          variant={groupByCnpj ? 'default' : 'outline'}
+          size="sm"
+          onClick={toggleGroupByCnpj}
+          className="ml-auto"
+          title="Agrupar propostas pelo CNPJ do cliente"
+        >
+          <Layers className="w-3 h-3 mr-1" />
+          {groupByCnpj ? 'Agrupado por CNPJ' : 'Agrupar por CNPJ'}
+        </Button>
       </div>
 
       {isLoading ? (
@@ -426,174 +731,117 @@ function BankPage() {
               </tr>
             </thead>
             <tbody>
-              {sorted.map(r => {
-                const lockedByMe = r.locked_by_sdr_id === user?.id
-                const lockedByOther = !!r.locked_by_sdr_id && !lockedByMe
-                const isFrozen = !!r.locked_by_sdr_name?.startsWith(MANAGER_FREEZE_PREFIX)
+              {!groupByCnpj && sorted.map((r) => renderLeadRow(r))}
+              {!groupByCnpj && filtered.length === 0 && (
+                <tr><td colSpan={12} className="text-center py-8 text-muted-foreground">Nenhuma lead encontrada</td></tr>
+              )}
+
+              {groupByCnpj && grouped.groups.map((g) => {
+                const isOpen = expandedCnpjs.has(g.cnpj)
+                const dupRisk = g.activeCount >= 3
+                const canBulk = canPickLeads && !g.hasMine && g.pickableIds.length > 0 && !atLimit && tab !== 'arquivados'
+                const remaining = SDR_LOCK_LIMIT - myLockCount
+                const willPick = Math.min(g.pickableIds.length, Math.max(0, remaining))
                 return (
-                  <tr key={r.id} className="border-t hover:bg-muted/20 align-top">
-                    <td className="px-3 py-2 font-mono text-xs">
-                      <div className="flex items-center gap-1.5">
-                        <Link
-                          to="/app/sdr/leads/$id"
-                          params={{ id: r.id }}
-                          className="text-primary hover:underline"
-                          title="Abrir detalhes e histórico do SDR"
-                        >
-                          {r.lead_code}
-                        </Link>
-                        {r._revTotal > 1 && (
-                          <Badge
-                            variant="secondary"
-                            className={r._isLatestRev ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}
-                            title={r._isLatestRev
-                              ? `Última revisão (${r._revTotal} no total). Valor contado no relatório.`
-                              : `Revisão anterior — não somada no relatório. Última: Rev. ${String((r._revTotal)).padStart(2,'0')}`}
-                          >
-                            Rev. {String(r._rev).padStart(2, '0')} · {r._revTotal}
-                          </Badge>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-3 py-2">
-                      <div className="font-semibold">{r.client_name}</div>
-                      {r.razao_social && r.razao_social !== r.client_name && (
-                        <div className="text-xs text-muted-foreground">{r.razao_social}</div>
-                      )}
-                      {r.cnpj && <div className="text-[10px] font-mono text-muted-foreground">{r.cnpj}</div>}
-                      {(() => {
-                        const m = nomusByLead.get(r.id)
-                        if (!m) return null
-                        return (
-                          <Link
-                            to="/app/propostas/$id"
-                            params={{ id: m.proposal_id }}
-                            className="inline-flex items-center gap-1 mt-1"
-                            title={m.match_type === 'cnpj' ? 'Match por CNPJ' : 'Match por título'}
-                          >
-                            <Badge className="bg-purple-100 text-purple-800 hover:bg-purple-200">
-                              <FileText className="w-3 h-3 mr-1" />Proposta Nomus
-                            </Badge>
-                          </Link>
-                        )
-                      })()}
-                    </td>
-                    <td className="px-3 py-2 text-xs">
-                      <div>{r.contact_name || '—'}</div>
-                      <div className="text-muted-foreground font-mono">{r.contact_mobile || r.contact_phone || '—'}</div>
-                    </td>
-                    <td className="px-3 py-2">{r.state || '—'}</td>
-                    <td className="px-3 py-2 text-right font-semibold">{fmtBRL(r.value)}</td>
-                    <td className="px-3 py-2 text-xs whitespace-nowrap">{fmtDate(r.proposal_date || r.created_at)}</td>
-                    <td className="px-3 py-2 text-xs whitespace-nowrap">
-                      <div>{fmtDate(r.last_contact_at)}</div>
-                      {r.days_without_contact != null && (
-                        <div className="text-[10px] text-muted-foreground">há {r.days_without_contact}d</div>
-                      )}
-                    </td>
-                    <td className="px-3 py-2 text-center">
-                      {(() => {
-                        const d = daysSince(r.proposal_date || r.created_at)
-                        return (
-                          <Badge className={ageBadgeClass(d)} variant="secondary">
-                            {d == null ? '—' : `${d}d`}
-                          </Badge>
-                        )
-                      })()}
-                    </td>
-                    <td className="px-3 py-2">
-                      <Badge className={TEMP_COLORS[r.temperature] || ''} variant="secondary">{r.temperature}</Badge>
-                    </td>
-                    <td className="px-3 py-2 text-xs">
-                      {isFrozen ? (
-                        <Badge className="bg-red-100 text-red-800">
-                          <ShieldAlert className="w-3 h-3 mr-1" />Bloqueado pelo gestor
-                        </Badge>
-                      ) : lockedByMe ? (
-                        <Badge className="bg-blue-100 text-blue-800">
-                          <Briefcase className="w-3 h-3 mr-1" />Minha carteira
-                        </Badge>
-                      ) : lockedByOther ? (
-                        <div className="space-y-1">
-                          <Badge className="bg-orange-100 text-orange-800">
-                            <Lock className="w-3 h-3 mr-1" />Em atendimento
-                          </Badge>
-                          <div className="text-[11px] font-medium text-orange-900">
-                            {r.locked_by_sdr_name || 'Outro usuário'}
+                  <Fragment key={g.cnpj}>
+                    <tr
+                      className="border-t bg-muted/40 hover:bg-muted/60 cursor-pointer font-medium"
+                      onClick={() => toggleExpand(g.cnpj)}
+                    >
+                      <td className="px-3 py-2" colSpan={2}>
+                        <div className="flex items-center gap-2">
+                          {isOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                          <Building2 className="w-4 h-4 text-muted-foreground" />
+                          <div className="min-w-0">
+                            <div className="font-semibold truncate">{g.razao_social || g.client_name}</div>
+                            <div className="text-[10px] font-mono text-muted-foreground">{g.cnpjDisplay}</div>
                           </div>
                         </div>
-                      ) : (
-                        <Badge variant="outline" className="text-green-700 border-green-300">Livre</Badge>
-                      )}
-                    </td>
-                    <td className="px-3 py-2 text-xs">
-                      {(() => {
-                        const ps = (r as any).proposal_status as string | null | undefined
-                        if (!ps) return <span className="text-muted-foreground">—</span>
-                        const map: Record<string, string> = {
-                          'Proposta Criada': 'bg-slate-100 text-slate-800',
-                          'Proposta Enviada': 'bg-blue-100 text-blue-800',
-                          'Negociando': 'bg-amber-100 text-amber-800',
-                          'Prorrogadas': 'bg-purple-100 text-purple-800',
-                          'Aprovadas': 'bg-green-100 text-green-800',
-                          'Perdidas': 'bg-red-100 text-red-800',
-                          'Canceladas': 'bg-zinc-200 text-zinc-800',
-                        }
-                        return <Badge className={map[ps] || 'bg-muted text-foreground'} variant="secondary">{ps}</Badge>
-                      })()}
-                    </td>
-                    <td className="px-3 py-2 text-right space-x-1 whitespace-nowrap">
-                      {tab === 'arquivados' ? (
-                        <Button size="sm" variant="outline" disabled={remarketingMut.isPending}
-                          onClick={() => remarketingMut.mutate(r.id)}>
-                          <Mail className="w-3 h-3 mr-1" /> Remarketing
-                        </Button>
-                      ) : (
-                        <>
-                          {canPickLeads && !r.locked_by_sdr_id && (
-                            <Button
-                              size="sm"
-                              className="bg-green-600 hover:bg-green-700"
-                              disabled={atLimit || lockMut.isPending}
-                              onClick={() => lockMut.mutate(r.id)}
-                              title={atLimit ? `Limite de ${SDR_LOCK_LIMIT} atingido` : 'Pegar lead'}
-                            >
-                              <Lock className="w-3 h-3 mr-1" /> Pegar
-                            </Button>
-                          )}
-                          {lockedByMe && !isFrozen && (
-                            <Button size="sm" variant="outline" onClick={() => unlockMut.mutate(r.id)}>
-                              <Unlock className="w-3 h-3 mr-1" /> Devolver
-                            </Button>
-                          )}
-                          {isManager && !isFrozen && (
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              disabled={freezeMut.isPending}
-                              onClick={() => {
-                                if (confirm('Bloquear este lead? Ninguém poderá entrar em contato até você desbloquear.')) {
-                                  freezeMut.mutate(r.id)
-                                }
-                              }}
-                              title="Bloquear lead (gestor)"
-                            >
-                              <ShieldAlert className="w-3 h-3 mr-1" /> Bloquear
-                            </Button>
-                          )}
-                          {isManager && isFrozen && (
-                            <Button size="sm" variant="outline" onClick={() => unlockMut.mutate(r.id)}>
-                              <Unlock className="w-3 h-3 mr-1" /> Desbloquear
-                            </Button>
-                          )}
-                        </>
-                      )}
-                    </td>
-                  </tr>
+                      </td>
+                      <td className="px-3 py-2 text-xs">
+                        <Badge className="bg-primary/10 text-primary" variant="secondary">
+                          {g.count} proposta{g.count === 1 ? '' : 's'}
+                        </Badge>
+                        {dupRisk && (
+                          <div className="mt-1">
+                            <Badge className="bg-orange-100 text-orange-800">
+                              <AlertTriangle className="w-3 h-3 mr-1" />
+                              {g.activeCount} ativas
+                            </Badge>
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-3 py-2">{g.state || '—'}</td>
+                      <td className="px-3 py-2 text-right">
+                        <div className="font-semibold">{fmtBRL(g.totalValue)}</div>
+                        {g.latestValue > 0 && g.latestValue !== g.totalValue && (
+                          <div className="text-[10px] text-muted-foreground">última rev: {fmtBRL(g.latestValue)}</div>
+                        )}
+                      </td>
+                      <td className="px-3 py-2 text-xs whitespace-nowrap">{fmtDate(g.latestProposal)}</td>
+                      <td className="px-3 py-2 text-xs whitespace-nowrap">{fmtDate(g.lastInteraction)}</td>
+                      <td className="px-3 py-2 text-center">
+                        {(() => {
+                          const d = daysSince(g.latestProposal)
+                          return <Badge className={ageBadgeClass(d)} variant="secondary">{d == null ? '—' : `${d}d`}</Badge>
+                        })()}
+                      </td>
+                      <td className="px-3 py-2">
+                        {g.hottestTemp && <Badge className={TEMP_COLORS[g.hottestTemp] || ''} variant="secondary">{g.hottestTemp}</Badge>}
+                      </td>
+                      <td className="px-3 py-2 text-xs">
+                        {g.lockedCount > 0 ? (
+                          <div className="space-y-0.5">
+                            <Badge className="bg-orange-100 text-orange-800">
+                              <Lock className="w-3 h-3 mr-1" />Em atendimento
+                            </Badge>
+                            <div className="text-[10px] text-orange-900">
+                              {g.firstLockName}{g.lockedCount > 1 && ` +${g.lockedCount - 1}`}
+                            </div>
+                          </div>
+                        ) : (
+                          <Badge variant="outline" className="text-green-700 border-green-300">Livre</Badge>
+                        )}
+                      </td>
+                      <td className="px-3 py-2 text-xs text-muted-foreground">—</td>
+                      <td className="px-3 py-2 text-right">
+                        {canBulk && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={bulkPickMut.isPending}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              const msg = willPick < g.pickableIds.length
+                                ? `Pegar ${willPick} de ${g.pickableIds.length} propostas ativas? (limite de ${SDR_LOCK_LIMIT})`
+                                : `Pegar todas as ${g.pickableIds.length} propostas ativas deste CNPJ?`
+                              if (confirm(msg)) bulkPickMut.mutate(g.pickableIds)
+                            }}
+                            title={`Travar todas as ${g.pickableIds.length} propostas ativas deste cliente`}
+                          >
+                            <Lock className="w-3 h-3 mr-1" /> Pegar todas ({g.pickableIds.length})
+                          </Button>
+                        )}
+                      </td>
+                    </tr>
+                    {isOpen && g.leads.map((l: any) => renderLeadRow(l))}
+                  </Fragment>
                 )
               })}
-              {filtered.length === 0 && (
-                <tr><td colSpan={11} className="text-center py-8 text-muted-foreground">Nenhuma lead encontrada</td></tr>
+
+              {groupByCnpj && grouped.ungrouped.length > 0 && (
+                <>
+                  <tr className="border-t bg-amber-50">
+                    <td colSpan={12} className="px-3 py-2 text-xs font-semibold text-amber-900">
+                      Sem CNPJ — não agrupados ({grouped.ungrouped.length})
+                    </td>
+                  </tr>
+                  {grouped.ungrouped.map((r) => renderLeadRow(r))}
+                </>
+              )}
+
+              {groupByCnpj && grouped.groups.length === 0 && grouped.ungrouped.length === 0 && (
+                <tr><td colSpan={12} className="text-center py-8 text-muted-foreground">Nenhuma lead encontrada</td></tr>
               )}
             </tbody>
           </table>
