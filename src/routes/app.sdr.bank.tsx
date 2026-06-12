@@ -486,7 +486,8 @@ function BankPage() {
     const isFrozen = !!r.locked_by_sdr_name?.startsWith(MANAGER_FREEZE_PREFIX)
     return (
       <tr key={r.id} className="border-t hover:bg-muted/20 align-top">
-        <td className="px-3 py-2 font-mono text-xs">
+        <td className="px-3 py-2 font-mono text-xs hidden xl:table-cell">
+
           <div className="flex items-center gap-1.5">
             <Link
               to="/app/sdr/leads/$id"
