@@ -697,6 +697,16 @@ function BankPage() {
             Limpar filtros
           </Button>
         )}
+        <Button
+          variant={groupByCnpj ? 'default' : 'outline'}
+          size="sm"
+          onClick={toggleGroupByCnpj}
+          className="ml-auto"
+          title="Agrupar propostas pelo CNPJ do cliente"
+        >
+          <Layers className="w-3 h-3 mr-1" />
+          {groupByCnpj ? 'Agrupado por CNPJ' : 'Agrupar por CNPJ'}
+        </Button>
       </div>
 
       {isLoading ? (
