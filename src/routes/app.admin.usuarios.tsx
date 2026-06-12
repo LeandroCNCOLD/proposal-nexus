@@ -199,14 +199,6 @@ function UsersAdminPage() {
     }
   };
 
-  const onResetPasswordEmail = async (email: string | null) => {
-    if (!email) return;
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/trocar-senha`,
-    });
-    if (error) toast.error(error.message);
-    else toast.success(`Email de redefinição enviado para ${email}.`);
-  };
 
   const openPasswordModal = (id: string, label: string) => {
     setPasswordTarget({ id, label });
