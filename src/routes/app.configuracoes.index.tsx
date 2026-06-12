@@ -199,15 +199,19 @@ function UsersTable({ currentUserId }: { currentUserId: string }) {
                     </Select>
                   </td>
                   <td className="px-6 py-3 text-right">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="text-destructive hover:text-destructive"
-                      disabled={isSelf}
-                      onClick={() => handleDelete(u.id, u.fullName ?? u.email ?? "usuário")}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <div className="flex items-center justify-end gap-1">
+                      <EditUserButton user={u} />
+                      <ResetPasswordButton userId={u.id} userName={u.fullName ?? u.email ?? "usuário"} />
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-destructive hover:text-destructive"
+                        disabled={isSelf}
+                        onClick={() => handleDelete(u.id, u.fullName ?? u.email ?? "usuário")}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               );
