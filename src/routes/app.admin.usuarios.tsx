@@ -2,7 +2,7 @@ import { createFileRoute, Navigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { KeyRound, Trash2, Users as UsersIcon, ShieldCheck, UserCog, Lock } from "lucide-react";
+import { KeyRound, Trash2, Users as UsersIcon, ShieldCheck, UserCog, Lock, Mail } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/PageHeader";
 import { StatCard } from "@/components/StatCard";
