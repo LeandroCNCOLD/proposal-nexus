@@ -147,19 +147,35 @@ const VENDEDOR_ALLOWED = new Set<string>([
   "/app/agenda",
 ]);
 
+const MARKETING_ALLOWED = new Set<string>([
+  "/app/marketing",
+  "/app/marketing/kanban",
+  "/app/marketing/leads",
+  "/app/marketing/wallet",
+  "/app/marketing/novo",
+  "/app/agenda",
+  "/app/tarefas",
+  "/app/atividades",
+  "/app/clientes",
+  "/app/documentos",
+]);
+
 function AppNavigationSidebar() {
   const { hasAnyRole, hasRole } = useAuth();
   const isManager = hasAnyRole(["admin", "diretoria", "gerente_comercial"]);
   const isSdr = hasRole("sdr") && !isManager;
   const isVendedor = hasRole("vendedor") && !isManager;
+  const isMarketing = hasRole("marketing") && !isManager;
 
   const allowed: Set<string> | null = isManager
     ? null
-    : isSdr
-      ? SDR_ALLOWED
-      : isVendedor
-        ? VENDEDOR_ALLOWED
-        : new Set<string>();
+    : isMarketing
+      ? MARKETING_ALLOWED
+      : isSdr
+        ? SDR_ALLOWED
+        : isVendedor
+          ? VENDEDOR_ALLOWED
+          : new Set<string>();
 
   const baseGroups = NAV
     .map((g) => ({

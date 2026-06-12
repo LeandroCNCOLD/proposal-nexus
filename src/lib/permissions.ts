@@ -382,4 +382,14 @@ export const DEFAULT_ROLE_PACKAGES: Record<string, PermissionKey[]> = {
     "reports.financial.view",
   ],
   admin: ALL_PERMISSION_KEYS,
+  marketing: [
+    "dashboard.view",
+    "clients.view",
+    "tasks.view",
+    "tasks.create",
+    "tasks.edit",
+    "documents.view",
+    "documents.upload",
+    "reports.view",
+  ],
 };

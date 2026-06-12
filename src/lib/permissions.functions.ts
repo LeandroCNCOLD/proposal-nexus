@@ -14,6 +14,7 @@ const ROLE_ENUM = z.enum([
   "diretoria",
   "administrativo",
   "admin",
+  "marketing",
 ]);
 
 async function ensureCanManagePermissions(supabase: any, userId: string) {
