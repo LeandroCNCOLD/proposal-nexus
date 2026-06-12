@@ -102,3 +102,31 @@ Resolver antes do próximo deploy.
 
 ### Estimativa
 30 minutos.
+
+---
+
+## Débito técnico — tunnelEngine.ts + airflowOptimizer.ts
+
+### Problema
+1 erro TS em src/modules/coldpro/engines/tunnelEngine.ts
+1 erro TS em src/modules/coldpro/physics/airflowOptimizer.ts
+
+### Prioridade
+Baixa — não bloqueia build nem funcionalidade.
+
+---
+
+## Débito técnico — ProposalRouteLayout não encontrado
+
+### Problema
+src/routes/app.propostas.$id.tsx(19,14):
+Cannot find name 'ProposalRouteLayout'
+
+### Solução
+Verificar se ProposalRouteLayout foi removido
+ou renomeado durante a reconciliação.
+Provavelmente importar de outro path ou
+substituir pelo componente equivalente atual.
+
+### Prioridade
+Média — afeta a rota de detalhe de proposta.
