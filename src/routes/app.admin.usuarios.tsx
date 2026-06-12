@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
-  KeyRound, Trash2, Users as UsersIcon, ShieldCheck, UserCog, Lock, Pencil,
+  Trash2, Users as UsersIcon, ShieldCheck, UserCog, Lock, Pencil,
   Copy, Sparkles, AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -41,7 +41,7 @@ import {
   deleteAppUser,
   setUserPassword,
 } from "@/lib/user-admin.functions";
-import { supabase } from "@/integrations/supabase/client";
+
 
 export const Route = createFileRoute("/app/admin/usuarios")({
   component: UsersAdminPage,
@@ -199,14 +199,6 @@ function UsersAdminPage() {
     }
   };
 
-  const onResetPasswordEmail = async (email: string | null) => {
-    if (!email) return;
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/trocar-senha`,
-    });
-    if (error) toast.error(error.message);
-    else toast.success(`Email de redefinição enviado para ${email}.`);
-  };
 
   const openPasswordModal = (id: string, label: string) => {
     setPasswordTarget({ id, label });
@@ -366,14 +358,6 @@ function UsersAdminPage() {
                         onClick={() => openPasswordModal(u.id, u.fullName || u.email || u.id)}
                       >
                         <Lock className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        title="Enviar email de redefinição de senha"
-                        onClick={() => onResetPasswordEmail(u.email)}
-                      >
-                        <KeyRound className="h-4 w-4" />
                       </Button>
                       {isAdminLike && (
                         <AlertDialog>
