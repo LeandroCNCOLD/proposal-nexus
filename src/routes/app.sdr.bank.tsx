@@ -760,17 +760,15 @@ function BankPage() {
               </tr>
             </thead>
             <tbody>
-              {!groupByCnpj && sorted.map((r) => renderLeadRow(r))}
-              {!groupByCnpj && filtered.length === 0 && (
-                <tr><td colSpan={12} className="text-center py-8 text-muted-foreground">Nenhuma lead encontrada</td></tr>
-              )}
-
-              {groupByCnpj && grouped.groups.map((g) => {
+              {grouped.groups.map((g) => {
                 const isOpen = expandedCnpjs.has(g.cnpj)
                 const dupRisk = g.activeCount >= 3
-                const canBulk = canPickLeads && !g.hasMine && g.pickableIds.length > 0 && !atLimit && tab !== 'arquivados'
+                const canBulkPick = canPickLeads && g.pickableIds.length > 0 && !atLimit && tab !== 'arquivados'
+                const canBulkReturn = canPickLeads && g.returnableIds.length > 0 && tab !== 'arquivados'
                 const remaining = SDR_LOCK_LIMIT - myLockCount
                 const willPick = Math.min(g.pickableIds.length, Math.max(0, remaining))
+                const pickLabel = g.hasMine ? 'Pegar restantes' : 'Pegar todas'
+                const returnLabel = g.hasMine && g.pickableIds.length > 0 ? 'Devolver minhas' : 'Devolver todas'
                 return (
                   <Fragment key={g.cnpj}>
                     <tr
@@ -833,8 +831,8 @@ function BankPage() {
                         )}
                       </td>
                       <td className="px-3 py-2 text-xs text-muted-foreground">—</td>
-                      <td className="px-3 py-2 text-right">
-                        {canBulk && (
+                      <td className="px-3 py-2 text-right whitespace-nowrap space-x-1">
+                        {canBulkPick && (
                           <Button
                             size="sm"
                             variant="outline"
@@ -843,12 +841,26 @@ function BankPage() {
                               e.stopPropagation()
                               const msg = willPick < g.pickableIds.length
                                 ? `Pegar ${willPick} de ${g.pickableIds.length} propostas ativas? (limite de ${SDR_LOCK_LIMIT})`
-                                : `Pegar todas as ${g.pickableIds.length} propostas ativas deste CNPJ?`
+                                : `${pickLabel} as ${g.pickableIds.length} propostas ativas deste CNPJ?`
                               if (confirm(msg)) bulkPickMut.mutate(g.pickableIds)
                             }}
-                            title={`Travar todas as ${g.pickableIds.length} propostas ativas deste cliente`}
+                            title={`Travar ${g.pickableIds.length} proposta(s) ativa(s) deste cliente`}
                           >
-                            <Lock className="w-3 h-3 mr-1" /> Pegar todas ({g.pickableIds.length})
+                            <Lock className="w-3 h-3 mr-1" /> {pickLabel} ({g.pickableIds.length})
+                          </Button>
+                        )}
+                        {canBulkReturn && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={bulkReturnMut.isPending}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setReturnConfirmCnpj(g.cnpj)
+                            }}
+                            title={`Devolver ${g.returnableIds.length} proposta(s) deste cliente ao banco`}
+                          >
+                            <Unlock className="w-3 h-3 mr-1" /> {returnLabel} ({g.returnableIds.length})
                           </Button>
                         )}
                       </td>
@@ -858,7 +870,7 @@ function BankPage() {
                 )
               })}
 
-              {groupByCnpj && grouped.ungrouped.length > 0 && (
+              {grouped.ungrouped.length > 0 && (
                 <>
                   <tr className="border-t bg-amber-50">
                     <td colSpan={12} className="px-3 py-2 text-xs font-semibold text-amber-900">
@@ -869,9 +881,10 @@ function BankPage() {
                 </>
               )}
 
-              {groupByCnpj && grouped.groups.length === 0 && grouped.ungrouped.length === 0 && (
+              {grouped.groups.length === 0 && grouped.ungrouped.length === 0 && (
                 <tr><td colSpan={12} className="text-center py-8 text-muted-foreground">Nenhuma lead encontrada</td></tr>
               )}
+
             </tbody>
           </table>
         </div>
