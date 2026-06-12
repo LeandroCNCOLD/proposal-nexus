@@ -801,7 +801,18 @@ function BankPage() {
                           <div className="min-w-0">
                             <div className="font-semibold truncate">{g.razao_social || g.client_name}</div>
                             <div className="text-[10px] font-mono text-muted-foreground">{g.cnpjDisplay}</div>
+                            {!isOpen && g.topProposals.length > 0 && (
+                              <div className="mt-1 space-y-0.5">
+                                {g.topProposals.map((p) => (
+                                  <div key={p.id} className="text-[11px] text-muted-foreground font-normal truncate">
+                                    <span className="font-mono">{p.lead_code}</span>
+                                    <span> · {fmtBRL(p.value)} · {p.temperature}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </div>
+
                         </div>
                       </td>
                       <td className="px-3 py-2 text-xs">
