@@ -229,4 +229,26 @@ export const setUserPassword = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+const SetEmailSchema = z.object({
+  userId: z.string().uuid(),
+  email: z.string().email(),
+});
+
+export const setUserEmail = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => SetEmailSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    await ensureManager(supabase, userId);
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(data.userId, {
+      email: data.email,
+      email_confirm: true,
+    });
+    if (error) throw new Error(error.message);
+    await supabaseAdmin.from("profiles").update({ email: data.email }).eq("id", data.userId);
+    return { ok: true };
+  });
+
 export const _ASSIGNABLE_ROLES = ALL_ROLES;

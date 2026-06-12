@@ -2,7 +2,7 @@ import { createFileRoute, Navigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { KeyRound, Trash2, Users as UsersIcon, ShieldCheck, UserCog, Lock } from "lucide-react";
+import { KeyRound, Trash2, Users as UsersIcon, ShieldCheck, UserCog, Lock, Mail } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/PageHeader";
 import { StatCard } from "@/components/StatCard";
@@ -30,7 +30,7 @@ import { NewUserWizard } from "@/components/admin/NewUserWizard";
 import { useAuth, type AppRole } from "@/hooks/useAuth";
 import { useIsManager } from "@/hooks/use-profile";
 import { ROLE_LABELS } from "@/lib/proposal";
-import { listAppUsers, setUserPrimaryRole, deleteAppUser, setUserPassword } from "@/lib/user-admin.functions";
+import { listAppUsers, setUserPrimaryRole, deleteAppUser, setUserPassword, setUserEmail } from "@/lib/user-admin.functions";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/app/admin/usuarios")({
@@ -68,12 +68,16 @@ function UsersAdminPage() {
   const updateRole = useServerFn(setUserPrimaryRole);
   const removeUser = useServerFn(deleteAppUser);
   const updatePassword = useServerFn(setUserPassword);
+  const updateEmail = useServerFn(setUserEmail);
 
   const [search, setSearch] = useState("");
   const [passwordTarget, setPasswordTarget] = useState<{ id: string; label: string } | null>(null);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [savingPassword, setSavingPassword] = useState(false);
+  const [emailTarget, setEmailTarget] = useState<{ id: string; label: string; current: string | null } | null>(null);
+  const [newEmail, setNewEmail] = useState("");
+  const [savingEmail, setSavingEmail] = useState(false);
 
   const { data: users = [], isLoading } = useQuery({
     queryKey: ["app-users"],
@@ -153,6 +157,27 @@ function UsersAdminPage() {
       toast.error(err instanceof Error ? err.message : "Erro ao definir senha.");
     } finally {
       setSavingPassword(false);
+    }
+  };
+
+  const onSaveEmail = async () => {
+    if (!emailTarget) return;
+    const email = newEmail.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      toast.error("Email inválido.");
+      return;
+    }
+    setSavingEmail(true);
+    try {
+      await updateEmail({ data: { userId: emailTarget.id, email } });
+      toast.success(`Email atualizado para ${email}.`);
+      setEmailTarget(null);
+      setNewEmail("");
+      qc.invalidateQueries({ queryKey: ["app-users"] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao atualizar email.");
+    } finally {
+      setSavingEmail(false);
     }
   };
 
@@ -244,6 +269,17 @@ function UsersAdminPage() {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="inline-flex gap-1">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        title="Alterar email de login"
+                        onClick={() => {
+                          setEmailTarget({ id: u.id, label: u.fullName || u.email || u.id, current: u.email });
+                          setNewEmail(u.email || "");
+                        }}
+                      >
+                        <Mail className="h-4 w-4" />
+                      </Button>
                       <Button
                         size="icon"
                         variant="ghost"
@@ -341,6 +377,47 @@ function UsersAdminPage() {
             </DialogClose>
             <Button onClick={onSavePassword} disabled={savingPassword}>
               {savingPassword ? "Salvando..." : "Salvar nova senha"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!emailTarget}
+        onOpenChange={(open) => {
+          if (!open) {
+            setEmailTarget(null);
+            setNewEmail("");
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Alterar email de login</DialogTitle>
+            <DialogDescription>
+              Define um novo email de login para <strong>{emailTarget?.label}</strong>.
+              {emailTarget?.current && <> Atual: <code>{emailTarget.current}</code>.</>} O usuário passará a entrar com o novo email imediatamente.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="new-email">Novo email</Label>
+              <Input
+                id="new-email"
+                type="email"
+                autoComplete="email"
+                value={newEmail}
+                onChange={(e) => setNewEmail(e.target.value)}
+                placeholder="usuario@cncold.com.br"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline" disabled={savingEmail}>Cancelar</Button>
+            </DialogClose>
+            <Button onClick={onSaveEmail} disabled={savingEmail}>
+              {savingEmail ? "Salvando..." : "Salvar novo email"}
             </Button>
           </DialogFooter>
         </DialogContent>
