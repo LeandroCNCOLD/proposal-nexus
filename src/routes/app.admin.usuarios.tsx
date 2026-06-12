@@ -75,6 +75,9 @@ function UsersAdminPage() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [savingPassword, setSavingPassword] = useState(false);
+  const [emailTarget, setEmailTarget] = useState<{ id: string; label: string; current: string | null } | null>(null);
+  const [newEmail, setNewEmail] = useState("");
+  const [savingEmail, setSavingEmail] = useState(false);
 
   const { data: users = [], isLoading } = useQuery({
     queryKey: ["app-users"],
