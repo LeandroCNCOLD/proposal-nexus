@@ -30,7 +30,7 @@ import { NewUserWizard } from "@/components/admin/NewUserWizard";
 import { useAuth, type AppRole } from "@/hooks/useAuth";
 import { useIsManager } from "@/hooks/use-profile";
 import { ROLE_LABELS } from "@/lib/proposal";
-import { listAppUsers, setUserPrimaryRole, deleteAppUser, setUserPassword } from "@/lib/user-admin.functions";
+import { listAppUsers, setUserPrimaryRole, deleteAppUser, setUserPassword, setUserEmail } from "@/lib/user-admin.functions";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/app/admin/usuarios")({
