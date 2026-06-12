@@ -486,7 +486,8 @@ function BankPage() {
     const isFrozen = !!r.locked_by_sdr_name?.startsWith(MANAGER_FREEZE_PREFIX)
     return (
       <tr key={r.id} className="border-t hover:bg-muted/20 align-top">
-        <td className="px-3 py-2 font-mono text-xs">
+        <td className="px-3 py-2 font-mono text-xs hidden xl:table-cell">
+
           <div className="flex items-center gap-1.5">
             <Link
               to="/app/sdr/leads/$id"
@@ -532,20 +533,21 @@ function BankPage() {
             )
           })()}
         </td>
-        <td className="px-3 py-2 text-xs">
+        <td className="px-3 py-2 text-xs hidden xl:table-cell">
           <div>{r.contact_name || '—'}</div>
           <div className="text-muted-foreground font-mono">{r.contact_mobile || r.contact_phone || '—'}</div>
         </td>
-        <td className="px-3 py-2">{r.state || '—'}</td>
+        <td className="px-3 py-2 hidden lg:table-cell">{r.state || '—'}</td>
         <td className="px-3 py-2 text-right font-semibold">{fmtBRL(r.value)}</td>
-        <td className="px-3 py-2 text-xs whitespace-nowrap">{fmtDate(r.proposal_date || r.created_at)}</td>
-        <td className="px-3 py-2 text-xs whitespace-nowrap">
+        <td className="px-3 py-2 text-xs whitespace-nowrap hidden 2xl:table-cell">{fmtDate(r.proposal_date || r.created_at)}</td>
+        <td className="px-3 py-2 text-xs whitespace-nowrap hidden xl:table-cell">
           <div>{fmtDate(r.last_contact_at)}</div>
           {r.days_without_contact != null && (
             <div className="text-[10px] text-muted-foreground">há {r.days_without_contact}d</div>
           )}
         </td>
-        <td className="px-3 py-2 text-center">
+        <td className="px-3 py-2 text-center hidden lg:table-cell">
+
           {(() => {
             const d = daysSince(r.proposal_date || r.created_at)
             return (
@@ -558,7 +560,8 @@ function BankPage() {
         <td className="px-3 py-2">
           <Badge className={TEMP_COLORS[r.temperature] || ''} variant="secondary">{r.temperature}</Badge>
         </td>
-        <td className="px-3 py-2 text-xs">
+        <td className="px-3 py-2 text-xs hidden md:table-cell">
+
           {isFrozen ? (
             <Badge className="bg-red-100 text-red-800">
               <ShieldAlert className="w-3 h-3 mr-1" />Bloqueado pelo gestor
@@ -801,16 +804,16 @@ function BankPage() {
           <table className="w-full text-sm">
             <thead className="bg-muted/50">
               <tr className="text-left">
-                <SortableTh label="Lead" sk="lead_code" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
+                <SortableTh label="Lead" sk="lead_code" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} className="hidden xl:table-cell" />
                 <SortableTh label="Cliente / Razão Social" sk="client_name" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
-                <SortableTh label="Contato" sk="contact_name" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
-                <SortableTh label="UF" sk="state" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
+                <SortableTh label="Contato" sk="contact_name" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} className="hidden xl:table-cell" />
+                <SortableTh label="UF" sk="state" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} className="hidden lg:table-cell" />
                 <SortableTh label="Valor" sk="value" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="right" />
-                <SortableTh label="Cadastro" sk="cadastro" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
-                <SortableTh label="Última interação" sk="last_contact_at" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
-                <SortableTh label="Dias aberto" sk="days_open" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="center" />
+                <SortableTh label="Cadastro" sk="cadastro" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} className="hidden 2xl:table-cell" />
+                <SortableTh label="Última interação" sk="last_contact_at" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} className="hidden xl:table-cell" />
+                <SortableTh label="Dias aberto" sk="days_open" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="center" className="hidden lg:table-cell" />
                 <SortableTh label="Temp." sk="temperature" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
-                <SortableTh label="Atendimento" sk="status" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
+                <SortableTh label="Atendimento" sk="status" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} className="hidden md:table-cell" />
                 <th className="px-3 py-2">Status Proposta / Ações</th>
               </tr>
             </thead>
@@ -868,16 +871,16 @@ function BankPage() {
                           </div>
                         )}
                       </td>
-                      <td className="px-3 py-2">{g.state || '—'}</td>
+                      <td className="px-3 py-2 hidden lg:table-cell">{g.state || '—'}</td>
                       <td className="px-3 py-2 text-right">
                         <div className="font-semibold">{fmtBRL(g.totalValue)}</div>
                         {g.latestValue > 0 && g.latestValue !== g.totalValue && (
                           <div className="text-[10px] text-muted-foreground">última rev: {fmtBRL(g.latestValue)}</div>
                         )}
                       </td>
-                      <td className="px-3 py-2 text-xs whitespace-nowrap">{fmtDate(g.latestProposal)}</td>
-                      <td className="px-3 py-2 text-xs whitespace-nowrap">{fmtDate(g.lastInteraction)}</td>
-                      <td className="px-3 py-2 text-center">
+                      <td className="px-3 py-2 text-xs whitespace-nowrap hidden 2xl:table-cell">{fmtDate(g.latestProposal)}</td>
+                      <td className="px-3 py-2 text-xs whitespace-nowrap hidden xl:table-cell">{fmtDate(g.lastInteraction)}</td>
+                      <td className="px-3 py-2 text-center hidden lg:table-cell">
                         {(() => {
                           const d = daysSince(g.latestProposal)
                           return <Badge className={ageBadgeClass(d)} variant="secondary">{d == null ? '—' : `${d}d`}</Badge>
@@ -886,7 +889,8 @@ function BankPage() {
                       <td className="px-3 py-2">
                         {g.hottestTemp && <Badge className={TEMP_COLORS[g.hottestTemp] || ''} variant="secondary">{g.hottestTemp}</Badge>}
                       </td>
-                      <td className="px-3 py-2 text-xs">
+                      <td className="px-3 py-2 text-xs hidden md:table-cell">
+
                         {g.lockedCount > 0 ? (
                           <div className="space-y-0.5">
                             <Badge className="bg-orange-100 text-orange-800">
@@ -1026,19 +1030,20 @@ function BankPage() {
   )
 }
 
-function SortableTh({ label, sk, sortKey, sortDir, onClick, align }: {
+function SortableTh({ label, sk, sortKey, sortDir, onClick, align, className }: {
   label: string
   sk: SortKey
   sortKey: SortKey | null
   sortDir: SortDir
   onClick: (k: SortKey) => void
   align?: 'left' | 'right' | 'center'
+  className?: string
 }) {
   const active = sortKey === sk && sortDir
   const Icon = active === 'asc' ? ArrowUp : active === 'desc' ? ArrowDown : ArrowUpDown
   const alignClass = align === 'right' ? 'text-right justify-end' : align === 'center' ? 'text-center justify-center' : 'text-left justify-start'
   return (
-    <th className={`px-3 py-2 ${align === 'right' ? 'text-right' : align === 'center' ? 'text-center' : ''}`}>
+    <th className={`px-3 py-2 ${align === 'right' ? 'text-right' : align === 'center' ? 'text-center' : ''} ${className || ''}`}>
       <button
         type="button"
         onClick={() => onClick(sk)}
