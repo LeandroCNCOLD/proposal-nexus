@@ -417,7 +417,7 @@ function LeadCard({ lead, sdrName, onUnlock, onOpenScript, proposalMatch, canMan
       }
 
       const updates: Array<Promise<unknown>> = [renewLock(lead.id)]
-      if (tempAfter)   updates.push(updatePipelineField(lead.id, 'temperature', tempAfter))
+      // Temperatura é calculada automaticamente pelo trigger calcular_temperatura_lead (não edita manual)
       if (observation) updates.push(updatePipelineField(lead.id, 'call_observation', observation))
       if (nextStep)    updates.push(updatePipelineField(lead.id, 'next_step', nextStep))
       updates.push(updatePipelineField(lead.id, 'last_contact_at', when.toISOString()))
@@ -614,10 +614,11 @@ function LeadCard({ lead, sdrName, onUnlock, onOpenScript, proposalMatch, canMan
           <label className="text-xs font-semibold">Data e hora da tentativa *</label>
           <Input type="datetime-local" value={attemptAt} onChange={e => setAttemptAt(e.target.value)} />
 
-          <label className="text-xs font-semibold">Temperatura após ligação</label>
-          <select value={tempAfter} onChange={e => setTempAfter(e.target.value as Temperature)} className="w-full border rounded px-2 py-1.5 text-sm">
-            {TEMPERATURE_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
-          </select>
+          <label className="text-xs font-semibold">Temperatura atual</label>
+          <div className="flex items-center gap-2 border rounded px-2 py-1.5 bg-muted/30">
+            <Badge variant="secondary">{lead.temperature || '—'}</Badge>
+            <span className="text-[11px] text-muted-foreground italic">Automática — definida pelo status</span>
+          </div>
 
           <label className="text-xs font-semibold">Próximo passo</label>
           <Input value={nextStep} onChange={e => setNextStep(e.target.value)} placeholder="Ex: ligar quinta às 14h" />
