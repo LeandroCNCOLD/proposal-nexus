@@ -889,7 +889,32 @@ function BankPage() {
           </table>
         </div>
       )}
+
+      <AlertDialog open={!!returnConfirmCnpj} onOpenChange={(open) => !open && setReturnConfirmCnpj(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Devolver propostas ao banco?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {returnConfirmGroup
+                ? `${returnConfirmGroup.returnableIds.length} proposta${returnConfirmGroup.returnableIds.length === 1 ? '' : 's'} de ${returnConfirmGroup.razao_social || returnConfirmGroup.client_name} ${returnConfirmGroup.returnableIds.length === 1 ? 'será devolvida' : 'serão devolvidas'} ao banco e ${returnConfirmGroup.returnableIds.length === 1 ? 'ficará disponível' : 'ficarão disponíveis'} para outros SDRs.`
+                : ''}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkReturnMut.isPending}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={bulkReturnMut.isPending}
+              onClick={() => {
+                if (returnConfirmGroup) bulkReturnMut.mutate(returnConfirmGroup.returnableIds)
+              }}
+            >
+              Devolver
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
+
   )
 }
 
