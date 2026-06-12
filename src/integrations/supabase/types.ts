@@ -8052,6 +8052,7 @@ export type Database = {
           expected_closing: string | null
           expected_delivery: string | null
           first_opened_by_seller_at: string | null
+          handoff_notes: string | null
           handoff_status: string
           id: string
           internal_note: string | null
@@ -8111,6 +8112,7 @@ export type Database = {
           expected_closing?: string | null
           expected_delivery?: string | null
           first_opened_by_seller_at?: string | null
+          handoff_notes?: string | null
           handoff_status?: string
           id?: string
           internal_note?: string | null
@@ -8170,6 +8172,7 @@ export type Database = {
           expected_closing?: string | null
           expected_delivery?: string | null
           first_opened_by_seller_at?: string | null
+          handoff_notes?: string | null
           handoff_status?: string
           id?: string
           internal_note?: string | null
@@ -9105,6 +9108,7 @@ export type Database = {
     }
     Functions: {
       _parse_nomus_date: { Args: { s: string }; Returns: string }
+      accept_handoff_lead: { Args: { _lead_id: string }; Returns: undefined }
       assign_lead_to_sdr: {
         Args: { _lead_id: string; _sdr_id: string }
         Returns: undefined
@@ -9176,10 +9180,17 @@ export type Database = {
         }[]
       }
       get_user_permissions: { Args: { _user_id: string }; Returns: string[] }
-      handoff_lead_to_seller: {
-        Args: { _lead_id: string; _seller_id: string }
-        Returns: undefined
-      }
+      handoff_lead_to_seller:
+        | { Args: { _lead_id: string; _seller_id: string }; Returns: undefined }
+        | {
+            Args: {
+              _handoff_notes?: string
+              _lead_id: string
+              _meeting_at?: string
+              _seller_id: string
+            }
+            Returns: undefined
+          }
       has_any_role: {
         Args: {
           _roles: Database["public"]["Enums"]["app_role"][]
@@ -9230,8 +9241,22 @@ export type Database = {
         Args: { _lead_id: string }
         Returns: undefined
       }
+      request_handoff_info: {
+        Args: { _lead_id: string; _question: string }
+        Returns: undefined
+      }
       revert_sdr_lead_edit: { Args: { _edit_id: string }; Returns: undefined }
       salvar_snapshot_cobertura: { Args: never; Returns: undefined }
+      sdr_lead_history: {
+        Args: { _lead_id: string }
+        Returns: {
+          autor: string
+          data: string
+          fonte: string
+          observacao: string
+          resultado: string
+        }[]
+      }
       suggest_sdr_for_assignment: {
         Args: never
         Returns: {
