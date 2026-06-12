@@ -7,7 +7,7 @@ import { SDR_LOCK_LIMIT } from '@/modules/sdr/types'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Lock, Unlock, Briefcase, ShieldAlert, ArrowUp, ArrowDown, ArrowUpDown, FileText, Mail, ChevronRight, ChevronDown, AlertTriangle, Layers, Building2 } from 'lucide-react'
+import { Lock, Unlock, Briefcase, ShieldAlert, ArrowUp, ArrowDown, ArrowUpDown, FileText, Mail, ChevronRight, ChevronDown, AlertTriangle, Building2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Link } from '@tanstack/react-router'
 import { useProposalLeadMatches } from '@/hooks/use-proposal-lead-matches'
@@ -15,6 +15,16 @@ import { useSdrNames, useCloserNames } from '@/modules/sdr/hooks/use-team-member
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useServerFn } from '@tanstack/react-start'
 import { enqueueRemarketing } from '@/lib/remarketing.functions'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 
 const ARCHIVED_SDR_STATUSES = ['Perdido (com motivo)', 'Kill / Arquivar']
 const ACTIVE_EXCLUDE = [...ARCHIVED_SDR_STATUSES, 'Fechado']
