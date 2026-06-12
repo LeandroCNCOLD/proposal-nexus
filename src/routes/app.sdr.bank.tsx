@@ -903,40 +903,39 @@ function BankPage() {
                         <div className="flex flex-col items-start gap-2">
                           <span className="text-muted-foreground">—</span>
                           <div className="flex flex-wrap items-center gap-1">
-                          {(stateA || stateC) && (
-                            <Button
-                              size="sm"
-                              className="bg-blue-600 hover:bg-blue-700 text-white"
-                              disabled={atLimit || bulkPickMut.isPending}
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                const pickLabel = stateC ? 'Pegar restantes' : 'Pegar grupo'
-                                const msg = willPick < g.pickableIds.length
-                                  ? `Pegar ${willPick} de ${g.pickableIds.length} propostas ativas? (limite de ${SDR_LOCK_LIMIT})`
-                                  : `${pickLabel}: travar ${g.pickableIds.length} proposta(s) ativa(s) deste CNPJ?`
-                                if (confirm(msg)) bulkPickMut.mutate(g.pickableIds)
-                              }}
-                              title={atLimit ? `Limite de ${SDR_LOCK_LIMIT} leads atingido` : `Travar ${g.pickableIds.length} proposta(s) ativa(s) deste cliente`}
-                            >
-                              <Lock className="w-3 h-3 mr-1" />
-                              {stateC ? 'Pegar restantes' : 'Pegar grupo'} ({g.pickableIds.length})
-                            </Button>
-                          )}
-                          {(stateB || stateC) && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="border-red-300 text-red-700 hover:bg-red-50"
-                              disabled={bulkReturnMut.isPending}
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setReturnConfirmCnpj(g.cnpj)
-                              }}
-                              title={`Devolver ${g.returnableIds.length} proposta(s) deste cliente ao banco`}
-                            >
-                              <Unlock className="w-3 h-3 mr-1" />
-                              {stateC ? 'Devolver minhas' : 'Devolver grupo'} ({g.returnableIds.length})
-                            </Button>
+                          {showGroupActions && (
+                            <>
+                              <Button
+                                size="sm"
+                                className="h-7 px-2 text-[11px] bg-blue-600 hover:bg-blue-700 text-white"
+                                disabled={!hasPickable || atLimit || bulkPickMut.isPending}
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  const msg = willPick < g.pickableIds.length
+                                    ? `Pegar ${willPick} de ${g.pickableIds.length} propostas ativas? (limite de ${SDR_LOCK_LIMIT})`
+                                    : `${pickLabel}: travar ${g.pickableIds.length} proposta(s) ativa(s) deste CNPJ?`
+                                  if (confirm(msg)) bulkPickMut.mutate(g.pickableIds)
+                                }}
+                                title={!hasPickable ? 'Nada para pegar neste grupo' : atLimit ? `Limite de ${SDR_LOCK_LIMIT} leads atingido` : `Travar ${g.pickableIds.length} proposta(s) ativa(s) deste cliente`}
+                              >
+                                <Lock className="w-3 h-3 mr-1" />
+                                {pickLabel} ({g.pickableIds.length})
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 px-2 text-[11px] border-red-300 text-red-700 hover:bg-red-50"
+                                disabled={!hasReturnable || bulkReturnMut.isPending}
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setReturnConfirmCnpj(g.cnpj)
+                                }}
+                                title={hasReturnable ? `Devolver ${g.returnableIds.length} proposta(s) deste cliente ao banco` : 'Pegue propostas deste grupo antes de devolver'}
+                              >
+                                <Unlock className="w-3 h-3 mr-1" />
+                                {returnLabel} ({g.returnableIds.length})
+                              </Button>
+                            </>
                           )}
                           {isManager && g.freezeableIds.length > 0 && (
                             <Button
