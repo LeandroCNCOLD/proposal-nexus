@@ -763,12 +763,18 @@ function BankPage() {
               {grouped.groups.map((g) => {
                 const isOpen = expandedCnpjs.has(g.cnpj)
                 const dupRisk = g.activeCount >= 3
-                const canBulkPick = canPickLeads && g.pickableIds.length > 0 && !atLimit && tab !== 'arquivados'
-                const canBulkReturn = canPickLeads && g.returnableIds.length > 0 && tab !== 'arquivados'
+                const isArchivedTab = tab === 'arquivados'
                 const remaining = SDR_LOCK_LIMIT - myLockCount
                 const willPick = Math.min(g.pickableIds.length, Math.max(0, remaining))
-                const pickLabel = g.hasMine ? 'Pegar restantes' : 'Pegar todas'
-                const returnLabel = g.hasMine && g.pickableIds.length > 0 ? 'Devolver minhas' : 'Devolver todas'
+                // Estados:
+                // A) sem nenhuma minha + tem pickable  → "Pegar grupo"
+                // B) tem todas as ativas minhas (zero pickable + tem returnable) → "Devolver grupo"
+                // C) misto (tem pickable + tem returnable) → "Pegar restantes" + "Devolver minhas"
+                // D) atLimit → "Pegar grupo" desabilitado
+                const stateA = !isArchivedTab && canPickLeads && g.returnableIds.length === 0 && g.pickableIds.length > 0
+                const stateB = !isArchivedTab && canPickLeads && g.pickableIds.length === 0 && g.returnableIds.length > 0
+                const stateC = !isArchivedTab && canPickLeads && g.pickableIds.length > 0 && g.returnableIds.length > 0
+
                 return (
                   <Fragment key={g.cnpj}>
                     <tr
