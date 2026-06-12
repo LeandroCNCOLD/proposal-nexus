@@ -838,27 +838,30 @@ function BankPage() {
                       </td>
                       <td className="px-3 py-2 text-xs text-muted-foreground">—</td>
                       <td className="px-3 py-2 text-right whitespace-nowrap space-x-1">
-                        {canBulkPick && (
+                        {(stateA || stateC) && (
                           <Button
                             size="sm"
-                            variant="outline"
-                            disabled={bulkPickMut.isPending}
+                            className="bg-blue-600 hover:bg-blue-700 text-white"
+                            disabled={atLimit || bulkPickMut.isPending}
                             onClick={(e) => {
                               e.stopPropagation()
+                              const pickLabel = stateC ? 'Pegar restantes' : 'Pegar grupo'
                               const msg = willPick < g.pickableIds.length
                                 ? `Pegar ${willPick} de ${g.pickableIds.length} propostas ativas? (limite de ${SDR_LOCK_LIMIT})`
-                                : `${pickLabel} as ${g.pickableIds.length} propostas ativas deste CNPJ?`
+                                : `${pickLabel}: travar ${g.pickableIds.length} proposta(s) ativa(s) deste CNPJ?`
                               if (confirm(msg)) bulkPickMut.mutate(g.pickableIds)
                             }}
-                            title={`Travar ${g.pickableIds.length} proposta(s) ativa(s) deste cliente`}
+                            title={atLimit ? `Limite de ${SDR_LOCK_LIMIT} leads atingido` : `Travar ${g.pickableIds.length} proposta(s) ativa(s) deste cliente`}
                           >
-                            <Lock className="w-3 h-3 mr-1" /> {pickLabel} ({g.pickableIds.length})
+                            <Lock className="w-3 h-3 mr-1" />
+                            {stateC ? 'Pegar restantes' : 'Pegar grupo'} ({g.pickableIds.length})
                           </Button>
                         )}
-                        {canBulkReturn && (
+                        {(stateB || stateC) && (
                           <Button
                             size="sm"
                             variant="outline"
+                            className="border-red-300 text-red-700 hover:bg-red-50"
                             disabled={bulkReturnMut.isPending}
                             onClick={(e) => {
                               e.stopPropagation()
@@ -866,7 +869,8 @@ function BankPage() {
                             }}
                             title={`Devolver ${g.returnableIds.length} proposta(s) deste cliente ao banco`}
                           >
-                            <Unlock className="w-3 h-3 mr-1" /> {returnLabel} ({g.returnableIds.length})
+                            <Unlock className="w-3 h-3 mr-1" />
+                            {stateC ? 'Devolver minhas' : 'Devolver grupo'} ({g.returnableIds.length})
                           </Button>
                         )}
                       </td>
@@ -875,6 +879,7 @@ function BankPage() {
                   </Fragment>
                 )
               })}
+
 
               {grouped.ungrouped.length > 0 && (
                 <>
