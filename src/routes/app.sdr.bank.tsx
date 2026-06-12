@@ -238,6 +238,32 @@ function BankPage() {
     },
   })
 
+  const bulkFreezeMut = useMutation({
+    mutationFn: async (ids: string[]) => {
+      let ok = 0
+      let failed = 0
+      for (const id of ids) {
+        try {
+          await freezeLead(id, user!.id, sdrName)
+          ok++
+        } catch {
+          failed++
+        }
+      }
+      return { ok, failed, total: ids.length }
+    },
+    onSuccess: (r) => {
+      if (r.failed === 0) {
+        toast.success(`${r.ok} proposta${r.ok === 1 ? '' : 's'} bloqueada${r.ok === 1 ? '' : 's'} pelo gestor`)
+      } else {
+        toast.warning(`Bloqueadas ${r.ok} de ${r.total} (${r.failed} erros)`)
+      }
+      qc.invalidateQueries({ queryKey: ['proposal-bank'] })
+      qc.invalidateQueries({ queryKey: ['my-wallet'] })
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : 'Falha ao bloquear leads em massa'),
+  })
+
   // Extrai base CN##### e revisão a partir do lead_code/proposal_title/proposal_version
   const parseRev = (r: any): { base: string; rev: number } => {
     const raw = String(r.lead_code ?? '').trim()
@@ -388,6 +414,12 @@ function BankPage() {
       const activeLeads = leads.filter((l: any) => !ACTIVE_EXCLUDE.includes(l.sdr_status))
       const activeCount = activeLeads.length
       const hasMine = leads.some((l: any) => l.locked_by_sdr_id === user?.id)
+      const frozenIds = activeLeads
+        .filter((l: any) => !!l.locked_by_sdr_name?.startsWith(MANAGER_FREEZE_PREFIX))
+        .map((l: any) => l.id as string)
+      const freezeableIds = activeLeads
+        .filter((l: any) => !l.locked_by_sdr_name?.startsWith(MANAGER_FREEZE_PREFIX))
+        .map((l: any) => l.id as string)
       const pickableIds = activeLeads
         .filter((l: any) => !l.locked_by_sdr_id)
         .map((l: any) => l.id as string)
@@ -422,6 +454,8 @@ function BankPage() {
         lockedCount: lockedLeads.length,
         firstLockName,
         hasMine,
+        frozenIds,
+        freezeableIds,
         pickableIds,
         returnableIds,
         topProposals,
@@ -546,30 +580,29 @@ function BankPage() {
             <Badge variant="outline" className="text-green-700 border-green-300">Livre</Badge>
           )}
         </td>
-        <td className="px-3 py-2 text-xs">
-          {(() => {
-            const ps = (r as any).proposal_status as string | null | undefined
-            if (!ps) return <span className="text-muted-foreground">—</span>
-            const map: Record<string, string> = {
-              'Proposta Criada': 'bg-slate-100 text-slate-800',
-              'Proposta Enviada': 'bg-blue-100 text-blue-800',
-              'Negociando': 'bg-amber-100 text-amber-800',
-              'Prorrogadas': 'bg-purple-100 text-purple-800',
-              'Aprovadas': 'bg-green-100 text-green-800',
-              'Perdidas': 'bg-red-100 text-red-800',
-              'Canceladas': 'bg-zinc-200 text-zinc-800',
-            }
-            return <Badge className={map[ps] || 'bg-muted text-foreground'} variant="secondary">{ps}</Badge>
-          })()}
-        </td>
-        <td className="px-3 py-2 text-right space-x-1 whitespace-nowrap">
+        <td className="px-3 py-2 text-xs min-w-[260px]">
+          <div className="flex flex-col items-start gap-2">
+            {(() => {
+              const ps = (r as any).proposal_status as string | null | undefined
+              if (!ps) return <span className="text-muted-foreground">—</span>
+              const map: Record<string, string> = {
+                'Proposta Criada': 'bg-slate-100 text-slate-800',
+                'Proposta Enviada': 'bg-blue-100 text-blue-800',
+                'Negociando': 'bg-amber-100 text-amber-800',
+                'Prorrogadas': 'bg-purple-100 text-purple-800',
+                'Aprovadas': 'bg-green-100 text-green-800',
+                'Perdidas': 'bg-red-100 text-red-800',
+                'Canceladas': 'bg-zinc-200 text-zinc-800',
+              }
+              return <Badge className={map[ps] || 'bg-muted text-foreground'} variant="secondary">{ps}</Badge>
+            })()}
           {tab === 'arquivados' ? (
             <Button size="sm" variant="outline" disabled={remarketingMut.isPending}
               onClick={() => remarketingMut.mutate(r.id)}>
               <Mail className="w-3 h-3 mr-1" /> Remarketing
             </Button>
           ) : (
-            <>
+            <div className="flex flex-wrap items-center justify-end gap-1">
               {canPickLeads && !r.locked_by_sdr_id && (
                 <Button
                   size="sm"
@@ -606,8 +639,9 @@ function BankPage() {
                   <Unlock className="w-3 h-3 mr-1" /> Desbloquear
                 </Button>
               )}
-            </>
+            </div>
           )}
+          </div>
         </td>
       </tr>
     )
@@ -768,8 +802,7 @@ function BankPage() {
                 <SortableTh label="Dias aberto" sk="days_open" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="center" />
                 <SortableTh label="Temp." sk="temperature" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
                 <SortableTh label="Atendimento" sk="status" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
-                <th className="px-3 py-2">Status Proposta</th>
-                <th className="px-3 py-2 text-right">Ação</th>
+                <th className="px-3 py-2">Status Proposta / Ações</th>
               </tr>
             </thead>
             <tbody>
@@ -860,43 +893,76 @@ function BankPage() {
                           <Badge variant="outline" className="text-green-700 border-green-300">Livre</Badge>
                         )}
                       </td>
-                      <td className="px-3 py-2 text-xs text-muted-foreground">—</td>
-                      <td className="px-3 py-2 text-right whitespace-nowrap space-x-1">
-                        {(stateA || stateC) && (
-                          <Button
-                            size="sm"
-                            className="bg-blue-600 hover:bg-blue-700 text-white"
-                            disabled={atLimit || bulkPickMut.isPending}
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              const pickLabel = stateC ? 'Pegar restantes' : 'Pegar grupo'
-                              const msg = willPick < g.pickableIds.length
-                                ? `Pegar ${willPick} de ${g.pickableIds.length} propostas ativas? (limite de ${SDR_LOCK_LIMIT})`
-                                : `${pickLabel}: travar ${g.pickableIds.length} proposta(s) ativa(s) deste CNPJ?`
-                              if (confirm(msg)) bulkPickMut.mutate(g.pickableIds)
-                            }}
-                            title={atLimit ? `Limite de ${SDR_LOCK_LIMIT} leads atingido` : `Travar ${g.pickableIds.length} proposta(s) ativa(s) deste cliente`}
-                          >
-                            <Lock className="w-3 h-3 mr-1" />
-                            {stateC ? 'Pegar restantes' : 'Pegar grupo'} ({g.pickableIds.length})
-                          </Button>
-                        )}
-                        {(stateB || stateC) && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="border-red-300 text-red-700 hover:bg-red-50"
-                            disabled={bulkReturnMut.isPending}
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setReturnConfirmCnpj(g.cnpj)
-                            }}
-                            title={`Devolver ${g.returnableIds.length} proposta(s) deste cliente ao banco`}
-                          >
-                            <Unlock className="w-3 h-3 mr-1" />
-                            {stateC ? 'Devolver minhas' : 'Devolver grupo'} ({g.returnableIds.length})
-                          </Button>
-                        )}
+                      <td className="px-3 py-2 text-xs min-w-[300px]">
+                        <div className="flex flex-col items-start gap-2">
+                          <span className="text-muted-foreground">—</span>
+                          <div className="flex flex-wrap items-center gap-1">
+                          {(stateA || stateC) && (
+                            <Button
+                              size="sm"
+                              className="bg-blue-600 hover:bg-blue-700 text-white"
+                              disabled={atLimit || bulkPickMut.isPending}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                const pickLabel = stateC ? 'Pegar restantes' : 'Pegar grupo'
+                                const msg = willPick < g.pickableIds.length
+                                  ? `Pegar ${willPick} de ${g.pickableIds.length} propostas ativas? (limite de ${SDR_LOCK_LIMIT})`
+                                  : `${pickLabel}: travar ${g.pickableIds.length} proposta(s) ativa(s) deste CNPJ?`
+                                if (confirm(msg)) bulkPickMut.mutate(g.pickableIds)
+                              }}
+                              title={atLimit ? `Limite de ${SDR_LOCK_LIMIT} leads atingido` : `Travar ${g.pickableIds.length} proposta(s) ativa(s) deste cliente`}
+                            >
+                              <Lock className="w-3 h-3 mr-1" />
+                              {stateC ? 'Pegar restantes' : 'Pegar grupo'} ({g.pickableIds.length})
+                            </Button>
+                          )}
+                          {(stateB || stateC) && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="border-red-300 text-red-700 hover:bg-red-50"
+                              disabled={bulkReturnMut.isPending}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setReturnConfirmCnpj(g.cnpj)
+                              }}
+                              title={`Devolver ${g.returnableIds.length} proposta(s) deste cliente ao banco`}
+                            >
+                              <Unlock className="w-3 h-3 mr-1" />
+                              {stateC ? 'Devolver minhas' : 'Devolver grupo'} ({g.returnableIds.length})
+                            </Button>
+                          )}
+                          {isManager && g.freezeableIds.length > 0 && (
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              disabled={bulkFreezeMut.isPending}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                if (confirm(`Bloquear ${g.freezeableIds.length} proposta(s) deste grupo? Ninguém poderá entrar em contato até desbloquear.`)) {
+                                  bulkFreezeMut.mutate(g.freezeableIds)
+                                }
+                              }}
+                              title="Bloquear grupo (gestor)"
+                            >
+                              <ShieldAlert className="w-3 h-3 mr-1" /> Bloquear grupo ({g.freezeableIds.length})
+                            </Button>
+                          )}
+                          {isManager && g.frozenIds.length > 0 && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                bulkReturnMut.mutate(g.frozenIds)
+                              }}
+                              title="Desbloquear grupo (gestor)"
+                            >
+                              <Unlock className="w-3 h-3 mr-1" /> Desbloquear grupo ({g.frozenIds.length})
+                            </Button>
+                          )}
+                          </div>
+                        </div>
                       </td>
                     </tr>
                     {isOpen && g.leads.map((l: any) => renderLeadRow(l))}
@@ -908,7 +974,7 @@ function BankPage() {
               {grouped.ungrouped.length > 0 && (
                 <>
                   <tr className="border-t bg-amber-50">
-                    <td colSpan={12} className="px-3 py-2 text-xs font-semibold text-amber-900">
+                    <td colSpan={11} className="px-3 py-2 text-xs font-semibold text-amber-900">
                       Sem CNPJ — não agrupados ({grouped.ungrouped.length})
                     </td>
                   </tr>
@@ -917,7 +983,7 @@ function BankPage() {
               )}
 
               {grouped.groups.length === 0 && grouped.ungrouped.length === 0 && (
-                <tr><td colSpan={12} className="text-center py-8 text-muted-foreground">Nenhuma lead encontrada</td></tr>
+                <tr><td colSpan={11} className="text-center py-8 text-muted-foreground">Nenhuma lead encontrada</td></tr>
               )}
 
             </tbody>
