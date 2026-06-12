@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
-  KeyRound, Trash2, Users as UsersIcon, ShieldCheck, UserCog, Lock, Pencil,
+  Trash2, Users as UsersIcon, ShieldCheck, UserCog, Lock, Pencil,
   Copy, Sparkles, AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
