@@ -871,16 +871,16 @@ function BankPage() {
                           </div>
                         )}
                       </td>
-                      <td className="px-3 py-2">{g.state || '—'}</td>
+                      <td className="px-3 py-2 hidden lg:table-cell">{g.state || '—'}</td>
                       <td className="px-3 py-2 text-right">
                         <div className="font-semibold">{fmtBRL(g.totalValue)}</div>
                         {g.latestValue > 0 && g.latestValue !== g.totalValue && (
                           <div className="text-[10px] text-muted-foreground">última rev: {fmtBRL(g.latestValue)}</div>
                         )}
                       </td>
-                      <td className="px-3 py-2 text-xs whitespace-nowrap">{fmtDate(g.latestProposal)}</td>
-                      <td className="px-3 py-2 text-xs whitespace-nowrap">{fmtDate(g.lastInteraction)}</td>
-                      <td className="px-3 py-2 text-center">
+                      <td className="px-3 py-2 text-xs whitespace-nowrap hidden 2xl:table-cell">{fmtDate(g.latestProposal)}</td>
+                      <td className="px-3 py-2 text-xs whitespace-nowrap hidden xl:table-cell">{fmtDate(g.lastInteraction)}</td>
+                      <td className="px-3 py-2 text-center hidden lg:table-cell">
                         {(() => {
                           const d = daysSince(g.latestProposal)
                           return <Badge className={ageBadgeClass(d)} variant="secondary">{d == null ? '—' : `${d}d`}</Badge>
@@ -889,7 +889,8 @@ function BankPage() {
                       <td className="px-3 py-2">
                         {g.hottestTemp && <Badge className={TEMP_COLORS[g.hottestTemp] || ''} variant="secondary">{g.hottestTemp}</Badge>}
                       </td>
-                      <td className="px-3 py-2 text-xs">
+                      <td className="px-3 py-2 text-xs hidden md:table-cell">
+
                         {g.lockedCount > 0 ? (
                           <div className="space-y-0.5">
                             <Badge className="bg-orange-100 text-orange-800">
