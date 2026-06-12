@@ -73,6 +73,25 @@ function BankPage() {
   const { names: closerNames } = useCloserNames()
   const [sortKey, setSortKey] = useState<SortKey | null>(null)
   const [sortDir, setSortDir] = useState<SortDir>(null)
+  const [groupByCnpj, setGroupByCnpj] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false
+    return window.localStorage.getItem('bank_group_cnpj') === 'true'
+  })
+  const [expandedCnpjs, setExpandedCnpjs] = useState<Set<string>>(new Set())
+  const toggleGroupByCnpj = () => {
+    setGroupByCnpj((v) => {
+      const next = !v
+      try { window.localStorage.setItem('bank_group_cnpj', String(next)) } catch { /* ignore */ }
+      return next
+    })
+  }
+  const toggleExpand = (cnpj: string) => {
+    setExpandedCnpjs((prev) => {
+      const next = new Set(prev)
+      if (next.has(cnpj)) next.delete(cnpj); else next.add(cnpj)
+      return next
+    })
+  }
   const enqueueRemarketingFn = useServerFn(enqueueRemarketing)
   const remarketingMut = useMutation({
     mutationFn: (id: string) => enqueueRemarketingFn({ data: { source: 'sdr', lead_id: id } }),
