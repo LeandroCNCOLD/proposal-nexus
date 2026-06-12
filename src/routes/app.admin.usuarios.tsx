@@ -68,6 +68,7 @@ function UsersAdminPage() {
   const updateRole = useServerFn(setUserPrimaryRole);
   const removeUser = useServerFn(deleteAppUser);
   const updatePassword = useServerFn(setUserPassword);
+  const updateEmail = useServerFn(setUserEmail);
 
   const [search, setSearch] = useState("");
   const [passwordTarget, setPasswordTarget] = useState<{ id: string; label: string } | null>(null);
