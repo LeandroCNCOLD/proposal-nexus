@@ -803,7 +803,7 @@ function BankPage() {
                 <SortableTh label="Temp." sk="temperature" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
                 <SortableTh label="Atendimento" sk="status" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
                 <th className="px-3 py-2">Status Proposta</th>
-                <th className="px-3 py-2 text-right">Ação</th>
+                <th className="sticky right-0 z-20 min-w-[300px] bg-muted/50 px-3 py-2 text-right shadow-sm">Ação</th>
               </tr>
             </thead>
             <tbody>
@@ -895,42 +895,73 @@ function BankPage() {
                         )}
                       </td>
                       <td className="px-3 py-2 text-xs text-muted-foreground">—</td>
-                      <td className="px-3 py-2 text-right whitespace-nowrap space-x-1">
-                        {(stateA || stateC) && (
-                          <Button
-                            size="sm"
-                            className="bg-blue-600 hover:bg-blue-700 text-white"
-                            disabled={atLimit || bulkPickMut.isPending}
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              const pickLabel = stateC ? 'Pegar restantes' : 'Pegar grupo'
-                              const msg = willPick < g.pickableIds.length
-                                ? `Pegar ${willPick} de ${g.pickableIds.length} propostas ativas? (limite de ${SDR_LOCK_LIMIT})`
-                                : `${pickLabel}: travar ${g.pickableIds.length} proposta(s) ativa(s) deste CNPJ?`
-                              if (confirm(msg)) bulkPickMut.mutate(g.pickableIds)
-                            }}
-                            title={atLimit ? `Limite de ${SDR_LOCK_LIMIT} leads atingido` : `Travar ${g.pickableIds.length} proposta(s) ativa(s) deste cliente`}
-                          >
-                            <Lock className="w-3 h-3 mr-1" />
-                            {stateC ? 'Pegar restantes' : 'Pegar grupo'} ({g.pickableIds.length})
-                          </Button>
-                        )}
-                        {(stateB || stateC) && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="border-red-300 text-red-700 hover:bg-red-50"
-                            disabled={bulkReturnMut.isPending}
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setReturnConfirmCnpj(g.cnpj)
-                            }}
-                            title={`Devolver ${g.returnableIds.length} proposta(s) deste cliente ao banco`}
-                          >
-                            <Unlock className="w-3 h-3 mr-1" />
-                            {stateC ? 'Devolver minhas' : 'Devolver grupo'} ({g.returnableIds.length})
-                          </Button>
-                        )}
+                      <td className="sticky right-0 z-10 min-w-[300px] bg-muted/40 px-3 py-2 text-right shadow-sm">
+                        <div className="flex flex-wrap items-center justify-end gap-1">
+                          {(stateA || stateC) && (
+                            <Button
+                              size="sm"
+                              className="bg-blue-600 hover:bg-blue-700 text-white"
+                              disabled={atLimit || bulkPickMut.isPending}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                const pickLabel = stateC ? 'Pegar restantes' : 'Pegar grupo'
+                                const msg = willPick < g.pickableIds.length
+                                  ? `Pegar ${willPick} de ${g.pickableIds.length} propostas ativas? (limite de ${SDR_LOCK_LIMIT})`
+                                  : `${pickLabel}: travar ${g.pickableIds.length} proposta(s) ativa(s) deste CNPJ?`
+                                if (confirm(msg)) bulkPickMut.mutate(g.pickableIds)
+                              }}
+                              title={atLimit ? `Limite de ${SDR_LOCK_LIMIT} leads atingido` : `Travar ${g.pickableIds.length} proposta(s) ativa(s) deste cliente`}
+                            >
+                              <Lock className="w-3 h-3 mr-1" />
+                              {stateC ? 'Pegar restantes' : 'Pegar grupo'} ({g.pickableIds.length})
+                            </Button>
+                          )}
+                          {(stateB || stateC) && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="border-red-300 text-red-700 hover:bg-red-50"
+                              disabled={bulkReturnMut.isPending}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setReturnConfirmCnpj(g.cnpj)
+                              }}
+                              title={`Devolver ${g.returnableIds.length} proposta(s) deste cliente ao banco`}
+                            >
+                              <Unlock className="w-3 h-3 mr-1" />
+                              {stateC ? 'Devolver minhas' : 'Devolver grupo'} ({g.returnableIds.length})
+                            </Button>
+                          )}
+                          {isManager && g.freezeableIds.length > 0 && (
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              disabled={bulkFreezeMut.isPending}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                if (confirm(`Bloquear ${g.freezeableIds.length} proposta(s) deste grupo? Ninguém poderá entrar em contato até desbloquear.`)) {
+                                  bulkFreezeMut.mutate(g.freezeableIds)
+                                }
+                              }}
+                              title="Bloquear grupo (gestor)"
+                            >
+                              <ShieldAlert className="w-3 h-3 mr-1" /> Bloquear grupo ({g.freezeableIds.length})
+                            </Button>
+                          )}
+                          {isManager && g.frozenIds.length > 0 && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                bulkReturnMut.mutate(g.frozenIds)
+                              }}
+                              title="Desbloquear grupo (gestor)"
+                            >
+                              <Unlock className="w-3 h-3 mr-1" /> Desbloquear grupo ({g.frozenIds.length})
+                            </Button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                     {isOpen && g.leads.map((l: any) => renderLeadRow(l))}
