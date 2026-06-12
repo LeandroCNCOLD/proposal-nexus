@@ -219,6 +219,7 @@ function UserOverridesPanel() {
   const save = useServerFn(setUserOverrides);
   const qc = useQueryClient();
   const [userId, setUserId] = useState<string>("");
+  const [roleFilter, setRoleFilter] = useState<AppRole | "all">("all");
   const [state, setState] = useState<Map<string, Effect>>(new Map());
   const [saving, setSaving] = useState(false);
 
@@ -226,6 +227,12 @@ function UserOverridesPanel() {
     queryKey: ["app-users"],
     queryFn: () => fetchUsers(),
   });
+
+  const filteredUsers = useMemo(() => {
+    const list = users ?? [];
+    if (roleFilter === "all") return list;
+    return list.filter((u) => (u.roles ?? []).includes(roleFilter));
+  }, [users, roleFilter]);
 
   const { data: detail, isLoading } = useQuery({
     queryKey: ["user-overrides", userId],
