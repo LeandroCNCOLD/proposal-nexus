@@ -533,20 +533,21 @@ function BankPage() {
             )
           })()}
         </td>
-        <td className="px-3 py-2 text-xs">
+        <td className="px-3 py-2 text-xs hidden xl:table-cell">
           <div>{r.contact_name || '—'}</div>
           <div className="text-muted-foreground font-mono">{r.contact_mobile || r.contact_phone || '—'}</div>
         </td>
-        <td className="px-3 py-2">{r.state || '—'}</td>
+        <td className="px-3 py-2 hidden lg:table-cell">{r.state || '—'}</td>
         <td className="px-3 py-2 text-right font-semibold">{fmtBRL(r.value)}</td>
-        <td className="px-3 py-2 text-xs whitespace-nowrap">{fmtDate(r.proposal_date || r.created_at)}</td>
-        <td className="px-3 py-2 text-xs whitespace-nowrap">
+        <td className="px-3 py-2 text-xs whitespace-nowrap hidden 2xl:table-cell">{fmtDate(r.proposal_date || r.created_at)}</td>
+        <td className="px-3 py-2 text-xs whitespace-nowrap hidden xl:table-cell">
           <div>{fmtDate(r.last_contact_at)}</div>
           {r.days_without_contact != null && (
             <div className="text-[10px] text-muted-foreground">há {r.days_without_contact}d</div>
           )}
         </td>
-        <td className="px-3 py-2 text-center">
+        <td className="px-3 py-2 text-center hidden lg:table-cell">
+
           {(() => {
             const d = daysSince(r.proposal_date || r.created_at)
             return (
