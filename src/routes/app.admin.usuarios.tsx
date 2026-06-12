@@ -272,6 +272,17 @@ function UsersAdminPage() {
                       <Button
                         size="icon"
                         variant="ghost"
+                        title="Alterar email de login"
+                        onClick={() => {
+                          setEmailTarget({ id: u.id, label: u.fullName || u.email || u.id, current: u.email });
+                          setNewEmail(u.email || "");
+                        }}
+                      >
+                        <Mail className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
                         title="Definir nova senha (manual)"
                         onClick={() => {
                           setPasswordTarget({ id: u.id, label: u.fullName || u.email || u.id });
