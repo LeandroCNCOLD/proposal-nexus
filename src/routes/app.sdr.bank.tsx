@@ -801,16 +801,16 @@ function BankPage() {
           <table className="w-full text-sm">
             <thead className="bg-muted/50">
               <tr className="text-left">
-                <SortableTh label="Lead" sk="lead_code" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
+                <SortableTh label="Lead" sk="lead_code" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} className="hidden xl:table-cell" />
                 <SortableTh label="Cliente / Razão Social" sk="client_name" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
-                <SortableTh label="Contato" sk="contact_name" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
-                <SortableTh label="UF" sk="state" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
+                <SortableTh label="Contato" sk="contact_name" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} className="hidden xl:table-cell" />
+                <SortableTh label="UF" sk="state" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} className="hidden lg:table-cell" />
                 <SortableTh label="Valor" sk="value" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="right" />
-                <SortableTh label="Cadastro" sk="cadastro" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
-                <SortableTh label="Última interação" sk="last_contact_at" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
-                <SortableTh label="Dias aberto" sk="days_open" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="center" />
+                <SortableTh label="Cadastro" sk="cadastro" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} className="hidden 2xl:table-cell" />
+                <SortableTh label="Última interação" sk="last_contact_at" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} className="hidden xl:table-cell" />
+                <SortableTh label="Dias aberto" sk="days_open" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="center" className="hidden lg:table-cell" />
                 <SortableTh label="Temp." sk="temperature" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
-                <SortableTh label="Atendimento" sk="status" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
+                <SortableTh label="Atendimento" sk="status" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} className="hidden md:table-cell" />
                 <th className="px-3 py-2">Status Proposta / Ações</th>
               </tr>
             </thead>
