@@ -123,18 +123,60 @@ function NavItem({ to, label, icon: Icon, exact }: { to: string; label: string; 
   );
 }
 
+// Allowlist de rotas por role. Gerente/diretoria/admin veem tudo (não filtra).
+const SDR_ALLOWED = new Set<string>([
+  "/app/sdr/war-room",
+  "/app/sdr/bank",
+  "/app/sdr/wallet",
+  "/app/sdr/hot-deals",
+  "/app/sdr/scripts",
+  "/app/agenda",
+  "/app/cobertura",
+  "/app/sdr/sdr-performance",
+]);
+
+const VENDEDOR_ALLOWED = new Set<string>([
+  "/app",
+  "/app/crm",
+  "/app/propostas",
+  "/app/propostas/pedidos-nf",
+  "/app/coldpro",
+  "/app/coldpro/produtos",
+  "/app/coldpro/catalogo",
+  "/app/clientes",
+  "/app/agenda",
+]);
+
 function AppNavigationSidebar() {
-  const { hasAnyRole } = useAuth();
+  const { hasAnyRole, hasRole } = useAuth();
   const isManager = hasAnyRole(["admin", "diretoria", "gerente_comercial"]);
+  const isSdr = hasRole("sdr") && !isManager;
+  const isVendedor = hasRole("vendedor") && !isManager;
+
+  const allowed: Set<string> | null = isManager
+    ? null
+    : isSdr
+      ? SDR_ALLOWED
+      : isVendedor
+        ? VENDEDOR_ALLOWED
+        : new Set<string>();
+
+  const baseGroups = NAV
+    .map((g) => ({
+      ...g,
+      items: allowed === null ? g.items : g.items.filter((it) => allowed.has(it.to)),
+    }))
+    .filter((g) => g.items.length > 0);
+
   const groups = [
-    ...NAV,
+    ...baseGroups,
     ...(isManager ? [{
       group: "Gestão",
       items: [
         { to: "/app/gestao/carteiras", label: "Carteiras da equipe", icon: Users },
-       { to: "/app/gestao/auditoria-sdr", label: "Auditoria SDR", icon: BarChart2 },
-       { to: "/app/gestao/alertas-sdr", label: "Alertas de Tentativas", icon: Bell },
-       { to: "/app/admin/usuarios", label: "Usuários", icon: Users },
+        { to: "/app/gestao/auditoria-sdr", label: "Auditoria SDR", icon: BarChart2 },
+        { to: "/app/gestao/alertas-sdr", label: "Alertas de Tentativas", icon: Bell },
+        { to: "/app/admin/usuarios", label: "Usuários", icon: Users },
       ],
     }] : []),
   ];
