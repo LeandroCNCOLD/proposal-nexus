@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TrocarSenhaRouteImport } from './routes/trocar-senha'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as IndexRouteImport } from './routes/index'
@@ -84,6 +85,11 @@ import { Route as ApiPublicNomusExhaustiveProbeRouteImport } from './routes/api.
 import { Route as ApiPublicLeadsSiteRouteImport } from './routes/api.public.leads.site'
 import { Route as ApiPublicHooksNomusCronRouteImport } from './routes/api.public.hooks.nomus-cron'
 
+const TrocarSenhaRoute = TrocarSenhaRouteImport.update({
+  id: '/trocar-senha',
+  path: '/trocar-senha',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -471,6 +477,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
+  '/trocar-senha': typeof TrocarSenhaRoute
   '/app/agenda': typeof AppAgendaRouteWithChildren
   '/app/aprovacoes': typeof AppAprovacoesRoute
   '/app/atividades': typeof AppAtividadesRoute
@@ -546,6 +553,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/trocar-senha': typeof TrocarSenhaRoute
   '/app/agenda': typeof AppAgendaRouteWithChildren
   '/app/aprovacoes': typeof AppAprovacoesRoute
   '/app/atividades': typeof AppAtividadesRoute
@@ -620,6 +628,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
+  '/trocar-senha': typeof TrocarSenhaRoute
   '/app/agenda': typeof AppAgendaRouteWithChildren
   '/app/aprovacoes': typeof AppAprovacoesRoute
   '/app/atividades': typeof AppAtividadesRoute
@@ -698,6 +707,7 @@ export interface FileRouteTypes {
     | '/'
     | '/app'
     | '/login'
+    | '/trocar-senha'
     | '/app/agenda'
     | '/app/aprovacoes'
     | '/app/atividades'
@@ -773,6 +783,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/login'
+    | '/trocar-senha'
     | '/app/agenda'
     | '/app/aprovacoes'
     | '/app/atividades'
@@ -846,6 +857,7 @@ export interface FileRouteTypes {
     | '/'
     | '/app'
     | '/login'
+    | '/trocar-senha'
     | '/app/agenda'
     | '/app/aprovacoes'
     | '/app/atividades'
@@ -923,6 +935,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
+  TrocarSenhaRoute: typeof TrocarSenhaRoute
   ApiNomusTestRoute: typeof ApiNomusTestRoute
   ApiPublicHooksNomusCronRoute: typeof ApiPublicHooksNomusCronRoute
   ApiPublicLeadsSiteRoute: typeof ApiPublicLeadsSiteRoute
@@ -934,6 +947,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/trocar-senha': {
+      id: '/trocar-senha'
+      path: '/trocar-senha'
+      fullPath: '/trocar-senha'
+      preLoaderRoute: typeof TrocarSenhaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
@@ -1665,6 +1685,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
+  TrocarSenhaRoute: TrocarSenhaRoute,
   ApiNomusTestRoute: ApiNomusTestRoute,
   ApiPublicHooksNomusCronRoute: ApiPublicHooksNomusCronRoute,
   ApiPublicLeadsSiteRoute: ApiPublicLeadsSiteRoute,
