@@ -802,8 +802,7 @@ function BankPage() {
                 <SortableTh label="Dias aberto" sk="days_open" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="center" />
                 <SortableTh label="Temp." sk="temperature" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
                 <SortableTh label="Atendimento" sk="status" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
-                <th className="px-3 py-2">Status Proposta</th>
-                <th className="sticky right-0 z-20 min-w-[300px] bg-muted/50 px-3 py-2 text-right shadow-sm">Ação</th>
+                <th className="px-3 py-2">Status Proposta / Ações</th>
               </tr>
             </thead>
             <tbody>
@@ -894,9 +893,10 @@ function BankPage() {
                           <Badge variant="outline" className="text-green-700 border-green-300">Livre</Badge>
                         )}
                       </td>
-                      <td className="px-3 py-2 text-xs text-muted-foreground">—</td>
-                      <td className="sticky right-0 z-10 min-w-[300px] bg-muted/40 px-3 py-2 text-right shadow-sm">
-                        <div className="flex flex-wrap items-center justify-end gap-1">
+                      <td className="px-3 py-2 text-xs min-w-[300px]">
+                        <div className="flex flex-col items-start gap-2">
+                          <span className="text-muted-foreground">—</span>
+                          <div className="flex flex-wrap items-center gap-1">
                           {(stateA || stateC) && (
                             <Button
                               size="sm"
@@ -961,6 +961,7 @@ function BankPage() {
                               <Unlock className="w-3 h-3 mr-1" /> Desbloquear grupo ({g.frozenIds.length})
                             </Button>
                           )}
+                          </div>
                         </div>
                       </td>
                     </tr>
