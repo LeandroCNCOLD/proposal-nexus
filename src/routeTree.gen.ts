@@ -16,12 +16,14 @@ import { Route as AppIndexRouteImport } from './routes/app.index'
 import { Route as AppTarefasRouteImport } from './routes/app.tarefas'
 import { Route as AppRelatoriosRouteImport } from './routes/app.relatorios'
 import { Route as AppHotDealsRouteImport } from './routes/app.hot-deals'
+import { Route as AppGestaoRouteImport } from './routes/app.gestao'
 import { Route as AppEquipamentosRouteImport } from './routes/app.equipamentos'
 import { Route as AppDocumentosRouteImport } from './routes/app.documentos'
 import { Route as AppCrmRouteImport } from './routes/app.crm'
 import { Route as AppConfiguracoesRouteImport } from './routes/app.configuracoes'
 import { Route as AppConcorrentesRouteImport } from './routes/app.concorrentes'
 import { Route as AppCompetitivaRouteImport } from './routes/app.competitiva'
+import { Route as AppCoberturaRouteImport } from './routes/app.cobertura'
 import { Route as AppClientesRouteImport } from './routes/app.clientes'
 import { Route as AppAprovacoesRouteImport } from './routes/app.aprovacoes'
 import { Route as AppAgendaRouteImport } from './routes/app.agenda'
@@ -40,6 +42,7 @@ import { Route as AppPropostasTabelasPrecoRouteImport } from './routes/app.propo
 import { Route as AppPropostasPedidosNfRouteImport } from './routes/app.propostas.pedidos-nf'
 import { Route as AppPropostasNovaRouteImport } from './routes/app.propostas.nova'
 import { Route as AppPropostasIdRouteImport } from './routes/app.propostas.$id'
+import { Route as AppGestaoAuditoriaSdrRouteImport } from './routes/app.gestao.auditoria-sdr'
 import { Route as AppCrmIdRouteImport } from './routes/app.crm.$id'
 import { Route as AppConfiguracoesPermissoesRouteImport } from './routes/app.configuracoes.permissoes'
 import { Route as AppConfiguracoesNomusRouteImport } from './routes/app.configuracoes.nomus'
@@ -50,8 +53,11 @@ import { Route as AppColdproIdRouteImport } from './routes/app.coldpro.$id'
 import { Route as AppAgendaIdRouteImport } from './routes/app.agenda.$id'
 import { Route as ApiNomusTestRouteImport } from './routes/api.nomus.test'
 import { Route as AppPropostasIdIndexRouteImport } from './routes/app.propostas.$id.index'
+import { Route as AppGestaoCarteirasIndexRouteImport } from './routes/app.gestao.carteiras.index'
 import { Route as AppConfiguracoesTemplatesIndexRouteImport } from './routes/app.configuracoes.templates.index'
+import { Route as AppSdrLeadsIdRouteImport } from './routes/app.sdr.leads.$id'
 import { Route as AppPropostasIdEditorRouteImport } from './routes/app.propostas.$id.editor'
+import { Route as AppGestaoCarteirasUserIdRouteImport } from './routes/app.gestao.carteiras.$userId'
 import { Route as AppConfiguracoesTemplatesIdRouteImport } from './routes/app.configuracoes.templates.$id'
 import { Route as AppConfiguracoesNomusImportarCustosRouteImport } from './routes/app.configuracoes.nomus.importar-custos'
 import { Route as ApiPublicNomusTabelaPrecoProbeRouteImport } from './routes/api.public.nomus.tabela-preco-probe'
@@ -95,6 +101,11 @@ const AppHotDealsRoute = AppHotDealsRouteImport.update({
   path: '/hot-deals',
   getParentRoute: () => AppRoute,
 } as any)
+const AppGestaoRoute = AppGestaoRouteImport.update({
+  id: '/gestao',
+  path: '/gestao',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppEquipamentosRoute = AppEquipamentosRouteImport.update({
   id: '/equipamentos',
   path: '/equipamentos',
@@ -123,6 +134,11 @@ const AppConcorrentesRoute = AppConcorrentesRouteImport.update({
 const AppCompetitivaRoute = AppCompetitivaRouteImport.update({
   id: '/competitiva',
   path: '/competitiva',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCoberturaRoute = AppCoberturaRouteImport.update({
+  id: '/cobertura',
+  path: '/cobertura',
   getParentRoute: () => AppRoute,
 } as any)
 const AppClientesRoute = AppClientesRouteImport.update({
@@ -216,6 +232,11 @@ const AppPropostasIdRoute = AppPropostasIdRouteImport.update({
   path: '/propostas/$id',
   getParentRoute: () => AppRoute,
 } as any)
+const AppGestaoAuditoriaSdrRoute = AppGestaoAuditoriaSdrRouteImport.update({
+  id: '/auditoria-sdr',
+  path: '/auditoria-sdr',
+  getParentRoute: () => AppGestaoRoute,
+} as any)
 const AppCrmIdRoute = AppCrmIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -268,17 +289,33 @@ const AppPropostasIdIndexRoute = AppPropostasIdIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppPropostasIdRoute,
 } as any)
+const AppGestaoCarteirasIndexRoute = AppGestaoCarteirasIndexRouteImport.update({
+  id: '/carteiras/',
+  path: '/carteiras/',
+  getParentRoute: () => AppGestaoRoute,
+} as any)
 const AppConfiguracoesTemplatesIndexRoute =
   AppConfiguracoesTemplatesIndexRouteImport.update({
     id: '/templates/',
     path: '/templates/',
     getParentRoute: () => AppConfiguracoesRoute,
   } as any)
+const AppSdrLeadsIdRoute = AppSdrLeadsIdRouteImport.update({
+  id: '/sdr/leads/$id',
+  path: '/sdr/leads/$id',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppPropostasIdEditorRoute = AppPropostasIdEditorRouteImport.update({
   id: '/editor',
   path: '/editor',
   getParentRoute: () => AppPropostasIdRoute,
 } as any)
+const AppGestaoCarteirasUserIdRoute =
+  AppGestaoCarteirasUserIdRouteImport.update({
+    id: '/carteiras/$userId',
+    path: '/carteiras/$userId',
+    getParentRoute: () => AppGestaoRoute,
+  } as any)
 const AppConfiguracoesTemplatesIdRoute =
   AppConfiguracoesTemplatesIdRouteImport.update({
     id: '/templates/$id',
@@ -328,12 +365,14 @@ export interface FileRoutesByFullPath {
   '/app/agenda': typeof AppAgendaRouteWithChildren
   '/app/aprovacoes': typeof AppAprovacoesRoute
   '/app/clientes': typeof AppClientesRoute
+  '/app/cobertura': typeof AppCoberturaRoute
   '/app/competitiva': typeof AppCompetitivaRoute
   '/app/concorrentes': typeof AppConcorrentesRoute
   '/app/configuracoes': typeof AppConfiguracoesRouteWithChildren
   '/app/crm': typeof AppCrmRouteWithChildren
   '/app/documentos': typeof AppDocumentosRoute
   '/app/equipamentos': typeof AppEquipamentosRoute
+  '/app/gestao': typeof AppGestaoRouteWithChildren
   '/app/hot-deals': typeof AppHotDealsRoute
   '/app/relatorios': typeof AppRelatoriosRoute
   '/app/tarefas': typeof AppTarefasRoute
@@ -347,6 +386,7 @@ export interface FileRoutesByFullPath {
   '/app/configuracoes/nomus': typeof AppConfiguracoesNomusRouteWithChildren
   '/app/configuracoes/permissoes': typeof AppConfiguracoesPermissoesRoute
   '/app/crm/$id': typeof AppCrmIdRoute
+  '/app/gestao/auditoria-sdr': typeof AppGestaoAuditoriaSdrRoute
   '/app/propostas/$id': typeof AppPropostasIdRouteWithChildren
   '/app/propostas/nova': typeof AppPropostasNovaRoute
   '/app/propostas/pedidos-nf': typeof AppPropostasPedidosNfRoute
@@ -369,8 +409,11 @@ export interface FileRoutesByFullPath {
   '/api/public/nomus/tabela-preco-probe': typeof ApiPublicNomusTabelaPrecoProbeRoute
   '/app/configuracoes/nomus/importar-custos': typeof AppConfiguracoesNomusImportarCustosRoute
   '/app/configuracoes/templates/$id': typeof AppConfiguracoesTemplatesIdRoute
+  '/app/gestao/carteiras/$userId': typeof AppGestaoCarteirasUserIdRoute
   '/app/propostas/$id/editor': typeof AppPropostasIdEditorRoute
+  '/app/sdr/leads/$id': typeof AppSdrLeadsIdRoute
   '/app/configuracoes/templates/': typeof AppConfiguracoesTemplatesIndexRoute
+  '/app/gestao/carteiras/': typeof AppGestaoCarteirasIndexRoute
   '/app/propostas/$id/': typeof AppPropostasIdIndexRoute
 }
 export interface FileRoutesByTo {
@@ -379,11 +422,13 @@ export interface FileRoutesByTo {
   '/app/agenda': typeof AppAgendaRouteWithChildren
   '/app/aprovacoes': typeof AppAprovacoesRoute
   '/app/clientes': typeof AppClientesRoute
+  '/app/cobertura': typeof AppCoberturaRoute
   '/app/competitiva': typeof AppCompetitivaRoute
   '/app/concorrentes': typeof AppConcorrentesRoute
   '/app/crm': typeof AppCrmRouteWithChildren
   '/app/documentos': typeof AppDocumentosRoute
   '/app/equipamentos': typeof AppEquipamentosRoute
+  '/app/gestao': typeof AppGestaoRouteWithChildren
   '/app/hot-deals': typeof AppHotDealsRoute
   '/app/relatorios': typeof AppRelatoriosRoute
   '/app/tarefas': typeof AppTarefasRoute
@@ -397,6 +442,7 @@ export interface FileRoutesByTo {
   '/app/configuracoes/nomus': typeof AppConfiguracoesNomusRouteWithChildren
   '/app/configuracoes/permissoes': typeof AppConfiguracoesPermissoesRoute
   '/app/crm/$id': typeof AppCrmIdRoute
+  '/app/gestao/auditoria-sdr': typeof AppGestaoAuditoriaSdrRoute
   '/app/propostas/nova': typeof AppPropostasNovaRoute
   '/app/propostas/pedidos-nf': typeof AppPropostasPedidosNfRoute
   '/app/propostas/tabelas-preco': typeof AppPropostasTabelasPrecoRoute
@@ -418,8 +464,11 @@ export interface FileRoutesByTo {
   '/api/public/nomus/tabela-preco-probe': typeof ApiPublicNomusTabelaPrecoProbeRoute
   '/app/configuracoes/nomus/importar-custos': typeof AppConfiguracoesNomusImportarCustosRoute
   '/app/configuracoes/templates/$id': typeof AppConfiguracoesTemplatesIdRoute
+  '/app/gestao/carteiras/$userId': typeof AppGestaoCarteirasUserIdRoute
   '/app/propostas/$id/editor': typeof AppPropostasIdEditorRoute
+  '/app/sdr/leads/$id': typeof AppSdrLeadsIdRoute
   '/app/configuracoes/templates': typeof AppConfiguracoesTemplatesIndexRoute
+  '/app/gestao/carteiras': typeof AppGestaoCarteirasIndexRoute
   '/app/propostas/$id': typeof AppPropostasIdIndexRoute
 }
 export interface FileRoutesById {
@@ -430,12 +479,14 @@ export interface FileRoutesById {
   '/app/agenda': typeof AppAgendaRouteWithChildren
   '/app/aprovacoes': typeof AppAprovacoesRoute
   '/app/clientes': typeof AppClientesRoute
+  '/app/cobertura': typeof AppCoberturaRoute
   '/app/competitiva': typeof AppCompetitivaRoute
   '/app/concorrentes': typeof AppConcorrentesRoute
   '/app/configuracoes': typeof AppConfiguracoesRouteWithChildren
   '/app/crm': typeof AppCrmRouteWithChildren
   '/app/documentos': typeof AppDocumentosRoute
   '/app/equipamentos': typeof AppEquipamentosRoute
+  '/app/gestao': typeof AppGestaoRouteWithChildren
   '/app/hot-deals': typeof AppHotDealsRoute
   '/app/relatorios': typeof AppRelatoriosRoute
   '/app/tarefas': typeof AppTarefasRoute
@@ -449,6 +500,7 @@ export interface FileRoutesById {
   '/app/configuracoes/nomus': typeof AppConfiguracoesNomusRouteWithChildren
   '/app/configuracoes/permissoes': typeof AppConfiguracoesPermissoesRoute
   '/app/crm/$id': typeof AppCrmIdRoute
+  '/app/gestao/auditoria-sdr': typeof AppGestaoAuditoriaSdrRoute
   '/app/propostas/$id': typeof AppPropostasIdRouteWithChildren
   '/app/propostas/nova': typeof AppPropostasNovaRoute
   '/app/propostas/pedidos-nf': typeof AppPropostasPedidosNfRoute
@@ -471,8 +523,11 @@ export interface FileRoutesById {
   '/api/public/nomus/tabela-preco-probe': typeof ApiPublicNomusTabelaPrecoProbeRoute
   '/app/configuracoes/nomus/importar-custos': typeof AppConfiguracoesNomusImportarCustosRoute
   '/app/configuracoes/templates/$id': typeof AppConfiguracoesTemplatesIdRoute
+  '/app/gestao/carteiras/$userId': typeof AppGestaoCarteirasUserIdRoute
   '/app/propostas/$id/editor': typeof AppPropostasIdEditorRoute
+  '/app/sdr/leads/$id': typeof AppSdrLeadsIdRoute
   '/app/configuracoes/templates/': typeof AppConfiguracoesTemplatesIndexRoute
+  '/app/gestao/carteiras/': typeof AppGestaoCarteirasIndexRoute
   '/app/propostas/$id/': typeof AppPropostasIdIndexRoute
 }
 export interface FileRouteTypes {
@@ -484,12 +539,14 @@ export interface FileRouteTypes {
     | '/app/agenda'
     | '/app/aprovacoes'
     | '/app/clientes'
+    | '/app/cobertura'
     | '/app/competitiva'
     | '/app/concorrentes'
     | '/app/configuracoes'
     | '/app/crm'
     | '/app/documentos'
     | '/app/equipamentos'
+    | '/app/gestao'
     | '/app/hot-deals'
     | '/app/relatorios'
     | '/app/tarefas'
@@ -503,6 +560,7 @@ export interface FileRouteTypes {
     | '/app/configuracoes/nomus'
     | '/app/configuracoes/permissoes'
     | '/app/crm/$id'
+    | '/app/gestao/auditoria-sdr'
     | '/app/propostas/$id'
     | '/app/propostas/nova'
     | '/app/propostas/pedidos-nf'
@@ -525,8 +583,11 @@ export interface FileRouteTypes {
     | '/api/public/nomus/tabela-preco-probe'
     | '/app/configuracoes/nomus/importar-custos'
     | '/app/configuracoes/templates/$id'
+    | '/app/gestao/carteiras/$userId'
     | '/app/propostas/$id/editor'
+    | '/app/sdr/leads/$id'
     | '/app/configuracoes/templates/'
+    | '/app/gestao/carteiras/'
     | '/app/propostas/$id/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -535,11 +596,13 @@ export interface FileRouteTypes {
     | '/app/agenda'
     | '/app/aprovacoes'
     | '/app/clientes'
+    | '/app/cobertura'
     | '/app/competitiva'
     | '/app/concorrentes'
     | '/app/crm'
     | '/app/documentos'
     | '/app/equipamentos'
+    | '/app/gestao'
     | '/app/hot-deals'
     | '/app/relatorios'
     | '/app/tarefas'
@@ -553,6 +616,7 @@ export interface FileRouteTypes {
     | '/app/configuracoes/nomus'
     | '/app/configuracoes/permissoes'
     | '/app/crm/$id'
+    | '/app/gestao/auditoria-sdr'
     | '/app/propostas/nova'
     | '/app/propostas/pedidos-nf'
     | '/app/propostas/tabelas-preco'
@@ -574,8 +638,11 @@ export interface FileRouteTypes {
     | '/api/public/nomus/tabela-preco-probe'
     | '/app/configuracoes/nomus/importar-custos'
     | '/app/configuracoes/templates/$id'
+    | '/app/gestao/carteiras/$userId'
     | '/app/propostas/$id/editor'
+    | '/app/sdr/leads/$id'
     | '/app/configuracoes/templates'
+    | '/app/gestao/carteiras'
     | '/app/propostas/$id'
   id:
     | '__root__'
@@ -585,12 +652,14 @@ export interface FileRouteTypes {
     | '/app/agenda'
     | '/app/aprovacoes'
     | '/app/clientes'
+    | '/app/cobertura'
     | '/app/competitiva'
     | '/app/concorrentes'
     | '/app/configuracoes'
     | '/app/crm'
     | '/app/documentos'
     | '/app/equipamentos'
+    | '/app/gestao'
     | '/app/hot-deals'
     | '/app/relatorios'
     | '/app/tarefas'
@@ -604,6 +673,7 @@ export interface FileRouteTypes {
     | '/app/configuracoes/nomus'
     | '/app/configuracoes/permissoes'
     | '/app/crm/$id'
+    | '/app/gestao/auditoria-sdr'
     | '/app/propostas/$id'
     | '/app/propostas/nova'
     | '/app/propostas/pedidos-nf'
@@ -626,8 +696,11 @@ export interface FileRouteTypes {
     | '/api/public/nomus/tabela-preco-probe'
     | '/app/configuracoes/nomus/importar-custos'
     | '/app/configuracoes/templates/$id'
+    | '/app/gestao/carteiras/$userId'
     | '/app/propostas/$id/editor'
+    | '/app/sdr/leads/$id'
     | '/app/configuracoes/templates/'
+    | '/app/gestao/carteiras/'
     | '/app/propostas/$id/'
   fileRoutesById: FileRoutesById
 }
@@ -694,6 +767,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppHotDealsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/gestao': {
+      id: '/app/gestao'
+      path: '/gestao'
+      fullPath: '/app/gestao'
+      preLoaderRoute: typeof AppGestaoRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/equipamentos': {
       id: '/app/equipamentos'
       path: '/equipamentos'
@@ -734,6 +814,13 @@ declare module '@tanstack/react-router' {
       path: '/competitiva'
       fullPath: '/app/competitiva'
       preLoaderRoute: typeof AppCompetitivaRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/cobertura': {
+      id: '/app/cobertura'
+      path: '/cobertura'
+      fullPath: '/app/cobertura'
+      preLoaderRoute: typeof AppCoberturaRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/clientes': {
@@ -862,6 +949,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPropostasIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/gestao/auditoria-sdr': {
+      id: '/app/gestao/auditoria-sdr'
+      path: '/auditoria-sdr'
+      fullPath: '/app/gestao/auditoria-sdr'
+      preLoaderRoute: typeof AppGestaoAuditoriaSdrRouteImport
+      parentRoute: typeof AppGestaoRoute
+    }
     '/app/crm/$id': {
       id: '/app/crm/$id'
       path: '/$id'
@@ -932,6 +1026,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPropostasIdIndexRouteImport
       parentRoute: typeof AppPropostasIdRoute
     }
+    '/app/gestao/carteiras/': {
+      id: '/app/gestao/carteiras/'
+      path: '/carteiras'
+      fullPath: '/app/gestao/carteiras/'
+      preLoaderRoute: typeof AppGestaoCarteirasIndexRouteImport
+      parentRoute: typeof AppGestaoRoute
+    }
     '/app/configuracoes/templates/': {
       id: '/app/configuracoes/templates/'
       path: '/templates'
@@ -939,12 +1040,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppConfiguracoesTemplatesIndexRouteImport
       parentRoute: typeof AppConfiguracoesRoute
     }
+    '/app/sdr/leads/$id': {
+      id: '/app/sdr/leads/$id'
+      path: '/sdr/leads/$id'
+      fullPath: '/app/sdr/leads/$id'
+      preLoaderRoute: typeof AppSdrLeadsIdRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/propostas/$id/editor': {
       id: '/app/propostas/$id/editor'
       path: '/editor'
       fullPath: '/app/propostas/$id/editor'
       preLoaderRoute: typeof AppPropostasIdEditorRouteImport
       parentRoute: typeof AppPropostasIdRoute
+    }
+    '/app/gestao/carteiras/$userId': {
+      id: '/app/gestao/carteiras/$userId'
+      path: '/carteiras/$userId'
+      fullPath: '/app/gestao/carteiras/$userId'
+      preLoaderRoute: typeof AppGestaoCarteirasUserIdRouteImport
+      parentRoute: typeof AppGestaoRoute
     }
     '/app/configuracoes/templates/$id': {
       id: '/app/configuracoes/templates/$id'
@@ -1056,6 +1171,22 @@ const AppCrmRouteChildren: AppCrmRouteChildren = {
 const AppCrmRouteWithChildren =
   AppCrmRoute._addFileChildren(AppCrmRouteChildren)
 
+interface AppGestaoRouteChildren {
+  AppGestaoAuditoriaSdrRoute: typeof AppGestaoAuditoriaSdrRoute
+  AppGestaoCarteirasUserIdRoute: typeof AppGestaoCarteirasUserIdRoute
+  AppGestaoCarteirasIndexRoute: typeof AppGestaoCarteirasIndexRoute
+}
+
+const AppGestaoRouteChildren: AppGestaoRouteChildren = {
+  AppGestaoAuditoriaSdrRoute: AppGestaoAuditoriaSdrRoute,
+  AppGestaoCarteirasUserIdRoute: AppGestaoCarteirasUserIdRoute,
+  AppGestaoCarteirasIndexRoute: AppGestaoCarteirasIndexRoute,
+}
+
+const AppGestaoRouteWithChildren = AppGestaoRoute._addFileChildren(
+  AppGestaoRouteChildren,
+)
+
 interface AppPropostasIdRouteChildren {
   AppPropostasIdEditorRoute: typeof AppPropostasIdEditorRoute
   AppPropostasIdIndexRoute: typeof AppPropostasIdIndexRoute
@@ -1074,12 +1205,14 @@ interface AppRouteChildren {
   AppAgendaRoute: typeof AppAgendaRouteWithChildren
   AppAprovacoesRoute: typeof AppAprovacoesRoute
   AppClientesRoute: typeof AppClientesRoute
+  AppCoberturaRoute: typeof AppCoberturaRoute
   AppCompetitivaRoute: typeof AppCompetitivaRoute
   AppConcorrentesRoute: typeof AppConcorrentesRoute
   AppConfiguracoesRoute: typeof AppConfiguracoesRouteWithChildren
   AppCrmRoute: typeof AppCrmRouteWithChildren
   AppDocumentosRoute: typeof AppDocumentosRoute
   AppEquipamentosRoute: typeof AppEquipamentosRoute
+  AppGestaoRoute: typeof AppGestaoRouteWithChildren
   AppHotDealsRoute: typeof AppHotDealsRoute
   AppRelatoriosRoute: typeof AppRelatoriosRoute
   AppTarefasRoute: typeof AppTarefasRoute
@@ -1101,18 +1234,21 @@ interface AppRouteChildren {
   AppColdproIndexRoute: typeof AppColdproIndexRoute
   AppPropostasIndexRoute: typeof AppPropostasIndexRoute
   AppSdrIndexRoute: typeof AppSdrIndexRoute
+  AppSdrLeadsIdRoute: typeof AppSdrLeadsIdRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppAgendaRoute: AppAgendaRouteWithChildren,
   AppAprovacoesRoute: AppAprovacoesRoute,
   AppClientesRoute: AppClientesRoute,
+  AppCoberturaRoute: AppCoberturaRoute,
   AppCompetitivaRoute: AppCompetitivaRoute,
   AppConcorrentesRoute: AppConcorrentesRoute,
   AppConfiguracoesRoute: AppConfiguracoesRouteWithChildren,
   AppCrmRoute: AppCrmRouteWithChildren,
   AppDocumentosRoute: AppDocumentosRoute,
   AppEquipamentosRoute: AppEquipamentosRoute,
+  AppGestaoRoute: AppGestaoRouteWithChildren,
   AppHotDealsRoute: AppHotDealsRoute,
   AppRelatoriosRoute: AppRelatoriosRoute,
   AppTarefasRoute: AppTarefasRoute,
@@ -1134,6 +1270,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppColdproIndexRoute: AppColdproIndexRoute,
   AppPropostasIndexRoute: AppPropostasIndexRoute,
   AppSdrIndexRoute: AppSdrIndexRoute,
+  AppSdrLeadsIdRoute: AppSdrLeadsIdRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
