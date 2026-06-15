@@ -83,6 +83,45 @@ export function WarRoomPanel() {
     staleTime: 30_000,
   })
 
+  const overdue = useQuery({
+    queryKey: ['war-room', 'overdue-followups'],
+    queryFn: async () => {
+      const today = new Date().toISOString().slice(0, 10)
+      const closedStatuses = ['Fechado', 'Kill / Arquivar', 'Perdido (com motivo)']
+      // Count of leads overdue without contact today
+      const { data: leads, error } = await supabase
+        .from('sdr_leads')
+        .select('id, locked_by_sdr_name')
+        .lte('next_contact_at', today)
+        .not('locked_by_sdr_id', 'is', null)
+        .not('sdr_status', 'in', `(${closedStatuses.map((s) => `"${s}"`).join(',')})`)
+      if (error) throw error
+      const leadIds = (leads ?? []).map((l: any) => l.id)
+      let contactedToday = new Set<string>()
+      if (leadIds.length > 0) {
+        const { data: logs } = await supabase
+          .from('crm_call_logs')
+          .select('pipeline_id')
+          .eq('call_date', today)
+          .in('pipeline_id', leadIds)
+        contactedToday = new Set((logs ?? []).map((l: any) => l.pipeline_id))
+      }
+      const overdueLeads = (leads ?? []).filter((l: any) => !contactedToday.has(l.id))
+      const bySdr = new Map<string, number>()
+      for (const l of overdueLeads) {
+        const name = (l as any).locked_by_sdr_name || '—'
+        bySdr.set(name, (bySdr.get(name) ?? 0) + 1)
+      }
+      const top = Array.from(bySdr.entries())
+        .map(([sdr, vencidos]) => ({ sdr, vencidos }))
+        .sort((a, b) => b.vencidos - a.vencidos)
+        .slice(0, 5)
+      return { total: overdueLeads.length, top }
+    },
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+  })
+
   const rows: DailyRow[] = useMemo(() => {
     const map = new Map<string, DailyRow>()
     for (const n of sdrNames) map.set(n, { name: n, completed: 0, attempts: 0, meetings: 0 })
