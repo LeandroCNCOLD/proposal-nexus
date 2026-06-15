@@ -7593,6 +7593,7 @@ export type Database = {
           delivery_term: string | null
           discount: number | null
           estimated_margin: number | null
+          expected_closing_date: string | null
           external_deleted_at: string | null
           external_updated_at: string | null
           final_amount_with_financial_cost: number | null
@@ -7662,6 +7663,7 @@ export type Database = {
           delivery_term?: string | null
           discount?: number | null
           estimated_margin?: number | null
+          expected_closing_date?: string | null
           external_deleted_at?: string | null
           external_updated_at?: string | null
           final_amount_with_financial_cost?: number | null
@@ -7731,6 +7733,7 @@ export type Database = {
           delivery_term?: string | null
           discount?: number | null
           estimated_margin?: number | null
+          expected_closing_date?: string | null
           external_deleted_at?: string | null
           external_updated_at?: string | null
           final_amount_with_financial_cost?: number | null
