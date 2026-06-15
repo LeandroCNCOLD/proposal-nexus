@@ -849,3 +849,61 @@ function Row({ label, value, mono, renderValue }: {
     </div>
   )
 }
+
+function ExpectedClosingDateInline({ leadId, value }: { leadId: string; value: string | null }) {
+  const qc = useQueryClient()
+  const [editing, setEditing] = useState(false)
+  const [val, setVal] = useState(value ?? '')
+
+  useEffect(() => { setVal(value ?? '') }, [value])
+
+  const save = async (next: string) => {
+    const payload = next ? next : null
+    const { error } = await supabase.rpc('update_sdr_lead_fields' as never, {
+      _lead_id: leadId,
+      _changes: { expected_closing_date: payload } as any,
+      _reason: 'edição inline da carteira',
+    } as never)
+    if (error) { toast.error(error.message); return }
+    toast.success('Previsão atualizada')
+    qc.invalidateQueries({ queryKey: ['my-wallet'] })
+    qc.invalidateQueries({ queryKey: ['sdr-lead', leadId] })
+    setEditing(false)
+  }
+
+  if (editing) {
+    return (
+      <input
+        type="date"
+        autoFocus
+        value={val}
+        onChange={(e) => setVal(e.target.value)}
+        onBlur={() => save(val)}
+        onKeyDown={(e) => { if (e.key === 'Enter') save(val); if (e.key === 'Escape') setEditing(false) }}
+        className="border rounded px-1.5 py-0.5 text-xs"
+      />
+    )
+  }
+
+  if (!value) {
+    return (
+      <button onClick={() => setEditing(true)} className="text-xs text-primary hover:underline">
+        + Definir data
+      </button>
+    )
+  }
+
+  const today = new Date(); today.setHours(0, 0, 0, 0)
+  const target = new Date(value + 'T00:00:00')
+  const diff = Math.round((target.getTime() - today.getTime()) / 86_400_000)
+  const cls = diff < 0 ? 'text-red-700 font-semibold' : diff <= 7 ? 'text-green-700 font-semibold' : ''
+  const label = diff < 0
+    ? `⚠️ Vencido há ${Math.abs(diff)} ${Math.abs(diff) === 1 ? 'dia' : 'dias'}`
+    : `📅 Fecha em ${fmtDate(value)}`
+
+  return (
+    <button onClick={() => setEditing(true)} className={`text-xs hover:underline ${cls}`}>
+      {label}
+    </button>
+  )
+}
