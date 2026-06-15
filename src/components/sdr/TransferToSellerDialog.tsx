@@ -194,8 +194,85 @@ export function TransferToSellerDialog({
           </div>
         )}
 
+        {/* BANT */}
+        <div className="space-y-2 rounded-md border border-blue-200 bg-blue-50/30 p-3">
+          <div>
+            <div className="text-sm font-semibold text-[#0F2D5E]">Qualificação antes de transferir</div>
+            <div className="text-[11px] text-muted-foreground">Preencha pelo menos 3 de 4 campos para proteger o tempo do Closer.</div>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <Label className="text-xs">B — Budget (verba) <span className="text-red-600">*</span></Label>
+              <Select value={bantBudget} onValueChange={(v) => setBantBudget(v as typeof bantBudget)}>
+                <SelectTrigger><SelectValue placeholder="Selecione…" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="sim">✅ Sim — verba aprovada</SelectItem>
+                  <SelectItem value="parcial">⚠️ Parcial — verba em aprovação</SelectItem>
+                  <SelectItem value="nao">❌ Não — sem verba definida</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">T — Timeline (prazo)</Label>
+              <Select value={bantTimeline} onValueChange={(v) => setBantTimeline(v as typeof bantTimeline)}>
+                <SelectTrigger><SelectValue placeholder="Selecione…" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="este_mes">Este mês</SelectItem>
+                  <SelectItem value="1_3_meses">1 a 3 meses</SelectItem>
+                  <SelectItem value="3_6_meses">3 a 6 meses</SelectItem>
+                  <SelectItem value="6_meses_mais">Mais de 6 meses</SelectItem>
+                  <SelectItem value="indefinido">Indefinido</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <Label className="text-xs">A — Authority (decisor)</Label>
+            <Input
+              value={bantAuthority}
+              onChange={(e) => setBantAuthority(e.target.value)}
+              placeholder='Ex: "João Silva — Diretor de Operações"'
+            />
+          </div>
+
+          <div className="space-y-1">
+            <Label className="text-xs">N — Need (necessidade)</Label>
+            <Textarea
+              value={bantNeed}
+              onChange={(e) => setBantNeed(e.target.value)}
+              placeholder="Qual o projeto específico? Câmara fria? Túnel? Rack? Qual capacidade?"
+              rows={2}
+            />
+          </div>
+
+          {/* Indicador de progresso */}
+          <div className="space-y-1">
+            <div className="flex gap-1">
+              {[0,1,2,3].map((i) => (
+                <div
+                  key={i}
+                  className={`h-1.5 flex-1 rounded ${
+                    i < bantScore
+                      ? (bantScore === 4 ? "bg-emerald-500" : bantScore === 3 ? "bg-amber-500" : "bg-red-500")
+                      : "bg-muted"
+                  }`}
+                />
+              ))}
+            </div>
+            <div className="text-[11px] text-muted-foreground">
+              {bantScore} de 4 campos preenchidos
+              {bantScore < 3 && (
+                <span className="text-red-600 font-medium"> · preencha mais {3 - bantScore} para liberar a transferência</span>
+              )}
+            </div>
+          </div>
+        </div>
+
         {/* Closer */}
         <div className="space-y-2">
+
           <div className="flex items-center justify-between">
             <Label>Closer responsável</Label>
             {lightest && (
