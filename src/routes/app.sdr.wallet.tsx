@@ -194,6 +194,59 @@ function WalletPage() {
         </div>
       </div>
 
+      {/* Para contatar hoje (cadência automática) */}
+      {(() => {
+        const today = new Date(); today.setHours(0, 0, 0, 0)
+        const tempOrder: Record<string, number> = { 'Muito Quente': 1, 'Quente': 2, 'Morno': 3, 'Frio': 4 }
+        const dueLeads = leads
+          .filter(l => {
+            if (!l.next_contact_at) return false
+            const d = new Date(l.next_contact_at); d.setHours(0, 0, 0, 0)
+            if (d.getTime() > today.getTime()) return false
+            return !['Fechado', 'Kill / Arquivar', 'Perdido (com motivo)'].includes(l.sdr_status as string)
+          })
+          .sort((a, b) => {
+            const ta = tempOrder[a.temperature ?? ''] ?? 99
+            const tb = tempOrder[b.temperature ?? ''] ?? 99
+            if (ta !== tb) return ta - tb
+            return Number(b.value ?? 0) - Number(a.value ?? 0)
+          })
+          .slice(0, 12)
+        if (dueLeads.length === 0) return null
+        const tempBadge: Record<string, string> = {
+          'Muito Quente': 'bg-red-600 text-white',
+          'Quente': 'bg-orange-500 text-white',
+          'Morno': 'bg-amber-400 text-amber-900',
+          'Frio': 'bg-blue-400 text-white',
+        }
+        return (
+          <div className="rounded-lg border-2 border-amber-300 bg-amber-50/50 p-3 space-y-2">
+            <div className="flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-amber-700" />
+              <h2 className="text-sm font-bold text-amber-900">📅 Para contatar hoje</h2>
+              <Badge className="bg-amber-600 text-white">{dueLeads.length}</Badge>
+              <span className="text-[11px] text-amber-800/70 ml-auto">Cadência automática por temperatura</span>
+            </div>
+            <div className="grid gap-1.5 md:grid-cols-2 lg:grid-cols-3">
+              {dueLeads.map(l => (
+                <div key={l.id} className="flex items-center gap-2 rounded border bg-background px-2 py-1.5">
+                  <Badge className={`text-[10px] shrink-0 ${tempBadge[l.temperature ?? ''] ?? 'bg-muted'}`}>{l.temperature ?? '—'}</Badge>
+                  <Link to="/app/sdr/leads/$id" params={{ id: l.id }} className="text-xs font-medium truncate flex-1 hover:underline">
+                    {l.client_name}
+                  </Link>
+                  {l.contact_mobile && (
+                    <a href={`tel:${l.contact_mobile}`} className="text-xs inline-flex items-center gap-1 text-emerald-700 hover:underline shrink-0" title={l.contact_mobile}>
+                      <Phone className="h-3 w-3" /> Ligar
+                    </a>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )
+      })()}
+
+
 
       {isLoading ? (
         <div className="text-center py-12 text-muted-foreground">Carregando...</div>
