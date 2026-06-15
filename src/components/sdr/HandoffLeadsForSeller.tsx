@@ -21,7 +21,19 @@ type HandoffLead = {
   handoff_status: string | null; handoff_notes: string | null;
   transferred_to_seller_name: string | null;
   sdr_name: string | null;
+  bant_budget: string | null; bant_authority: string | null;
+  bant_need: string | null; bant_timeline: string | null;
+  bant_score: number | null;
 };
+
+const BANT_BUDGET_LABEL: Record<string, string> = {
+  sim: "✅ Aprovado", parcial: "⚠️ Parcial", nao: "❌ Sem verba",
+};
+const BANT_TIMELINE_LABEL: Record<string, string> = {
+  este_mes: "Este mês", "1_3_meses": "1 a 3 meses", "3_6_meses": "3 a 6 meses",
+  "6_meses_mais": "Mais de 6 meses", indefinido: "Indefinido",
+};
+
 
 type HistoryRow = { fonte: string; data: string | null; resultado: string | null; observacao: string | null; autor: string | null };
 
@@ -67,13 +79,14 @@ export function HandoffLeadsForSeller({ userId }: { userId: string }) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("sdr_leads")
-        .select("id, lead_code, client_name, razao_social, contact_name, value, transferred_at, nomus_updated_at, proposal_title, proposal_status, handoff_status, handoff_notes, transferred_to_seller_name, sdr_name")
+        .select("id, lead_code, client_name, razao_social, contact_name, value, transferred_at, nomus_updated_at, proposal_title, proposal_status, handoff_status, handoff_notes, transferred_to_seller_name, sdr_name, bant_budget, bant_authority, bant_need, bant_timeline, bant_score")
         .eq("transferred_to_seller_id", userId)
         .in("handoff_status", ["transferred", "pendente", "aceito"])
         .order("transferred_at", { ascending: false })
         .limit(200);
       if (error) throw error;
       return (data ?? []) as HandoffLead[];
+
     },
     refetchInterval: 60_000,
   });
@@ -182,6 +195,22 @@ export function HandoffLeadsForSeller({ userId }: { userId: string }) {
                     </div>
                   </div>
                 )}
+
+                {(l.bant_budget || l.bant_authority || l.bant_need || l.bant_timeline) && (
+                  <div className="rounded-md border border-emerald-200 bg-emerald-50/40 p-2.5">
+                    <div className="text-[11px] font-semibold text-emerald-900 uppercase tracking-wide mb-1">
+                      Qualificação do SDR {l.bant_score != null && <span className="text-emerald-700">({l.bant_score}/4)</span>}
+                    </div>
+                    <ul className="text-xs text-emerald-900 space-y-0.5">
+                      <li><strong>B:</strong> {l.bant_budget ? (BANT_BUDGET_LABEL[l.bant_budget] ?? l.bant_budget) : "—"}</li>
+                      <li><strong>A:</strong> {l.bant_authority ?? "—"}</li>
+                      <li><strong>N:</strong> {l.bant_need ?? "—"}</li>
+                      <li><strong>T:</strong> {l.bant_timeline ? (BANT_TIMELINE_LABEL[l.bant_timeline] ?? l.bant_timeline) : "—"}</li>
+                    </ul>
+                  </div>
+                )}
+
+
 
                 <Accordion type="single" collapsible>
                   <AccordionItem value="hist" className="border-0">

@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { FileText, DollarSign, Trophy, Clock, AlertTriangle, Target, Plus } from "lucide-react";
+import { FileText, DollarSign, Trophy, Clock, AlertTriangle, Target, Plus, TrendingUp, Percent, BarChart2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
 import { ActivitiesDashboardCard } from "@/components/activities/ActivitiesDashboardCard";
@@ -12,6 +12,30 @@ import { STATUS_GROUPS, STATUS_LABELS, type ProposalStatus } from "@/lib/proposa
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, Cell } from "recharts";
 
 export const Route = createFileRoute("/app/")({ component: Dashboard });
+
+type WeightedPipelineRow = {
+  total_leads: number | null;
+  pipeline_bruto: number | null;
+  pipeline_ponderado: number | null;
+  pct_realizacao: number | null;
+  valor_muito_quente: number | null;
+  valor_quente: number | null;
+  valor_morno: number | null;
+  valor_frio: number | null;
+  probabilidade_media: number | null;
+  closer_name: string | null;
+  leads_com_closer: number | null;
+};
+
+type ForecastRow = {
+  mes: string | null;
+  propostas: number | null;
+  valor_previsto: number | null;
+  probabilidade_media: number | null;
+  valor_ponderado: number | null;
+  closer_name: string | null;
+};
+
 
 function Dashboard() {
   const { data: proposals = [] } = useQuery({
@@ -25,6 +49,52 @@ function Dashboard() {
       return data ?? [];
     },
   });
+
+  const { data: weighted = [] } = useQuery({
+    queryKey: ["crm-pipeline-ponderado"],
+    queryFn: async (): Promise<WeightedPipelineRow[]> => {
+      const { data, error } = await supabase.from("crm_pipeline_ponderado" as never).select("*");
+      if (error) throw error;
+      return (data ?? []) as unknown as WeightedPipelineRow[];
+    },
+  });
+
+  const { data: forecast = [] } = useQuery({
+    queryKey: ["crm-forecast-mensal"],
+    queryFn: async (): Promise<ForecastRow[]> => {
+      const { data, error } = await supabase.from("crm_forecast_mensal" as never).select("*").limit(50);
+      if (error) throw error;
+      return (data ?? []) as unknown as ForecastRow[];
+    },
+  });
+
+  // ROLLUP: total row has closer_name = null
+  const totalRow = weighted.find((r) => r.closer_name === null) ?? null;
+  const byCloser = weighted.filter((r) => r.closer_name !== null);
+
+  // Forecast — próximos 3 meses agregados
+  const nowMonthIso = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
+  const forecastByMonth = new Map<string, { propostas: number; valor: number; pond: number; probs: number[] }>();
+  for (const r of forecast) {
+    if (!r.mes || r.mes < nowMonthIso) continue;
+    const key = r.mes;
+    const acc = forecastByMonth.get(key) ?? { propostas: 0, valor: 0, pond: 0, probs: [] };
+    acc.propostas += Number(r.propostas ?? 0);
+    acc.valor += Number(r.valor_previsto ?? 0);
+    acc.pond += Number(r.valor_ponderado ?? 0);
+    if (r.probabilidade_media != null) acc.probs.push(Number(r.probabilidade_media));
+    forecastByMonth.set(key, acc);
+  }
+  const forecast3Months = Array.from(forecastByMonth.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .slice(0, 3)
+    .map(([mes, v]) => ({
+      mes,
+      ...v,
+      probMedia: v.probs.length ? v.probs.reduce((s, x) => s + x, 0) / v.probs.length : 0,
+    }));
+
+
 
   const total = proposals.length;
   const totalValue = proposals.reduce((s, p) => s + Number(p.total_value ?? 0), 0);
@@ -69,9 +139,151 @@ function Dashboard() {
         <StatCard label="Perdidas" value={num(lost.length)} hint={`${brl(lost.reduce((s,p)=>s+Number(p.total_value??0),0))} em valor`} icon={<AlertTriangle className="h-4 w-4" />} accent="destructive" />
       </div>
 
+      {/* Pipeline Ponderado (Melhoria 4) */}
+      {totalRow && (
+        <section className="mt-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <BarChart2 className="h-4 w-4 text-[#0F2D5E]" />
+            <h2 className="text-sm font-bold text-[#0F2D5E]">Pipeline Ponderado — Funil SDR/Closer</h2>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <StatCard
+              label="Pipeline Bruto"
+              value={brl(Number(totalRow.pipeline_bruto ?? 0))}
+              hint={`${num(Number(totalRow.total_leads ?? 0))} leads ativos`}
+              icon={<DollarSign className="h-4 w-4" />}
+              accent="info"
+            />
+            <StatCard
+              label="Pipeline Ponderado"
+              value={brl(Number(totalRow.pipeline_ponderado ?? 0))}
+              hint="valor real estimado (valor × prob.)"
+              icon={<TrendingUp className="h-4 w-4" />}
+              accent="primary"
+            />
+            <StatCard
+              label="Probabilidade Média"
+              value={`${Number(totalRow.probabilidade_media ?? 0).toFixed(1)}%`}
+              hint={`Realização ${Number(totalRow.pct_realizacao ?? 0).toFixed(1)}%`}
+              icon={<Percent className="h-4 w-4" />}
+              accent="primary"
+            />
+            <StatCard
+              label="Propostas Ativas"
+              value={num(Number(totalRow.total_leads ?? 0))}
+              hint={`${num(Number(totalRow.leads_com_closer ?? 0))} com Closer`}
+              icon={<FileText className="h-4 w-4" />}
+              accent="info"
+            />
+          </div>
+
+          {/* Composição por temperatura */}
+          {(() => {
+            const mq = Number(totalRow.valor_muito_quente ?? 0);
+            const q = Number(totalRow.valor_quente ?? 0);
+            const m = Number(totalRow.valor_morno ?? 0);
+            const f = Number(totalRow.valor_frio ?? 0);
+            const sum = mq + q + m + f;
+            if (sum <= 0) return null;
+            const segs = [
+              { label: "Muito Quente", v: mq, color: "bg-red-500" },
+              { label: "Quente", v: q, color: "bg-orange-500" },
+              { label: "Morno", v: m, color: "bg-amber-400" },
+              { label: "Frio", v: f, color: "bg-blue-400" },
+            ];
+            return (
+              <div className="rounded-lg border bg-card p-3 shadow-[var(--shadow-sm)]">
+                <div className="text-xs font-semibold mb-2">Composição do pipeline por temperatura</div>
+                <div className="flex h-3 rounded overflow-hidden">
+                  {segs.map((s) => (
+                    <div key={s.label} className={s.color} style={{ width: `${(s.v / sum) * 100}%` }} title={`${s.label}: ${brl(s.v)}`} />
+                  ))}
+                </div>
+                <div className="mt-2 grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                  {segs.map((s) => (
+                    <div key={s.label} className="flex items-center gap-2">
+                      <span className={`inline-block w-2.5 h-2.5 rounded ${s.color}`} />
+                      <span className="text-muted-foreground">{s.label}:</span>
+                      <span className="font-semibold">{brl(s.v)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Forecast próximos 3 meses */}
+          {forecast3Months.length > 0 && (
+            <div className="rounded-lg border bg-card p-3 shadow-[var(--shadow-sm)]">
+              <div className="text-xs font-semibold mb-2">Forecast — próximos 3 meses</div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead className="text-muted-foreground">
+                    <tr className="text-left border-b">
+                      <th className="py-1.5 pr-2">Mês</th>
+                      <th className="py-1.5 px-2 text-center">Propostas</th>
+                      <th className="py-1.5 px-2 text-right">Valor Previsto</th>
+                      <th className="py-1.5 px-2 text-right">Prob. Média</th>
+                      <th className="py-1.5 pl-2 text-right">Ponderado</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {forecast3Months.map((r) => (
+                      <tr key={r.mes} className="border-b last:border-0">
+                        <td className="py-1.5 pr-2 font-medium">
+                          {new Date(r.mes).toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}
+                        </td>
+                        <td className="py-1.5 px-2 text-center">{num(r.propostas)}</td>
+                        <td className="py-1.5 px-2 text-right">{brl(r.valor)}</td>
+                        <td className="py-1.5 px-2 text-right">{r.probMedia.toFixed(1)}%</td>
+                        <td className="py-1.5 pl-2 text-right font-semibold text-[#0F2D5E]">{brl(r.pond)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Por Closer */}
+          {byCloser.length > 0 && (
+            <div className="rounded-lg border bg-card p-3 shadow-[var(--shadow-sm)]">
+              <div className="text-xs font-semibold mb-2">Pipeline por Closer</div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead className="text-muted-foreground">
+                    <tr className="text-left border-b">
+                      <th className="py-1.5 pr-2">Closer</th>
+                      <th className="py-1.5 px-2 text-center">Propostas</th>
+                      <th className="py-1.5 px-2 text-right">Bruto</th>
+                      <th className="py-1.5 px-2 text-right">Ponderado</th>
+                      <th className="py-1.5 pl-2 text-right">Prob. Média</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {byCloser.map((r) => (
+                      <tr key={r.closer_name} className="border-b last:border-0">
+                        <td className="py-1.5 pr-2 font-medium">{r.closer_name}</td>
+                        <td className="py-1.5 px-2 text-center">{num(Number(r.total_leads ?? 0))}</td>
+                        <td className="py-1.5 px-2 text-right">{brl(Number(r.pipeline_bruto ?? 0))}</td>
+                        <td className="py-1.5 px-2 text-right font-semibold text-[#0F2D5E]">{brl(Number(r.pipeline_ponderado ?? 0))}</td>
+                        <td className="py-1.5 pl-2 text-right">{Number(r.probabilidade_media ?? 0).toFixed(1)}%</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </section>
+      )}
+
       <div className="mt-3">
         <ActivitiesDashboardCard />
       </div>
+
+
 
 
       <div className="mt-3 grid gap-3 lg:grid-cols-3">

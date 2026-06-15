@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -36,14 +37,29 @@ export function TransferToSellerDialog({
   const [meetingDate, setMeetingDate] = useState("");
   const [meetingTime, setMeetingTime] = useState("09:00");
   const [saving, setSaving] = useState(false);
+
+  // BANT
+  const [bantBudget, setBantBudget] = useState<"" | "sim" | "parcial" | "nao">("");
+  const [bantAuthority, setBantAuthority] = useState("");
+  const [bantNeed, setBantNeed] = useState("");
+  const [bantTimeline, setBantTimeline] = useState<"" | "este_mes" | "1_3_meses" | "3_6_meses" | "6_meses_mais" | "indefinido">("");
+
   const qc = useQueryClient();
 
   useEffect(() => {
     if (!open) {
       setTarget(""); setNotes(""); setNotesError(false);
       setHasMeeting(false); setMeetingDate(""); setMeetingTime("09:00");
+      setBantBudget(""); setBantAuthority(""); setBantNeed(""); setBantTimeline("");
     }
   }, [open]);
+
+  const bantScore =
+    (bantBudget ? 1 : 0) +
+    (bantAuthority.trim() ? 1 : 0) +
+    (bantNeed.trim() ? 1 : 0) +
+    (bantTimeline ? 1 : 0);
+
 
   const { data: sellers = [] } = useQuery({
     queryKey: ["seller-suggestions"], enabled: open, staleTime: 60_000,
@@ -83,11 +99,15 @@ export function TransferToSellerDialog({
     return Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
   };
 
-  const canSubmit = !!target && notes.trim().length >= 20 && (!hasMeeting || !!meetingDate);
+  const canSubmit = !!target && notes.trim().length >= 20 && (!hasMeeting || !!meetingDate) && bantScore >= 3;
 
   const submit = async () => {
     if (notes.trim().length < 20) { setNotesError(true); return; }
     if (!target) return;
+    if (bantScore < 3) {
+      toast.error(`Preencha mais ${3 - bantScore} campo(s) BANT para proteger o tempo do Closer`);
+      return;
+    }
 
     let meetingAt: string | null = null;
     if (hasMeeting && meetingDate) {
@@ -95,6 +115,20 @@ export function TransferToSellerDialog({
     }
 
     setSaving(true);
+
+    // 1) Save BANT fields first
+    const { error: bantErr } = await supabase
+      .from("sdr_leads")
+      .update({
+        bant_budget: bantBudget || null,
+        bant_authority: bantAuthority.trim() || null,
+        bant_need: bantNeed.trim() || null,
+        bant_timeline: bantTimeline || null,
+      } as never)
+      .eq("id", leadId);
+    if (bantErr) { setSaving(false); return toast.error("Falha ao salvar BANT: " + bantErr.message); }
+
+    // 2) Handoff
     const { error } = await supabase.rpc("handoff_lead_to_seller" as never, {
       _lead_id: leadId,
       _seller_id: target,
@@ -113,6 +147,7 @@ export function TransferToSellerDialog({
     qc.invalidateQueries({ queryKey: ["sdr-wallet"] });
     onOpenChange(false);
   };
+
 
   const days = daysSince(lead?.last_contact_at ?? null);
 
@@ -160,8 +195,85 @@ export function TransferToSellerDialog({
           </div>
         )}
 
+        {/* BANT */}
+        <div className="space-y-2 rounded-md border border-blue-200 bg-blue-50/30 p-3">
+          <div>
+            <div className="text-sm font-semibold text-[#0F2D5E]">Qualificação antes de transferir</div>
+            <div className="text-[11px] text-muted-foreground">Preencha pelo menos 3 de 4 campos para proteger o tempo do Closer.</div>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <Label className="text-xs">B — Budget (verba) <span className="text-red-600">*</span></Label>
+              <Select value={bantBudget} onValueChange={(v) => setBantBudget(v as typeof bantBudget)}>
+                <SelectTrigger><SelectValue placeholder="Selecione…" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="sim">✅ Sim — verba aprovada</SelectItem>
+                  <SelectItem value="parcial">⚠️ Parcial — verba em aprovação</SelectItem>
+                  <SelectItem value="nao">❌ Não — sem verba definida</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">T — Timeline (prazo)</Label>
+              <Select value={bantTimeline} onValueChange={(v) => setBantTimeline(v as typeof bantTimeline)}>
+                <SelectTrigger><SelectValue placeholder="Selecione…" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="este_mes">Este mês</SelectItem>
+                  <SelectItem value="1_3_meses">1 a 3 meses</SelectItem>
+                  <SelectItem value="3_6_meses">3 a 6 meses</SelectItem>
+                  <SelectItem value="6_meses_mais">Mais de 6 meses</SelectItem>
+                  <SelectItem value="indefinido">Indefinido</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <Label className="text-xs">A — Authority (decisor)</Label>
+            <Input
+              value={bantAuthority}
+              onChange={(e) => setBantAuthority(e.target.value)}
+              placeholder='Ex: "João Silva — Diretor de Operações"'
+            />
+          </div>
+
+          <div className="space-y-1">
+            <Label className="text-xs">N — Need (necessidade)</Label>
+            <Textarea
+              value={bantNeed}
+              onChange={(e) => setBantNeed(e.target.value)}
+              placeholder="Qual o projeto específico? Câmara fria? Túnel? Rack? Qual capacidade?"
+              rows={2}
+            />
+          </div>
+
+          {/* Indicador de progresso */}
+          <div className="space-y-1">
+            <div className="flex gap-1">
+              {[0,1,2,3].map((i) => (
+                <div
+                  key={i}
+                  className={`h-1.5 flex-1 rounded ${
+                    i < bantScore
+                      ? (bantScore === 4 ? "bg-emerald-500" : bantScore === 3 ? "bg-amber-500" : "bg-red-500")
+                      : "bg-muted"
+                  }`}
+                />
+              ))}
+            </div>
+            <div className="text-[11px] text-muted-foreground">
+              {bantScore} de 4 campos preenchidos
+              {bantScore < 3 && (
+                <span className="text-red-600 font-medium"> · preencha mais {3 - bantScore} para liberar a transferência</span>
+              )}
+            </div>
+          </div>
+        </div>
+
         {/* Closer */}
         <div className="space-y-2">
+
           <div className="flex items-center justify-between">
             <Label>Closer responsável</Label>
             {lightest && (

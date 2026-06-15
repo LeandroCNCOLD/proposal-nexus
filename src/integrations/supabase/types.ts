@@ -7606,6 +7606,9 @@ export type Database = {
           last_sync_run_id: string | null
           last_synced_at: string | null
           lead_origin: string | null
+          loss_competitor: string | null
+          loss_notes: string | null
+          loss_price_diff_pct: number | null
           loss_reason: string | null
           merged_at: string | null
           merged_into_id: string | null
@@ -7672,6 +7675,9 @@ export type Database = {
           last_sync_run_id?: string | null
           last_synced_at?: string | null
           lead_origin?: string | null
+          loss_competitor?: string | null
+          loss_notes?: string | null
+          loss_price_diff_pct?: number | null
           loss_reason?: string | null
           merged_at?: string | null
           merged_into_id?: string | null
@@ -7738,6 +7744,9 @@ export type Database = {
           last_sync_run_id?: string | null
           last_synced_at?: string | null
           lead_origin?: string | null
+          loss_competitor?: string | null
+          loss_notes?: string | null
+          loss_price_diff_pct?: number | null
           loss_reason?: string | null
           merged_at?: string | null
           merged_into_id?: string | null
@@ -8034,6 +8043,11 @@ export type Database = {
       }
       sdr_leads: {
         Row: {
+          bant_authority: string | null
+          bant_budget: string | null
+          bant_need: string | null
+          bant_score: number | null
+          bant_timeline: string | null
           call_observation: string | null
           call_result: string | null
           city: string | null
@@ -8050,6 +8064,7 @@ export type Database = {
           delivery_term: string | null
           discount_pct: number | null
           expected_closing: string | null
+          expected_closing_date: string | null
           expected_delivery: string | null
           first_opened_by_seller_at: string | null
           handoff_notes: string | null
@@ -8062,6 +8077,10 @@ export type Database = {
           locked_at: string | null
           locked_by_sdr_id: string | null
           locked_by_sdr_name: string | null
+          loss_competitor: string | null
+          loss_notes: string | null
+          loss_price_diff_pct: number | null
+          loss_reason: string | null
           meeting_date: string | null
           meeting_scheduled: boolean
           next_contact_at: string | null
@@ -8094,6 +8113,11 @@ export type Database = {
           value_range: string | null
         }
         Insert: {
+          bant_authority?: string | null
+          bant_budget?: string | null
+          bant_need?: string | null
+          bant_score?: number | null
+          bant_timeline?: string | null
           call_observation?: string | null
           call_result?: string | null
           city?: string | null
@@ -8110,6 +8134,7 @@ export type Database = {
           delivery_term?: string | null
           discount_pct?: number | null
           expected_closing?: string | null
+          expected_closing_date?: string | null
           expected_delivery?: string | null
           first_opened_by_seller_at?: string | null
           handoff_notes?: string | null
@@ -8122,6 +8147,10 @@ export type Database = {
           locked_at?: string | null
           locked_by_sdr_id?: string | null
           locked_by_sdr_name?: string | null
+          loss_competitor?: string | null
+          loss_notes?: string | null
+          loss_price_diff_pct?: number | null
+          loss_reason?: string | null
           meeting_date?: string | null
           meeting_scheduled?: boolean
           next_contact_at?: string | null
@@ -8154,6 +8183,11 @@ export type Database = {
           value_range?: string | null
         }
         Update: {
+          bant_authority?: string | null
+          bant_budget?: string | null
+          bant_need?: string | null
+          bant_score?: number | null
+          bant_timeline?: string | null
           call_observation?: string | null
           call_result?: string | null
           city?: string | null
@@ -8170,6 +8204,7 @@ export type Database = {
           delivery_term?: string | null
           discount_pct?: number | null
           expected_closing?: string | null
+          expected_closing_date?: string | null
           expected_delivery?: string | null
           first_opened_by_seller_at?: string | null
           handoff_notes?: string | null
@@ -8182,6 +8217,10 @@ export type Database = {
           locked_at?: string | null
           locked_by_sdr_id?: string | null
           locked_by_sdr_name?: string | null
+          loss_competitor?: string | null
+          loss_notes?: string | null
+          loss_price_diff_pct?: number | null
+          loss_reason?: string | null
           meeting_date?: string | null
           meeting_scheduled?: boolean
           next_contact_at?: string | null
@@ -9051,6 +9090,19 @@ export type Database = {
       }
     }
     Views: {
+      crm_analise_perdas: {
+        Row: {
+          com_concorrente: number | null
+          loss_competitor: string | null
+          loss_reason: string | null
+          pct: number | null
+          perdas_mes_atual: number | null
+          ticket_medio: number | null
+          total: number | null
+          valor_total_perdido: number | null
+        }
+        Relationships: []
+      }
       crm_cobertura_carteira: {
         Row: {
           alta_prioridade_descoberta: number | null
@@ -9090,6 +9142,33 @@ export type Database = {
           total_leads: number | null
           valor_ativo: number | null
           valor_carteira: number | null
+        }
+        Relationships: []
+      }
+      crm_forecast_mensal: {
+        Row: {
+          closer_name: string | null
+          mes: string | null
+          probabilidade_media: number | null
+          propostas: number | null
+          valor_ponderado: number | null
+          valor_previsto: number | null
+        }
+        Relationships: []
+      }
+      crm_pipeline_ponderado: {
+        Row: {
+          closer_name: string | null
+          leads_com_closer: number | null
+          pct_realizacao: number | null
+          pipeline_bruto: number | null
+          pipeline_ponderado: number | null
+          probabilidade_media: number | null
+          total_leads: number | null
+          valor_frio: number | null
+          valor_morno: number | null
+          valor_muito_quente: number | null
+          valor_quente: number | null
         }
         Relationships: []
       }
