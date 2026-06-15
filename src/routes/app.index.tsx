@@ -50,6 +50,52 @@ function Dashboard() {
     },
   });
 
+  const { data: weighted = [] } = useQuery({
+    queryKey: ["crm-pipeline-ponderado"],
+    queryFn: async (): Promise<WeightedPipelineRow[]> => {
+      const { data, error } = await supabase.from("crm_pipeline_ponderado" as never).select("*");
+      if (error) throw error;
+      return (data ?? []) as unknown as WeightedPipelineRow[];
+    },
+  });
+
+  const { data: forecast = [] } = useQuery({
+    queryKey: ["crm-forecast-mensal"],
+    queryFn: async (): Promise<ForecastRow[]> => {
+      const { data, error } = await supabase.from("crm_forecast_mensal" as never).select("*").limit(50);
+      if (error) throw error;
+      return (data ?? []) as unknown as ForecastRow[];
+    },
+  });
+
+  // ROLLUP: total row has closer_name = null
+  const totalRow = weighted.find((r) => r.closer_name === null) ?? null;
+  const byCloser = weighted.filter((r) => r.closer_name !== null);
+
+  // Forecast — próximos 3 meses agregados
+  const nowMonthIso = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
+  const forecastByMonth = new Map<string, { propostas: number; valor: number; pond: number; probs: number[] }>();
+  for (const r of forecast) {
+    if (!r.mes || r.mes < nowMonthIso) continue;
+    const key = r.mes;
+    const acc = forecastByMonth.get(key) ?? { propostas: 0, valor: 0, pond: 0, probs: [] };
+    acc.propostas += Number(r.propostas ?? 0);
+    acc.valor += Number(r.valor_previsto ?? 0);
+    acc.pond += Number(r.valor_ponderado ?? 0);
+    if (r.probabilidade_media != null) acc.probs.push(Number(r.probabilidade_media));
+    forecastByMonth.set(key, acc);
+  }
+  const forecast3Months = Array.from(forecastByMonth.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .slice(0, 3)
+    .map(([mes, v]) => ({
+      mes,
+      ...v,
+      probMedia: v.probs.length ? v.probs.reduce((s, x) => s + x, 0) / v.probs.length : 0,
+    }));
+
+
+
   const total = proposals.length;
   const totalValue = proposals.reduce((s, p) => s + Number(p.total_value ?? 0), 0);
   const won = proposals.filter((p) => p.status === "ganha");
