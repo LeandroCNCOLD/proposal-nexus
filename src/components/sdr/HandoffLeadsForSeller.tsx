@@ -21,7 +21,19 @@ type HandoffLead = {
   handoff_status: string | null; handoff_notes: string | null;
   transferred_to_seller_name: string | null;
   sdr_name: string | null;
+  bant_budget: string | null; bant_authority: string | null;
+  bant_need: string | null; bant_timeline: string | null;
+  bant_score: number | null;
 };
+
+const BANT_BUDGET_LABEL: Record<string, string> = {
+  sim: "✅ Aprovado", parcial: "⚠️ Parcial", nao: "❌ Sem verba",
+};
+const BANT_TIMELINE_LABEL: Record<string, string> = {
+  este_mes: "Este mês", "1_3_meses": "1 a 3 meses", "3_6_meses": "3 a 6 meses",
+  "6_meses_mais": "Mais de 6 meses", indefinido: "Indefinido",
+};
+
 
 type HistoryRow = { fonte: string; data: string | null; resultado: string | null; observacao: string | null; autor: string | null };
 
