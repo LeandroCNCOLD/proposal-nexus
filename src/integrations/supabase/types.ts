@@ -8064,6 +8064,7 @@ export type Database = {
           delivery_term: string | null
           discount_pct: number | null
           expected_closing: string | null
+          expected_closing_date: string | null
           expected_delivery: string | null
           first_opened_by_seller_at: string | null
           handoff_notes: string | null
@@ -8133,6 +8134,7 @@ export type Database = {
           delivery_term?: string | null
           discount_pct?: number | null
           expected_closing?: string | null
+          expected_closing_date?: string | null
           expected_delivery?: string | null
           first_opened_by_seller_at?: string | null
           handoff_notes?: string | null
@@ -8202,6 +8204,7 @@ export type Database = {
           delivery_term?: string | null
           discount_pct?: number | null
           expected_closing?: string | null
+          expected_closing_date?: string | null
           expected_delivery?: string | null
           first_opened_by_seller_at?: string | null
           handoff_notes?: string | null
@@ -9139,6 +9142,33 @@ export type Database = {
           total_leads: number | null
           valor_ativo: number | null
           valor_carteira: number | null
+        }
+        Relationships: []
+      }
+      crm_forecast_mensal: {
+        Row: {
+          closer_name: string | null
+          mes: string | null
+          probabilidade_media: number | null
+          propostas: number | null
+          valor_ponderado: number | null
+          valor_previsto: number | null
+        }
+        Relationships: []
+      }
+      crm_pipeline_ponderado: {
+        Row: {
+          closer_name: string | null
+          leads_com_closer: number | null
+          pct_realizacao: number | null
+          pipeline_bruto: number | null
+          pipeline_ponderado: number | null
+          probabilidade_media: number | null
+          total_leads: number | null
+          valor_frio: number | null
+          valor_morno: number | null
+          valor_muito_quente: number | null
+          valor_quente: number | null
         }
         Relationships: []
       }
