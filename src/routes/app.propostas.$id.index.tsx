@@ -363,6 +363,18 @@ function ProposalDetail() {
               <Item label="Enviada em" value={dateBR(p.sent_at)} />
               {!isNomus && <Item label="Validade" value={dateBR(p.valid_until)} />}
               {!isNomus && <Item label="Criada em" value={dateBR(p.created_at)} />}
+              <div className="space-y-1">
+                <dt className="text-xs font-medium text-muted-foreground">Previsão de fechamento</dt>
+                <dd>
+                  <Input
+                    type="date"
+                    value={(p as any).expected_closing_date ?? ""}
+                    onChange={(e) => updateExpectedClosingDate(e.target.value)}
+                    className="h-8 w-48"
+                  />
+                  <ExpectedClosingBadge date={(p as any).expected_closing_date} />
+                </dd>
+              </div>
             </dl>
             {p.commercial_notes && (
               <div className="mt-4 rounded-md border bg-secondary/30 p-3 text-sm">
