@@ -196,6 +196,22 @@ export function HandoffLeadsForSeller({ userId }: { userId: string }) {
                   </div>
                 )}
 
+                {(l.bant_budget || l.bant_authority || l.bant_need || l.bant_timeline) && (
+                  <div className="rounded-md border border-emerald-200 bg-emerald-50/40 p-2.5">
+                    <div className="text-[11px] font-semibold text-emerald-900 uppercase tracking-wide mb-1">
+                      Qualificação do SDR {l.bant_score != null && <span className="text-emerald-700">({l.bant_score}/4)</span>}
+                    </div>
+                    <ul className="text-xs text-emerald-900 space-y-0.5">
+                      <li><strong>B:</strong> {l.bant_budget ? (BANT_BUDGET_LABEL[l.bant_budget] ?? l.bant_budget) : "—"}</li>
+                      <li><strong>A:</strong> {l.bant_authority ?? "—"}</li>
+                      <li><strong>N:</strong> {l.bant_need ?? "—"}</li>
+                      <li><strong>T:</strong> {l.bant_timeline ? (BANT_TIMELINE_LABEL[l.bant_timeline] ?? l.bant_timeline) : "—"}</li>
+                    </ul>
+                  </div>
+                )}
+
+
+
                 <Accordion type="single" collapsible>
                   <AccordionItem value="hist" className="border-0">
                     <AccordionTrigger className="text-xs py-1.5 hover:no-underline">Ver histórico de ligações</AccordionTrigger>
