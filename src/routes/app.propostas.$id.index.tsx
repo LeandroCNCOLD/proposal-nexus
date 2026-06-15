@@ -283,6 +283,15 @@ function ProposalDetail() {
     }
   };
 
+  const updateExpectedClosingDate = async (val: string) => {
+    const next = val ? val : null;
+    const { error } = await supabase.from("proposals").update({ expected_closing_date: next as any }).eq("id", id);
+    if (error) return toast.error(error.message);
+    toast.success("Previsão de fechamento atualizada");
+    qc.invalidateQueries({ queryKey: ["proposal", id] });
+  };
+
+
   const runAI = async (task: "resumo" | "proximo_passo") => {
     setAiLoadingTask(task);
     try {
