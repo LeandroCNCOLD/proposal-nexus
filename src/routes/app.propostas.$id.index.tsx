@@ -640,3 +640,17 @@ function InsightBlock({
     </div>
   );
 }
+
+function ExpectedClosingBadge({ date }: { date?: string | null }) {
+  if (!date) return null;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const target = new Date(date + "T00:00:00");
+  const diff = Math.round((target.getTime() - today.getTime()) / 86_400_000);
+  if (diff < 0) {
+    return <p className="mt-1 text-xs font-semibold text-red-700">⚠️ Vencido há {Math.abs(diff)} {Math.abs(diff) === 1 ? "dia" : "dias"}</p>;
+  }
+  if (diff <= 7) {
+    return <p className="mt-1 text-xs font-semibold text-green-700">Fecha em {diff === 0 ? "hoje" : `${diff} ${diff === 1 ? "dia" : "dias"}`}</p>;
+  }
+  return <p className="mt-1 text-xs text-muted-foreground">{dateBR(date)}</p>;
+}
