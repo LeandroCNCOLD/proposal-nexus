@@ -601,6 +601,13 @@ function LeadCard({ lead, sdrName, onUnlock, onOpenScript, proposalMatch, canMan
               <Row label="Fechamento esperado" value={fmtDate(lead.expected_closing)} />
               <Row label="Último contato" value={fmtDate(lead.last_contact_at)} />
               <Row label="Próximo contato" value={fmtDate(lead.next_contact_at)} />
+              <div className="flex items-center justify-between text-xs gap-2 mt-1 pt-1 border-t">
+                <span className="text-muted-foreground">Previsão de fechamento</span>
+                <ExpectedClosingDateInline
+                  leadId={lead.id}
+                  value={(lead as any).expected_closing_date ?? null}
+                />
+              </div>
               {lead.delivery_term && (
                 <div className="text-xs text-muted-foreground mt-1 pt-1 border-t">
                   <strong>Prazo entrega:</strong> {lead.delivery_term}
