@@ -98,11 +98,15 @@ export function TransferToSellerDialog({
     return Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
   };
 
-  const canSubmit = !!target && notes.trim().length >= 20 && (!hasMeeting || !!meetingDate);
+  const canSubmit = !!target && notes.trim().length >= 20 && (!hasMeeting || !!meetingDate) && bantScore >= 3;
 
   const submit = async () => {
     if (notes.trim().length < 20) { setNotesError(true); return; }
     if (!target) return;
+    if (bantScore < 3) {
+      toast.error(`Preencha mais ${3 - bantScore} campo(s) BANT para proteger o tempo do Closer`);
+      return;
+    }
 
     let meetingAt: string | null = null;
     if (hasMeeting && meetingDate) {
@@ -110,6 +114,20 @@ export function TransferToSellerDialog({
     }
 
     setSaving(true);
+
+    // 1) Save BANT fields first
+    const { error: bantErr } = await supabase
+      .from("sdr_leads")
+      .update({
+        bant_budget: bantBudget || null,
+        bant_authority: bantAuthority.trim() || null,
+        bant_need: bantNeed.trim() || null,
+        bant_timeline: bantTimeline || null,
+      } as never)
+      .eq("id", leadId);
+    if (bantErr) { setSaving(false); return toast.error("Falha ao salvar BANT: " + bantErr.message); }
+
+    // 2) Handoff
     const { error } = await supabase.rpc("handoff_lead_to_seller" as never, {
       _lead_id: leadId,
       _seller_id: target,
@@ -128,6 +146,7 @@ export function TransferToSellerDialog({
     qc.invalidateQueries({ queryKey: ["sdr-wallet"] });
     onOpenChange(false);
   };
+
 
   const days = daysSince(lead?.last_contact_at ?? null);
 
