@@ -432,3 +432,27 @@ function KpiCard({
     </Card>
   )
 }
+
+function OverdueKpiCard({ data, isLoading }: { data?: { total: number; top: { sdr: string; vencidos: number }[] }; isLoading: boolean }) {
+  const total = data?.total ?? 0
+  const isOk = !isLoading && total === 0
+  const isAlert = total > 0
+  return (
+    <Card className={isOk ? 'border-green-300 bg-green-50/40' : isAlert ? 'border-red-300 bg-red-50/40' : ''}>
+      <CardContent className="pt-4">
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="text-xs text-muted-foreground font-medium">⏰ Follow-ups vencidos</p>
+            <p className={`text-3xl font-bold mt-1 tabular-nums ${isAlert ? 'text-red-700' : isOk ? 'text-green-700' : ''}`}>
+              {isLoading ? '—' : total}
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {isOk ? '✅ Em dia' : 'leads sem contato hoje'}
+            </p>
+          </div>
+          <Clock className={`h-5 w-5 ${isAlert ? 'text-red-600' : 'text-muted-foreground'}`} />
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
