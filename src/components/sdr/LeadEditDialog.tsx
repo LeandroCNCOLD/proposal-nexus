@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog'
 import { toast } from 'sonner'
 
-const FIELDS: Array<{ key: string; label: string; type?: 'text' | 'textarea' | 'number' }> = [
+const FIELDS: Array<{ key: string; label: string; type?: 'text' | 'textarea' | 'number' | 'date'; showWhen?: (lead: any) => boolean; placeholder?: string }> = [
   { key: 'client_name', label: 'Nome do cliente' },
   { key: 'razao_social', label: 'Razão social' },
   { key: 'cnpj', label: 'CNPJ' },
@@ -22,6 +22,13 @@ const FIELDS: Array<{ key: string; label: string; type?: 'text' | 'textarea' | '
   { key: 'proposal_desc', label: 'Descrição da proposta', type: 'textarea' },
   { key: 'internal_note', label: 'Nota interna', type: 'textarea' },
   { key: 'next_step', label: 'Próximo passo' },
+  {
+    key: 'expected_closing_date',
+    label: 'Previsão de fechamento',
+    type: 'date',
+    placeholder: 'Quando o cliente deve decidir?',
+    showWhen: (lead) => ['Em Negociação com Closer','Proposta em Revisão','Quente - Alta Chance de Fechamento'].includes(lead?.sdr_status),
+  },
 ]
 
 export function LeadEditDialog({
