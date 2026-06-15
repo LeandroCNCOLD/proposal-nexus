@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog'
 import { toast } from 'sonner'
 
-const FIELDS: Array<{ key: string; label: string; type?: 'text' | 'textarea' | 'number' }> = [
+const FIELDS: Array<{ key: string; label: string; type?: 'text' | 'textarea' | 'number' | 'date'; showWhen?: (lead: any) => boolean; placeholder?: string }> = [
   { key: 'client_name', label: 'Nome do cliente' },
   { key: 'razao_social', label: 'Razão social' },
   { key: 'cnpj', label: 'CNPJ' },
@@ -22,6 +22,13 @@ const FIELDS: Array<{ key: string; label: string; type?: 'text' | 'textarea' | '
   { key: 'proposal_desc', label: 'Descrição da proposta', type: 'textarea' },
   { key: 'internal_note', label: 'Nota interna', type: 'textarea' },
   { key: 'next_step', label: 'Próximo passo' },
+  {
+    key: 'expected_closing_date',
+    label: 'Previsão de fechamento',
+    type: 'date',
+    placeholder: 'Quando o cliente deve decidir?',
+    showWhen: (lead) => ['Em Negociação com Closer','Proposta em Revisão','Quente - Alta Chance de Fechamento'].includes(lead?.sdr_status),
+  },
 ]
 
 export function LeadEditDialog({
@@ -90,7 +97,7 @@ export function LeadEditDialog({
           </DialogDescription>
         </DialogHeader>
         <div className="grid md:grid-cols-2 gap-3">
-          {FIELDS.map((f) => (
+          {FIELDS.filter((f) => !f.showWhen || f.showWhen(lead)).map((f) => (
             <div key={f.key} className={f.type === 'textarea' ? 'md:col-span-2 space-y-1' : 'space-y-1'}>
               <Label htmlFor={f.key} className="text-xs">{f.label}</Label>
               {f.type === 'textarea' ? (
@@ -103,6 +110,8 @@ export function LeadEditDialog({
               ) : (
                 <Input
                   id={f.key}
+                  type={f.type === 'date' ? 'date' : 'text'}
+                  placeholder={f.placeholder}
                   value={values[f.key] ?? ''}
                   onChange={(e) => setValues((v) => ({ ...v, [f.key]: e.target.value }))}
                 />

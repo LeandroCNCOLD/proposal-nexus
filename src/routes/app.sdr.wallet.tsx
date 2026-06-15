@@ -601,6 +601,13 @@ function LeadCard({ lead, sdrName, onUnlock, onOpenScript, proposalMatch, canMan
               <Row label="Fechamento esperado" value={fmtDate(lead.expected_closing)} />
               <Row label="Último contato" value={fmtDate(lead.last_contact_at)} />
               <Row label="Próximo contato" value={fmtDate(lead.next_contact_at)} />
+              <div className="flex items-center justify-between text-xs gap-2 mt-1 pt-1 border-t">
+                <span className="text-muted-foreground">Previsão de fechamento</span>
+                <ExpectedClosingDateInline
+                  leadId={lead.id}
+                  value={(lead as any).expected_closing_date ?? null}
+                />
+              </div>
               {lead.delivery_term && (
                 <div className="text-xs text-muted-foreground mt-1 pt-1 border-t">
                   <strong>Prazo entrega:</strong> {lead.delivery_term}
@@ -840,5 +847,63 @@ function Row({ label, value, mono, renderValue }: {
         {value ? (renderValue ? renderValue(value) : value) : '—'}
       </span>
     </div>
+  )
+}
+
+function ExpectedClosingDateInline({ leadId, value }: { leadId: string; value: string | null }) {
+  const qc = useQueryClient()
+  const [editing, setEditing] = useState(false)
+  const [val, setVal] = useState(value ?? '')
+
+  useEffect(() => { setVal(value ?? '') }, [value])
+
+  const save = async (next: string) => {
+    const payload = next ? next : null
+    const { error } = await supabase.rpc('update_sdr_lead_fields' as never, {
+      _lead_id: leadId,
+      _changes: { expected_closing_date: payload } as any,
+      _reason: 'edição inline da carteira',
+    } as never)
+    if (error) { toast.error(error.message); return }
+    toast.success('Previsão atualizada')
+    qc.invalidateQueries({ queryKey: ['my-wallet'] })
+    qc.invalidateQueries({ queryKey: ['sdr-lead', leadId] })
+    setEditing(false)
+  }
+
+  if (editing) {
+    return (
+      <input
+        type="date"
+        autoFocus
+        value={val}
+        onChange={(e) => setVal(e.target.value)}
+        onBlur={() => save(val)}
+        onKeyDown={(e) => { if (e.key === 'Enter') save(val); if (e.key === 'Escape') setEditing(false) }}
+        className="border rounded px-1.5 py-0.5 text-xs"
+      />
+    )
+  }
+
+  if (!value) {
+    return (
+      <button onClick={() => setEditing(true)} className="text-xs text-primary hover:underline">
+        + Definir data
+      </button>
+    )
+  }
+
+  const today = new Date(); today.setHours(0, 0, 0, 0)
+  const target = new Date(value + 'T00:00:00')
+  const diff = Math.round((target.getTime() - today.getTime()) / 86_400_000)
+  const cls = diff < 0 ? 'text-red-700 font-semibold' : diff <= 7 ? 'text-green-700 font-semibold' : ''
+  const label = diff < 0
+    ? `⚠️ Vencido há ${Math.abs(diff)} ${Math.abs(diff) === 1 ? 'dia' : 'dias'}`
+    : `📅 Fecha em ${fmtDate(value)}`
+
+  return (
+    <button onClick={() => setEditing(true)} className={`text-xs hover:underline ${cls}`}>
+      {label}
+    </button>
   )
 }

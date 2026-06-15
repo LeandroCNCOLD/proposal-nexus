@@ -83,6 +83,45 @@ export function WarRoomPanel() {
     staleTime: 30_000,
   })
 
+  const overdue = useQuery({
+    queryKey: ['war-room', 'overdue-followups'],
+    queryFn: async () => {
+      const today = new Date().toISOString().slice(0, 10)
+      const closedStatuses = ['Fechado', 'Kill / Arquivar', 'Perdido (com motivo)']
+      // Count of leads overdue without contact today
+      const { data: leads, error } = await supabase
+        .from('sdr_leads')
+        .select('id, locked_by_sdr_name')
+        .lte('next_contact_at', today)
+        .not('locked_by_sdr_id', 'is', null)
+        .not('sdr_status', 'in', `(${closedStatuses.map((s) => `"${s}"`).join(',')})`)
+      if (error) throw error
+      const leadIds = (leads ?? []).map((l: any) => l.id)
+      let contactedToday = new Set<string>()
+      if (leadIds.length > 0) {
+        const { data: logs } = await supabase
+          .from('crm_call_logs')
+          .select('pipeline_id')
+          .eq('call_date', today)
+          .in('pipeline_id', leadIds)
+        contactedToday = new Set((logs ?? []).map((l: any) => l.pipeline_id))
+      }
+      const overdueLeads = (leads ?? []).filter((l: any) => !contactedToday.has(l.id))
+      const bySdr = new Map<string, number>()
+      for (const l of overdueLeads) {
+        const name = (l as any).locked_by_sdr_name || '—'
+        bySdr.set(name, (bySdr.get(name) ?? 0) + 1)
+      }
+      const top = Array.from(bySdr.entries())
+        .map(([sdr, vencidos]) => ({ sdr, vencidos }))
+        .sort((a, b) => b.vencidos - a.vencidos)
+        .slice(0, 5)
+      return { total: overdueLeads.length, top }
+    },
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+  })
+
   const rows: DailyRow[] = useMemo(() => {
     const map = new Map<string, DailyRow>()
     for (const n of sdrNames) map.set(n, { name: n, completed: 0, attempts: 0, meetings: 0 })
@@ -163,7 +202,7 @@ export function WarRoomPanel() {
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <KpiCard
           icon={<Phone className="h-5 w-5 text-green-600" />}
           label="Concluídos hoje"
@@ -189,9 +228,33 @@ export function WarRoomPanel() {
           value={isLoading ? '—' : (kpis.data?.hotDeals ?? 0)}
           sub="Quente + Muito Quente, ativos"
         />
+        <OverdueKpiCard data={overdue.data} isLoading={overdue.isLoading} />
       </div>
 
       <CoberturaCarteiraMini />
+
+      {/* Follow-ups vencidos por SDR */}
+      {(overdue.data?.top?.length ?? 0) > 0 && (
+        <Card className="border-red-200">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-bold text-red-800 flex items-center gap-2">
+              <Clock className="h-4 w-4" /> Follow-ups vencidos — Top 5 SDRs
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+              {overdue.data!.top.map((r) => (
+                <div key={r.sdr} className="rounded border bg-red-50 px-3 py-2">
+                  <p className="text-xs text-muted-foreground truncate">{r.sdr}</p>
+                  <p className="text-2xl font-bold text-red-700 tabular-nums">{r.vencidos}</p>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+
 
 
 
@@ -364,6 +427,30 @@ function KpiCard({
             {sub && <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>}
           </div>
           {icon}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+function OverdueKpiCard({ data, isLoading }: { data?: { total: number; top: { sdr: string; vencidos: number }[] }; isLoading: boolean }) {
+  const total = data?.total ?? 0
+  const isOk = !isLoading && total === 0
+  const isAlert = total > 0
+  return (
+    <Card className={isOk ? 'border-green-300 bg-green-50/40' : isAlert ? 'border-red-300 bg-red-50/40' : ''}>
+      <CardContent className="pt-4">
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="text-xs text-muted-foreground font-medium">⏰ Follow-ups vencidos</p>
+            <p className={`text-3xl font-bold mt-1 tabular-nums ${isAlert ? 'text-red-700' : isOk ? 'text-green-700' : ''}`}>
+              {isLoading ? '—' : total}
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {isOk ? '✅ Em dia' : 'leads sem contato hoje'}
+            </p>
+          </div>
+          <Clock className={`h-5 w-5 ${isAlert ? 'text-red-600' : 'text-muted-foreground'}`} />
         </div>
       </CardContent>
     </Card>
