@@ -202,7 +202,7 @@ export function WarRoomPanel() {
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <KpiCard
           icon={<Phone className="h-5 w-5 text-green-600" />}
           label="Concluídos hoje"
@@ -228,6 +228,7 @@ export function WarRoomPanel() {
           value={isLoading ? '—' : (kpis.data?.hotDeals ?? 0)}
           sub="Quente + Muito Quente, ativos"
         />
+        <OverdueKpiCard data={overdue.data} isLoading={overdue.isLoading} />
       </div>
 
       <CoberturaCarteiraMini />
