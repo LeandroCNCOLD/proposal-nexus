@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { FileText, DollarSign, Trophy, Clock, AlertTriangle, Target, Plus } from "lucide-react";
+import { FileText, DollarSign, Trophy, Clock, AlertTriangle, Target, Plus, TrendingUp, Percent, BarChart2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
 import { ActivitiesDashboardCard } from "@/components/activities/ActivitiesDashboardCard";
@@ -12,6 +12,30 @@ import { STATUS_GROUPS, STATUS_LABELS, type ProposalStatus } from "@/lib/proposa
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, Cell } from "recharts";
 
 export const Route = createFileRoute("/app/")({ component: Dashboard });
+
+type WeightedPipelineRow = {
+  total_leads: number | null;
+  pipeline_bruto: number | null;
+  pipeline_ponderado: number | null;
+  pct_realizacao: number | null;
+  valor_muito_quente: number | null;
+  valor_quente: number | null;
+  valor_morno: number | null;
+  valor_frio: number | null;
+  probabilidade_media: number | null;
+  closer_name: string | null;
+  leads_com_closer: number | null;
+};
+
+type ForecastRow = {
+  mes: string | null;
+  propostas: number | null;
+  valor_previsto: number | null;
+  probabilidade_media: number | null;
+  valor_ponderado: number | null;
+  closer_name: string | null;
+};
+
 
 function Dashboard() {
   const { data: proposals = [] } = useQuery({
