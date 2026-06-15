@@ -8043,6 +8043,11 @@ export type Database = {
       }
       sdr_leads: {
         Row: {
+          bant_authority: string | null
+          bant_budget: string | null
+          bant_need: string | null
+          bant_score: number | null
+          bant_timeline: string | null
           call_observation: string | null
           call_result: string | null
           city: string | null
@@ -8107,6 +8112,11 @@ export type Database = {
           value_range: string | null
         }
         Insert: {
+          bant_authority?: string | null
+          bant_budget?: string | null
+          bant_need?: string | null
+          bant_score?: number | null
+          bant_timeline?: string | null
           call_observation?: string | null
           call_result?: string | null
           city?: string | null
@@ -8171,6 +8181,11 @@ export type Database = {
           value_range?: string | null
         }
         Update: {
+          bant_authority?: string | null
+          bant_budget?: string | null
+          bant_need?: string | null
+          bant_score?: number | null
+          bant_timeline?: string | null
           call_observation?: string | null
           call_result?: string | null
           city?: string | null
