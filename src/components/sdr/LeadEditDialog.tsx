@@ -97,7 +97,7 @@ export function LeadEditDialog({
           </DialogDescription>
         </DialogHeader>
         <div className="grid md:grid-cols-2 gap-3">
-          {FIELDS.map((f) => (
+          {FIELDS.filter((f) => !f.showWhen || f.showWhen(lead)).map((f) => (
             <div key={f.key} className={f.type === 'textarea' ? 'md:col-span-2 space-y-1' : 'space-y-1'}>
               <Label htmlFor={f.key} className="text-xs">{f.label}</Label>
               {f.type === 'textarea' ? (
@@ -110,6 +110,8 @@ export function LeadEditDialog({
               ) : (
                 <Input
                   id={f.key}
+                  type={f.type === 'date' ? 'date' : 'text'}
+                  placeholder={f.placeholder}
                   value={values[f.key] ?? ''}
                   onChange={(e) => setValues((v) => ({ ...v, [f.key]: e.target.value }))}
                 />
