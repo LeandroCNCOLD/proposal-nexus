@@ -233,6 +233,29 @@ export function WarRoomPanel() {
 
       <CoberturaCarteiraMini />
 
+      {/* Follow-ups vencidos por SDR */}
+      {(overdue.data?.top?.length ?? 0) > 0 && (
+        <Card className="border-red-200">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-bold text-red-800 flex items-center gap-2">
+              <Clock className="h-4 w-4" /> Follow-ups vencidos — Top 5 SDRs
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+              {overdue.data!.top.map((r) => (
+                <div key={r.sdr} className="rounded border bg-red-50 px-3 py-2">
+                  <p className="text-xs text-muted-foreground truncate">{r.sdr}</p>
+                  <p className="text-2xl font-bold text-red-700 tabular-nums">{r.vencidos}</p>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+
+
 
 
       {/* Meta diária por SDR */}
