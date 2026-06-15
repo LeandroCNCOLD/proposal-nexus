@@ -36,14 +36,29 @@ export function TransferToSellerDialog({
   const [meetingDate, setMeetingDate] = useState("");
   const [meetingTime, setMeetingTime] = useState("09:00");
   const [saving, setSaving] = useState(false);
+
+  // BANT
+  const [bantBudget, setBantBudget] = useState<"" | "sim" | "parcial" | "nao">("");
+  const [bantAuthority, setBantAuthority] = useState("");
+  const [bantNeed, setBantNeed] = useState("");
+  const [bantTimeline, setBantTimeline] = useState<"" | "este_mes" | "1_3_meses" | "3_6_meses" | "6_meses_mais" | "indefinido">("");
+
   const qc = useQueryClient();
 
   useEffect(() => {
     if (!open) {
       setTarget(""); setNotes(""); setNotesError(false);
       setHasMeeting(false); setMeetingDate(""); setMeetingTime("09:00");
+      setBantBudget(""); setBantAuthority(""); setBantNeed(""); setBantTimeline("");
     }
   }, [open]);
+
+  const bantScore =
+    (bantBudget ? 1 : 0) +
+    (bantAuthority.trim() ? 1 : 0) +
+    (bantNeed.trim() ? 1 : 0) +
+    (bantTimeline ? 1 : 0);
+
 
   const { data: sellers = [] } = useQuery({
     queryKey: ["seller-suggestions"], enabled: open, staleTime: 60_000,
