@@ -7606,6 +7606,9 @@ export type Database = {
           last_sync_run_id: string | null
           last_synced_at: string | null
           lead_origin: string | null
+          loss_competitor: string | null
+          loss_notes: string | null
+          loss_price_diff_pct: number | null
           loss_reason: string | null
           merged_at: string | null
           merged_into_id: string | null
@@ -7672,6 +7675,9 @@ export type Database = {
           last_sync_run_id?: string | null
           last_synced_at?: string | null
           lead_origin?: string | null
+          loss_competitor?: string | null
+          loss_notes?: string | null
+          loss_price_diff_pct?: number | null
           loss_reason?: string | null
           merged_at?: string | null
           merged_into_id?: string | null
@@ -7738,6 +7744,9 @@ export type Database = {
           last_sync_run_id?: string | null
           last_synced_at?: string | null
           lead_origin?: string | null
+          loss_competitor?: string | null
+          loss_notes?: string | null
+          loss_price_diff_pct?: number | null
           loss_reason?: string | null
           merged_at?: string | null
           merged_into_id?: string | null
@@ -8062,6 +8071,10 @@ export type Database = {
           locked_at: string | null
           locked_by_sdr_id: string | null
           locked_by_sdr_name: string | null
+          loss_competitor: string | null
+          loss_notes: string | null
+          loss_price_diff_pct: number | null
+          loss_reason: string | null
           meeting_date: string | null
           meeting_scheduled: boolean
           next_contact_at: string | null
@@ -8122,6 +8135,10 @@ export type Database = {
           locked_at?: string | null
           locked_by_sdr_id?: string | null
           locked_by_sdr_name?: string | null
+          loss_competitor?: string | null
+          loss_notes?: string | null
+          loss_price_diff_pct?: number | null
+          loss_reason?: string | null
           meeting_date?: string | null
           meeting_scheduled?: boolean
           next_contact_at?: string | null
@@ -8182,6 +8199,10 @@ export type Database = {
           locked_at?: string | null
           locked_by_sdr_id?: string | null
           locked_by_sdr_name?: string | null
+          loss_competitor?: string | null
+          loss_notes?: string | null
+          loss_price_diff_pct?: number | null
+          loss_reason?: string | null
           meeting_date?: string | null
           meeting_scheduled?: boolean
           next_contact_at?: string | null
@@ -9051,6 +9072,19 @@ export type Database = {
       }
     }
     Views: {
+      crm_analise_perdas: {
+        Row: {
+          com_concorrente: number | null
+          loss_competitor: string | null
+          loss_reason: string | null
+          pct: number | null
+          perdas_mes_atual: number | null
+          ticket_medio: number | null
+          total: number | null
+          valor_total_perdido: number | null
+        }
+        Relationships: []
+      }
       crm_cobertura_carteira: {
         Row: {
           alta_prioridade_descoberta: number | null
