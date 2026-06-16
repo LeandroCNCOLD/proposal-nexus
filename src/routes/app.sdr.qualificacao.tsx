@@ -50,6 +50,7 @@ type CampLead = {
   razao_social: string | null;
   contact_name: string | null;
   contact_phone: string | null;
+  contact_mobile: string | null;
   contact_email: string | null;
   cnpj: string | null;
   city: string | null;
@@ -67,6 +68,23 @@ type CampLead = {
   created_at: string;
   internal_note: string | null;
 };
+
+// Parse segment + proposals count + proposals total from internal_note (markdown enriched by Conela import)
+function parseLeadMeta(note: string | null | undefined) {
+  if (!note) return { segmento: null as string | null, propostasCount: 0, propostasTotal: 0 };
+  const segM = note.match(/\*\*Segmento:\*\*\s*(.+)/i);
+  const segmento = segM ? segM[1].trim() : null;
+  const proposalHeaders = note.match(/^#####\s+\d+\./gm) ?? [];
+  let propostasTotal = 0;
+  const valRegex = /-\s*\*\*Valor:\*\*\s*R\$\s*([\d.,]+)/g;
+  let m: RegExpExecArray | null;
+  while ((m = valRegex.exec(note)) !== null) {
+    const raw = m[1].replace(/\./g, "").replace(",", ".");
+    const n = parseFloat(raw);
+    if (!isNaN(n)) propostasTotal += n;
+  }
+  return { segmento, propostasCount: proposalHeaders.length, propostasTotal };
+}
 
 type SortKey = "client_name" | "state" | "value" | "temperature" | "status" | "last_contact_at";
 type SortDir = "asc" | "desc" | null;
