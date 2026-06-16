@@ -75,7 +75,8 @@ export interface CrmPipeline {
   expected_closing: string | null
 }
 
-export const SDR_LOCK_LIMIT = 45
+// Limite temporariamente desativado por solicitação — manter constante alta para a UI.
+export const SDR_LOCK_LIMIT = 999999
 export const SDR_LOCK_DAYS = 7
 
 export type CallChannel = 'Celular' | 'Fixo' | 'WhatsApp' | 'E-mail' | 'Telefone' | 'Outro'

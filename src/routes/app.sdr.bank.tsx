@@ -4,6 +4,7 @@ import { Fragment, useMemo, useState } from 'react'
 import { fetchProposalBank, lockLead, unlockLead, countMyLocks, freezeLead, MANAGER_FREEZE_PREFIX } from '@/modules/sdr/services'
 import { useAuth } from '@/hooks/useAuth'
 import { SDR_LOCK_LIMIT } from '@/modules/sdr/types'
+import { ReturnLeadDialog } from '@/modules/sdr/components/ReturnLeadDialog'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -85,6 +86,7 @@ function BankPage() {
   const [sortDir, setSortDir] = useState<SortDir>(null)
   const [expandedCnpjs, setExpandedCnpjs] = useState<Set<string>>(new Set())
   const [returnConfirmCnpj, setReturnConfirmCnpj] = useState<string | null>(null)
+  const [returnLead, setReturnLead] = useState<{ id: string; client_name?: string | null; lead_code?: string | null } | null>(null)
   const toggleExpand = (cnpj: string) => {
     setExpandedCnpjs((prev) => {
       const next = new Set(prev)
@@ -612,9 +614,8 @@ function BankPage() {
                     size="sm"
                     variant="outline"
                     className="h-6 px-2 text-[11px] border-red-300 text-red-700 hover:bg-red-50"
-                    disabled={unlockMut.isPending}
-                    onClick={() => unlockMut.mutate(r.id)}
-                    title="Devolver lead ao banco"
+                    onClick={() => setReturnLead({ id: r.id, client_name: r.client_name, lead_code: r.lead_code })}
+                    title="Devolver lead e agendar retomada"
                   >
                     <Unlock className="w-3 h-3 mr-1" /> Devolver
                   </Button>
@@ -674,7 +675,7 @@ function BankPage() {
           <p className="text-sm text-muted-foreground">
             <><strong>{grouped.groups.length}</strong> empresas · {filtered.length} propostas · <strong>{fmtBRL(grouped.groups.reduce((s, g) => s + g.totalValue, 0))}</strong></>
 
-            {canPickLeads && <> · Você tem <strong>{myLockCount}/{SDR_LOCK_LIMIT}</strong> leads na carteira</>}
+            {canPickLeads && <> · Você tem <strong>{myLockCount}</strong> leads na carteira</>}
             {' · '}
             <button
               type="button"
@@ -687,9 +688,7 @@ function BankPage() {
             </button>
           </p>
         </div>
-        {atLimit && (
-          <Badge variant="destructive">Limite de {SDR_LOCK_LIMIT} leads atingido — devolva algum para pegar mais</Badge>
-        )}
+        {/* Limite de carteira desativado temporariamente */}
       </div>
 
       {showFrozen && (
@@ -1025,6 +1024,17 @@ function BankPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ReturnLeadDialog
+        lead={returnLead}
+        open={!!returnLead}
+        onOpenChange={(o) => !o && setReturnLead(null)}
+        onDone={() => {
+          qc.invalidateQueries({ queryKey: ['proposal-bank'] })
+          qc.invalidateQueries({ queryKey: ['my-lock-count'] })
+          qc.invalidateQueries({ queryKey: ['my-wallet'] })
+        }}
+      />
     </div>
 
   )

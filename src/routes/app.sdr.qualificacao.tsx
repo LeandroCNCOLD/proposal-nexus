@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useSdrNames } from "@/modules/sdr/hooks/use-team-members";
 import { lockLead, unlockLead, freezeLead, countMyLocks, MANAGER_FREEZE_PREFIX } from "@/modules/sdr/services";
 import { SDR_LOCK_LIMIT } from "@/modules/sdr/types";
+import { ReturnLeadDialog } from "@/modules/sdr/components/ReturnLeadDialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -144,6 +145,7 @@ function QualificacaoPage() {
   const [sortDir, setSortDir] = useState<SortDir>(null);
   const [novoOpen, setNovoOpen] = useState(false);
   const [editLead, setEditLead] = useState<CampLead | null>(null);
+  const [returnLead, setReturnLead] = useState<CampLead | null>(null);
 
   const sdrName = user?.user_metadata?.full_name || user?.email?.split("@")[0] || "SDR";
 
@@ -307,7 +309,7 @@ function QualificacaoPage() {
         </div>
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="text-xs">
-            Carteira: {myLockCount}/{SDR_LOCK_LIMIT}
+            Minha carteira: {myLockCount}
           </Badge>
           {canManage && (
             <Button onClick={() => setNovoOpen(true)} className="gap-1">
@@ -586,8 +588,9 @@ function QualificacaoPage() {
                             </Button>
                           )}
                           {mine && (
-                            <Button size="sm" variant="outline" disabled={unlockMut.isPending}
-                              onClick={() => unlockMut.mutate(l.id)} className="h-7 px-2 text-[11px]">
+                            <Button size="sm" variant="outline"
+                              onClick={() => setReturnLead(l)} className="h-7 px-2 text-[11px]"
+                              title="Devolver lead e agendar retomada">
                               <Unlock className="h-3 w-3 mr-1" />Devolver
                             </Button>
                           )}
@@ -635,6 +638,13 @@ function QualificacaoPage() {
         lead={editLead}
         onOpenChange={(open) => !open && setEditLead(null)}
         onSaved={invalidateAll}
+      />
+
+      <ReturnLeadDialog
+        lead={returnLead}
+        open={!!returnLead}
+        onOpenChange={(o) => !o && setReturnLead(null)}
+        onDone={invalidateAll}
       />
     </div>
   );

@@ -2,6 +2,7 @@ import { createFileRoute, Link } from '@tanstack/react-router'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import { useState, useEffect, useMemo } from 'react'
 import { fetchMyWallet, unlockLead, renewLock, updatePipelineField, fetchCallLogs, insertCallLog } from '@/modules/sdr/services'
+import { ReturnLeadDialog } from '@/modules/sdr/components/ReturnLeadDialog'
 import { supabase } from '@/integrations/supabase/client'
 import { useAuth } from '@/hooks/useAuth'
 import {
@@ -60,6 +61,7 @@ function WalletPage() {
   const [closeLead, setCloseLead] = useState<CrmPipeline | null>(null)
   const [editLead, setEditLead] = useState<CrmPipeline | null>(null)
   const [meetingLead, setMeetingLead] = useState<CrmPipeline | null>(null)
+  const [returnLead, setReturnLead] = useState<CrmPipeline | null>(null)
   const [search, setSearch] = useState('')
   const [tempFilter, setTempFilter] = useState<'all' | Temperature>('all')
   const [actionFilter, setActionFilter] = useState<'all' | 'me' | 'other' | 'stale'>('all')
@@ -303,9 +305,7 @@ function WalletPage() {
               proposalMatch={proposalMatches.get(lead.id) ?? null}
               signals={signalsByLead.get(lead.id)}
               onOpenScript={() => setScriptLead(lead)}
-              onUnlock={() => {
-                if (confirm(`Devolver "${lead.client_name}" ao banco?`)) unlockMut.mutate(lead.id)
-              }}
+              onUnlock={() => setReturnLead(lead)}
               canManage={isManager}
               onTransfer={() => setTransferLead(lead)}
               onTransferSeller={() => setTransferSellerLead(lead)}
@@ -357,6 +357,16 @@ function WalletPage() {
         lead={meetingLead}
         open={!!meetingLead}
         onOpenChange={(o) => !o && setMeetingLead(null)}
+      />
+      <ReturnLeadDialog
+        lead={returnLead ? { id: returnLead.id, client_name: returnLead.client_name, lead_code: returnLead.lead_code } : null}
+        open={!!returnLead}
+        onOpenChange={(o) => !o && setReturnLead(null)}
+        onDone={() => {
+          qc.invalidateQueries({ queryKey: ['my-wallet'] })
+          qc.invalidateQueries({ queryKey: ['my-lock-count'] })
+          qc.invalidateQueries({ queryKey: ['proposal-bank'] })
+        }}
       />
     </div>
   )
