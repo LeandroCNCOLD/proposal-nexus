@@ -21,7 +21,7 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import {
   Target, Plus, Lock, Unlock, ShieldAlert, ArrowUp, ArrowDown, ArrowUpDown,
-  Phone, Mail, MapPin, ExternalLink,
+  Phone, Mail, Building2, Pencil, MessageCircle, ExternalLink, Save, X,
 } from "lucide-react";
 
 export const Route = createFileRoute("/app/sdr/qualificacao")({
@@ -50,6 +50,7 @@ type CampLead = {
   razao_social: string | null;
   contact_name: string | null;
   contact_phone: string | null;
+  contact_mobile: string | null;
   contact_email: string | null;
   cnpj: string | null;
   city: string | null;
@@ -67,6 +68,23 @@ type CampLead = {
   created_at: string;
   internal_note: string | null;
 };
+
+// Parse segment + proposals count + proposals total from internal_note (markdown enriched by Conela import)
+function parseLeadMeta(note: string | null | undefined) {
+  if (!note) return { segmento: null as string | null, propostasCount: 0, propostasTotal: 0 };
+  const segM = note.match(/\*\*Segmento:\*\*\s*(.+)/i);
+  const segmento = segM ? segM[1].trim() : null;
+  const proposalHeaders = note.match(/^#####\s+\d+\./gm) ?? [];
+  let propostasTotal = 0;
+  const valRegex = /-\s*\*\*Valor:\*\*\s*R\$\s*([\d.,]+)/g;
+  let m: RegExpExecArray | null;
+  while ((m = valRegex.exec(note)) !== null) {
+    const raw = m[1].replace(/\./g, "").replace(",", ".");
+    const n = parseFloat(raw);
+    if (!isNaN(n)) propostasTotal += n;
+  }
+  return { segmento, propostasCount: proposalHeaders.length, propostasTotal };
+}
 
 type SortKey = "client_name" | "state" | "value" | "temperature" | "status" | "last_contact_at";
 type SortDir = "asc" | "desc" | null;
@@ -125,6 +143,7 @@ function QualificacaoPage() {
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>(null);
   const [novoOpen, setNovoOpen] = useState(false);
+  const [editLead, setEditLead] = useState<CampLead | null>(null);
 
   const sdrName = user?.user_metadata?.full_name || user?.email?.split("@")[0] || "SDR";
 
@@ -147,7 +166,7 @@ function QualificacaoPage() {
       const { data, error } = await supabase
         .from("sdr_leads")
         .select(
-          "id, lead_code, client_name, razao_social, contact_name, contact_phone, contact_email, cnpj, city, state, value, sdr_status, temperature, sdr_name, closer_name, campanha_id, competitor_status, locked_by_sdr_id, locked_by_sdr_name, last_contact_at, created_at, internal_note",
+          "id, lead_code, client_name, razao_social, contact_name, contact_phone, contact_mobile, contact_email, cnpj, city, state, value, sdr_status, temperature, sdr_name, closer_name, campanha_id, competitor_status, locked_by_sdr_id, locked_by_sdr_name, last_contact_at, created_at, internal_note",
         )
         .eq("lead_tipo" as never, "campanha" as never)
         .order("value", { ascending: false })
@@ -420,129 +439,212 @@ function QualificacaoPage() {
           Nenhum lead encontrado com os filtros atuais.
         </div>
       ) : (
-        <div className="border rounded-md overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50">
-              <tr>
-                <th className="px-3 py-2 text-left">Lead</th>
-                <SortableTh label="Cliente / Contato" sk="client_name" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
-                <SortableTh label="UF" sk="state" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} className="hidden lg:table-cell" />
-                <SortableTh label="Valor" sk="value" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="right" />
-                <SortableTh label="Temp." sk="temperature" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
-                <SortableTh label="Últ. contato" sk="last_contact_at" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} className="hidden xl:table-cell" />
-                <SortableTh label="Carteira" sk="status" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
-                <th className="px-3 py-2 text-right">Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((l) => {
-                const frozen = !!l.locked_by_sdr_name?.startsWith(MANAGER_FREEZE_PREFIX);
-                const mine = l.locked_by_sdr_id === user.id;
-                const otherSdr = !!l.locked_by_sdr_id && !mine && !frozen;
-                const available = !l.locked_by_sdr_id && !frozen;
-                const lockName = l.locked_by_sdr_name?.replace(MANAGER_FREEZE_PREFIX, "").replace(/^\s*\(|\)\s*$/g, "") ?? "";
-                const canPick = available && lockRemaining > 0;
-                const camp = campanhas.find((c) => c.id === l.campanha_id);
-                return (
-                  <tr key={l.id} className={`border-t hover:bg-muted/30 ${mine ? "bg-blue-50/40" : frozen ? "bg-red-50/40" : ""}`}>
-                    <td className="px-3 py-2">
-                      <div className="flex flex-col gap-1">
-                        <Badge variant="outline" className="font-mono text-[10px] w-fit">{l.lead_code}</Badge>
-                        {camp && (
-                          <span className="text-[10px] text-muted-foreground inline-flex items-center gap-1">
-                            <span>{camp.icone}</span>{camp.nome}
-                          </span>
+        <div className="border rounded-lg overflow-hidden bg-card shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/40 border-b">
+                <tr className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                  <SortableTh label="Cliente" sk="client_name" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
+                  <th className="px-3 py-3 text-left font-medium">CNPJ</th>
+                  <th className="px-3 py-3 text-left font-medium">Contato</th>
+                  <th className="px-3 py-3 text-left font-medium">Telefone</th>
+                  <th className="px-3 py-3 text-left font-medium">E-mail</th>
+                  <SortableTh label="Cidade/UF" sk="state" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
+                  <th className="px-3 py-3 text-center font-medium">Propostas</th>
+                  <SortableTh label="Total Cotado" sk="value" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="right" />
+                  <SortableTh label="Temp." sk="temperature" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
+                  <SortableTh label="Carteira" sk="status" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
+                  <th className="px-3 py-3 text-right font-medium">Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((l) => {
+                  const frozen = !!l.locked_by_sdr_name?.startsWith(MANAGER_FREEZE_PREFIX);
+                  const mine = l.locked_by_sdr_id === user.id;
+                  const otherSdr = !!l.locked_by_sdr_id && !mine && !frozen;
+                  const available = !l.locked_by_sdr_id && !frozen;
+                  const lockName = l.locked_by_sdr_name?.replace(MANAGER_FREEZE_PREFIX, "").replace(/^\s*\(|\)\s*$/g, "") ?? "";
+                  const canPick = available && lockRemaining > 0;
+                  const meta = parseLeadMeta(l.internal_note);
+                  const total = meta.propostasTotal > 0 ? meta.propostasTotal : Number(l.value ?? 0);
+                  const hasWhats = !!(l.contact_mobile || l.contact_phone);
+                  return (
+                    <tr
+                      key={l.id}
+                      className={`border-b last:border-b-0 hover:bg-muted/30 transition-colors ${
+                        mine ? "bg-primary/5" : frozen ? "bg-destructive/5" : ""
+                      }`}
+                    >
+                      {/* Cliente */}
+                      <td className="px-3 py-3 align-middle">
+                        <div className="flex items-start gap-2.5 min-w-0">
+                          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground">
+                            <Building2 className="h-4 w-4" />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <Link
+                                to="/app/sdr/leads/$id"
+                                params={{ id: l.id }}
+                                className="font-semibold text-foreground hover:text-primary truncate"
+                                title={l.client_name}
+                              >
+                                {l.client_name}
+                              </Link>
+                              {l.competitor_status === "cliente_ativo" && (
+                                <Badge variant="secondary" className="text-[9px] h-4 px-1.5">Concorrente</Badge>
+                              )}
+                              {l.competitor_status === "nunca_fechou" && (
+                                <Badge variant="outline" className="text-[9px] h-4 px-1.5">Prospect</Badge>
+                              )}
+                            </div>
+                            {meta.segmento && (
+                              <div className="text-[11px] text-muted-foreground truncate">{meta.segmento}</div>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* CNPJ */}
+                      <td className="px-3 py-3 align-middle font-mono text-xs text-muted-foreground whitespace-nowrap">
+                        {l.cnpj || "—"}
+                      </td>
+
+                      {/* Contato */}
+                      <td className="px-3 py-3 align-middle">
+                        {l.contact_name ? (
+                          <div className="min-w-0">
+                            <div className="text-sm text-foreground truncate" title={l.contact_name}>{l.contact_name}</div>
+                            <div className="text-[11px] text-muted-foreground">Gestor do projeto</div>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
                         )}
-                        {l.competitor_status === "cliente_ativo" && (
-                          <Badge className="text-[9px] bg-purple-100 text-purple-800 w-fit" variant="secondary">já cliente concorrente</Badge>
+                      </td>
+
+                      {/* Telefone */}
+                      <td className="px-3 py-3 align-middle whitespace-nowrap">
+                        {l.contact_phone ? (
+                          <div className="inline-flex items-center gap-1.5">
+                            <a href={`tel:${l.contact_phone}`} className="text-sm text-foreground hover:text-primary">
+                              {l.contact_phone}
+                            </a>
+                            {hasWhats && (
+                              <a
+                                href={`https://wa.me/55${(l.contact_mobile || l.contact_phone || "").replace(/\D/g, "")}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                title="WhatsApp"
+                                className="grid h-5 w-5 place-items-center rounded-full bg-green-500/15 text-green-600 hover:bg-green-500/25"
+                              >
+                                <MessageCircle className="h-3 w-3" />
+                              </a>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
                         )}
-                        {l.competitor_status === "nunca_fechou" && (
-                          <Badge className="text-[9px] bg-slate-100 text-slate-700 w-fit" variant="secondary">prospect</Badge>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-3 py-2">
-                      <Link
-                        to="/app/sdr/leads/$id" params={{ id: l.id }}
-                        className="font-semibold text-[#0F2D5E] hover:underline inline-flex items-center gap-1"
-                      >
-                        {l.client_name}
-                        <ExternalLink className="h-3 w-3 opacity-60" />
-                      </Link>
-                      <div className="text-xs text-muted-foreground mt-0.5 flex flex-wrap gap-2">
-                        {l.contact_name && <span>{l.contact_name}</span>}
-                        {l.contact_phone && (
-                          <a href={`tel:${l.contact_phone}`} className="inline-flex items-center gap-1 hover:text-foreground">
-                            <Phone className="h-3 w-3" />{l.contact_phone}
+                      </td>
+
+                      {/* E-mail */}
+                      <td className="px-3 py-3 align-middle max-w-[200px]">
+                        {l.contact_email ? (
+                          <a
+                            href={`mailto:${l.contact_email}`}
+                            className="inline-flex items-center gap-1 text-sm text-foreground hover:text-primary truncate max-w-full"
+                            title={l.contact_email}
+                          >
+                            <Mail className="h-3 w-3 opacity-60 shrink-0" />
+                            <span className="truncate">{l.contact_email}</span>
                           </a>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
                         )}
-                        {l.contact_email && (
-                          <a href={`mailto:${l.contact_email}`} className="inline-flex items-center gap-1 hover:text-foreground">
-                            <Mail className="h-3 w-3" />{l.contact_email}
-                          </a>
+                      </td>
+
+                      {/* Cidade/UF */}
+                      <td className="px-3 py-3 align-middle whitespace-nowrap text-sm text-muted-foreground">
+                        {[l.city, l.state].filter(Boolean).join("/") || "—"}
+                      </td>
+
+                      {/* Propostas */}
+                      <td className="px-3 py-3 align-middle text-center font-semibold tabular-nums">
+                        {meta.propostasCount || 0}
+                      </td>
+
+                      {/* Total Cotado */}
+                      <td className="px-3 py-3 align-middle text-right font-mono font-semibold tabular-nums">
+                        {total > 0 ? fmtBRL(total) : <span className="text-muted-foreground font-normal">—</span>}
+                      </td>
+
+                      {/* Temperatura */}
+                      <td className="px-3 py-3 align-middle">
+                        {l.temperature ? (
+                          <Badge className={`text-[10px] ${TEMP_COLORS[l.temperature] ?? ""}`}>{l.temperature}</Badge>
+                        ) : (
+                          <span className="text-muted-foreground text-xs">—</span>
                         )}
-                      </div>
-                    </td>
-                    <td className="px-3 py-2 hidden lg:table-cell">
-                      {(l.city || l.state) && (
-                        <span className="text-xs inline-flex items-center gap-1">
-                          <MapPin className="h-3 w-3 opacity-60" />{[l.city, l.state].filter(Boolean).join("/")}
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-3 py-2 text-right font-mono">{fmtBRL(Number(l.value ?? 0))}</td>
-                    <td className="px-3 py-2">
-                      {l.temperature && (
-                        <Badge className={`text-[10px] ${TEMP_COLORS[l.temperature] ?? ""}`}>{l.temperature}</Badge>
-                      )}
-                    </td>
-                    <td className="px-3 py-2 hidden xl:table-cell text-xs text-muted-foreground">
-                      {fmtDate(l.last_contact_at)}
-                    </td>
-                    <td className="px-3 py-2">
-                      {frozen ? (
-                        <Badge className="text-[10px] bg-red-100 text-red-800"><ShieldAlert className="h-3 w-3 mr-1" />Bloqueado</Badge>
-                      ) : mine ? (
-                        <Badge className="text-[10px] bg-blue-100 text-blue-800">Minha</Badge>
-                      ) : otherSdr ? (
-                        <Badge className="text-[10px] bg-orange-100 text-orange-800" variant="secondary">{lockName || "outro"}</Badge>
-                      ) : (
-                        <Badge className="text-[10px] bg-green-100 text-green-800">Disponível</Badge>
-                      )}
-                    </td>
-                    <td className="px-3 py-2 text-right">
-                      <div className="inline-flex gap-1">
-                        {available && (
-                          <Button size="sm" variant="default" disabled={!canPick || lockMut.isPending}
-                            onClick={() => lockMut.mutate(l.id)}>
-                            <Lock className="h-3 w-3 mr-1" />Pegar
+                      </td>
+
+                      {/* Carteira */}
+                      <td className="px-3 py-3 align-middle">
+                        {frozen ? (
+                          <Badge variant="destructive" className="text-[10px]"><ShieldAlert className="h-3 w-3 mr-1" />Bloqueado</Badge>
+                        ) : mine ? (
+                          <Badge className="text-[10px] bg-primary/15 text-primary hover:bg-primary/15">Minha</Badge>
+                        ) : otherSdr ? (
+                          <Badge variant="secondary" className="text-[10px]">{lockName || "outro"}</Badge>
+                        ) : (
+                          <Badge className="text-[10px] bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/15 dark:text-emerald-400">Disponível</Badge>
+                        )}
+                      </td>
+
+                      {/* Ações */}
+                      <td className="px-3 py-3 align-middle text-right">
+                        <div className="inline-flex gap-1">
+                          {available && (
+                            <Button size="sm" variant="default" disabled={!canPick || lockMut.isPending}
+                              onClick={() => lockMut.mutate(l.id)} className="h-7 px-2">
+                              <Lock className="h-3 w-3 mr-1" />Pegar
+                            </Button>
+                          )}
+                          {mine && (
+                            <Button size="sm" variant="outline" disabled={unlockMut.isPending}
+                              onClick={() => unlockMut.mutate(l.id)} className="h-7 px-2">
+                              <Unlock className="h-3 w-3 mr-1" />Devolver
+                            </Button>
+                          )}
+                          {frozen && canManage && (
+                            <Button size="sm" variant="outline" disabled={unlockMut.isPending}
+                              onClick={() => unlockMut.mutate(l.id)} className="h-7 px-2">
+                              <Unlock className="h-3 w-3" />
+                            </Button>
+                          )}
+                          {!frozen && canManage && (
+                            <Button size="sm" variant="ghost" disabled={freezeMut.isPending}
+                              onClick={() => freezeMut.mutate(l.id)} className="h-7 w-7 p-0" title="Bloquear">
+                              <ShieldAlert className="h-3 w-3" />
+                            </Button>
+                          )}
+                          <Button size="sm" variant="ghost" onClick={() => setEditLead(l)} className="h-7 w-7 p-0" title="Editar lead">
+                            <Pencil className="h-3 w-3" />
                           </Button>
-                        )}
-                        {mine && (
-                          <Button size="sm" variant="outline" disabled={unlockMut.isPending}
-                            onClick={() => unlockMut.mutate(l.id)}>
-                            <Unlock className="h-3 w-3 mr-1" />Devolver
-                          </Button>
-                        )}
-                        {frozen && canManage && (
-                          <Button size="sm" variant="outline" disabled={unlockMut.isPending}
-                            onClick={() => unlockMut.mutate(l.id)}>
-                            <Unlock className="h-3 w-3 mr-1" />Desbloquear
-                          </Button>
-                        )}
-                        {!frozen && canManage && (
-                          <Button size="sm" variant="ghost" disabled={freezeMut.isPending}
-                            onClick={() => freezeMut.mutate(l.id)}>
-                            <ShieldAlert className="h-3 w-3" />
-                          </Button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                          <Link to="/app/sdr/leads/$id" params={{ id: l.id }} title="Abrir lead completo"
+                            className="grid h-7 w-7 place-items-center rounded-md hover:bg-muted">
+                            <ExternalLink className="h-3 w-3 opacity-70" />
+                          </Link>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <div className="px-3 py-2 border-t bg-muted/20 text-[11px] text-muted-foreground flex items-center justify-between">
+            <span>{filtered.length} lead{filtered.length !== 1 ? "s" : ""} exibido{filtered.length !== 1 ? "s" : ""}</span>
+            <span>Pipeline total: <strong className="text-foreground font-mono">{fmtBRL(summary.pipeline)}</strong></span>
+          </div>
         </div>
       )}
 
@@ -550,6 +652,12 @@ function QualificacaoPage() {
         open={novoOpen}
         onOpenChange={setNovoOpen}
         onCreated={() => qc.invalidateQueries({ queryKey: ["crm-campanhas"] })}
+      />
+
+      <EditLeadDialog
+        lead={editLead}
+        onOpenChange={(open) => !open && setEditLead(null)}
+        onSaved={invalidateAll}
       />
     </div>
   );
@@ -642,5 +750,236 @@ function NovaCampanhaDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// =========================================================
+// EditLeadDialog — quick rich edit modal matching reference
+// =========================================================
+function EditLeadDialog({
+  lead, onOpenChange, onSaved,
+}: {
+  lead: CampLead | null;
+  onOpenChange: (open: boolean) => void;
+  onSaved: () => void;
+}) {
+  const open = !!lead;
+  const [form, setForm] = useState<Partial<CampLead>>({});
+  const [saving, setSaving] = useState(false);
+  const [notes, setNotes] = useState("");
+
+  // Reset form when lead changes
+  useMemo(() => {
+    if (lead) {
+      setForm({
+        client_name: lead.client_name,
+        razao_social: lead.razao_social,
+        cnpj: lead.cnpj,
+        contact_name: lead.contact_name,
+        contact_phone: lead.contact_phone,
+        contact_mobile: lead.contact_mobile,
+        contact_email: lead.contact_email,
+        city: lead.city,
+        state: lead.state,
+        temperature: lead.temperature,
+      });
+      setNotes("");
+    }
+  }, [lead?.id]);
+
+  const meta = parseLeadMeta(lead?.internal_note);
+
+  const save = async () => {
+    if (!lead) return;
+    setSaving(true);
+    // Append new notes to internal_note above the auto-imported section
+    const baseNote = lead.internal_note ?? "";
+    const finalNote = notes.trim()
+      ? `**Nota SDR (${new Date().toLocaleDateString("pt-BR")}):** ${notes.trim()}\n\n${baseNote}`
+      : baseNote;
+    const { error } = await supabase
+      .from("sdr_leads")
+      .update({
+        client_name: form.client_name ?? lead.client_name,
+        razao_social: form.razao_social ?? null,
+        cnpj: form.cnpj ?? null,
+        contact_name: form.contact_name ?? null,
+        contact_phone: form.contact_phone ?? null,
+        contact_mobile: form.contact_mobile ?? null,
+        contact_email: form.contact_email ?? null,
+        city: form.city ?? null,
+        state: (form.state ?? null) as never,
+        temperature: form.temperature ?? null,
+        internal_note: finalNote,
+        updated_at: new Date().toISOString(),
+      } as never)
+      .eq("id", lead.id);
+    setSaving(false);
+    if (error) return toast.error("Falha: " + error.message);
+    toast.success("Lead atualizado");
+    onSaved();
+    onOpenChange(false);
+  };
+
+  if (!lead) return null;
+
+  // Extract proposals as cards from internal_note
+  const propostaBlocks: { titulo: string; data: string; valor: string; resumo: string }[] = [];
+  if (lead.internal_note) {
+    const parts = lead.internal_note.split(/^#####\s+\d+\.\s*/m).slice(1);
+    for (const part of parts) {
+      const firstLine = part.split("\n")[0]?.trim() ?? "";
+      const dataM = part.match(/\*\*Data:\*\*\s*(.+)/);
+      const valorM = part.match(/\*\*Valor:\*\*\s*(R\$\s*[\d.,]+)/);
+      const pagM = part.match(/\*\*Pagamento:\*\*\s*(.+)/);
+      propostaBlocks.push({
+        titulo: firstLine,
+        data: dataM?.[1].trim() ?? "—",
+        valor: valorM?.[1].trim() ?? "—",
+        resumo: pagM?.[1].trim() ?? "",
+      });
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <div className="flex items-start gap-3">
+            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+              <Building2 className="h-5 w-5" />
+            </div>
+            <div className="min-w-0">
+              <DialogTitle className="text-lg truncate">{lead.client_name}</DialogTitle>
+              <DialogDescription className="text-xs">
+                {meta.propostasCount} proposta{meta.propostasCount !== 1 ? "s" : ""}
+                {meta.propostasTotal > 0 && ` · ${fmtBRL(meta.propostasTotal)} cotado`}
+              </DialogDescription>
+            </div>
+          </div>
+        </DialogHeader>
+
+        {/* Contato rápido */}
+        {(form.contact_phone || form.contact_mobile) && (
+          <div className="space-y-1.5">
+            <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">Contato rápido</Label>
+            <div className="flex flex-wrap gap-2">
+              {form.contact_phone && (
+                <a href={`tel:${form.contact_phone}`}
+                  className="inline-flex items-center gap-2 rounded-md border bg-card px-3 py-1.5 text-sm hover:border-primary">
+                  <Phone className="h-3.5 w-3.5 text-muted-foreground" />{form.contact_phone}
+                </a>
+              )}
+              {(form.contact_mobile || form.contact_phone) && (
+                <a
+                  href={`https://wa.me/55${(form.contact_mobile || form.contact_phone || "").replace(/\D/g, "")}`}
+                  target="_blank" rel="noreferrer"
+                  className="inline-flex items-center gap-2 rounded-md border border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-400 px-3 py-1.5 text-sm hover:bg-green-500/15">
+                  <MessageCircle className="h-3.5 w-3.5" />WhatsApp
+                </a>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Form em grid 2 colunas */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <Field label="Nome / Fantasia" value={form.client_name ?? ""} onChange={(v) => setForm({ ...form, client_name: v })} />
+          <Field label="Razão Social" value={form.razao_social ?? ""} onChange={(v) => setForm({ ...form, razao_social: v })} />
+          <Field label="CNPJ" value={form.cnpj ?? ""} onChange={(v) => setForm({ ...form, cnpj: v })} mono />
+          <Field label="Segmento" value={meta.segmento ?? ""} readOnly placeholder="—" />
+          <Field label="Contato (Nome)" value={form.contact_name ?? ""} onChange={(v) => setForm({ ...form, contact_name: v })} />
+          <Field label="Cargo" value="" placeholder="Gestor do projeto" onChange={() => {}} />
+          <Field label="Telefone" value={form.contact_phone ?? ""} onChange={(v) => setForm({ ...form, contact_phone: v })} />
+          <Field label="WhatsApp" value={form.contact_mobile ?? ""} onChange={(v) => setForm({ ...form, contact_mobile: v })} />
+          <Field label="E-mail" value={form.contact_email ?? ""} onChange={(v) => setForm({ ...form, contact_email: v })} className="sm:col-span-2" />
+          <Field label="Cidade" value={form.city ?? ""} onChange={(v) => setForm({ ...form, city: v })} />
+          <div className="space-y-1.5">
+            <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">UF</Label>
+            <Input maxLength={2} value={form.state ?? ""} onChange={(e) => setForm({ ...form, state: e.target.value.toUpperCase() })} />
+          </div>
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">Temperatura</Label>
+            <Select value={form.temperature ?? "__none__"} onValueChange={(v) => setForm({ ...form, temperature: v === "__none__" ? null : v })}>
+              <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">Não definida</SelectItem>
+                {TEMPS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {/* Notas de prospecção */}
+        <div className="space-y-1.5">
+          <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">Adicionar nota de prospecção</Label>
+          <Textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            rows={3}
+            placeholder="Será adicionada ao histórico interno…"
+          />
+        </div>
+
+        {/* Histórico de propostas */}
+        {propostaBlocks.length > 0 && (
+          <div className="space-y-2">
+            <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">
+              Histórico de propostas ({propostaBlocks.length})
+            </Label>
+            <div className="space-y-2">
+              {propostaBlocks.map((p, i) => (
+                <div key={i} className="rounded-lg border bg-muted/30 p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-semibold text-sm">{p.titulo}</div>
+                      <div className="text-[11px] text-muted-foreground">{p.data}</div>
+                      {p.resumo && (
+                        <div className="text-xs text-muted-foreground mt-1 line-clamp-2">{p.resumo}</div>
+                      )}
+                    </div>
+                    <div className="font-mono font-semibold text-sm whitespace-nowrap">{p.valor}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            <X className="h-4 w-4 mr-1" />Cancelar
+          </Button>
+          <Button onClick={save} disabled={saving}>
+            <Save className="h-4 w-4 mr-1" />{saving ? "Salvando…" : "Salvar"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function Field({
+  label, value, onChange, readOnly, placeholder, mono, className,
+}: {
+  label: string;
+  value: string;
+  onChange?: (v: string) => void;
+  readOnly?: boolean;
+  placeholder?: string;
+  mono?: boolean;
+  className?: string;
+}) {
+  return (
+    <div className={`space-y-1.5 ${className ?? ""}`}>
+      <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">{label}</Label>
+      <Input
+        value={value}
+        onChange={(e) => onChange?.(e.target.value)}
+        readOnly={readOnly}
+        placeholder={placeholder}
+        className={mono ? "font-mono text-sm" : ""}
+      />
+    </div>
   );
 }
