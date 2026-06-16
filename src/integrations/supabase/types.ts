@@ -4161,6 +4161,57 @@ export type Database = {
         }
         Relationships: []
       }
+      crm_campanhas: {
+        Row: {
+          ativo: boolean
+          concorrente: string | null
+          cor: string
+          created_at: string
+          created_by: string | null
+          data_fim: string | null
+          data_inicio: string | null
+          descricao: string | null
+          fonte: string
+          icone: string
+          id: string
+          nome: string
+          readonly: boolean
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          concorrente?: string | null
+          cor?: string
+          created_at?: string
+          created_by?: string | null
+          data_fim?: string | null
+          data_inicio?: string | null
+          descricao?: string | null
+          fonte?: string
+          icone?: string
+          id?: string
+          nome: string
+          readonly?: boolean
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          concorrente?: string | null
+          cor?: string
+          created_at?: string
+          created_by?: string | null
+          data_fim?: string | null
+          data_inicio?: string | null
+          descricao?: string | null
+          fonte?: string
+          icone?: string
+          id?: string
+          nome?: string
+          readonly?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       crm_closer_metas: {
         Row: {
           closer_nome: string
@@ -8053,6 +8104,7 @@ export type Database = {
           bant_timeline: string | null
           call_observation: string | null
           call_result: string | null
+          campanha_id: string | null
           city: string | null
           client_name: string
           closer_confirmed: string
@@ -8076,6 +8128,7 @@ export type Database = {
           internal_note: string | null
           last_contact_at: string | null
           lead_code: string
+          lead_tipo: Database["public"]["Enums"]["sdr_lead_tipo"] | null
           lock_expires_at: string | null
           locked_at: string | null
           locked_by_sdr_id: string | null
@@ -8123,6 +8176,7 @@ export type Database = {
           bant_timeline?: string | null
           call_observation?: string | null
           call_result?: string | null
+          campanha_id?: string | null
           city?: string | null
           client_name: string
           closer_confirmed?: string
@@ -8146,6 +8200,7 @@ export type Database = {
           internal_note?: string | null
           last_contact_at?: string | null
           lead_code: string
+          lead_tipo?: Database["public"]["Enums"]["sdr_lead_tipo"] | null
           lock_expires_at?: string | null
           locked_at?: string | null
           locked_by_sdr_id?: string | null
@@ -8193,6 +8248,7 @@ export type Database = {
           bant_timeline?: string | null
           call_observation?: string | null
           call_result?: string | null
+          campanha_id?: string | null
           city?: string | null
           client_name?: string
           closer_confirmed?: string
@@ -8216,6 +8272,7 @@ export type Database = {
           internal_note?: string | null
           last_contact_at?: string | null
           lead_code?: string
+          lead_tipo?: Database["public"]["Enums"]["sdr_lead_tipo"] | null
           lock_expires_at?: string | null
           locked_at?: string | null
           locked_by_sdr_id?: string | null
@@ -8255,7 +8312,15 @@ export type Database = {
           value?: number
           value_range?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "sdr_leads_campanha_fk"
+            columns: ["campanha_id"]
+            isOneToOne: false
+            referencedRelation: "crm_campanhas"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       sdr_score_weights: {
         Row: {
@@ -9416,6 +9481,13 @@ export type Database = {
         | "prorrogada"
         | "cancelada"
       proposal_temperature: "fria" | "morna" | "quente" | "muito_quente"
+      sdr_lead_tipo:
+        | "cnsync"
+        | "nomus"
+        | "campanha"
+        | "inbound"
+        | "indicacao"
+        | "manual"
       task_priority: "baixa" | "media" | "alta" | "critica"
       task_status: "pendente" | "em_andamento" | "concluida" | "cancelada"
       timeline_event_type:
@@ -9607,6 +9679,14 @@ export const Constants = {
         "cancelada",
       ],
       proposal_temperature: ["fria", "morna", "quente", "muito_quente"],
+      sdr_lead_tipo: [
+        "cnsync",
+        "nomus",
+        "campanha",
+        "inbound",
+        "indicacao",
+        "manual",
+      ],
       task_priority: ["baixa", "media", "alta", "critica"],
       task_status: ["pendente", "em_andamento", "concluida", "cancelada"],
       timeline_event_type: [
