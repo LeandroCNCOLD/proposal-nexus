@@ -129,6 +129,7 @@ const SDR_ALLOWED = new Set<string>([
   "/app/sdr/war-room",
   "/app/sdr/bank",
   "/app/sdr/wallet",
+  "/app/sdr/qualificacao",
   "/app/sdr/hot-deals",
   "/app/sdr/scripts",
   "/app/agenda",
