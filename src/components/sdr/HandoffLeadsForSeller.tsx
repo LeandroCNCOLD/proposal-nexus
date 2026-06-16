@@ -157,6 +157,11 @@ export function HandoffLeadsForSeller({ userId }: { userId: string }) {
                     <div className="flex items-center gap-2 flex-wrap">
                       <Badge variant="outline" className="font-mono text-[10px]">{l.lead_code}</Badge>
                       <span className="font-semibold text-sm truncate">{l.client_name}</span>
+                      {l.lead_tipo === "nomus" && (
+                        <Badge className="bg-indigo-100 text-indigo-800 gap-1 text-[10px]">
+                          <FileText className="h-3 w-3" /> Nomus
+                        </Badge>
+                      )}
                       {pendingHandoff && (
                         <Badge className="bg-red-600 text-white gap-1 text-[10px]">
                           <AlertCircle className="h-3 w-3" /> Aguarda sua resposta
