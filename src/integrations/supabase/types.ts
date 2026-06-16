@@ -8111,6 +8111,7 @@ export type Database = {
           closer_id: string | null
           closer_name: string | null
           cnpj: string | null
+          competitor_status: string | null
           contact_email: string | null
           contact_mobile: string | null
           contact_name: string | null
@@ -8183,6 +8184,7 @@ export type Database = {
           closer_id?: string | null
           closer_name?: string | null
           cnpj?: string | null
+          competitor_status?: string | null
           contact_email?: string | null
           contact_mobile?: string | null
           contact_name?: string | null
@@ -8255,6 +8257,7 @@ export type Database = {
           closer_id?: string | null
           closer_name?: string | null
           cnpj?: string | null
+          competitor_status?: string | null
           contact_email?: string | null
           contact_mobile?: string | null
           contact_name?: string | null
