@@ -21,7 +21,7 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import {
   Target, Plus, Lock, Unlock, ShieldAlert, ArrowUp, ArrowDown, ArrowUpDown,
-  Phone, Mail, MapPin, ExternalLink,
+  Phone, Mail, Building2, Pencil, MessageCircle, ExternalLink, Save, X,
 } from "lucide-react";
 
 export const Route = createFileRoute("/app/sdr/qualificacao")({
