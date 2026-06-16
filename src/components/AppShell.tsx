@@ -70,6 +70,7 @@ const NAV = [
   { group: "SDR — Pré-Venda", items: [
    { to: "/app/sdr/bank", label: "Banco de Leads Qualificados", icon: Database },
    { to: "/app/sdr/wallet", label: "Minha Carteira de Leads Qualificados", icon: Briefcase },
+   { to: "/app/sdr/qualificacao", label: "Qualificação (Campanhas)", icon: Target },
    { to: "/app/sdr/war-room", label: "War Room — Reunião Diária", icon: Zap },
    { to: "/app/sdr/hot-deals", label: "Hot Leads", icon: Flame },
    { to: "/app/sdr/scripts", label: "Scripts de Ligação", icon: FileText },
