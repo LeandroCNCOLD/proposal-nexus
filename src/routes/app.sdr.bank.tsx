@@ -675,7 +675,7 @@ function BankPage() {
           <p className="text-sm text-muted-foreground">
             <><strong>{grouped.groups.length}</strong> empresas · {filtered.length} propostas · <strong>{fmtBRL(grouped.groups.reduce((s, g) => s + g.totalValue, 0))}</strong></>
 
-            {canPickLeads && <> · Você tem <strong>{myLockCount}/{SDR_LOCK_LIMIT}</strong> leads na carteira</>}
+            {canPickLeads && <> · Você tem <strong>{myLockCount}</strong> leads na carteira</>}
             {' · '}
             <button
               type="button"
@@ -688,9 +688,7 @@ function BankPage() {
             </button>
           </p>
         </div>
-        {atLimit && (
-          <Badge variant="destructive">Limite de {SDR_LOCK_LIMIT} leads atingido — devolva algum para pegar mais</Badge>
-        )}
+        {/* Limite de carteira desativado temporariamente */}
       </div>
 
       {showFrozen && (
