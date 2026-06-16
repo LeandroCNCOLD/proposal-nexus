@@ -8053,6 +8053,7 @@ export type Database = {
           bant_timeline: string | null
           call_observation: string | null
           call_result: string | null
+          campanha_id: string | null
           city: string | null
           client_name: string
           closer_confirmed: string
@@ -8076,6 +8077,7 @@ export type Database = {
           internal_note: string | null
           last_contact_at: string | null
           lead_code: string
+          lead_tipo: Database["public"]["Enums"]["sdr_lead_tipo"] | null
           lock_expires_at: string | null
           locked_at: string | null
           locked_by_sdr_id: string | null
@@ -8123,6 +8125,7 @@ export type Database = {
           bant_timeline?: string | null
           call_observation?: string | null
           call_result?: string | null
+          campanha_id?: string | null
           city?: string | null
           client_name: string
           closer_confirmed?: string
@@ -8146,6 +8149,7 @@ export type Database = {
           internal_note?: string | null
           last_contact_at?: string | null
           lead_code: string
+          lead_tipo?: Database["public"]["Enums"]["sdr_lead_tipo"] | null
           lock_expires_at?: string | null
           locked_at?: string | null
           locked_by_sdr_id?: string | null
@@ -8193,6 +8197,7 @@ export type Database = {
           bant_timeline?: string | null
           call_observation?: string | null
           call_result?: string | null
+          campanha_id?: string | null
           city?: string | null
           client_name?: string
           closer_confirmed?: string
@@ -8216,6 +8221,7 @@ export type Database = {
           internal_note?: string | null
           last_contact_at?: string | null
           lead_code?: string
+          lead_tipo?: Database["public"]["Enums"]["sdr_lead_tipo"] | null
           lock_expires_at?: string | null
           locked_at?: string | null
           locked_by_sdr_id?: string | null
@@ -9416,6 +9422,13 @@ export type Database = {
         | "prorrogada"
         | "cancelada"
       proposal_temperature: "fria" | "morna" | "quente" | "muito_quente"
+      sdr_lead_tipo:
+        | "cnsync"
+        | "nomus"
+        | "campanha"
+        | "inbound"
+        | "indicacao"
+        | "manual"
       task_priority: "baixa" | "media" | "alta" | "critica"
       task_status: "pendente" | "em_andamento" | "concluida" | "cancelada"
       timeline_event_type:
@@ -9607,6 +9620,14 @@ export const Constants = {
         "cancelada",
       ],
       proposal_temperature: ["fria", "morna", "quente", "muito_quente"],
+      sdr_lead_tipo: [
+        "cnsync",
+        "nomus",
+        "campanha",
+        "inbound",
+        "indicacao",
+        "manual",
+      ],
       task_priority: ["baixa", "media", "alta", "critica"],
       task_status: ["pendente", "em_andamento", "concluida", "cancelada"],
       timeline_event_type: [
