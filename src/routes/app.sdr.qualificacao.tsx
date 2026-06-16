@@ -1,8 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useSdrNames } from "@/modules/sdr/hooks/use-team-members";
+import { lockLead, unlockLead, freezeLead, countMyLocks, MANAGER_FREEZE_PREFIX } from "@/modules/sdr/services";
+import { SDR_LOCK_LIMIT } from "@/modules/sdr/types";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -16,8 +19,10 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Target, Plus, ExternalLink, Lock } from "lucide-react";
-import { brl } from "@/lib/format";
+import {
+  Target, Plus, Lock, Unlock, ShieldAlert, ArrowUp, ArrowDown, ArrowUpDown,
+  Phone, Mail, MapPin, ExternalLink,
+} from "lucide-react";
 
 export const Route = createFileRoute("/app/sdr/qualificacao")({
   component: QualificacaoPage,
@@ -38,14 +43,68 @@ type Campanha = {
   created_at: string;
 };
 
-type CampanhaLead = {
-  id: string; lead_code: string; client_name: string; razao_social: string | null;
-  contact_name: string | null; city: string | null; state: string | null;
-  value: number | null; sdr_status: string | null; temperature: string | null;
-  sdr_name: string | null; campanha_id: string | null;
+type CampLead = {
+  id: string;
+  lead_code: string;
+  client_name: string;
+  razao_social: string | null;
+  contact_name: string | null;
+  contact_phone: string | null;
+  contact_email: string | null;
+  cnpj: string | null;
+  city: string | null;
+  state: string | null;
+  value: number | null;
+  sdr_status: string | null;
+  temperature: string | null;
+  sdr_name: string | null;
+  closer_name: string | null;
+  campanha_id: string | null;
+  competitor_status: string | null;
+  locked_by_sdr_id: string | null;
+  locked_by_sdr_name: string | null;
+  last_contact_at: string | null;
+  created_at: string;
+  internal_note: string | null;
 };
 
+type SortKey = "client_name" | "state" | "value" | "temperature" | "status" | "last_contact_at";
+type SortDir = "asc" | "desc" | null;
+
 const FONTES = ["cnsync", "feira", "site", "indicacao", "outbound", "concorrente", "outro"] as const;
+const TEMPS = ["Frio", "Morno", "Quente", "Muito Quente"];
+const TEMP_COLORS: Record<string, string> = {
+  Frio: "bg-blue-100 text-blue-800",
+  Morno: "bg-yellow-100 text-yellow-800",
+  Quente: "bg-orange-100 text-orange-800",
+  "Muito Quente": "bg-red-100 text-red-800",
+};
+
+const fmtBRL = (v: number) =>
+  v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+const fmtDate = (d?: string | null) => (d ? new Date(d).toLocaleDateString("pt-BR") : "—");
+
+function SortableTh({
+  label, sk, sortKey, sortDir, onClick, align, className,
+}: {
+  label: string; sk: SortKey; sortKey: SortKey | null; sortDir: SortDir;
+  onClick: (k: SortKey) => void; align?: "right" | "center"; className?: string;
+}) {
+  const active = sortKey === sk;
+  const Icon = !active ? ArrowUpDown : sortDir === "asc" ? ArrowUp : ArrowDown;
+  return (
+    <th
+      className={`px-3 py-2 cursor-pointer select-none whitespace-nowrap ${
+        align === "right" ? "text-right" : align === "center" ? "text-center" : "text-left"
+      } ${className ?? ""}`}
+      onClick={() => onClick(sk)}
+    >
+      <span className="inline-flex items-center gap-1">
+        {label} <Icon className="w-3 h-3 opacity-60" />
+      </span>
+    </th>
+  );
+}
 
 function QualificacaoPage() {
   const { user, hasAnyRole, hasRole } = useAuth();
@@ -53,8 +112,21 @@ function QualificacaoPage() {
   const isSdr = hasRole("sdr");
   const allowed = canManage || isSdr;
   const qc = useQueryClient();
+  const { names: sdrNames } = useSdrNames();
+
   const [filterCampanha, setFilterCampanha] = useState<string>("all");
+  const [search, setSearch] = useState("");
+  const [uf, setUf] = useState("");
+  const [minValue, setMinValue] = useState("");
+  const [temp, setTemp] = useState("");
+  const [sdrFilter, setSdrFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "available" | "mine" | "others" | "frozen">("all");
+  const [competitorFilter, setCompetitorFilter] = useState<"all" | "cliente_ativo" | "nunca_fechou">("all");
+  const [sortKey, setSortKey] = useState<SortKey | null>(null);
+  const [sortDir, setSortDir] = useState<SortDir>(null);
   const [novoOpen, setNovoOpen] = useState(false);
+
+  const sdrName = user?.user_metadata?.full_name || user?.email?.split("@")[0] || "SDR";
 
   const { data: campanhas = [], isLoading: loadingCamp } = useQuery({
     queryKey: ["crm-campanhas"],
@@ -70,26 +142,126 @@ function QualificacaoPage() {
   });
 
   const { data: leads = [], isLoading: loadingLeads } = useQuery({
-    queryKey: ["sdr-leads-campanha", filterCampanha],
+    queryKey: ["sdr-leads-campanha"],
     queryFn: async () => {
-      let q = supabase
+      const { data, error } = await supabase
         .from("sdr_leads")
-        .select("id, lead_code, client_name, razao_social, contact_name, city, state, value, sdr_status, temperature, sdr_name, campanha_id")
+        .select(
+          "id, lead_code, client_name, razao_social, contact_name, contact_phone, contact_email, cnpj, city, state, value, sdr_status, temperature, sdr_name, closer_name, campanha_id, competitor_status, locked_by_sdr_id, locked_by_sdr_name, last_contact_at, created_at, internal_note",
+        )
         .eq("lead_tipo" as never, "campanha" as never)
-        .order("created_at" as never, { ascending: false })
-        .limit(500);
-      if (filterCampanha !== "all") q = q.eq("campanha_id" as never, filterCampanha as never);
-      const { data, error } = await q;
+        .order("value", { ascending: false })
+        .limit(1000);
       if (error) throw error;
-      return (data ?? []) as unknown as CampanhaLead[];
+      return (data ?? []) as unknown as CampLead[];
     },
     enabled: allowed,
+    refetchInterval: 30_000,
   });
 
-  const ativasParaFiltro = useMemo(
-    () => campanhas.filter((c) => c.ativo),
-    [campanhas],
-  );
+  const { data: myLockCount = 0 } = useQuery({
+    queryKey: ["my-lock-count", user?.id],
+    queryFn: () => (user ? countMyLocks(user.id) : Promise.resolve(0)),
+    enabled: !!user,
+  });
+
+  const invalidateAll = () => {
+    qc.invalidateQueries({ queryKey: ["sdr-leads-campanha"] });
+    qc.invalidateQueries({ queryKey: ["my-lock-count"] });
+    qc.invalidateQueries({ queryKey: ["my-wallet"] });
+    qc.invalidateQueries({ queryKey: ["proposal-bank"] });
+  };
+
+  const lockMut = useMutation({
+    mutationFn: (id: string) => lockLead(id, user!.id, sdrName),
+    onSuccess: () => { toast.success("Lead na sua carteira."); invalidateAll(); },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Não foi possível pegar."),
+  });
+  const unlockMut = useMutation({
+    mutationFn: (id: string) => unlockLead(id),
+    onSuccess: () => { toast.success("Devolvido ao banco."); invalidateAll(); },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao devolver."),
+  });
+  const freezeMut = useMutation({
+    mutationFn: (id: string) => freezeLead(id, user!.id, sdrName),
+    onSuccess: () => { toast.success("Bloqueado pelo gestor."); invalidateAll(); },
+    onError: () => toast.error("Falha ao bloquear."),
+  });
+
+  const toggleSort = (k: SortKey) => {
+    if (sortKey !== k) { setSortKey(k); setSortDir("asc"); return; }
+    if (sortDir === "asc") { setSortDir("desc"); return; }
+    setSortKey(null); setSortDir(null);
+  };
+
+  const filtered = useMemo(() => {
+    const tempOrder: Record<string, number> = { Frio: 0, Morno: 1, Quente: 2, "Muito Quente": 3 };
+    let out = leads.filter((l) => {
+      if (filterCampanha !== "all" && l.campanha_id !== filterCampanha) return false;
+      if (search) {
+        const s = search.toLowerCase();
+        if (
+          !l.client_name?.toLowerCase().includes(s) &&
+          !l.lead_code?.toLowerCase().includes(s) &&
+          !l.contact_name?.toLowerCase().includes(s)
+        ) return false;
+      }
+      if (uf && (l.state ?? "") !== uf.toUpperCase()) return false;
+      if (minValue && Number(l.value ?? 0) < Number(minValue)) return false;
+      if (temp && l.temperature !== temp) return false;
+      if (sdrFilter) {
+        const lockName = l.locked_by_sdr_name?.replace(MANAGER_FREEZE_PREFIX, "").replace(/^\s*\(|\)\s*$/g, "") ?? "";
+        if (l.sdr_name !== sdrFilter && lockName !== sdrFilter) return false;
+      }
+      if (competitorFilter !== "all" && l.competitor_status !== competitorFilter) return false;
+      const frozen = !!l.locked_by_sdr_name?.startsWith(MANAGER_FREEZE_PREFIX);
+      if (statusFilter === "frozen" && !frozen) return false;
+      if (statusFilter === "available" && (l.locked_by_sdr_id || frozen)) return false;
+      if (statusFilter === "mine" && l.locked_by_sdr_id !== user?.id) return false;
+      if (statusFilter === "others" && (!l.locked_by_sdr_id || l.locked_by_sdr_id === user?.id || frozen)) return false;
+      return true;
+    });
+    if (sortKey && sortDir) {
+      const statusVal = (l: CampLead) => {
+        const frozen = !!l.locked_by_sdr_name?.startsWith(MANAGER_FREEZE_PREFIX);
+        if (frozen) return 3;
+        if (l.locked_by_sdr_id === user?.id) return 1;
+        if (l.locked_by_sdr_id) return 2;
+        return 0;
+      };
+      const getVal = (l: CampLead): string | number => {
+        switch (sortKey) {
+          case "client_name": return (l.client_name ?? "").toLowerCase();
+          case "state": return l.state ?? "";
+          case "value": return Number(l.value ?? 0);
+          case "temperature": return tempOrder[l.temperature ?? ""] ?? -1;
+          case "status": return statusVal(l);
+          case "last_contact_at": return new Date(l.last_contact_at ?? 0).getTime();
+        }
+      };
+      out = [...out].sort((a, b) => {
+        const va = getVal(a), vb = getVal(b);
+        if (va < vb) return sortDir === "asc" ? -1 : 1;
+        if (va > vb) return sortDir === "asc" ? 1 : -1;
+        return 0;
+      });
+    }
+    return out;
+  }, [leads, filterCampanha, search, uf, minValue, temp, sdrFilter, statusFilter, competitorFilter, sortKey, sortDir, user?.id]);
+
+  const summary = useMemo(() => {
+    let total = filtered.length;
+    let mine = 0, others = 0, available = 0, frozen = 0, pipeline = 0;
+    for (const l of filtered) {
+      const isFrozen = !!l.locked_by_sdr_name?.startsWith(MANAGER_FREEZE_PREFIX);
+      if (isFrozen) frozen++;
+      else if (l.locked_by_sdr_id === user?.id) mine++;
+      else if (l.locked_by_sdr_id) others++;
+      else available++;
+      pipeline += Number(l.value ?? 0);
+    }
+    return { total, mine, others, available, frozen, pipeline };
+  }, [filtered, user?.id]);
 
   if (!user) return <div className="p-6">Faça login para acessar.</div>;
   if (!allowed) {
@@ -101,6 +273,8 @@ function QualificacaoPage() {
     );
   }
 
+  const lockRemaining = SDR_LOCK_LIMIT - myLockCount;
+
   return (
     <div className="p-6 space-y-5">
       <div className="flex items-start justify-between gap-3 flex-wrap">
@@ -109,15 +283,19 @@ function QualificacaoPage() {
             <Target className="h-6 w-6" /> Qualificação por Campanha
           </h1>
           <p className="text-sm text-muted-foreground">
-            Leads originados de campanhas ativas (concorrentes, feiras, outbound, indicação).
-            {" "}Histórico CNSync e leads já no Nomus não aparecem aqui.
+            Banco de leads de campanhas (concorrentes, feiras, outbound, indicação). Histórico CNSync e leads já no Nomus não aparecem aqui.
           </p>
         </div>
-        {canManage && (
-          <Button onClick={() => setNovoOpen(true)} className="gap-1">
-            <Plus className="h-4 w-4" /> Nova campanha
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="text-xs">
+            Carteira: {myLockCount}/{SDR_LOCK_LIMIT}
+          </Badge>
+          {canManage && (
+            <Button onClick={() => setNovoOpen(true)} className="gap-1">
+              <Plus className="h-4 w-4" /> Nova campanha
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Campanhas */}
@@ -132,7 +310,16 @@ function QualificacaoPage() {
             Nenhuma campanha cadastrada. {canManage && "Crie a primeira pelo botão acima."}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+            <button
+              onClick={() => setFilterCampanha("all")}
+              className={`text-left rounded-xl border bg-card p-3 hover:border-primary transition ${
+                filterCampanha === "all" ? "border-primary ring-2 ring-primary/20" : ""
+              }`}
+            >
+              <div className="font-semibold text-sm">Todas as campanhas</div>
+              <div className="text-[11px] text-muted-foreground mt-1">{leads.length} leads</div>
+            </button>
             {campanhas.map((c) => {
               const total = leads.filter((l) => l.campanha_id === c.id).length;
               return (
@@ -159,9 +346,6 @@ function QualificacaoPage() {
                       vs. <strong>{c.concorrente}</strong>
                     </div>
                   )}
-                  {c.descricao && (
-                    <div className="text-xs text-muted-foreground mt-1 line-clamp-2">{c.descricao}</div>
-                  )}
                   <div className="flex items-center justify-between mt-2 text-[11px]">
                     <span className="text-muted-foreground">{c.fonte}</span>
                     <span className="font-mono font-semibold">{total} lead{total !== 1 ? "s" : ""}</span>
@@ -173,60 +357,194 @@ function QualificacaoPage() {
         )}
       </div>
 
-      {/* Filtro + Leads */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-            Leads de campanha {filterCampanha !== "all" && `· ${campanhas.find((c) => c.id === filterCampanha)?.nome ?? ""}`}
-          </h2>
-          <Select value={filterCampanha} onValueChange={setFilterCampanha}>
-            <SelectTrigger className="w-[260px]"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas as campanhas</SelectItem>
-              {ativasParaFiltro.map((c) => (
-                <SelectItem key={c.id} value={c.id}>{c.icone} {c.nome}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+      {/* Resumo */}
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-2 text-center">
+        <div className="rounded-md border bg-card p-2"><div className="text-xs text-muted-foreground">Total</div><div className="font-bold">{summary.total}</div></div>
+        <div className="rounded-md border bg-card p-2"><div className="text-xs text-muted-foreground">Disponíveis</div><div className="font-bold text-green-700">{summary.available}</div></div>
+        <div className="rounded-md border bg-card p-2"><div className="text-xs text-muted-foreground">Minha carteira</div><div className="font-bold text-blue-700">{summary.mine}</div></div>
+        <div className="rounded-md border bg-card p-2"><div className="text-xs text-muted-foreground">Outros SDRs</div><div className="font-bold text-orange-700">{summary.others}</div></div>
+        <div className="rounded-md border bg-card p-2"><div className="text-xs text-muted-foreground">Bloqueados</div><div className="font-bold text-red-700">{summary.frozen}</div></div>
+        <div className="rounded-md border bg-card p-2"><div className="text-xs text-muted-foreground">Pipeline</div><div className="font-bold">{fmtBRL(summary.pipeline)}</div></div>
+      </div>
 
-        {loadingLeads ? (
-          <div className="text-sm text-muted-foreground py-8 text-center">Carregando leads…</div>
-        ) : leads.length === 0 ? (
-          <div className="rounded-md border bg-muted/30 p-8 text-center text-sm text-muted-foreground">
-            Nenhum lead nesta campanha ainda. Leads importados como <code>lead_tipo='campanha'</code> aparecem aqui.
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {leads.map((l) => (
-              <Link
-                key={l.id}
-                to="/app/sdr/leads/$id"
-                params={{ id: l.id }}
-                className="block rounded-md border bg-card p-3 hover:border-primary transition"
-              >
-                <div className="flex items-start justify-between gap-3 flex-wrap">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <Badge variant="outline" className="font-mono text-[10px]">{l.lead_code}</Badge>
-                      <span className="font-semibold text-sm truncate">{l.client_name}</span>
-                      {l.temperature && <Badge className="text-[10px]" variant="secondary">{l.temperature}</Badge>}
-                      {l.sdr_status && <Badge className="text-[10px]" variant="outline">{l.sdr_status}</Badge>}
-                    </div>
-                    <div className="text-xs text-muted-foreground mt-1 flex gap-3 flex-wrap">
-                      {l.contact_name && <span>{l.contact_name}</span>}
-                      {(l.city || l.state) && <span>· {[l.city, l.state].filter(Boolean).join("/")}</span>}
-                      <span>· {brl(Number(l.value ?? 0))}</span>
-                      {l.sdr_name && <span>· SDR: {l.sdr_name}</span>}
-                    </div>
-                  </div>
-                  <ExternalLink className="h-4 w-4 text-muted-foreground shrink-0" />
-                </div>
-              </Link>
-            ))}
-          </div>
+      {/* Filtros */}
+      <div className="flex flex-wrap gap-2 items-center bg-muted/30 p-3 rounded-md">
+        <Input placeholder="Buscar cliente, código ou contato" value={search} onChange={(e) => setSearch(e.target.value)} className="w-64" />
+        <Input placeholder="UF" value={uf} onChange={(e) => setUf(e.target.value)} className="w-20" maxLength={2} />
+        <Input placeholder="Valor mín." type="number" value={minValue} onChange={(e) => setMinValue(e.target.value)} className="w-32" />
+        <Select value={temp || "__all__"} onValueChange={(v) => setTemp(v === "__all__" ? "" : v)}>
+          <SelectTrigger className="w-40"><SelectValue placeholder="Temperatura" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">Todas temperaturas</SelectItem>
+            {TEMPS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={sdrFilter || "__all__"} onValueChange={(v) => setSdrFilter(v === "__all__" ? "" : v)}>
+          <SelectTrigger className="w-40"><SelectValue placeholder="SDR" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">Todos SDRs</SelectItem>
+            {sdrNames.map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}>
+          <SelectTrigger className="w-40"><SelectValue placeholder="Carteira" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Toda carteira</SelectItem>
+            <SelectItem value="available">Disponíveis</SelectItem>
+            <SelectItem value="mine">Minha carteira</SelectItem>
+            <SelectItem value="others">De outros SDRs</SelectItem>
+            <SelectItem value="frozen">Bloqueados</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={competitorFilter} onValueChange={(v) => setCompetitorFilter(v as typeof competitorFilter)}>
+          <SelectTrigger className="w-44"><SelectValue placeholder="Concorrente" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos status</SelectItem>
+            <SelectItem value="cliente_ativo">Já cliente concorrente</SelectItem>
+            <SelectItem value="nunca_fechou">Prospect (nunca fechou)</SelectItem>
+          </SelectContent>
+        </Select>
+        {(search || uf || minValue || temp || sdrFilter || statusFilter !== "all" || competitorFilter !== "all") && (
+          <Button variant="ghost" size="sm" onClick={() => {
+            setSearch(""); setUf(""); setMinValue(""); setTemp(""); setSdrFilter("");
+            setStatusFilter("all"); setCompetitorFilter("all");
+          }}>Limpar filtros</Button>
         )}
       </div>
+
+      {/* Tabela */}
+      {loadingLeads ? (
+        <div className="text-center py-12 text-muted-foreground">Carregando leads…</div>
+      ) : filtered.length === 0 ? (
+        <div className="rounded-md border bg-muted/30 p-8 text-center text-sm text-muted-foreground">
+          Nenhum lead encontrado com os filtros atuais.
+        </div>
+      ) : (
+        <div className="border rounded-md overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-muted/50">
+              <tr>
+                <th className="px-3 py-2 text-left">Lead</th>
+                <SortableTh label="Cliente / Contato" sk="client_name" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
+                <SortableTh label="UF" sk="state" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} className="hidden lg:table-cell" />
+                <SortableTh label="Valor" sk="value" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="right" />
+                <SortableTh label="Temp." sk="temperature" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
+                <SortableTh label="Últ. contato" sk="last_contact_at" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} className="hidden xl:table-cell" />
+                <SortableTh label="Carteira" sk="status" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
+                <th className="px-3 py-2 text-right">Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((l) => {
+                const frozen = !!l.locked_by_sdr_name?.startsWith(MANAGER_FREEZE_PREFIX);
+                const mine = l.locked_by_sdr_id === user.id;
+                const otherSdr = !!l.locked_by_sdr_id && !mine && !frozen;
+                const available = !l.locked_by_sdr_id && !frozen;
+                const lockName = l.locked_by_sdr_name?.replace(MANAGER_FREEZE_PREFIX, "").replace(/^\s*\(|\)\s*$/g, "") ?? "";
+                const canPick = available && lockRemaining > 0;
+                const camp = campanhas.find((c) => c.id === l.campanha_id);
+                return (
+                  <tr key={l.id} className={`border-t hover:bg-muted/30 ${mine ? "bg-blue-50/40" : frozen ? "bg-red-50/40" : ""}`}>
+                    <td className="px-3 py-2">
+                      <div className="flex flex-col gap-1">
+                        <Badge variant="outline" className="font-mono text-[10px] w-fit">{l.lead_code}</Badge>
+                        {camp && (
+                          <span className="text-[10px] text-muted-foreground inline-flex items-center gap-1">
+                            <span>{camp.icone}</span>{camp.nome}
+                          </span>
+                        )}
+                        {l.competitor_status === "cliente_ativo" && (
+                          <Badge className="text-[9px] bg-purple-100 text-purple-800 w-fit" variant="secondary">já cliente concorrente</Badge>
+                        )}
+                        {l.competitor_status === "nunca_fechou" && (
+                          <Badge className="text-[9px] bg-slate-100 text-slate-700 w-fit" variant="secondary">prospect</Badge>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-3 py-2">
+                      <Link
+                        to="/app/sdr/leads/$id" params={{ id: l.id }}
+                        className="font-semibold text-[#0F2D5E] hover:underline inline-flex items-center gap-1"
+                      >
+                        {l.client_name}
+                        <ExternalLink className="h-3 w-3 opacity-60" />
+                      </Link>
+                      <div className="text-xs text-muted-foreground mt-0.5 flex flex-wrap gap-2">
+                        {l.contact_name && <span>{l.contact_name}</span>}
+                        {l.contact_phone && (
+                          <a href={`tel:${l.contact_phone}`} className="inline-flex items-center gap-1 hover:text-foreground">
+                            <Phone className="h-3 w-3" />{l.contact_phone}
+                          </a>
+                        )}
+                        {l.contact_email && (
+                          <a href={`mailto:${l.contact_email}`} className="inline-flex items-center gap-1 hover:text-foreground">
+                            <Mail className="h-3 w-3" />{l.contact_email}
+                          </a>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-3 py-2 hidden lg:table-cell">
+                      {(l.city || l.state) && (
+                        <span className="text-xs inline-flex items-center gap-1">
+                          <MapPin className="h-3 w-3 opacity-60" />{[l.city, l.state].filter(Boolean).join("/")}
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 text-right font-mono">{fmtBRL(Number(l.value ?? 0))}</td>
+                    <td className="px-3 py-2">
+                      {l.temperature && (
+                        <Badge className={`text-[10px] ${TEMP_COLORS[l.temperature] ?? ""}`}>{l.temperature}</Badge>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 hidden xl:table-cell text-xs text-muted-foreground">
+                      {fmtDate(l.last_contact_at)}
+                    </td>
+                    <td className="px-3 py-2">
+                      {frozen ? (
+                        <Badge className="text-[10px] bg-red-100 text-red-800"><ShieldAlert className="h-3 w-3 mr-1" />Bloqueado</Badge>
+                      ) : mine ? (
+                        <Badge className="text-[10px] bg-blue-100 text-blue-800">Minha</Badge>
+                      ) : otherSdr ? (
+                        <Badge className="text-[10px] bg-orange-100 text-orange-800" variant="secondary">{lockName || "outro"}</Badge>
+                      ) : (
+                        <Badge className="text-[10px] bg-green-100 text-green-800">Disponível</Badge>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 text-right">
+                      <div className="inline-flex gap-1">
+                        {available && (
+                          <Button size="sm" variant="default" disabled={!canPick || lockMut.isPending}
+                            onClick={() => lockMut.mutate(l.id)}>
+                            <Lock className="h-3 w-3 mr-1" />Pegar
+                          </Button>
+                        )}
+                        {mine && (
+                          <Button size="sm" variant="outline" disabled={unlockMut.isPending}
+                            onClick={() => unlockMut.mutate(l.id)}>
+                            <Unlock className="h-3 w-3 mr-1" />Devolver
+                          </Button>
+                        )}
+                        {frozen && canManage && (
+                          <Button size="sm" variant="outline" disabled={unlockMut.isPending}
+                            onClick={() => unlockMut.mutate(l.id)}>
+                            <Unlock className="h-3 w-3 mr-1" />Desbloquear
+                          </Button>
+                        )}
+                        {!frozen && canManage && (
+                          <Button size="sm" variant="ghost" disabled={freezeMut.isPending}
+                            onClick={() => freezeMut.mutate(l.id)}>
+                            <ShieldAlert className="h-3 w-3" />
+                          </Button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       <NovaCampanhaDialog
         open={novoOpen}
@@ -256,11 +574,7 @@ function NovaCampanhaDialog({
       nome: nome.trim(),
       descricao: descricao.trim() || null,
       concorrente: concorrente.trim() || null,
-      fonte,
-      cor,
-      icone,
-      ativo,
-      readonly: false,
+      fonte, cor, icone, ativo, readonly: false,
       data_inicio: new Date().toISOString().slice(0, 10),
     } as never);
     setSaving(false);
@@ -330,4 +644,3 @@ function NovaCampanhaDialog({
     </Dialog>
   );
 }
-
