@@ -587,8 +587,9 @@ function QualificacaoPage() {
                             </Button>
                           )}
                           {mine && (
-                            <Button size="sm" variant="outline" disabled={unlockMut.isPending}
-                              onClick={() => unlockMut.mutate(l.id)} className="h-7 px-2 text-[11px]">
+                            <Button size="sm" variant="outline"
+                              onClick={() => setReturnLead(l)} className="h-7 px-2 text-[11px]"
+                              title="Devolver lead e agendar retomada">
                               <Unlock className="h-3 w-3 mr-1" />Devolver
                             </Button>
                           )}
