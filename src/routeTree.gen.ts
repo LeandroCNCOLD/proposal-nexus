@@ -43,6 +43,7 @@ import { Route as AppSdrWalletRouteImport } from './routes/app.sdr.wallet'
 import { Route as AppSdrSdrPerformanceRouteImport } from './routes/app.sdr.sdr-performance'
 import { Route as AppSdrScriptsRouteImport } from './routes/app.sdr.scripts'
 import { Route as AppSdrRelatoriosRouteImport } from './routes/app.sdr.relatorios'
+import { Route as AppSdrQualificacaoRouteImport } from './routes/app.sdr.qualificacao'
 import { Route as AppSdrHotDealsRouteImport } from './routes/app.sdr.hot-deals'
 import { Route as AppSdrBankRouteImport } from './routes/app.sdr.bank'
 import { Route as AppPropostasTabelasPrecoRouteImport } from './routes/app.propostas.tabelas-preco'
@@ -253,6 +254,11 @@ const AppSdrScriptsRoute = AppSdrScriptsRouteImport.update({
 const AppSdrRelatoriosRoute = AppSdrRelatoriosRouteImport.update({
   id: '/sdr/relatorios',
   path: '/sdr/relatorios',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSdrQualificacaoRoute = AppSdrQualificacaoRouteImport.update({
+  id: '/sdr/qualificacao',
+  path: '/sdr/qualificacao',
   getParentRoute: () => AppRoute,
 } as any)
 const AppSdrHotDealsRoute = AppSdrHotDealsRouteImport.update({
@@ -522,6 +528,7 @@ export interface FileRoutesByFullPath {
   '/app/propostas/tabelas-preco': typeof AppPropostasTabelasPrecoRoute
   '/app/sdr/bank': typeof AppSdrBankRoute
   '/app/sdr/hot-deals': typeof AppSdrHotDealsRoute
+  '/app/sdr/qualificacao': typeof AppSdrQualificacaoRoute
   '/app/sdr/relatorios': typeof AppSdrRelatoriosRoute
   '/app/sdr/scripts': typeof AppSdrScriptsRoute
   '/app/sdr/sdr-performance': typeof AppSdrSdrPerformanceRoute
@@ -595,6 +602,7 @@ export interface FileRoutesByTo {
   '/app/propostas/tabelas-preco': typeof AppPropostasTabelasPrecoRoute
   '/app/sdr/bank': typeof AppSdrBankRoute
   '/app/sdr/hot-deals': typeof AppSdrHotDealsRoute
+  '/app/sdr/qualificacao': typeof AppSdrQualificacaoRoute
   '/app/sdr/relatorios': typeof AppSdrRelatoriosRoute
   '/app/sdr/scripts': typeof AppSdrScriptsRoute
   '/app/sdr/sdr-performance': typeof AppSdrSdrPerformanceRoute
@@ -673,6 +681,7 @@ export interface FileRoutesById {
   '/app/propostas/tabelas-preco': typeof AppPropostasTabelasPrecoRoute
   '/app/sdr/bank': typeof AppSdrBankRoute
   '/app/sdr/hot-deals': typeof AppSdrHotDealsRoute
+  '/app/sdr/qualificacao': typeof AppSdrQualificacaoRoute
   '/app/sdr/relatorios': typeof AppSdrRelatoriosRoute
   '/app/sdr/scripts': typeof AppSdrScriptsRoute
   '/app/sdr/sdr-performance': typeof AppSdrSdrPerformanceRoute
@@ -752,6 +761,7 @@ export interface FileRouteTypes {
     | '/app/propostas/tabelas-preco'
     | '/app/sdr/bank'
     | '/app/sdr/hot-deals'
+    | '/app/sdr/qualificacao'
     | '/app/sdr/relatorios'
     | '/app/sdr/scripts'
     | '/app/sdr/sdr-performance'
@@ -825,6 +835,7 @@ export interface FileRouteTypes {
     | '/app/propostas/tabelas-preco'
     | '/app/sdr/bank'
     | '/app/sdr/hot-deals'
+    | '/app/sdr/qualificacao'
     | '/app/sdr/relatorios'
     | '/app/sdr/scripts'
     | '/app/sdr/sdr-performance'
@@ -902,6 +913,7 @@ export interface FileRouteTypes {
     | '/app/propostas/tabelas-preco'
     | '/app/sdr/bank'
     | '/app/sdr/hot-deals'
+    | '/app/sdr/qualificacao'
     | '/app/sdr/relatorios'
     | '/app/sdr/scripts'
     | '/app/sdr/sdr-performance'
@@ -1183,6 +1195,13 @@ declare module '@tanstack/react-router' {
       path: '/sdr/relatorios'
       fullPath: '/app/sdr/relatorios'
       preLoaderRoute: typeof AppSdrRelatoriosRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/sdr/qualificacao': {
+      id: '/app/sdr/qualificacao'
+      path: '/sdr/qualificacao'
+      fullPath: '/app/sdr/qualificacao'
+      preLoaderRoute: typeof AppSdrQualificacaoRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/sdr/hot-deals': {
@@ -1622,6 +1641,7 @@ interface AppRouteChildren {
   AppPropostasTabelasPrecoRoute: typeof AppPropostasTabelasPrecoRoute
   AppSdrBankRoute: typeof AppSdrBankRoute
   AppSdrHotDealsRoute: typeof AppSdrHotDealsRoute
+  AppSdrQualificacaoRoute: typeof AppSdrQualificacaoRoute
   AppSdrRelatoriosRoute: typeof AppSdrRelatoriosRoute
   AppSdrScriptsRoute: typeof AppSdrScriptsRoute
   AppSdrSdrPerformanceRoute: typeof AppSdrSdrPerformanceRoute
@@ -1666,6 +1686,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppPropostasTabelasPrecoRoute: AppPropostasTabelasPrecoRoute,
   AppSdrBankRoute: AppSdrBankRoute,
   AppSdrHotDealsRoute: AppSdrHotDealsRoute,
+  AppSdrQualificacaoRoute: AppSdrQualificacaoRoute,
   AppSdrRelatoriosRoute: AppSdrRelatoriosRoute,
   AppSdrScriptsRoute: AppSdrScriptsRoute,
   AppSdrSdrPerformanceRoute: AppSdrSdrPerformanceRoute,

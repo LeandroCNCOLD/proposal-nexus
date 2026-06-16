@@ -17,7 +17,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { Target, Plus, ExternalLink, Lock } from "lucide-react";
-import { brl, dateBR } from "@/lib/format";
+import { brl } from "@/lib/format";
 
 export const Route = createFileRoute("/app/sdr/qualificacao")({
   component: QualificacaoPage,
