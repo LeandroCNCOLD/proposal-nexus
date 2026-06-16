@@ -143,6 +143,7 @@ function QualificacaoPage() {
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>(null);
   const [novoOpen, setNovoOpen] = useState(false);
+  const [editLead, setEditLead] = useState<CampLead | null>(null);
 
   const sdrName = user?.user_metadata?.full_name || user?.email?.split("@")[0] || "SDR";
 
