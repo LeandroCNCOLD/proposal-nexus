@@ -358,6 +358,16 @@ function WalletPage() {
         open={!!meetingLead}
         onOpenChange={(o) => !o && setMeetingLead(null)}
       />
+      <ReturnLeadDialog
+        lead={returnLead ? { id: returnLead.id, client_name: returnLead.client_name, lead_code: returnLead.lead_code } : null}
+        open={!!returnLead}
+        onOpenChange={(o) => !o && setReturnLead(null)}
+        onDone={() => {
+          qc.invalidateQueries({ queryKey: ['my-wallet'] })
+          qc.invalidateQueries({ queryKey: ['my-lock-count'] })
+          qc.invalidateQueries({ queryKey: ['proposal-bank'] })
+        }}
+      />
     </div>
   )
 }
