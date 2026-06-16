@@ -80,7 +80,7 @@ export function HandoffLeadsForSeller({ userId }: { userId: string }) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("sdr_leads")
-        .select("id, lead_code, client_name, razao_social, contact_name, value, transferred_at, nomus_updated_at, proposal_title, proposal_status, handoff_status, handoff_notes, transferred_to_seller_name, sdr_name, bant_budget, bant_authority, bant_need, bant_timeline, bant_score")
+        .select("id, lead_code, client_name, razao_social, contact_name, value, transferred_at, nomus_updated_at, proposal_title, proposal_status, handoff_status, handoff_notes, transferred_to_seller_name, sdr_name, bant_budget, bant_authority, bant_need, bant_timeline, bant_score, lead_tipo")
         .eq("transferred_to_seller_id", userId)
         .in("handoff_status", ["transferred", "pendente", "aceito"])
         .order("transferred_at", { ascending: false })
