@@ -165,7 +165,7 @@ function QualificacaoPage() {
       const { data, error } = await supabase
         .from("sdr_leads")
         .select(
-          "id, lead_code, client_name, razao_social, contact_name, contact_phone, contact_email, cnpj, city, state, value, sdr_status, temperature, sdr_name, closer_name, campanha_id, competitor_status, locked_by_sdr_id, locked_by_sdr_name, last_contact_at, created_at, internal_note",
+          "id, lead_code, client_name, razao_social, contact_name, contact_phone, contact_mobile, contact_email, cnpj, city, state, value, sdr_status, temperature, sdr_name, closer_name, campanha_id, competitor_status, locked_by_sdr_id, locked_by_sdr_name, last_contact_at, created_at, internal_note",
         )
         .eq("lead_tipo" as never, "campanha" as never)
         .order("value", { ascending: false })
