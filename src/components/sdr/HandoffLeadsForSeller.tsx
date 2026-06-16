@@ -24,6 +24,7 @@ type HandoffLead = {
   bant_budget: string | null; bant_authority: string | null;
   bant_need: string | null; bant_timeline: string | null;
   bant_score: number | null;
+  lead_tipo: string | null;
 };
 
 const BANT_BUDGET_LABEL: Record<string, string> = {
