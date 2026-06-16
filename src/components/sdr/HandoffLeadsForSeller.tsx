@@ -24,6 +24,7 @@ type HandoffLead = {
   bant_budget: string | null; bant_authority: string | null;
   bant_need: string | null; bant_timeline: string | null;
   bant_score: number | null;
+  lead_tipo: string | null;
 };
 
 const BANT_BUDGET_LABEL: Record<string, string> = {
@@ -79,7 +80,7 @@ export function HandoffLeadsForSeller({ userId }: { userId: string }) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("sdr_leads")
-        .select("id, lead_code, client_name, razao_social, contact_name, value, transferred_at, nomus_updated_at, proposal_title, proposal_status, handoff_status, handoff_notes, transferred_to_seller_name, sdr_name, bant_budget, bant_authority, bant_need, bant_timeline, bant_score")
+        .select("id, lead_code, client_name, razao_social, contact_name, value, transferred_at, nomus_updated_at, proposal_title, proposal_status, handoff_status, handoff_notes, transferred_to_seller_name, sdr_name, bant_budget, bant_authority, bant_need, bant_timeline, bant_score, lead_tipo")
         .eq("transferred_to_seller_id", userId)
         .in("handoff_status", ["transferred", "pendente", "aceito"])
         .order("transferred_at", { ascending: false })
@@ -156,6 +157,11 @@ export function HandoffLeadsForSeller({ userId }: { userId: string }) {
                     <div className="flex items-center gap-2 flex-wrap">
                       <Badge variant="outline" className="font-mono text-[10px]">{l.lead_code}</Badge>
                       <span className="font-semibold text-sm truncate">{l.client_name}</span>
+                      {l.lead_tipo === "nomus" && (
+                        <Badge className="bg-indigo-100 text-indigo-800 gap-1 text-[10px]">
+                          <FileText className="h-3 w-3" /> Nomus
+                        </Badge>
+                      )}
                       {pendingHandoff && (
                         <Badge className="bg-red-600 text-white gap-1 text-[10px]">
                           <AlertCircle className="h-3 w-3" /> Aguarda sua resposta

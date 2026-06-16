@@ -22,7 +22,7 @@ import {
   FileBarChart, FileCheck2, FolderUp, Settings, LogOut,
   Search, Bell, Snowflake, ChevronDown, CheckSquare, PlugZap, Database,
   LayoutTemplate, Kanban, Thermometer, PackageSearch,
-  Zap, Flame, BarChart2, Briefcase, Calendar, ListChecks, PieChart, Megaphone, Plus,
+  Zap, Flame, BarChart2, Briefcase, Calendar, ListChecks, PieChart, Megaphone, Plus, Target,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { ROLE_LABELS } from "@/lib/proposal";
@@ -70,6 +70,7 @@ const NAV = [
   { group: "SDR — Pré-Venda", items: [
    { to: "/app/sdr/bank", label: "Banco de Leads Qualificados", icon: Database },
    { to: "/app/sdr/wallet", label: "Minha Carteira de Leads Qualificados", icon: Briefcase },
+   { to: "/app/sdr/qualificacao", label: "Qualificação (Campanhas)", icon: Target },
    { to: "/app/sdr/war-room", label: "War Room — Reunião Diária", icon: Zap },
    { to: "/app/sdr/hot-deals", label: "Hot Leads", icon: Flame },
    { to: "/app/sdr/scripts", label: "Scripts de Ligação", icon: FileText },
@@ -128,6 +129,7 @@ const SDR_ALLOWED = new Set<string>([
   "/app/sdr/war-room",
   "/app/sdr/bank",
   "/app/sdr/wallet",
+  "/app/sdr/qualificacao",
   "/app/sdr/hot-deals",
   "/app/sdr/scripts",
   "/app/agenda",
