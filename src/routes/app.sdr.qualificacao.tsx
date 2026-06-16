@@ -144,6 +144,7 @@ function QualificacaoPage() {
   const [sortDir, setSortDir] = useState<SortDir>(null);
   const [novoOpen, setNovoOpen] = useState(false);
   const [editLead, setEditLead] = useState<CampLead | null>(null);
+  const [returnLead, setReturnLead] = useState<CampLead | null>(null);
 
   const sdrName = user?.user_metadata?.full_name || user?.email?.split("@")[0] || "SDR";
 
@@ -307,7 +308,7 @@ function QualificacaoPage() {
         </div>
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="text-xs">
-            Carteira: {myLockCount}/{SDR_LOCK_LIMIT}
+            Minha carteira: {myLockCount}
           </Badge>
           {canManage && (
             <Button onClick={() => setNovoOpen(true)} className="gap-1">
