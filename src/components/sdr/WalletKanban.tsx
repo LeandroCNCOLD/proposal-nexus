@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { updatePipelineField, unlockLead } from '@/modules/sdr/services'
+import { ReturnLeadDialog } from '@/modules/sdr/components/ReturnLeadDialog'
 import type { CrmPipeline, SdrStatus, Temperature } from '@/modules/sdr/types'
 import { useProposalLeadMatches } from '@/hooks/use-proposal-lead-matches'
 import { WalletKanbanCard, computeSignals, type KanbanCardActions, type LeadCommSignals } from './WalletKanbanCard'
@@ -143,6 +144,7 @@ export function WalletKanban({
   const [transferSellerLead, setTransferSellerLead] = useState<CrmPipeline | null>(null)
   const [meetingLead, setMeetingLead] = useState<CrmPipeline | null>(null)
   const [closeLead, setCloseLead] = useState<CrmPipeline | null>(null)
+  const [returnLead, setReturnLead] = useState<CrmPipeline | null>(null)
 
   const [search, setSearch] = useState('')
   const [tempFilter, setTempFilter] = useState<'all' | Temperature>('all')
@@ -253,9 +255,7 @@ export function WalletKanban({
     onEdit: setEditLead,
     onTransferSdr: setTransferSdrLead,
     onTransferSeller: setTransferSellerLead,
-    onUnlock: (l) => {
-      if (confirm(`Devolver "${l.client_name}" ao banco?`)) unlockMut.mutate(l.id)
-    },
+    onUnlock: (l) => setReturnLead(l as CrmPipeline),
     canTransferSdr,
   }
 
@@ -385,6 +385,15 @@ export function WalletKanban({
         lead={closeLead}
         open={!!closeLead}
         onOpenChange={(o) => !o && setCloseLead(null)}
+      />
+      <ReturnLeadDialog
+        lead={returnLead ? { id: returnLead.id, client_name: returnLead.client_name, lead_code: returnLead.lead_code } : null}
+        open={!!returnLead}
+        onOpenChange={(o) => !o && setReturnLead(null)}
+        onDone={() => {
+          qc.invalidateQueries({ queryKey: ['my-wallet'] })
+          qc.invalidateQueries({ queryKey: ['my-lock-count'] })
+        }}
       />
     </div>
   )
