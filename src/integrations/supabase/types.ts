@@ -4161,6 +4161,57 @@ export type Database = {
         }
         Relationships: []
       }
+      crm_campanhas: {
+        Row: {
+          ativo: boolean
+          concorrente: string | null
+          cor: string
+          created_at: string
+          created_by: string | null
+          data_fim: string | null
+          data_inicio: string | null
+          descricao: string | null
+          fonte: string
+          icone: string
+          id: string
+          nome: string
+          readonly: boolean
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          concorrente?: string | null
+          cor?: string
+          created_at?: string
+          created_by?: string | null
+          data_fim?: string | null
+          data_inicio?: string | null
+          descricao?: string | null
+          fonte?: string
+          icone?: string
+          id?: string
+          nome: string
+          readonly?: boolean
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          concorrente?: string | null
+          cor?: string
+          created_at?: string
+          created_by?: string | null
+          data_fim?: string | null
+          data_inicio?: string | null
+          descricao?: string | null
+          fonte?: string
+          icone?: string
+          id?: string
+          nome?: string
+          readonly?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       crm_closer_metas: {
         Row: {
           closer_nome: string
@@ -8261,7 +8312,15 @@ export type Database = {
           value?: number
           value_range?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "sdr_leads_campanha_fk"
+            columns: ["campanha_id"]
+            isOneToOne: false
+            referencedRelation: "crm_campanhas"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       sdr_score_weights: {
         Row: {
