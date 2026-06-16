@@ -441,20 +441,17 @@ function QualificacaoPage() {
       ) : (
         <div className="border rounded-lg overflow-hidden bg-card shadow-sm">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-[13px]">
               <thead className="bg-muted/40 border-b">
-                <tr className="text-[11px] uppercase tracking-wider text-muted-foreground">
-                  <SortableTh label="Cliente" sk="client_name" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
-                  <th className="px-3 py-3 text-left font-medium">CNPJ</th>
-                  <th className="px-3 py-3 text-left font-medium">Contato</th>
-                  <th className="px-3 py-3 text-left font-medium">Telefone</th>
-                  <th className="px-3 py-3 text-left font-medium">E-mail</th>
-                  <SortableTh label="Cidade/UF" sk="state" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
-                  <th className="px-3 py-3 text-center font-medium">Propostas</th>
-                  <SortableTh label="Total Cotado" sk="value" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="right" />
-                  <SortableTh label="Temp." sk="temperature" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
-                  <SortableTh label="Carteira" sk="status" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
-                  <th className="px-3 py-3 text-right font-medium">Ações</th>
+                <tr className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                  <SortableTh label="Cliente" sk="client_name" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} className="px-2 py-2" />
+                  <th className="px-2 py-2 text-left font-medium">Contato</th>
+                  <SortableTh label="UF" sk="state" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} className="px-2 py-2" />
+                  <th className="px-2 py-2 text-center font-medium">Prop.</th>
+                  <SortableTh label="Cotado" sk="value" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="right" className="px-2 py-2" />
+                  <SortableTh label="Temp." sk="temperature" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} className="px-2 py-2" />
+                  <SortableTh label="Carteira" sk="status" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} className="px-2 py-2" />
+                  <th className="px-2 py-2 text-right font-medium sticky right-0 bg-muted/40 shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.1)]">Ações</th>
                 </tr>
               </thead>
               <tbody>
@@ -468,117 +465,97 @@ function QualificacaoPage() {
                   const meta = parseLeadMeta(l.internal_note);
                   const total = meta.propostasTotal > 0 ? meta.propostasTotal : Number(l.value ?? 0);
                   const hasWhats = !!(l.contact_mobile || l.contact_phone);
+                  const rowBg = mine ? "bg-primary/5" : frozen ? "bg-destructive/5" : "bg-card";
                   return (
                     <tr
                       key={l.id}
-                      className={`border-b last:border-b-0 hover:bg-muted/30 transition-colors ${
-                        mine ? "bg-primary/5" : frozen ? "bg-destructive/5" : ""
-                      }`}
+                      className={`border-b last:border-b-0 hover:bg-muted/30 transition-colors ${mine ? "bg-primary/5" : frozen ? "bg-destructive/5" : ""}`}
                     >
                       {/* Cliente */}
-                      <td className="px-3 py-3 align-middle">
-                        <div className="flex items-start gap-2.5 min-w-0">
-                          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground">
-                            <Building2 className="h-4 w-4" />
+                      <td className="px-2 py-2 align-top">
+                        <div className="flex items-start gap-2 min-w-0 max-w-[280px]">
+                          <div className="grid h-8 w-8 shrink-0 place-items-center rounded-md bg-muted text-muted-foreground">
+                            <Building2 className="h-3.5 w-3.5" />
                           </div>
                           <div className="min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
+                            <div className="flex items-center gap-1.5 flex-wrap">
                               <Link
                                 to="/app/sdr/leads/$id"
                                 params={{ id: l.id }}
-                                className="font-semibold text-foreground hover:text-primary truncate"
+                                className="font-semibold text-foreground hover:text-primary truncate text-[13px] leading-tight"
                                 title={l.client_name}
                               >
                                 {l.client_name}
                               </Link>
                               {l.competitor_status === "cliente_ativo" && (
-                                <Badge variant="secondary" className="text-[9px] h-4 px-1.5">Concorrente</Badge>
+                                <Badge variant="secondary" className="text-[9px] h-4 px-1">Conc.</Badge>
                               )}
                               {l.competitor_status === "nunca_fechou" && (
-                                <Badge variant="outline" className="text-[9px] h-4 px-1.5">Prospect</Badge>
+                                <Badge variant="outline" className="text-[9px] h-4 px-1">Prospect</Badge>
                               )}
                             </div>
+                            {l.cnpj && (
+                              <div className="text-[10px] text-muted-foreground font-mono truncate">{l.cnpj}</div>
+                            )}
                             {meta.segmento && (
-                              <div className="text-[11px] text-muted-foreground truncate">{meta.segmento}</div>
+                              <div className="text-[10px] text-muted-foreground truncate" title={meta.segmento}>{meta.segmento}</div>
                             )}
                           </div>
                         </div>
                       </td>
 
-                      {/* CNPJ */}
-                      <td className="px-3 py-3 align-middle font-mono text-xs text-muted-foreground whitespace-nowrap">
-                        {l.cnpj || "—"}
-                      </td>
-
                       {/* Contato */}
-                      <td className="px-3 py-3 align-middle">
-                        {l.contact_name ? (
-                          <div className="min-w-0">
-                            <div className="text-sm text-foreground truncate" title={l.contact_name}>{l.contact_name}</div>
-                            <div className="text-[11px] text-muted-foreground">Gestor do projeto</div>
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
-                      </td>
-
-                      {/* Telefone */}
-                      <td className="px-3 py-3 align-middle whitespace-nowrap">
-                        {l.contact_phone ? (
-                          <div className="inline-flex items-center gap-1.5">
-                            <a href={`tel:${l.contact_phone}`} className="text-sm text-foreground hover:text-primary">
-                              {l.contact_phone}
+                      <td className="px-2 py-2 align-top max-w-[240px]">
+                        <div className="space-y-0.5 min-w-0">
+                          {l.contact_name && (
+                            <div className="text-[12px] text-foreground truncate" title={l.contact_name}>{l.contact_name}</div>
+                          )}
+                          {l.contact_phone && (
+                            <div className="flex items-center gap-1 text-[11px]">
+                              <a href={`tel:${l.contact_phone}`} className="text-foreground hover:text-primary truncate">{l.contact_phone}</a>
+                              {hasWhats && (
+                                <a
+                                  href={`https://wa.me/55${(l.contact_mobile || l.contact_phone || "").replace(/\D/g, "")}`}
+                                  target="_blank" rel="noreferrer" title="WhatsApp"
+                                  className="grid h-4 w-4 shrink-0 place-items-center rounded-full bg-green-500/15 text-green-600 hover:bg-green-500/25"
+                                >
+                                  <MessageCircle className="h-2.5 w-2.5" />
+                                </a>
+                              )}
+                            </div>
+                          )}
+                          {l.contact_email && (
+                            <a href={`mailto:${l.contact_email}`}
+                              className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-primary truncate"
+                              title={l.contact_email}>
+                              <Mail className="h-2.5 w-2.5 shrink-0" />
+                              <span className="truncate">{l.contact_email}</span>
                             </a>
-                            {hasWhats && (
-                              <a
-                                href={`https://wa.me/55${(l.contact_mobile || l.contact_phone || "").replace(/\D/g, "")}`}
-                                target="_blank"
-                                rel="noreferrer"
-                                title="WhatsApp"
-                                className="grid h-5 w-5 place-items-center rounded-full bg-green-500/15 text-green-600 hover:bg-green-500/25"
-                              >
-                                <MessageCircle className="h-3 w-3" />
-                              </a>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
+                          )}
+                          {!l.contact_name && !l.contact_phone && !l.contact_email && (
+                            <span className="text-muted-foreground text-xs">—</span>
+                          )}
+                        </div>
                       </td>
 
-                      {/* E-mail */}
-                      <td className="px-3 py-3 align-middle max-w-[200px]">
-                        {l.contact_email ? (
-                          <a
-                            href={`mailto:${l.contact_email}`}
-                            className="inline-flex items-center gap-1 text-sm text-foreground hover:text-primary truncate max-w-full"
-                            title={l.contact_email}
-                          >
-                            <Mail className="h-3 w-3 opacity-60 shrink-0" />
-                            <span className="truncate">{l.contact_email}</span>
-                          </a>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
-                      </td>
-
-                      {/* Cidade/UF */}
-                      <td className="px-3 py-3 align-middle whitespace-nowrap text-sm text-muted-foreground">
-                        {[l.city, l.state].filter(Boolean).join("/") || "—"}
+                      {/* UF / Cidade */}
+                      <td className="px-2 py-2 align-top whitespace-nowrap text-[11px] text-muted-foreground">
+                        <div className="font-semibold text-foreground">{l.state || "—"}</div>
+                        {l.city && <div className="truncate max-w-[110px]" title={l.city}>{l.city}</div>}
                       </td>
 
                       {/* Propostas */}
-                      <td className="px-3 py-3 align-middle text-center font-semibold tabular-nums">
+                      <td className="px-2 py-2 align-top text-center font-semibold tabular-nums text-[13px]">
                         {meta.propostasCount || 0}
                       </td>
 
                       {/* Total Cotado */}
-                      <td className="px-3 py-3 align-middle text-right font-mono font-semibold tabular-nums">
+                      <td className="px-2 py-2 align-top text-right font-mono font-semibold tabular-nums text-[12px] whitespace-nowrap">
                         {total > 0 ? fmtBRL(total) : <span className="text-muted-foreground font-normal">—</span>}
                       </td>
 
                       {/* Temperatura */}
-                      <td className="px-3 py-3 align-middle">
+                      <td className="px-2 py-2 align-top">
                         {l.temperature ? (
                           <Badge className={`text-[10px] ${TEMP_COLORS[l.temperature] ?? ""}`}>{l.temperature}</Badge>
                         ) : (
@@ -587,40 +564,40 @@ function QualificacaoPage() {
                       </td>
 
                       {/* Carteira */}
-                      <td className="px-3 py-3 align-middle">
+                      <td className="px-2 py-2 align-top">
                         {frozen ? (
-                          <Badge variant="destructive" className="text-[10px]"><ShieldAlert className="h-3 w-3 mr-1" />Bloqueado</Badge>
+                          <Badge variant="destructive" className="text-[10px]"><ShieldAlert className="h-3 w-3 mr-1" />Bloq.</Badge>
                         ) : mine ? (
                           <Badge className="text-[10px] bg-primary/15 text-primary hover:bg-primary/15">Minha</Badge>
                         ) : otherSdr ? (
-                          <Badge variant="secondary" className="text-[10px]">{lockName || "outro"}</Badge>
+                          <Badge variant="secondary" className="text-[10px] max-w-[80px] truncate" title={lockName}>{lockName || "outro"}</Badge>
                         ) : (
-                          <Badge className="text-[10px] bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/15 dark:text-emerald-400">Disponível</Badge>
+                          <Badge className="text-[10px] bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/15 dark:text-emerald-400">Livre</Badge>
                         )}
                       </td>
 
-                      {/* Ações */}
-                      <td className="px-3 py-3 align-middle text-right">
-                        <div className="inline-flex gap-1">
+                      {/* Ações — sticky */}
+                      <td className={`px-2 py-2 align-top text-right sticky right-0 ${rowBg} shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.15)]`}>
+                        <div className="inline-flex gap-1 items-center">
                           {available && (
                             <Button size="sm" variant="default" disabled={!canPick || lockMut.isPending}
-                              onClick={() => lockMut.mutate(l.id)} className="h-7 px-2">
+                              onClick={() => lockMut.mutate(l.id)} className="h-7 px-2 text-[11px]">
                               <Lock className="h-3 w-3 mr-1" />Pegar
                             </Button>
                           )}
                           {mine && (
                             <Button size="sm" variant="outline" disabled={unlockMut.isPending}
-                              onClick={() => unlockMut.mutate(l.id)} className="h-7 px-2">
+                              onClick={() => unlockMut.mutate(l.id)} className="h-7 px-2 text-[11px]">
                               <Unlock className="h-3 w-3 mr-1" />Devolver
                             </Button>
                           )}
                           {frozen && canManage && (
                             <Button size="sm" variant="outline" disabled={unlockMut.isPending}
-                              onClick={() => unlockMut.mutate(l.id)} className="h-7 px-2">
+                              onClick={() => unlockMut.mutate(l.id)} className="h-7 px-2 text-[11px]" title="Liberar">
                               <Unlock className="h-3 w-3" />
                             </Button>
                           )}
-                          {!frozen && canManage && (
+                          {!frozen && canManage && !mine && (
                             <Button size="sm" variant="ghost" disabled={freezeMut.isPending}
                               onClick={() => freezeMut.mutate(l.id)} className="h-7 w-7 p-0" title="Bloquear">
                               <ShieldAlert className="h-3 w-3" />
