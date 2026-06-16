@@ -1024,6 +1024,17 @@ function BankPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ReturnLeadDialog
+        lead={returnLead}
+        open={!!returnLead}
+        onOpenChange={(o) => !o && setReturnLead(null)}
+        onDone={() => {
+          qc.invalidateQueries({ queryKey: ['proposal-bank'] })
+          qc.invalidateQueries({ queryKey: ['my-lock-count'] })
+          qc.invalidateQueries({ queryKey: ['my-wallet'] })
+        }}
+      />
     </div>
 
   )
