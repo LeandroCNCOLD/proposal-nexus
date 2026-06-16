@@ -86,6 +86,7 @@ function BankPage() {
   const [sortDir, setSortDir] = useState<SortDir>(null)
   const [expandedCnpjs, setExpandedCnpjs] = useState<Set<string>>(new Set())
   const [returnConfirmCnpj, setReturnConfirmCnpj] = useState<string | null>(null)
+  const [returnLead, setReturnLead] = useState<{ id: string; client_name?: string | null; lead_code?: string | null } | null>(null)
   const toggleExpand = (cnpj: string) => {
     setExpandedCnpjs((prev) => {
       const next = new Set(prev)
@@ -613,9 +614,8 @@ function BankPage() {
                     size="sm"
                     variant="outline"
                     className="h-6 px-2 text-[11px] border-red-300 text-red-700 hover:bg-red-50"
-                    disabled={unlockMut.isPending}
-                    onClick={() => unlockMut.mutate(r.id)}
-                    title="Devolver lead ao banco"
+                    onClick={() => setReturnLead({ id: r.id, client_name: r.client_name, lead_code: r.lead_code })}
+                    title="Devolver lead e agendar retomada"
                   >
                     <Unlock className="w-3 h-3 mr-1" /> Devolver
                   </Button>
