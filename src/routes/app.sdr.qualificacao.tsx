@@ -331,5 +331,3 @@ function NovaCampanhaDialog({
   );
 }
 
-// silence unused imports in some builds
-void dateBR;
