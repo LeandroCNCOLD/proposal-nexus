@@ -752,3 +752,234 @@ function NovaCampanhaDialog({
     </Dialog>
   );
 }
+
+// =========================================================
+// EditLeadDialog — quick rich edit modal matching reference
+// =========================================================
+function EditLeadDialog({
+  lead, onOpenChange, onSaved,
+}: {
+  lead: CampLead | null;
+  onOpenChange: (open: boolean) => void;
+  onSaved: () => void;
+}) {
+  const open = !!lead;
+  const [form, setForm] = useState<Partial<CampLead>>({});
+  const [saving, setSaving] = useState(false);
+  const [notes, setNotes] = useState("");
+
+  // Reset form when lead changes
+  useMemo(() => {
+    if (lead) {
+      setForm({
+        client_name: lead.client_name,
+        razao_social: lead.razao_social,
+        cnpj: lead.cnpj,
+        contact_name: lead.contact_name,
+        contact_phone: lead.contact_phone,
+        contact_mobile: lead.contact_mobile,
+        contact_email: lead.contact_email,
+        city: lead.city,
+        state: lead.state,
+        temperature: lead.temperature,
+      });
+      setNotes("");
+    }
+  }, [lead?.id]);
+
+  const meta = parseLeadMeta(lead?.internal_note);
+
+  const save = async () => {
+    if (!lead) return;
+    setSaving(true);
+    // Append new notes to internal_note above the auto-imported section
+    const baseNote = lead.internal_note ?? "";
+    const finalNote = notes.trim()
+      ? `**Nota SDR (${new Date().toLocaleDateString("pt-BR")}):** ${notes.trim()}\n\n${baseNote}`
+      : baseNote;
+    const { error } = await supabase
+      .from("sdr_leads")
+      .update({
+        client_name: form.client_name ?? lead.client_name,
+        razao_social: form.razao_social ?? null,
+        cnpj: form.cnpj ?? null,
+        contact_name: form.contact_name ?? null,
+        contact_phone: form.contact_phone ?? null,
+        contact_mobile: form.contact_mobile ?? null,
+        contact_email: form.contact_email ?? null,
+        city: form.city ?? null,
+        state: (form.state ?? null) as never,
+        temperature: form.temperature ?? null,
+        internal_note: finalNote,
+        updated_at: new Date().toISOString(),
+      } as never)
+      .eq("id", lead.id);
+    setSaving(false);
+    if (error) return toast.error("Falha: " + error.message);
+    toast.success("Lead atualizado");
+    onSaved();
+    onOpenChange(false);
+  };
+
+  if (!lead) return null;
+
+  // Extract proposals as cards from internal_note
+  const propostaBlocks: { titulo: string; data: string; valor: string; resumo: string }[] = [];
+  if (lead.internal_note) {
+    const parts = lead.internal_note.split(/^#####\s+\d+\.\s*/m).slice(1);
+    for (const part of parts) {
+      const firstLine = part.split("\n")[0]?.trim() ?? "";
+      const dataM = part.match(/\*\*Data:\*\*\s*(.+)/);
+      const valorM = part.match(/\*\*Valor:\*\*\s*(R\$\s*[\d.,]+)/);
+      const pagM = part.match(/\*\*Pagamento:\*\*\s*(.+)/);
+      propostaBlocks.push({
+        titulo: firstLine,
+        data: dataM?.[1].trim() ?? "—",
+        valor: valorM?.[1].trim() ?? "—",
+        resumo: pagM?.[1].trim() ?? "",
+      });
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <div className="flex items-start gap-3">
+            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+              <Building2 className="h-5 w-5" />
+            </div>
+            <div className="min-w-0">
+              <DialogTitle className="text-lg truncate">{lead.client_name}</DialogTitle>
+              <DialogDescription className="text-xs">
+                {meta.propostasCount} proposta{meta.propostasCount !== 1 ? "s" : ""}
+                {meta.propostasTotal > 0 && ` · ${fmtBRL(meta.propostasTotal)} cotado`}
+              </DialogDescription>
+            </div>
+          </div>
+        </DialogHeader>
+
+        {/* Contato rápido */}
+        {(form.contact_phone || form.contact_mobile) && (
+          <div className="space-y-1.5">
+            <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">Contato rápido</Label>
+            <div className="flex flex-wrap gap-2">
+              {form.contact_phone && (
+                <a href={`tel:${form.contact_phone}`}
+                  className="inline-flex items-center gap-2 rounded-md border bg-card px-3 py-1.5 text-sm hover:border-primary">
+                  <Phone className="h-3.5 w-3.5 text-muted-foreground" />{form.contact_phone}
+                </a>
+              )}
+              {(form.contact_mobile || form.contact_phone) && (
+                <a
+                  href={`https://wa.me/55${(form.contact_mobile || form.contact_phone || "").replace(/\D/g, "")}`}
+                  target="_blank" rel="noreferrer"
+                  className="inline-flex items-center gap-2 rounded-md border border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-400 px-3 py-1.5 text-sm hover:bg-green-500/15">
+                  <MessageCircle className="h-3.5 w-3.5" />WhatsApp
+                </a>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Form em grid 2 colunas */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <Field label="Nome / Fantasia" value={form.client_name ?? ""} onChange={(v) => setForm({ ...form, client_name: v })} />
+          <Field label="Razão Social" value={form.razao_social ?? ""} onChange={(v) => setForm({ ...form, razao_social: v })} />
+          <Field label="CNPJ" value={form.cnpj ?? ""} onChange={(v) => setForm({ ...form, cnpj: v })} mono />
+          <Field label="Segmento" value={meta.segmento ?? ""} readOnly placeholder="—" />
+          <Field label="Contato (Nome)" value={form.contact_name ?? ""} onChange={(v) => setForm({ ...form, contact_name: v })} />
+          <Field label="Cargo" value="" placeholder="Gestor do projeto" onChange={() => {}} />
+          <Field label="Telefone" value={form.contact_phone ?? ""} onChange={(v) => setForm({ ...form, contact_phone: v })} />
+          <Field label="WhatsApp" value={form.contact_mobile ?? ""} onChange={(v) => setForm({ ...form, contact_mobile: v })} />
+          <Field label="E-mail" value={form.contact_email ?? ""} onChange={(v) => setForm({ ...form, contact_email: v })} className="sm:col-span-2" />
+          <Field label="Cidade" value={form.city ?? ""} onChange={(v) => setForm({ ...form, city: v })} />
+          <div className="space-y-1.5">
+            <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">UF</Label>
+            <Input maxLength={2} value={form.state ?? ""} onChange={(e) => setForm({ ...form, state: e.target.value.toUpperCase() })} />
+          </div>
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">Temperatura</Label>
+            <Select value={form.temperature ?? "__none__"} onValueChange={(v) => setForm({ ...form, temperature: v === "__none__" ? null : v })}>
+              <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">Não definida</SelectItem>
+                {TEMPS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {/* Notas de prospecção */}
+        <div className="space-y-1.5">
+          <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">Adicionar nota de prospecção</Label>
+          <Textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            rows={3}
+            placeholder="Será adicionada ao histórico interno…"
+          />
+        </div>
+
+        {/* Histórico de propostas */}
+        {propostaBlocks.length > 0 && (
+          <div className="space-y-2">
+            <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">
+              Histórico de propostas ({propostaBlocks.length})
+            </Label>
+            <div className="space-y-2">
+              {propostaBlocks.map((p, i) => (
+                <div key={i} className="rounded-lg border bg-muted/30 p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-semibold text-sm">{p.titulo}</div>
+                      <div className="text-[11px] text-muted-foreground">{p.data}</div>
+                      {p.resumo && (
+                        <div className="text-xs text-muted-foreground mt-1 line-clamp-2">{p.resumo}</div>
+                      )}
+                    </div>
+                    <div className="font-mono font-semibold text-sm whitespace-nowrap">{p.valor}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            <X className="h-4 w-4 mr-1" />Cancelar
+          </Button>
+          <Button onClick={save} disabled={saving}>
+            <Save className="h-4 w-4 mr-1" />{saving ? "Salvando…" : "Salvar"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function Field({
+  label, value, onChange, readOnly, placeholder, mono, className,
+}: {
+  label: string;
+  value: string;
+  onChange?: (v: string) => void;
+  readOnly?: boolean;
+  placeholder?: string;
+  mono?: boolean;
+  className?: string;
+}) {
+  return (
+    <div className={`space-y-1.5 ${className ?? ""}`}>
+      <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">{label}</Label>
+      <Input
+        value={value}
+        onChange={(e) => onChange?.(e.target.value)}
+        readOnly={readOnly}
+        placeholder={placeholder}
+        className={mono ? "font-mono text-sm" : ""}
+      />
+    </div>
+  );
+}
