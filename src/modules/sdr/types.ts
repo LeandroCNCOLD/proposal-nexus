@@ -113,6 +113,15 @@ export interface CrmWeeklyReview {
 }
 
 export const SDR_DAILY_GOAL = 15
+// Sistema de pontuação — toda tentativa de contato pontua, atender pontua mais.
+export const SDR_POINTS_ANSWERED = 2   // resultado "Atendeu - *"
+export const SDR_POINTS_ATTEMPT = 1    // demais resultados (caixa postal, WhatsApp, número inválido, etc.)
+export const SDR_DAILY_POINTS_GOAL = 30 // equivalente a 15 atendidas OU 30 tentativas
+
+export function scoreCall(result: string | null | undefined): number {
+  if (!result) return 0
+  return result.startsWith('Atendeu') ? SDR_POINTS_ANSWERED : SDR_POINTS_ATTEMPT
+}
 
 export interface SdrMetrics {
   name: string
@@ -128,6 +137,9 @@ export interface SdrMetrics {
   closedDeals: number
   goalPct: number
   goalReached: boolean
+  points: number
+  pointsGoalPct: number
+  pointsGoalReached: boolean
 }
 
 export interface PipelineFilters {
