@@ -232,13 +232,22 @@ function SdrPerformancePage() {
 
                     <div>
                       <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                        <span>Meta diária ({sdr.today.completed}/{SDR_DAILY_GOAL} atendidas)</span>
+                        <span>Pontuação hoje ({sdr.today.completed * 2 + sdr.today.attempts}/{SDR_DAILY_POINTS_GOAL} pts)</span>
+                        <span className="font-semibold">{Math.round(((sdr.today.completed * 2 + sdr.today.attempts) / SDR_DAILY_POINTS_GOAL) * 100)}%</span>
+                      </div>
+                      <Progress value={Math.min(Math.round(((sdr.today.completed * 2 + sdr.today.attempts) / SDR_DAILY_POINTS_GOAL) * 100), 100)} className="h-2 bg-blue-100" />
+                      <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-muted-foreground mt-1">
+                        <span>{sdr.today.completed} atendidas × 2 + {sdr.today.attempts} tentativas × 1</span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                        <span>Meta de atendidas ({sdr.today.completed}/{SDR_DAILY_GOAL})</span>
                         <span className="font-semibold">{goalPct}%</span>
                       </div>
                       <Progress value={Math.min(goalPct, 100)} className="h-1.5" />
                       <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-muted-foreground mt-1">
-                        <span>{sdr.today.attempts} tentativas sem contato</span>
-                        <span>·</span>
                         <span>Taxa de contato hoje: <strong>{todayContactRate}%</strong></span>
                       </div>
                     </div>
