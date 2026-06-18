@@ -9,7 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
 import { Plus, Phone, CalendarCheck, Flame, CheckCircle2, AlertTriangle, Trophy, Medal, Award } from 'lucide-react'
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from 'recharts'
-import { SDR_DAILY_GOAL, type CrmCallLog } from '@/modules/sdr/types'
+import { SDR_DAILY_GOAL, SDR_DAILY_POINTS_GOAL, SDR_POINTS_ANSWERED, SDR_POINTS_ATTEMPT, type CrmCallLog } from '@/modules/sdr/types'
 import { useSdrNames } from '@/modules/sdr/hooks/use-team-members'
 import { useAuth } from '@/hooks/useAuth'
 
@@ -116,7 +116,11 @@ function SdrPerformancePage() {
   }, [data, sdrNames])
 
   const ranking = useMemo(
-    () => [...aggs].sort((a, b) => b.month.completed - a.month.completed || b.month.meetings - a.month.meetings),
+    () => [...aggs].sort((a, b) => {
+      const pa = a.month.completed * 2 + a.month.attempts
+      const pb = b.month.completed * 2 + b.month.attempts
+      return pb - pa || b.month.meetings - a.month.meetings
+    }),
     [aggs],
   )
 
@@ -155,10 +159,10 @@ function SdrPerformancePage() {
         <div>
           <h1 className="text-2xl font-bold text-[#0F2D5E]">Desempenho dos SDRs</h1>
           <p className="text-sm text-muted-foreground">
-            Meta diária: <strong>{SDR_DAILY_GOAL} contatos concluídos</strong> · Meta mensal: <strong>{MONTHLY_GOAL}</strong> (15/dia × 22 dias úteis)
+            Meta diária: <strong>{SDR_DAILY_POINTS_GOAL} pontos</strong> · <strong>{SDR_DAILY_GOAL} atendidas</strong> recomendadas · Mensal: <strong>{MONTHLY_GOAL}</strong> atendidas (22 dias úteis)
           </p>
           <p className="text-xs text-muted-foreground mt-1">
-            Considera ligações registradas pelo SDR em qualquer canal — incluindo contatos pegos do banco de marketing.
+            Toda tentativa de contato pontua. <strong>Atendeu = {SDR_POINTS_ANSWERED} pts</strong>; demais resultados (caixa postal, WhatsApp, número inválido, concorrente, outros) = <strong>{SDR_POINTS_ATTEMPT} pt</strong>. Assim quem está ligando aparece no placar mesmo sem o cliente atender.
           </p>
         </div>
         <Button asChild className="bg-blue-600 hover:bg-blue-700 text-white">
@@ -232,13 +236,22 @@ function SdrPerformancePage() {
 
                     <div>
                       <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                        <span>Meta diária ({sdr.today.completed}/{SDR_DAILY_GOAL} atendidas)</span>
+                        <span>Pontuação hoje ({sdr.today.completed * 2 + sdr.today.attempts}/{SDR_DAILY_POINTS_GOAL} pts)</span>
+                        <span className="font-semibold">{Math.round(((sdr.today.completed * 2 + sdr.today.attempts) / SDR_DAILY_POINTS_GOAL) * 100)}%</span>
+                      </div>
+                      <Progress value={Math.min(Math.round(((sdr.today.completed * 2 + sdr.today.attempts) / SDR_DAILY_POINTS_GOAL) * 100), 100)} className="h-2 bg-blue-100" />
+                      <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-muted-foreground mt-1">
+                        <span>{sdr.today.completed} atendidas × 2 + {sdr.today.attempts} tentativas × 1</span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                        <span>Meta de atendidas ({sdr.today.completed}/{SDR_DAILY_GOAL})</span>
                         <span className="font-semibold">{goalPct}%</span>
                       </div>
                       <Progress value={Math.min(goalPct, 100)} className="h-1.5" />
                       <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-muted-foreground mt-1">
-                        <span>{sdr.today.attempts} tentativas sem contato</span>
-                        <span>·</span>
                         <span>Taxa de contato hoje: <strong>{todayContactRate}%</strong></span>
                       </div>
                     </div>
@@ -328,22 +341,27 @@ function SdrPerformancePage() {
                   <tr className="text-left border-b">
                     <th className="py-2 pr-2 w-8">#</th>
                     <th className="py-2 px-2">SDR</th>
-                    <th className="py-2 px-2 text-center">Ligações (mês)</th>
+                    <th className="py-2 px-2 text-center">Pontos (mês)</th>
+                    <th className="py-2 px-2 text-center">Ligações</th>
                     <th className="py-2 px-2 text-center">Atendidas</th>
                     <th className="py-2 px-2 text-center">Taxa contato</th>
                     <th className="py-2 px-2 text-center">Reuniões</th>
                     <th className="py-2 px-2 text-center">Conv. reunião</th>
-                    <th className="py-2 px-2 text-center">Hoje</th>
-                    <th className="py-2 px-2 text-center">Ontem</th>
+                    <th className="py-2 px-2 text-center">Hoje (pts)</th>
+                    <th className="py-2 px-2 text-center">Ontem (pts)</th>
                     <th className="py-2 pl-2 text-right">% Meta</th>
                   </tr>
                 </thead>
                 <tbody>
                   {ranking.map((r, i) => {
                     const monthCalls = r.month.completed + r.month.attempts
+                    const monthPoints = r.month.completed * 2 + r.month.attempts
+                    const todayPoints = r.today.completed * 2 + r.today.attempts
+                    const yesterdayPoints = r.yesterday.completed * 2 + r.yesterday.attempts
                     const contactRate = monthCalls ? Math.round((r.month.completed / monthCalls) * 100) : 0
                     const conv = r.month.completed ? Math.round((r.month.meetings / r.month.completed) * 100) : 0
-                    const pct = Math.round((r.month.completed / MONTHLY_GOAL) * 100)
+                    const monthlyPointsGoal = SDR_DAILY_POINTS_GOAL * 22
+                    const pct = Math.round((monthPoints / monthlyPointsGoal) * 100)
                     const suspicious = monthCalls > 0 && monthCalls < MIN_SAMPLE_FOR_CONVERSION && contactRate >= 90
                     const medal = i === 0 ? <Trophy className="h-3.5 w-3.5 text-amber-500" /> : i === 1 ? <Medal className="h-3.5 w-3.5 text-slate-400" /> : i === 2 ? <Award className="h-3.5 w-3.5 text-amber-700" /> : null
                     return (
@@ -352,8 +370,9 @@ function SdrPerformancePage() {
                           <span className="flex items-center gap-1">{i + 1}{medal}</span>
                         </td>
                         <td className="py-2 px-2 font-semibold">{r.name}</td>
+                        <td className="py-2 px-2 text-center font-bold text-blue-700">{monthPoints}</td>
                         <td className="py-2 px-2 text-center text-muted-foreground">{monthCalls}</td>
-                        <td className="py-2 px-2 text-center font-bold">{r.month.completed}</td>
+                        <td className="py-2 px-2 text-center">{r.month.completed}</td>
                         <td className="py-2 px-2 text-center">
                           <span className="inline-flex items-center gap-1">
                             {contactRate}%
@@ -367,12 +386,12 @@ function SdrPerformancePage() {
                         <td className="py-2 px-2 text-center">{r.month.meetings}</td>
                         <td className="py-2 px-2 text-center">{conv}%</td>
                         <td className="py-2 px-2 text-center text-muted-foreground">
-                          {r.today.completed + r.today.attempts}
-                          <span className="text-[10px] block">({r.today.completed} atend.)</span>
+                          <strong className="text-blue-700">{todayPoints}</strong>
+                          <span className="text-[10px] block">({r.today.completed} at. + {r.today.attempts} tent.)</span>
                         </td>
                         <td className="py-2 px-2 text-center text-muted-foreground">
-                          {r.yesterday.completed + r.yesterday.attempts}
-                          <span className="text-[10px] block">({r.yesterday.completed} atend.)</span>
+                          <strong>{yesterdayPoints}</strong>
+                          <span className="text-[10px] block">({r.yesterday.completed} at. + {r.yesterday.attempts} tent.)</span>
                         </td>
                         <td className="py-2 pl-2 text-right font-semibold">{pct}%</td>
                       </tr>

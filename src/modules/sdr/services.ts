@@ -247,8 +247,10 @@ export async function fetchSdrMetrics(startDate: string, endDate: string) {
   }
 
   const GOAL = 15
+  const POINTS_GOAL = 30
   return Array.from(map.entries()).map(([name, m]) => {
     const totalCalls = m.completed + m.attempts
+    const points = m.completed * 2 + m.attempts * 1
     return {
       name,
       completedContacts: m.completed,
@@ -263,6 +265,9 @@ export async function fetchSdrMetrics(startDate: string, endDate: string) {
       closedDeals: 0,
       goalPct: Math.round((m.completed / GOAL) * 100),
       goalReached: m.completed >= GOAL,
+      points,
+      pointsGoalPct: Math.round((points / POINTS_GOAL) * 100),
+      pointsGoalReached: points >= POINTS_GOAL,
     }
   })
 }
