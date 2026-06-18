@@ -116,7 +116,11 @@ function SdrPerformancePage() {
   }, [data, sdrNames])
 
   const ranking = useMemo(
-    () => [...aggs].sort((a, b) => b.month.completed - a.month.completed || b.month.meetings - a.month.meetings),
+    () => [...aggs].sort((a, b) => {
+      const pa = a.month.completed * 2 + a.month.attempts
+      const pb = b.month.completed * 2 + b.month.attempts
+      return pb - pa || b.month.meetings - a.month.meetings
+    }),
     [aggs],
   )
 
