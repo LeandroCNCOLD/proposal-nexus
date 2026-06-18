@@ -219,9 +219,14 @@ function SdrPerformancePage() {
                       <div className="grid grid-cols-2 gap-2">
                         <Metric icon={<Phone className="h-3 w-3" />} label="Ligações" value={todayCalls} />
                         <Metric icon={<CheckCircle2 className="h-3 w-3" />} label="Atendidas" value={sdr.today.completed} />
+                        <Metric icon={<AlertTriangle className="h-3 w-3" />} label="Tentativas" value={sdr.today.attempts} />
                         <Metric icon={<CalendarCheck className="h-3 w-3" />} label="Reuniões" value={sdr.today.meetings} />
-                        <Metric icon={<Flame className="h-3 w-3" />} label="Quentes" value={sdr.today.hot} />
                       </div>
+                      {sdr.today.hot > 0 && (
+                        <div className="flex items-center gap-1.5 text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+                          <Flame className="h-3 w-3" /> {sdr.today.hot} lead{sdr.today.hot === 1 ? '' : 's'} aquecido{sdr.today.hot === 1 ? '' : 's'} hoje
+                        </div>
+                      )}
                     </div>
 
                     {/* Ontem (resumo) */}
@@ -230,6 +235,8 @@ function SdrPerformancePage() {
                       <span>{yCalls} ligações</span>
                       <span>·</span>
                       <span>{sdr.yesterday.completed} atendidas</span>
+                      <span>·</span>
+                      <span>{sdr.yesterday.attempts} tentativas</span>
                       <span>·</span>
                       <span>{sdr.yesterday.meetings} reuniões</span>
                     </div>
@@ -242,6 +249,7 @@ function SdrPerformancePage() {
                       <Progress value={Math.min(Math.round(((sdr.today.completed * 2 + sdr.today.attempts) / SDR_DAILY_POINTS_GOAL) * 100), 100)} className="h-2 bg-blue-100" />
                       <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-muted-foreground mt-1">
                         <span>{sdr.today.completed} atendidas × 2 + {sdr.today.attempts} tentativas × 1</span>
+                        <span>= <strong className="text-blue-700">{sdr.today.completed * 2 + sdr.today.attempts} pts</strong></span>
                       </div>
                     </div>
 
@@ -344,6 +352,7 @@ function SdrPerformancePage() {
                     <th className="py-2 px-2 text-center">Pontos (mês)</th>
                     <th className="py-2 px-2 text-center">Ligações</th>
                     <th className="py-2 px-2 text-center">Atendidas</th>
+                    <th className="py-2 px-2 text-center">Tentativas</th>
                     <th className="py-2 px-2 text-center">Taxa contato</th>
                     <th className="py-2 px-2 text-center">Reuniões</th>
                     <th className="py-2 px-2 text-center">Conv. reunião</th>
@@ -373,6 +382,7 @@ function SdrPerformancePage() {
                         <td className="py-2 px-2 text-center font-bold text-blue-700">{monthPoints}</td>
                         <td className="py-2 px-2 text-center text-muted-foreground">{monthCalls}</td>
                         <td className="py-2 px-2 text-center">{r.month.completed}</td>
+                        <td className="py-2 px-2 text-center text-muted-foreground">{r.month.attempts}</td>
                         <td className="py-2 px-2 text-center">
                           <span className="inline-flex items-center gap-1">
                             {contactRate}%
