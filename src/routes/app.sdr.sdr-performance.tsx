@@ -341,13 +341,14 @@ function SdrPerformancePage() {
                   <tr className="text-left border-b">
                     <th className="py-2 pr-2 w-8">#</th>
                     <th className="py-2 px-2">SDR</th>
-                    <th className="py-2 px-2 text-center">Ligações (mês)</th>
+                    <th className="py-2 px-2 text-center">Pontos (mês)</th>
+                    <th className="py-2 px-2 text-center">Ligações</th>
                     <th className="py-2 px-2 text-center">Atendidas</th>
                     <th className="py-2 px-2 text-center">Taxa contato</th>
                     <th className="py-2 px-2 text-center">Reuniões</th>
                     <th className="py-2 px-2 text-center">Conv. reunião</th>
-                    <th className="py-2 px-2 text-center">Hoje</th>
-                    <th className="py-2 px-2 text-center">Ontem</th>
+                    <th className="py-2 px-2 text-center">Hoje (pts)</th>
+                    <th className="py-2 px-2 text-center">Ontem (pts)</th>
                     <th className="py-2 pl-2 text-right">% Meta</th>
                   </tr>
                 </thead>
