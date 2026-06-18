@@ -155,10 +155,10 @@ function SdrPerformancePage() {
         <div>
           <h1 className="text-2xl font-bold text-[#0F2D5E]">Desempenho dos SDRs</h1>
           <p className="text-sm text-muted-foreground">
-            Meta diária: <strong>{SDR_DAILY_GOAL} contatos concluídos</strong> · Meta mensal: <strong>{MONTHLY_GOAL}</strong> (15/dia × 22 dias úteis)
+            Meta diária: <strong>{SDR_DAILY_POINTS_GOAL} pontos</strong> · <strong>{SDR_DAILY_GOAL} atendidas</strong> recomendadas · Mensal: <strong>{MONTHLY_GOAL}</strong> atendidas (22 dias úteis)
           </p>
           <p className="text-xs text-muted-foreground mt-1">
-            Considera ligações registradas pelo SDR em qualquer canal — incluindo contatos pegos do banco de marketing.
+            Toda tentativa de contato pontua. <strong>Atendeu = {SDR_POINTS_ANSWERED} pts</strong>; demais resultados (caixa postal, WhatsApp, número inválido, concorrente, outros) = <strong>{SDR_POINTS_ATTEMPT} pt</strong>. Assim quem está ligando aparece no placar mesmo sem o cliente atender.
           </p>
         </div>
         <Button asChild className="bg-blue-600 hover:bg-blue-700 text-white">
