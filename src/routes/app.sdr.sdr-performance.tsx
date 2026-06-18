@@ -9,7 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
 import { Plus, Phone, CalendarCheck, Flame, CheckCircle2, AlertTriangle, Trophy, Medal, Award } from 'lucide-react'
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from 'recharts'
-import { SDR_DAILY_GOAL, type CrmCallLog } from '@/modules/sdr/types'
+import { SDR_DAILY_GOAL, SDR_DAILY_POINTS_GOAL, SDR_POINTS_ANSWERED, SDR_POINTS_ATTEMPT, type CrmCallLog } from '@/modules/sdr/types'
 import { useSdrNames } from '@/modules/sdr/hooks/use-team-members'
 import { useAuth } from '@/hooks/useAuth'
 
