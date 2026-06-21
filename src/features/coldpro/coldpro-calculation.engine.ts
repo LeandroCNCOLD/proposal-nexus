@@ -26,6 +26,7 @@ import { normalizeProductForKcalEngine } from "@/modules/coldpro/core/unitNormal
 import { buildCalculationMethodReport } from "@/modules/coldpro/reports/calculationMethodReport";
 import { COLDPRO_TUNNEL_ENGINE_VERSION, calculateTunnelEngine } from "@/modules/coldpro/engines/tunnelEngine";
 import { auditColdProTechnicalConsistency } from "@/modules/coldpro/core/technicalAudit";
+import { calculateAdvancedProcess } from "./advancedProcesses/advancedProcessEngine";
 
 const W_TO_KCAL_H = 0.859845;
 const R_INTERNAL_M2K_W = 0.12;
@@ -372,7 +373,8 @@ export function calculateSeedDehumidificationLoad(env: ColdProEnvironment) {
   const externalW = humidityRatioKgKg(n(env.external_temp_c), externalRh, pressure);
   const internalW = humidityRatioKgKg(n(env.internal_temp_c), internalRh, pressure);
   const deltaW = externalW - internalW;
-  const volumeFlowM3H = n(env.volume_m3) * n(env.air_changes_per_hour) + n(env.fresh_air_m3_h) + n(env.door_infiltration_m3_h);
+  // Bug 2 fix: door_infiltration_m3_h é em m³/dia, não m³/h
+  const volumeFlowM3H = n(env.volume_m3) * n(env.air_changes_per_hour) + n(env.fresh_air_m3_h) + n(env.door_infiltration_m3_h) / 24;
   const dryAirFlowKgH = volumeFlowM3H * AIR_DENSITY_KG_M3;
   const waterFromAirKgH = deltaW > 0 ? dryAirFlowKgH * deltaW : 0;
   if (deltaW <= 0) warnings.push("Umidade externa menor ou igual à umidade interna desejada: não foi calculada remoção de umidade do ar externo.");
@@ -602,9 +604,13 @@ export function calculateTransmissionLoad(params: {
   const ceilingThicknessM = positive(n(env.ceiling_thickness_mm) / 1000);
   const floorThicknessM = positive(n(env.floor_thickness_mm) / 1000);
 
-  const wallU = wallThicknessM > 0 ? k / wallThicknessM : 0;
-  const ceilingU = ceilingThicknessM > 0 ? k / ceilingThicknessM : 0;
-  const floorU = env.has_floor_insulation && floorThicknessM > 0 ? k / floorThicknessM : 0;
+  // Bug 7 fix: U-value simplificado ignorava as resistências superficiais interna (0,12) e externa (0,08).
+  // A fórmula correta é U = 1 / (R_int + e/k + R_ext), conforme ASHRAE.
+  // Sem as resistências, o U era superestimado em ~4-5%, inflando a carga de transmissão.
+  const surfaceResistance = R_INTERNAL_M2K_W + R_EXTERNAL_M2K_W; // 0,12 + 0,08 = 0,20 m²K/W
+  const wallU = wallThicknessM > 0 ? 1 / (surfaceResistance + wallThicknessM / k) : 0;
+  const ceilingU = ceilingThicknessM > 0 ? 1 / (surfaceResistance + ceilingThicknessM / k) : 0;
+  const floorU = env.has_floor_insulation && floorThicknessM > 0 ? 1 / (surfaceResistance + floorThicknessM / k) : 0;
 
   const wallLoad = wallU * areas.wallArea * deltaT;
   const ceilingLoad = ceilingU * areas.ceilingArea * deltaT;
@@ -753,7 +759,11 @@ export function calculatePackagingLoad(product: ColdProEnvironmentProduct): numb
   const cp = n(product.packaging_specific_heat_kcal_kg_c);
   const tin = product.packaging_inlet_temp_c ?? product.inlet_temp_c;
   const tout = product.packaging_outlet_temp_c ?? product.outlet_temp_c;
-  const hours = n(product.process_time_h, 24) || 24;
+  // Bug 5 fix: packaging_mass_kg_day é SEMPRE em kg/dia (a UI nunca muda isso).
+  // Usar process_time_h como divisor inflava a carga quando process_time_h < 24
+  // (ex: mode hourly_intake define process_time_h = 1, gerando 24x mais carga).
+  // A embalagem diária deve ser sempre distribuída em 24h.
+  const hours = 24;
 
   return (mass * cp * Math.abs(n(tin) - n(tout))) / hours;
 }
@@ -952,11 +962,21 @@ export function calculateColdProLoad(params: {
   const tunnelInternalLoad = tunnelResult?.total_kcal_h ?? 0;
   const dehumidification = calculateSeedDehumidificationLoad(params.env);
   const dehumidificationLoad = dehumidification.total_kcal_h;
-  const advancedProcesses: any[] = [];
-  const advancedProcessLoad = 0;
+  // Bug 1 fix: processos avançados eram hardcoded como zero — agora calculados e somados
+  const advancedProcessesInput: any[] = Array.isArray(params.advancedProcesses) ? params.advancedProcesses : [];
+  const advancedProcesses = advancedProcessesInput.map((p) => calculateAdvancedProcess(p));
+  const advancedProcessLoad = advancedProcesses.reduce((sum, r) => sum + (r.total_additional_kcal_h ?? 0), 0);
   const infiltrationBreakdown = calculateTechnicalInfiltration(params.env);
   const requestedInfiltrationMethod = String((params.env as any).infiltration_calculation_method ?? (params.env as any).infiltrationCalculationMethod ?? "simple_air_change");
-  const psychrometricInfiltration = requestedInfiltrationMethod === "psychrometric_enthalpy" ? calculatePsychrometricInfiltrationLoad(params.env, infiltrationBreakdown) : null;
+  // Bug 6 fix: o método psicrométrico exige infiltrationAirflowM3H, mas params.env não tem esse campo.
+  // Calculamos o fluxo de ar total (m³/h) a partir do breakdown já calculado e passamos explicitamente.
+  const infiltrationAirflowM3H = infiltrationBreakdown.totalInfiltrationM3Day / 24;
+  const psychrometricInfiltration = requestedInfiltrationMethod === "psychrometric_enthalpy"
+    ? calculatePsychrometricInfiltrationLoad(
+        { ...params.env, infiltrationAirflowM3H },
+        infiltrationBreakdown,
+      )
+    : null;
   const infiltration = psychrometricInfiltration?.totalKcalH ?? calculateInfiltrationLoad(params.env);
   const evaporatorFrost = calculateEvaporatorFrostRisk(params.env, infiltration);
   const people = calculatePeopleLoad(params.env);
