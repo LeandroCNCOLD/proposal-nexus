@@ -154,7 +154,12 @@ function CrmPage() {
     },
     onSuccess: (r) => {
       const status = r.done ? "concluído" : "parcial";
-      toast.success(`Funil "${activeTab}" ${status}: ${r.matched ?? 0} do funil encontrados neste lote, ${r.upserted ?? 0} atualizados.`);
+      const progress = r.done
+        ? ""
+        : ` Clique novamente para continuar da página ${r.job?.current_page ?? "seguinte"}.`;
+      toast.success(
+        `Funil "${activeTab}" ${status}: ${r.scanned ?? 0} escaneados, ${r.matched ?? 0} do funil, ${r.upserted ?? 0} atualizados. Total escaneado: ${r.cumulativeScanned ?? 0}.${progress}`,
+      );
       queryClient.invalidateQueries({ queryKey: ["crm"] });
     },
     onError: (e) => toast.error(`Falha na sincronização: ${e instanceof Error ? e.message : String(e)}`),

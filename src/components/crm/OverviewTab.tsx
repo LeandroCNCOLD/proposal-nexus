@@ -19,7 +19,6 @@ export function OverviewTab({ detail, refetchKey }: { detail: any; refetchKey: s
   const meta = detail.meta ?? {};
   const parsed = detail.parsed ?? {};
   const p = detail.process;
-
   const [decisor, setDecisor] = useState<string>(meta.decisor ?? parsed.decisor ?? "");
   const [interesse, setInteresse] = useState<string>(meta.interesse ?? parsed.interesse ?? "");
   const [prob, setProb] = useState<string>(
@@ -137,6 +136,20 @@ export function OverviewTab({ detail, refetchKey }: { detail: any; refetchKey: s
           <Field label="Origem" value={p.origem} />
           <Field label="Prioridade" value={p.prioridade} />
           <Field label="Criado em" value={dateBR(p.data_criacao)} />
+        </div>
+      </div>
+
+      <div className="md:col-span-3 rounded-lg border border-border bg-card p-4">
+        <h3 className="mb-2 text-sm font-semibold">Dados técnicos extraídos da descrição</h3>
+        <div className="grid grid-cols-1 gap-2 text-sm md:grid-cols-3">
+          <Field label="Ambiente" value={parsed.ambiente_tipo} />
+          <Field label="Dimensões" value={parsed.dimensoes} />
+          <Field label="Temperatura interna" value={parsed.temperatura_interna} />
+          <Field label="Temperatura evaporação" value={parsed.temperatura_evaporacao} />
+          <Field label="Temperatura entrada" value={parsed.temperatura_entrada} />
+          <Field label="Temperatura final" value={parsed.temperatura_final} />
+          <Field label="Tempo processo" value={parsed.tempo_processo} />
+          <Field label="Carga térmica" value={parsed.carga_termica} />
         </div>
       </div>
     </div>

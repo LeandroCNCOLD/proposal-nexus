@@ -43,6 +43,47 @@ const FIELD_PATTERNS: Record<string, RegExp> = {
   segmento: /segmento\s*[:：]\s*([^\n<]+)/i,
 };
 
+function normalizeDescriptionText(html: string): string {
+  return html
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&ordm;/gi, "º")
+    .replace(/&deg;/gi, "°")
+    .replace(/&acirc;/gi, "â")
+    .replace(/&aacute;/gi, "á")
+    .replace(/&atilde;/gi, "ã")
+    .replace(/&ccedil;/gi, "ç")
+    .replace(/&eacute;/gi, "é")
+    .replace(/&ecirc;/gi, "ê")
+    .replace(/&iacute;/gi, "í")
+    .replace(/&oacute;/gi, "ó")
+    .replace(/&ocirc;/gi, "ô")
+    .replace(/&uacute;/gi, "ú")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n")
+    .replace(/<[^>]+>/g, "\n")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\n{2,}/g, "\n")
+    .trim();
+}
+
+function cleanExtracted(value: string | undefined): string | undefined {
+  const cleaned = (value ?? "")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/\s+/g, " ")
+    .replace(/[.;,\s]+$/g, "")
+    .trim();
+  return cleaned || undefined;
+}
+
+function firstMatch(text: string, patterns: RegExp[]): string | undefined {
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    const value = cleanExtracted(match?.[1]);
+    if (value) return value;
+  }
+  return undefined;
+}
+
 export function parseProcessDescription(html: string | null | undefined): {
   decisor?: string;
   interesse?: string;
@@ -50,9 +91,18 @@ export function parseProcessDescription(html: string | null | undefined): {
   probabilidade_pct?: number;
   projeto?: string;
   segmento?: string;
+  ambiente_tipo?: string;
+  dimensoes?: string;
+  temperatura_evaporacao?: string;
+  temperatura_interna?: string;
+  temperatura_entrada?: string;
+  temperatura_final?: string;
+  tempo_processo?: string;
+  carga_termica?: string;
+  carga_termica_kcal_h?: number;
 } {
   if (!html) return {};
-  const text = html.replace(/<[^>]+>/g, "\n");
+  const text = normalizeDescriptionText(html);
   const out: Record<string, string> = {};
   for (const [k, re] of Object.entries(FIELD_PATTERNS)) {
     const m = text.match(re);
@@ -63,7 +113,44 @@ export function parseProcessDescription(html: string | null | undefined): {
     const m = out.probabilidade.match(/(\d{1,3})\s*%/);
     if (m) probabilidade_pct = Math.min(100, parseInt(m[1], 10));
   }
-  return { ...out, probabilidade_pct };
+  const cargaTermica = firstMatch(text, [
+    /carga\s+t[ée]rmica\s*(?:total|necess[áa]ria)?\s*[:：\-.]*\s*([0-9.,]+\s*(?:kcal\/?h|kcal\/hora|kw)?)/i,
+    /carga\s+total\s*[:：\-.]*\s*([0-9.,]+\s*(?:kcal\/?h|kcal\/hora|kw)?)/i,
+  ]);
+  const cargaMatch = cargaTermica?.match(/([0-9]+(?:[.,][0-9]+)?)/);
+  const cargaTermicaKcalH = cargaMatch
+    ? Number(cargaMatch[1].replace(/\./g, "").replace(",", "."))
+    : undefined;
+
+  return {
+    ...out,
+    probabilidade_pct,
+    ambiente_tipo: firstMatch(text, [
+      /(c[âa]mara\s+(?:de\s+)?(?:congelamento|resfriamento|enfriamento|refrigerados?|pulm[ãa]o)[^\n]*)/i,
+      /(sala\s+(?:de\s+)?(?:desposte|empaque|climatizada)[^\n]*)/i,
+    ]),
+    dimensoes: firstMatch(text, [
+      /dimens(?:ões|oes|\.?)\s*(?:internas?)?\s*[:：\-.]*\s*([0-9.,]+\s*x\s*[0-9.,]+\s*x\s*[0-9.,]+\s*m?)/i,
+      /([0-9.,]+\s*x\s*[0-9.,]+\s*x\s*[0-9.,]+\s*m)/i,
+    ]),
+    temperatura_evaporacao: firstMatch(text, [
+      /temperatura\s+de\s+evapora(?:ç|c)[ãa]o\s*[:：\-.]*\s*([+\-–]?\s*[0-9.,]+\s*°?\s*C?)/i,
+    ]),
+    temperatura_interna: firstMatch(text, [
+      /temperatura\s+interna\s*[:：\-.]*\s*([+\-–]?\s*[0-9.,]+\s*°?\s*C?)/i,
+    ]),
+    temperatura_entrada: firstMatch(text, [
+      /temperatura\s+(?:de\s+)?ent(?:r)?ada\s*[:：\-.]*\s*([+\-–]?\s*[0-9.,]+\s*°?\s*C?)/i,
+    ]),
+    temperatura_final: firstMatch(text, [
+      /temperatura\s+final\s*[:：\-.]*\s*([+\-–]?\s*[0-9.,]+\s*°?\s*C?)/i,
+    ]),
+    tempo_processo: firstMatch(text, [
+      /tempo\s+de\s+(?:resfriamento|congelamento|processo)\s*[:：\-.]*\s*([0-9.,]+\s*horas?)/i,
+    ]),
+    carga_termica: cargaTermica,
+    carga_termica_kcal_h: Number.isFinite(cargaTermicaKcalH) ? cargaTermicaKcalH : undefined,
+  };
 }
 
 // ----------- getFunnelData -----------
@@ -225,6 +312,15 @@ export const getFunnelData = createServerFn({ method: "POST" })
         probabilidade_label: meta?.probabilidade_label ?? parsed.probabilidade ?? null,
         projeto_estado: meta?.projeto_estado ?? parsed.projeto ?? null,
         segmento: meta?.segmento_override ?? parsed.segmento ?? null,
+        ambiente_tipo: parsed.ambiente_tipo ?? null,
+        dimensoes: parsed.dimensoes ?? null,
+        temperatura_evaporacao: parsed.temperatura_evaporacao ?? null,
+        temperatura_interna: parsed.temperatura_interna ?? null,
+        temperatura_entrada: parsed.temperatura_entrada ?? null,
+        temperatura_final: parsed.temperatura_final ?? null,
+        tempo_processo: parsed.tempo_processo ?? null,
+        carga_termica: parsed.carga_termica ?? null,
+        carga_termica_kcal_h: parsed.carga_termica_kcal_h ?? null,
         proposta_numero: primary?.numero ?? null,
         proposta_valor: primary?.valor_total ?? null,
         proposta_validade: primary?.validade ?? null,
