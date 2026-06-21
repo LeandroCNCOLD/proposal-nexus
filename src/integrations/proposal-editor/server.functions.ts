@@ -18,9 +18,45 @@ import type {
   ProposalTableType,
 } from "@/features/proposal-editor/proposal-tables.types";
 import type { ProposalTemplate, TemplateAsset } from "./template.types";
+import {
+  buildProposalDocumentContextFromRecords,
+  type ProposalDocumentContext,
+} from "./document-context";
 
 const proposalIdSchema = z.object({ proposalId: z.string().uuid() });
 const TEMPLATE_BUCKET = "proposal-template-assets";
+
+async function buildProposalDocumentContextData(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  proposalId: string,
+  template: ProposalTemplate | null = null,
+): Promise<ProposalDocumentContext> {
+  const { data: proposal } = await supabase
+    .from("proposals")
+    .select("*, clients:client_id(*), client_contacts:contact_id(*)")
+    .eq("id", proposalId)
+    .maybeSingle();
+  const nomusKey = proposal?.nomus_proposal_id ?? proposal?.nomus_id ?? null;
+  const { data: nomusProposal } = nomusKey
+    ? await supabase.from("nomus_proposals").select("*").eq("nomus_id", nomusKey).maybeSingle()
+    : { data: null };
+  const { data: nomusItems } = nomusProposal?.id
+    ? await supabase
+        .from("nomus_proposal_items")
+        .select("*")
+        .eq("nomus_proposal_id", nomusProposal.id)
+        .order("position", { ascending: true })
+    : { data: [] };
+  return buildProposalDocumentContextFromRecords({
+    proposal: proposal as Record<string, unknown> | null,
+    client: (proposal?.clients ?? null) as Record<string, unknown> | null,
+    contact: (proposal?.client_contacts ?? null) as Record<string, unknown> | null,
+    nomusProposal: nomusProposal as Record<string, unknown> | null,
+    nomusItems: (nomusItems ?? []) as Array<Record<string, unknown>>,
+    template,
+  });
+}
 
 // Carrega histórico de revisões da família CN##### a partir do título da proposta.
 // Retorna { revision, history } — revisão atual (0 se for original) e lista ordenada.
@@ -29,7 +65,15 @@ async function loadRevisionContext(
   supabase: any,
   proposalId: string,
   title: string | null,
-): Promise<{ revision: number; history: Array<{ numero: string; date: string | null; total_value: number | null; is_current: boolean }> }> {
+): Promise<{
+  revision: number;
+  history: Array<{
+    numero: string;
+    date: string | null;
+    total_value: number | null;
+    is_current: boolean;
+  }>;
+}> {
   const m = (title ?? "").match(/(CN\d{3,})/i);
   if (!m) return { revision: 0, history: [] };
   const cn = m[1].toUpperCase();
@@ -37,36 +81,53 @@ async function loadRevisionContext(
     .from("proposals")
     .select("id, total_value, created_at, nomus_id")
     .ilike("title", `%${cn}%`);
-  const list = (rows ?? []) as Array<{ id: string; total_value: number | null; created_at: string; nomus_id: string | null }>;
+  const list = (rows ?? []) as Array<{
+    id: string;
+    total_value: number | null;
+    created_at: string;
+    nomus_id: string | null;
+  }>;
   if (list.length <= 1) return { revision: 0, history: [] };
   const nomusIds = list.map((r) => r.nomus_id).filter(Boolean) as string[];
-  const numMap = new Map<string, { numero: string | null; criada_em_nomus: string | null; data_emissao: string | null }>();
+  const numMap = new Map<
+    string,
+    { numero: string | null; criada_em_nomus: string | null; data_emissao: string | null }
+  >();
   if (nomusIds.length > 0) {
     const { data: np } = await supabase
       .from("nomus_proposals")
       .select("nomus_id, numero, criada_em_nomus, data_emissao")
       .in("nomus_id", nomusIds);
-    (np ?? []).forEach((n: { nomus_id: string; numero: string | null; criada_em_nomus: string | null; data_emissao: string | null }) => numMap.set(n.nomus_id, n));
+    (np ?? []).forEach(
+      (n: {
+        nomus_id: string;
+        numero: string | null;
+        criada_em_nomus: string | null;
+        data_emissao: string | null;
+      }) => numMap.set(n.nomus_id, n),
+    );
   }
   let currentRev = 0;
-  const history = list.map((r) => {
-    const nm = r.nomus_id ? numMap.get(r.nomus_id) ?? null : null;
-    const numero = nm?.numero ?? cn;
-    const revMatch = numero.match(/Rev\.?\s*(\d+)/i);
-    const rev = revMatch ? parseInt(revMatch[1], 10) : 0;
-    const isCurrent = r.id === proposalId;
-    if (isCurrent) currentRev = rev;
-    return {
-      numero,
-      date: nm?.criada_em_nomus ?? nm?.data_emissao ?? r.created_at,
-      total_value: r.total_value,
-      is_current: isCurrent,
-    };
-  }).sort((a, b) => {
-    const ra = parseInt(a.numero.match(/Rev\.?\s*(\d+)/i)?.[1] ?? "0", 10);
-    const rb = parseInt(b.numero.match(/Rev\.?\s*(\d+)/i)?.[1] ?? "0", 10);
-    return rb - ra;
-  });
+  const history = list
+    .map((r) => {
+      const nm = r.nomus_id ? (numMap.get(r.nomus_id) ?? null) : null;
+      const numero = nm?.numero ?? cn;
+      const revMatch = numero.match(/Rev\.?\s*(\d+)/i);
+      const rev = revMatch ? parseInt(revMatch[1], 10) : 0;
+      const isCurrent = r.id === proposalId;
+      if (isCurrent) currentRev = rev;
+      return {
+        numero,
+        date: nm?.criada_em_nomus ?? nm?.data_emissao ?? r.created_at,
+        total_value: r.total_value,
+        is_current: isCurrent,
+      };
+    })
+    .sort((a, b) => {
+      const ra = parseInt(a.numero.match(/Rev\.?\s*(\d+)/i)?.[1] ?? "0", 10);
+      const rb = parseInt(b.numero.match(/Rev\.?\s*(\d+)/i)?.[1] ?? "0", 10);
+      return rb - ra;
+    });
   return { revision: currentRev, history };
 }
 
@@ -146,6 +207,32 @@ export const getProposalDocument = createServerFn({ method: "POST" })
     return { document: created };
   });
 
+export const getProposalDocumentContext = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => proposalIdSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const { data: doc } = await supabase
+      .from("proposal_documents")
+      .select("template_id")
+      .eq("proposal_id", data.proposalId)
+      .maybeSingle();
+    let template: ProposalTemplate | null = null;
+    const templateId = (doc as { template_id?: string | null } | null)?.template_id ?? null;
+    if (templateId) {
+      const { data: tpl } = await supabase
+        .from("proposal_templates")
+        .select("*")
+        .eq("id", templateId)
+        .maybeSingle();
+      template = tpl as ProposalTemplate | null;
+    } else {
+      const bundle = await loadDefaultTemplateBundle(supabase);
+      template = bundle?.template ?? null;
+    }
+    return { context: await buildProposalDocumentContextData(supabase, data.proposalId, template) };
+  });
+
 /** Troca o template aplicado ao documento da proposta. */
 export const setProposalDocumentTemplate = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -204,6 +291,35 @@ const upsertSchema = z.object({
   }),
 });
 
+function normalizeDocumentPages(input: unknown): DocumentPage[] | undefined {
+  if (!Array.isArray(input)) return undefined;
+  return input.map((page, pageIndex) => {
+    const rawPage = (page && typeof page === "object" ? page : {}) as Partial<DocumentPage>;
+    const blocks = Array.isArray(rawPage.blocks) ? rawPage.blocks : [];
+    return {
+      ...rawPage,
+      id: String(rawPage.id || `page-${pageIndex}`),
+      type: (rawPage.type || "custom-rich") as PageType,
+      title: String(rawPage.title || `Página ${pageIndex + 1}`),
+      visible: rawPage.visible !== false,
+      order: Number.isFinite(Number(rawPage.order)) ? Number(rawPage.order) : pageIndex,
+      blocks: blocks.map((block, blockIndex) => {
+        const rawBlock = (
+          block && typeof block === "object" ? block : {}
+        ) as Partial<DocumentBlock>;
+        const data = rawBlock.data && typeof rawBlock.data === "object" ? rawBlock.data : {};
+        return {
+          ...rawBlock,
+          id: String(rawBlock.id || `block-${pageIndex}-${blockIndex}`),
+          type: (rawBlock.type || "rich_text") as DocumentBlock["type"],
+          data,
+          order: Number.isFinite(Number(rawBlock.order)) ? Number(rawBlock.order) : blockIndex,
+        } as DocumentBlock;
+      }),
+    } as DocumentPage;
+  });
+}
+
 /** Salva (parcial) o documento. */
 export const upsertProposalDocument = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -211,11 +327,13 @@ export const upsertProposalDocument = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const { proposalId, patch } = data;
+    const normalizedPages = patch.pages ? normalizeDocumentPages(patch.pages) : undefined;
 
     const { data: updated, error } = await supabase
       .from("proposal_documents")
       .update({
         ...patch,
+        ...(normalizedPages ? { pages: normalizedPages as unknown as never } : {}),
         last_edited_by: userId,
         last_edited_at: new Date().toISOString(),
       } as never)
@@ -225,6 +343,50 @@ export const upsertProposalDocument = createServerFn({ method: "POST" })
 
     if (error) throw new Error(error.message);
     return { document: updated };
+  });
+
+export const createProposalEditorSnapshot = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ proposalId: z.string().uuid(), reason: z.string().max(80).optional() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { proposalId, reason = "manual" } = data;
+    const [{ data: proposal }, { data: doc }, { data: tables }] = await Promise.all([
+      supabase.from("proposals").select("*").eq("id", proposalId).maybeSingle(),
+      supabase.from("proposal_documents").select("*").eq("proposal_id", proposalId).maybeSingle(),
+      supabase.from("proposal_tables").select("*").eq("proposal_id", proposalId),
+    ]);
+    if (!doc) throw new Error("Documento não encontrado para criar snapshot.");
+    let template = null;
+    if ((doc as { template_id?: string | null }).template_id) {
+      const { data: tpl } = await supabase
+        .from("proposal_templates")
+        .select("*")
+        .eq("id", (doc as { template_id: string }).template_id)
+        .maybeSingle();
+      template = tpl;
+    }
+    const snapshot = {
+      reason,
+      created_at: new Date().toISOString(),
+      created_by: userId,
+      proposal,
+      document: doc,
+      tables: tables ?? [],
+      template,
+    };
+    const safeReason = reason.replace(/[^a-z0-9_-]+/gi, "-").slice(0, 48) || "snapshot";
+    const path = `${proposalId}/editor-snapshots/${Date.now()}-${safeReason}.json`;
+    const { error } = await supabase.storage
+      .from("proposal-files")
+      .upload(path, Buffer.from(JSON.stringify(snapshot, null, 2), "utf8"), {
+        contentType: "application/json",
+        upsert: false,
+      });
+    if (error) throw new Error(`Falha ao salvar snapshot: ${error.message}`);
+    return { ok: true as const, path };
   });
 
 /**
@@ -281,12 +443,19 @@ export const autoFillFromNomus = createServerFn({ method: "POST" })
       }
     }
 
-    const cliente = proposal.clients as
-      | { name?: string; trade_name?: string; document?: string; city?: string; state?: string }
-      | null;
-    const contato = proposal.client_contacts as
-      | { name?: string; email?: string; phone?: string; role?: string }
-      | null;
+    const cliente = proposal.clients as {
+      name?: string;
+      trade_name?: string;
+      document?: string;
+      city?: string;
+      state?: string;
+    } | null;
+    const contato = proposal.client_contacts as {
+      name?: string;
+      email?: string;
+      phone?: string;
+      role?: string;
+    } | null;
 
     // Auto-fill blocos com source=nomus
     const pages = (doc.pages as unknown as DocumentPage[]) ?? [];
@@ -352,9 +521,7 @@ export const autoFillFromNomus = createServerFn({ method: "POST" })
               return {
                 ...block,
                 data: {
-                  items: nomusItems.map(
-                    (it, i) => (it.description as string) ?? `Item ${i + 1}`,
-                  ),
+                  items: nomusItems.map((it, i) => (it.description as string) ?? `Item ${i + 1}`),
                 },
               };
             }
@@ -498,9 +665,7 @@ export const generateProposalPdf = createServerFn({ method: "POST" })
     // Carrega proposta + cliente
     const { data: proposal, error: pErr } = await supabase
       .from("proposals")
-      .select(
-        "id, number, title, valid_until, created_at, clients:client_id(name, trade_name)",
-      )
+      .select("id, number, title, valid_until, created_at, clients:client_id(name, trade_name)")
       .eq("id", proposalId)
       .single();
     if (pErr || !proposal) throw new Error(pErr?.message ?? "Proposta não encontrada.");
@@ -568,9 +733,7 @@ export const generateProposalPdf = createServerFn({ method: "POST" })
     const attachedPaths = (doc.attached_pdf_paths as string[] | null) ?? [];
     const attachedBuffers: Uint8Array[] = [];
     for (const p of attachedPaths) {
-      const { data: file, error } = await supabase.storage
-        .from("proposal-files")
-        .download(p);
+      const { data: file, error } = await supabase.storage.from("proposal-files").download(p);
       if (error || !file) {
         console.warn(`[generateProposalPdf] anexo não baixado: ${p}`, error?.message);
         continue;
@@ -699,9 +862,7 @@ export const createProposalSendVersion = createServerFn({ method: "POST" })
     const attachedPaths = (doc.attached_pdf_paths as string[] | null) ?? [];
     const attachedBuffers: Uint8Array[] = [];
     for (const p of attachedPaths) {
-      const { data: file, error } = await supabase.storage
-        .from("proposal-files")
-        .download(p);
+      const { data: file, error } = await supabase.storage.from("proposal-files").download(p);
       if (error || !file) continue;
       attachedBuffers.push(new Uint8Array(await file.arrayBuffer()));
     }
@@ -786,7 +947,7 @@ export const createProposalSendVersion = createServerFn({ method: "POST" })
         notes: notes ?? null,
         proposal_snapshot: proposalSnapshot as never,
         document_snapshot: documentSnapshot as never,
-        tables_snapshot: ((tables ?? []) as unknown) as never,
+        tables_snapshot: (tables ?? []) as unknown as never,
         template_snapshot: templateSnapshot as never,
         metadata: {
           merged_attachments: attachedBuffers.length,
@@ -795,7 +956,8 @@ export const createProposalSendVersion = createServerFn({ method: "POST" })
       } as never)
       .select("id")
       .single();
-    if (insErr) return { ok: false as const, error: `Falha ao registrar versão: ${insErr.message}` };
+    if (insErr)
+      return { ok: false as const, error: `Falha ao registrar versão: ${insErr.message}` };
 
     return {
       ok: true as const,
@@ -826,9 +988,7 @@ export const listProposalSendVersions = createServerFn({ method: "POST" })
 /** Gera URL assinada para download/visualização de uma versão. */
 export const getProposalSendVersionUrl = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
-    z.object({ versionId: z.string().uuid() }).parse(input),
-  )
+  .inputValidator((input: unknown) => z.object({ versionId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const { supabase } = context;
     const { data: ver, error } = await supabase

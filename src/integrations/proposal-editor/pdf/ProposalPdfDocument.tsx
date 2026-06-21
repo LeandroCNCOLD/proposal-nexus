@@ -5,6 +5,7 @@ import { Document, Page, Text, View } from "@react-pdf/renderer";
 import type { DocumentPage } from "../types";
 import type { ProposalTable } from "../types";
 import type { ProposalTemplate } from "../template.types";
+import type { ProposalDocumentContext } from "../document-context";
 import { renderBlock } from "./BlockPdfRenderer";
 import { buildStyles, defaultTheme, type PdfTheme } from "./styles";
 import { fmtDateBR } from "./utils";
@@ -28,10 +29,11 @@ export interface ProposalPdfData {
   pages: DocumentPage[];
   tables: ProposalTable[];
   template: ProposalTemplate | null;
+  documentContext?: ProposalDocumentContext;
 }
 
 export function ProposalPdfDocument({ data }: { data: ProposalPdfData }) {
-  const { proposal, pages, tables, template } = data;
+  const { proposal, pages, tables, template, documentContext } = data;
 
   const theme: PdfTheme = {
     ...defaultTheme,
@@ -51,11 +53,10 @@ export function ProposalPdfDocument({ data }: { data: ProposalPdfData }) {
     tablesByPage.set(t.page_id, arr);
   });
 
-  const visiblePages = pages
-    .filter((p) => p.visible)
-    .sort((a, b) => a.order - b.order);
+  const visiblePages = pages.filter((p) => p.visible).sort((a, b) => a.order - b.order);
 
-  const showRevisionCover = (proposal.revision ?? 0) > 0 && (proposal.revision_history?.length ?? 0) > 1;
+  const showRevisionCover =
+    (proposal.revision ?? 0) > 0 && (proposal.revision_history?.length ?? 0) > 1;
   let coverInserted = false;
 
   return (
@@ -99,6 +100,7 @@ export function ProposalPdfDocument({ data }: { data: ProposalPdfData }) {
               theme={theme}
               styles={styles}
               tablesByPage={tablesByPage}
+              proposalContext={documentContext}
             />,
           );
         }
@@ -122,8 +124,7 @@ function CoverPdfPage({ page, proposal, template, theme, styles }: PageProps) {
   const clientBlock = page.blocks.find((b) => b.type === "client_info");
   const projectBlock = page.blocks.find((b) => b.type === "project_info");
   const respBlock = page.blocks.find((b) => b.type === "responsible_info");
-  const cliente =
-    (clientBlock?.data?.cliente as string) ?? proposal.client_name ?? "Cliente";
+  const cliente = (clientBlock?.data?.cliente as string) ?? proposal.client_name ?? "Cliente";
   const projeto = (projectBlock?.data?.projeto as string) ?? proposal.title;
   const numero = (projectBlock?.data?.numero as string) ?? proposal.number;
   const dataEmissao = (projectBlock?.data?.data as string) ?? proposal.created_at;
@@ -136,9 +137,7 @@ function CoverPdfPage({ page, proposal, template, theme, styles }: PageProps) {
           <Text style={{ fontSize: 14, fontFamily: "Helvetica-Bold", color: "#ffffff" }}>
             {template?.empresa_nome ?? "CN Cold"}
           </Text>
-          <Text style={{ fontSize: 9, color: "#dbeafe" }}>
-            Proposta Comercial Nº {numero}
-          </Text>
+          <Text style={{ fontSize: 9, color: "#dbeafe" }}>Proposta Comercial Nº {numero}</Text>
         </View>
         <View>
           <Text style={styles.coverSubtitle}>Proposta Comercial</Text>
@@ -163,6 +162,7 @@ interface StandardPageProps extends PageProps {
   pageNumber: number;
   totalPages: number;
   tablesByPage: Map<string, ProposalTable[]>;
+  proposalContext?: ProposalDocumentContext;
 }
 
 function StandardPdfPage({
@@ -174,6 +174,7 @@ function StandardPdfPage({
   theme,
   styles,
   tablesByPage,
+  proposalContext,
 }: StandardPageProps) {
   const sortedBlocks = [...page.blocks].sort((a, b) => a.order - b.order);
 
@@ -182,9 +183,7 @@ function StandardPdfPage({
       {!page.hideHeader ? (
         <View style={styles.pageHeader} fixed>
           <Text style={styles.pageHeaderTitle}>{page.title}</Text>
-          <Text style={styles.pageHeaderMeta}>
-            Proposta Nº {proposal.number}
-          </Text>
+          <Text style={styles.pageHeaderMeta}>Proposta Nº {proposal.number}</Text>
         </View>
       ) : null}
 
@@ -196,6 +195,7 @@ function StandardPdfPage({
           tablesByPage,
           pageId: page.id,
           proposal,
+          proposalContext,
         }),
       )}
 
@@ -205,12 +205,12 @@ function StandardPdfPage({
             {page.footerText ??
               `${template?.empresa_nome ?? "CN Cold"} · ${template?.empresa_cidade ?? ""}`}
           </Text>
-          <Text
-            render={({ pageNumber: pn, totalPages: tp }) => `Página ${pn} de ${tp}`}
-          />
+          <Text render={({ pageNumber: pn, totalPages: tp }) => `Página ${pn} de ${tp}`} />
         </View>
       ) : null}
-      <Text style={{ display: "none" }}>{pageNumber}/{totalPages}</Text>
+      <Text style={{ display: "none" }}>
+        {pageNumber}/{totalPages}
+      </Text>
     </Page>
   );
 }
@@ -243,7 +243,9 @@ function RevisionCoverPage({ proposal, template, styles }: RevisionCoverProps) {
           Proposta {proposal.number} — esta é a versão vigente que substitui as anteriores.
         </Text>
 
-        <Text style={{ fontSize: 11, fontFamily: "Helvetica-Bold", marginBottom: 10, color: "#0f172a" }}>
+        <Text
+          style={{ fontSize: 11, fontFamily: "Helvetica-Bold", marginBottom: 10, color: "#0f172a" }}
+        >
           Histórico de Revisões
         </Text>
 
@@ -261,9 +263,7 @@ function RevisionCoverPage({ proposal, template, styles }: RevisionCoverProps) {
               <Text style={{ width: 140, fontSize: 10, fontFamily: "Helvetica-Bold" }}>
                 {r.numero} {r.is_current ? "(atual)" : ""}
               </Text>
-              <Text style={{ flex: 1, fontSize: 10, color: "#475569" }}>
-                {fmtDateBR(r.date)}
-              </Text>
+              <Text style={{ flex: 1, fontSize: 10, color: "#475569" }}>{fmtDateBR(r.date)}</Text>
               <Text style={{ width: 130, fontSize: 10, textAlign: "right" }}>
                 {fmtBRL(r.total_value)}
               </Text>
