@@ -210,3 +210,220 @@ export const LIGHTING_EQUIPMENT_PRESETS = [
   { label: "Fluorescente 2x40 W", powerW: 80, lumens: 5600 },
   { label: "Lâmpada tubular LED", powerW: 18, lumens: 1850 },
 ];
+// ─────────────────────────────────────────────────────────────────────────────
+// MELHORIA 1.1 — Temperatura Sol-Ar (Sol-Air Temperature) — ASHRAE Handbook
+// Tsa = Text + (α × I_solar / h_ext) − ε × ΔR / h_ext
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type SolarOrientation = "N" | "NE" | "E" | "SE" | "S" | "SW" | "W" | "NW" | "TELHADO" | "none";
+export type PanelColor = "white" | "light" | "medium" | "dark";
+
+/** Absortividade solar por cor do painel (adimensional) — ASHRAE Table 1 */
+const PANEL_ABSORPTIVITY: Record<PanelColor, number> = {
+  white: 0.25,
+  light: 0.45,
+  medium: 0.65,
+  dark: 0.90,
+};
+
+/** Irradiância solar típica por orientação (W/m²) para clima tropical brasileiro — média diária de pico */
+const SOLAR_IRRADIANCE_W_M2: Record<SolarOrientation, number> = {
+  N: 150,
+  NE: 280,
+  E: 420,
+  SE: 380,
+  S: 120,
+  SW: 380,
+  W: 420,
+  NW: 280,
+  TELHADO: 750,
+  none: 0,
+};
+
+/**
+ * Calcula o ΔT adicional por ganho solar em painéis opacos (temperatura sol-ar).
+ * Retorna o ΔT adicional em °C a somar ao ΔT de transmissão normal.
+ *
+ * @param orientation - Orientação da face
+ * @param color - Cor do painel (afeta absortividade)
+ * @param customIrradianceWM2 - Irradiância manual (W/m²), sobrepõe o padrão se > 0
+ * @returns deltaT_solar_c — temperatura adicional em °C
+ */
+export function calculateSolAirDeltaT(
+  orientation: SolarOrientation | string | null | undefined,
+  color: PanelColor | string | null | undefined,
+  customIrradianceWM2?: number | null,
+): number {
+  const safeOrientation = (orientation as SolarOrientation) ?? "none";
+  const safeColor = (color as PanelColor) ?? "light";
+  const irradiance = customIrradianceWM2 != null && customIrradianceWM2 > 0
+    ? customIrradianceWM2
+    : (SOLAR_IRRADIANCE_W_M2[safeOrientation] ?? 0);
+  const absorptivity = PANEL_ABSORPTIVITY[safeColor] ?? PANEL_ABSORPTIVITY.light;
+  const h_ext = 23; // W/(m²·K) — coeficiente convectivo externo (ASHRAE)
+  const epsilon = 0.9; // emissividade de superfície opaca
+  const deltaR = 63; // W/m² — diferença de radiação de onda longa (ASHRAE, superfície horizontal)
+  // Para superfícies verticais, deltaR ≈ 0 (ASHRAE simplificação)
+  const deltaR_corrected = safeOrientation === "TELHADO" ? deltaR : 0;
+  return (absorptivity * irradiance - epsilon * deltaR_corrected) / h_ext;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MELHORIA 1.2 — Modelo de Degelo com Potência Elétrica dos Resistores
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type DefrostType = "electric_resistance" | "hot_gas" | "water";
+
+export interface DefrostHeaterModelInput {
+  iceKgDay: number;
+  defrostCyclesPerDay?: number | null;
+  defrostDurationMinutes?: number | null;
+  evaporatorMassKg?: number | null;
+  evaporatorTempC?: number | null;
+  defrostTargetTempC?: number | null;
+  defrostType?: DefrostType | null;
+  lossFactor?: number | null;
+}
+
+export interface DefrostHeaterModelResult {
+  iceEnergyKcalDay: number;
+  evaporatorMassEnergyKcalDay: number;
+  totalEnergyKcalDay: number;
+  defrostKcalH: number;
+  recommendedHeaterKw: number;
+  cyclesPerDay: number;
+  durationMinutes: number;
+  warnings: string[];
+}
+
+/**
+ * Calcula o modelo completo de degelo, incluindo:
+ * - Energia para fundir o gelo acumulado
+ * - Energia para aquecer a massa térmica do evaporador
+ * - Potência elétrica recomendada para os resistores
+ */
+export function calculateDefrostHeaterModel(input: DefrostHeaterModelInput): DefrostHeaterModelResult {
+  const warnings: string[] = [];
+  const iceKgDay = Math.max(0, input.iceKgDay ?? 0);
+  const cyclesPerDay = Math.max(1, input.defrostCyclesPerDay ?? 2);
+  const durationMinutes = Math.max(5, input.defrostDurationMinutes ?? 30);
+  const evaporatorMassKg = Math.max(0, input.evaporatorMassKg ?? 0);
+  const evaporatorTempC = input.evaporatorTempC ?? -30;
+  const defrostTargetTempC = input.defrostTargetTempC ?? 5;
+  const lossFactor = Math.max(1, input.lossFactor ?? THERMAL_CONSTANTS.defrost.defaultLossFactor);
+
+  // Energia para fundir o gelo (aquecimento + fusão)
+  const iceHeatingKcal = iceKgDay * THERMAL_CONSTANTS.water.iceCpKcalKgC * Math.abs(evaporatorTempC);
+  const iceMeltingKcal = iceKgDay * THERMAL_CONSTANTS.water.latentFreezingKcalKg;
+  const iceEnergyKcalDay = (iceHeatingKcal + iceMeltingKcal) * lossFactor;
+
+  // Energia para aquecer a massa térmica do evaporador (aço inox Cp ≈ 0.12 kcal/kg·°C)
+  const evaporatorCpKcalKgC = 0.12;
+  const evaporatorDeltaT = Math.abs(defrostTargetTempC - evaporatorTempC);
+  const evaporatorMassEnergyKcalDay = evaporatorMassKg * evaporatorCpKcalKgC * evaporatorDeltaT * cyclesPerDay;
+
+  const totalEnergyKcalDay = iceEnergyKcalDay + evaporatorMassEnergyKcalDay;
+
+  // Potência elétrica recomendada para os resistores
+  const durationHours = durationMinutes / 60;
+  const totalKwhPerCycle = (totalEnergyKcalDay / cyclesPerDay) / THERMAL_CONSTANTS.conversion.kcalPerKwH;
+  const recommendedHeaterKw = durationHours > 0 ? totalKwhPerCycle / durationHours : 0;
+
+  // Carga média sobre o compressor (kcal/h)
+  const defrostKcalH = totalEnergyKcalDay / 24;
+
+  if (evaporatorMassKg === 0) warnings.push("Massa do evaporador não informada; energia de aquecimento da serpentina não calculada.");
+  if (cyclesPerDay > 4) warnings.push("Mais de 4 ciclos de degelo por dia pode indicar excesso de infiltração ou subdimensionamento do evaporador.");
+  if (recommendedHeaterKw > 20) warnings.push("Potência de degelo elevada; verificar se o tipo de degelo (gás quente) seria mais eficiente.");
+
+  return {
+    iceEnergyKcalDay: round(iceEnergyKcalDay),
+    evaporatorMassEnergyKcalDay: round(evaporatorMassEnergyKcalDay),
+    totalEnergyKcalDay: round(totalEnergyKcalDay),
+    defrostKcalH: round(defrostKcalH),
+    recommendedHeaterKw: round(recommendedHeaterKw, 2),
+    cyclesPerDay,
+    durationMinutes,
+    warnings,
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MELHORIA 1.3 — Carga de Pull-Down (Massa Térmica da Estrutura)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface PullDownInput {
+  /** Temperatura inicial da câmara (°C) — geralmente temperatura ambiente */
+  initialTempC: number;
+  /** Temperatura final de operação (°C) */
+  finalTempC: number;
+  /** Tempo desejado para atingir o regime (horas) */
+  pullDownTimeH: number;
+  /** Área total de painéis (m²) */
+  totalPanelAreaM2: number;
+  /** Espessura média dos painéis (m) */
+  panelThicknessM: number;
+  /** Área de piso de concreto (m²) — se aplicável */
+  concreteFloorAreaM2?: number | null;
+  /** Espessura do piso de concreto (m) */
+  concreteThicknessM?: number | null;
+  /** Massa de prateleiras e estrutura metálica (kg) */
+  metalStructureMassKg?: number | null;
+}
+
+export interface PullDownResult {
+  panelMassKg: number;
+  panelEnergyKcal: number;
+  concreteEnergyKcal: number;
+  metalStructureEnergyKcal: number;
+  totalEnergyKcal: number;
+  pullDownLoadKcalH: number;
+  warnings: string[];
+}
+
+/**
+ * Calcula a carga de pull-down: energia necessária para resfriar a própria
+ * estrutura da câmara (painéis, piso, prateleiras) da temperatura ambiente
+ * até a temperatura de operação.
+ */
+export function calculatePullDownLoad(input: PullDownInput): PullDownResult {
+  const warnings: string[] = [];
+  const deltaT = Math.abs(input.initialTempC - input.finalTempC);
+  const pullDownTimeH = Math.max(0.5, input.pullDownTimeH ?? 8);
+
+  // Painéis isotérmicos (poliuretano: densidade ≈ 40 kg/m³, Cp ≈ 0.38 kcal/kg·°C)
+  const panelDensityKgM3 = 40;
+  const panelCpKcalKgC = 0.38;
+  const panelMassKg = input.totalPanelAreaM2 * input.panelThicknessM * panelDensityKgM3;
+  const panelEnergyKcal = panelMassKg * panelCpKcalKgC * deltaT;
+
+  // Piso de concreto (densidade ≈ 2300 kg/m³, Cp ≈ 0.21 kcal/kg·°C)
+  const concreteDensityKgM3 = 2300;
+  const concreteCpKcalKgC = 0.21;
+  const concreteFloorAreaM2 = input.concreteFloorAreaM2 ?? 0;
+  const concreteThicknessM = input.concreteThicknessM ?? 0.15;
+  const concreteMassKg = concreteFloorAreaM2 * concreteThicknessM * concreteDensityKgM3;
+  const concreteEnergyKcal = concreteMassKg * concreteCpKcalKgC * deltaT;
+
+  // Estrutura metálica (aço: Cp ≈ 0.12 kcal/kg·°C)
+  const metalCpKcalKgC = 0.12;
+  const metalStructureMassKg = input.metalStructureMassKg ?? 0;
+  const metalStructureEnergyKcal = metalStructureMassKg * metalCpKcalKgC * deltaT;
+
+  const totalEnergyKcal = panelEnergyKcal + concreteEnergyKcal + metalStructureEnergyKcal;
+  const pullDownLoadKcalH = totalEnergyKcal / pullDownTimeH;
+
+  if (panelMassKg === 0) warnings.push("Área de painéis não informada; carga de pull-down dos painéis zerada.");
+  if (pullDownTimeH < 2) warnings.push("Tempo de pull-down abaixo de 2 horas pode exigir equipamento muito maior que o necessário em regime.");
+  if (pullDownLoadKcalH > 50000) warnings.push("Carga de pull-down muito elevada; verificar se o equipamento suporta a partida a frio.");
+
+  return {
+    panelMassKg: round(panelMassKg),
+    panelEnergyKcal: round(panelEnergyKcal),
+    concreteEnergyKcal: round(concreteEnergyKcal),
+    metalStructureEnergyKcal: round(metalStructureEnergyKcal),
+    totalEnergyKcal: round(totalEnergyKcal),
+    pullDownLoadKcalH: round(pullDownLoadKcalH),
+    warnings,
+  };
+}
